@@ -1,5 +1,5 @@
-// Every `t('key')` under src/ names a key of the English catalog, and the translations hold no key
-// English lacks. The catalogs are imported for real, so one that does not evaluate fails here.
+// Every `t('key')` under src/ names a key of the English catalog, and every translation holds
+// exactly English's keys. The catalogs are imported for real, so one that does not evaluate fails here.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -77,7 +77,8 @@ export function compare(uses, en, translations, literals = []) {
       if (!(key in en)) errors.push(`${language}: '${key}' is not in en`)
     }
     for (const key of Object.keys(en)) {
-      if (!(key in messages)) warnings.push(`${language}: '${key}' has no translation`)
+      // English and Spanish are both kept complete: a missing translation fails the gate.
+      if (!(key in messages)) errors.push(`${language}: '${key}' has no translation`)
     }
   }
   for (const key of Object.keys(en)) {

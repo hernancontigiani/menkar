@@ -22,11 +22,11 @@ describe('check-i18n', () => {
     ])
   })
 
-  test('a translation with a key English lacks is an error; a missing translation and an unused key warn', () => {
+  test('a translation with a key English lacks, or missing one English has, is an error; an unused key warns', () => {
     const uses = findUses('src/x.ts', "t('a.one')")
     expect(compare(uses, en, { es: { 'a.one': 'Uno', 'a.gone': 'Ido' } })).toEqual({
-      errors: ["es: 'a.gone' is not in en"],
-      warnings: ["es: 'a.two' has no translation", "en: 'a.two' is not used under src/"],
+      errors: ["es: 'a.gone' is not in en", "es: 'a.two' has no translation"],
+      warnings: ["en: 'a.two' is not used under src/"],
     })
   })
 

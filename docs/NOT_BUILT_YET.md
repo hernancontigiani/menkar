@@ -121,3 +121,13 @@ is refused.
 
 **Trigger:** the human asks for one. First question: whether it is a preview tab like Markdown's or
 the default application, opened outside the app.
+
+### More interface languages
+
+Menkar speaks English and Spanish, both complete (`plans/00-STATUS.md` §1 1.11). agent-tablet also had
+German, French and Hungarian from Agent Session Manager, each covering about 230 of its 370 strings;
+every new string would need three translations nobody here can check, and a stale catalog shows a mix
+of languages.
+
+**Trigger:** someone asks for a language. First question: who reviews its translation, and whether a
+partial catalog is acceptable or `check-i18n` holds it to complete like Spanish.
