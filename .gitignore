@@ -15,5 +15,3 @@ playwright-report/
 # One-shot launch prompts for execution sessions. Each is deleted by the session that used it.
 /prompts/
 
-# Python bytecode of the history check until it is ported to Node.
-__pycache__/

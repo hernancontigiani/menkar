@@ -1,0 +1,40 @@
+{
+  "name": "menkar",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A desktop app for working with several Claude Code sessions at once",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "main": "out/main/index.js",
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w node-pty",
+    "dev": "node scripts/dev.mjs",
+    "build": "electron-vite build",
+    "rebuild-native": "electron-rebuild -f -w node-pty",
+    "typecheck": "tsc -p tsconfig.core.json && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc -p tsconfig.node.json",
+    "lint": "biome ci .",
+    "test": "vitest run",
+    "check:code-rules": "node scripts/check-code-rules.mjs",
+    "ci": "node scripts/ci.mjs",
+    "ui-check": "electron-vite build && xvfb-run -a playwright test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@electron/rebuild": "4.2.1",
+    "@playwright/test": "1.65.0",
+    "@types/node": "22.20.5",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "electron": "45.2.3",
+    "electron-vite": "6.0.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "node-pty": "1.1.0"
+  }
+}

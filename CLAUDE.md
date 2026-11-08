@@ -38,6 +38,7 @@ what matters from being lost when a plan is deleted.
 | Doc | Open it when |
 |---|---|
 | `docs/spec/README.md` | Building any feature: the index of what agent-tablet does and how it looks |
+| `docs/toolchain.md` | Changing the build, the checks in `npm run ci` or `npm run ui-check`, or adding a dev dependency |
 
 ## Product rules the code must hold
 

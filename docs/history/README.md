@@ -28,7 +28,7 @@ history receives the old lines whole.
 
 ## The check
 
-**`python3 docs/history/nothing_lost.py [<document>]`** (`npm run ci` runs it on every mirrored
+**`node scripts/nothing-lost.mjs [<document>]`** (`npm run ci` runs it on every mirrored
 document): every line that left a document since `HEAD` is in its history, and no history lost a
 line. Blank lines, rules, table separators and code fences do not count. It compares against
 `HEAD`, so **it is run on a document without someone else's uncommitted changes**
