@@ -19,6 +19,8 @@
 | 1.4 | Everything in the repository is in English; the conversation may be Spanish | 2026-11-08 | `CLAUDE.md` |
 | 1.5 | `set` designs, reviews and commits; `b1` and `b2` execute; no hosted CI, `npm run ci` is the gate | 2026-11-08 | `CLAUDE.md` |
 | 1.6 | Toolchain: Node 22, npm, TypeScript strict, Biome, Vitest, Playwright on the real Electron app under `xvfb-run`, electron-vite to build, electron-builder to package | 2026-11-08 | plan 01 |
+| 1.7 | Not carried over from agent-tablet: the question card over the terminal (answers are given in the terminal itself, so nothing is typed into an agent on the user's behalf) | 2026-11-08 | `CLAUDE.md` · `docs/spec/` |
+| 1.8 | On its first start Menkar imports agent-tablet's own data, read only: `projects.json` (projects, groups, members), `state.json` (settings, hidden sessions, the Remote control list) and the usage history (`history.sqlite`); agent-tablet's files are never written | 2026-11-08 | `docs/spec/` |
 
 ## 2. Open
 
