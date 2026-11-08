@@ -125,6 +125,21 @@ test("CTX-22 the user's own statusline is the bar, and the records are still wri
   expect(usageLines(d)).toHaveLength(1)
 })
 
+// A command that never reads its stdin can exit before the state is written to it; the write then
+// fails (EPIPE) though the command succeeded. Under load that happens with the real, small state;
+// a large one makes it certain.
+test("CTX-22 a chained command that ignores its stdin is still the bar, whatever the state's size", () => {
+  const d = dirs()
+  chain(d, 'exec 0<&-; echo mine')
+  for (const [key, value] of Object.entries(d.env)) vi.stubEnv(key, value)
+  try {
+    const state = JSON.stringify({ session_id: 's1', padding: 'x'.repeat(2_000_000) })
+    expect(runStatusline(state, 30_000)).toBe('mine')
+  } finally {
+    vi.unstubAllEnvs()
+  }
+})
+
 test.each([['exit 3'], ['printf "   \\n"']])(
   'CTX-23 a chained command that fails or prints blank: %s',
   (command) => {

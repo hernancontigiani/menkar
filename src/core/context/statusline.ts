@@ -181,7 +181,10 @@ export function chainedBar(stdin: string, timeoutMs = CHAINED_TIMEOUT_MS): strin
     encoding: 'utf8',
     timeout: timeoutMs,
   })
-  if (result.error || result.status !== 0) return null
+  // EPIPE: the command exited without reading its stdin, before the state was all written to it;
+  // it still ran, and its exit status says whether it succeeded.
+  const broken = result.error as NodeJS.ErrnoException | undefined
+  if ((broken && broken.code !== 'EPIPE') || result.status !== 0) return null
   const output = (result.stdout ?? '').replace(/\n+$/, '')
   return output.trim() === '' ? null : output
 }

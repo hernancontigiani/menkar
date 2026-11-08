@@ -125,3 +125,14 @@
 
 > Replaced 2026-11-08 by the 0.1.0 release checklist (plan 16): §2 row 2.2 was
 | 2.2 | The human's check of the package: install the `.deb` (`sudo apt install ./release/menkar_0.0.0_amd64.deb`), start Menkar from the launcher, and see a terminal in it | Human | Trusting the sandbox on the installed app |
+
+| 9 | `16-spec-closure-b2-release.md` (every remaining case of `b2`'s spec areas closed; Menkar 0.1.0 as a release candidate for Ubuntu, with the human's checklist) | Written 2026-11-08; `b2` |
+
+> Closed 2026-11-08 — plan 16, "Spec closure in `b2`'s areas and the 0.1.0 release candidate", built
+> by `b2`: every case of usage, classifier, context, preferences and chat tested, checked by hand
+> (PRF-19, §2) or decided against (CHT-7); `latestOnly` for answers that arrive out of order; the
+> `.deb` 0.1.0 with `docs/release-checklist.md`; then, by the human's decisions 1.13–1.15, the
+> Usage window filling its window, the By-day axis and labels, and its scope to the opener's
+> project. Found: cards square in Terminal workspace, the footer's spaces collapsed, the chat look
+> off its table, PRF-24's relaunch test blind to the packaged build. In `docs/usage.md`,
+> `docs/packaging.md` and `docs/release-checklist.md`.
