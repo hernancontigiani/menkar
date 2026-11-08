@@ -5,7 +5,8 @@ on the left, the real agent in an embedded terminal on the right, with projects,
 several windows, usage tracking and file tabs. Electron and TypeScript; Linux first, then Windows
 and macOS.
 
-**Status:** in construction. Not usable yet.
+**Status:** in construction, usable for daily work on Ubuntu: projects, sessions in tabs, several
+windows. Split panes, the Add session dialog, Preferences and the Usage window are still to come.
 
 ## Install (Ubuntu)
 
@@ -22,6 +23,22 @@ command (`/usr/bin/menkar`). The post-install also installs an AppArmor profile,
 blocks that for unconfined apps, and ships the same kind of profile for VS Code, Slack and
 Obsidian. The installed app runs with the sandbox, never with `--no-sandbox`. `sudo apt remove
 menkar` takes it all out.
+
+## Using the window
+
+- **Projects** are picked, created, renamed and deleted from the dropdown at the top of the
+  sidebar. A project lists the sessions you put in it, from any folder, in groups if you like (a
+  row's ⋮ menu → Group). A project is open in one window at a time.
+- **A session runs in a tab**: double-click its row, or ⋮ → Open, to resume it in the real
+  `claude` (or `cursor-agent`). "Open beside the current tab" puts it next to another one. The
+  `+` button starts a new session in a folder you choose; the ▾ menu also continues the last
+  session of a folder, or opens a new window.
+- **Closing a tab, a window or the app hangs up its agent**, as closing a terminal does; nothing is
+  typed into it. Closing a window with agents still working asks first.
+- **On the next start** the windows and their tabs come back (the `reopen_tabs` setting turns it off).
+- Keys: `F9` sidebar, `Ctrl+Shift+T` new session, `Ctrl+Shift+W` close tab, `Ctrl+Tab` /
+  `Ctrl+PgDn` / `Ctrl+PgUp` move between tabs, `Ctrl+Shift+N` new window; in a terminal
+  `Shift+Enter` a line break, `Ctrl+Shift+C` / `Ctrl+Shift+V` copy and paste, `Ctrl+Shift+G` find.
 
 ## Usage in the terminal
 
@@ -54,6 +71,11 @@ npm run package                      # the .deb, into release/ (takes about a mi
 npm run package:check                # inspects the built .deb; installs nothing
 npm run package:smoke                # the e2e suite against the packaged app, under xvfb-run
 ```
+
+`node scripts/classify-eval.mjs <labels.json>…` measures how often the turn classifier agrees with
+hand labels, before a change of its prompt or model. It is run by hand only: it calls `claude` with
+your login (one call per 30 turns of your plan), and its label files hold real prompts, so they stay
+in the git-ignored `eval/` folder.
 
 On Ubuntu's desktop, `npm run dev` starts Electron with `--no-sandbox`: AppArmor stops the
 development build's `chrome-sandbox`. Playwright's runs are unsandboxed too (it passes

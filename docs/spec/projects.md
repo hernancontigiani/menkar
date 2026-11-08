@@ -392,8 +392,8 @@ closing. Once the last window is closing, layout saves stop so the closing tabs 
 
 ## Acceptance cases
 
-The cases built in `core` (PRJ-3–10, 49–53, 55) left for the history; the Vitest tests in
-`tests/core/projects/` carry their ids.
+The cases built in `core` (PRJ-3–10, 49–53, 55) and on screen (PRJ-11, 13, 14, 27, 45) left for the
+history; the Vitest tests in `tests/core/projects/` and the e2e tests carry their ids.
 
 PRJ-1. No `projects.json` → the window shows "Default" in the dropdown, an empty list titled
 "Default has no sessions", and no file exists until the first change.
@@ -402,15 +402,7 @@ PRJ-2. `projects.json` is `{` (not JSON) → it is renamed aside (not deleted), 
 one empty "Default", and a toast reads "The projects file could not be read; it was kept as
 <moved name> and a new one started" until dismissed.
 
-PRJ-11. Create with "  " → the popover stays open with "A project needs a name."; no project added.
-
 PRJ-12. Projects "Work" exists; create "work " → "There is already a project with that name."
-
-PRJ-13. Create "Infra" → it is appended last in the dropdown, the window shows it with the empty
-state, the entry is cleared, the popover closed, `current` is its id in the file.
-
-PRJ-14. Rename "Work" to "WORK" → allowed (same project); renaming "Docs" to "work" → error dialog
-"The project was not renamed" / "There is already a project with that name."
 
 PRJ-15. One project only; press its trash button → error dialog "The project was not deleted" /
 "The last project cannot be deleted."
@@ -451,9 +443,6 @@ leaves its group.
 PRJ-26. Remove from project a running session → "Remove “<name>” from the project?" / "It is
 running, so it is stopped first. Its conversation stays in Claude."; "Stop and remove" → the tab
 closes after the agent exits; the session is in no project; Cancel → nothing changes.
-
-PRJ-27. Open (double click) a stopped member → a new tab at the end of the strip, selected, titled
-with the session's name, resuming it; Open again → the same tab is selected, no second tab.
 
 PRJ-28. Open beside with tab T (S1 alone) selected and S2 stopped → T has two panes side by side,
 S2 resumed in the right one with focus, title "S1 │ S2".
@@ -503,10 +492,6 @@ pressing it closes both.
 PRJ-44. Three projects, window 1 holds the first, `Ctrl+Shift+N` → a window opens on the second, no
 tabs. All three held → the "New project" dialog; Save "Ops" → window on "Ops"; Save "" → error
 dialog "No new window" / "A project needs a name.".
-
-PRJ-45. Close a window with 2 running sessions "api" and "tests" → "Stop 2 running session(s)?" /
-"api, tests\n\nTheir conversations stay in Claude."; Cancel → nothing; Stop and close → both exit
-and the window closes.
 
 PRJ-46. Close a window with no running agent → it closes with no dialog.
 

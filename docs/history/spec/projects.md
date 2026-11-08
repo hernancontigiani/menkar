@@ -92,3 +92,19 @@ PRJ-52. Saved file tab whose file was deleted → not reopened, no error shown.
 PRJ-53. "Reopen tabs on start" off → one window on `current`, no tabs, whatever `windows` says.
 PRJ-55. A saved file is reread: 2-space indentation, non-ASCII project names unescaped ("Café"
 written as `"Café"`), key order `version`, `current`, `projects`, `windows`.
+
+> Left on 2026-11-08: built by plan 08, described in `docs/window.md`.
+PRJ-11. Create with "  " → the popover stays open with "A project needs a name."; no project added.
+PRJ-13. Create "Infra" → it is appended last in the dropdown, the window shows it with the empty
+state, the entry is cleared, the popover closed, `current` is its id in the file.
+PRJ-14. Rename "Work" to "WORK" → allowed (same project); renaming "Docs" to "work" → error dialog
+"The project was not renamed" / "There is already a project with that name."
+PRJ-27. Open (double click) a stopped member → a new tab at the end of the strip, selected, titled
+with the session's name, resuming it; Open again → the same tab is selected, no second tab.
+PRJ-45. Close a window with 2 running sessions "api" and "tests" → "Stop 2 running session(s)?" /
+"api, tests\n\nTheir conversations stay in Claude."; Cancel → nothing; Stop and close → both exit
+and the window closes.
+
+> Left on 2026-11-08: the pointer rewritten by plan 08 to name the cases built on screen.
+The cases built in `core` (PRJ-3–10, 49–53, 55) left for the history; the Vitest tests in
+`tests/core/projects/` carry their ids.

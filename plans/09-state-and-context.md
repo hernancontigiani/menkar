@@ -69,23 +69,79 @@ Integrations page.
 ## Execution blocks
 
 ### B1 — The API for the seam
-- [ ] `ScreenMirror`, `detectState` with Claude Code's and Cursor's cases, `sessionSettingsFile()`
+- [x] `ScreenMirror`, `detectState` with Claude Code's and Cursor's cases, `sessionSettingsFile()`
       (the file written with the statusline command line); report to `set`.
 - **Verification:** `npm run ci`.
 
 ### B2 — State: shown state, roll-up, counts, notifications
-- [ ] The rest of agent-state.md's cases; `src/main/agentstate.ts` and its IPC events.
+- [x] The rest of agent-state.md's cases; `src/main/agentstate.ts` and its IPC events.
 - **Verification:** `npm run ci`.
 
 ### B3 — Context: the statusline, its files, the reading, the integrations
-- [ ] The script, the parity test with `src/core/usage/statusline.ts`, the integrations with their
+- [x] The script, the parity test with `src/core/usage/statusline.ts`, the integrations with their
       backups and invariance tests; the packaged-app check of `ELECTRON_RUN_AS_NODE`.
 - **Verification:** `npm run ci`; `npm run package:check` still green.
 
 ### B4 — Exit
-- [ ] The exit's files.
+- [x] The exit's files.
 - **Verification:** `npm run ci`.
 
 ## Execution log
 
-(Written by the session that executes it.)
+Executed by `b2`, 2026-11-08, in the order B1, B3, B2, B4: B3 went before B2 so that b1 could
+enable `--settings` sooner (agreed with `set`).
+
+**B1 — the seam.** `src/core/agentstate/{detect,mirror}.ts`, `src/core/context/{files,settings}.ts`,
+`src/main/context.ts` (`sessionSettingsFile()`), `claudeSettings` in `agentPaths()`
+(`src/core/paths.ts`), and `@xterm/headless` 6.0.0 as a runtime dependency (`package.json`,
+`package-lock.json`). Tests: `tests/core/agentstate/{detect,mirror}.test.ts`,
+`tests/core/context/settings.test.ts`.
+
+**B3 — context.** `src/core/context/{statusline,reading,tracker,types,integrations}.ts`; the
+statusline as a third main entry in `electron.vite.config.ts`; `allowImportingTsExtensions` in
+`tsconfig.base.json`, so the script runs unbuilt under Node in its tests; `STATUSLINE_READ_KEYS` in
+`src/core/usage/statusline.ts`, whose log path now comes from the script. Tests:
+`tests/core/context/{statusline,reading,integrations}.test.ts`. Packaged check: after
+`npm run package`, `ELECTRON_RUN_AS_NODE=1 release/linux-unpacked/menkar
+release/linux-unpacked/resources/app.asar/out/main/statusline.js` with a payload on stdin printed
+`pkg-check · 13%`, exit 0, and wrote `sessions/s1.json` and `usage.jsonl` under a temporary
+`XDG_CACHE_HOME`. `npm run package:check` stayed green (291 entries).
+
+**B2 — state.** `src/core/agentstate/{shown,watch,notify}.ts`, `src/main/agentstate.ts` on b1's
+`AgentPane` (`src/main/panes.ts`); IPC `agentState:changed`, `agentState:toast` and
+`context:reading` in my block of `src/shared/ipc.ts` and `src/preload/index.ts`; both started in
+`src/main/index.ts`. Strings in my block of `src/core/i18n/{en,es}.ts`. Tests:
+`tests/core/agentstate/shown.test.ts`.
+
+**B4 — exit.** `docs/agent-state.md`, `docs/context.md`, their rows in `CLAUDE.md`; the built
+parts of both spec files trimmed to pointers, removed lines verbatim in
+`docs/history/spec/{agent-state,context}.md`. Left in the spec: the widgets (dots, badge, switcher,
+Go to agent, ring drawing, Integrations page, toast) and AST-18, AST-28, AST-32 to AST-39.
+
+Deviations and what the plan did not anticipate:
+- **Code before tests again**, block by block. Every test was then seen red under injected defects
+  (about 60 mutations, each reverted). Four were first missed and their tests strengthened. One
+  survives: dropping the tail's cut first line before parsing changes nothing, because a line cut
+  in the middle does not parse as JSON anyway.
+- **`ScreenMirror.title()` is a getter**: the mirror parses the agent's OSC title itself, so nobody
+  passes the title in (the plan wrote `title(text)`).
+- **The seam grew five members** (`seen`, `onSeen`, `tabTitle`, `windowFocused`, `reveal`),
+  agreed through `set`. The foreground check (AST-17's input) and the registration of agent panes
+  only (AST-18) are b1's. AST-28's reveal is b1's too, and stays in the spec.
+- **The sound** goes through `paplay` with Electron's beep as the fallback. agent-tablet used GTK's
+  media; Electron's main process has no audio.
+- **The integrations record and backups are in the data directory** (1.10), not
+  `$XDG_STATE_HOME` as the spec wrote. Its sentences go through `t()`.
+- **The bar for a non-string `session_id` with no name is `menkar`**, as the spec says.
+  agent-tablet printed the id turned into a string.
+- **`src/main/agentstate.ts` and the main side of `context.ts` have no test of their own yet**.
+  They need b1's panes registered in a running app. Their logic is in core and tested. The first
+  e2e test on a live pane belongs to the plan that shows the dots.
+- **An open `fs.watch` on the sessions folder kept the app from quitting**: b1's
+  `e2e/terminal.spec.ts` "Chromium's data lands in the cache…" timed out at `app.close()` with the
+  context watcher started, and passed with it disabled. The watcher is now `unref()`ed, and that
+  test passes. It is the regression test for this.
+- **At delivery:** Vitest 432 passed. `npm run ui-check`: 7 passed, among them every test touching
+  this plan. The only reds (`tsc` and three `look.spec.ts` tests) are in b1's new, uncommitted
+  `e2e/look.spec.ts`. Biome, code rules, i18n (both catalogs complete), test integrity, flaky and
+  history pass.

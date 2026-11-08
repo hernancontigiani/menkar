@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { chooseLanguage, setLanguage } from '../core/i18n'
+import { log } from '../core/log'
 import { runUsageCli } from '../core/usage/cli'
 import type { Memberships } from '../core/usage/history'
 import { PassRunner } from '../core/usage/runner'
@@ -26,11 +27,19 @@ function passInWorker(memberships: Memberships): Promise<void> {
 
 // The history keeps what Claude Code deletes with its transcripts only if they are read before
 // that: a pass on start and every hour, not only when usage is looked at.
-export function startUsagePasses(memberships: () => Memberships): {
+export function startUsagePasses(
+  memberships: () => Memberships,
+  // Runs after each pass, whatever its outcome: the classification of the turns it wrote.
+  after: () => Promise<void> = async () => {},
+): {
   readonly runner: PassRunner
   stop(): void
 } {
-  const runner = new PassRunner(() => passInWorker(memberships()))
+  const runner = new PassRunner(() =>
+    passInWorker(memberships()).finally(() => {
+      void after().catch((error: unknown) => log.warn('after the usage pass', { error }))
+    }),
+  )
   void runner.request()
   const timer = setInterval(() => void runner.request(), HOURLY_MS)
   return { runner, stop: () => clearInterval(timer) }

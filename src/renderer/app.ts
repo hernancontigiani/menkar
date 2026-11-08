@@ -1,0 +1,768 @@
+import type { AgentStates } from '../core/agentstate/shown'
+import { faceBadge, rollup, type ShownState } from '../core/agentstate/shown'
+import type { Reading } from '../core/context/types'
+import type { Key } from '../core/i18n'
+import type { ProjectInfo } from '../core/projects/info'
+import type { SessionInfo } from '../core/sessions/info'
+import { SIDEBAR_MIN_WIDTH } from '../core/settings'
+import type { Action, TabView, WindowState } from '../shared/workspace'
+import { el, icon } from './dom'
+import { t, translate } from './i18n'
+import { applyLook } from './look'
+import { applyTerminalLook, forgetPanesExcept, paneElement, showPanes } from './terminals'
+import {
+  closePopover,
+  type MenuEntry,
+  showDialog,
+  showError,
+  showMenu,
+  showPopover,
+  toast,
+} from './ui'
+
+let state: WindowState | undefined
+let agentStates: AgentStates | null = null
+const liveReadings = new Map<string, Reading | null>()
+
+window.menkar.agentState.onChanged((states) => {
+  agentStates = states
+  if (state) render(state)
+})
+window.menkar.agentState.onToast(({ paneId, text }) => {
+  toast(text, { action: { label: t('toast.show'), run: () => window.menkar.panes.reveal(paneId) } })
+})
+window.menkar.context.onReading(({ sessionId, reading }) => {
+  liveReadings.set(sessionId, reading)
+  if (state) render(state)
+})
+
+type DotState = ShownState | 'stopped'
+
+// A session with a pane shows its agent's state (idle until one is known); without one, stopped.
+function sessionState(id: string): DotState {
+  const panes = agentStates?.panes.filter((p) => p.sessionId === id) ?? []
+  if (panes.length > 0) return rollup(panes.map((p) => p.state))
+  return state?.open.includes(id) ? 'idle' : 'stopped'
+}
+
+const STATE_WORD: Record<DotState, Key> = {
+  idle: 'state.idle',
+  working: 'state.working',
+  blocked: 'state.blocked',
+  done: 'state.done',
+  stopped: 'state.stopped',
+}
+
+function stateDot(dotState: DotState): HTMLElement {
+  return el('span', { class: `dot ${dotState}`, title: translate(STATE_WORD[dotState]) })
+}
+
+function readingOf(id: string): Reading | null {
+  return liveReadings.has(id) ? (liveReadings.get(id) ?? null) : (state?.readings[id] ?? null)
+}
+
+const RING_COLORS = { ok: 'rgb(102,191,115)', warn: 'rgb(242,191,64)', full: 'rgb(235,84,84)' }
+
+// The context ring: a track at 25 % and an arc from 12 o'clock over the percentage; an estimate
+// draws both at 45 % of that.
+function ring(reading: Reading | null): HTMLElement | null {
+  if (!reading) return null
+  const pct = Math.max(0, Math.min(100, reading.percentage))
+  const color =
+    reading.percentage >= 80
+      ? RING_COLORS.full
+      : reading.percentage >= 60
+        ? RING_COLORS.warn
+        : RING_COLORS.ok
+  const scale = reading.source === 'estimate' ? 0.45 : 1
+  const r = 5.5
+  const length = 2 * Math.PI * r
+  const windowText =
+    reading.window >= 1_000_000
+      ? `${Math.round(reading.window / 1_000_000)}M`
+      : `${Math.round(reading.window / 1000)}k`
+  const values = { pct: String(Math.round(reading.percentage)), window: windowText }
+  const title =
+    reading.source === 'estimate' ? t('ring.estimate', values) : t('ring.reported', values)
+  const node = el('span', { class: 'ring', title })
+  node.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="${r}" fill="none" stroke="${color}" stroke-width="2.5" opacity="${0.25 * scale}"/><circle cx="7" cy="7" r="${r}" fill="none" stroke="${color}" stroke-width="2.5" opacity="${scale}" stroke-dasharray="${(length * pct) / 100} ${length}" transform="rotate(-90 7 7)"/></svg>`
+  return node
+}
+
+function blockedPill(count: number): HTMLElement | null {
+  return count > 0
+    ? el('span', { class: 'blocked-pill', title: t('projects.waiting') }, String(count))
+    : null
+}
+
+// Menkar's star (the app's logo), in the theme's dim foreground.
+function logo(size: 'big' | 'compact'): HTMLElement {
+  const node = el('span', { class: `logo ${size}` })
+  node.innerHTML =
+    '<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 2 L56 44 L98 50 L56 56 L50 98 L44 56 L2 50 L44 44Z"/><path d="M50 22 L54 46 L78 50 L54 54 L50 78 L46 54 L22 50 L46 46Z" transform="rotate(45 50 50)"/></svg>'
+  return node
+}
+let sidebarShown = true
+let lastSelected: string | null = null
+const SIDEBAR_SAVE_DELAY_MS = 600
+const TITLE_CHARS = 28
+
+export const act = (action: Action) => window.menkar.window.act(action)
+export const currentState = () => state
+
+const $ = (id: string) => document.getElementById(id) as HTMLElement
+
+// ---------------------------------------------------------------- the frame, built once
+
+export function buildFrame(): void {
+  const toggle = el(
+    'button',
+    { id: 'toggle-sidebar', title: t('header.toggleSidebar'), 'aria-pressed': 'true' },
+    icon('sidebar'),
+  )
+  toggle.addEventListener('click', () => toggleSidebar())
+  const newButton = el(
+    'button',
+    { id: 'new-session', title: t('header.newSession') },
+    icon('tabNew'),
+  )
+  newButton.addEventListener('click', () => void newSessionDialog('claude'))
+  const newMenu = el(
+    'button',
+    { id: 'new-menu', 'aria-label': t('header.newSession') },
+    icon('down'),
+  )
+  newMenu.addEventListener('click', () => {
+    const r = newMenu.getBoundingClientRect()
+    showMenu(
+      [
+        { label: t('menu.newClaude'), run: () => void newSessionDialog('claude') },
+        { label: t('menu.newCursor'), run: () => void newSessionDialog('cursor') },
+        'separator',
+        {
+          label: t('menu.continueClaude'),
+          run: () => void act({ type: 'continueLast', agent: 'claude' }),
+        },
+        {
+          label: t('menu.continueCursor'),
+          run: () => void act({ type: 'continueLast', agent: 'cursor' }),
+        },
+        'separator',
+        { label: t('menu.newWindow'), run: () => void newWindow() },
+      ],
+      { x: r.left, y: r.bottom + 4 },
+    )
+  })
+  const closeAll = el('button', { id: 'close-all', title: t('header.closeAll') }, icon('tabClose'))
+  closeAll.addEventListener('click', () => void act({ type: 'closeAllTabs' }))
+
+  const projectButton = el(
+    'button',
+    { id: 'project-button', title: t('projects.dropdown') },
+    el('span', { class: 'project-name' }),
+    icon('down'),
+  )
+  projectButton.addEventListener('click', () => openProjectPopover(projectButton))
+  const addSession = el('button', { id: 'add-session' }, t('sidebar.addSession'))
+  addSession.addEventListener('click', () => void newSessionDialog('claude'))
+
+  const divider = el('div', { id: 'divider' })
+  dragDivider(divider)
+
+  $('app').replaceChildren(
+    el(
+      'aside',
+      { id: 'sidebar' },
+      el('div', { class: 'sidebar-header' }, projectButton),
+      el('div', { id: 'session-list' }),
+      addSession,
+    ),
+    divider,
+    el(
+      'main',
+      { id: 'content' },
+      el(
+        'div',
+        { class: 'content-header' },
+        toggle,
+        el('div', { class: 'split' }, newButton, el('span', { class: 'sep' }), newMenu),
+        closeAll,
+        el('div', { class: 'title' }, t('window.title')),
+      ),
+      el('div', { id: 'tab-strip' }),
+      el('div', { id: 'tab-content' }),
+      el('div', { id: 'toasts' }),
+    ),
+  )
+}
+
+export function toggleSidebar(): void {
+  sidebarShown = !sidebarShown
+  $('sidebar').classList.toggle('hidden', !sidebarShown)
+  $('divider').classList.toggle('hidden', !sidebarShown)
+  $('toggle-sidebar').setAttribute('aria-pressed', String(sidebarShown))
+}
+
+function dragDivider(divider: HTMLElement): void {
+  let saveTimer: ReturnType<typeof setTimeout> | undefined
+  divider.addEventListener('pointerdown', (event) => {
+    divider.setPointerCapture(event.pointerId)
+    const move = (e: PointerEvent) => {
+      const width = Math.max(SIDEBAR_MIN_WIDTH, Math.min(e.clientX, window.innerWidth - 200))
+      document.documentElement.style.setProperty('--sidebar-width', `${width}px`)
+      clearTimeout(saveTimer)
+      saveTimer = setTimeout(() => {
+        if (sidebarShown) void act({ type: 'setSidebarWidth', width })
+      }, SIDEBAR_SAVE_DELAY_MS)
+    }
+    const up = () => {
+      divider.removeEventListener('pointermove', move)
+      divider.removeEventListener('pointerup', up)
+    }
+    divider.addEventListener('pointermove', move)
+    divider.addEventListener('pointerup', up)
+  })
+}
+
+// ---------------------------------------------------------------- render
+
+export function render(next: WindowState): void {
+  const previous = state
+  state = next
+  const look = applyLook(next.settings, (changed) => applyTerminalLook(next.settings, changed))
+  if (previous?.settings !== next.settings) applyTerminalLook(next.settings, look)
+  if (previous && previous.settings.sidebar_width !== next.settings.sidebar_width) {
+    document.documentElement.style.setProperty(
+      '--sidebar-width',
+      `${next.settings.sidebar_width}px`,
+    )
+  }
+  const project = next.projects.find((p) => p.id === next.shown)
+  $('project-button')
+    .querySelector('.project-name')
+    ?.replaceChildren(project?.name ?? '')
+  $('project-button').querySelector('.blocked-pill')?.remove()
+  const face = blockedPill(faceBadge(agentStates?.blocked ?? {}, next.shown))
+  if (face) $('project-button').querySelector('.project-name')?.after(face)
+  $('close-all').style.display = next.tabCount >= 2 ? '' : 'none'
+  renderSessionList(next, project)
+  renderStrip(next)
+  renderContent(next)
+  renderNotices(next)
+}
+
+const sessionsById = (s: WindowState) => new Map(s.sessions.map((x) => [x.id, x]))
+const folderOf = (info: SessionInfo) =>
+  (info.cwd ?? info.folder).split('/').filter(Boolean).pop() ?? info.cwd ?? ''
+
+function renderSessionList(s: WindowState, project: ProjectInfo | undefined): void {
+  const list = $('session-list')
+  if (!project) {
+    list.replaceChildren()
+    return
+  }
+  const byId = sessionsById(s)
+  const known = project.members.filter((id) => byId.has(id))
+  if (known.length === 0) {
+    const add = el('button', { class: 'pill' }, t('sidebar.addSession'))
+    add.addEventListener('click', () => void newSessionDialog('claude'))
+    list.replaceChildren(
+      el(
+        'div',
+        { class: 'status-page compact' },
+        logo('compact'),
+        el('div', { class: 'heading' }, t('empty.projectTitle', { name: project.name })),
+        el('div', { class: 'body dim' }, t('empty.projectBody')),
+        add,
+      ),
+    )
+    return
+  }
+  const folders = new Set(
+    known.map((id) => {
+      const info = byId.get(id)
+      return info ? folderOf(info) : ''
+    }),
+  )
+  const showFolder = folders.size > 1
+  const running = new Set(s.running)
+  const grouped = new Set(project.groups.flatMap((g) => g.members))
+  const children: HTMLElement[] = []
+  const shownGroups = project.groups.filter((g) => g.members.some((m) => byId.has(m)))
+  for (const group of shownGroups) {
+    children.push(el('div', { class: 'group-heading dim' }, groupDot(group.color), group.name))
+    for (const id of group.members) {
+      const info = byId.get(id)
+      if (info) children.push(row(info, showFolder, running.has(id), project))
+    }
+  }
+  const loose = known.filter((id) => !grouped.has(id))
+  if (loose.length > 0 && shownGroups.length > 0)
+    children.push(el('div', { class: 'group-heading dim' }, t('sidebar.noGroup')))
+  for (const id of loose) {
+    const info = byId.get(id)
+    if (info) children.push(row(info, showFolder, running.has(id), project))
+  }
+  list.replaceChildren(...children)
+}
+
+function groupDot(color: string): HTMLElement {
+  const dot = el('span', {}, '●')
+  dot.style.color = color
+  return dot
+}
+
+function row(
+  info: SessionInfo,
+  showFolder: boolean,
+  running: boolean,
+  project: ProjectInfo,
+): HTMLElement {
+  const dot = stateDot(sessionState(info.id))
+  const more = el(
+    'button',
+    { class: 'more', title: t('sidebar.actionsFor', { name: info.name }) },
+    icon('more'),
+  )
+  const node = el(
+    'div',
+    { class: 'row', 'data-session': info.id },
+    dot,
+    el(
+      'div',
+      { class: 'text' },
+      el('div', { class: 'name' }, info.name),
+      showFolder ? el('div', { class: 'folder dim' }, folderOf(info)) : null,
+    ),
+    more,
+  )
+  const ringNode = ring(readingOf(info.id))
+  if (ringNode) more.before(ringNode)
+  const menu = (x: number, y: number) => showMenu(rowMenu(info, running, project), { x, y })
+  more.addEventListener('click', (event) => {
+    event.stopPropagation()
+    const r = more.getBoundingClientRect()
+    menu(r.left, r.bottom + 4)
+  })
+  node.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    menu(event.clientX, event.clientY)
+  })
+  node.addEventListener('click', () => {
+    const tab = state?.tabs.find((tb) => tb.panes.some((p) => p.sessionId === info.id))
+    if (tab) void act({ type: 'selectTab', tab: tab.id })
+  })
+  node.addEventListener('dblclick', () => void act({ type: 'openSession', session: info.id }))
+  return node
+}
+
+function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): MenuEntry[] {
+  const groups = project.groups.map((g) => ({
+    label: g.name,
+    run: () =>
+      void act({ type: 'setGroup', session: info.id, group: { name: g.name, color: g.color } }),
+  }))
+  const entries: MenuEntry[] = [
+    { label: t('row.open'), run: () => void act({ type: 'openSession', session: info.id }) },
+    {
+      label: t('row.openBeside'),
+      run: () => void refusalToast(act({ type: 'openBeside', session: info.id })),
+    },
+  ]
+  if (running)
+    entries.push({
+      label: t('row.stop'),
+      run: () => void act({ type: 'stopSession', session: info.id }),
+    })
+  entries.push({
+    label: t('row.group'),
+    submenu: [
+      ...groups,
+      {
+        label: t('row.noGroup'),
+        run: () => void act({ type: 'setGroup', session: info.id, group: null }),
+      },
+      { label: t('row.newGroup'), run: () => void newGroupDialog(info.id) },
+    ],
+  })
+  entries.push('separator')
+  entries.push({ label: t('row.rename'), run: () => void renameSessionDialog(info) })
+  if (info.agent === 'claude')
+    entries.push({
+      label: t('row.fork'),
+      run: () => void act({ type: 'forkSession', session: info.id }),
+    })
+  entries.push({ label: t('row.copyId'), run: () => void act({ type: 'copyText', text: info.id }) })
+  entries.push('separator')
+  entries.push({ label: t('row.remove'), run: () => void removeFromProject(info, running) })
+  return entries
+}
+
+async function refusalToast(result: Promise<{ refusal?: Key }>): Promise<void> {
+  const { refusal } = await result
+  if (refusal) toast(translate(refusal))
+}
+
+function renderStrip(s: WindowState): void {
+  const strip = $('tab-strip')
+  const tabs = s.tabs.filter((tab) => tab.project === s.shown)
+  const nodes = tabs.map((tab) => tabButton(tab, tab.id === s.selectedTab))
+  const plus = el('button', { id: 'strip-plus', title: t('tab.newInProject') }, '+')
+  plus.addEventListener('click', () => void newSessionDialog('claude'))
+  strip.replaceChildren(...nodes, plus)
+}
+
+function shortTitle(title: string): string {
+  return title.length > TITLE_CHARS ? `${title.slice(0, TITLE_CHARS)}…` : title
+}
+
+// A tab shows its state unless idle, and the fullest of its sessions' rings.
+function tabDot(tab: TabView): HTMLElement | null {
+  const states =
+    agentStates?.panes
+      .filter((p) => tab.panes.some((pane) => pane.id === p.paneId))
+      .map((p) => p.state) ?? []
+  if (states.length === 0) return null
+  const rolled = rollup(states)
+  return rolled === 'idle' ? null : stateDot(rolled)
+}
+
+function tabRing(tab: TabView): HTMLElement | null {
+  const readings = tab.panes.flatMap((p) => {
+    const reading = p.sessionId ? readingOf(p.sessionId) : null
+    return reading ? [reading] : []
+  })
+  const fullest = readings.sort((a, b) => b.percentage - a.percentage)[0]
+  return ring(fullest ?? null)
+}
+
+function tabButton(tab: TabView, selected: boolean): HTMLElement {
+  const close = el('span', { class: 'close', role: 'button', title: t('tab.close') }, icon('close'))
+  const node = el(
+    'button',
+    { class: `tab${selected ? ' selected' : ''}`, 'data-tab': tab.id, title: tab.tooltip },
+    tab.groupColor ? groupDot(tab.groupColor) : null,
+    tabDot(tab),
+    tabRing(tab),
+    el('span', { class: 'title' }, shortTitle(tab.title)),
+    close,
+  )
+  close.addEventListener('click', (event) => {
+    event.stopPropagation()
+    void act({ type: 'closeTab', tab: tab.id })
+  })
+  node.addEventListener('click', () => void act({ type: 'selectTab', tab: tab.id }))
+  node.addEventListener('auxclick', (event) => {
+    if (event.button === 1) void act({ type: 'closeTab', tab: tab.id })
+  })
+  node.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    const r = node.getBoundingClientRect()
+    const first = tab.panes[0]?.sessionId
+    showMenu(
+      [
+        { label: t('tab.menuRename'), run: () => void renameTab(tab) },
+        {
+          label: t('tab.menuCopyId'),
+          run: () => first && void act({ type: 'copyText', text: first }),
+        },
+        { label: t('tab.menuClose'), run: () => void act({ type: 'closeTab', tab: tab.id }) },
+      ],
+      { x: r.left, y: r.bottom + 2 },
+    )
+  })
+  return node
+}
+
+function renderContent(s: WindowState): void {
+  const content = $('tab-content')
+  const live = new Set(s.tabs.flatMap((tab) => tab.panes.map((p) => p.id)))
+  forgetPanesExcept(live)
+  const bodies: HTMLElement[] = []
+  for (const tab of s.tabs) {
+    const visible = tab.id === s.selectedTab && tab.project === s.shown
+    const body = el('div', {
+      class: `tab-body ${tab.orientation}${visible ? '' : ' hidden'}`,
+      'data-tab-body': tab.id,
+    })
+    for (const pane of tab.panes) body.append(paneElement(pane))
+    bodies.push(body)
+  }
+  if (!s.tabs.some((tab) => tab.id === s.selectedTab && tab.project === s.shown)) {
+    bodies.push(
+      el(
+        'div',
+        { class: 'status-page', id: 'empty-content' },
+        logo('big'),
+        el('div', { class: 'heading' }, t('empty.noSessionTitle')),
+        el('div', { class: 'body dim' }, t('empty.noSessionBody')),
+      ),
+    )
+  }
+  content.replaceChildren(...bodies)
+  const selected = s.tabs.find((tab) => tab.id === s.selectedTab)
+  if (selected)
+    showPanes(
+      selected.panes.map((p) => p.id),
+      lastSelected !== selected.id,
+    )
+  lastSelected = selected?.id ?? null
+}
+
+let shownNotices = 0
+function renderNotices(s: WindowState): void {
+  s.notices.slice(shownNotices).forEach((notice, i) => {
+    toast(translate(notice.key, notice.params), {
+      sticky: true,
+      action: {
+        label: t('toast.dismiss'),
+        run: () => void act({ type: 'dismissNotice', index: shownNotices + i }),
+      },
+    })
+  })
+  shownNotices = s.notices.length
+}
+
+// ---------------------------------------------------------------- dialogs
+
+function openProjectPopover(anchor: HTMLElement): void {
+  const s = state
+  if (!s) return
+  const content = el('div', {})
+  for (const p of s.projects) {
+    const rename = el('button', { title: t('projects.rename') }, icon('edit'))
+    const remove = el('button', { title: t('projects.delete') }, icon('trash'))
+    const node = el(
+      'div',
+      { class: 'project-row', 'data-project': p.id },
+      el('span', { class: 'check' }, p.id === s.shown ? icon('check') : ''),
+      el('span', { class: 'name' }, p.name),
+      blockedPill(agentStates?.blocked[p.id] ?? 0),
+      s.heldElsewhere[p.id] ? el('span', { class: 'dim' }, t('projects.openElsewhere')) : null,
+      el('span', { class: 'dim', title: t('projects.memberCount') }, String(p.members.length)),
+      rename,
+      remove,
+    )
+    node.addEventListener('click', () => {
+      closePopover()
+      void act({ type: 'switchProject', project: p.id })
+    })
+    rename.addEventListener('click', (event) => {
+      event.stopPropagation()
+      closePopover()
+      void renameProjectDialog(p)
+    })
+    remove.addEventListener('click', (event) => {
+      event.stopPropagation()
+      closePopover()
+      void deleteProjectDialog(p)
+    })
+    content.append(node)
+  }
+  const entry = el('input', { type: 'text', placeholder: t('projects.newName') })
+  const create = el('button', { class: 'suggested' }, t('projects.create'))
+  const error = el('div', { class: 'error-line', hidden: '' })
+  const submit = async () => {
+    const { refusal } = await act({ type: 'createProject', name: entry.value })
+    if (refusal) {
+      error.textContent = translate(refusal)
+      error.hidden = false
+      return
+    }
+    closePopover()
+  }
+  create.addEventListener('click', () => void submit())
+  entry.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') void submit()
+  })
+  content.append(
+    el('div', { class: 'menu-sep' }),
+    el('div', { class: 'create-row' }, entry, create),
+    error,
+  )
+  const r = anchor.getBoundingClientRect()
+  showPopover(content, { x: r.left, y: r.bottom + 4 }, 'projects')
+  entry.focus()
+}
+
+async function renameProjectDialog(p: ProjectInfo): Promise<void> {
+  const answer = await showDialog({
+    heading: t('projects.renameHeading'),
+    entry: { value: p.name, placeholder: t('dialog.name') },
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value !== 'save') return
+  const { refusal } = await act({ type: 'renameProject', project: p.id, name: answer.text })
+  if (refusal) await showError(t('projects.notRenamed'), refusal)
+}
+
+async function deleteProjectDialog(p: ProjectInfo): Promise<void> {
+  const s = state
+  if (!s) return
+  if (s.projects.length <= 1) {
+    await showError(t('projects.notDeleted'), 'projects.lastProject')
+    return
+  }
+  const running = p.members.filter((id) => s.running.includes(id)).length
+  const body =
+    running > 0
+      ? `${t('projects.deleteBody')} ${t('projects.deleteRunning', { n: running })}`
+      : t('projects.deleteBody')
+  const answer = await showDialog({
+    heading: t('projects.deleteHeading', { name: p.name }),
+    body,
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('projects.deleteButton'), value: 'delete', style: 'destructive' },
+    ],
+    defaultValue: 'cancel',
+  })
+  if (answer.value === 'delete') await act({ type: 'deleteProject', project: p.id })
+}
+
+async function newGroupDialog(session: string): Promise<void> {
+  const answer = await showDialog({
+    heading: t('groups.newHeading'),
+    body: t('groups.newBody'),
+    entry: { value: '', placeholder: t('dialog.name') },
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value !== 'save') return
+  const { refusal } = await act({ type: 'newGroup', session, name: answer.text })
+  if (refusal) await showError(t('groups.notCreated'), refusal)
+}
+
+async function renameSessionDialog(info: SessionInfo): Promise<void> {
+  if (info.claudeNamed) {
+    await showDialog({
+      heading: t('row.claudeNameHeading'),
+      body: t('row.claudeNameBody'),
+      buttons: [{ label: t('dialog.ok'), value: 'ok' }],
+      defaultValue: 'ok',
+    })
+    return
+  }
+  const current = info.name !== info.preview && info.name !== info.id.slice(0, 8) ? info.name : ''
+  const answer = await showDialog({
+    heading: t('row.renameHeading'),
+    body: info.preview || info.id,
+    entry: { value: current, placeholder: t('row.renamePlaceholder') },
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value === 'save')
+    await act({ type: 'renameSession', session: info.id, name: answer.text })
+}
+
+async function removeFromProject(info: SessionInfo, running: boolean): Promise<void> {
+  if (running) {
+    const answer = await showDialog({
+      heading: t('row.removeHeading', { name: info.name }),
+      body: t('row.removeBody'),
+      buttons: [
+        { label: t('dialog.cancel'), value: 'cancel' },
+        { label: t('row.removeButton'), value: 'remove', style: 'destructive' },
+      ],
+      defaultValue: 'cancel',
+    })
+    if (answer.value !== 'remove') return
+  }
+  await act({ type: 'removeMember', session: info.id })
+}
+
+async function renameTab(tab: TabView): Promise<void> {
+  const first = tab.panes[0]?.sessionId
+  const info = first ? state?.sessions.find((x) => x.id === first) : undefined
+  if (tab.kind === 'session' && info) {
+    await renameSessionDialog(info)
+    return
+  }
+  const answer = await showDialog({
+    heading: t('tab.renameHeading'),
+    body: t('tab.renameBody'),
+    entry: { value: tab.title },
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value === 'save') await act({ type: 'renameTab', tab: tab.id, title: answer.text })
+}
+
+// Until the Add session dialog: a folder and a name, then the session starts in a new tab.
+export async function newSessionDialog(agent: 'claude' | 'cursor'): Promise<void> {
+  let folder = state?.settings.new_session_dir ?? ''
+  for (;;) {
+    const agentName = agent === 'claude' ? t('agent.claude') : t('agent.cursor')
+    const answer = await showDialog({
+      heading: t('newSession.heading', { agent: agentName }),
+      body: `${t('newSession.folder')}: ${folder || t('newSession.noFolder')}`,
+      entry: { value: '', placeholder: t('dialog.name') },
+      buttons: [
+        { label: t('dialog.cancel'), value: 'cancel' },
+        { label: t('newSession.choose'), value: 'choose' },
+        { label: t('newSession.start'), value: 'start', style: 'suggested' },
+      ],
+      defaultValue: 'start',
+    })
+    if (answer.value === 'cancel') return
+    if (answer.value === 'choose') {
+      const picked = await act({ type: 'pickFolder' })
+      if (typeof picked.value === 'string') folder = picked.value
+      continue
+    }
+    if (!folder) {
+      toast(t('newSession.needFolder'))
+      continue
+    }
+    if (agent === 'claude' && !answer.text.trim()) {
+      toast(t('newSession.needName'))
+      continue
+    }
+    await act({ type: 'startNew', agent, folder, name: answer.text })
+    return
+  }
+}
+
+export async function newWindow(): Promise<void> {
+  const result = await act({ type: 'newWindow' })
+  if (result.value !== 'needsProject') return
+  const answer = await showDialog({
+    heading: t('window.newProjectHeading'),
+    body: t('window.newProjectBody'),
+    entry: { value: '', placeholder: t('dialog.name') },
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value !== 'save') return
+  const { refusal } = await act({ type: 'newWindowWithProject', name: answer.text })
+  if (refusal) await showError(t('window.noNewWindow'), refusal)
+}
+
+export async function confirmClose(names: readonly string[]): Promise<void> {
+  const answer = await showDialog({
+    heading: t('window.stopHeading', { n: names.length }),
+    body: `${names.join(', ')}\n\n${t('window.stopBody')}`,
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('window.stopButton'), value: 'stop', style: 'destructive' },
+    ],
+    defaultValue: 'cancel',
+  })
+  if (answer.value === 'stop') await act({ type: 'confirmClose' })
+}

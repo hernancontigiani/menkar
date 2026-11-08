@@ -22,6 +22,22 @@ export async function startProjects(): Promise<void> {
     notices.push({ key: 'projects.fileUnreadable', params: { name: loaded.movedTo } })
 }
 
+export function currentProjects(): Projects | undefined {
+  return projects
+}
+
+export function setProjects(next: Projects): void {
+  projects = next
+}
+
+export function currentNotices(): Notice[] {
+  return notices
+}
+
+export function dismissNotice(index: number): void {
+  notices = notices.filter((_, i) => i !== index)
+}
+
 export function projectsSnapshot(): ProjectsSnapshot {
   const state = projects
   if (!state) return { current: '', projects: [], notices }

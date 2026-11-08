@@ -43,7 +43,11 @@ what matters from being lost when a plan is deleted.
 | `docs/packaging.md` | Changing the .deb, its post-install, the sandbox profile, or anything installed outside `/opt/Menkar` |
 | `docs/sessions.md` | Finding, reading or naming sessions, watching the agents' folders, or the sessions' keys of `state.json` |
 | `docs/projects.md` | Projects, groups, membership, windows and tabs as data, `projects.json`, or the first-start import |
+| `docs/window.md` | The window, its look and themes, tabs and panes, starting or closing an agent, several windows, quitting |
 | `docs/usage.md` | Measuring time, tokens or cost, reading or writing the usage history, `menkar usage`, or the agent-tablet import |
+| `docs/agent-state.md` | Reading what an agent is doing from its terminal, the shown states, counts and notifications |
+| `docs/context.md` | The statusline, `--settings`, the context reading, or anything written to `~/.claude/settings.json` |
+| `docs/classifier.md` | Classifying turns: what is sent to Haiku and how, the hourly and earlier-turns runs, the evaluation |
 
 ## Product rules the code must hold
 

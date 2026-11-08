@@ -15,3 +15,6 @@ playwright-report/
 # One-shot launch prompts for execution sessions. Each is deleted by the session that used it.
 /prompts/
 
+
+# The classifier's labelled set holds real prompts: never versioned, deleted when done.
+/eval/

@@ -1,0 +1,19 @@
+#!/bin/sh
+# A stand-in for `claude -p` in the classifier's tests: it records its argv, working folder,
+# environment and stdin under $FAKE_CLAUDE_LOG, then answers with the reply file the test chose.
+# The replies are written by hand in the shape `claude -p --output-format json` prints.
+log="$FAKE_CLAUDE_LOG"
+n=$(ls "$log" 2>/dev/null | grep -c '^call-')
+dir="$log/call-$((n + 1))"
+mkdir -p "$dir"
+for arg in "$@"; do printf '%s\0' "$arg"; done > "$dir/argv"
+pwd > "$dir/cwd"
+env > "$dir/env"
+cat > "$dir/stdin"
+reply="$FAKE_CLAUDE_REPLIES/$((n + 1)).json"
+[ -n "$FAKE_CLAUDE_SLEEP" ] && sleep "$FAKE_CLAUDE_SLEEP"
+if [ "$FAKE_CLAUDE_FAIL_CALL" = "$((n + 1))" ]; then
+  echo "rate limited" >&2
+  exit 1
+fi
+cat "$reply"

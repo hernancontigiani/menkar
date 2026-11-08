@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launchApp, terminalText } from './app'
+import { launchApp, savedCursorTab, terminalText } from './app'
 
 function isAlive(pid: number): boolean {
   try {
@@ -14,7 +14,7 @@ function isAlive(pid: number): boolean {
 }
 
 test("the terminal runs the user's shell, and closing the window ends it", async () => {
-  const launched = await launchApp()
+  const launched = await launchApp({ prepare: savedCursorTab })
   const { window } = launched
   try {
     await expect(window.locator('.xterm')).toBeVisible()
@@ -66,7 +66,7 @@ test("the app draws on xvfb-run's X display, never on the developer's Wayland sc
 })
 
 test("Chromium's data lands in the cache, and the config directory holds none of it", async () => {
-  const launched = await launchApp()
+  const launched = await launchApp({ prepare: savedCursorTab })
   const { root } = launched
   let userData = ''
   try {

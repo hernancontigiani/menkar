@@ -1,21 +1,25 @@
-import { join } from 'node:path'
-import { app, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain } from 'electron'
-import { catalog, chooseLanguage, setLanguage, t } from '../core/i18n'
+import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain } from 'electron'
+import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile } from '../core/paths'
 import { NO_MEMBERSHIPS } from '../core/usage/history'
-import type {
-  EventChannel,
-  EventChannels,
-  InvokeChannel,
-  InvokeChannels,
-  SendChannel,
-  SendChannels,
-} from '../shared/ipc'
+import type { InvokeChannel, InvokeChannels, SendChannel, SendChannels } from '../shared/ipc'
+import { startAgentState } from './agentstate'
+import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
+import { startContextReadings } from './context'
 import { projectsSnapshot, startProjects } from './projects'
 import { broadcastSessions, sessions } from './sessions'
-import { Terminal } from './terminal'
 import { cliArguments, runUsageCommand, startUsagePasses } from './usage'
+import {
+  openFirstWindowIfNone,
+  paneBuffer,
+  paneInput,
+  paneResize,
+  revealPane,
+  runAction,
+  startWorkspace,
+  windowState,
+} from './workspace'
 
 const LOG_FILE_MAX_BYTES = 1024 * 1024
 
@@ -36,58 +40,12 @@ function on<C extends SendChannel>(
   ipcMain.on(channel, listener)
 }
 
-function emit<C extends EventChannel>(
-  window: BrowserWindow,
-  channel: C,
-  payload: EventChannels[C],
-): void {
-  if (!window.isDestroyed()) window.webContents.send(channel, payload)
-}
-
-const terminals = new Map<number, Terminal>()
-
-function terminalOf(event: IpcMainEvent): Terminal | undefined {
-  return terminals.get(event.sender.id)
-}
-
-function createWindow(): void {
-  const window = new BrowserWindow({
-    width: 1100,
-    height: 720,
-    title: t('window.title'),
-    backgroundColor: '#1e1e1e',
-    show: false,
-    webPreferences: {
-      preload: join(import.meta.dirname, '../preload/index.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  })
-  const id = window.webContents.id
-  window.once('ready-to-show', () => window.show())
-  window.on('closed', () => {
-    terminals.get(id)?.kill()
-    terminals.delete(id)
-  })
-
-  const devServer = process.env.ELECTRON_RENDERER_URL
-  if (devServer) void window.loadURL(devServer)
-  else void window.loadFile(join(import.meta.dirname, '../renderer/index.html'))
-}
-
-handle('terminal:start', (event, size) => {
-  const window = BrowserWindow.fromWebContents(event.sender)
-  if (!window || terminals.has(event.sender.id)) return undefined
-  const terminal = new Terminal(size, app.getPath('home'), {
-    data: (data) => emit(window, 'terminal:data', data),
-    exit: (exitCode) => emit(window, 'terminal:exit', { exitCode }),
-  })
-  terminals.set(event.sender.id, terminal)
-  return undefined
-})
-on('terminal:input', (event, data) => terminalOf(event)?.write(data))
-on('terminal:resize', (event, size) => terminalOf(event)?.resize(size))
+handle('window:state', (event) => windowState(event.sender) ?? null)
+handle('window:action', (event, action) => runAction(event.sender, action))
+handle('pty:attach', (_event, { pane }) => paneBuffer(pane))
+on('pty:input', (_event, { pane, data }) => paneInput(pane, data))
+on('pty:resize', (_event, { pane, cols, rows }) => paneResize(pane, cols, rows))
+on('panes:reveal', (_event, { paneId }) => revealPane(paneId))
 
 let language = chooseLanguage(undefined, [])
 
@@ -122,9 +80,18 @@ async function start(): Promise<void> {
   app.on('will-quit', () => sessions.stop())
   // Projects do not exist yet: every turn is written with none and takes its session's project
   // once one does.
-  const usage = startUsagePasses(() => NO_MEMBERSHIPS)
+  registerClassifierIpc()
+  const usage = startUsagePasses(() => NO_MEMBERSHIPS, classifyAfterUsagePass)
   app.on('will-quit', () => usage.stop())
-  createWindow()
+  // Agent state and context (plan 09): the panes' states and the statusline's readings.
+  const stopAgentState = startAgentState()
+  const stopContext = startContextReadings()
+  app.on('will-quit', () => {
+    stopAgentState()
+    stopContext()
+  })
+  await startWorkspace()
+  openFirstWindowIfNone()
 }
 
 const command = cliArguments(process.argv, app.isPackaged)
@@ -135,6 +102,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-})
+app.on('activate', () => openFirstWindowIfNone())

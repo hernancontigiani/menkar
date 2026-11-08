@@ -32,12 +32,32 @@ const api: MenkarApi = {
     setHidden: (ids, hidden) => ipcRenderer.invoke('sessions:set-hidden', { ids, hidden }),
     onChanged: (listener) => subscribe('sessions:changed', listener),
   },
-  terminal: {
-    start: (size) => ipcRenderer.invoke('terminal:start', size),
-    write: (data) => send('terminal:input', data),
-    resize: (size) => send('terminal:resize', size),
-    onData: (listener) => subscribe('terminal:data', listener),
-    onExit: (listener) => subscribe('terminal:exit', listener),
+  window: {
+    state: () => ipcRenderer.invoke('window:state'),
+    act: (action) => ipcRenderer.invoke('window:action', action),
+    onState: (listener) => subscribe('window:state', listener),
+    onConfirmClose: (listener) => subscribe('window:confirm-close', listener),
+  },
+  panes: {
+    attach: (pane) => ipcRenderer.invoke('pty:attach', { pane }),
+    input: (pane, data) => send('pty:input', { pane, data }),
+    resize: (pane, cols, rows) => send('pty:resize', { pane, cols, rows }),
+    reveal: (paneId) => send('panes:reveal', { paneId }),
+    onData: (listener) => subscribe('pty:data', listener),
+  },
+  agentState: {
+    onChanged: (listener) => subscribe('agentState:changed', listener),
+    onToast: (listener) => subscribe('agentState:toast', listener),
+  },
+  context: {
+    onReading: (listener) => subscribe('context:reading', listener),
+  },
+  classifier: {
+    status: () => ipcRenderer.invoke('classifier:status'),
+    set: (on) => ipcRenderer.invoke('classifier:set', { on }),
+    estimate: (day) => ipcRenderer.invoke('classifier:estimate', { day }),
+    classifyEarlier: (day) => ipcRenderer.invoke('classifier:classify-earlier', { day }),
+    stop: () => ipcRenderer.invoke('classifier:stop'),
   },
 }
 

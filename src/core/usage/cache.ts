@@ -402,6 +402,33 @@ export class UsageCache {
     return found
   }
 
+  // A turn's transcript, the byte its opening line starts at, and the byte the next turn of that
+  // file starts at (null: the turn runs to the end of the file).
+  extent(uuid: string): { file: string; start: number; end: number | null } | null {
+    const row = this.db.raw.prepare('SELECT file, offset FROM turns WHERE uuid = ?').get(uuid)
+    if (!row) return null
+    const file = str(row, 'file')
+    const start = num(row, 'offset')
+    const next = this.db.raw
+      .prepare('SELECT MIN(offset) AS next FROM turns WHERE file = ? AND offset > ?')
+      .get(file, start)
+    const end = next?.next === null || next?.next === undefined ? null : Number(next.next)
+    return { file, start, end }
+  }
+
+  // The latest turn the human started in the same session before this one.
+  previousHuman(uuid: string): string | null {
+    const row = this.db.raw
+      .prepare(
+        'SELECT p.uuid AS uuid FROM turns t JOIN turns p ON p.session_id = t.session_id' +
+          " WHERE t.uuid = ? AND p.origin = 'human'" +
+          ' AND (p.opened < t.opened OR (p.opened = t.opened AND p.uuid < t.uuid))' +
+          ' ORDER BY p.opened DESC, p.uuid DESC',
+      )
+      .get(uuid)
+    return row ? str(row, 'uuid') : null
+  }
+
   // The transcript a turn was read from and the byte its opening line starts at.
   source(uuid: string): { file: string; offset: number } | null {
     const row = this.db.raw.prepare('SELECT file, offset FROM turns WHERE uuid = ?').get(uuid)

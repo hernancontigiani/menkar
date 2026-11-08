@@ -80,3 +80,10 @@ keeps how they are built and why.
 When `~/.claude/projects` (or Cursor's) does not exist, the sessions service watches its nearest
 existing ancestor instead (`src/core/sessions/service.ts`). The ancestor's change event starts the
 rescan that finds the new directory, and the scan after it watches the directory itself.
+
+## On screen
+
+The window (`docs/window.md`) draws this model; it does not change it. Every action of the project
+dropdown, the session rows' menu and the tab strip goes to `src/main/workspace.ts`, which calls
+these functions and pushes the new state to every window. A refusal comes back as its key and is
+shown as the spec says: the dropdown's error line, an error dialog, or a 4 s toast.

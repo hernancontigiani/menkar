@@ -318,6 +318,53 @@ export class UsageHistory {
     return found
   }
 
+  // Turns of these origins opened at or after `since` with no category and fewer than `tries`
+  // failed tries, oldest first, with whether a later turn of their session exists.
+  unclassified(
+    since: number,
+    tries: number,
+    origins: readonly string[],
+  ): { uuid: string; opened: number; later: boolean }[] {
+    if (this.db === null) return []
+    const marks = origins.map(() => '?').join(', ')
+    return this.db.raw
+      .prepare(
+        'SELECT t.uuid AS uuid, t.opened AS opened, EXISTS (SELECT 1 FROM turns n' +
+          ' WHERE n.session_id = t.session_id AND (n.opened > t.opened OR' +
+          ' (n.opened = t.opened AND n.uuid > t.uuid))) AS later' +
+          ` FROM turns t WHERE t.origin IN (${marks}) AND t.category IS NULL` +
+          ' AND t.category_tries < ? AND t.opened >= ? ORDER BY t.opened, t.uuid',
+      )
+      .all(...origins, tries, since)
+      .map((r) => ({
+        uuid: String(r.uuid),
+        opened: num(r, 'opened'),
+        later: num(r, 'later') === 1,
+      }))
+  }
+
+  // Only a turn's category is written: its time, tokens and cost stay as they are.
+  setCategories(categories: ReadonlyMap<string, string>): void {
+    const db = this.db
+    if (db === null || categories.size === 0) return
+    const update = db.raw.prepare('UPDATE turns SET category = ? WHERE uuid = ?')
+    db.transaction(() => {
+      for (const [uuid, category] of categories) update.run(category, uuid)
+    })
+  }
+
+  // A classification that came back with no valid answer for these turns.
+  countTry(uuids: readonly string[]): void {
+    const db = this.db
+    if (db === null || uuids.length === 0) return
+    const update = db.raw.prepare(
+      'UPDATE turns SET category_tries = category_tries + 1 WHERE uuid = ?',
+    )
+    db.transaction(() => {
+      for (const uuid of uuids) update.run(uuid)
+    })
+  }
+
   // The project of the session's turn in effect at `at` (its first turn, before any).
   projectAt(sessionId: string, at: number): string | null {
     if (this.db === null) return null

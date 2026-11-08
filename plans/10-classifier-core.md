@@ -54,12 +54,12 @@ The switch and its row, the earlier-turns dialog, the categories in the Usage wi
 ## Execution blocks
 
 ### B1 — The hourly pass
-- [ ] Which turns, the input, the invocation, the prompt, the answer, inheritance; the runner and its
+- [x] Which turns, the input, the invocation, the prompt, the answer, inheritance; the runner and its
       lock; main wiring after the usage pass.
 - **Verification:** `npm run ci`.
 
 ### B2 — Earlier turns
-- [ ] Estimate, run, progress, stop, resume; the IPC for the dialog to come.
+- [x] Estimate, run, progress, stop, resume; the IPC for the dialog to come.
 - **Verification:** `npm run ci`.
 
 ### B3 — The evaluation
@@ -68,9 +68,53 @@ The switch and its row, the earlier-turns dialog, the categories in the Usage wi
 - **Verification:** the script runs; `npm run ci`.
 
 ### B4 — Exit
-- [ ] The exit's files.
+- [x] The exit's files.
 - **Verification:** `npm run ci`.
 
 ## Execution log
 
-(Written by the session that executes it.)
+Executed by `b2`, 2026-11-08.
+
+**B1 — the hourly pass.** `src/core/classifier/{prompt,input,turns,run,lock,settings,text}.ts`.
+`unclassified`, `setCategories` and `countTry` in `src/core/usage/history.ts`; `extent` and
+`previousHuman` in `src/core/usage/cache.ts`. `src/main/classifier.ts`,
+`src/main/classifier-worker.ts` (a fourth main entry in `electron.vite.config.ts`), the `after`
+hook of `startUsagePasses` in `src/main/usage.ts`, and its registration in `src/main/index.ts`.
+Tests: `tests/core/classifier/{pass,lock}.test.ts`, the stand-in `tests/data/classifier/claude`,
+and `e2e/classifier.spec.ts` (the real app, the start-up pass then the classification; red without
+the hook).
+
+**B2 — earlier turns.** In the same files: `estimate`, `classifyEarlier` with progress and stop,
+and the IPC `classifier:status`, `:set`, `:estimate`, `:classify-earlier` and `:stop` in my block of
+`src/shared/ipc.ts` and `src/preload/index.ts`. Strings in my block of both catalogs. Tests:
+`tests/core/classifier/earlier.test.ts`, and a second e2e test calling the estimate and the run
+through `window.menkar.classifier` (red with the handler disabled).
+
+**B3 — the evaluation.** `scripts/classify-eval.mjs` and `/eval/` in `.gitignore`. Test:
+`tests/scripts/classify-eval.test.ts`, against the stand-in `claude`: usage and exit 2, two files
+of 50 and 91 → 6 calls and every output line, the user's data folder untouched. **The real run
+waits for the human's OK** (asked through `set`: copying agent-tablet's labelled set, and about six
+calls of quota). Until then there are no Menkar figures beside agent-tablet's 74% on the 50 and 66%
+on the 141.
+
+**B4 — exit.** `docs/classifier.md`, its row in `CLAUDE.md`, the evaluation script in
+`README.md`; the built parts of `docs/spec/classifier.md` trimmed to pointers, removed lines
+verbatim in `docs/history/spec/classifier.md`. Left in the spec: the categories, the switch, the
+earlier-turns dialog, the settings, the Look, and CLS-1, CLS-25, CLS-26, CLS-30 to CLS-32.
+
+Deviations and what the plan did not anticipate:
+- **Code before tests once more**, with every test seen red under injected defects (about 50). Six
+  were first missed and their tests strengthened, among them CLS-28's, which had recomputed the
+  estimate with the code's own constants.
+- **The `unknown` gap** (the spec's "Menkar must decide"), resolved by decision 1.10: an `unknown`
+  turn shows its own category. Its "previous prompt" is still the latest *human* prompt, as in
+  agent-tablet, so a transcript from before `turnOrigin` sends none. Changing that is a new
+  measurement.
+- **The classifier runs in a worker thread per job**, with a `SharedArrayBuffer` for Stop and
+  progress, instead of agent-tablet's threads with an Event.
+- **State writes go through `sessions.updateState()`**, since b1's sessions service holds
+  `state.json` in memory and a separate write would be lost at its next save.
+- **`input.ts` imports `prompt.ts` with its extension**, so the evaluation script runs the app's
+  own code unbuilt under Node 22 (the system's Node 18 cannot strip types: the script is run with
+  the project's Node).
+- **At delivery:** `npm run ci` passes (475 Vitest tests). `npm run ui-check` passes all 16 tests.

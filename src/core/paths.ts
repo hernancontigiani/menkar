@@ -53,6 +53,8 @@ function xdgBase(variable: string, fallback: string): string {
 export interface AgentPaths {
   readonly claudeProjects: string
   readonly claudeConfig: string
+  // Claude Code's user settings: written only by an integration the user turns on or off.
+  readonly claudeSettings: string
   readonly cursorProjects: string
   readonly agentTabletConfig: string
   readonly agentTabletData: string
@@ -64,6 +66,7 @@ export function agentPaths(): AgentPaths {
   return {
     claudeProjects: join(home, '.claude', 'projects'),
     claudeConfig: join(home, '.claude.json'),
+    claudeSettings: join(home, '.claude', 'settings.json'),
     cursorProjects: join(home, '.cursor', 'projects'),
     agentTabletConfig: join(xdgBase('XDG_CONFIG_HOME', '.config'), 'agent-tablet'),
     agentTabletData: join(xdgBase('XDG_DATA_HOME', '.local/share'), 'agent-tablet'),

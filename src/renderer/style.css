@@ -1,14 +1,664 @@
+/* Every color is a role set by look.ts from the theme; the two styles are classes on <html>. */
+:root {
+  --bg: #1e1e2e;
+  --fg: #cdd6f4;
+  --mantle: #181825;
+  --surface0: #313244;
+  --surface1: #45475a;
+  --overlay0: #6c7086;
+  --subtext0: #a6adc8;
+  --accent: #cba6f7;
+  --on-accent: #1e1e2e;
+  --green: #a6e3a1;
+  --yellow: #f9e2af;
+  --red: #f38ba8;
+  --destructive: #f38ba8;
+  --scrim: rgba(0, 0, 0, 0.5);
+  --ui-font: monospace;
+  --menu-font: sans-serif;
+  --radius: 0;
+  --sidebar-width: 300px;
+}
+
+html.classic {
+  --ui-font: sans-serif;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
   height: 100%;
-  background: #1e1e1e;
   overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--ui-font);
+  font-size: 11pt;
 }
 
-/* The fit addon measures this element, so its padding stays at zero; the gap is a margin. */
-#terminal {
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  cursor: default;
+}
+button:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+button:active {
+  background: color-mix(in srgb, var(--fg) 16%, transparent);
+}
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+}
+button.normal {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  font-weight: 700;
+}
+button.suggested {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+button.pill {
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 10px 32px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+svg.icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+input[type="text"] {
+  font: inherit;
+  color: var(--fg);
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+input[type="text"]:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.dim {
+  opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------- the frame */
+#app {
+  display: flex;
+  height: 100%;
+}
+
+#sidebar {
+  width: var(--sidebar-width);
+  min-width: 220px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--mantle);
+  color: var(--subtext0);
+}
+html.classic #sidebar {
+  background: var(--bg);
+  color: var(--fg);
+}
+#sidebar.hidden,
+#divider.hidden {
+  display: none;
+}
+#sidebar .dim {
+  opacity: 1;
+  color: var(--overlay0);
+}
+html.classic #sidebar .dim {
+  opacity: 0.55;
+  color: inherit;
+}
+
+#divider {
+  width: 1px;
+  flex: none;
+  background: color-mix(in srgb, var(--fg) 15%, var(--bg));
+  position: relative;
+  cursor: col-resize;
+}
+#divider::after {
+  content: "";
   position: absolute;
-  inset: 6px;
-  padding: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+}
+
+#content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  min-height: 43px;
+}
+#project-button {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: 34px;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  color: var(--fg);
+}
+#project-button:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.project-name {
+  flex: 1;
+  text-align: left;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#session-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 0;
+}
+.group-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 4px 10px;
+  font-size: 9pt;
+  font-weight: 700;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: 0 6px 2px;
+  padding: 6px 4px 6px 10px;
+  border-radius: var(--radius);
+}
+.row:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+.row .text {
+  flex: 1;
+  min-width: 0;
+}
+.row .name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row .folder {
+  font-size: 9pt;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: inset 0 0 0 1.5px var(--overlay0);
+}
+html.classic .dot {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fg) 35%, transparent);
+}
+.dot.running {
+  box-shadow: inset 0 0 0 1.5px var(--green);
+}
+html.classic .dot.running {
+  box-shadow: inset 0 0 0 1.5px #2ec27e;
+}
+#add-session {
+  margin: 6px 8px;
+  min-height: 34px;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  font-weight: 700;
+  color: var(--fg);
+}
+
+/* ---------------------------------------------------------------- header and strip */
+.content-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  min-height: 43px;
+}
+html.classic .content-header {
+  min-height: 46px;
+}
+.content-header .title {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+}
+.split {
+  display: flex;
+  align-items: center;
+}
+.split .sep {
+  width: 1px;
+  height: 16px;
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+
+#tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px 0 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html.classic #tab-strip {
+  padding: 3px 6px;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  min-height: 22px;
+  font-weight: 700;
+  background: var(--surface0);
+  color: var(--subtext0);
+  white-space: nowrap;
+  flex: none;
+}
+.tab:hover {
+  background: var(--surface0);
+}
+.tab.selected {
+  background: var(--accent);
+  color: var(--bg);
+}
+html.classic .tab {
+  background: transparent;
+  color: var(--fg);
+}
+html.classic .tab .title {
+  opacity: 0.6;
+}
+html.classic .tab.selected {
+  background: color-mix(in srgb, #d97757 22%, transparent);
+  box-shadow: inset 0 -3px 0 #d97757;
+}
+html.classic .tab.selected .title {
+  opacity: 1;
+}
+.tab .close {
+  padding: 2px;
+  margin-right: -4px;
+  border-radius: 50%;
+  opacity: 0.7;
+  line-height: 0;
+  cursor: pointer;
+}
+.tab .close:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+/* ---------------------------------------------------------------- tab content */
+#tab-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.tab-body {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.tab-body.vertical {
+  flex-direction: column;
+}
+.tab-body.hidden {
+  display: none;
+}
+.pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.pane + .pane {
+  border-left: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.tab-body.vertical .pane + .pane {
+  border-left: 0;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.frame {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  margin: 12px 6px 6px 6px;
+  border: 1px solid var(--surface1);
+}
+.frame:focus-within {
+  border-color: var(--accent);
+}
+.frame-label {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  padding: 0 4px;
+  background: var(--bg);
+  color: var(--accent);
+  line-height: 16px;
+  font-size: 10pt;
+}
+html.classic .frame {
+  border: 0;
+  margin: 0;
+}
+html.classic .frame-label {
+  display: none;
+}
+/* The fit addon measures this element, so its padding stays at zero; the gap is the inset. */
+.term {
+  position: absolute;
+  inset: 2px 6px;
+}
+.find-bar {
+  display: flex;
+  gap: 6px;
+  padding: 4px 6px 0;
+}
+.find-bar input {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------- empty states */
+.status-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  height: 100%;
+  padding: 24px;
+}
+.status-page svg.big {
+  width: 128px;
+  height: 128px;
+  opacity: 0.55;
+}
+.status-page.compact svg.big {
+  width: 96px;
+  height: 96px;
+}
+.status-page .heading {
+  font-size: 20pt;
+  font-weight: 800;
+}
+.status-page.compact .heading {
+  font-size: 18pt;
+}
+.status-page .body {
+  max-width: 40ch;
+}
+
+/* ---------------------------------------------------------------- popovers, dialogs, toasts */
+.popover {
+  position: fixed;
+  z-index: 20;
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 120px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+  font-family: var(--menu-font);
+}
+.popover.projects {
+  min-width: 280px;
+  font-family: var(--menu-font);
+}
+.menu-item {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.menu-item:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 4px;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.project-row:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.project-row .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-row .check {
+  width: 16px;
+}
+.create-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.create-row input {
+  flex: 1;
+  background: var(--surface0);
+}
+.error-line {
+  color: var(--destructive);
+  margin-top: 6px;
+  white-space: normal;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dialog {
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 13px;
+  min-width: 320px;
+  max-width: 480px;
+  overflow: hidden;
+}
+html.classic .dialog {
+  background: var(--surface0);
+}
+.dialog .message {
+  padding: 24px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+.dialog .message .heading {
+  font-weight: 700;
+  font-size: 13pt;
+}
+.dialog .responses {
+  display: flex;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.dialog .responses button {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 0;
+}
+.dialog .responses button + button {
+  border-left: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.dialog .responses .suggested-text {
+  color: var(--accent);
+  font-weight: 700;
+}
+.dialog .responses .destructive-text {
+  color: var(--destructive);
+  font-weight: 700;
+}
+.dialog .field {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  text-align: left;
+}
+.dialog .field input {
+  flex: 1;
+}
+
+#toasts {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 24px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: rgba(255, 255, 255, 0.9);
+}
+.toast-action {
+  color: inherit;
+  border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------- states, rings, logo */
+.dot.idle {
+  box-shadow: inset 0 0 0 1.5px var(--green);
+}
+.dot.working {
+  background: var(--yellow);
+  box-shadow: none;
+}
+.dot.done {
+  background: var(--green);
+  box-shadow: none;
+}
+.dot.blocked {
+  background: var(--red);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 35%, transparent);
+}
+html.classic .dot.idle {
+  box-shadow: inset 0 0 0 1.5px #2ec27e;
+}
+html.classic .dot.working {
+  background: #e5a50a;
+}
+html.classic .dot.done {
+  background: #2ec27e;
+}
+html.classic .dot.blocked {
+  background: #e01b24;
+  box-shadow: none;
+}
+.ring {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  line-height: 0;
+}
+.blocked-pill {
+  background: var(--red);
+  color: var(--mantle);
+  border-radius: 9px;
+  padding: 0 6px;
+  font-size: 0.85em;
+  font-weight: 700;
+}
+html.classic .blocked-pill {
+  background: #e01b24;
+  color: #ffffff;
+}
+.logo {
+  display: inline-block;
+  opacity: 0.55;
+  line-height: 0;
+}
+.logo.big svg {
+  width: 128px;
+  height: 128px;
+}
+.logo.compact svg {
+  width: 96px;
+  height: 96px;
+}
+#sidebar .logo {
+  opacity: 1;
+  color: var(--overlay0);
 }

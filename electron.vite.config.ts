@@ -9,6 +9,9 @@ export default defineConfig({
           index: resolve('src/main/index.ts'),
           // Usage passes run on a worker thread, which loads its own file.
           'usage-worker': resolve('src/main/usage-worker.ts'),
+          'classifier-worker': resolve('src/main/classifier-worker.ts'),
+          // Claude Code runs the statusline as a program of its own, through Electron's binary.
+          statusline: resolve('src/core/context/statusline.ts'),
         },
       },
     },

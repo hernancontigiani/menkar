@@ -180,10 +180,21 @@ export class SessionsService {
   }
 
   async setHidden(ids: readonly string[], hidden: boolean): Promise<void> {
+    await this.updateState((state) => setHidden(state, ids, hidden))
+  }
+
+  // The one holder of state.json in memory: every writer (names, hidden, settings) goes through
+  // here, so two of them never save from different copies.
+  async updateState(change: (state: State) => State): Promise<void> {
     await this.start()
-    this.#state = setHidden(this.#state ?? (await loadState()), ids, hidden)
+    this.#state = change(this.#state ?? (await loadState()))
     await saveState(this.#state)
     this.#emit()
+  }
+
+  async currentState(): Promise<State> {
+    await this.start()
+    return this.#state ?? (await loadState())
   }
 
   stop(): void {

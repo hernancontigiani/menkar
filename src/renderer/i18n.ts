@@ -13,3 +13,10 @@ export function t(key: Key, params?: Params): string {
   if (!messages) throw new Error(`t('${key}') called before the catalog was loaded`)
   return interpolate(messages[key], params)
 }
+
+// For a key that arrives as data (a refusal or a notice from main), not written at the call: the
+// key itself was checked where it was written.
+export function translate(key: Key, params?: Params): string {
+  if (!messages) throw new Error(`translate('${key}') called before the catalog was loaded`)
+  return interpolate(messages[key], params)
+}

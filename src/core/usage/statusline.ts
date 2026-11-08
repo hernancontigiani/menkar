@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { usageLogFile } from '../context/statusline'
 import { appDirs } from '../paths'
 import { isObject, parseSeconds } from './transcript'
 
 // The statusline's log of what Claude Code reported for each session (cost, limits).
 export function statuslineLogPath(): string {
-  return join(appDirs().cache, 'usage.jsonl')
+  return usageLogFile()
 }
 
 // agent-tablet's log, copied at the first start: kept with the history, as it is not rebuildable.
@@ -32,6 +33,16 @@ function* lines(paths: readonly string[]): Generator<Record<string, unknown>> {
     }
   }
 }
+
+// The keys of a usage line this reader uses; the statusline writes them (a parity test holds the
+// two sides together).
+export const STATUSLINE_READ_KEYS = [
+  'at',
+  'session_id',
+  'cost_usd',
+  'five_hour_pct',
+  'seven_day_pct',
+] as const
 
 export interface Increment {
   readonly sessionId: string

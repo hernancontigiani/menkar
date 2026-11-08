@@ -214,6 +214,8 @@ accent; Menkar's Classic uses the stock blue.
 
 ## Acceptance cases
 
+Built and tested (LOOK-2, 3, 6, 23, 37, 39) left for the history; `e2e/look.spec.ts` carries their ids.
+
 Unless said otherwise: window 1280 × 800 at scale 1, theme `Default`, scheme Dark, style Terminal
 workspace (so Catppuccin Mocha), sidebar shown at 300 px, a project "Client work" with a group
 "api pair" (color `#5ec4b6`) holding two sessions and one session in no group, in two folders.
@@ -222,10 +224,6 @@ workspace (so Catppuccin Mocha), sidebar shown at 300 px, a project "Client work
 
 - **LOOK-1** A first start opens a window of 1280 × 800 px titled "Menkar"; the header shows the
   title "Menkar" centered over the content area.
-- **LOOK-2** Window background (content area, empty state) is `#1e1e2e`; the content header row has
-  the same `#1e1e2e` (no separate bar color); the sidebar, including its header row, is `#181825`.
-- **LOOK-3** The line between sidebar and content is 1 px of `fg` at 15 % over the background:
-  `#38394b` in Mocha.
 - **LOOK-4** With one tab open, the header shows (left to right) the sidebar toggle (checked: its
   background `fg` at 10 %, `#2f3042`), the New split button (tab-new icon, then a ▾ arrow after a
   thin separator), and no Close-all button; with a second tab open in any project of the window,
@@ -234,8 +232,6 @@ workspace (so Catppuccin Mocha), sidebar shown at 300 px, a project "Client work
 
 **Sidebar (F29, K11, K36)**
 
-- **LOOK-6** Press `F9`: the sidebar disappears, the content starts at the window's left edge, the
-  toggle is unchecked. Press `F9` again: the sidebar is back at 300 px and the toggle checked.
 - **LOOK-7** Press `Ctrl+B`, then `b`: the same as LOOK-6's first press; clicking the header toggle
   does it too; the three stay in step (after `F9` hides it, one click on the toggle shows it).
 - **LOOK-8** Drag the divider to 420 px, wait 1 s, quit, start: the sidebar opens at 420 px and
@@ -282,9 +278,6 @@ workspace (so Catppuccin Mocha), sidebar shown at 300 px, a project "Client work
 
 **Tab strip**
 
-- **LOOK-23** One open tab "JWT auth" selected: the tab is a square rectangle of accent `#cba6f7`
-  with text `#1e1e2e`, measured 34 px tall, starting 6 px right of the divider; the `+` sits right
-  after it, 2 px away; the strip's background is `#1e1e2e`.
 - **LOOK-24** Two tabs: the unselected one is a square rectangle of surface0 `#313244` with text
   subtext0 `#a6adc8` at full opacity; the tabs are 2 px apart.
 - **LOOK-25** Classic, two tabs: the selected one has a background of `#D97757` at 22 % and a 3 px
@@ -323,14 +316,8 @@ workspace (so Catppuccin Mocha), sidebar shown at 300 px, a project "Client work
 
 **Themes**
 
-- **LOOK-37** Theme `Nord`, scheme Dark or Light, Terminal workspace: sidebar `#282d35`, window
-  `#2e3440`, selected tab `#b48ead` with text `#2e3440`, unselected tab `#424854`, focused frame
-  `#b48ead`, unfocused frame `#505662`, idle dot ring `#a3be8c`.
 - **LOOK-38** Theme `Dracula`: accent (selected tab, focused frame) `#bd93f9`, not ANSI 5
   `#ff79c6`.
-- **LOOK-39** Theme `Default`, scheme Light, Terminal workspace: window `#eff1f5`, sidebar
-  `#e6e9ef`, divider `#d6d9e0` (all measured), selected tab `#8839ef` with text `#eff1f5`,
-  unselected tab `#ccd0da` with text `#6c6f85`, terminal background `#eff1f5` and text `#4c4f69`.
 - **LOOK-40** Scheme `Follow system`, theme `Default`, the desktop switches dark → light: within the
   same second every window turns from Mocha to Latte, terminals included, without a restart.
 - **LOOK-41** Theme `Solarized Light` with scheme Dark, Terminal workspace: the window is light
