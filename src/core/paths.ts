@@ -42,3 +42,31 @@ export function logFile(): string {
 export function electronUserData(): string {
   return join(appDirs().cache, 'electron')
 }
+
+function xdgBase(variable: string, fallback: string): string {
+  const value = process.env[variable]
+  return value?.startsWith('/') ? value : join(homedir(), fallback)
+}
+
+// What the agents and agent-tablet own: read only, never written by Menkar except where a user
+// action confirms it.
+export interface AgentPaths {
+  readonly claudeProjects: string
+  readonly claudeConfig: string
+  readonly cursorProjects: string
+  readonly agentTabletConfig: string
+  readonly agentTabletData: string
+  readonly agentTabletCache: string
+}
+
+export function agentPaths(): AgentPaths {
+  const home = homedir()
+  return {
+    claudeProjects: join(home, '.claude', 'projects'),
+    claudeConfig: join(home, '.claude.json'),
+    cursorProjects: join(home, '.cursor', 'projects'),
+    agentTabletConfig: join(xdgBase('XDG_CONFIG_HOME', '.config'), 'agent-tablet'),
+    agentTabletData: join(xdgBase('XDG_DATA_HOME', '.local/share'), 'agent-tablet'),
+    agentTabletCache: join(xdgBase('XDG_CACHE_HOME', '.cache'), 'agent-tablet'),
+  }
+}

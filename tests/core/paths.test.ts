@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { appDirs, electronUserData } from '../../src/core/paths'
+import { agentPaths, appDirs, electronUserData } from '../../src/core/paths'
 
 describe('paths', () => {
   test("tests never resolve the app's directories under the developer's home", () => {
@@ -47,5 +47,14 @@ describe('paths', () => {
     const { cache, config } = appDirs()
     expect(electronUserData()).toBe(join(cache, 'electron'))
     expect(electronUserData().startsWith(`${config}/`)).toBe(false)
+  })
+
+  test("the agents' and agent-tablet's paths resolve under the test's HOME and XDG dirs", () => {
+    const root = process.env.MENKAR_TEST_ROOT ?? ''
+    const paths = agentPaths()
+    expect(Object.keys(paths).length).toBeGreaterThanOrEqual(6)
+    for (const path of Object.values(paths)) expect(path.startsWith(`${root}/`)).toBe(true)
+    expect(paths.claudeProjects).toBe(join(root, 'home', '.claude', 'projects'))
+    expect(paths.agentTabletData).toBe(join(root, 'data', 'agent-tablet'))
   })
 })
