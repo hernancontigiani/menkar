@@ -49,3 +49,17 @@
 > and the `sessions:*` IPC; a generated 2 GB tree scanned in 1.7 s with no stall over 8 ms. Found:
 > the agent-tablet import must land before the first UI that writes `state.json` (plan 07 does it),
 > and a projects directory created after start was not watched (plan 07 too). In `docs/sessions.md`.
+
+> Left §3 on 2026-11-08: plans 06 and 07 closed.
+| 3 | `06-usage-core.md` (turns, tokens, cost, the history, `menkar usage`, the agent-tablet import) | Written 2026-11-08; `b2` |
+| 3 | `07-projects-core.md` (projects, groups, membership, the layout model, `projects.json`, the agent-tablet import of projects and state) | Written 2026-11-08; `b1` |
+
+> Closed 2026-11-08 — plan 06, "Usage in core", built by `b2`: turns, time, tokens, cost, the cache
+> and history with passes on a worker thread, `menkar usage`, the import of agent-tablet's history
+> and `usage.jsonl`; on generated data its monthly report was byte-identical to agent-tablet's. In
+> `docs/usage.md`.
+
+> Closed 2026-11-08 — plan 07, "Projects in core", built by `b1`: the model, membership, the layout
+> model, `projects.json`, the first-start import of agent-tablet's projects and state before any
+> window, and a projects directory that appears after start. In `docs/projects.md`. Cases that need
+> the window are listed in its log for plan 08.
