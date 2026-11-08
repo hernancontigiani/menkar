@@ -36,3 +36,9 @@ export function appDirs(): AppDirs {
 export function logFile(): string {
   return join(appDirs().cache, 'menkar.log')
 }
+
+// Chromium's own data (caches, Crashpad, local storage) is rebuildable, so on Linux it lives in
+// the cache and the config directory holds only the app's state.
+export function electronUserData(): string {
+  return join(appDirs().cache, 'electron')
+}

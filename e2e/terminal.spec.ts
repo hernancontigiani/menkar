@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launchApp, terminalText } from './app'
 
@@ -60,5 +62,27 @@ test("the app draws on xvfb-run's X display, never on the developer's Wayland sc
     expect(flags).toEqual({ ozone: 'x11', wayland: null })
   } finally {
     await launched.close()
+  }
+})
+
+test("Chromium's data lands in the cache, and the config directory holds none of it", async () => {
+  const launched = await launchApp()
+  const { root } = launched
+  let userData = ''
+  try {
+    await expect(launched.window.locator('.xterm')).toBeVisible()
+    userData = await launched.app.evaluate(({ app }) => app.getPath('userData'))
+  } finally {
+    await launched.app.close()
+  }
+  try {
+    expect(userData).toBe(join(root, 'cache', 'menkar', 'electron'))
+    expect(readdirSync(userData).length).toBeGreaterThan(0)
+    // The app's own config directory; other programs (the input method's client) may write their
+    // own folders beside it under the same XDG_CONFIG_HOME.
+    const config = join(root, 'config', 'menkar')
+    expect(existsSync(config) ? readdirSync(config, { recursive: true }) : []).toEqual([])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
   }
 })

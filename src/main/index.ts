@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain } from 'electron'
 import { catalog, chooseLanguage, setLanguage, t } from '../core/i18n'
 import { addSink, log, openFileSink } from '../core/log'
-import { logFile } from '../core/paths'
+import { electronUserData, logFile } from '../core/paths'
 import type {
   EventChannel,
   EventChannels,
@@ -88,6 +88,10 @@ on('terminal:resize', (event, size) => terminalOf(event)?.resize(size))
 let language = chooseLanguage(undefined, [])
 
 handle('i18n:catalog', () => ({ language, messages: catalog(language) }))
+
+// Before `ready`: Chromium opens its profile at startup. Windows and macOS keep Electron's default,
+// already a per-app folder of the platform.
+if (process.platform === 'linux') app.setPath('userData', electronUserData())
 
 async function start(): Promise<void> {
   await app.whenReady()

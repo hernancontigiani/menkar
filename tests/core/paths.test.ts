@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { appDirs } from '../../src/core/paths'
+import { appDirs, electronUserData } from '../../src/core/paths'
 
 describe('paths', () => {
   test("tests never resolve the app's directories under the developer's home", () => {
@@ -41,5 +41,11 @@ describe('paths', () => {
     } finally {
       process.env.XDG_DATA_HOME = before
     }
+  })
+
+  test("Chromium's data goes under the cache, never into the config directory", () => {
+    const { cache, config } = appDirs()
+    expect(electronUserData()).toBe(join(cache, 'electron'))
+    expect(electronUserData().startsWith(`${config}/`)).toBe(false)
   })
 })

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Menkar
+Exec=/opt/Menkar/menkar %U
+Terminal=false
+Type=Application
+Icon=menkar
+StartupWMClass=menkar
+Comment=A desktop app for working with several Claude Code sessions at once
+Categories=Development;

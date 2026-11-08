@@ -1,0 +1,27 @@
+appId: io.github.hernancontigiani.Menkar
+productName: Menkar
+executableName: menkar
+copyright: Copyright © 2026 Hernan Contigiani
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+asar: true
+npmRebuild: true
+# Nothing leaves the machine: no update feed, so no app-update.yml in the package.
+publish: null
+linux:
+  target:
+    - target: deb
+      arch: [x64]
+  category: Development
+  icon: build/icons
+  synopsis: Several Claude Code sessions at once, each in a real terminal
+  syncDesktopName: true
+  desktop:
+    entry:
+      Name: Menkar
+deb:
+  packageCategory: devel

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { _electron, type ElectronApplication, type Page } from '@playwright/test'
 
 export interface LaunchedApp {
+  readonly root: string
   readonly app: ElectronApplication
   readonly window: Page
   close(): Promise<void>
@@ -31,9 +32,16 @@ export async function launchApp(): Promise<LaunchedApp> {
   // xvfb-run's DISPLAY.
   delete env.WAYLAND_DISPLAY
   env.XDG_SESSION_TYPE = 'x11'
-  const app = await _electron.launch({ args: ['--ozone-platform=x11', '.'], env })
+  // MENKAR_E2E_EXECUTABLE runs the suite against a packaged build instead of `out/`.
+  const executable = process.env.MENKAR_E2E_EXECUTABLE
+  const app = await _electron.launch(
+    executable
+      ? { executablePath: executable, args: ['--ozone-platform=x11'], env }
+      : { args: ['--ozone-platform=x11', '.'], env },
+  )
   const window = await app.firstWindow()
   return {
+    root,
     app,
     window,
     async close() {
