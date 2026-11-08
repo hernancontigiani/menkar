@@ -66,3 +66,20 @@
 
 > Left §3 on 2026-11-08: plan 09 built, waiting to be committed with plan 08.
 | 5 | `09-state-and-context.md` (agent state from the terminal, counts, notifications; the context ring's data, the statusline script, `--settings`, the integrations) | Written 2026-11-08; `b2` |
+
+> Left §3 on 2026-11-08: plans 08 and 09 closed; plan 10 waits on its evaluation run.
+| 5 | `08-window.md` (the main window: look and themes, the project view, tabs with terminals that start, resume and close sessions, notices) | Written 2026-11-08; `b1` |
+| 5 | `09-state-and-context.md` (agent state from the terminal, counts, notifications; the context ring's data, the statusline script, `--settings`, the integrations) | Built 2026-11-08 by `b2`; to commit with plan 08 |
+| 6 | `10-classifier-core.md` (the opt-in classification: hourly pass, earlier turns, the evaluation; no widgets) | Written 2026-11-08; `b2` |
+
+> Closed 2026-11-08 — plan 08, "The main window", built by `b1`: the look in both styles and schemes
+> with every theme, the project view, tabs with live sessions started, resumed, forked and continued
+> with agent-tablet's command lines, closing by hang-up (1.9), several windows, quitting and
+> reopening. Found: node-pty reports argv[0] as the process, so "running" compares base names; a quit
+> could cut a `projects.json` write short, now awaited. A Menkar window opened twice on the human's
+> screen during development; e2e now refuse to run outside `xvfb-run`. In `docs/window.md`.
+
+> Closed 2026-11-08 — plan 09, "Agent state and context", built by `b2`: states from a headless mirror
+> per agent pane, roll-up, counts, notifications and sound; the statusline in Node run by Electron's
+> binary from inside `app.asar`; `--settings`; the context reading; the integrations' logic. Found: a
+> watcher kept the app from quitting (now `unref`'d). In `docs/agent-state.md` and `docs/context.md`.
