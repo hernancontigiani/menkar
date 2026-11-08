@@ -8,6 +8,7 @@ import ts from 'typescript'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const CLOCK = 'src/core/clock.ts'
+const LOG = 'src/core/log.ts'
 const ANY_REASON = /biome-ignore lint\/suspicious\/noExplicitAny: \S/
 
 /**
@@ -89,6 +90,14 @@ export function findViolations(file, source) {
       const isRequire = ts.isIdentifier(node.expression) && node.expression.text === 'require'
       if ((isDynamicImport || isRequire) && arg && ts.isStringLiteralLike(arg))
         checkImport(node, arg.text)
+    }
+    if (
+      file !== LOG &&
+      ts.isPropertyAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'console'
+    ) {
+      report(node, 'console-outside-log', `console.${node.name.text} outside ${LOG}`)
     }
     if (node.kind === ts.SyntaxKind.AnyKeyword) {
       const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))

@@ -32,3 +32,7 @@ export function appDirs(): AppDirs {
     data: xdg('XDG_DATA_HOME', '.local/share'),
   }
 }
+
+export function logFile(): string {
+  return join(appDirs().cache, 'menkar.log')
+}

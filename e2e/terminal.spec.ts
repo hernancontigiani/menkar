@@ -16,6 +16,8 @@ test("the terminal runs the user's shell, and closing the window ends it", async
   const { window } = launched
   try {
     await expect(window.locator('.xterm')).toBeVisible()
+    // The page's own <title> is empty: this text came from main's catalog through the preload.
+    await expect(window).toHaveTitle('Menkar')
     await expect.poll(() => terminalText(window)).toMatch(/\$\s*$/m)
 
     await window.locator('.xterm').click()
@@ -43,6 +45,19 @@ test("the terminal runs the user's shell, and closing the window ends it", async
     })
     await window.close()
     await expect.poll(() => isAlive(pid)).toBe(false)
+  } finally {
+    await launched.close()
+  }
+})
+
+test("the app draws on xvfb-run's X display, never on the developer's Wayland screen", async () => {
+  const launched = await launchApp()
+  try {
+    const flags = await launched.app.evaluate(({ app }) => ({
+      ozone: app.commandLine.getSwitchValue('ozone-platform'),
+      wayland: process.env.WAYLAND_DISPLAY ?? null,
+    }))
+    expect(flags).toEqual({ ozone: 'x11', wayland: null })
   } finally {
     await launched.close()
   }

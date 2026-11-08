@@ -20,6 +20,12 @@ what neither says: why each piece, and what was rejected.
   directories at a temporary directory before any test runs.
 - **Playwright's `_electron.launch`** on the built app, under `xvfb-run -a`, with `forbidOnly`, no
   retries and a trace only on a retry. `e2e/app.ts` launches with a temporary `HOME` and XDG set.
+- **The e2e launch forces X11** (`--ozone-platform=x11`, no `WAYLAND_DISPLAY`): on a Wayland desktop
+  Electron otherwise opens its window on the developer's screen, whatever `xvfb-run` sets `DISPLAY`
+  to. An e2e test asserts it. Playwright passes `--no-sandbox` to Electron, so these runs are
+  unsandboxed.
+- **Electron is never started bare for a check**: without `HOME` and the XDG variables pointed
+  elsewhere it writes its profile to the developer's `~/.config/menkar/`.
 - **node-pty is rebuilt for Electron** by `postinstall` (`@electron/rebuild`): the binary npm
   builds is for Node's ABI and does not load in Electron. Nothing under Vitest loads node-pty.
 - **`npm install` may not fetch Electron's binary**; `node node_modules/electron/install.js` does.
@@ -29,6 +35,7 @@ what neither says: why each piece, and what was rejected.
 | Script | What it holds |
 |---|---|
 | `scripts/check-code-rules.mjs` | No `Date.now()` / `new Date()` outside `src/core/clock.ts` (in `src/` and `tests/`); nothing under `src/core/` imports `electron` or a file outside `src/core/`; no `any` without a `biome-ignore` reason on its line or the one above |
+| `scripts/check-i18n.mjs` | Every `t()` key under `src/` is in the English catalog, and no translation has a key English lacks (`docs/foundations.md`) |
 | `scripts/check-test-integrity.mjs` | Against `main` (or `MENKAR_TEST_BASELINE`): the number of test declarations in `tests/` and `e2e/` never goes down, and no `expect(` line is removed or rewritten. No override |
 | `scripts/check-flaky.mjs` | A row of `e2e/FLAKY.md` whose date has passed fails the run |
 | `scripts/nothing-lost.mjs` | Every line that left a decision document since `HEAD` is in its history under `docs/history/`, and no history lost a line |

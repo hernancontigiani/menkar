@@ -20,12 +20,13 @@ package).
 npm install                          # also rebuilds node-pty for Electron
 node node_modules/electron/install.js  # only if npm did not fetch Electron's binary
 npm run dev                          # the app, with the renderer served by Vite
-npm run ci                           # the gate: Biome, tsc, Vitest and the code and history checks
+npm run ci                           # the gate: Biome, tsc, Vitest, the code, i18n and history checks
 npm run ui-check                     # builds, then Playwright on the real app under xvfb-run
 ```
 
 On Ubuntu's desktop, `npm run dev` starts Electron with `--no-sandbox`: AppArmor stops the
-development build's `chrome-sandbox`. Runs under `xvfb-run` and the packaged app keep the sandbox.
+development build's `chrome-sandbox`. Playwright's runs are unsandboxed too (it passes
+`--no-sandbox` itself).
 
 `npm run ui-check` never opens a window on your display, and the app it starts uses a temporary
 `HOME` and XDG directories, never yours. Its screenshots land in `test-results/`.

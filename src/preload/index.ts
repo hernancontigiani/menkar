@@ -21,6 +21,9 @@ function subscribe<C extends EventChannel>(
 }
 
 const api: MenkarApi = {
+  i18n: {
+    catalog: () => ipcRenderer.invoke('i18n:catalog'),
+  },
   terminal: {
     start: (size) => ipcRenderer.invoke('terminal:start', size),
     write: (data) => send('terminal:input', data),

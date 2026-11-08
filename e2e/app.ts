@@ -27,7 +27,11 @@ export async function launchApp(): Promise<LaunchedApp> {
     SHELL: '/bin/bash',
   })
   delete env.ELECTRON_RENDERER_URL
-  const app = await _electron.launch({ args: ['.'], env })
+  // On a Wayland desktop Electron would open its window on the developer's screen and ignore
+  // xvfb-run's DISPLAY.
+  delete env.WAYLAND_DISPLAY
+  env.XDG_SESSION_TYPE = 'x11'
+  const app = await _electron.launch({ args: ['--ozone-platform=x11', '.'], env })
   const window = await app.firstWindow()
   return {
     app,

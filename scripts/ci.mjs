@@ -6,6 +6,7 @@ const steps = [
   ['tsc', ['npm', 'run', '--silent', 'typecheck']],
   ['vitest', ['npx', 'vitest', 'run']],
   ['code rules', ['node', 'scripts/check-code-rules.mjs']],
+  ['i18n', ['node', 'scripts/check-i18n.mjs']],
   ['test integrity', ['node', 'scripts/check-test-integrity.mjs']],
   ['flaky quarantine', ['node', 'scripts/check-flaky.mjs']],
   ['history', ['node', 'scripts/nothing-lost.mjs']],

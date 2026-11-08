@@ -1,5 +1,12 @@
 // Every IPC channel and its payload, declared once and imported by main, preload and renderer.
 
+import type { Language, Messages } from '../core/i18n'
+
+export interface Catalog {
+  readonly language: Language
+  readonly messages: Messages
+}
+
 export interface TerminalSize {
   readonly cols: number
   readonly rows: number
@@ -8,6 +15,7 @@ export interface TerminalSize {
 // Renderer → main, answered.
 export interface InvokeChannels {
   'terminal:start': { request: TerminalSize; response: undefined }
+  'i18n:catalog': { request: undefined; response: Catalog }
 }
 
 // Renderer → main, fire and forget.
@@ -28,6 +36,9 @@ export type EventChannel = keyof EventChannels
 
 // The object the preload exposes on `window.menkar`.
 export interface MenkarApi {
+  readonly i18n: {
+    catalog(): Promise<Catalog>
+  }
   readonly terminal: {
     start(size: TerminalSize): Promise<void>
     write(data: string): void

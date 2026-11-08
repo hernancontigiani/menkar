@@ -1,5 +1,8 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain } from 'electron'
+import { catalog, chooseLanguage, setLanguage, t } from '../core/i18n'
+import { addSink, log, openFileSink } from '../core/log'
+import { logFile } from '../core/paths'
 import type {
   EventChannel,
   EventChannels,
@@ -9,6 +12,8 @@ import type {
   SendChannels,
 } from '../shared/ipc'
 import { Terminal } from './terminal'
+
+const LOG_FILE_MAX_BYTES = 1024 * 1024
 
 function handle<C extends InvokeChannel>(
   channel: C,
@@ -45,6 +50,7 @@ function createWindow(): void {
   const window = new BrowserWindow({
     width: 1100,
     height: 720,
+    title: t('window.title'),
     backgroundColor: '#1e1e1e',
     show: false,
     webPreferences: {
@@ -79,7 +85,25 @@ handle('terminal:start', (event, size) => {
 on('terminal:input', (event, data) => terminalOf(event)?.write(data))
 on('terminal:resize', (event, size) => terminalOf(event)?.resize(size))
 
-void app.whenReady().then(createWindow)
+let language = chooseLanguage(undefined, [])
+
+handle('i18n:catalog', () => ({ language, messages: catalog(language) }))
+
+async function start(): Promise<void> {
+  await app.whenReady()
+  language = chooseLanguage(undefined, app.getPreferredSystemLanguages())
+  setLanguage(language)
+  try {
+    const file = await openFileSink(logFile(), LOG_FILE_MAX_BYTES)
+    addSink(file.sink)
+    app.on('will-quit', () => void file.close())
+  } catch (error) {
+    log.error('log file could not be opened; logging to stderr only', { path: logFile(), error })
+  }
+  createWindow()
+}
+
+void start()
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

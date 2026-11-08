@@ -45,4 +45,18 @@ describe('check-code-rules', () => {
       '// biome-ignore lint/suspicious/noExplicitAny: the library types this as any\nlet x: any'
     expect(rules('src/main/a.ts', justified)).toEqual([])
   })
+
+  test.each([
+    ['src/core/sessions.ts', "console.log('x')"],
+    ['src/main/index.ts', 'console.error(error)'],
+    ['src/renderer/main.ts', 'const warn = console.warn'],
+    ['tests/core/a.test.ts', 'console.info(1)'],
+  ])('logging goes through the one module: %s', (file, source) => {
+    expect(rules(file, source)).toEqual(['console-outside-log'])
+  })
+
+  test('the logging module itself may write, and a word in a string is not a call', () => {
+    expect(rules('src/core/log.ts', "console.error('x')")).toEqual([])
+    expect(rules('src/core/a.ts', "const s = 'console.log(1)'")).toEqual([])
+  })
 })

@@ -2,13 +2,10 @@ import '@xterm/xterm/css/xterm.css'
 import './style.css'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
-import type { MenkarApi } from '../shared/ipc'
+import { loadCatalog, t } from './i18n'
 
-declare global {
-  interface Window {
-    readonly menkar: MenkarApi
-  }
-}
+await loadCatalog()
+document.title = t('window.title')
 
 const host = document.getElementById('terminal')
 if (!host) throw new Error('the page has no #terminal element')
