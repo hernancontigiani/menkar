@@ -40,3 +40,12 @@
 
 > Left §3 on 2026-11-08: plans 05 and 06 took the first two features.
 | 2 | The features, designed by `set` from `docs/spec/` once plans 01 and 02 are delivered: sessions and transcripts; the window, tabs and terminals; projects and windows; agent state, notifications, switcher and keys; preferences, themes, i18n; context ring, statusline and integrations; usage history and window; the classifier; file tabs; remote control; packaging for Ubuntu | Not designed yet |
+
+> Left §3 on 2026-11-08: plan 05 closed.
+| 3 | `05-sessions-core.md` (discovery, names, badges, hidden; watched; IPC) | Written 2026-11-08; `b1` |
+
+> Closed 2026-11-08 — plan 05, "Sessions in core", built by `b1`: discovery of Claude Code and
+> Cursor sessions read incrementally, names, badges, the hidden set, a coalescing watcher in `core`,
+> and the `sessions:*` IPC; a generated 2 GB tree scanned in 1.7 s with no stall over 8 ms. Found:
+> the agent-tablet import must land before the first UI that writes `state.json` (plan 07 does it),
+> and a projects directory created after start was not watched (plan 07 too). In `docs/sessions.md`.
