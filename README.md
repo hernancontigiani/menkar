@@ -5,8 +5,8 @@ on the left, the real agent in an embedded terminal on the right, with projects,
 several windows, usage tracking and file tabs. Electron and TypeScript; Linux first, then Windows
 and macOS.
 
-**Status:** in construction, usable for daily work on Ubuntu: projects, sessions in tabs, several
-windows. Split panes, the Add session dialog, Preferences and the Usage window are still to come.
+**Status:** in construction, usable for daily work on Ubuntu: projects, sessions in tabs, split panes,
+several windows, the history of every session.
 
 ## Install (Ubuntu)
 
@@ -36,9 +36,16 @@ menkar` takes it all out.
 - **Closing a tab, a window or the app hangs up its agent**, as closing a terminal does; nothing is
   typed into it. Closing a window with agents still working asks first.
 - **On the next start** the windows and their tabs come back (the `reopen_tabs` setting turns it off).
-- Keys: `F9` sidebar, `Ctrl+Shift+T` new session, `Ctrl+Shift+W` close tab, `Ctrl+Tab` /
-  `Ctrl+PgDn` / `Ctrl+PgUp` move between tabs, `Ctrl+Shift+N` new window; in a terminal
-  `Shift+Enter` a line break, `Ctrl+Shift+C` / `Ctrl+Shift+V` copy and paste, `Ctrl+Shift+G` find.
+- **Add session** (the sidebar's button) lists every session Claude Code and Cursor have on the
+  machine, by folder, to add to this project or move from another; its **New** page starts a new
+  one. A session's menu also gives its details, a replay, Markdown export, and moving it to the
+  trash (asked first).
+- Keys: `F9` sidebar, `Ctrl+Shift+T` new session, `Ctrl+Shift+F` add a session, `Ctrl+Shift+K`
+  jump to a session, `Ctrl+Shift+W` close tab, `Ctrl+Tab` / `Ctrl+PgDn` / `Ctrl+PgUp` move between
+  tabs, `Ctrl+Shift+N` new window; in a terminal `Shift+Enter` a line break, `Ctrl+Shift+C` /
+  `Ctrl+Shift+V` copy and paste, `Ctrl+Shift+G` find. `Ctrl+B` then a key, as in tmux: `v` / `-`
+  split, `h j k l` move between panes, `z` zoom, `x` close the pane, `g` go to any agent, `?` the
+  full list.
 
 ## Usage in the terminal
 

@@ -57,3 +57,23 @@
   `Cancel` → nothing; `Stop and close` → layout saved, both tabs exit gracefully, the window closes.
 - **TRM-53** Open a session already in a tab of this window → its tab is selected; no second agent
   starts.
+
+> Left on 2026-11-08: built by plan 11, described in `docs/window.md` and `docs/sessions.md`.
+- **TRM-26** Terminal focused, `Ctrl+B` → PREFIX pill shown; the terminal received nothing; `v` → a
+  shell pane opens to the right in the primary's folder, focused; pill hidden.
+- **TRM-28** `Ctrl+B`, `q` (no command) → prefix ends, nothing happens, the terminal received
+  nothing.
+- **TRM-31** `Ctrl+B ?` → dialog `Ctrl+B, then…` with the 21 lines listed above, in that order, and
+  `OK`.
+- **TRM-32** Tab with two panes, `Ctrl+B -` → no third pane; toast `A tab holds two panes at most`
+  for 4 s.
+- **TRM-34** Tab split right (left: agent, right: shell focused), `Ctrl+B h` → the agent pane gets
+  focus; `Ctrl+B h` again → focus stays; `Ctrl+B k` → focus stays.
+- **TRM-35** Two panes, `Ctrl+B z` → only the focused pane shows; `Ctrl+B z` → both show; with one
+  pane `Ctrl+B z` → nothing.
+- **TRM-37** Tab side by side → tab menu `Swap the split's orientation` → stacked; again → side by
+  side; on a single-pane tab → nothing changes.
+- **TRM-38** Split (agent + shell), focus on the shell, `Ctrl+B x` → the shell is hung up; the agent
+  pane fills the tab.
+- **TRM-54** A new split shell pane → nothing is typed into it (no `syntax error` line); its frame
+  label reads `shell`.

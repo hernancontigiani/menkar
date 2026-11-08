@@ -12,6 +12,10 @@ export interface DialogOptions {
   readonly heading: string
   readonly body?: string
   readonly entry?: { readonly value: string; readonly placeholder?: string }
+  // The body as a monospace block, left-aligned, one line per line.
+  readonly monospace?: boolean
+  // Controls of the caller's own, below the body.
+  readonly extra?: HTMLElement
   readonly buttons: readonly DialogButton[]
   // The response Enter gives; Escape gives the first button's.
   readonly defaultValue?: string
@@ -24,6 +28,12 @@ export interface DialogResult {
 
 let openDialogs = 0
 export const dialogOpen = () => openDialogs > 0
+export const dialogOpened = () => {
+  openDialogs += 1
+}
+export const dialogClosed = () => {
+  openDialogs -= 1
+}
 
 export function showDialog(options: DialogOptions): Promise<DialogResult> {
   return new Promise((resolve) => {
@@ -47,11 +57,13 @@ export function showDialog(options: DialogOptions): Promise<DialogResult> {
       return button
     })
     const body = options.body
-      ? el(
-          'div',
-          { class: 'body' },
-          ...options.body.split('\n').flatMap((line, i) => (i === 0 ? [line] : [el('br'), line])),
-        )
+      ? options.monospace
+        ? el('div', { class: 'body mono-block' }, options.body)
+        : el(
+            'div',
+            { class: 'body' },
+            ...options.body.split('\n').flatMap((line, i) => (i === 0 ? [line] : [el('br'), line])),
+          )
       : null
     const dialog = el(
       'div',
@@ -61,6 +73,7 @@ export function showDialog(options: DialogOptions): Promise<DialogResult> {
         { class: 'message' },
         el('div', { class: 'heading' }, options.heading),
         body,
+        options.extra ?? null,
         entry ? el('div', { class: 'field' }, entry) : null,
       ),
       el('div', { class: 'responses' }, ...buttons),

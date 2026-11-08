@@ -385,6 +385,9 @@ settings file.
 
 ## Acceptance cases
 
+The prefix and split cases built and tested (TRM-26, 28, 31, 32, 34, 35, 37, 38, 54) left for the history;
+the tests carry their ids.
+
 Built and tested (TRM-1–9, 49, 53) left for the history; the Vitest and e2e tests carry their ids.
 
 Examples use `claude` at `/usr/local/bin/claude`, `XDG_CONFIG_HOME=/home/ana/.config`, so
@@ -424,30 +427,14 @@ Examples use `claude` at `/usr/local/bin/claude`, `XDG_CONFIG_HOME=/home/ana/.co
   highlight goes, the terminal has focus.
 - **TRM-24** Find text `a.b` → matches only the literal `a.b`, not `axb`.
 - **TRM-25** Find with two matches, after the last one the down button → wraps to the first.
-- **TRM-26** Terminal focused, `Ctrl+B` → PREFIX pill shown; the terminal received nothing; `v` → a
-  shell pane opens to the right in the primary's folder, focused; pill hidden.
 - **TRM-27** `Ctrl+B`, `Shift` (held), `N` → Add session opens on Existing (Shift did not end the
   prefix).
-- **TRM-28** `Ctrl+B`, `q` (no command) → prefix ends, nothing happens, the terminal received
-  nothing.
 - **TRM-29** `Ctrl+B`, `Ctrl+B` → the focused pane receives byte `02`; the pill hides.
 - **TRM-30** Focus in the sidebar's search field or in any dialog, `Ctrl+B` → no prefix; the field
   handles the key.
-- **TRM-31** `Ctrl+B ?` → dialog `Ctrl+B, then…` with the 21 lines listed above, in that order, and
-  `OK`.
-- **TRM-32** Tab with two panes, `Ctrl+B -` → no third pane; toast `A tab holds two panes at most`
-  for 4 s.
 - **TRM-33** Current tab is a file tab, `Ctrl+B v` → nothing.
-- **TRM-34** Tab split right (left: agent, right: shell focused), `Ctrl+B h` → the agent pane gets
-  focus; `Ctrl+B h` again → focus stays; `Ctrl+B k` → focus stays.
-- **TRM-35** Two panes, `Ctrl+B z` → only the focused pane shows; `Ctrl+B z` → both show; with one
-  pane `Ctrl+B z` → nothing.
 - **TRM-36** Zoomed two-pane tab, `Ctrl+B x` → the focused pane stops; the other pane shows,
   unzoomed, filling the tab. Zoomed, `Ctrl+B l` → focus stays (hidden panes are skipped).
-- **TRM-37** Tab side by side → tab menu `Swap the split's orientation` → stacked; again → side by
-  side; on a single-pane tab → nothing changes.
-- **TRM-38** Split (agent + shell), focus on the shell, `Ctrl+B x` → the shell is hung up; the agent
-  pane fills the tab.
 - **TRM-39** Split (Claude Code session running + shell), focus on the agent, `Ctrl+B x` →
   `/exit\r` is typed into the agent pane; after it exits the shell remains alone and is the tab's
   primary; the tab title is unchanged.
@@ -471,8 +458,6 @@ Examples use `claude` at `/usr/local/bin/claude`, `XDG_CONFIG_HOME=/home/ana/.co
 - **TRM-51** Close a window whose agent never exits → the window closes after about 15 s anyway.
 - **TRM-52** A new-session tab not yet joined (no typed message) is running at window close → it is
   listed as `Claude Code`.
-- **TRM-54** A new split shell pane → nothing is typed into it (no `syntax error` line); its frame
-  label reads `shell`.
 - **TRM-55** Change the font in Preferences → every open terminal uses it at once.
 - **TRM-56** `scrollback` set to `"abc"` in `state.json` → terminals keep 10 000 lines.
 

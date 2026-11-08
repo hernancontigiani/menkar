@@ -178,3 +178,15 @@ AST-30. Window 1 shows A; B has 2 blocked sessions (in window 2), A has 1 → wi
 "2"; its popover rows: A "1", B "2". Window 2 (showing B) face badge "1".
 
 AST-31. No blocked session anywhere → no badge on the face or the rows.
+
+> Left on 2026-11-08: built by plan 11, described in `docs/window.md` and `docs/sessions.md`.
+AST-32. `Ctrl+Shift+K` in project A with members "api" (folder todo-api, first message "add auth")
+and "site" → two entries; typing "AUTH" leaves "api"; Enter opens it (selects its tab or resumes it).
+AST-33. Quick switcher, query matches 80 sessions → 50 rows; the first selected; `↑` on the first
+row keeps it selected.
+AST-34. Quick switcher, typing part of a session id → that session is listed.
+AST-35. Quick switcher does not list sessions of other projects, nor members hidden while "Show
+hidden sessions" is off.
+AST-36. `Esc` closes the switcher; the terminal of the selected tab has the focus.
+AST-37. Quick switcher open, `Ctrl+Shift+K` again → still one dialog.
+AST-39. `Ctrl+B g` with no tabs anywhere → an empty list; Enter does nothing.

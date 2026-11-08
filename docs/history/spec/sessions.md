@@ -146,6 +146,56 @@ First start
 - **SES-84** agent-tablet's `windows` lists two windows with tabs → Menkar opens one window on the
   imported `current` project with no tabs.
 
+> Left on 2026-11-08: built by plan 11, described in `docs/window.md` and `docs/sessions.md`.
+- **SES-23** Sessions in `/home/demo/api` (newest 1 h ago) and `/home/demo/web` (newest 5 min ago)
+  → groups "WEB" then "API", both collapsed on first show, counts 1 and 2.
+- **SES-24** Expand "API", then a rescan → "API" stays expanded; a new group appearing later starts
+  collapsed.
+- **SES-25** Sessions in `/home/demo/api` and `/srv/api` → one group "API" with both.
+- **SES-26** Search "LOGIN" with a session whose preview has "login" in a collapsed group → the row
+  and its header show, other headers hidden; clearing the search re-collapses the group.
+- **SES-27** Search by the first 8 characters of an id → that session shows.
+- **SES-28** 7 sessions in 5 folders totalling 37,274 bytes, one with a tab → "7 sessions · 5
+  projects · 36.4 KB · 1 open"; none with a tab → no "open" part.
+- **SES-29** Relative times at now = 2026-11-08 12:00: mtime 11:59:30 → "just now"; 11:15 → "45m
+  ago"; 2026-11-08 02:00 → "10h ago"; 2026-11-05 12:00 → "3d ago"; 2026-10-31 → "2026-10-31".
+- **SES-31** Existing, a session in no project → button "Add"; pressing it → member of the current
+  project, button now "Added" (disabled), dialog still open, no tab started.
+- **SES-32** A session in project "Research" → "Move from Research"; pressing → member of the
+  current project only, and out of its group in "Research".
+- **SES-36** New: folders used by sessions at 10:00 (`/a/x`), 11:00 (`/b/y`), 09:00 (`/a/x`) → list
+  "y", "x", then "Another folder…"; typing "zzz" leaves only "Another folder…".
+- **SES-37** Step 1, type "x", press Enter → step 2 with `/a/x`.
+- **SES-38** Start with name "   " → "Give the session a name: sessions find each other by it.";
+  nothing starts.
+- **SES-48** Details of a Claude transcript with 3 typed `user` lines, 2 `user` lines with only
+  `tool_result`, 5 `assistant` lines with 2 `tool_use` blocks named `mcp__github__search` and
+  `Bash` → "Messages" "3 user · 5 assistant", "Tool calls" "2", "Tools used in this session"
+  "github: 1".
+- **SES-49** Details of a Cursor session → no Created, Last activity, Models, Tokens or Tool calls
+  row; "Directory" is the decoded folder; MCP "Available to this project" not read from
+  `~/.claude.json`.
+- **SES-51** Details' recent activity with 20 text messages → the last 12, oldest first; a 900-char
+  Claude message shows its first 500 characters.
+- **SES-52** Export of "Fix: login/OAuth?" → proposed file name "Fix_ login_OAuth_.md"; of "???"
+  → "___.md"; of a name that is only spaces → "session.md".
+- **SES-53** Export of a transcript with one typed message "hi" and one assistant line "Hello" with
+  a `tool_use` `Read` → the file is exactly the header block, `---`, then `### You\n\nhi\n\n###
+  Claude\n\nHello\n\n*Used `Read`*\n`.
+- **SES-54** Export of a session with no messages → body `_No messages._`.
+- **SES-56** Replay of a transcript with a user message, an assistant line "Let me look." + `Read
+  {file_path: "/a/b/c.py"}` + "Done." → turns: user bubble, "Let me look.", chip "🔧 Read c.py",
+  "Done."; progress "1 / 4" at open.
+- **SES-58** Replay of a transcript with only injected `<…>` user lines and "(no content)" →
+  "Nothing to replay yet.", all controls disabled.
+- **SES-59** Replay chip for `Bash` with a 100-character command → "🔧 Bash: " + its first 60
+  characters.
+- **SES-65** Delete permanently → the `.jsonl` no longer exists; the project still lists the id in
+  `projects.json`; the project list does not show it.
+- **SES-67** Select mode: group "API" collapsed (3 sessions), "WEB" expanded (2), All → "2
+  selected".
+- **SES-69** Leave select mode with 2 selected, enter again → "0 selected".
+
 ## First start: importing agent-tablet's data (decision 1.8)
 
 > Left on 2026-11-08: built by plan 07, described in `docs/projects.md`.

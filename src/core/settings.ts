@@ -15,6 +15,7 @@ export interface Settings {
   readonly sidebar_width: number
   readonly reopen_tabs: boolean
   readonly new_session_dir: string
+  readonly show_folder_path: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebar_width: 300,
   reopen_tabs: true,
   new_session_dir: '',
+  show_folder_path: false,
 }
 
 export const SIDEBAR_MIN_WIDTH = 220
@@ -50,6 +52,7 @@ export function parseSettings(value: unknown): Settings {
     reopen_tabs:
       typeof raw.reopen_tabs === 'boolean' ? raw.reopen_tabs : DEFAULT_SETTINGS.reopen_tabs,
     new_session_dir: str('new_session_dir', DEFAULT_SETTINGS.new_session_dir),
+    show_folder_path: raw.show_folder_path === true,
   }
 }
 

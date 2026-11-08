@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
+import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { BrowserWindow, clipboard, dialog, type WebContents } from 'electron'
+import { BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { now } from '../core/clock'
 import { buildCommand, type Start } from '../core/command'
 import type { Reading } from '../core/context/types'
@@ -12,6 +13,7 @@ import {
   holder,
   type Layout,
   type LayoutWindow,
+  moveSessionHere,
   newWindowProject,
   nthTab,
   openBeside,
@@ -40,9 +42,23 @@ import {
 import { saveProjects } from '../core/projects/store'
 import type { SessionInfo } from '../core/sessions/info'
 import { AGENT_COMMANDS, findOnPath } from '../core/sessions/installed'
+import {
+  details,
+  exportMarkdown,
+  replayTurns,
+  safeFileName,
+  type Turn,
+} from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
-import type { Action, ActionResult, PaneAgent, TabView, WindowState } from '../shared/workspace'
+import type {
+  Action,
+  ActionResult,
+  PaneAgent,
+  TabEntry,
+  TabView,
+  WindowState,
+} from '../shared/workspace'
 import { contextReading, sessionSettingsFile, trackContext } from './context'
 import { notifySeen, type PaneHandle, registerAgentPane } from './panes'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
@@ -71,7 +87,11 @@ interface Pane {
   readonly terminal: Terminal
   handle: PaneHandle | undefined
   pending: Pending | undefined
+  readonly cwd: string | null
 }
+
+// The orientation of a tab that is not a session tab in the layout (a transient tab split).
+const tabOrientation = new Map<string, 'horizontal' | 'vertical'>()
 
 const newId = () => randomUUID().replaceAll('-', '').slice(0, 12)
 
@@ -82,8 +102,12 @@ let settings: Settings
 const panes = new Map<string, Pane>()
 const tabPanes = new Map<string, string[]>()
 const tabLabels = new Map<string, { title: string; tooltip: string }>()
+const tabReplays = new Map<string, readonly Turn[]>()
 const windows = new Map<string, BrowserWindow>()
 const allowedToClose = new Set<string>()
+// Windows, the most recently focused first.
+let focusOrder: string[] = []
+let installedAgents: ('claude' | 'cursor')[] = []
 let closingLast = false
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let joinTimer: ReturnType<typeof setInterval> | undefined
@@ -150,7 +174,8 @@ function tabView(tab: Tab): TabView {
     if (colors.length > 0 && colors.every((c) => c !== null && c === colors[0]))
       groupColor = colors[0] ?? null
   }
-  const orientation = tab.kind === 'session' ? tab.orientation : 'horizontal'
+  const orientation =
+    tab.kind === 'session' ? tab.orientation : (tabOrientation.get(tab.id) ?? 'horizontal')
   return {
     id: tab.id,
     project: tab.project,
@@ -160,6 +185,7 @@ function tabView(tab: Tab): TabView {
     panes: paneViews,
     orientation,
     groupColor,
+    ...(tabReplays.has(tab.id) ? { replay: tabReplays.get(tab.id) ?? [] } : {}),
   }
 }
 
@@ -204,6 +230,7 @@ function stateFor(windowId: string): WindowState | undefined {
     open: [...panes.values()].flatMap((p) => (p.sessionId ? [p.sessionId] : [])),
     readings: readingsOf(w.shown),
     notices: currentNotices(),
+    agents: installedAgents,
   }
 }
 
@@ -321,6 +348,7 @@ async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
     terminal,
     handle: undefined,
     pending: spec.pending,
+    cwd: spec.cwd,
   }
   const self = pane
   if (spec.agent !== 'shell') {
@@ -372,8 +400,12 @@ function onPaneExit(paneId: string): void {
     tabPanes.set(pane.tabId, ids)
     const sessionId = pane.sessionId
     if (sessionId) {
-      replaceTab(pane.tabId, (tab) =>
-        tab.kind === 'session' ? { ...tab, panes: tab.panes.filter((s) => s !== sessionId) } : tab,
+      const tab = tabById(pane.tabId)
+      // With only a shell left the tab keeps the title it had.
+      if (tab && tab.kind === 'session' && tab.panes.length === 1)
+        tabLabels.set(tab.id, tabView(tab))
+      replaceTab(pane.tabId, (t) =>
+        t.kind === 'session' ? { ...t, panes: t.panes.filter((s) => s !== sessionId) } : t,
       )
     }
   }
@@ -408,6 +440,7 @@ export function paneBuffer(paneId: string): string {
 function closeTab(tabId: string): void {
   const w = windowOfTab(tabId)
   if (!w) return
+  tabReplays.delete(tabId)
   const ids = tabPanes.get(tabId) ?? []
   tabPanes.delete(tabId)
   tabLabels.delete(tabId)
@@ -497,7 +530,10 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   })
   windows.set(windowId, window)
   window.once('ready-to-show', () => window.show())
-  window.on('focus', () => notifySeen())
+  window.on('focus', () => {
+    focusOrder = [windowId, ...focusOrder.filter((id) => id !== windowId)]
+    notifySeen()
+  })
   window.on('close', (event) => {
     if (allowedToClose.has(windowId)) return
     event.preventDefault()
@@ -582,6 +618,9 @@ export async function startWorkspace(): Promise<void> {
   projects = loaded
   sessionList = await sessions.list()
   settings = settingsOf(await sessions.currentState())
+  installedAgents = []
+  if (await findOnPath(AGENT_COMMANDS.claude)) installedAgents.push('claude')
+  if (await findOnPath(AGENT_COMMANDS.cursor)) installedAgents.push('cursor')
   sessions.onChange((list) => {
     sessionList = list
     void sessions.currentState().then((state) => {
@@ -818,6 +857,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       }
       return {}
     case 'startNew': {
+      if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
       const name = action.name.trim()
       const id = action.agent === 'claude' ? randomUUID() : null
       const tab = addTransientTab(
@@ -826,7 +866,14 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         t('tab.tooltipNew', { agent: agentName(action.agent), cwd: action.folder }),
       )
       await rememberFolder(action.folder)
-      const start: Start = { kind: 'new', ...(id ? { id } : {}), ...(name ? { name } : {}) }
+      const start: Start = {
+        kind: 'new',
+        ...(id ? { id } : {}),
+        ...(name ? { name } : {}),
+        ...(action.model ? { model: action.model } : {}),
+        ...(action.mode ? { mode: action.mode } : {}),
+        ...(action.addDir && action.agent === 'claude' ? { addDir: action.addDir } : {}),
+      }
       await startPane(tab, {
         agent: action.agent,
         start,
@@ -887,5 +934,225 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'copyText':
       clipboard.writeText(action.text)
       return {}
+    case 'splitPane': {
+      const ids = tabPanes.get(action.tab) ?? []
+      const tab = tabById(action.tab)
+      if (!tab || tab.kind === 'file' || ids.length === 0) return {}
+      if (ids.length >= 2) return { refusal: 'layout.twoPanesMax' }
+      setOrientation(action.tab, action.orientation)
+      // Menkar types nothing into a shell pane.
+      await startPane(action.tab, {
+        agent: 'shell',
+        cwd: panes.get(ids[0] ?? '')?.cwd ?? null,
+        sessionId: null,
+      })
+      changed()
+      return { value: [...(tabPanes.get(action.tab) ?? [])].pop() ?? null }
+    }
+    case 'closePane': {
+      const pane = panes.get(action.pane)
+      if (!pane) return {}
+      if ((tabPanes.get(pane.tabId) ?? []).length <= 1) closeTab(pane.tabId)
+      else pane.terminal.hangUp()
+      return {}
+    }
+    case 'refreshSessions':
+      await sessions.refresh()
+      return {}
+    case 'sessionDetails': {
+      const info = sessionInfo(action.session)
+      if (!info) return {}
+      return { details: details(await readFile(info.file, 'utf8'), info.agent) }
+    }
+    case 'exportSession': {
+      const info = sessionInfo(action.session)
+      if (!info) return {}
+      const target = await dialog.showSaveDialog({
+        title: t('export.title'),
+        defaultPath: safeFileName(info.name),
+      })
+      if (target.canceled || !target.filePath) return {}
+      try {
+        await writeFile(
+          target.filePath,
+          exportMarkdown(info.name, info.id, await readFile(info.file, 'utf8'), info.agent),
+          'utf8',
+        )
+      } catch (error) {
+        log.error('a session could not be exported', { path: target.filePath, error })
+        return { refusal: 'export.failed' }
+      }
+      return {}
+    }
+    case 'revealTranscript': {
+      const info = sessionInfo(action.session)
+      if (info) shell.showItemInFolder(info.file)
+      return {}
+    }
+    case 'trashSession':
+    case 'deleteSession': {
+      // The only writes under ~/.claude, each started and confirmed by the user: the .jsonl alone;
+      // its sibling directory (subagents/, tool-results/) stays.
+      const info = sessionInfo(action.session)
+      if (!info) return { refusal: 'sessions.gone' }
+      try {
+        if (action.type === 'trashSession') await shell.trashItem(info.file)
+        else await unlink(info.file)
+      } catch (error) {
+        log.error('a transcript could not be removed', {
+          path: info.file,
+          action: action.type,
+          error,
+        })
+        return {
+          refusal:
+            action.type === 'trashSession' ? 'sessions.trashFailed' : 'sessions.deleteFailed',
+        }
+      }
+      const pane = paneOfSession(action.session)
+      if (pane) await runAction(contents, { type: 'stopSession', session: action.session })
+      await sessions.refresh()
+      return {}
+    }
+    case 'replaySession': {
+      const info = sessionInfo(action.session)
+      if (!info) return {}
+      openReplay(windowId, info.name, await readFile(info.file, 'utf8'), info.agent)
+      return {}
+    }
+    case 'openSessionFile': {
+      const chosen = await dialog.showOpenDialog({
+        title: t('menu.openSessionFile'),
+        properties: ['openFile'],
+        filters: [{ name: 'JSONL', extensions: ['jsonl'] }],
+      })
+      const path = chosen.filePaths[0]
+      if (chosen.canceled || !path) return {}
+      const text = await readFile(path, 'utf8')
+      openReplay(windowId, basename(path, '.jsonl'), text, agentOfFile(text, path))
+      return {}
+    }
+    case 'checkFolder':
+      return { value: statSafeDir(action.folder) ? action.folder : null }
+    case 'pickSession': {
+      const before = paneOfSession(action.session)
+      const fromTab = before?.tabId
+      const moved = moveSessionHere(layout, projects, windowId, action.session, newId)
+      if (!moved.ok) return { refusal: moved.refusal }
+      layout = moved.layout
+      projects = moved.projects
+      // A pane taken alone out of a two-pane tab now lives in a new tab of this window.
+      if (before && fromTab) {
+        const target = layout.windows
+          .flatMap((lw) => lw.tabs)
+          .find(
+            (tab) =>
+              tab.kind === 'session' && tab.panes.includes(action.session) && tab.id !== fromTab,
+          )
+        if (target) {
+          tabPanes.set(
+            fromTab,
+            (tabPanes.get(fromTab) ?? []).filter((id) => id !== before.id),
+          )
+          before.tabId = target.id
+          tabPanes.set(target.id, [before.id])
+        }
+      }
+      changed({ projects: true })
+      return {}
+    }
+    case 'listTabs':
+      return { tabs: listTabs() }
+    case 'revealTab': {
+      const tw = windowOfTab(action.tab)
+      const tab = tabById(action.tab)
+      if (!tw || !tab) return {}
+      putWindow({ ...tw, shown: tab.project, selected: { ...tw.selected, [tab.project]: tab.id } })
+      windows.get(tw.id)?.focus()
+      notifySeen()
+      changed()
+      return {}
+    }
+    case 'openPreferences':
+    case 'openUsage':
+    case 'openAbout':
+      log.info('a main-menu item whose window is not built yet was chosen', { item: action.type })
+      return {}
+    case 'swapOrientation': {
+      const tab = tabById(action.tab)
+      if (!tab || (tabPanes.get(action.tab) ?? []).length < 2) return {}
+      setOrientation(
+        action.tab,
+        tabView(tab).orientation === 'horizontal' ? 'vertical' : 'horizontal',
+      )
+      changed()
+      return {}
+    }
   }
+}
+
+function listTabs(): TabEntry[] {
+  const ordered = [...layout.windows].sort((a, b) => rank(a.id) - rank(b.id))
+  return ordered.flatMap((w) => {
+    const projectOrder: string[] = []
+    for (const tab of w.tabs)
+      if (!projectOrder.includes(tab.project)) projectOrder.push(tab.project)
+    return projectOrder.flatMap((projectId) =>
+      w.tabs
+        .filter((tab) => tab.project === projectId)
+        .map((tab) => {
+          const view = tabView(tab)
+          return {
+            window: w.id,
+            tab: tab.id,
+            projectName: projects.projects.find((p) => p.id === projectId)?.name ?? '',
+            title: view.title,
+            kind: tab.kind,
+            agent:
+              view.panes.find((p) => p.agent !== 'shell')?.agent ?? view.panes[0]?.agent ?? null,
+            panes: view.panes.map((p) => p.id),
+          }
+        }),
+    )
+  })
+}
+
+function rank(windowId: string): number {
+  const i = focusOrder.indexOf(windowId)
+  return i < 0 ? focusOrder.length : i
+}
+
+// The first non-empty line decides: a top-level `type` is Claude's, a `role` Cursor's; otherwise
+// a path under .cursor is Cursor's.
+function agentOfFile(text: string, path: string): 'claude' | 'cursor' {
+  const first = text.split('\n').find((line) => line.trim())
+  try {
+    const value: unknown = first ? JSON.parse(first) : null
+    if (typeof value === 'object' && value !== null) {
+      if ('type' in value) return 'claude'
+      if ('role' in value) return 'cursor'
+    }
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error
+  }
+  return path.includes('.cursor') ? 'cursor' : 'claude'
+}
+
+// A replay tab: the transcript read once, whole, as turns; never saved, never reopened.
+function openReplay(
+  windowId: string,
+  name: string,
+  text: string,
+  agent: 'claude' | 'cursor',
+): void {
+  const tab = addTransientTab(windowId, t('replay.title', { name }), name)
+  tabReplays.set(tab, replayTurns(text, agent))
+  changed()
+}
+
+function setOrientation(tabId: string, orientation: 'horizontal' | 'vertical'): void {
+  const tab = tabById(tabId)
+  if (tab?.kind === 'session')
+    replaceTab(tabId, (t) => (t.kind === 'session' ? { ...t, orientation } : t))
+  else tabOrientation.set(tabId, orientation)
 }

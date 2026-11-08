@@ -6,9 +6,12 @@ import type { ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import { SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, TabView, WindowState } from '../shared/workspace'
+import { openAddSession, plusMenu } from './addsession'
 import { el, icon } from './dom'
 import { t, translate } from './i18n'
 import { applyLook } from './look'
+import { forgetReplaysExcept, replayElement } from './replay'
+import { infoItems } from './sessionmenus'
 import { applyTerminalLook, forgetPanesExcept, paneElement, showPanes } from './terminals'
 import {
   closePopover,
@@ -21,6 +24,14 @@ import {
 } from './ui'
 
 let state: WindowState | undefined
+// Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
+export const focusedPane = new Map<string, string>()
+export const zoomedTabs = new Set<string>()
+let prefixPill = false
+export function setPrefixPill(shown: boolean): void {
+  prefixPill = shown
+  document.getElementById('prefix-pill')?.toggleAttribute('hidden', !shown)
+}
 let agentStates: AgentStates | null = null
 const liveReadings = new Map<string, Reading | null>()
 
@@ -36,7 +47,7 @@ window.menkar.context.onReading(({ sessionId, reading }) => {
   if (state) render(state)
 })
 
-type DotState = ShownState | 'stopped'
+export type DotState = ShownState | 'stopped'
 
 // A session with a pane shows its agent's state (idle until one is known); without one, stopped.
 function sessionState(id: string): DotState {
@@ -45,7 +56,7 @@ function sessionState(id: string): DotState {
   return state?.open.includes(id) ? 'idle' : 'stopped'
 }
 
-const STATE_WORD: Record<DotState, Key> = {
+export const sessionDotState: Record<DotState, Key> = {
   idle: 'state.idle',
   working: 'state.working',
   blocked: 'state.blocked',
@@ -53,8 +64,8 @@ const STATE_WORD: Record<DotState, Key> = {
   stopped: 'state.stopped',
 }
 
-function stateDot(dotState: DotState): HTMLElement {
-  return el('span', { class: `dot ${dotState}`, title: translate(STATE_WORD[dotState]) })
+export function stateDot(dotState: DotState): HTMLElement {
+  return el('span', { class: `dot ${dotState}`, title: translate(sessionDotState[dotState]) })
 }
 
 function readingOf(id: string): Reading | null {
@@ -126,7 +137,7 @@ export function buildFrame(): void {
     { id: 'new-session', title: t('header.newSession') },
     icon('tabNew'),
   )
-  newButton.addEventListener('click', () => void newSessionDialog('claude'))
+  newButton.addEventListener('click', () => openAddSession('new'))
   const newMenu = el(
     'button',
     { id: 'new-menu', 'aria-label': t('header.newSession') },
@@ -134,24 +145,7 @@ export function buildFrame(): void {
   )
   newMenu.addEventListener('click', () => {
     const r = newMenu.getBoundingClientRect()
-    showMenu(
-      [
-        { label: t('menu.newClaude'), run: () => void newSessionDialog('claude') },
-        { label: t('menu.newCursor'), run: () => void newSessionDialog('cursor') },
-        'separator',
-        {
-          label: t('menu.continueClaude'),
-          run: () => void act({ type: 'continueLast', agent: 'claude' }),
-        },
-        {
-          label: t('menu.continueCursor'),
-          run: () => void act({ type: 'continueLast', agent: 'cursor' }),
-        },
-        'separator',
-        { label: t('menu.newWindow'), run: () => void newWindow() },
-      ],
-      { x: r.left, y: r.bottom + 4 },
-    )
+    plusMenu({ x: r.left, y: r.bottom + 4 }, () => void newWindow())
   })
   const closeAll = el('button', { id: 'close-all', title: t('header.closeAll') }, icon('tabClose'))
   closeAll.addEventListener('click', () => void act({ type: 'closeAllTabs' }))
@@ -163,8 +157,26 @@ export function buildFrame(): void {
     icon('down'),
   )
   projectButton.addEventListener('click', () => openProjectPopover(projectButton))
+  const gear = el('button', { id: 'main-menu', title: t('menu.main') }, icon('gear'))
+  gear.addEventListener('click', () => {
+    const r = gear.getBoundingClientRect()
+    showMenu(
+      [
+        { label: t('menu.openSessionFile'), run: () => mainMenuHandlers.openSessionFile() },
+        {
+          label: `${showHidden ? '✓ ' : ''}${t('menu.showHidden')}`,
+          run: () => toggleShowHidden(),
+        },
+        'separator',
+        { label: t('menu.usage'), run: () => void act({ type: 'openUsage' }) },
+        { label: t('menu.preferences'), run: () => void act({ type: 'openPreferences' }) },
+        { label: t('menu.about'), run: () => void act({ type: 'openAbout' }) },
+      ],
+      { x: r.left, y: r.bottom + 4 },
+    )
+  })
   const addSession = el('button', { id: 'add-session' }, t('sidebar.addSession'))
-  addSession.addEventListener('click', () => void newSessionDialog('claude'))
+  addSession.addEventListener('click', () => openAddSession('existing'))
 
   const divider = el('div', { id: 'divider' })
   dragDivider(divider)
@@ -173,7 +185,7 @@ export function buildFrame(): void {
     el(
       'aside',
       { id: 'sidebar' },
-      el('div', { class: 'sidebar-header' }, projectButton),
+      el('div', { class: 'sidebar-header' }, projectButton, gear),
       el('div', { id: 'session-list' }),
       addSession,
     ),
@@ -226,9 +238,16 @@ function dragDivider(divider: HTMLElement): void {
 
 // ---------------------------------------------------------------- render
 
+const stateListeners = new Set<(s: WindowState) => void>()
+export function onRender(listener: (s: WindowState) => void): () => void {
+  stateListeners.add(listener)
+  return () => stateListeners.delete(listener)
+}
+
 export function render(next: WindowState): void {
   const previous = state
   state = next
+  for (const listener of stateListeners) listener(next)
   const look = applyLook(next.settings, (changed) => applyTerminalLook(next.settings, changed))
   if (previous?.settings !== next.settings) applyTerminalLook(next.settings, look)
   if (previous && previous.settings.sidebar_width !== next.settings.sidebar_width) {
@@ -265,7 +284,7 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   const known = project.members.filter((id) => byId.has(id))
   if (known.length === 0) {
     const add = el('button', { class: 'pill' }, t('sidebar.addSession'))
-    add.addEventListener('click', () => void newSessionDialog('claude'))
+    add.addEventListener('click', () => openAddSession('existing'))
     list.replaceChildren(
       el(
         'div',
@@ -392,7 +411,7 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       label: t('row.fork'),
       run: () => void act({ type: 'forkSession', session: info.id }),
     })
-  entries.push({ label: t('row.copyId'), run: () => void act({ type: 'copyText', text: info.id }) })
+  entries.push(...infoItems(info))
   entries.push('separator')
   entries.push({ label: t('row.remove'), run: () => void removeFromProject(info, running) })
   return entries
@@ -408,12 +427,30 @@ function renderStrip(s: WindowState): void {
   const tabs = s.tabs.filter((tab) => tab.project === s.shown)
   const nodes = tabs.map((tab) => tabButton(tab, tab.id === s.selectedTab))
   const plus = el('button', { id: 'strip-plus', title: t('tab.newInProject') }, '+')
-  plus.addEventListener('click', () => void newSessionDialog('claude'))
-  strip.replaceChildren(...nodes, plus)
+  plus.addEventListener('click', () => openAddSession('new'))
+  const pill = el('span', { id: 'prefix-pill' }, 'PREFIX')
+  pill.toggleAttribute('hidden', !prefixPill)
+  strip.replaceChildren(...nodes, plus, pill)
 }
 
 function shortTitle(title: string): string {
   return title.length > TITLE_CHARS ? `${title.slice(0, TITLE_CHARS)}…` : title
+}
+
+// The rolled-up state of a set of panes; idle when none is known.
+export function tabStateOf(paneIds: readonly string[]): DotState {
+  const states =
+    agentStates?.panes.filter((p) => paneIds.includes(p.paneId)).map((p) => p.state) ?? []
+  return states.length > 0 ? rollup(states) : 'idle'
+}
+
+let showHidden = false
+// Set by the module that owns the item (replay opens a chosen transcript).
+export const mainMenuHandlers = { openSessionFile: () => void act({ type: 'openSessionFile' }) }
+export const showHiddenSessions = () => showHidden
+export function toggleShowHidden(): void {
+  showHidden = !showHidden
+  if (state) render(state)
 }
 
 // A tab shows its state unless idle, and the fullest of its sessions' rings.
@@ -466,6 +503,7 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
           label: t('tab.menuCopyId'),
           run: () => first && void act({ type: 'copyText', text: first }),
         },
+        { label: t('tab.menuSwap'), run: () => void act({ type: 'swapOrientation', tab: tab.id }) },
         { label: t('tab.menuClose'), run: () => void act({ type: 'closeTab', tab: tab.id }) },
       ],
       { x: r.left, y: r.bottom + 2 },
@@ -478,6 +516,7 @@ function renderContent(s: WindowState): void {
   const content = $('tab-content')
   const live = new Set(s.tabs.flatMap((tab) => tab.panes.map((p) => p.id)))
   forgetPanesExcept(live)
+  forgetReplaysExcept(new Set(s.tabs.filter((tab) => tab.replay).map((tab) => tab.id)))
   const bodies: HTMLElement[] = []
   for (const tab of s.tabs) {
     const visible = tab.id === s.selectedTab && tab.project === s.shown
@@ -485,7 +524,15 @@ function renderContent(s: WindowState): void {
       class: `tab-body ${tab.orientation}${visible ? '' : ' hidden'}`,
       'data-tab-body': tab.id,
     })
-    for (const pane of tab.panes) body.append(paneElement(pane))
+    const zoomed = zoomedTabs.has(tab.id) && tab.panes.length === 2
+    const focused = focusedPane.get(tab.id)
+    if (tab.replay) body.append(replayElement(tab.id, tab.replay))
+    for (const pane of tab.panes) {
+      const node = paneElement(pane)
+      node.classList.toggle('hidden', zoomed && pane.id !== focused)
+      body.append(node)
+    }
+    if (tab.panes.length < 2) zoomedTabs.delete(tab.id)
     bodies.push(body)
   }
   if (!s.tabs.some((tab) => tab.id === s.selectedTab && tab.project === s.shown)) {
@@ -503,7 +550,9 @@ function renderContent(s: WindowState): void {
   const selected = s.tabs.find((tab) => tab.id === s.selectedTab)
   if (selected)
     showPanes(
-      selected.panes.map((p) => p.id),
+      [...selected.panes.map((p) => p.id)].sort((a) =>
+        a === focusedPane.get(selected.id) ? -1 : 1,
+      ),
       lastSelected !== selected.id,
     )
   lastSelected = selected?.id ?? null
@@ -640,7 +689,7 @@ async function newGroupDialog(session: string): Promise<void> {
   if (refusal) await showError(t('groups.notCreated'), refusal)
 }
 
-async function renameSessionDialog(info: SessionInfo): Promise<void> {
+export async function renameSessionDialog(info: SessionInfo): Promise<void> {
   if (info.claudeNamed) {
     await showDialog({
       heading: t('row.claudeNameHeading'),
@@ -699,41 +748,6 @@ async function renameTab(tab: TabView): Promise<void> {
     defaultValue: 'save',
   })
   if (answer.value === 'save') await act({ type: 'renameTab', tab: tab.id, title: answer.text })
-}
-
-// Until the Add session dialog: a folder and a name, then the session starts in a new tab.
-export async function newSessionDialog(agent: 'claude' | 'cursor'): Promise<void> {
-  let folder = state?.settings.new_session_dir ?? ''
-  for (;;) {
-    const agentName = agent === 'claude' ? t('agent.claude') : t('agent.cursor')
-    const answer = await showDialog({
-      heading: t('newSession.heading', { agent: agentName }),
-      body: `${t('newSession.folder')}: ${folder || t('newSession.noFolder')}`,
-      entry: { value: '', placeholder: t('dialog.name') },
-      buttons: [
-        { label: t('dialog.cancel'), value: 'cancel' },
-        { label: t('newSession.choose'), value: 'choose' },
-        { label: t('newSession.start'), value: 'start', style: 'suggested' },
-      ],
-      defaultValue: 'start',
-    })
-    if (answer.value === 'cancel') return
-    if (answer.value === 'choose') {
-      const picked = await act({ type: 'pickFolder' })
-      if (typeof picked.value === 'string') folder = picked.value
-      continue
-    }
-    if (!folder) {
-      toast(t('newSession.needFolder'))
-      continue
-    }
-    if (agent === 'claude' && !answer.text.trim()) {
-      toast(t('newSession.needName'))
-      continue
-    }
-    await act({ type: 'startNew', agent, folder, name: answer.text })
-    return
-  }
 }
 
 export async function newWindow(): Promise<void> {

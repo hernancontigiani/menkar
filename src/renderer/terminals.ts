@@ -18,6 +18,19 @@ interface View {
 }
 
 const views = new Map<string, View>()
+let focusListener: (paneId: string) => void = () => {}
+export function onPaneFocus(listener: (paneId: string) => void): void {
+  focusListener = listener
+}
+
+export function focusPane(id: string): void {
+  views.get(id)?.term.focus()
+}
+
+export function paneRect(id: string): DOMRect | null {
+  const root = views.get(id)?.root
+  return root?.isConnected && root.offsetWidth > 0 ? root.getBoundingClientRect() : null
+}
 let lastSettings: Settings | undefined
 let lastLook: Look | undefined
 
@@ -196,6 +209,7 @@ function create(pane: PaneView): View {
     return true
   })
   term.onData((data) => window.menkar.panes.input(pane.id, data))
+  term.textarea?.addEventListener('focus', () => focusListener(pane.id))
   term.onResize(({ cols, rows }) => window.menkar.panes.resize(pane.id, cols, rows))
   new ResizeObserver(() => refit(view)).observe(host)
   void window.menkar.panes.attach(pane.id).then((buffer) => {

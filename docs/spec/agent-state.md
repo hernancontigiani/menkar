@@ -122,6 +122,8 @@ into its name (product rule).
 ## Acceptance cases
 
 - AST cases not listed below: built; the Vitest tests in `tests/core/` carry these ids.
+- AST-32–37 and AST-39 (the quick switcher, Go to agent) are built too; `e2e/switcher.spec.ts` carries
+  their ids.
 
 AST-18. A shell split pane printing "Do you want to proceed?" → no state, no notification; its tab's
 state comes from the agent pane only.
@@ -129,27 +131,10 @@ state comes from the agent pane only.
 AST-28. Desktop notification clicked for a session whose tab is in window 2, project B (not shown
 there) → window 2 comes forward, shows B, its tab selected.
 
-AST-32. `Ctrl+Shift+K` in project A with members "api" (folder todo-api, first message "add auth")
-and "site" → two entries; typing "AUTH" leaves "api"; Enter opens it (selects its tab or resumes it).
-
-AST-33. Quick switcher, query matches 80 sessions → 50 rows; the first selected; `↑` on the first
-row keeps it selected.
-
-AST-34. Quick switcher, typing part of a session id → that session is listed.
-
-AST-35. Quick switcher does not list sessions of other projects, nor members hidden while "Show
-hidden sessions" is off.
-
-AST-36. `Esc` closes the switcher; the terminal of the selected tab has the focus.
-
-AST-37. Quick switcher open, `Ctrl+Shift+K` again → still one dialog.
-
 AST-38. `Ctrl+B g` with window 1 (A: "api" working, a file tab "notes.md") and window 2 (B:
 "tests" blocked) → entries "A · api" ("claude · working"), "A · notes.md" ("file · idle"), "B ·
 tests" ("claude · blocked"); typing "blocked" leaves only "B · tests"; Enter → window 2 forward,
 showing B, "tests" selected.
-
-AST-39. `Ctrl+B g` with no tabs anywhere → an empty list; Enter does nothing.
 
 ## Look
 

@@ -456,6 +456,9 @@ How Menkar reads it: `src/core/projects/import.ts`, described in `docs/projects.
 
 ## Acceptance cases
 
+The history, Add session, details, export, replay, delete and select cases built and tested (SES-23–29, 31,
+32, 36–38, 48, 49, 51–54, 56, 58, 59, 65, 67, 69) left for the history; the tests carry their ids.
+
 The cases of discovery, names and badges that are built (SES-1, 3–12, 14, 15, 19–22) left for the
 history; the Vitest tests in `tests/core/sessions/` carry their ids.
 
@@ -478,38 +481,17 @@ Badges
 
 History browser
 
-- **SES-23** Sessions in `/home/demo/api` (newest 1 h ago) and `/home/demo/web` (newest 5 min ago)
-  → groups "WEB" then "API", both collapsed on first show, counts 1 and 2.
-- **SES-24** Expand "API", then a rescan → "API" stays expanded; a new group appearing later starts
-  collapsed.
-- **SES-25** Sessions in `/home/demo/api` and `/srv/api` → one group "API" with both.
-- **SES-26** Search "LOGIN" with a session whose preview has "login" in a collapsed group → the row
-  and its header show, other headers hidden; clearing the search re-collapses the group.
-- **SES-27** Search by the first 8 characters of an id → that session shows.
-- **SES-28** 7 sessions in 5 folders totalling 37,274 bytes, one with a tab → "7 sessions · 5
-  projects · 36.4 KB · 1 open"; none with a tab → no "open" part.
-- **SES-29** Relative times at now = 2026-11-08 12:00: mtime 11:59:30 → "just now"; 11:15 → "45m
-  ago"; 2026-11-08 02:00 → "10h ago"; 2026-11-05 12:00 → "3d ago"; 2026-10-31 → "2026-10-31".
 - **SES-30** "Show folder path" on, `cwd` `/home/demo/projects/api` with home `/home/demo` → path
   line "~/projects/api"; a session without `cwd` → no path line.
 
 Add session
 
-- **SES-31** Existing, a session in no project → button "Add"; pressing it → member of the current
-  project, button now "Added" (disabled), dialog still open, no tab started.
-- **SES-32** A session in project "Research" → "Move from Research"; pressing → member of the
-  current project only, and out of its group in "Research".
 - **SES-33** A session running in window B is moved from window A → its tab moves to A still
   running (same process), selected.
 - **SES-34** Same, but its tab in B holds a second session → toast "It shares a tab with another
   session there"; membership and tabs unchanged.
 - **SES-35** New with remembered folder `/home/demo/api` existing → opens on step 2 with "api" /
   "~" shown; remembered folder deleted → opens on step 1.
-- **SES-36** New: folders used by sessions at 10:00 (`/a/x`), 11:00 (`/b/y`), 09:00 (`/a/x`) → list
-  "y", "x", then "Another folder…"; typing "zzz" leaves only "Another folder…".
-- **SES-37** Step 1, type "x", press Enter → step 2 with `/a/x`.
-- **SES-38** Start with name "   " → "Give the session a name: sessions find each other by it.";
-  nothing starts.
 - **SES-39** Start with a folder deleted after it was chosen → "That folder does not exist."
 - **SES-40** Start "Billing" in `/a/x`, switch on → dialog closes; a tab "Billing" starts;
   `remote_control` holds the new id; `new_session_dir` is `/a/x`.
@@ -533,34 +515,12 @@ Open from the history
 
 Details, export, replay
 
-- **SES-48** Details of a Claude transcript with 3 typed `user` lines, 2 `user` lines with only
-  `tool_result`, 5 `assistant` lines with 2 `tool_use` blocks named `mcp__github__search` and
-  `Bash` → "Messages" "3 user · 5 assistant", "Tool calls" "2", "Tools used in this session"
-  "github: 1".
-- **SES-49** Details of a Cursor session → no Created, Last activity, Models, Tokens or Tool calls
-  row; "Directory" is the decoded folder; MCP "Available to this project" not read from
-  `~/.claude.json`.
 - **SES-50** Details while a 50 MB transcript is read → the dialog shows "Reading transcript…" at
   once and the window keeps responding.
-- **SES-51** Details' recent activity with 20 text messages → the last 12, oldest first; a 900-char
-  Claude message shows its first 500 characters.
-- **SES-52** Export of "Fix: login/OAuth?" → proposed file name "Fix_ login_OAuth_.md"; of "???"
-  → "___.md"; of a name that is only spaces → "session.md".
-- **SES-53** Export of a transcript with one typed message "hi" and one assistant line "Hello" with
-  a `tool_use` `Read` → the file is exactly the header block, `---`, then `### You\n\nhi\n\n###
-  Claude\n\nHello\n\n*Used `Read`*\n`.
-- **SES-54** Export of a session with no messages → body `_No messages._`.
 - **SES-55** Export to a folder without write permission → error "Export failed" with Menkar's
   sentence; no partial file left by the app.
-- **SES-56** Replay of a transcript with a user message, an assistant line "Let me look." + `Read
-  {file_path: "/a/b/c.py"}` + "Done." → turns: user bubble, "Let me look.", chip "🔧 Read c.py",
-  "Done."; progress "1 / 4" at open.
 - **SES-57** Replay: Play → one more turn every 800 ms; at 4 / 4 Play stops and Next, Show all are
   disabled.
-- **SES-58** Replay of a transcript with only injected `<…>` user lines and "(no content)" →
-  "Nothing to replay yet.", all controls disabled.
-- **SES-59** Replay chip for `Bash` with a 100-character command → "🔧 Bash: " + its first 60
-  characters.
 
 Copy, hide, trash, delete, select
 
@@ -574,15 +534,10 @@ Copy, hide, trash, delete, select
 - **SES-64** Trash, Cancel → file untouched. Trash, "Move to Trash" → the `.jsonl` is in the
   desktop's trash, `<id>/subagents/` is still in place, the row is gone, a running tab of it (in any
   window) is closed.
-- **SES-65** Delete permanently → the `.jsonl` no longer exists; the project still lists the id in
-  `projects.json`; the project list does not show it.
 - **SES-66** Trash of a transcript whose folder is not writable (permission denied) → "Could not
   trash transcript" with Menkar's sentence; the row stays.
-- **SES-67** Select mode: group "API" collapsed (3 sessions), "WEB" expanded (2), All → "2
-  selected".
 - **SES-68** Select 3, trash selected, one fails → two trashed, one error dialog "Some transcripts
   could not be trashed" with one line.
-- **SES-69** Leave select mode with 2 selected, enter again → "0 selected".
 - **SES-70** A selected session's transcript is deleted outside the app → after the rescan the count
   drops by one.
 

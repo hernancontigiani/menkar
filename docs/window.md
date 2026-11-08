@@ -79,3 +79,24 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   - `e2e/window.spec.ts`: the dropdown, resume, a new session joining, and closing with a running
     agent. It uses a stand-in `claude` written in Node that records its arguments, never the real
     one.
+
+## Keys, panes and jumping
+
+- **The `Ctrl+B` prefix** (`src/renderer/keys.ts`) is caught on the document in the capture phase,
+  so the terminal never sees it or the key that follows. It is not taken while the focus is in a
+  text field (not counting xterm's own helper textarea) or a dialog. Modifiers alone keep it
+  waiting. The key that ends it runs its command or nothing. Its `keydown` is cancelled, so the
+  browser sends no `keypress`, and a swallow flag guards xterm's handler until the key goes up.
+- **Split panes**: main opens a plain shell pane (nothing typed into it) in the primary pane's
+  folder. A tab holds two panes at most (`layout.twoPanesMax`). The orientation is stored on the
+  layout's session tab, so it is saved and restored. Closing a pane hangs it up (decision 1.9).
+- Focus by direction is `src/core/panes.ts` (`focusTarget`: ahead + 2 × sideways, nearest wins),
+  given the visible panes' rectangles. Zoom and the focused pane are per tab in the renderer, and
+  not saved.
+- **The quick switcher** (`Ctrl+Shift+K`) and **Go to agent** (`Ctrl+B g`) share one jump dialog
+  (`src/renderer/switcher.ts`). Only one opens at a time. Go to agent asks main for every tab of
+  every window (`listTabs`, the most recently focused window first) and reveals the chosen one.
+- **The ⚙ main menu**: Open session file… (a chosen `.jsonl` as a replay), Show hidden sessions (a
+  check per window, not saved), Usage, Preferences, About. The last three call
+  `openUsage`/`openPreferences`/`openAbout` in main, which log until plan 12 provides their
+  windows.

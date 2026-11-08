@@ -41,27 +41,78 @@ until then the items are wired to a stub that logs). Do not edit `b2`'s modules.
 ## Execution blocks
 
 ### B1 — Keys and panes
-- [ ] The prefix, its pill and help, `Ctrl+B Ctrl+B`, split panes, swap orientation, zoom.
+- [x] The prefix, its pill and help, `Ctrl+B Ctrl+B`, split panes, swap orientation, zoom.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B2 — Switcher, Go to agent, the main menu
-- [ ] The quick switcher, Go to agent, the ⚙ menu with its items.
+- [x] The quick switcher, Go to agent, the ⚙ menu with its items.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B3 — Add session
-- [ ] The dialog with Existing (history browser, rows, Add / Added / Move from) and New (folder, name,
+- [x] The dialog with Existing (history browser, rows, Add / Added / Move from) and New (folder, name,
       agent), the advanced dialog; plan 08's interim New dialog removed.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B4 — Session menus
-- [ ] Details, export, replay, copy ID, reveal, hide / show hidden, trash and delete (each confirmed;
+- [x] Details, export, replay, copy ID, reveal, hide / show hidden, trash and delete (each confirmed;
       a test asserts nothing else under `~/.claude` changes), select mode.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B5 — Exit
-- [ ] The exit's files.
+- [x] The exit's files.
 - **Verification:** `npm run ci`.
 
 ## Execution log
 
-(Written by the session that executes it.)
+Executed by `b1` on 2026-11-08, B1 → B5.
+
+**Built:**
+- **B1:** `src/core/panes.ts` (focus by direction), and the prefix in `src/renderer/keys.ts` with
+  the PREFIX pill, the 21-line help, `Ctrl+B Ctrl+B` → `02`, split right/down, focus by direction,
+  next pane, zoom and close pane. Main gained `splitPane`/`closePane`/`swapOrientation` (closing
+  hangs up, decision 1.9), and the tab menu "Swap the split's orientation".
+- **B2:** `src/core/sessions/history.ts` (groups, search, count line, relative times, recent
+  folders), and `src/renderer/switcher.ts` (the quick switcher and Go to agent in one dialog).
+  Main gained `listTabs` (windows by focus order) and `revealTab`. The ⚙ menu: Open session file…,
+  Show hidden sessions, Usage, Preferences, About. The last three call
+  `openUsage`/`openPreferences`/`openAbout` in main, which log until plan 12's entry points are
+  named.
+- **B3:** `src/renderer/addsession.ts`: Existing with the history browser, rows, Add / Added /
+  Move from (`pickSession` → the layout's `moveSessionHere`), select mode and the count line; New
+  with folders, Another folder…, name and agent; the advanced dialog; the `+` ▾ menu. Plan 08's
+  interim dialog is removed. `show_folder_path` joined the settings.
+- **B4:** `src/core/sessions/transcript.ts` (details, Markdown export, replay turns),
+  `src/renderer/sessionmenus.ts` (the history row menu, details, confirmations, select-mode trash)
+  and `src/renderer/replay.ts` (the replay tab). Main reads files for details, export and replay,
+  reveals transcripts, trashes (`shell.trashItem`) and deletes (`unlink`) only the `.jsonl`.
+- **Tests:**
+  - Vitest: `tests/core/panes.test.ts`, `tests/core/sessions/history.test.ts` and
+    `tests/core/sessions/transcript.test.ts`.
+  - e2e: `e2e/panes.spec.ts`, `e2e/switcher.spec.ts` and `e2e/addsession.spec.ts`.
+  - `e2e/fixtures.ts`: the stand-in `claude`, moved out of `window.spec.ts` with no `expect` line
+    changed.
+
+**Seen red:**
+- The Vitest cases, with their modules missing.
+- The prefix's ending key not consumed fails TRM-28 (a swallow-only defect did not: a cancelled
+  `keydown` sends no `keypress`).
+- A filter ignoring the query fails AST-32 and AST-34.
+- Delete also removing the sibling directory fails SES-65.
+
+**Deviations and not built:**
+- **Not built:**
+  - The Remote control switch on New (with Remote Control).
+  - MCP servers (M3, with chat).
+  - Details' Tokens row (it must come from the usage module) and its "Available to this project".
+  - The history row items Open in Ghostty and Continue in chat.
+- Trash was not exercised in the e2e: `shell.trashItem` depends on the desktop's trash service. It
+  is code-reviewed and shares the deletion path that SES-65 asserts.
+- A row menu inside the Add session dialog needed menus above the dialog's scrim
+  (`.popover { z-index: 40 }`).
+
+**A test timing fixed:** two switcher tests pressed `Ctrl+Shift+K` before the window had drawn its
+first state and failed when the start was slower. They now wait for the rows first; three runs in
+a row are green.
+
+**For `set`:** the ⚙ items Usage, Preferences and About wait for plan 12's entry points (wire them
+in `src/main/workspace.ts`, cases `openUsage`/`openPreferences`/`openAbout`).

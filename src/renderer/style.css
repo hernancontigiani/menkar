@@ -447,7 +447,8 @@ html.classic .frame-label {
 /* ---------------------------------------------------------------- popovers, dialogs, toasts */
 .popover {
   position: fixed;
-  z-index: 20;
+  /* Above the dialogs' scrim: a row's menu opens inside the Add session dialog too. */
+  z-index: 40;
   background: var(--bg);
   color: var(--fg);
   border-radius: 12px;
@@ -661,4 +662,283 @@ html.classic .blocked-pill {
 #sidebar .logo {
   opacity: 1;
   color: var(--overlay0);
+}
+
+.pane.hidden {
+  display: none;
+}
+#prefix-pill {
+  margin: 0 6px;
+  padding: 1px 8px;
+  font-size: 0.8em;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--on-accent);
+  align-self: center;
+}
+#prefix-pill[hidden] {
+  display: none;
+}
+.mono-block {
+  font-family: monospace;
+  text-align: left;
+  white-space: pre;
+}
+
+.dialog.sheet.jump {
+  width: 560px;
+  max-width: 560px;
+  height: 460px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+}
+.jump-head {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jump-head input {
+  width: 100%;
+}
+.jump-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.jump-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+}
+.jump-row.selected {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.jump-row .name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.caption {
+  font-size: 9pt;
+}
+.jump-text {
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- add session, details, replay */
+.dialog.sheet.add-session {
+  width: 560px;
+  max-width: 560px;
+  height: 640px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+}
+.add-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.add-head .heading {
+  font-weight: 700;
+  flex: 1;
+}
+.switcher .switch.selected {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.add-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.add-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 6px;
+  background: var(--mantle);
+}
+.search-row {
+  display: flex;
+  gap: 2px;
+  padding-top: 6px;
+}
+.search-row input {
+  flex: 1;
+}
+.history-list,
+.folder-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.history-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px 4px 10px;
+  font-size: 9pt;
+  font-weight: 700;
+}
+.history-group .group-name {
+  flex: 1;
+}
+.count-badge {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  padding: 1px 8px;
+  font-size: 0.8em;
+}
+.history-row {
+  margin: 0 6px 2px 20px;
+  padding: 8px 12px 8px 10px;
+  border-left: 1px solid var(--surface0);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.history-row:hover {
+  background: var(--bg);
+}
+.history-row .top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.history-row .name {
+  flex: 1;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-row .path {
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-row .preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.badge.waiting {
+  color: #e5a50a;
+  font-weight: 700;
+}
+.badge.interrupted {
+  color: #e01b24;
+}
+.pick.flat {
+  opacity: 0.55;
+}
+.count-line {
+  text-align: center;
+  padding: 4px 0 6px;
+}
+.select-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.select-bar[hidden] {
+  display: none;
+}
+.spacer {
+  flex: 1;
+}
+.folder-row {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.folder-row:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+.folder-row .name {
+  font-weight: 700;
+}
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.form-row input,
+.form-row select {
+  flex: 1;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.dialog.sheet.details {
+  width: 480px;
+  max-width: 480px;
+  height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+.details-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.details-body .group-title {
+  font-weight: 700;
+  margin-top: 8px;
+}
+.replay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.replay-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+}
+.replay-turns {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bubble {
+  max-width: 64ch;
+  padding: 8px 12px;
+  border-radius: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.bubble.user {
+  align-self: flex-end;
+  background: #d97757;
+  color: #ffffff;
+}
+.bubble.assistant {
+  align-self: flex-start;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.bubble.tool {
+  align-self: flex-start;
+  font-size: 0.85em;
+  opacity: 0.6;
+  padding: 2px 4px;
 }
