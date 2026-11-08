@@ -83,3 +83,12 @@
 > per agent pane, roll-up, counts, notifications and sound; the statusline in Node run by Electron's
 > binary from inside `app.asar`; `--settings`; the context reading; the integrations' logic. Found: a
 > watcher kept the app from quitting (now `unref`'d). In `docs/agent-state.md` and `docs/context.md`.
+
+> Left §3 on 2026-11-08: plan 10 closed.
+| 6 | `10-classifier-core.md` (the opt-in classification: hourly pass, earlier turns, the evaluation; no widgets) | Built and committed 2026-11-08; closes when its evaluation run is logged |
+
+> Closed 2026-11-08 — plan 10, "The classifier in core", built by `b2`: the hourly pass, earlier turns
+> with estimate, progress and stop, inheritance, the runner's lock, and `scripts/classify-eval.mjs`.
+> The evaluation on the human's 141 labelled turns (6 Haiku calls, the human's OK): 72% on the 50,
+> 63% on the 141, against agent-tablet's 74% / 66% with the same prompt — within one rerun's spread;
+> `other` stays the weakest category. In `docs/classifier.md`.
