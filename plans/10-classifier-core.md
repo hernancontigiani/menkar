@@ -63,7 +63,7 @@ The switch and its row, the earlier-turns dialog, the categories in the Usage wi
 - **Verification:** `npm run ci`.
 
 ### B3 — The evaluation
-- [ ] The script; run once over the labelled set if the human agrees to copy it and to spend the
+- [x] The script; run once over the labelled set if the human agrees to copy it and to spend the
       quota (about five calls), its figures in the log beside agent-tablet's.
 - **Verification:** the script runs; `npm run ci`.
 
@@ -92,10 +92,30 @@ through `window.menkar.classifier` (red with the handler disabled).
 
 **B3 — the evaluation.** `scripts/classify-eval.mjs` and `/eval/` in `.gitignore`. Test:
 `tests/scripts/classify-eval.test.ts`, against the stand-in `claude`: usage and exit 2, two files
-of 50 and 91 → 6 calls and every output line, the user's data folder untouched. **The real run
-waits for the human's OK** (asked through `set`: copying agent-tablet's labelled set, and about six
-calls of quota). Until then there are no Menkar figures beside agent-tablet's 74% on the 50 and 66%
-on the 141.
+of 50 and 91 → 6 calls and every output line, the user's data folder untouched. **The real run**
+(approved by the human, 2026-11-08): agent-tablet's labelled set (`sample.json`, 50 random turns;
+`silver.json`, 91 more) was copied to the git-ignored `/eval/classifier/`, and
+`node scripts/classify-eval.mjs eval/classifier/sample.json eval/classifier/silver.json` was run
+once. 6 calls on the human's login, 73 s, exit 0, every turn answered:
+
+```
+sample     36/50 = 72%
+silver     53/91 = 58%
+all        89/141 = 63%
+answered   141/141
+  plan      recall 9/13 = 69%
+  design    recall 25/33 = 76%
+  build     recall 10/16 = 63%
+  test      recall 15/22 = 68%
+  deploy    recall 7/15 = 47%
+  maintain  recall 17/25 = 68%
+  other     recall 6/17 = 35%
+```
+
+Beside agent-tablet's figures for the same prompt and code path ("Haiku with the app's code",
+2026-11-07): 74% on the 50 random turns and 66% on all 141. Menkar's 72% and 63% are within what
+one rerun of a sampled model moves (one or two turns on the 50, four on the 141). `other` is still
+the weak spot (6 of 17, agent-tablet 3–7). Menkar's `/eval/` copy was deleted after the run.
 
 **B4 — exit.** `docs/classifier.md`, its row in `CLAUDE.md`, the evaluation script in
 `README.md`; the built parts of `docs/spec/classifier.md` trimmed to pointers, removed lines
