@@ -112,4 +112,9 @@ export interface UsageView {
   readonly firstMonth: { readonly year: number; readonly month: number } | null
   readonly tooNew: boolean
   readonly categories: boolean
+  // the opener window's project, whose figures these are unless every project was asked for;
+  // null when Usage has no project to scope to (no window, or one with no project open)
+  readonly project: { readonly id: string; readonly name: string } | null
+  // whether the figures are that project's alone
+  readonly scoped: boolean
 }

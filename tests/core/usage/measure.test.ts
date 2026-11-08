@@ -10,6 +10,7 @@ import { type Bounds, midnight, periodBounds } from '../../../src/core/usage/per
 import { cost } from '../../../src/core/usage/prices'
 import {
   buildReport,
+  buildSeries,
   formatCost,
   formatDuration,
   type Node,
@@ -382,6 +383,44 @@ describe('cost', () => {
 })
 
 describe('projects and names', () => {
+  // Decision 1.15: Usage opened from a window shows that window's project only.
+  test('a report scoped to one project keeps its rows only, for the totals and for each bar', () => {
+    const dirs = usageDirs('scope')
+    dirs.transcript('s1', [prompt('10:00:00'), response('10:00:30')])
+    dirs.transcript('s2', [
+      { ...prompt('11:00:00'), uuid: 'u2' },
+      response('11:00:20', { id: 'msg_2' }),
+    ])
+    dirs.transcript('s3', [
+      { ...prompt('12:00:00'), uuid: 'u3' },
+      response('12:00:10', { id: 'msg_3' }),
+    ])
+    const member = memberships({ s1: ['a', 'Shop'], s2: ['b', 'Blog'] })
+    runPass(member, {
+      claudeProjects: dirs.claudeProjects,
+      cache: dirs.cache,
+      history: dirs.history,
+    })
+    const history = new UsageHistory(dirs.history)
+    try {
+      const options = { statuslineLogs: [], projectNames: member.projectNames }
+      expect(buildReport(history, NOV_8, options).nodes.map((n) => n.label)).toEqual([
+        'Blog',
+        'Shop',
+        '(no project)',
+      ])
+      const shop = buildReport(history, NOV_8, { ...options, project: 'a' })
+      expect(shop.nodes.map((n) => [n.label, totalExecution(n)])).toEqual([['Shop', 30]])
+      const hours = buildSeries(history, NOV_8, 'hour', { ...options, project: 'b' })
+      expect(hours.flatMap((r) => r.nodes.map((n) => [n.label, totalExecution(n)]))).toEqual([
+        ['Blog', 20],
+      ])
+      expect(buildReport(history, NOV_8, { ...options, project: 'gone' }).nodes).toEqual([])
+    } finally {
+      history.close()
+    }
+  })
+
   test('USG-26 a session moved between projects shows under each with its own turns', () => {
     const dirs = usageDirs('usg26')
     const path = dirs.transcript('s1', [prompt('10:00:00'), response('10:00:30')])

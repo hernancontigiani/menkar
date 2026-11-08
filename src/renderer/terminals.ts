@@ -1,6 +1,7 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { type ITheme, Terminal } from '@xterm/xterm'
+import { OutputJoin } from '../core/output'
 import type { Settings } from '../core/settings'
 import type { Look } from '../core/theme'
 import type { PaneView } from '../shared/workspace'
@@ -14,7 +15,7 @@ interface View {
   readonly fit: FitAddon
   readonly search: SearchAddon
   findBar: HTMLElement | null
-  attached: boolean
+  readonly output: OutputJoin
 }
 
 const views = new Map<string, View>()
@@ -101,6 +102,9 @@ export function applyTerminalLook(settings: Settings, look: Look): void {
   lastSettings = settings
   lastLook = look
   const font = fontOf(settings.font)
+  // The file tabs' editors read the same font through these.
+  document.documentElement.style.setProperty('--term-font', font.family)
+  document.documentElement.style.setProperty('--term-font-size', `${font.size}px`)
   for (const view of views.values()) {
     view.term.options.theme = themeOf(look)
     view.term.options.fontFamily = font.family
@@ -115,10 +119,10 @@ function refit(view: View): void {
   view.fit.fit()
 }
 
-window.menkar.panes.onData(({ pane, data }) => {
+window.menkar.panes.onData(({ pane, data, end }) => {
   const view = views.get(pane)
-  // Until attach answers, output is already in the buffer it returns: IPC keeps the order.
-  if (view?.attached) view.term.write(data)
+  const fresh = view?.output.chunk({ data, end })
+  if (fresh) view?.term.write(fresh)
 })
 
 function toggleFind(view: View): void {
@@ -185,7 +189,15 @@ function create(pane: PaneView): View {
     host,
   )
   const root = el('div', { class: 'pane', 'data-pane': pane.id }, frame)
-  const view: View = { id: pane.id, root, term, fit, search, findBar: null, attached: false }
+  const view: View = {
+    id: pane.id,
+    root,
+    term,
+    fit,
+    search,
+    findBar: null,
+    output: new OutputJoin(),
+  }
   term.open(host)
   term.attachCustomKeyEventHandler((event) => {
     if (isAppKey(event)) return false
@@ -212,9 +224,8 @@ function create(pane: PaneView): View {
   term.textarea?.addEventListener('focus', () => focusListener(pane.id))
   term.onResize(({ cols, rows }) => window.menkar.panes.resize(pane.id, cols, rows))
   new ResizeObserver(() => refit(view)).observe(host)
-  void window.menkar.panes.attach(pane.id).then((buffer) => {
-    term.write(buffer)
-    view.attached = true
+  void window.menkar.panes.attach(pane.id).then(({ buffer, end }) => {
+    term.write(buffer + view.output.attach(end))
   })
   views.set(pane.id, view)
   return view

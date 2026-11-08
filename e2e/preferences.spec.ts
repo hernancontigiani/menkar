@@ -183,13 +183,15 @@ test('PRF-22, PRF-23 choosing another language shows Restart now; going back hid
 // The relaunched app is a process of its own: found by the temporary HOME in its environment and
 // stopped by its PID, never by a name pattern.
 function processesOf(root: string): number[] {
+  // The packaged build (package:smoke) runs as `menkar`, not as Electron's own binary.
+  const executable = process.env.MENKAR_E2E_EXECUTABLE ?? 'electron'
   const found: number[] = []
   for (const entry of readdirSync('/proc')) {
     if (!/^\d+$/.test(entry)) continue
     try {
       const env = readFileSync(`/proc/${entry}/environ`, 'utf8')
       const cmd = readFileSync(`/proc/${entry}/cmdline`, 'utf8')
-      if (env.includes(`HOME=${join(root, 'home')}\0`) && cmd.includes('electron'))
+      if (env.includes(`HOME=${join(root, 'home')}\0`) && cmd.includes(executable))
         found.push(Number(entry))
     } catch {
       // gone, or not ours to read

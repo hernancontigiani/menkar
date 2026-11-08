@@ -19,7 +19,7 @@ afterEach(() => {
 })
 
 describe('jsonstate', () => {
-  test('a write interrupted after the temporary file leaves the old file intact', async () => {
+  test('PRF-28 a write interrupted after the temporary file leaves the old file intact', async () => {
     const path = join(await dir(), 'state.json')
     await writeJson(path, { a: 1 })
     const before = await readFile(path)

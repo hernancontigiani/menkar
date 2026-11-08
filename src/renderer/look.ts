@@ -32,7 +32,6 @@ export function applyLook(settings: Settings, onChange?: (look: Look) => void): 
     '--destructive':
       look.style === 'tui' ? r.red : CLASSIC_DESTRUCTIVE[look.dark ? 'dark' : 'light'],
     '--scrim': `rgba(0, 0, 0, ${look.dark ? 0.5 : 0.14})`,
-    '--sidebar-width': `${settings.sidebar_width}px`,
   }
   for (const [key, value] of Object.entries(vars)) root.style.setProperty(key, value)
   return look

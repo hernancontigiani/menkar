@@ -45,6 +45,7 @@ import { saveProjects } from '../core/projects/store'
 import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
 import { AGENT_COMMANDS, findOnPath } from '../core/sessions/installed'
+import { lookUp, type Pending } from '../core/sessions/join'
 import {
   details,
   exportMarkdown,
@@ -84,17 +85,8 @@ import { openAbout, openMcpServers, openPreferences, openUsage } from './windows
 
 const LAYOUT_SAVE_DELAY_MS = 500
 const JOIN_POLL_MS = 1500
-const UNKNOWN_ID_TRIES = 120
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 800
-
-interface Pending {
-  readonly startedIn: string
-  readonly expectedId: string | null
-  readonly folder: string
-  readonly startedAt: number
-  tries: number
-}
 
 interface Pane {
   readonly id: string
@@ -186,7 +178,8 @@ function tabView(tab: Tab): TabView {
   let tooltip = label?.tooltip ?? ''
   let groupColor: string | null = null
   if (tab.kind === 'file') {
-    const name = basename(tab.path)
+    // A rename lasts while the tab does; it is not saved.
+    const name = label?.title ?? basename(tab.path)
     title = tab.preview
       ? t('files.previewTitle', { name })
       : `${name}${isDirty(tab.path) ? ' •' : ''}`
@@ -383,11 +376,12 @@ async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
       ...(command ? { command } : {}),
     },
     {
-      data: (data) => {
+      data: (data, end) => {
         pane?.handle?.write(data)
         const w = pane ? windowOfTab(pane.tabId) : undefined
         const window = w ? windows.get(w.id) : undefined
-        if (window && !window.isDestroyed()) window.webContents.send('pty:data', { pane: id, data })
+        if (window && !window.isDestroyed())
+          window.webContents.send('pty:data', { pane: id, data, end })
       },
       exit: () => onPaneExit(id),
     },
@@ -486,8 +480,9 @@ export function paneResize(paneId: string, cols: number, rows: number): void {
   pane?.handle?.resize(cols, rows)
 }
 
-export function paneBuffer(paneId: string): string {
-  return panes.get(paneId)?.terminal.buffer ?? ''
+export function paneBuffer(paneId: string): { buffer: string; end: number } {
+  const terminal = panes.get(paneId)?.terminal
+  return { buffer: terminal?.buffer ?? '', end: terminal?.end ?? 0 }
 }
 
 function closeTab(tabId: string): void {
@@ -530,20 +525,10 @@ async function checkPending(list: readonly Pane[]): Promise<void> {
   await sessions.refresh()
   sessionList = await sessions.list()
   for (const pane of list) {
-    const pending = pane.pending
-    if (!pending) continue
-    pending.tries += 1
-    const typed = (s: SessionInfo) => s.preview !== ''
-    const found = pending.expectedId
-      ? sessionList.find((s) => s.id === pending.expectedId && typed(s))
-      : sessionList
-          .filter(
-            (s) => s.cwd === pending.folder && s.mtimeMs >= pending.startedAt - 1000 && typed(s),
-          )
-          .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]
-    if (found) joinSession(pane, found.id)
-    else if (pending.expectedId === null && pending.tries >= UNKNOWN_ID_TRIES)
-      pane.pending = undefined
+    if (!pane.pending) continue
+    const result = lookUp(pane.pending, sessionList)
+    if (result.kind === 'joined') joinSession(pane, result.sessionId)
+    else pane.pending = result.kind === 'waiting' ? result.pending : undefined
   }
 }
 
@@ -1032,7 +1017,8 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         } else await startPane(target, resumeSpec(action.session))
       }
       changed({ projects: true })
-      return {}
+      // The session's pane, which takes the focus.
+      return { value: target ? ([...(tabPanes.get(target) ?? [])].pop() ?? null) : null }
     }
     case 'stopSession': {
       const pane = paneOfSession(action.session)

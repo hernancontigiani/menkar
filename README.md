@@ -10,12 +10,16 @@ several windows, the history of every session.
 
 ## Install (Ubuntu)
 
-Build the package and install it with apt (Ubuntu 24.04, amd64):
+**0.1.0** is the first release candidate, for Ubuntu 24.04 on amd64. Build the package and install
+it with apt:
 
 ```sh
-npm run package                                   # builds release/menkar_<version>_amd64.deb
-sudo apt install ./release/menkar_0.0.0_amd64.deb
+npm run package                                   # builds release/menkar_0.1.0_amd64.deb
+sudo apt install ./release/menkar_0.1.0_amd64.deb
 ```
+
+Before calling it the first version, go through `docs/release-checklist.md`: the checks only a
+person on a real desktop can make.
 
 It installs the app under `/opt/Menkar`, a **Menkar** launcher with its icon, and the `menkar`
 command (`/usr/bin/menkar`). The post-install also installs an AppArmor profile,

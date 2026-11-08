@@ -62,3 +62,17 @@ each is a sandbox of its own, with `claude` and `~/.claude` outside it.
 - `apparmor_parser --skip-kernel-load --debug` accepts the packaged profile (AppArmor 4.0.1, checked
   2026-11-08).
 - Neither runs in `npm run ci`: the package takes about a minute to build.
+
+## Cutting a release
+
+A release is cut by a session and checked by the human; nothing is published anywhere.
+
+1. The version in `package.json` (and the two matching fields of `package-lock.json`), one change.
+   The package's name follows it: `release/menkar_<version>_amd64.deb`.
+2. `npm run ci` and `npm run ui-check` green on the tree being released.
+3. `npm run package`, then `npm run package:check` and `npm run package:smoke` against that build.
+   `package:check` reads the `.deb` named after `package.json`'s version.
+4. The `.deb`'s size and entry count go in the release's log, to compare with the next one.
+5. `README.md` "Install" names the version; `docs/release-checklist.md` names it too.
+6. The human goes through `docs/release-checklist.md` on their own desktop. Until every step passes
+   the build is a release candidate; a session never installs the package.

@@ -5,7 +5,8 @@ import { type IPty, spawn } from 'node-pty'
 import { log } from '../core/log'
 
 export interface TerminalSink {
-  data(data: string): void
+  // `end`: where this chunk ends in the pane's whole output.
+  data(data: string, end: number): void
   exit(exitCode: number): void
 }
 
@@ -46,6 +47,7 @@ export class Terminal {
   readonly #pty: IPty
   readonly #shellName: string
   #buffer = ''
+  #end = 0
   #exited = false
 
   constructor(options: StartOptions, sink: TerminalSink) {
@@ -59,7 +61,8 @@ export class Terminal {
     }
     const emit = (data: string) => {
       this.#buffer = (this.#buffer + data).slice(-BUFFER_CHARS)
-      sink.data(data)
+      this.#end += data.length
+      sink.data(data, this.#end)
     }
     for (const message of pre) emit(message)
     this.#pty = spawn(shell, [], {
@@ -83,6 +86,10 @@ export class Terminal {
 
   get buffer(): string {
     return this.#buffer
+  }
+
+  get end(): number {
+    return this.#end
   }
 
   // Something other than the shell itself is in the foreground: the agent, or a command the user

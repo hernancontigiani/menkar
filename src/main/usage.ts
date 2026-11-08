@@ -113,16 +113,25 @@ export function currentMemberships(): Memberships {
 }
 
 // The Usage window's figures for a period: a pass first (the same one-at-a-time runner as the
-// hourly one), then the report, both off the UI path.
-export async function usageView(which: UsageWhich): Promise<UsageView> {
+// hourly one), then the report, both off the UI path. `projectId`: the opener window's project,
+// whose figures alone are shown unless `allProjects`.
+export async function usageView(
+  which: UsageWhich,
+  projectId: string | null,
+  allProjects: boolean,
+): Promise<UsageView> {
   await usageRunner?.request()
   const categories = classifySince((await sessions.currentState()).rest) !== null
   const names = (await sessions.list()).map((s) => [s.id, s.name] as const)
+  const projectNames = currentMemberships().projectNames
+  const name = projectId === null ? undefined : projectNames.get(projectId)
   return queryInWorker<UsageView>({
     kind: 'report',
     which,
     categories,
-    projectNames: [...currentMemberships().projectNames],
+    project: projectId !== null && name !== undefined ? { id: projectId, name } : null,
+    scoped: !allProjects,
+    projectNames: [...projectNames],
     names,
   })
 }

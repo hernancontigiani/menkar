@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp } from './app'
@@ -227,6 +227,195 @@ test('CHT-48 Open in Ghostty resumes the session in its folder, outside the app'
     expect(args.slice(1)).toEqual(['-e', 'claude', '--resume', SESSION])
     expect(args[0]).toMatch(/^--working-directory=\//)
     await expect(launched.window.locator('.tab')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+// The chooser's options are recorded and it is cancelled, so the test reads where it would open.
+async function recordChooser(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ dialog }) => {
+    const seen: unknown[] = []
+    ;(globalThis as unknown as { chooserSeen: unknown[] }).chooserSeen = seen
+    dialog.showOpenDialog = (async (...args: unknown[]) => {
+      seen.push(args.find((a) => typeof a === 'object' && a !== null && 'properties' in a))
+      return { canceled: true, filePaths: [] }
+    }) as typeof dialog.showOpenDialog
+  })
+}
+
+const chooserSeen = (app: ElectronApplication) =>
+  app.evaluate(
+    () =>
+      (globalThis as unknown as { chooserSeen: { title?: string; defaultPath?: string }[] })
+        .chooserSeen,
+  )
+
+test('CHT-4, PRF-30 the chat and session choosers open in the remembered folder, at their own default once it is gone', async () => {
+  let folder = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      folder = join(dirs.root, 'todo-api')
+      mkdirSync(folder)
+      const env = withStandins(mkdtempSync(join(dirs.root, 'log-')))(dirs)
+      const state = join(dirs.root, 'config', 'menkar', 'state.json')
+      const saved = JSON.parse(readFileSync(state, 'utf8'))
+      writeFileSync(
+        state,
+        JSON.stringify({ ...saved, settings: { ...saved.settings, new_session_dir: folder } }),
+      )
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    await recordChooser(launched.app)
+    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
+    await act(page, { type: 'pickFolder' })
+    await expect.poll(async () => (await chooserSeen(launched.app)).length).toBe(2)
+    for (const seen of await chooserSeen(launched.app)) {
+      expect(seen.title).toBe('Choose project directory')
+      expect(seen.defaultPath).toBe(folder)
+    }
+    await expect(page.locator('.chat')).toHaveCount(0)
+    rmSync(folder, { recursive: true })
+    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
+    await act(page, { type: 'pickFolder' })
+    await expect.poll(async () => (await chooserSeen(launched.app)).length).toBe(4)
+    for (const seen of (await chooserSeen(launched.app)).slice(2))
+      expect(seen.defaultPath).toBeUndefined()
+  } finally {
+    await launched.close()
+  }
+})
+
+test('CHT-13 the trusted Cursor chat warns that it runs edits and commands without asking', async () => {
+  const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return withStandins(log)(dirs)
+    },
+  })
+  try {
+    await chooseFolder(launched.app, root)
+    await act(launched.window, { type: 'newChat', agent: 'cursor', key: 'trusted' })
+    await expect(launched.window.locator('.chat .banner')).toHaveText(
+      'Chat with Cursor — ⚠ runs edits and commands automatically, without asking.',
+    )
+  } finally {
+    await launched.close()
+  }
+})
+
+test('CHT-27, CHT-28 a user message is plain text; the view follows the bottom only within 48 px', async () => {
+  const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return withStandins(log)(dirs)
+    },
+  })
+  const page = launched.window
+  try {
+    await chooseFolder(launched.app, root)
+    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
+    const chat = page.locator('.chat')
+    const entry = chat.locator('[data-key="chat-entry"]')
+    await entry.fill('**not bold**')
+    await entry.press('Enter')
+    await expect(chat.locator('.bubble.user')).toHaveText('**not bold**')
+    await expect(chat.locator('.bubble.user b')).toHaveCount(0)
+    await chat.locator('[data-answer="deny"]').click()
+    await expect(chat.locator('[data-key="chat-send"]')).toBeEnabled()
+
+    await entry.fill('stream')
+    await entry.press('Enter')
+    const conversation = chat.locator('.conversation')
+    const gap = () => conversation.evaluate((n) => n.scrollHeight - n.scrollTop - n.clientHeight)
+    await expect
+      .poll(() => conversation.evaluate((n) => n.scrollHeight - n.clientHeight))
+      .toBeGreaterThan(400)
+    await conversation.evaluate((n) => {
+      n.scrollTop = n.scrollHeight - n.clientHeight - 200
+    })
+    const held = await conversation.evaluate((n) => n.scrollTop)
+    const height = await conversation.evaluate((n) => n.scrollHeight)
+    await expect
+      .poll(() => conversation.evaluate((n) => n.scrollHeight))
+      .toBeGreaterThan(height + 200)
+    expect(await conversation.evaluate((n) => n.scrollTop)).toBe(held)
+    expect(await gap()).toBeGreaterThan(200)
+
+    await conversation.evaluate((n) => {
+      n.scrollTop = n.scrollHeight - n.clientHeight - 40
+    })
+    const again = await conversation.evaluate((n) => n.scrollHeight)
+    await expect
+      .poll(() => conversation.evaluate((n) => n.scrollHeight))
+      .toBeGreaterThan(again + 200)
+    await expect.poll(gap).toBeLessThanOrEqual(1)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('the chat look: bubbles, the tool chip and the permission card as measured', async () => {
+  const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return withStandins(log)(dirs)
+    },
+  })
+  const page = launched.window
+  try {
+    await chooseFolder(launched.app, root)
+    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
+    const chat = page.locator('.chat')
+    await chat.locator('[data-key="chat-entry"]').fill('run the tests')
+    await chat.locator('[data-key="chat-entry"]').press('Enter')
+    await expect(chat.locator('.card.permission')).toBeVisible()
+    const style = (selector: string, props: readonly string[]) =>
+      chat
+        .locator(selector)
+        .first()
+        .evaluate((n, keys) => {
+          const s = getComputedStyle(n)
+          return Object.fromEntries(keys.map((k) => [k, s.getPropertyValue(k)]))
+        }, props)
+    expect(
+      await style('.bubble.user', ['background-color', 'color', 'border-radius', 'padding']),
+    ).toEqual({
+      'background-color': 'rgb(217, 119, 87)',
+      color: 'rgb(255, 255, 255)',
+      'border-radius': '14px',
+      padding: '8px 12px',
+    })
+    const assistant = await style('.bubble.assistant', ['background-color', 'border-radius'])
+    expect(assistant['border-radius']).toBe('14px')
+    expect(assistant['background-color']).toMatch(/ \/ 0\.08\)$/)
+    expect(
+      await style('.card.permission', ['border', 'border-radius', 'padding', 'box-shadow', 'gap']),
+    ).toEqual({
+      border: '1px solid rgba(217, 119, 87, 0.6)',
+      'border-radius': '12px',
+      padding: '12px',
+      'box-shadow': 'rgba(0, 0, 0, 0.35) 0px 2px 12px 0px',
+      gap: '8px',
+    })
+    expect(await style('.card-title', ['color', 'font-weight'])).toEqual({
+      color: 'rgb(217, 119, 87)',
+      'font-weight': '700',
+    })
+    await chat.locator('[data-answer="once"]').click()
+    expect(await style('.chip', ['opacity', 'padding'])).toEqual({
+      opacity: '0.6',
+      padding: '2px 4px',
+    })
   } finally {
     await launched.close()
   }

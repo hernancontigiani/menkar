@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp } from './app'
@@ -102,7 +110,7 @@ test('CTX-36, CTX-37 a refused change says why, leaves the file as it is, and th
   }
 })
 
-test('CLS-25, CLS-26, CLS-27, CLS-32 the switch shows the earlier-turns row; its dialog counts, estimates and runs', async () => {
+test('CLS-25, CLS-26, CLS-27 the switch shows the earlier-turns row; its dialog counts, estimates and runs', async () => {
   let root = ''
   const launched = await launchApp({
     prepare: ({ root: base, home }) => {
@@ -209,6 +217,159 @@ test('PRF-32 to PRF-36 About shows the star, the name, the developer and the ver
     await expect(about.locator('[data-section="legal"]')).toContainText('GPL-3.0-or-later')
     await about.locator('[data-key="issues"]').click()
     await expect.poll(opened).toEqual(['https://github.com/hernancontigiani/menkar/issues'])
+  } finally {
+    await launched.close()
+  }
+})
+
+// Three human turns, three, two and one days back, in one session of a fresh HOME; the fake
+// `claude` records every call under <root>/fake-log.
+function earlierTurns(base: string, home: string): Record<string, string> {
+  const projects = join(home, '.claude', 'projects', '-home-demo-app')
+  mkdirSync(projects, { recursive: true })
+  const today = Date.now()
+  const lines = [0, 1, 2].map((i) => ({
+    type: 'user',
+    uuid: `old-${i}`,
+    timestamp: new Date(today - (3 - i) * 86_400_000).toISOString(),
+    turnOrigin: 'human',
+    message: { content: `an earlier prompt number ${i}, long enough to stand alone` },
+  }))
+  writeFileSync(
+    join(projects, 'session-old.jsonl'),
+    `${lines.map((l) => JSON.stringify(l)).join('\n')}\n`,
+  )
+  mkdirSync(join(base, 'fake-log'))
+  return { PATH: `${FAKE_DIR}:${process.env.PATH ?? ''}`, FAKE_CLAUDE_LOG: join(base, 'fake-log') }
+}
+
+const dayBefore = (days: number) => {
+  const d = new Date(Date.now() - days * 86_400_000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+test('CLS-1 a fresh install: the switch off, no earlier-turns row, no claude -p, no category level in Usage', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: ({ root: base, home }) => {
+      root = base
+      return earlierTurns(base, home)
+    },
+  })
+  try {
+    const prefs = await integrations(launched.app, launched.window)
+    await expect(prefs.locator('[data-key="classify"]')).not.toBeChecked()
+    await expect(prefs.locator('[data-key="earlier-row"]')).toBeHidden()
+    await prefs.close()
+    const usage = await openWindow(launched.app, launched.window, async () => {
+      await launched.window.evaluate(() =>
+        (
+          window as unknown as { menkar: { window: { act(a: unknown): Promise<unknown> } } }
+        ).menkar.window.act({ type: 'openUsage' }),
+      )
+    })
+    await expect(usage.locator('[data-key="footer"]')).toBeVisible()
+    await expect(usage.locator('[data-key="hint"]')).toBeVisible()
+    await expect(usage.locator('[data-toggles="stack"]')).toHaveCount(0)
+    await expect(usage.locator('.usage-row.category')).toHaveCount(0)
+    const state = JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8'))
+    expect(state.settings?.classify_since ?? state.classify_since).toBeUndefined()
+    expect(readdirSync(join(root, 'fake-log'))).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})
+
+async function earlierDialog(prefs: Page): Promise<void> {
+  await prefs.locator('[data-key="classify"]').check()
+  await prefs.locator('[data-key="earlier-button"]').click()
+}
+
+test('CLS-30 no turns to send: the button reads Classify and is disabled', async () => {
+  const launched = await launchApp({
+    prepare: ({ root, home }) => {
+      const env = earlierTurns(root, home)
+      rmSync(join(home, '.claude', 'projects'), { recursive: true })
+      return env
+    },
+  })
+  try {
+    const prefs = await integrations(launched.app, launched.window)
+    await earlierDialog(prefs)
+    await expect(prefs.locator('[data-key="estimate"]')).toContainText('Turns to send: 0')
+    const confirm = prefs.locator('[data-key="earlier-confirm"]')
+    await expect(confirm).toHaveText('Classify')
+    await expect(confirm).toBeDisabled()
+  } finally {
+    await launched.close()
+  }
+})
+
+test('CLS-31 the usage history cannot be opened while counting: our sentence, the button disabled', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: ({ root: base, home }) => {
+      root = base
+      return earlierTurns(base, home)
+    },
+  })
+  const history = () => join(root, 'data', 'menkar', 'history.sqlite')
+  try {
+    const prefs = await integrations(launched.app, launched.window)
+    await expect.poll(() => existsSync(history())).toBe(true)
+    // Unreadable, in a folder where it cannot be moved aside and replaced either.
+    chmodSync(history(), 0o000)
+    chmodSync(join(root, 'data', 'menkar'), 0o555)
+    await earlierDialog(prefs)
+    await expect(prefs.locator('[data-key="estimate"]')).toHaveText(
+      'Could not read the usage history (see the log).',
+    )
+    await expect(prefs.locator('[data-key="earlier-confirm"]')).toBeDisabled()
+  } finally {
+    chmodSync(join(root, 'data', 'menkar'), 0o755)
+    if (existsSync(history())) chmodSync(history(), 0o644)
+    await launched.close()
+  }
+})
+
+test('CLS-32 day A then day B before A is counted: only the estimate for B is ever shown', async () => {
+  const launched = await launchApp({
+    prepare: ({ root, home }) => earlierTurns(root, home),
+  })
+  try {
+    const dayA = dayBefore(7)
+    await launched.app.evaluate(({ ipcMain }, slowDay) => {
+      type Handler = (event: unknown, request: { day: string }) => unknown
+      const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, Handler> })
+        ._invokeHandlers
+      const original = handlers.get('classifier:estimate')
+      if (!original) throw new Error('no classifier:estimate handler')
+      handlers.set('classifier:estimate', async (event, request) => {
+        if (request.day === slowDay) await new Promise((r) => setTimeout(r, 1500))
+        return original(event, request)
+      })
+    }, dayA)
+    const prefs = await integrations(launched.app, launched.window)
+    await prefs.exposeFunction('sawConfirm', (text: string) => seen.push(text))
+    const seen: string[] = []
+    await prefs.evaluate(() => {
+      new MutationObserver(() => {
+        const button = document.querySelector('[data-key="earlier-confirm"]')
+        if (button?.textContent)
+          (window as unknown as { sawConfirm(t: string): void }).sawConfirm(button.textContent)
+      }).observe(document.body, { childList: true, subtree: true, characterData: true })
+    })
+    await earlierDialog(prefs)
+    const day = prefs.locator('[data-key="earlier-day"]')
+    await expect(day).toHaveValue(dayA)
+    await day.fill(dayBefore(2))
+    await day.dispatchEvent('change')
+    const confirm = prefs.locator('[data-key="earlier-confirm"]')
+    await expect(confirm).toHaveText('Classify 2 turns')
+    await prefs.waitForTimeout(2000)
+    await expect(confirm).toHaveText('Classify 2 turns')
+    expect(seen).not.toContain('Classify 3 turns')
   } finally {
     await launched.close()
   }

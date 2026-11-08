@@ -12,7 +12,7 @@ import {
 } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
 import type { WindowState } from '../shared/workspace'
-import { act, currentState, onRender, showHiddenSessions } from './app'
+import { act, currentState, logo, onRender, showHiddenSessions } from './app'
 import { el, icon } from './dom'
 import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
@@ -233,6 +233,7 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
         el(
           'div',
           { class: 'status-page compact' },
+          logo('compact'),
           el('div', { class: 'heading' }, t('add.emptyTitle')),
           el('div', { class: 'body dim' }, t('add.emptyBody')),
         ),

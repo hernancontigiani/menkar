@@ -76,3 +76,72 @@ the e2e through `electronApp.evaluate`.
 Totals: about 160 U, 1 M, 9 H (LOOK-5, 22, 29; TRM-15; SES-64, 66, 68; FIL-34; AST-38 and the
 notification click of AST-28), 7 cases decided against by 1.9 (TRM-39, 41–46, 51) and TRM-16 by
 what Electron's chooser can return, and LOOK-50 and 51 for b2.
+
+`set` approved the table as classed (2026-11-08); LOOK-50 and 51 go to `b2`'s plan 16.
+
+Added by `set` (2026-11-08): the file-tab half of PRF-5. The editor takes the font setting's
+family and size; `b2` tests the terminal half.
+
+### B2 — Look (2026-11-08)
+
+Tested by id in `e2e/look.spec.ts` (computed styles and pixels captured from the window through
+`capturePage`) and `tests/core/ring.test.ts` (the ring, now a pure function in `src/core/ring.ts`):
+LOOK-1, 4, 7–20, 24–28, 30–36, 40–49, 52. Seen red: the run with one injected defect per case
+failed 24 of 30; the other six were red against the defects below before their fixes.
+
+Fixed in the code where the behaviour differed from the spec:
+- The divider could not be grabbed (the content painted over it) nor dragged (pointer capture
+  lost the moves), and any render in the middle of a drag snapped the sidebar back.
+- The header's title was centered over the space left by the buttons, not over the content.
+- Classic drew a ring on working and done dots; PREFIX sat after `+` instead of at the strip's
+  right end; the frame label stood 11 px from the frame's left.
+- Add session's empty Existing page shows the star (1.12), like the window's empty states.
+
+PRF-5, the file tabs: the font's family and size reach the editor through two CSS variables set
+with the terminals' font, so an open tab follows at once and a new one starts in it
+(`e2e/files.spec.ts`, seen red on the editor's own 11 pt).
+
+### B2 — Terminal (2026-11-08)
+
+Tested by id in `e2e/terminal.spec.ts`: TRM-10–14, 17, 18, 21–25, 27, 29, 30, 33, 36, 40, 47, 48,
+50, 52; TRM-55 with LOOK-36. TRM-19 and 20 in `tests/core/sessions/join.test.ts`: the join
+lookup moved into `src/core/sessions/join.ts`. Seen red: one run with a defect per case failed
+14 of 15; TRM-33 went red with both its guards removed (the renderer's and main's). The stand-in
+`claude` now reads its input raw, records it as hex and exits on `EXIT0` or `EXIT1`.
+
+Fixed: a pane's output could show twice, or lose a chunk, because the attach buffer and the live
+chunks travel separately and arrive in either order. Every chunk now carries where it ends in the
+pane's output, and the window joins the two by that (`src/core/output.ts`, Vitest and an e2e that
+failed 2 of 2 runs before the fix). The command echoed twice (before the prompt and after it)
+matches agent-tablet, which writes it the same way; kept (`set`, 2026-11-08).
+
+Added by `set` (2026-11-08), the human's asks: the star before the header's title, the settings
+button as a gear, the tab's ring after its name, and the group shown as a line under the tab
+instead of a dot, the selected tab marked by its background and bold name in both styles.
+Built and tested in `e2e/look.spec.ts` as LOOK-53 (the star before the title, the gear) and
+LOOK-54 (dot, name, ring, ×), with LOOK-24/28 (the group line) and LOOK-25 (Classic's selected
+tab without a line) rewritten to the new look; each seen red before the change.
+
+### B2 — Projects (2026-11-08)
+
+Tested by id in `e2e/projects.spec.ts`: PRJ-1, 2, 12, 15–26, 28–44, 47, 48, 54, 56, 57; PRJ-46
+with TRM-50. Seen red: one run with a defect per case (core layout and model, the join lookup,
+the renderer) failed every one; PRJ-19 first passed against its defect because it never checked
+the click had selected the second tab, and was tightened.
+
+Fixed:
+- The delete dialog counted running sessions from this window's last state, so one running in
+  another window was missed (PRJ-17): it asks main for the state first.
+- Open beside left the focus where it was (PRJ-28): main returns the pane, which takes the focus.
+- Renaming a file tab did nothing (PRJ-42): its label is used, for as long as the tab lives.
+
+Decided against: PRJ-1's "no file exists until the first change". The first start's import
+writes both of Menkar's files at once, even when nothing was imported, so that the next start is
+not a first start (`docs/projects.md`); the case's visible part is tested.
+
+### B2 — Agent state (2026-11-08)
+
+Tested by id in `e2e/agent-panes.spec.ts`: AST-18 (with the agent pane's own question as the
+control that does block; the stand-in prints one on `ASK`) and AST-28 through `panes:reveal` (the
+notification's own click stays the human's check). Seen red: shell panes registered as agent
+panes, and a reveal that does not switch the window's project.

@@ -1,4 +1,5 @@
 import { now } from '../core/clock'
+import { latestOnly } from '../core/latest'
 import { el } from './dom'
 import { t } from './i18n'
 
@@ -65,14 +66,14 @@ function earlierDialog(onStarted: () => void): void {
       el('div', { class: 'responses' }, cancel, confirm),
     ),
   )
-  let asked = 0
+  const askCount = latestOnly()
   const count = async () => {
-    const mine = ++asked
+    const current = askCount()
     confirm.disabled = true
     confirm.textContent = t('classifier.countingButton')
     estimate.replaceChildren(el('div', { class: 'dim' }, t('classifier.counting')))
     const found = await classifier.estimate(day.value)
-    if (mine !== asked) return // a count for a day no longer selected is dropped
+    if (!current()) return
     estimate.replaceChildren(...found.lines.map((line) => el('div', {}, line)))
     confirm.disabled = found.turns === 0
     confirm.textContent =

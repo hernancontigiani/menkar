@@ -1,0 +1,323 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { en } from '../src/core/i18n/en'
+import { PALETTES } from '../src/core/theme'
+import { launchApp, savedCursorTab } from './app'
+import { prepare } from './fixtures'
+
+// Preferences' General rows applied to the real app (docs/spec/preferences.md PRF-5 to PRF-30),
+// with a terminal tab open where a row reaches the terminals. Never on the human's display.
+
+async function openPreferences(app: ElectronApplication, page: Page): Promise<Page> {
+  await page.locator('body').click({ position: { x: 5, y: 5 } })
+  const [prefs] = await Promise.all([
+    app.waitForEvent('window'),
+    page.keyboard.press('Control+Comma'),
+  ])
+  await prefs.waitForLoadState('domcontentloaded')
+  await expect(prefs.locator('[data-page="general"].page')).toBeVisible()
+  return prefs
+}
+
+const statePath = (root: string) => join(root, 'config', 'menkar', 'state.json')
+const saved = (root: string) => JSON.parse(readFileSync(statePath(root), 'utf8')).settings ?? {}
+
+const cssVar = (page: Page, name: string) =>
+  page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)
+
+const terminalBackground = (page: Page) =>
+  page
+    .locator('.xterm-scrollable-element')
+    .first()
+    .evaluate((n) => getComputedStyle(n).backgroundColor)
+
+const rgb = (hex: string) => {
+  const n = Number.parseInt(hex.slice(1), 16)
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
+}
+const bg = (theme: string) => PALETTES[theme]?.bg ?? 'missing'
+
+async function choose(prefs: Page, expander: string, label: string): Promise<void> {
+  await prefs.locator(`[data-expander="${expander}"]`).evaluate((n) => n.setAttribute('open', ''))
+  await prefs.locator(`[data-expander="${expander}"] label`, { hasText: label }).click()
+}
+
+async function withTerminal(
+  settings: Record<string, unknown>,
+  run: (launched: Awaited<ReturnType<typeof launchApp>>) => Promise<void>,
+): Promise<void> {
+  const launched = await launchApp({ prepare: (dirs) => savedCursorTab(dirs, settings) })
+  try {
+    await expect(launched.window.locator('.xterm')).toBeVisible()
+    await run(launched)
+  } finally {
+    await launched.close()
+  }
+}
+
+test('PRF-7, PRF-5, PRF-6 opening and closing writes no font; a chosen font reaches the terminal; reset brings the default back', async () => {
+  await withTerminal({}, async ({ app, window, root }) => {
+    const before = readFileSync(statePath(root))
+    const first = await openPreferences(app, window)
+    await first.close()
+    await window.waitForTimeout(300)
+    expect(readFileSync(statePath(root))).toEqual(before)
+
+    const prefs = await openPreferences(app, window)
+    const rows = window.locator('.xterm-rows').first()
+    await prefs.locator('[data-key="font-family"]').selectOption('DejaVu Sans Mono')
+    await prefs.locator('[data-key="font-size"]').fill('14')
+    await prefs.locator('[data-key="font-size"]').dispatchEvent('change')
+    await expect.poll(() => saved(root).font).toBe('DejaVu Sans Mono 14')
+    await expect
+      .poll(() => rows.evaluate((n) => getComputedStyle(n).fontFamily))
+      .toContain('DejaVu Sans Mono')
+    expect(await rows.evaluate((n) => getComputedStyle(n).fontSize)).toMatch(/^18\.66/)
+
+    await prefs.locator('[data-key="font-reset"]').click()
+    await expect.poll(() => saved(root).font).toBe('')
+    await expect(prefs.locator('[data-key="font-family"]')).toHaveValue('')
+    await expect(prefs.locator('[data-key="font-family"] option:checked')).toHaveText(
+      'Default monospace',
+    )
+    await expect
+      .poll(() => rows.evaluate((n) => getComputedStyle(n).fontFamily))
+      .not.toContain('DejaVu')
+  })
+})
+
+test('PRF-9 Dark on a light desktop turns the app and its terminals Mocha at once', async () => {
+  await withTerminal({}, async ({ app, window, root }) => {
+    await window.emulateMedia({ colorScheme: 'light' })
+    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('Catppuccin Latte'))
+    const prefs = await openPreferences(app, window)
+    await prefs.locator('[data-key="color_scheme"]').selectOption('dark')
+    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('Catppuccin Mocha'))
+    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Catppuccin Mocha')))
+    await expect.poll(() => saved(root).color_scheme).toBe('dark')
+  })
+})
+
+test('PRF-10, PRF-11 Follow system: a desktop switch recolors every window; a named theme stays', async () => {
+  await withTerminal({ color_scheme: 'system' }, async ({ app, window }) => {
+    await window.emulateMedia({ colorScheme: 'dark' })
+    const prefs = await openPreferences(app, window)
+    await prefs.emulateMedia({ colorScheme: 'dark' })
+    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Catppuccin Mocha')))
+    for (const page of [window, prefs]) {
+      await page.emulateMedia({ colorScheme: 'light' })
+      await expect.poll(() => cssVar(page, '--bg')).toBe(bg('Catppuccin Latte'))
+    }
+    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Catppuccin Latte')))
+
+    await window.emulateMedia({ colorScheme: 'dark' })
+    await choose(prefs, 'terminal_theme', 'Nord')
+    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Nord')))
+    await window.emulateMedia({ colorScheme: 'light' })
+    await window.waitForTimeout(300)
+    expect(await terminalBackground(window)).toBe(rgb(bg('Nord')))
+  })
+})
+
+test('PRF-12, PRF-13 Classic: a plain window, no frame labels, default or named terminal colors; back again', async () => {
+  await withTerminal({ color_scheme: 'dark' }, async ({ app, window, root }) => {
+    const label = window.locator('.frame-label').first()
+    await expect(label).toBeVisible()
+    const prefs = await openPreferences(app, window)
+    await choose(prefs, 'ui_style', 'Classic (Adwaita)')
+    await expect.poll(() => saved(root).ui_style).toBe('classic')
+    await expect(window.locator('html')).toHaveClass(/\bclassic\b/)
+    await expect(label).toBeHidden()
+    await expect.poll(() => terminalBackground(window)).toBe('rgb(30, 30, 30)')
+
+    await choose(prefs, 'terminal_theme', 'Dracula')
+    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Dracula')))
+    await expect(window.locator('html')).toHaveClass(/\bclassic\b/)
+
+    await choose(prefs, 'ui_style', 'Terminal workspace')
+    await expect.poll(() => saved(root).ui_style).toBe('tui')
+    await expect(window.locator('html')).not.toHaveClass(/\bclassic\b/)
+    await expect(label).toBeVisible()
+    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('Dracula'))
+  })
+})
+
+test('PRF-18 Show folder path: the next Add session dialog shows each row its folder', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      const env = prepare(dirs)
+      const folder = join(dirs.home, 'todo-api')
+      mkdirSync(folder)
+      const transcripts = join(
+        dirs.home,
+        '.claude',
+        'projects',
+        folder.replace(/[^A-Za-z0-9]/g, '-'),
+      )
+      mkdirSync(transcripts, { recursive: true })
+      writeFileSync(
+        join(transcripts, '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d.jsonl'),
+        `${JSON.stringify({ type: 'user', cwd: folder, message: { content: 'loose' } })}\n`,
+      )
+      return env
+    },
+  })
+  const page = launched.window
+  const openAdd = async () => {
+    await page.locator('#add-session').click()
+    await page.locator('.history-group', { hasText: 'TODO-API' }).click()
+    await expect(page.locator('.history-row', { hasText: 'loose' })).toBeVisible()
+  }
+  try {
+    await openAdd()
+    await expect(page.locator('.history-row .path')).toHaveCount(0)
+    await page.locator(`.add-session button[aria-label="${en['tab.close']}"]`).click()
+    await expect(page.locator('.add-session')).toHaveCount(0)
+    const prefs = await openPreferences(launched.app, page)
+    await prefs.locator('[data-key="show_folder_path"]').check()
+    await expect.poll(() => saved(root).show_folder_path).toBe(true)
+    await prefs.close()
+    await openAdd()
+    await expect(page.locator('.history-row', { hasText: 'loose' }).locator('.path')).toHaveText(
+      /\/todo-api$/,
+    )
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRF-19 the two notification switches are saved off', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return undefined
+    },
+  })
+  try {
+    const prefs = await openPreferences(launched.app, launched.window)
+    await prefs.locator('[data-key="notify_idle"]').uncheck()
+    await prefs.locator('[data-key="notify_sound"]').uncheck()
+    await expect.poll(() => saved(root)).toMatchObject({ notify_idle: false, notify_sound: false })
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRF-20 Reopen tabs on start off: saved, and a start with saved tabs opens none', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return savedCursorTab(dirs)
+    },
+  })
+  try {
+    await expect(launched.window.locator('.xterm')).toBeVisible()
+    const prefs = await openPreferences(launched.app, launched.window)
+    await prefs.locator('[data-key="reopen_tabs"]').uncheck()
+    await expect.poll(() => saved(root).reopen_tabs).toBe(false)
+  } finally {
+    await launched.close()
+  }
+  const again = await launchApp({
+    prepare: (dirs) => savedCursorTab(dirs, { reopen_tabs: false }),
+  })
+  try {
+    await expect(again.window.locator('#sidebar')).toBeVisible()
+    await again.window.waitForTimeout(500)
+    await expect(again.window.locator('.tab')).toHaveCount(0)
+    await expect(again.window.locator('.xterm')).toHaveCount(0)
+    expect(again.app.windows()).toHaveLength(1)
+  } finally {
+    await again.close()
+  }
+})
+
+const ADD_SESSION_EN = en['sidebar.addSession']
+
+const catalogLanguage = (page: Page) =>
+  page.evaluate(() =>
+    (
+      window as unknown as { menkar: { i18n: { catalog(): Promise<{ language: string }> } } }
+    ).menkar.i18n
+      .catalog()
+      .then((c) => c.language),
+  )
+
+test('PRF-21, PRF-25 the languages in their own names; Español applies at the next start only', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return undefined
+    },
+  })
+  try {
+    const prefs = await openPreferences(launched.app, launched.window)
+    await expect(prefs.locator('[data-expander="language"] label')).toHaveText([
+      'System default',
+      'English',
+      'Español',
+    ])
+    await choose(prefs, 'language', 'Español')
+    await expect.poll(() => saved(root).language).toBe('es')
+    await prefs.close()
+    expect(await catalogLanguage(launched.window)).toBe('en')
+    await expect(launched.window.locator('#add-session')).toContainText(ADD_SESSION_EN)
+  } finally {
+    await launched.close()
+  }
+  const next = await launchApp({
+    prepare: (dirs) => {
+      mkdirSync(join(dirs.root, 'config', 'menkar'), { recursive: true })
+      writeFileSync(statePath(dirs.root), JSON.stringify({ settings: { language: 'es' } }))
+      return undefined
+    },
+  })
+  try {
+    expect(await catalogLanguage(next.window)).toBe('es')
+    await expect(next.window.locator('#add-session')).not.toContainText(ADD_SESSION_EN)
+  } finally {
+    await next.close()
+  }
+})
+
+test('PRF-29 the sidebar dragged to 420 px is saved after the pause, and a new window opens with it', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return undefined
+    },
+  })
+  const page = launched.window
+  try {
+    const divider = await page.locator('#divider').boundingBox()
+    if (!divider) throw new Error('no divider')
+    const y = divider.y + divider.height / 2
+    await page.mouse.move(divider.x + divider.width / 2, y)
+    await page.mouse.down()
+    await page.mouse.move(380, y, { steps: 5 })
+    await page.mouse.move(420, y, { steps: 5 })
+    await page.mouse.up()
+    expect(saved(root).sidebar_width).toBeUndefined()
+    await expect.poll(() => saved(root).sidebar_width, { timeout: 3000 }).toBe(420)
+    await page.evaluate(() =>
+      (
+        window as unknown as { menkar: { window: { act(a: unknown): Promise<unknown> } } }
+      ).menkar.window.act({ type: 'newWindowWithProject', name: 'Second' }),
+    )
+    await expect.poll(() => launched.app.windows().length).toBe(2)
+    const second = launched.app.windows().find((w) => w !== page)
+    if (!second) throw new Error('no second window')
+    await expect
+      .poll(() => second.locator('#sidebar').evaluate((n) => n.getBoundingClientRect().width))
+      .toBe(420)
+  } finally {
+    await launched.close()
+  }
+})

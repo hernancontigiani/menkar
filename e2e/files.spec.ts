@@ -132,3 +132,48 @@ test('FIL-23, FIL-24, FIL-25, FIL-30 the preview: after its editor, tables and s
     await launched.close()
   }
 })
+
+test('PRF-5 the chosen font reaches the file tabs: one opened next uses it, an open one follows', async () => {
+  const launched = await launchApp({ prepare: withFiles })
+  const page = launched.window
+  const editorFont = (nth: number) =>
+    page
+      .locator('.cm-scroller')
+      .nth(nth)
+      .evaluate((n) => ({
+        family: getComputedStyle(n).fontFamily,
+        size: getComputedStyle(n).fontSize,
+      }))
+  try {
+    await openTyped(page, '~/notes.md')
+    await expect(page.locator('.cm-scroller')).toHaveCount(1)
+    expect(await editorFont(0)).toEqual({ family: 'monospace, monospace', size: '13.3333px' })
+    await page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          menkar: { preferences: { set(k: string, v: string): Promise<unknown> } }
+        }
+      ).menkar.preferences.set('font', 'DejaVu Sans Mono 14'),
+    )
+    await expect
+      .poll(() => editorFont(0))
+      .toEqual({
+        family: '"DejaVu Sans Mono", monospace',
+        size: '18.6667px',
+      })
+    writeFileSync(join(home, 'other.txt'), 'other\n')
+    await page.locator('.cm-content').first().click()
+    await page.keyboard.press('Control+Shift+O')
+    await page.locator('.open-file input').fill('~/other.txt')
+    await page.locator('.open-file input').press('Enter')
+    await expect(page.locator('.tab.selected')).toHaveText(/other\.txt/)
+    expect(
+      await page.locator('.tab-body:not(.hidden) .cm-scroller').evaluate((n) => ({
+        family: getComputedStyle(n).fontFamily,
+        size: getComputedStyle(n).fontSize,
+      })),
+    ).toEqual({ family: '"DejaVu Sans Mono", monospace', size: '18.6667px' })
+  } finally {
+    await launched.close()
+  }
+})

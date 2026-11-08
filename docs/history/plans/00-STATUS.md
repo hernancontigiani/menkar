@@ -122,3 +122,6 @@
 > Closed 2026-11-08 — plan 14, "Chat, MCP servers, Ghostty", built by `b2`: chat tabs with Claude's
 > permission card and Cursor's two variants, Continue in chat, the MCP browser, Open in Ghostty; CTX-22
 > no longer races the clock. In `docs/chat.md`.
+
+> Replaced 2026-11-08 by the 0.1.0 release checklist (plan 16): §2 row 2.2 was
+| 2.2 | The human's check of the package: install the `.deb` (`sudo apt install ./release/menkar_0.0.0_amd64.deb`), start Menkar from the launcher, and see a terminal in it | Human | Trusting the sandbox on the installed app |

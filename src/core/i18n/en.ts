@@ -405,6 +405,7 @@ export const en = {
   'usage.previousMonth': 'Previous month',
   'usage.nextMonth': 'Next month',
   'usage.all': 'All',
+  'usage.allProjects': 'All projects',
   'usage.totals': 'Totals',
   'usage.byDay': 'By day',
   'usage.exec': 'Exec',

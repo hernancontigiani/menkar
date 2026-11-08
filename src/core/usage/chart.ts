@@ -45,16 +45,29 @@ export interface Chart {
   // per bar, one value per series
   readonly bars: readonly (readonly number[])[]
   readonly axisTop: number
+  // the distance between two grid lines, from 0 up to axisTop
+  readonly axisStep: number
 }
 
 const fold = (text: string) => text.toLocaleLowerCase('en')
 
-// The smallest 1, 2 or 5 × a power of ten at or above the tallest bar; 1 when all are 0.
-export function axisTop(tallest: number): number {
-  if (!(tallest > 0)) return 1
-  let power = 10 ** Math.floor(Math.log10(tallest))
+const NICE_STEPS = [1, 2, 2.5, 5] as const
+const MAX_INTERVALS = 5
+
+// The axis: its top is the first multiple of the step at or above the tallest bar, the step the
+// smallest 1, 2, 2.5 or 5 × 10^n that leaves at most five intervals. Time is stepped in the unit
+// its labels show, hours from one hour up and minutes below, so a 2.9 h bar tops out at 3 h.
+export function axisScale(tallest: number, metric: Metric): { top: number; step: number } {
+  const unit = metric !== 'exec' ? 1 : tallest >= 3600 ? 3600 : 60
+  const value = tallest > 0 ? tallest / unit : 0
+  if (value === 0) return { top: unit, step: unit }
+  let power = 10 ** (Math.floor(Math.log10(value)) - 1)
   for (;;) {
-    for (const step of [1, 2, 5]) if (step * power >= tallest - 1e-12) return step * power
+    for (const nice of NICE_STEPS) {
+      const step = nice * power
+      const intervals = Math.ceil(value / step - 1e-9)
+      if (intervals <= MAX_INTERVALS) return { top: intervals * step * unit, step: step * unit }
+    }
     power *= 10
   }
 }
@@ -88,7 +101,8 @@ function projectSeries(reports: readonly Report[], metric: Metric): Chart {
     }
     return values
   })
-  return { series, bars, axisTop: axisTop(Math.max(0, ...bars.map(sum))) }
+  const scale = axisScale(Math.max(0, ...bars.map(sum)), metric)
+  return { series, bars, axisTop: scale.top, axisStep: scale.step }
 }
 
 // The reports must have been built with categories and folded across projects (foldByCategory).
@@ -109,7 +123,8 @@ function categorySeries(reports: readonly Report[], metric: Metric): Chart {
       return node ? metricValue(node, metric) : 0
     }),
   )
-  return { series, bars, axisTop: axisTop(Math.max(0, ...bars.map(sum))) }
+  const scale = axisScale(Math.max(0, ...bars.map(sum)), metric)
+  return { series, bars, axisTop: scale.top, axisStep: scale.step }
 }
 
 function sum(values: readonly number[]): number {
@@ -142,6 +157,54 @@ export function barLabel(start: number, bucket: 'hour' | 'day' | 'month', locale
   if (bucket === 'hour') return pad(d.getHours())
   if (bucket === 'day') return String(d.getDate())
   return new Intl.DateTimeFormat(locale, { month: 'short' }).format(d)
+}
+
+// What 8 pt sans averages per character, and the space kept between two labels: enough to tell
+// whether two labels under the bars would run into each other.
+const LABEL_CHAR_PX = 5.5
+const LABEL_GAP_PX = 4
+
+// "Mon 2" / "lun 2": the weekday, then the day, whatever order the language's own format uses.
+function weekdayDay(d: Date, locale: string): string {
+  const parts = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' }).formatToParts(
+    d,
+  )
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('weekday')} ${part('day')}`
+}
+
+const DAY_STRIDES = [1, 2, 3, 7, 14] as const
+
+// The labels under the bars, null where a bar has none. Days over a week: every bar, weekday and
+// day. Days over a longer span: day and month ("Nov 2", "2 nov") from the first bar on, every 1, 2,
+// 3, 7 or 14 days, the smallest stride whose labels do not run into each other at this width.
+// Hours and months: every n-th bar.
+export function axisLabels(
+  starts: readonly number[],
+  bucket: 'hour' | 'day' | 'month',
+  span: 'week' | 'long',
+  locale: string,
+  plotWidth: number,
+): (string | null)[] {
+  if (bucket !== 'day') {
+    const every = labelEvery(starts.length, plotWidth)
+    return starts.map((start, i) => (i % every === 0 ? barLabel(start, bucket, locale) : null))
+  }
+  if (span === 'week') return starts.map((start) => weekdayDay(new Date(start * 1000), locale))
+  const monthDay = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
+  const texts = starts.map((start) => monthDay.format(new Date(start * 1000)))
+  const slot = plotWidth / Math.max(1, starts.length)
+  const width = (text: string) => text.length * LABEL_CHAR_PX
+  const fits = (stride: number) => {
+    for (let i = stride; i < texts.length; i += stride) {
+      const room = slot * stride
+      if (room < (width(texts[i - stride] ?? '') + width(texts[i] ?? '')) / 2 + LABEL_GAP_PX)
+        return false
+    }
+    return true
+  }
+  const stride = DAY_STRIDES.find(fits) ?? DAY_STRIDES[DAY_STRIDES.length - 1]
+  return texts.map((text, i) => (i % stride === 0 ? text : null))
 }
 
 // The tooltip's heading for a bar.

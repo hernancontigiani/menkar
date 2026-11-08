@@ -208,7 +208,7 @@ describe('notifications', () => {
     [{ notify_idle: false }, SOUNDS.done, null],
     [{ notify_idle: false, notify_sound: false }, null, null],
     [{}, SOUNDS.done, 'desktop'],
-  ])('AST-26 settings %j: sound %s, notice %s', (settings, sound, show) => {
+  ])('AST-26, PRF-19 settings %j: sound %s, notice %s', (settings, sound, show) => {
     const what = plan('done', false, notifySettings({ settings }))
     expect([what.sound, what.show]).toEqual([sound, show])
   })

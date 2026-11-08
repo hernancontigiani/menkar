@@ -90,6 +90,8 @@ export interface ReportOptions {
   // each project's current name
   readonly projectNames?: ReadonlyMap<string, string>
   readonly categories?: boolean
+  // only this project's turns (a project id); every project when absent
+  readonly project?: string
   // the statusline's logs, oldest first
   readonly statuslineLogs: readonly string[]
 }
@@ -108,6 +110,7 @@ export function buildReport(history: UsageHistory, bounds: Bounds, options: Repo
   const labels = history.projectLabels(options.projectNames ?? new Map())
   const byProject = new Map<string | null, { category: string | null; node: Node }[]>()
   for (const [id, { key, usage }] of history.usage(bounds.start, bounds.end, categories)) {
+    if (options.project !== undefined && key.projectId !== options.project) continue
     const label =
       options.names?.get(key.sessionId) || history.name(key.sessionId) || key.sessionId.slice(0, 8)
     const exactCost = exact.get(id)

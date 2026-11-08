@@ -410,6 +410,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.previousMonth': 'Mes anterior',
   'usage.nextMonth': 'Mes siguiente',
   'usage.all': 'Todo',
+  'usage.allProjects': 'Todos los proyectos',
   'usage.totals': 'Totales',
   'usage.byDay': 'Por día',
   'usage.exec': 'Ejec.',

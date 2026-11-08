@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, type WebContents } from 'electron'
 import { t } from '../core/i18n'
 
 // Preferences, About and the Usage window: each a child window of the main window that asked, with
@@ -58,6 +58,15 @@ export function openPreferences(
 
 export function openAbout(parent: BrowserWindow): void {
   open('about', parent, { width: 420, height: 560, modal: true, title: t('about.title') })
+}
+
+// The main window a Usage window was opened from.
+export function usageOpener(contents: WebContents): BrowserWindow | null {
+  for (const [parentId, usage] of usageWindows) {
+    if (!usage.isDestroyed() && usage.webContents === contents)
+      return BrowserWindow.fromId(parentId) ?? null
+  }
+  return null
 }
 
 // One Usage window per main window: asking again brings it forward.

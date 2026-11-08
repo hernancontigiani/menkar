@@ -3,7 +3,8 @@ process.env.TZ = 'America/Argentina/Buenos_Aires'
 
 import { describe, expect, test } from 'vitest'
 import {
-  axisTop,
+  axisLabels,
+  axisScale,
   barHeading,
   barLabel,
   buildChart,
@@ -98,18 +99,28 @@ describe('series', () => {
 })
 
 describe('axis and labels', () => {
+  // Decision 1.14: the top is the first multiple of a 1, 2, 2.5 or 5 × 10^n step at or above the
+  // tallest bar, the step the smallest that leaves at most 5 intervals; time is stepped in the unit
+  // the axis shows (hours from one hour up, minutes below).
   test.each([
-    [0, 1],
-    [0.7, 1],
-    [1, 1],
-    [1.2, 2],
-    [3, 5],
-    [6, 10],
-    [42, 50],
-    [5040, 10000],
-  ])('the axis top for a tallest bar of %d is %d', (tallest, top) => {
-    expect(axisTop(tallest)).toBe(top)
-  })
+    ['exec', 0, 60, 60],
+    ['exec', 10_440, 3 * 3600, 3600],
+    ['exec', 42 * 60, 50 * 60, 10 * 60],
+    ['exec', 5.6 * 3600, 6 * 3600, 2 * 3600],
+    ['exec', 1.2 * 3600, 1.25 * 3600, 0.25 * 3600],
+    ['tokens', 5040, 6000, 2000],
+    ['tokens', 1_000_000, 1_000_000, 200_000],
+    ['cost', 0.7, 0.8, 0.2],
+    ['cost', 12.5, 12.5, 2.5],
+  ] as const)(
+    'the %s axis for a tallest bar of %d: top %d, a line every %d',
+    (metric, tallest, top, step) => {
+      const scale = axisScale(tallest, metric)
+      expect(scale.top).toBeCloseTo(top, 9)
+      expect(scale.step).toBeCloseTo(step, 9)
+      expect(Math.round(scale.top / scale.step)).toBeLessThanOrEqual(5)
+    },
+  )
 
   test('USG-47 hours, days of the month and short month names under the bars', () => {
     const nine = new Date(2026, 10, 8, 9).getTime() / 1000
@@ -129,5 +140,82 @@ describe('axis and labels', () => {
     expect(labelEvery(24, 688)).toBe(1)
     expect(labelEvery(30, 688)).toBe(2)
     expect(labelEvery(31, 280)).toBe(4)
+  })
+})
+
+// Decision 1.13: the By-day axis. Seven days: every bar, weekday and day. Longer spans: the first
+// bar and every Monday, day and month, a label dropped where it would run into the previous one.
+describe('the By-day axis labels', () => {
+  const days = (year: number, month: number, day: number, count: number) =>
+    Array.from({ length: count }, (_, i) => new Date(year, month, day + i).getTime() / 1000)
+  const kept = (labels: readonly (string | null)[]) =>
+    labels.flatMap((label, i) => (label === null ? [] : [[i, label] as const]))
+
+  test("7 days: every bar has its weekday and day, in the app's language", () => {
+    const week = days(2026, 10, 2, 7)
+    expect(axisLabels(week, 'day', 'week', 'en', 700)).toEqual([
+      'Mon 2',
+      'Tue 3',
+      'Wed 4',
+      'Thu 5',
+      'Fri 6',
+      'Sat 7',
+      'Sun 8',
+    ])
+    expect(axisLabels(week, 'day', 'week', 'es', 700)).toEqual([
+      'lun 2',
+      'mar 3',
+      'mié 4',
+      'jue 5',
+      'vie 6',
+      'sáb 7',
+      'dom 8',
+    ])
+  })
+
+  test('30 days on a wide plot: a label on every bar, across the month boundary', () => {
+    const span = days(2026, 9, 15, 30)
+    const labels = axisLabels(span, 'day', 'long', 'en', 1300)
+    expect(labels.every((l) => l !== null)).toBe(true)
+    expect(labels[0]).toBe('Oct 15')
+    expect(labels[17]).toBe('Nov 1')
+    expect(axisLabels(span, 'day', 'long', 'es', 1300)[17]).toBe('1 nov')
+  })
+
+  test('30 days on a middling plot: every second bar from the first', () => {
+    const span = days(2026, 9, 15, 30)
+    expect(kept(axisLabels(span, 'day', 'long', 'en', 700)).map(([i]) => i)).toEqual(
+      Array.from({ length: 15 }, (_, k) => k * 2),
+    )
+  })
+
+  test('30 days on a narrow plot: a week apart, from the first bar', () => {
+    const span = days(2026, 9, 15, 30)
+    expect(kept(axisLabels(span, 'day', 'long', 'en', 300))).toEqual([
+      [0, 'Oct 15'],
+      [7, 'Oct 22'],
+      [14, 'Oct 29'],
+      [21, 'Nov 5'],
+      [28, 'Nov 12'],
+    ])
+  })
+
+  test('the stride is 1, 2, 3, 7 or 14 days, the smallest whose labels do not collide', () => {
+    const june = days(2026, 5, 1, 30)
+    for (const width of [150, 250, 400, 550, 800, 1300]) {
+      const at = kept(axisLabels(june, 'day', 'long', 'en', width)).map(([i]) => i)
+      const stride = at[1] ?? 0
+      expect([1, 2, 3, 7, 14]).toContain(stride)
+      expect(at[0]).toBe(0)
+      expect(at.every((x, k) => x === k * stride)).toBe(true)
+    }
+    expect(kept(axisLabels(june, 'day', 'long', 'en', 150)).map(([i]) => i)).toEqual([0, 14, 28])
+  })
+
+  test('hours and months keep one label every few bars, as before', () => {
+    const hours = Array.from({ length: 24 }, (_, h) => new Date(2026, 10, 8, h).getTime() / 1000)
+    const labels = axisLabels(hours, 'hour', 'long', 'en', 300)
+    expect(labels[0]).toBe('00')
+    expect(labels.filter((l) => l !== null)).toHaveLength(Math.ceil(24 / labelEvery(24, 300)))
   })
 })

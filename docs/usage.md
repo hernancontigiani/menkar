@@ -100,3 +100,26 @@ is on), the chart's series, axis and labels `src/core/usage/chart.ts`, the month
 `src/core/usage/stepper.ts`. The types the page receives (`UsageView`, `UsageWhich`) and the shared
 formats live in `src/core/usage/nodes.ts`, which imports no Node module, so the renderer can use
 them.
+
+The chart, as the human decided it (2026-11-08):
+
+- **Its scope** (decision 1.15): the project the opener window shows. Totals and By day are that
+  project's alone, and "All projects" in the header switches to every project and back; the period
+  and the stepper work alike in both. A window always shows a project (a first start has
+  "Default"), so a Usage window always opens scoped; a caller that is not a Usage window gets
+  every project, unscoped, and no toggle. One project's By day stacks by category while
+  classification is on and is its plain bar otherwise. The filter is `ReportOptions.project`, in
+  `buildReport`, so the totals and every bar apply the same one.
+- **It fills the window.** The plot takes the height left between the controls and the legend and
+  footer, measured after layout and redrawn on resize; Totals' card takes the same room and
+  scrolls inside.
+- **The axis** (decision 1.14, replacing "the smallest 1, 2 or 5 × a power of ten at or above the
+  tallest bar"): the top is the first multiple of a 1, 2, 2.5 or 5 × 10^n step at or above the
+  tallest bar, the step the smallest that leaves at most five intervals, a grid line and a label on
+  each. Time is stepped in the unit its labels show, hours from one hour up and minutes below, so a
+  2.9 h bar tops out at 3 h, not at 5.6 h. The same for Exec, Tokens and Cost.
+- **The labels under the bars** (decision 1.13): 7 days, every bar, weekday and day ("Mon 2",
+  "lun 2"); 30 days and Month, day and month ("Nov 2", "2 nov") from the first bar on, every 1, 2,
+  3, 7 or 14 days, the smallest stride whose labels do not collide at the plot's width (8 pt sans
+  taken as 5.5 px a character, 4 px apart); Today and All, every n-th bar as before. All through
+  `Intl.DateTimeFormat` in the app's language: no month or day name is written by hand.

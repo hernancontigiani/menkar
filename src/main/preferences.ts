@@ -13,6 +13,7 @@ import type { InvokeChannel, InvokeChannels } from '../shared/ipc'
 import { statuslineCommand } from './context'
 import { sessions } from './sessions'
 import { usageView } from './usage'
+import { usageOpener } from './windows'
 import * as workspace from './workspace'
 
 // The only addresses About opens, and only when the user clicks: the app makes no connection of
@@ -90,7 +91,15 @@ export function registerPreferencesIpc(): void {
     return settings
   })
   handle('app:restart', () => restart())
-  handle('usage:view', (which) => usageView(which))
+  // The opener window's project scopes the figures; a Usage window with no opener has none.
+  ipcMain.handle(
+    'usage:view',
+    (event, { which, allProjects }: InvokeChannels['usage:view']['request']) => {
+      const opener = usageOpener(event.sender)
+      const projectId = opener ? (workspace.windowState(opener.webContents)?.shown ?? null) : null
+      return usageView(which, projectId || null, allProjects)
+    },
+  )
   handle('app:open-link', async ({ link }) => {
     const url = LINKS[link]
     if (url) await shell.openExternal(url)

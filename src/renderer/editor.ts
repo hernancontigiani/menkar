@@ -76,7 +76,10 @@ function themeOf(isDark: boolean): Extension {
         backgroundColor: isDark ? '#2a2a2e' : '#f0f0f3',
         fontWeight: '700',
       },
-      '.cm-scroller': { fontFamily: 'var(--term-font, monospace)' },
+      '.cm-scroller': {
+        fontFamily: 'var(--term-font, monospace)',
+        fontSize: 'var(--term-font-size, 13.3333px)',
+      },
       '&.cm-focused .cm-cursor': { borderLeftColor: isDark ? '#ffffff' : '#000000' },
     },
     { dark: isDark },

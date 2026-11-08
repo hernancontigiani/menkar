@@ -78,7 +78,7 @@ const api: MenkarApi = {
     mcpSections: () => ipcRenderer.invoke('mcp:sections'),
   },
   usage: {
-    view: (which) => ipcRenderer.invoke('usage:view', which),
+    view: (which, allProjects) => ipcRenderer.invoke('usage:view', { which, allProjects }),
   },
   classifier: {
     status: () => ipcRenderer.invoke('classifier:status'),

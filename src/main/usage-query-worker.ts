@@ -22,6 +22,9 @@ export type Query =
       readonly kind: 'report'
       readonly which: Which
       readonly categories: boolean
+      // the opener window's project; `scoped`: its figures alone
+      readonly project: { readonly id: string; readonly name: string } | null
+      readonly scoped: boolean
       readonly projectNames: readonly (readonly [string, string])[]
       readonly names: readonly (readonly [string, string])[]
     }
@@ -53,6 +56,7 @@ function answer(query: Query): UsageView | ReturnType<UsageHistory['sessionToken
       projectNames: new Map(query.projectNames),
       names: new Map(query.names),
       categories: query.categories,
+      ...(query.scoped && query.project ? { project: query.project.id } : {}),
     }
     const first = history.firstOpened()
     return {
@@ -68,6 +72,8 @@ function answer(query: Query): UsageView | ReturnType<UsageHistory['sessionToken
         first === null ? null : { year: localDay(first).year, month: localDay(first).month },
       tooNew: history.tooNew,
       categories: query.categories,
+      project: query.project,
+      scoped: query.scoped && query.project !== null,
     }
   } finally {
     history.close()

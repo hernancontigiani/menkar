@@ -14,14 +14,15 @@ describe('i18n', () => {
     [undefined, ['es-AR', 'en-US'], 'es'],
     [undefined, ['fr-FR', 'es_ES'], 'es'],
     [undefined, ['fr-FR'], 'en'],
+    ['', ['ja-JP'], 'en'],
     [undefined, [], 'en'],
     ['en', ['es-AR'], 'en'],
     ['xx', ['es-AR'], 'es'],
-  ] as const)('setting %s with locales %j picks %s', (setting, locales, expected) => {
+  ] as const)('PRF-27 setting %s with locales %j picks %s', (setting, locales, expected) => {
     expect(chooseLanguage(setting, locales)).toBe(expected)
   })
 
-  test('a key missing from a translation shows its English text, without crashing', async () => {
+  test('PRF-26 a key missing from a translation shows its English text, without crashing', async () => {
     vi.doMock('../../src/core/i18n/es', () => ({ es: {} }))
     vi.resetModules()
     const fresh = await import('../../src/core/i18n')

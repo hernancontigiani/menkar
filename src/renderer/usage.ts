@@ -1,12 +1,12 @@
 import './windows.css'
 import './usage.css'
 import { now } from '../core/clock'
+import { latestOnly } from '../core/latest'
 import { resolveLook } from '../core/theme'
 import {
+  axisLabels,
   barHeading,
-  barLabel,
   buildChart,
-  labelEvery,
   type Metric,
   OTHER_PROJECTS,
   type Stack,
@@ -43,9 +43,20 @@ const state = {
   stepper: { month: thisMonth(), all: false } as StepperState,
   collapsed: new Set<string>(),
   data: null as UsageView | null,
-  asked: 0,
   dark: true,
   locale: 'en',
+  // every project instead of the opener window's
+  allProjects: false,
+}
+// A report that arrives after another period was chosen is dropped.
+const askReport = latestOnly()
+
+// What By day stacks by. One project's figures stack by category when classification gives them,
+// and are that project's plain bar otherwise; every project's follow the switch.
+function stackShown(): Stack {
+  const view = state.data
+  if (view?.scoped) return view.categories ? 'category' : 'project'
+  return state.stack
 }
 
 function thisMonth(): Month {
@@ -71,9 +82,9 @@ const CATEGORY_NAMES: Readonly<Record<string, () => string>> = {
 function label(key: string, kind: Node['kind'] | 'series'): string {
   if (key === NO_PROJECT && kind !== 'category') return t('usage.noProject')
   if (key === UNCLASSIFIED) return t('usage.unclassified')
-  if (key === OTHER_PROJECTS && kind === 'series' && state.stack === 'project')
+  if (key === OTHER_PROJECTS && kind === 'series' && stackShown() === 'project')
     return t('usage.otherProjects')
-  if (kind === 'category' || (kind === 'series' && state.stack === 'category')) {
+  if (kind === 'category' || (kind === 'series' && stackShown() === 'category')) {
     return CATEGORY_NAMES[key]?.() ?? key
   }
   return key
@@ -161,11 +172,21 @@ function table(view: UsageView): HTMLElement {
     el('span', { class: 'num w9' }, t('usage.cost')),
   )
   if (view.totals.nodes.length === 0) {
-    return el('div', {}, heading, el('div', { class: 'card nothing' }, t('usage.nothing')))
+    return el(
+      'div',
+      { class: 'usage-table' },
+      heading,
+      el('div', { class: 'card nothing' }, t('usage.nothing')),
+    )
   }
   const rows: HTMLElement[] = []
   for (const project of view.totals.nodes) tableRow(project, 0, project.label, rows)
-  return el('div', {}, heading, el('div', { class: 'card usage-list' }, ...rows))
+  return el(
+    'div',
+    { class: 'usage-table' },
+    heading,
+    el('div', { class: 'card usage-list' }, ...rows),
+  )
 }
 
 // -- the chart ----------------------------------------------------------------------------------
@@ -181,23 +202,43 @@ function svg<K extends keyof SVGElementTagNameMap>(
   return node
 }
 
-function chart(view: UsageView, width: number): HTMLElement {
+// The chart takes the height the window leaves it: the box is laid out first, with the legend, and
+// the plot is drawn into the room left once the box has a size.
+function chartBox(view: UsageView): { box: HTMLElement; draw(): void } {
+  const plot = el('div', { class: 'chart-plot' })
+  const legend = el('div', { class: 'legend' })
+  const box = el('div', { class: 'chart-box' }, plot, legend)
+  const draw = () => {
+    legend.replaceChildren(...chart(view, 0, MIN_CHART_HEIGHT).legend)
+    plot.replaceChildren()
+    const width = Math.max(200, Math.floor(plot.clientWidth))
+    const height = Math.max(MIN_CHART_HEIGHT, Math.floor(plot.clientHeight))
+    plot.replaceChildren(chart(view, width, height).svg)
+  }
+  return { box, draw }
+}
+
+const MIN_CHART_HEIGHT = 160
+
+function chart(
+  view: UsageView,
+  width: number,
+  height: number,
+): { svg: HTMLElement; legend: HTMLElement[] } {
   const reports = view.bars.map((bar) =>
-    state.stack === 'category' && bar.category ? bar.category : bar.project,
+    stackShown() === 'category' && bar.category ? bar.category : bar.project,
   )
-  const data = buildChart(reports, state.metric, state.stack)
-  const height = 260
+  const data = buildChart(reports, state.metric, stackShown())
   const plot = { left: 64, right: 8, top: 10, bottom: 22 }
   const plotWidth = Math.max(10, width - plot.left - plot.right)
   const plotHeight = height - plot.top - plot.bottom
   const root = svg('svg', { width, height, class: 'usage-chart', 'data-chart': '' })
   const y = (value: number) => plot.top + plotHeight - (value / data.axisTop) * plotHeight
-  for (const [fraction, opacity] of [
-    [0, 0.35],
-    [0.5, 0.12],
-    [1, 0.12],
-  ] as const) {
-    const at = y(data.axisTop * fraction)
+  const lines = Math.round(data.axisTop / data.axisStep)
+  for (let k = 0; k <= lines; k += 1) {
+    const value = k * data.axisStep
+    const opacity = k === 0 ? 0.35 : 0.12
+    const at = y(value)
     root.append(
       svg('line', {
         x1: plot.left,
@@ -215,12 +256,18 @@ function chart(view: UsageView, width: number): HTMLElement {
       'dominant-baseline': 'middle',
       class: 'axis',
     })
-    text.textContent = metricText(data.axisTop * fraction)
+    text.textContent = metricText(value)
     root.append(text)
   }
   const slot = plotWidth / Math.max(1, reports.length)
   const barWidth = Math.min(28, Math.max(2, slot * 0.7))
-  const every = labelEvery(reports.length, plotWidth)
+  const labels = axisLabels(
+    reports.map((report) => report.bounds.start),
+    view.bucket,
+    state.period === '7d' ? 'week' : 'long',
+    state.locale,
+    plotWidth,
+  )
   reports.forEach((report, i) => {
     const x = plot.left + slot * i + (slot - barWidth) / 2
     const group = svg('g', { 'data-bar': i })
@@ -265,21 +312,22 @@ function chart(view: UsageView, width: number): HTMLElement {
       )
       base += value
     })
-    if (i % every === 0) {
+    const name = labels[i]
+    if (name) {
       const text = svg('text', {
         x: plot.left + slot * i + slot / 2,
         y: height - 6,
         'text-anchor': 'middle',
         class: 'axis',
       })
-      text.textContent = barLabel(report.bounds.start, view.bucket, state.locale)
+      text.textContent = name
       group.append(text)
     }
     root.append(group)
   })
-  const legend = el('div', { class: 'legend' })
+  const legend: HTMLElement[] = []
   for (const series of data.series) {
-    legend.append(
+    legend.push(
       el(
         'span',
         { class: 'legend-item' },
@@ -291,9 +339,7 @@ function chart(view: UsageView, width: number): HTMLElement {
       ),
     )
   }
-  const box = el('div', { class: 'chart-box' })
-  box.append(root as unknown as HTMLElement, legend)
-  return box
+  return { svg: root as unknown as HTMLElement, legend }
 }
 
 // -- the window ---------------------------------------------------------------------------------
@@ -331,9 +377,22 @@ function render(): void {
     },
   )
   const view = state.data
+  const top = el('header', {}, header)
+  if (view?.project) {
+    const scope = el(
+      'button',
+      { 'data-key': 'all-projects', 'aria-pressed': String(state.allProjects) },
+      t('usage.allProjects'),
+    )
+    scope.addEventListener('click', () => {
+      state.allProjects = !state.allProjects
+      void refresh()
+    })
+    top.append(scope)
+  }
   if (view === null) {
     app.replaceChildren(
-      el('header', {}, header),
+      top,
       el('div', { class: 'status-page', 'data-key': 'reading' }, t('usage.reading')),
     )
     return
@@ -421,7 +480,7 @@ function render(): void {
         },
       ),
     )
-    if (view.categories) {
+    if (view.categories && !view.scoped) {
       views.append(
         toggles(
           'stack',
@@ -438,20 +497,18 @@ function render(): void {
       )
     }
   }
-  body.append(
-    views,
-    state.view === 'totals' ? table(view) : chart(view, Math.max(200, window.innerWidth - 24)),
-    ...footer(view),
-  )
-  app.replaceChildren(el('header', {}, header), body)
+  const drawn = state.view === 'chart' ? chartBox(view) : null
+  body.append(views, drawn ? drawn.box : table(view), ...footer(view))
+  app.replaceChildren(top, body)
+  drawn?.draw()
 }
 
-// A pass, then the report; a report that arrives after another period was chosen is dropped.
+// A pass, then the report.
 async function refresh(): Promise<void> {
-  const mine = ++state.asked
+  const current = askReport()
   render()
-  const view = await window.menkar.usage.view(which())
-  if (mine !== state.asked) return
+  const view = await window.menkar.usage.view(which(), state.allProjects)
+  if (!current()) return
   state.data = view
   if (!view.categories) state.stack = 'project'
   render()

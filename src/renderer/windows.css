@@ -100,7 +100,8 @@ button.suggested {
 
 .card {
   background: var(--surface0);
-  border-radius: var(--radius);
+  /* Cards are rounded in both interface styles; only the rows inside are square. */
+  border-radius: 12px;
 }
 
 .row {

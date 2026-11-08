@@ -142,6 +142,7 @@ html.classic #sidebar .dim {
   flex: none;
   background: color-mix(in srgb, var(--fg) 15%, var(--bg));
   position: relative;
+  z-index: 1;
   cursor: col-resize;
 }
 #divider::after {
@@ -149,8 +150,8 @@ html.classic #sidebar .dim {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
-  width: 8px;
+  left: -4px;
+  width: 9px;
 }
 
 #content {
@@ -259,6 +260,7 @@ html.classic .dot.running {
 
 /* ---------------------------------------------------------------- header and strip */
 .content-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -269,9 +271,24 @@ html.classic .content-header {
   min-height: 46px;
 }
 .content-header .title {
-  flex: 1;
-  text-align: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-weight: 700;
+  pointer-events: none;
+}
+/* Tall enough for its four short points to read, within the header icons' box. */
+.title-star {
+  display: inline-flex;
+  line-height: 0;
+}
+.title-star svg {
+  width: min(1.15em, 16px);
+  height: min(1.15em, 16px);
 }
 .split {
   display: flex;
@@ -295,6 +312,7 @@ html.classic #tab-strip {
   padding: 3px 6px;
 }
 .tab {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -309,6 +327,14 @@ html.classic #tab-strip {
 .tab:hover {
   background: var(--surface0);
 }
+/* The tab's group, along its bottom edge. */
+.group-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+}
 .tab.selected {
   background: var(--accent);
   color: var(--bg);
@@ -322,7 +348,6 @@ html.classic .tab .title {
 }
 html.classic .tab.selected {
   background: color-mix(in srgb, #d97757 22%, transparent);
-  box-shadow: inset 0 -3px 0 #d97757;
 }
 html.classic .tab.selected .title {
   opacity: 1;
@@ -385,7 +410,7 @@ html.classic .tab.selected .title {
 .frame-label {
   position: absolute;
   top: -9px;
-  left: 10px;
+  left: 9px;
   padding: 0 4px;
   background: var(--bg);
   color: var(--accent);
@@ -620,9 +645,11 @@ html.classic .dot.idle {
 }
 html.classic .dot.working {
   background: #e5a50a;
+  box-shadow: none;
 }
 html.classic .dot.done {
   background: #2ec27e;
+  box-shadow: none;
 }
 html.classic .dot.blocked {
   background: #e01b24;
@@ -668,7 +695,7 @@ html.classic .blocked-pill {
   display: none;
 }
 #prefix-pill {
-  margin: 0 6px;
+  margin: 0 6px 0 auto;
   padding: 1px 8px;
   font-size: 0.8em;
   font-weight: 700;

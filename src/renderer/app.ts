@@ -3,6 +3,7 @@ import { faceBadge, rollup, type ShownState } from '../core/agentstate/shown'
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
 import type { ProjectInfo } from '../core/projects/info'
+import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import type { SessionInfo } from '../core/sessions/info'
 import { SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, TabView, WindowState } from '../shared/workspace'
@@ -14,7 +15,13 @@ import { t, translate } from './i18n'
 import { applyLook } from './look'
 import { forgetReplaysExcept, replayElement } from './replay'
 import { infoItems } from './sessionmenus'
-import { applyTerminalLook, forgetPanesExcept, paneElement, showPanes } from './terminals'
+import {
+  applyTerminalLook,
+  focusPane,
+  forgetPanesExcept,
+  paneElement,
+  showPanes,
+} from './terminals'
 import {
   closePopover,
   type MenuEntry,
@@ -75,31 +82,16 @@ function readingOf(id: string): Reading | null {
   return liveReadings.has(id) ? (liveReadings.get(id) ?? null) : (state?.readings[id] ?? null)
 }
 
-const RING_COLORS = { ok: 'rgb(102,191,115)', warn: 'rgb(242,191,64)', full: 'rgb(235,84,84)' }
-
-// The context ring: a track at 25 % and an arc from 12 o'clock over the percentage; an estimate
-// draws both at 45 % of that.
+// A track at 25 % and an arc from 12 o'clock over the percentage.
 function ring(reading: Reading | null): HTMLElement | null {
   if (!reading) return null
-  const pct = Math.max(0, Math.min(100, reading.percentage))
-  const color =
-    reading.percentage >= 80
-      ? RING_COLORS.full
-      : reading.percentage >= 60
-        ? RING_COLORS.warn
-        : RING_COLORS.ok
-  const scale = reading.source === 'estimate' ? 0.45 : 1
-  const r = 5.5
-  const length = 2 * Math.PI * r
-  const windowText =
-    reading.window >= 1_000_000
-      ? `${Math.round(reading.window / 1_000_000)}M`
-      : `${Math.round(reading.window / 1000)}k`
-  const values = { pct: String(Math.round(reading.percentage)), window: windowText }
-  const title =
-    reading.source === 'estimate' ? t('ring.estimate', values) : t('ring.reported', values)
-  const node = el('span', { class: 'ring', title })
-  node.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="${r}" fill="none" stroke="${color}" stroke-width="2.5" opacity="${0.25 * scale}"/><circle cx="7" cy="7" r="${r}" fill="none" stroke="${color}" stroke-width="2.5" opacity="${scale}" stroke-dasharray="${(length * pct) / 100} ${length}" transform="rotate(-90 7 7)"/></svg>`
+  const r = ringOf(reading)
+  const c = RING_SIZE / 2
+  const length = 2 * Math.PI * RING_RADIUS
+  const node = el('span', { class: 'ring', title: translate(r.title.key, r.title.values) })
+  const circle = (opacity: number, extra: string) =>
+    `<circle cx="${c}" cy="${c}" r="${RING_RADIUS}" fill="none" stroke="${r.color}" stroke-width="${RING_STROKE}" opacity="${opacity}"${extra}/>`
+  node.innerHTML = `<svg width="${RING_SIZE}" height="${RING_SIZE}" viewBox="0 0 ${RING_SIZE} ${RING_SIZE}">${circle(r.trackOpacity, '')}${circle(r.arcOpacity, ` stroke-dasharray="${length * r.fraction} ${length}" transform="rotate(-90 ${c} ${c})"`)}</svg>`
   return node
 }
 
@@ -109,11 +101,20 @@ function blockedPill(count: number): HTMLElement | null {
     : null
 }
 
-// Menkar's star (the app's logo), in the theme's dim foreground.
-function logo(size: 'big' | 'compact'): HTMLElement {
+// Menkar's star (the app's logo), in the color of the text around it.
+const STAR_SVG =
+  '<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 2 L56 44 L98 50 L56 56 L50 98 L44 56 L2 50 L44 44Z"/><path d="M50 22 L54 46 L78 50 L54 54 L50 78 L46 54 L22 50 L46 46Z" transform="rotate(45 50 50)"/></svg>'
+
+// The logo at the empty states' size, in the theme's dim foreground.
+function titleStar(): HTMLElement {
+  const node = el('span', { class: 'title-star' })
+  node.innerHTML = STAR_SVG
+  return node
+}
+
+export function logo(size: 'big' | 'compact'): HTMLElement {
   const node = el('span', { class: `logo ${size}` })
-  node.innerHTML =
-    '<svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 2 L56 44 L98 50 L56 56 L50 98 L44 56 L2 50 L44 44Z"/><path d="M50 22 L54 46 L78 50 L54 54 L50 78 L46 54 L22 50 L46 46Z" transform="rotate(45 50 50)"/></svg>'
+  node.innerHTML = STAR_SVG
   return node
 }
 let sidebarShown = true
@@ -203,7 +204,12 @@ export function buildFrame(): void {
         toggle,
         el('div', { class: 'split' }, newButton, el('span', { class: 'sep' }), newMenu),
         closeAll,
-        el('div', { class: 'title' }, t('window.title')),
+        el(
+          'div',
+          { class: 'title' },
+          titleStar(),
+          el('span', { class: 'title-text' }, t('window.title')),
+        ),
       ),
       el('div', { id: 'tab-strip' }),
       el('div', { id: 'tab-content' }),
@@ -221,8 +227,9 @@ export function toggleSidebar(): void {
 
 function dragDivider(divider: HTMLElement): void {
   let saveTimer: ReturnType<typeof setTimeout> | undefined
+  // The moves are followed on the window, so the drag holds wherever the pointer goes.
   divider.addEventListener('pointerdown', (event) => {
-    divider.setPointerCapture(event.pointerId)
+    event.preventDefault()
     const move = (e: PointerEvent) => {
       const width = Math.max(SIDEBAR_MIN_WIDTH, Math.min(e.clientX, window.innerWidth - 200))
       document.documentElement.style.setProperty('--sidebar-width', `${width}px`)
@@ -232,11 +239,11 @@ function dragDivider(divider: HTMLElement): void {
       }, SIDEBAR_SAVE_DELAY_MS)
     }
     const up = () => {
-      divider.removeEventListener('pointermove', move)
-      divider.removeEventListener('pointerup', up)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
     }
-    divider.addEventListener('pointermove', move)
-    divider.addEventListener('pointerup', up)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
   })
 }
 
@@ -258,7 +265,8 @@ export function render(next: WindowState): void {
   })
   setFileTheme(look.dark)
   if (previous?.settings !== next.settings) applyTerminalLook(next.settings, look)
-  if (previous && previous.settings.sidebar_width !== next.settings.sidebar_width) {
+  // Only on a change: a render in the middle of a drag must not snap the divider back.
+  if (!previous || previous.settings.sidebar_width !== next.settings.sidebar_width) {
     document.documentElement.style.setProperty(
       '--sidebar-width',
       `${next.settings.sidebar_width}px`,
@@ -333,6 +341,12 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   list.replaceChildren(...children)
 }
 
+function groupLine(color: string): HTMLElement {
+  const line = el('span', { class: 'group-line' })
+  line.style.background = color
+  return line
+}
+
 function groupDot(color: string): HTMLElement {
   const dot = el('span', {}, '●')
   dot.style.color = color
@@ -395,7 +409,7 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
     { label: t('row.open'), run: () => void act({ type: 'openSession', session: info.id }) },
     {
       label: t('row.openBeside'),
-      run: () => void refusalToast(act({ type: 'openBeside', session: info.id })),
+      run: () => void openBeside(info.id),
     },
   ]
   // Stop applies to a session with a tab, whatever its agent is doing right now.
@@ -429,9 +443,14 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
   return entries
 }
 
-async function refusalToast(result: Promise<{ refusal?: Key }>): Promise<void> {
-  const { refusal } = await result
-  if (refusal) toast(translate(refusal))
+async function openBeside(session: string): Promise<void> {
+  const { refusal, value } = await act({ type: 'openBeside', session })
+  if (refusal) return toast(translate(refusal))
+  const tab = state?.selectedTab
+  if (typeof value === 'string' && tab) {
+    focusedPane.set(tab, value)
+    requestAnimationFrame(() => focusPane(value))
+  }
 }
 
 function renderStrip(s: WindowState): void {
@@ -490,11 +509,11 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
   const node = el(
     'button',
     { class: `tab${selected ? ' selected' : ''}`, 'data-tab': tab.id, title: tab.tooltip },
-    tab.groupColor ? groupDot(tab.groupColor) : null,
     tabDot(tab),
-    tabRing(tab),
     el('span', { class: 'title' }, shortTitle(tab.title)),
+    tabRing(tab),
     close,
+    tab.groupColor ? groupLine(tab.groupColor) : null,
   )
   close.addEventListener('click', (event) => {
     event.stopPropagation()
@@ -677,7 +696,9 @@ async function deleteProjectDialog(p: ProjectInfo): Promise<void> {
     await showError(t('projects.notDeleted'), 'projects.lastProject')
     return
   }
-  const running = p.members.filter((id) => s.running.includes(id)).length
+  // Asked now: a session running in another window changes no state this window was sent.
+  const fresh = await window.menkar.window.state()
+  const running = p.members.filter((id) => (fresh ?? s).running.includes(id)).length
   const body =
     running > 0
       ? `${t('projects.deleteBody')} ${t('projects.deleteRunning', { n: running })}`

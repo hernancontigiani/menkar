@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // A stand-in for `claude -p` in stream-json mode, for the chat's tests. It records its argv and
 // working folder, answers each user message with an init line (once), streamed text, a permission
-// request for Bash, and after the answer either "ran" or "skipped", then a result. Synthetic only.
+// request for Bash, and after the answer either "ran" or "skipped", then a result; "stream" gets a long
+// answer streamed slowly instead. Synthetic only.
 import fs from 'node:fs'
 import path from 'node:path'
 const log = process.env.FAKE_CHAT_LOG
@@ -22,6 +23,19 @@ process.stdin.on('data', (chunk) => {
       started = true
       const text = msg.message.content[0].text
       if (text === 'exit') process.exit(0)
+      if (text === 'stream') {
+        // A long answer, one paragraph every 40 ms, for following the bottom while text arrives.
+        let n = 0
+        const timer = setInterval(() => {
+          n += 1
+          out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: `paragraph ${n}\n\n` } } })
+          if (n === 150) {
+            clearInterval(timer)
+            out({ type: 'result', is_error: false, result: 'done', total_cost_usd: 0.01 })
+          }
+        }, 40)
+        continue
+      }
       out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hel' } } })
       out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'lo' } } })
       out({ type: 'control_request', request_id: `r-${Date.now()}`, request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'npm test' } } })

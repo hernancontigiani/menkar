@@ -65,8 +65,9 @@ export interface InvokeChannels {
   'chat:stop': { request: { chatId: string }; response: undefined }
   // The MCP servers browser (plan 14): ~/.claude.json read once, when it opens.
   'mcp:sections': { request: undefined; response: readonly McpSection[] }
-  // The Usage window (plan 12): a pass, then the period's figures.
-  'usage:view': { request: UsageWhich; response: UsageView }
+  // The Usage window (plan 12): a pass, then the period's figures, for the opener window's project
+  // unless every project is asked for.
+  'usage:view': { request: { which: UsageWhich; allProjects: boolean }; response: UsageView }
   // About's two links, opened in the system browser only when clicked.
   'app:open-link': { request: { link: 'website' | 'issues' }; response: undefined }
   // The status line in every Claude session: on when installed and still as written; a refused
@@ -87,7 +88,7 @@ export interface InvokeChannels {
   'classifier:stop': { request: undefined; response: undefined }
   'window:state': { request: undefined; response: WindowState | null }
   'window:action': { request: Action; response: ActionResult }
-  'pty:attach': { request: { pane: string }; response: string }
+  'pty:attach': { request: { pane: string }; response: { buffer: string; end: number } }
   'i18n:catalog': { request: undefined; response: Catalog }
   'sessions:list': { request: undefined; response: readonly SessionInfo[] }
   'projects:get': { request: undefined; response: ProjectsSnapshot }
@@ -120,7 +121,7 @@ export interface EventChannels {
     readonly choices: readonly { readonly window: string; readonly label: string }[]
   }
   'files:refused': readonly { readonly name: string; readonly reason: Key }[]
-  'pty:data': { readonly pane: string; readonly data: string }
+  'pty:data': { readonly pane: string; readonly data: string; readonly end: number }
   // The whole list, after every rescan and every change to the app's names or hidden set.
   'sessions:changed': readonly SessionInfo[]
   // Agent state and context (plan 09): every pane's shown state and every project's blocked
@@ -166,7 +167,7 @@ export interface MenkarApi {
     onRefused(listener: (event: EventChannels['files:refused']) => void): () => void
   }
   readonly panes: {
-    attach(pane: string): Promise<string>
+    attach(pane: string): Promise<{ buffer: string; end: number }>
     input(pane: string, data: string): void
     resize(pane: string, cols: number, rows: number): void
     reveal(paneId: string): void
@@ -198,7 +199,7 @@ export interface MenkarApi {
     mcpSections(): Promise<readonly McpSection[]>
   }
   readonly usage: {
-    view(which: UsageWhich): Promise<UsageView>
+    view(which: UsageWhich, allProjects: boolean): Promise<UsageView>
   }
   readonly classifier: {
     status(): Promise<ClassifierStatus>

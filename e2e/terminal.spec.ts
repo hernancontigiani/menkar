@@ -1,7 +1,16 @@
-import { existsSync, readdirSync, rmSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
-import { expect, test } from '@playwright/test'
-import { launchApp, savedCursorTab, terminalText } from './app'
+import { expect, type Page, test } from '@playwright/test'
+import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app'
+import { CLIENT, clientWork } from './fixtures'
 
 function isAlive(pid: number): boolean {
   try {
@@ -86,5 +95,506 @@ test("Chromium's data lands in the cache, and the config directory holds none of
     expect(entries.sort()).toEqual(['projects.json', 'state.json'])
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+const act = (page: Page, action: Record<string, unknown>) =>
+  page.evaluate(
+    (a) =>
+      (
+        globalThis as unknown as { menkar: { window: { act(x: unknown): Promise<unknown> } } }
+      ).menkar.window.act(a),
+    action,
+  )
+
+const windowState = (page: Page) =>
+  page.evaluate(() =>
+    (
+      globalThis as unknown as {
+        menkar: { window: { state(): Promise<{ running: string[]; open: string[] }> } }
+      }
+    ).menkar.window.state(),
+  )
+
+const inputLines = (home: string) =>
+  existsSync(join(home, 'claude-input.txt'))
+    ? readFileSync(join(home, 'claude-input.txt'), 'utf8').trim().split('\n')
+    : []
+
+async function started(
+  options: Parameters<typeof clientWork>[1],
+  extra: Record<string, string> = {},
+  edit?: (home: string) => void,
+) {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      const env = { ...clientWork(dirs, options), ...extra }
+      edit?.(dirs.home)
+      return env
+    },
+  })
+  return { launched, home, page: launched.window }
+}
+
+test('TRM-10 no `claude` on the PATH: nothing typed, the warning in bold yellow, then the shell', async () => {
+  // The stand-in's folder and the system's only, so the developer's own `claude` is never found;
+  // the stand-in goes once the sessions are listed.
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      clientWork(dirs)
+      return { PATH: `${join(dirs.root, 'bin')}:/usr/bin:/bin` }
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    const bin = join(launched.root, 'bin')
+    rmSync(join(bin, 'claude'))
+    await act(page, { type: 'openSession', session: CLIENT.login })
+    await expect
+      .poll(() => terminalText(page))
+      .toContain('[menkar] warning: `claude` not found in PATH — starting a plain shell')
+    await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+    expect(await terminalText(page)).not.toContain('--resume')
+    expect(existsSync(join(home, 'claude-args.txt'))).toBe(false)
+    const tag = page.locator('.xterm-rows span', { hasText: '[menkar]' }).first()
+    expect(
+      await tag.evaluate((n) => [getComputedStyle(n).fontWeight, getComputedStyle(n).color]),
+    ).toEqual(['700', 'rgb(249, 226, 175)'])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-11 a session whose folder is gone starts in HOME, the warning first, then the command', async () => {
+  const { launched, home, page } = await started({ tabs: [['long']] }, {}, (h) =>
+    rmSync(join(h, 'work', 'web'), { recursive: true }),
+  )
+  try {
+    const gone = `warning: project dir ${join(home, 'work', 'web')} no longer exists, starting in HOME`
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    const text = await terminalText(page)
+    expect(text.indexOf(gone)).toBeGreaterThanOrEqual(0)
+    expect(text.indexOf(gone)).toBeLessThan(text.indexOf('--resume'))
+    const pid = readFileSync(join(home, 'claude-pid.txt'), 'utf8')
+    expect(readlinkSync(`/proc/${pid}/cwd`)).toBe(home)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-12, TRM-14 SHELL unset runs /bin/bash; an agent exiting with 1 leaves the tab at the prompt with its error, not running', async () => {
+  const { launched, page } = await started({ tabs: [['login']] }, { SHELL: '' })
+  try {
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    await expect.poll(async () => (await windowState(page)).running).toEqual([CLIENT.login])
+    await page.locator('.xterm').click()
+    await page.keyboard.type('EXIT1')
+    await expect.poll(() => terminalText(page)).toContain('stand-in failed to start')
+    await expect.poll(async () => (await windowState(page)).running).toEqual([])
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await page.keyboard.type('echo shell=$0')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toMatch(/shell=\/bin\/bash/)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-13 an agent exiting with 0 in a single-pane tab: the shell exits too and the tab closes', async () => {
+  const { launched, page } = await started({ tabs: [['login']] })
+  try {
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    await page.locator('.xterm').click()
+    await page.keyboard.type('EXIT0')
+    await expect(page.locator('.tab')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-21 Shift+Enter sends 1B 0D, Enter 0D; Ctrl+Shift+Enter is not intercepted', async () => {
+  const { launched, home, page } = await started({ tabs: [['login']] })
+  try {
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    await page.locator('.xterm').click()
+    await page.keyboard.press('Shift+Enter')
+    await expect.poll(() => inputLines(home)).toEqual(['1b0d'])
+    await page.keyboard.press('Enter')
+    await expect.poll(() => inputLines(home)).toEqual(['1b0d', '0d'])
+    await page.keyboard.press('Control+Shift+Enter')
+    await expect.poll(() => inputLines(home).length).toBe(3)
+    expect(inputLines(home)[2]).not.toBe('1b0d')
+  } finally {
+    await launched.close()
+  }
+})
+
+const clipboardText = (launched: LaunchedApp) =>
+  launched.app.evaluate(({ clipboard }) => clipboard.readText())
+
+async function shell() {
+  const launched = await launchApp({ prepare: savedCursorTab })
+  const page = launched.window
+  await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+  await page.locator('.xterm').click()
+  return { launched, page }
+}
+
+async function run(page: Page, command: string, done: string) {
+  await page.keyboard.type(command)
+  await page.keyboard.press('Enter')
+  await expect.poll(() => terminalText(page)).toContain(done)
+}
+
+test('TRM-22 Ctrl+Shift+C copies the selection as plain text; Ctrl+Shift+V pastes the clipboard', async () => {
+  const { launched, page } = await shell()
+  try {
+    await run(page, "printf '\\033[31mcopy-me\\033[0m\\n'", 'copy-me\n')
+    const word = page.locator('.xterm-rows span', { hasText: /^copy-me$/ }).first()
+    const at = await word.boundingBox()
+    if (!at) throw new Error('no word')
+    await page.mouse.dblclick(at.x + at.width / 2, at.y + at.height / 2)
+    await page.keyboard.press('Control+Shift+C')
+    await expect.poll(() => clipboardText(launched)).toBe('copy-me')
+    await launched.app.evaluate(({ clipboard }) => clipboard.writeText('echo pasted-$((1+1))'))
+    await page.keyboard.press('Control+Shift+V')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toContain('pasted-2')
+  } finally {
+    await launched.close()
+  }
+})
+
+const selectionTop = (page: Page) =>
+  page.evaluate(() => {
+    const div = document.querySelector('.xterm-selection div') as HTMLElement | null
+    return div ? div.getBoundingClientRect().top : null
+  })
+
+test('TRM-23, TRM-24, TRM-25 Ctrl+Shift+G finds case-insensitively and scrolls to it; Esc closes and refocuses; the text is literal; down wraps', async () => {
+  const { launched, page } = await shell()
+  try {
+    await run(page, "echo 'Error: Timeout'; echo axb; seq 1 60", '\n60\n')
+    await expect(page.locator('.xterm-rows')).not.toContainText('Error: Timeout')
+    await page.keyboard.press('Control+Shift+G')
+    await expect(page.locator('.find-bar input')).toBeFocused()
+    await page.keyboard.type('timeout')
+    await expect(page.locator('.xterm-rows')).toContainText('Error: Timeout')
+    await expect.poll(() => selectionTop(page)).not.toBeNull()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.find-bar')).toHaveCount(0)
+    await expect(page.locator('.xterm-helper-textarea')).toBeFocused()
+    await expect(page.locator('.xterm-decoration-container > *')).toHaveCount(0)
+
+    // Only "axb" is on screen: a.b read as a pattern would match it.
+    await page.keyboard.press('Control+Shift+G')
+    await page.keyboard.type('a.b')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(300)
+    expect(await selectionTop(page)).toBeNull()
+    await page.keyboard.press('Escape')
+
+    await run(page, 'clear; echo mark-A; echo mark-B', 'mark-B\n')
+    await page.keyboard.press('Control+Shift+G')
+    await page.keyboard.type('mark-')
+    await expect.poll(() => selectionTop(page)).not.toBeNull()
+    const last = (await selectionTop(page)) ?? 0
+    await page.locator('.find-bar button').nth(1).click()
+    await expect.poll(() => selectionTop(page)).toBeLessThan(last)
+    await page.locator('.find-bar button').nth(1).click()
+    await expect.poll(() => selectionTop(page)).toBe(last)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('no output shows twice after a pane attaches: three tabs starting at once, each line once', async () => {
+  // The buffer and the live chunks race; a few starts make a lost race likely to show.
+  for (let round = 0; round < 4; round += 1) {
+    const launched = await launchApp({
+      prepare: (dirs) => clientWork(dirs, { tabs: [['login'], ['api'], ['long']] }),
+    })
+    const page = launched.window
+    try {
+      await expect(page.locator('.tab')).toHaveCount(3)
+      await expect
+        .poll(() =>
+          page
+            .locator('.xterm-rows')
+            .evaluateAll((ns) =>
+              ns.map((n) => (n.textContent?.match(/stand-in claude ready/g) ?? []).length),
+            ),
+        )
+        .toEqual([1, 1, 1])
+      await page.waitForTimeout(500)
+      expect(
+        await page
+          .locator('.xterm-rows')
+          .evaluateAll((ns) =>
+            ns.map((n) => (n.textContent?.match(/stand-in claude ready/g) ?? []).length),
+          ),
+      ).toEqual([1, 1, 1])
+    } finally {
+      await launched.close()
+    }
+  }
+})
+
+// A stand-in `cursor-agent` beside the stand-in `claude`, so both agents count as installed.
+function withCursor(dirs: { readonly root: string; readonly home: string }) {
+  const env = clientWork(dirs)
+  writeFileSync(
+    join(dirs.root, 'bin', 'cursor-agent'),
+    '#!/bin/sh\nexec /bin/bash --norc --noprofile -i\n',
+  )
+  chmodSync(join(dirs.root, 'bin', 'cursor-agent'), 0o755)
+  return env
+}
+
+async function pickFolderAs(launched: LaunchedApp, folder: string) {
+  await launched.app.evaluate(({ dialog }, f) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as never
+  }, folder)
+}
+
+async function advanced(page: Page, agent: string) {
+  await page.locator('#new-menu').click()
+  await page.locator('.menu-item', { hasText: `New ${agent} session (advanced)…` }).click()
+  await expect(page.locator('.dialog .advanced-form')).toBeVisible()
+}
+
+const options = (page: Page, nth: number) =>
+  page.locator('.advanced-form select').nth(nth).locator('option').allTextContents()
+
+test('TRM-17 the advanced dialog for Cursor: no Extra directory; its models and modes', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return withCursor(dirs)
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    await pickFolderAs(launched, join(home, 'work', 'web'))
+    await advanced(page, 'Cursor')
+    await expect(page.locator('.advanced-form')).not.toContainText('Extra directory')
+    expect(await options(page, 0)).toEqual(['Default', 'Sonnet 4', 'Sonnet 4 (thinking)', 'GPT-5'])
+    expect(await options(page, 1)).toEqual(['Default', 'Plan (read-only)', 'Ask (read-only)'])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-18 the advanced dialog: Start opens New at the name step with the folder and the agent; Cancel starts nothing', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return withCursor(dirs)
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    const folder = join(home, 'work', 'web')
+    await pickFolderAs(launched, folder)
+    await advanced(page, 'Claude Code')
+    await expect(page.locator('.advanced-form')).toContainText('Extra directory')
+    await page.locator('.dialog button', { hasText: 'Cancel' }).click()
+    await expect(page.locator('.dialog')).toHaveCount(0)
+    await expect(page.locator('.tab')).toHaveCount(0)
+    expect(existsSync(join(home, 'claude-args.txt'))).toBe(false)
+
+    await advanced(page, 'Cursor')
+    await page.locator('.dialog button', { hasText: 'Start' }).click()
+    await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
+    await expect(page.locator('.add-session')).toContainText(`web${join(home, 'work')}`)
+    await expect(page.locator('.add-session select').first()).toHaveValue('cursor')
+    await expect(page.locator('.add-session input[type="text"]:visible').first()).toBeFocused()
+    await expect(page.locator('.tab')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-27, TRM-29, TRM-30 Ctrl+B with Shift held then N opens Existing; Ctrl+B twice sends 02; in a dialog’s field Ctrl+B is the field’s', async () => {
+  const { launched, home, page } = await started({ tabs: [['login']] })
+  try {
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    await page.locator('.xterm').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.down('Shift')
+    await page.keyboard.press('N')
+    await page.keyboard.up('Shift')
+    await expect(page.locator('.add-session .switch.selected')).toHaveText('Existing')
+    await expect(page.locator('#prefix-pill')).toBeHidden()
+
+    const search = page.locator('.add-session .search-row input')
+    await search.click()
+    await page.keyboard.press('Control+b')
+    await expect(page.locator('#prefix-pill')).toBeHidden()
+    await page.keyboard.type('b')
+    await expect(search).toHaveValue('b')
+    await expect(page.locator('#sidebar')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.add-session')).toHaveCount(0)
+
+    await page.locator('.xterm').click()
+    await page.keyboard.press('Control+b')
+    await expect(page.locator('#prefix-pill')).toBeVisible()
+    await page.keyboard.press('Control+b')
+    await expect(page.locator('#prefix-pill')).toBeHidden()
+    await expect.poll(() => inputLines(home)).toEqual(['02'])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-33 on a file tab Ctrl+B v does nothing', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return clientWork(dirs)
+    },
+  })
+  const page = launched.window
+  try {
+    writeFileSync(join(home, 'notes.txt'), 'notes\n')
+    await act(page, { type: 'openFilePath', path: join(home, 'notes.txt') })
+    await expect(page.locator('.cm-content')).toBeVisible()
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('v')
+    await page.waitForTimeout(300)
+    await expect(page.locator('.pane')).toHaveCount(0)
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect(page.locator('.cm-content')).toHaveText('notes')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-36, TRM-40 zoomed, Ctrl+B l keeps the focus and Ctrl+B x stops the focused pane, the other filling the tab; on one pane Ctrl+B x closes the tab', async () => {
+  const launched = await launchApp({ prepare: savedCursorTab })
+  const page = launched.window
+  try {
+    await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+    await page.locator('.xterm').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('v')
+    await expect(page.locator('.xterm')).toHaveCount(2)
+    await expect
+      .poll(() =>
+        page.locator('.frame').evaluateAll((ns) => ns.map((n) => n.matches(':focus-within'))),
+      )
+      .toEqual([false, true])
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('h')
+    await expect
+      .poll(() =>
+        page.locator('.frame').evaluateAll((ns) => ns.map((n) => n.matches(':focus-within'))),
+      )
+      .toEqual([true, false])
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('z')
+    await expect(page.locator('.pane:visible')).toHaveCount(1)
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('l')
+    await expect
+      .poll(() =>
+        page.locator('.frame').evaluateAll((ns) => ns.map((n) => n.matches(':focus-within'))),
+      )
+      .toEqual([true, false])
+    await expect(page.locator('.pane:visible')).toHaveCount(1)
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('x')
+    await expect(page.locator('.pane')).toHaveCount(1)
+    await expect(page.locator('.pane:visible')).toHaveCount(1)
+    await expect(page.locator('.pane .frame-label')).toHaveText('shell')
+    const tab = await page.locator('#tab-content').boundingBox()
+    const pane = await page.locator('.pane').boundingBox()
+    expect(pane?.width).toBe(tab?.width)
+
+    await page.locator('.xterm').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('x')
+    await expect(page.locator('.tab')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-47, TRM-48 Stop on one session of a two-pane tab stops only its pane; the other becomes the primary; Stop on a session with no tab does nothing', async () => {
+  const { launched, page } = await started({ tabs: [['login', 'api']] })
+  try {
+    await expect(page.locator('.pane')).toHaveCount(2)
+    await expect.poll(async () => (await windowState(page)).running.length).toBe(2)
+    await act(page, { type: 'stopSession', session: CLIENT.login })
+    await expect(page.locator('.pane')).toHaveCount(1)
+    await expect(page.locator('.tab')).toHaveText(/api review/)
+    await expect.poll(async () => (await windowState(page)).running).toEqual([CLIENT.api])
+    const before = JSON.stringify(await windowState(page))
+    await act(page, { type: 'stopSession', session: CLIENT.long })
+    await page.waitForTimeout(300)
+    expect(JSON.stringify(await windowState(page))).toBe(before)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-50, PRJ-46 a window with nothing running closes without asking', async () => {
+  const launched = await launchApp({ prepare: savedCursorTab })
+  const page = launched.window
+  try {
+    await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+    await launched.app.evaluate(({ app, BrowserWindow }) => {
+      app.removeAllListeners('window-all-closed')
+      BrowserWindow.getAllWindows()[0]?.close()
+    })
+    await expect
+      .poll(() =>
+        launched.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
+      )
+      .toBe(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-52 a new session not yet joined, running at window close, is listed as Claude Code', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return { ...clientWork(dirs), FAKE_CLAUDE_QUIET: '1' }
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    await act(page, {
+      type: 'startNew',
+      agent: 'claude',
+      folder: join(home, 'work', 'web'),
+      name: '',
+    })
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    await launched.app.evaluate(({ app, BrowserWindow }) => {
+      app.removeAllListeners('window-all-closed')
+      BrowserWindow.getAllWindows()[0]?.close()
+    })
+    await expect(page.locator('.dialog .heading')).toHaveText('Stop 1 running session(s)?')
+    await expect(page.locator('.dialog .body')).toContainText('Claude Code')
+    await page.locator('.dialog button', { hasText: 'Stop and close' }).click()
+  } finally {
+    await launched.close()
   }
 })
