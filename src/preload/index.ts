@@ -37,6 +37,12 @@ const api: MenkarApi = {
     act: (action) => ipcRenderer.invoke('window:action', action),
     onState: (listener) => subscribe('window:state', listener),
     onConfirmClose: (listener) => subscribe('window:confirm-close', listener),
+    onConfirmUnsaved: (listener) => subscribe('window:confirm-unsaved', listener),
+  },
+  files: {
+    onUpdate: (listener) => subscribe('file:update', listener),
+    onWhichWindow: (listener) => subscribe('files:which-window', listener),
+    onRefused: (listener) => subscribe('files:refused', listener),
   },
   panes: {
     attach: (pane) => ipcRenderer.invoke('pty:attach', { pane }),
@@ -51,6 +57,28 @@ const api: MenkarApi = {
   },
   context: {
     onReading: (listener) => subscribe('context:reading', listener),
+  },
+  preferences: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    set: (key, value) => ipcRenderer.invoke('settings:set', { key, value }),
+    restart: () => ipcRenderer.invoke('app:restart'),
+    openLink: (link) => ipcRenderer.invoke('app:open-link', { link }),
+    onSettings: (listener) => subscribe('settings:changed', listener),
+    statusline: () => ipcRenderer.invoke('integrations:statusline'),
+    setStatusline: (on) => ipcRenderer.invoke('integrations:set-statusline', { on }),
+  },
+  chat: {
+    agents: () => ipcRenderer.invoke('chat:agents'),
+    info: (chatId) => ipcRenderer.invoke('chat:info', { chatId }),
+    send: (chatId, text) => ipcRenderer.invoke('chat:send', { chatId, text }),
+    reply: (chatId, reply, declined) =>
+      ipcRenderer.invoke('chat:reply', { chatId, reply, declined }),
+    stop: (chatId) => ipcRenderer.invoke('chat:stop', { chatId }),
+    onEvent: (listener) => subscribe('chat:event', listener),
+    mcpSections: () => ipcRenderer.invoke('mcp:sections'),
+  },
+  usage: {
+    view: (which) => ipcRenderer.invoke('usage:view', which),
   },
   classifier: {
     status: () => ipcRenderer.invoke('classifier:status'),

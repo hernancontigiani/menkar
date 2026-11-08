@@ -16,6 +16,10 @@ export interface Settings {
   readonly reopen_tabs: boolean
   readonly new_session_dir: string
   readonly show_folder_path: boolean
+  // a language code; '' = the system's
+  readonly language: string
+  readonly notify_idle: boolean
+  readonly notify_sound: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +32,9 @@ export const DEFAULT_SETTINGS: Settings = {
   reopen_tabs: true,
   new_session_dir: '',
   show_folder_path: false,
+  language: '',
+  notify_idle: true,
+  notify_sound: true,
 }
 
 export const SIDEBAR_MIN_WIDTH = 220
@@ -53,6 +60,9 @@ export function parseSettings(value: unknown): Settings {
       typeof raw.reopen_tabs === 'boolean' ? raw.reopen_tabs : DEFAULT_SETTINGS.reopen_tabs,
     new_session_dir: str('new_session_dir', DEFAULT_SETTINGS.new_session_dir),
     show_folder_path: raw.show_folder_path === true,
+    language: str('language', DEFAULT_SETTINGS.language),
+    notify_idle: raw.notify_idle !== false,
+    notify_sound: raw.notify_sound !== false,
   }
 }
 

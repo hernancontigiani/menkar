@@ -35,6 +35,12 @@ menkar` takes it all out.
   session of a folder, or opens a new window.
 - **Closing a tab, a window or the app hangs up its agent**, as closing a terminal does; nothing is
   typed into it. Closing a window with agents still working asks first.
+- **Files** open in tabs from the ▾ menu or `Ctrl+Shift+O`, with syntax colors; `Ctrl+S` saves, and
+  a Markdown file has a rendered preview (`Ctrl+Shift+V`). Claude Code's own files (`~/.claude`,
+  `~/.claude.json`) open read only. From a terminal, `menkar open <file>…` opens files in the
+  running app.
+- **Remote Control** (phone and claude.ai) is turned on per session: the switch on New, or
+  "Remote control" in a session's menu; it applies from the session's next start.
 - **On the next start** the windows and their tabs come back (the `reopen_tabs` setting turns it off).
 - **Add session** (the sidebar's button) lists every session Claude Code and Cursor have on the
   machine, by folder, to add to this project or move from another; its **New** page starts a new
@@ -46,6 +52,23 @@ menkar` takes it all out.
   `Ctrl+Shift+V` copy and paste, `Ctrl+Shift+G` find. `Ctrl+B` then a key, as in tmux: `v` / `-`
   split, `h j k l` move between panes, `z` zoom, `x` close the pane, `g` go to any agent, `?` the
   full list.
+
+## Preferences and usage
+
+The ⚙ menu (or `Ctrl+,`) opens Preferences: terminal font and scrollback, the color scheme, the
+interface style and the color theme, the language (English or Spanish), notifications, and reopening
+tabs on start. Its Integrations page turns on Menkar's status line in every Claude session and the
+classification of your turns by development stage, both off until you turn them on. The ⚙ menu's
+Usage opens a window with how long Claude worked and how many tokens it used, per project and
+session, by period or by day.
+
+## Chat, MCP servers and Ghostty
+
+Besides terminal tabs, the `+` menu opens chat tabs: Claude Code in a chat that asks before every
+file edit or command (Allow once, Always allow, Deny), and Cursor read-only or trusted to run edits
+on its own. A session in Add session's history can be continued in chat, or opened in
+[Ghostty](https://ghostty.org) when it is installed. The ⚙ menu's MCP servers lists the servers
+Claude Code is configured with, read only.
 
 ## Usage in the terminal
 

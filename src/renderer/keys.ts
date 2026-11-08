@@ -3,6 +3,7 @@ import { type Direction, focusTarget } from '../core/panes'
 import type { TabView } from '../shared/workspace'
 import {
   act,
+  closeTabAsking,
   currentState,
   focusedPane,
   render,
@@ -248,7 +249,7 @@ function runCommand(event: KeyboardEvent): void {
       handlers?.renameTab()
       return
     case 'X':
-      if (tab) void act({ type: 'closeTab', tab: tab.id })
+      if (tab) void closeTabAsking(tab.id)
       return
     case 'g':
       handlers?.goToAgent()

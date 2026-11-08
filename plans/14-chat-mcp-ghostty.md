@@ -46,21 +46,59 @@ modules, `src/main/workspace.ts`, `src/main/terminal.ts`, `src/main/files.ts` (`
 ## Execution blocks
 
 ### B1 — Chat core and the view
-- [ ] Variants, transports, messages, the permission card's protocol; the view; tests.
+- [x] Variants, transports, messages, the permission card's protocol; the view; tests.
 - **Verification:** `npm run ci`.
 
 ### B2 — Tabs (with `b1`'s hook)
-- [ ] Name the call to `set`; once the hook exists, the `+` items, Continue in chat, closing.
+- [x] Name the call to `set`; once the hook exists, the `+` items, Continue in chat, closing.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B3 — MCP servers and Ghostty
-- [ ] The dialog and the Ghostty function with their entry points.
+- [x] The dialog and the Ghostty function with their entry points.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B4 — Exit
-- [ ] The exit's files.
+- [x] The exit's files.
 - **Verification:** `npm run ci`.
 
 ## Execution log
 
-(Written by the session that executes it.)
+Executed by `b2`, 2026-11-08.
+
+**B1 — core and view.** `src/core/chat/{variants,protocol,model,markdown,mcp,ghostty,processes}.ts`,
+`src/main/chat.ts` (Electron's side: the folder chooser, `chat:event`, the IPC), `src/renderer/chat.ts`
+and `chat.css` (`mountChat`). IPC in my blocks of `src/shared/ipc.ts` and `src/preload/index.ts`;
+strings in both catalogs. Tests: `tests/core/chat/{chat,processes}.test.ts`, with the stand-ins in
+`tests/data/chat/` (`claude`, `cursor-agent`, `ghostty`).
+
+**B2 — tabs.** The hook named to `set` and built by `b1`: `openChatTab` in `src/main/workspace.ts`, the
+`.chat-host` body that calls `mountChat`, closing by any path calling `closeChat`, and the `+` and
+history menu items. Tests: `e2e/chat.spec.ts` (a new Claude chat with its folder, message and
+permission card; Continue in chat, with the chat not saved, not reopened and not asked about when
+the window closes; a Cursor `ask` chat).
+
+**B3 — MCP servers and Ghostty.** `openMcpServers` in `src/main/windows.ts`, `src/renderer/mcp.{html,ts}`,
+the renderer input in `electron.vite.config.ts`, `mcp:sections`; `openInGhostty` and
+`ghosttyInstalled` in core. Tests: core, and `e2e/chat.spec.ts` (MCP's sections, read only;
+Ghostty's arguments).
+
+**B4 — exit.** `docs/chat.md` and its `CLAUDE.md` row, "Chat, MCP servers and Ghostty" in
+`README.md`; `docs/spec/chat.md` trimmed (left: the question card, not carried, and CHT-4, CHT-7,
+CHT-13's trusted banner, CHT-27, CHT-28), removed lines verbatim in `docs/history/spec/chat.md`.
+
+Also in this plan, at `set`'s request: **CTX-22 was flaky under load**, because it raced the
+statusline's real 2-second limit on its chained command. `runStatusline` and `chainedBar` now take
+the limit (default `CHAINED_TIMEOUT_MS`, 2 s). CTX-22 runs in-process with a generous limit; the
+over-the-limit case uses a tiny one and a sleeping command; and a test holds the constant at 2 s.
+
+Deviations and what the plan did not anticipate:
+- **The processes moved from main into core** (`processes.ts`, Node only), so Vitest drives them with
+  stand-ins. Main keeps only Electron's part.
+- **The stand-ins are ES modules**: the repository's `"type": "module"` makes Node read an
+  extensionless script as ESM.
+- **My registration in `src/main/index.ts` (`registerChatIpc`, `closeAllChats` on quit) was lost once**
+  to a concurrent rewrite of that file. The chat e2e tests caught it (no view, no MCP sections), and it
+  is restored. Every other line of mine in the shared files was checked present.
+- **`Enter` still sends while a turn runs**, as agent-tablet's did (the spec left it to Menkar).
+- **Mutations**: about 20 on the core and process tests, all caught. Two were first missed (the
+  permission body's field order, Ghostty without the agent's CLI) and their tests strengthened.

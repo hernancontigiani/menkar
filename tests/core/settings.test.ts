@@ -34,4 +34,15 @@ describe('settings', () => {
       x: 1,
     })
   })
+
+  test("PRF-3 the language is the system's and both notifications are on until set", () => {
+    expect(parseSettings({})).toMatchObject({ language: '', notify_idle: true, notify_sound: true })
+    expect(parseSettings({ language: 'es', notify_idle: false, notify_sound: 'no' })).toMatchObject(
+      {
+        language: 'es',
+        notify_idle: false,
+        notify_sound: true,
+      },
+    )
+  })
 })

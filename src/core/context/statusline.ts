@@ -173,20 +173,20 @@ function chainedCommand(): string | null {
 }
 
 // The user's own statusline, run with the same stdin; its output is the bar when it succeeded.
-export function chainedBar(stdin: string): string | null {
+export function chainedBar(stdin: string, timeoutMs = CHAINED_TIMEOUT_MS): string | null {
   const command = chainedCommand()
   if (command === null) return null
   const result = spawnSync('/bin/sh', ['-c', command], {
     input: stdin,
     encoding: 'utf8',
-    timeout: CHAINED_TIMEOUT_MS,
+    timeout: timeoutMs,
   })
   if (result.error || result.status !== 0) return null
   const output = (result.stdout ?? '').replace(/\n+$/, '')
   return output.trim() === '' ? null : output
 }
 
-export function runStatusline(stdin: string): string {
+export function runStatusline(stdin: string, chainedTimeoutMs = CHAINED_TIMEOUT_MS): string {
   let payload: unknown
   try {
     payload = JSON.parse(stdin)
@@ -199,7 +199,7 @@ export function runStatusline(stdin: string): string {
   } catch {
     // A full disk or a read-only cache costs the app a reading, never the bar.
   }
-  return chainedBar(stdin) ?? bar(payload)
+  return chainedBar(stdin, chainedTimeoutMs) ?? bar(payload)
 }
 
 function readStdin(): string {

@@ -13,6 +13,7 @@ export interface PaneView {
   readonly id: string
   readonly agent: PaneAgent
   readonly sessionId: string | null
+  readonly remote?: boolean
 }
 
 export interface TabView {
@@ -27,6 +28,10 @@ export interface TabView {
   readonly groupColor: string | null
   // A replay tab's turns (read once, whole).
   readonly replay?: readonly Turn[]
+  // A file tab's resolved path, and whether it is the Markdown preview.
+  readonly file?: { readonly path: string; readonly preview: boolean }
+  // A chat tab's chat id (plan 14): never saved, never a member, no confirmation.
+  readonly chat?: string
 }
 
 export interface WindowState {
@@ -50,6 +55,9 @@ export interface WindowState {
   readonly notices: readonly Notice[]
   // The agents whose CLI is on the PATH.
   readonly agents: readonly ('claude' | 'cursor')[]
+  // Sessions with Remote Control on.
+  readonly remoteControl: readonly string[]
+  readonly ghostty: boolean
 }
 
 export type Action =
@@ -70,7 +78,7 @@ export type Action =
   | { readonly type: 'renameSession'; readonly session: string; readonly name: string }
   | { readonly type: 'renameTab'; readonly tab: string; readonly title: string }
   | { readonly type: 'selectTab'; readonly tab: string }
-  | { readonly type: 'closeTab'; readonly tab: string }
+  | { readonly type: 'closeTab'; readonly tab: string; readonly force?: boolean }
   | { readonly type: 'closeAllTabs' }
   | { readonly type: 'stepTab'; readonly direction: 1 | -1 }
   | { readonly type: 'nthTab'; readonly n: number }
@@ -85,12 +93,47 @@ export type Action =
       readonly model?: string
       readonly mode?: string
       readonly addDir?: string
+      readonly remoteControl?: boolean
     }
   | { readonly type: 'continueLast'; readonly agent: 'claude' | 'cursor' }
   | { readonly type: 'forkSession'; readonly session: string }
   | { readonly type: 'pickFolder' }
   | { readonly type: 'dismissNotice'; readonly index: number }
   | { readonly type: 'confirmClose' }
+  | { readonly type: 'cancelClose' }
+  | { readonly type: 'openFile'; readonly input: string }
+  | { readonly type: 'openFilePath'; readonly path: string }
+  | { readonly type: 'pickFile' }
+  | { readonly type: 'fileState'; readonly path: string }
+  | {
+      readonly type: 'fileEdit'
+      readonly path: string
+      readonly base: number
+      readonly changes: unknown
+      readonly tab: string
+    }
+  | { readonly type: 'saveFile'; readonly path: string }
+  | { readonly type: 'reloadFile'; readonly path: string }
+  | { readonly type: 'keepMine'; readonly path: string }
+  | { readonly type: 'saveFiles'; readonly paths: readonly string[] }
+  | { readonly type: 'discardFiles'; readonly paths: readonly string[] }
+  | { readonly type: 'closeWindowNow' }
+  | { readonly type: 'togglePreview'; readonly tab: string }
+  | { readonly type: 'openFilesIn'; readonly window: string; readonly paths: readonly string[] }
+  | { readonly type: 'setRemoteControl'; readonly session: string; readonly on: boolean }
+  | {
+      readonly type: 'newChat'
+      readonly agent: 'claude' | 'cursor'
+      readonly key: 'default' | 'ask' | 'trusted'
+    }
+  | {
+      readonly type: 'continueInChat'
+      readonly session: string
+      readonly key: 'default' | 'ask' | 'trusted'
+    }
+  | { readonly type: 'openInGhostty'; readonly session: string }
+  | { readonly type: 'openMcpServers' }
+  | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'copyText'; readonly text: string }
   | {
       readonly type: 'splitPane'
@@ -131,4 +174,23 @@ export interface ActionResult {
   readonly value?: string | null
   readonly tabs?: readonly TabEntry[]
   readonly details?: Details
+  // The session's tokens from the usage history (deduplicated), when it holds any.
+  readonly tokens?: { readonly input: number; readonly output: number; readonly cacheRead: number }
+  readonly file?: FileState
+  // Closing would lose unsaved edits: the files' names, to ask first.
+  readonly unsaved?: readonly string[]
+}
+
+export interface FileState {
+  readonly path: string
+  readonly text: string
+  readonly version: number
+  readonly dirty: boolean
+  readonly readOnly: Key | null
+  readonly bar: 'changed' | 'deleted' | null
+}
+
+export interface FileUpdate extends FileState {
+  readonly changes?: unknown
+  readonly origin?: string
 }

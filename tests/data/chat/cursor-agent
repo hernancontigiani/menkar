@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+// A stand-in for `cursor-agent -p` in stream-json mode: one run per message. It records its argv
+// and answers with an init line, the message echoed as streamed text, the final whole message
+// (which the chat must skip) and a result. Synthetic only.
+import fs from 'node:fs'
+import path from 'node:path'
+const log = process.env.FAKE_CHAT_LOG
+if (log) fs.appendFileSync(path.join(log, 'cursor.json'), `${JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd() })}\n`)
+const out = (o) => process.stdout.write(`${JSON.stringify(o)}\n`)
+const message = process.argv[process.argv.length - 1]
+out({ type: 'system', subtype: 'init', session_id: 'cursor-session' })
+out({ type: 'assistant', timestamp_ms: 1, message: { content: [{ type: 'text', text: `echo: ${message}` }] } })
+out({ type: 'assistant', message: { content: [{ type: 'text', text: `echo: ${message}` }] } })
+if (message === 'hang') setInterval(() => {}, 1000)
+else out({ type: 'result', is_error: false, result: 'done' })

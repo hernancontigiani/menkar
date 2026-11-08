@@ -5,6 +5,8 @@ import { _electron, type ElectronApplication, type Page } from '@playwright/test
 
 export interface LaunchedApp {
   readonly root: string
+  // The environment the app runs with, for a second process that must reach the same instance.
+  readonly env: Readonly<Record<string, string>>
   readonly app: ElectronApplication
   readonly window: Page
   close(): Promise<void>
@@ -60,6 +62,7 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
   const window = await app.firstWindow()
   return {
     root,
+    env,
     app,
     window,
     async close() {

@@ -5,7 +5,10 @@ import { type Db, openDb } from '../db'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import type { UsageCache } from './cache'
-import { cost, type TokenCounts } from './prices'
+import { addTokens, type Tokens, ZERO_TOKENS } from './nodes'
+import { cost } from './prices'
+
+export { addTokens, type Tokens, totalTokens, ZERO_TOKENS } from './nodes'
 
 // The one file whose loss loses what no transcript can rebuild: one row per turn, never pruned. A
 // file from a newer Menkar is left untouched; an unreadable one is moved aside, never deleted.
@@ -57,30 +60,6 @@ export interface Memberships {
 }
 
 export const NO_MEMBERSHIPS: Memberships = { sessions: new Map(), projectNames: new Map() }
-
-export interface Tokens extends TokenCounts {}
-
-export const ZERO_TOKENS: Tokens = {
-  input: 0,
-  output: 0,
-  cacheWrite: 0,
-  cacheWrite1h: 0,
-  cacheRead: 0,
-}
-
-export function addTokens(a: Tokens, b: Tokens): Tokens {
-  return {
-    input: a.input + b.input,
-    output: a.output + b.output,
-    cacheWrite: a.cacheWrite + b.cacheWrite,
-    cacheWrite1h: a.cacheWrite1h + b.cacheWrite1h,
-    cacheRead: a.cacheRead + b.cacheRead,
-  }
-}
-
-export function totalTokens(t: Tokens): number {
-  return t.input + t.output + t.cacheWrite + t.cacheRead
-}
 
 export interface Usage {
   execution: Record<string, number>
@@ -399,6 +378,27 @@ export class UsageHistory {
       this.db.raw.prepare('SELECT name FROM names WHERE session_id = ?').get(sessionId),
       'name',
     )
+  }
+
+  // A session's tokens over its whole history, deduplicated as every usage figure is, its subagents'
+  // included; null when the history has no tokens of it.
+  sessionTokens(sessionId: string): Tokens | null {
+    if (this.db === null) return null
+    const row = this.db.raw
+      .prepare(
+        'SELECT COUNT(*) AS n, SUM(k.input) AS i, SUM(k.output) AS o, SUM(k.cache_write) AS cw,' +
+          ' SUM(k.cache_write_1h) AS cw1h, SUM(k.cache_read) AS cr' +
+          ' FROM tokens k JOIN turns t ON t.uuid = k.uuid WHERE t.session_id = ?',
+      )
+      .get(sessionId)
+    if (!row || num(row, 'n') === 0) return null
+    return {
+      input: num(row, 'i'),
+      output: num(row, 'o'),
+      cacheWrite: num(row, 'cw'),
+      cacheWrite1h: num(row, 'cw1h'),
+      cacheRead: num(row, 'cr'),
+    }
   }
 
   // When the first turn the history holds was opened, in Unix seconds.

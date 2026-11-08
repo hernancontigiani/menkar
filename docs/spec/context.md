@@ -47,33 +47,7 @@ belongs to this area; the Integrations page is reached through Preferences (M5, 
 
 ### The Integrations page (F37)
 
-Preferences has a second page, **"Integrations"** (icon: a puzzle piece,
-`application-x-addon-symbolic`), listing what Menkar may add to `~/.claude/settings.json` — one
-switch per piece, **all off until the user turns them on**, each removable on its own. Today one
-piece:
-
-- Group title: **"Claude Code settings"**; group description: **"Each piece is added to
-  ~/.claude/settings.json only when you turn it on, and taken out when you turn it off. A copy of
-  the file is kept before every change."**
-- Switch row: title **"Status line in every Claude session"**, subtitle **"Context and usage for
-  sessions started outside Menkar too. Your own status line, if you have one, keeps showing."**
-- The page's second group, "Classify turns", is `classifier.md`'s.
-
-**The switch's state, turning it on and off** — built: `docs/context.md` describes how; `src/core/` holds it.
-
-**Errors.** A refused change shows a **toast for 8 seconds** with one of these sentences (with
-`{path}` the full path of the settings file), and the switch goes back to what the files say,
-without trying the change again:
-
-| Case | Toast |
-|---|---|
-| The settings file exists but cannot be read | `"{path} could not be read."` |
-| It is not valid JSON | `"{path} is not valid JSON; it was left as it is."` |
-| It holds JSON that is not an object | `"{path} does not hold a JSON object; it was left as it is."` |
-| Off, but its `statusLine` changed since the install | `"The status line in {path} changed since it was installed; it was left as it is."` |
-
-agent-tablet's `docs/context.md` says the switch "says why" a removal was refused; the code shows a
-toast instead, as above.
+- Built: `docs/preferences.md` describes how; plan 12 built it.
 
 ## Data contracts
 

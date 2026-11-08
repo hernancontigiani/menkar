@@ -451,3 +451,32 @@ test.each([
 ])('a duration of %i s prints as %s, halves to even as agent-tablet did', (seconds, text) => {
   expect(formatDuration(seconds)).toBe(text)
 })
+
+test("a session's tokens over its history count copies once and its subagents for it", () => {
+  const dirs = usageDirs('session-tokens')
+  const line = response('10:00:01', {
+    id: 'msg_1',
+    request: 'req_1',
+    tokens: { input: 5, output: 40, cacheRead: 100 },
+  })
+  dirs.transcript('s1', [prompt('10:00:00'), line, line])
+  dirs.subagent('s1', 'agent-a', [response('10:00:05', { id: 'msg_sub', tokens: { output: 7 } })])
+  runPass(memberships(), {
+    claudeProjects: dirs.claudeProjects,
+    cache: dirs.cache,
+    history: dirs.history,
+  })
+  const history = new UsageHistory(dirs.history)
+  try {
+    expect(history.sessionTokens('s1')).toEqual({
+      input: 5,
+      output: 47,
+      cacheWrite: 0,
+      cacheWrite1h: 0,
+      cacheRead: 100,
+    })
+    expect(history.sessionTokens('nobody')).toBeNull()
+  } finally {
+    history.close()
+  }
+})

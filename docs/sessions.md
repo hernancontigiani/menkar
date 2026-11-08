@@ -80,3 +80,19 @@ is shown as written; none is `—`).
 - **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only
   the `.jsonl` goes; its sibling directory stays. An e2e asserts every other file under `~/.claude`
   keeps its bytes and mtime.
+
+## Remote Control, and the details' tokens
+
+- **Remote Control** is `remote_control` in `state.json` (`src/core/remote.ts`: sorted, strings
+  only), written through the sessions service. A Claude Code resume of a session in the list
+  carries `--remote-control=<name>` before `--settings`. The name is the display name trimmed,
+  else the folder's name, else the id's first 8 characters. New's switch (off every time the page
+  opens) adds the new id **before** the start.
+- Forks and Continue last never carry it. Nothing is ever typed into a running session: turning it
+  on while the session runs without the flag shows the 6 s toast; the session connects at its
+  next start or when the user types `/rc`.
+- Each pane remembers whether it started with the flag. That and the list decide the row's phone
+  icon and its tooltip.
+- The details' **Tokens** row comes from the usage history, `sessionTokens()` in
+  `src/main/usage.ts` (deduplicated, subagents counted for their parent), shown when any count is
+  above 0.

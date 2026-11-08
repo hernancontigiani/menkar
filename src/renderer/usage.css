@@ -1,0 +1,154 @@
+/* The Usage window: look.md's "Usage window" measures. */
+header {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+}
+
+.linked {
+  display: inline-flex;
+}
+
+.linked button {
+  border-radius: 0;
+}
+
+.linked button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+
+.usage-body {
+  margin: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stepper,
+.views {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.views {
+  gap: 12px;
+}
+
+.month-name {
+  min-width: 16ch;
+  text-align: center;
+  font-weight: bold;
+}
+
+.usage-heading,
+.usage-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.usage-heading {
+  padding: 0 12px;
+}
+
+.usage-list {
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.usage-row {
+  min-height: 50px;
+  box-sizing: border-box;
+  padding: 6px 12px 6px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.usage-row:first-child {
+  border-top: none;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-row.project .name {
+  font-weight: bold;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.w7 {
+  width: 7ch;
+}
+
+.w8 {
+  width: 8ch;
+}
+
+.w9 {
+  width: 9ch;
+}
+
+button.arrow {
+  width: 22px;
+  padding: 0;
+  background: none;
+}
+
+.nothing {
+  padding: 12px;
+  text-align: center;
+}
+
+.chart-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usage-chart {
+  color: var(--fg);
+}
+
+.usage-chart .axis {
+  font: 8pt sans-serif;
+  fill: currentColor;
+  fill-opacity: 0.7;
+}
+
+.legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch-square {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+}
+
+.footer {
+  white-space: pre-line;
+}
+
+.status-page {
+  margin-top: 120px;
+  text-align: center;
+}

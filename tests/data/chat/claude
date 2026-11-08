@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+// A stand-in for `claude -p` in stream-json mode, for the chat's tests. It records its argv and
+// working folder, answers each user message with an init line (once), streamed text, a permission
+// request for Bash, and after the answer either "ran" or "skipped", then a result. Synthetic only.
+import fs from 'node:fs'
+import path from 'node:path'
+const log = process.env.FAKE_CHAT_LOG
+if (log) fs.appendFileSync(path.join(log, 'claude.json'), `${JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd() })}\n`)
+const out = (o) => process.stdout.write(`${JSON.stringify(o)}\n`)
+let started = false
+let pending = ''
+process.stdin.on('data', (chunk) => {
+  pending += chunk
+  const lines = pending.split('\n')
+  pending = lines.pop()
+  for (const line of lines) {
+    if (!line.trim()) continue
+    if (log) fs.appendFileSync(path.join(log, 'claude-stdin.jsonl'), `${line}\n`)
+    const msg = JSON.parse(line)
+    if (msg.type === 'user') {
+      if (!started) out({ type: 'system', subtype: 'init', session_id: 'fake-session' })
+      started = true
+      const text = msg.message.content[0].text
+      if (text === 'exit') process.exit(0)
+      out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hel' } } })
+      out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'lo' } } })
+      out({ type: 'control_request', request_id: `r-${Date.now()}`, request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'npm test' } } })
+    } else if (msg.type === 'control_response') {
+      const allowed = msg.response.response.behavior === 'allow'
+      out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: allowed ? ' ran' : ' skipped' } } })
+      out({ type: 'result', is_error: false, result: 'done', total_cost_usd: 0.01 })
+    }
+  }
+})
+process.stdin.on('end', () => process.exit(0))

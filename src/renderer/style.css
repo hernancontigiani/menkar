@@ -942,3 +942,67 @@ html.classic .blocked-pill {
   opacity: 0.6;
   padding: 2px 4px;
 }
+
+/* ---------------------------------------------------------------- file tabs */
+.file-tab {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.file-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.file-bar.warning {
+  background: color-mix(in srgb, var(--yellow) 30%, transparent);
+}
+.file-bar .bar-text {
+  flex: 1;
+}
+.preview-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px 4px 0;
+}
+.editor-host {
+  flex: 1;
+  min-height: 0;
+}
+.editor-host .cm-editor {
+  height: 100%;
+}
+.preview-frame {
+  flex: 1;
+  border: 0;
+  width: 100%;
+  background: #ffffff;
+}
+.dialog.sheet.open-file {
+  width: 560px;
+  max-width: 560px;
+}
+.open-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+.open-row {
+  display: flex;
+  gap: 6px;
+}
+.open-row input {
+  flex: 1;
+}
+
+.chat-host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}

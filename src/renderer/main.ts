@@ -1,7 +1,19 @@
 import '@xterm/xterm/css/xterm.css'
 import './style.css'
 import { openAddSession } from './addsession'
-import { act, buildFrame, confirmClose, newWindow, render, toggleSidebar } from './app'
+import {
+  act,
+  buildFrame,
+  closeTabAsking,
+  confirmClose,
+  newWindow,
+  render,
+  saveSelectedFile,
+  selectedTabView,
+  toggleSidebar,
+} from './app'
+import { isMarkdown } from './editor'
+import { openFileDialog } from './fileopen'
 import { loadCatalog, t } from './i18n'
 import { beginPrefix, endPrefix, prefixWaiting, setPrefixHandlers, startsPrefix } from './keys'
 import { goToAgent, quickSwitcher } from './switcher'
@@ -24,11 +36,24 @@ function appKey(event: KeyboardEvent): (() => void) | null {
   if (event.shiftKey && lower === 'w') {
     return () => {
       const tab = document.querySelector<HTMLElement>('.tab.selected')?.dataset.tab
-      if (tab) void act({ type: 'closeTab', tab })
+      if (tab) void closeTabAsking(tab)
     }
   }
   if (event.shiftKey && lower === 'n') return () => void newWindow()
   if (event.shiftKey && lower === 'k') return () => quickSwitcher()
+  if (!event.shiftKey && key === ',') return () => void act({ type: 'openPreferences' })
+  if (event.shiftKey && lower === 'o') return () => openFileDialog()
+  // The file keys act only while a file tab is selected; in a terminal they are the terminal's.
+  const fileTab = selectedTabView()?.file
+  if (fileTab && !event.shiftKey && lower === 's') return () => void saveSelectedFile()
+  if (fileTab && event.shiftKey && lower === 'v') {
+    const tab = selectedTabView()
+    return () =>
+      tab &&
+      fileTab &&
+      (fileTab.preview || isMarkdown(fileTab.path)) &&
+      void act({ type: 'togglePreview', tab: tab.id })
+  }
   if (key === 'Tab') return () => void act({ type: 'stepTab', direction: event.shiftKey ? -1 : 1 })
   if (key === 'PageDown' && !event.shiftKey)
     return () => void act({ type: 'stepTab', direction: 1 })
@@ -83,7 +108,7 @@ setPrefixHandlers({
   addExisting: () => openAddSession('existing'),
   goToAgent: () => void goToAgent(),
   renameTab: () => undefined,
-  preferences: () => undefined,
+  preferences: () => void act({ type: 'openPreferences' }),
 })
 
 window.menkar.window.onState(render)

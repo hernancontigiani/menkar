@@ -78,83 +78,7 @@ The classification (which turns, how, failures) is `classifier.md`'s. Here, only
 
 ### The Usage window (F40, M4)
 
-**Opening.** Main menu → **Usage** opens a window titled **"Usage"**, 760 × 600 by default,
-attached to the main window it was opened from. One per main window: choosing Usage again while it
-is shown brings it forward. The first time, it shows a status page **"Reading the transcripts…"**
-(a loading icon) while it runs a pass and builds the report off the UI thread; later refreshes keep
-the previous report on screen until the new one is ready. A result that arrives after the user
-chose another period (or month) is discarded.
-
-**Too new.** A history from a newer Menkar replaces the whole content with a status page: title
-**"Usage history is from a newer version of Menkar"**, description **"It was left as it is. Update
-the app to see it."**, a warning icon.
-
-**Header**: a linked group of four toggle buttons as the title — **"Today"**, **"7 days"** (chosen
-when the window opens), **"30 days"**, **"Month"** — and the window's close button.
-
-**Month.** Choosing Month shows a row above the views: ‹ (tooltip "Previous month"), the month's
-name in the user's language ("October 2026"), › (tooltip "Next month"), and an **"All"** toggle.
-- It starts at the current month.
-- ‹ is disabled at the first month with data (the month of the first turn in the history); with
-  an empty history it stays enabled. › is disabled at the current month. Both are disabled while
-  All is on.
-- **All** on: the label reads "All" and the period is the whole history, by month. Pressing ‹ or ›
-  while All is on turns All off and shows the stepped month.
-- Leaving Month for another period hides the row; All keeps its state, so choosing Month again
-  with All on shows All.
-- A period, a month step and All each refresh (a pass, then the report).
-
-**Views**: a centered row with a linked pair **"Totals"** / **"By day"** (Totals when opened); in
-By day it adds a linked trio **"Exec"** / **"Tokens"** / **"Cost"** (Exec when opened) and, while
-classification is on, a pair **"Project"** / **"Category"** (Project when opened). The By-day label
-stays "By day" when the bars are hours (Today) or months (All). Switching view, metric or stack
-redraws without a new pass.
-
-**Totals** (the table):
-- A heading line: **"Project / session"** (dim) and the right-aligned column titles **"Exec"**,
-  **"Blocked"**, **"Tokens"**, **"Cost"**.
-- One row per project, then its children (sessions; with categories, categories then sessions),
-  indented 18 px per level. A row with children has an arrow button (pointing down when expanded,
-  right when collapsed); a click collapses or expands it. All rows start expanded; the collapsed
-  set lasts while the window is open. A leaf has an invisible arrow-sized spacer, so names line up.
-- Project names are bold. Category rows show the translated category name.
-- **Exec** cell tooltip: **"Started by: {parts}"**, the parts `"<origin> <duration>"` sorted by
-  origin name and joined by ", " — e.g. "Started by: human 1.2h, peer 3m". Origins are shown as
-  their raw keys.
-- No rows in the period → a single line **"Nothing in this period."**
-- **Formats** (shared with the CLI): a duration of an hour or more is hours with one decimal
-  (`2.7h`); under an hour, whole minutes rounded (`52m`, `0m`; 59 m 40 s shows `60m`); tokens of a
-  million or more are millions with one decimal (`1.4M`), otherwise whole thousands rounded
-  (`456k`, `0k`); cost as above (`~$0.68`, `$0.68`, `~$0.68+`).
-
-**By day** (the chart): one bar per bucket on a shared axis, stacked, with a legend below.
-- **Stacked by project**: the five projects largest over the whole period by the chosen metric
-  (only those above 0) keep a color of their own, ordered by name (case-insensitive) with
-  "(no project)" last; the rest are summed into **"Other"** (gray), placed last. A project's color
-  is its slot in that order, so a project keeps its color while the top five stay the same.
-- **Stacked by category** (only while classification is on): the categories present (above 0 in
-  some bar), in their fixed order, "(unclassified)" last, summed across projects; each category
-  always has its own slot's color, "(unclassified)" gray.
-- Segments are drawn bottom to top in legend order; an empty bucket is an empty slot.
-- The axis top is the smallest 1, 2 or 5 × a power of ten at or above the tallest bar (1 when all
-  are 0); the labels at 0, half and top are in the metric's format (`0m`, `42m`, `1.4h`; `0k`;
-  `$0.00`). Chart values carry no `~` or `+`.
-- Bar labels under the axis: the hour (`09`) for Today, the day of the month (`2`) for day
-  buckets, the abbreviated month name in the user's language (`Oct`) for All; when they would not
-  fit, only every n-th bar is labelled (n = ⌈bars / ⌊plot width / 28⌋⌉).
-- **Tooltip** over a bar's slot: a heading — `HH:00` for an hour, the month's full name and year
-  for a month, `YYYY-MM-DD` for a day — then one line per series above 0 in that bar,
-  `"<name>: <value>"` (e.g. "Client work: 1.3h"); none → "Nothing in this period."
-- The legend lists each stacked series: a color square and its name.
-- The chart follows the theme: it is redrawn with the dark or light palette when the style changes.
-
-**Footer** (under either view, dim, wrapping):
-- `"Blocked waiting on you: {time}"` — the period's total blocked time;
-- when the statusline reported limits: three spaces, then `"5-hour limit {five}% · 7-day {seven}%"`
-  (whole percents);
-- a new line: `"~ is a list-price estimate, not a bill; + means a model with no price."`
-- **While classification is off**, a further dim line: **"Turn on “Classify turns” in
-  Preferences → Integrations to split each project by category."**
+- Built: `docs/preferences.md` describes how; plan 12 built it.
 
 ### `menkar usage` (F41)
 
@@ -199,30 +123,12 @@ with both percentages numeric count.
 
 ## Acceptance cases
 
-- USG-1 to USG-43 and USG-55 to USG-69: built; the Vitest tests in `tests/core/usage/` carry these ids.
+- USG-1 to USG-50, USG-52, USG-53 and USG-55 to USG-69: built (USG-44 to USG-53 by plan 12, in `e2e/usage-window.spec.ts` and `tests/core/usage/{chart,stepper}.test.ts`); the Vitest tests in `tests/core/usage/` carry these ids.
 
 **Window**
 
-- **USG-44** Open Usage → "7 days" and "Totals" chosen; the first time, "Reading the transcripts…"
-  shows until the report is ready.
-- **USG-45** Choose Month on 2026-11-08 → "November 2026", › disabled; history's first turn in
-  2026-09 → ‹ enabled at November and October, disabled at September.
-- **USG-46** Month, All on → label "All", ‹ › disabled, By day shows one bar per month from the first
-  month to November. Turn All off → back to the stepped month.
-- **USG-47** Choose "Today", By day → 24 bars labelled by hour; Month → one bar per day; All → one
-  per month.
-- **USG-48** Seven projects with time in the period, By day, Exec → five named series sorted by name
-  plus "Other" (gray) last; the legend shows six entries.
-- **USG-49** A bar's tooltip on 2026-11-04 with Client work 1.3h and Default 52m → "2026-11-04",
-  "Client work: 1.3h", "Default: 52m"; an empty day → "2026-11-05", "Nothing in this period."
-- **USG-50** No turns in the period → the table shows "Nothing in this period."; footer "Blocked
-  waiting on you: 0m".
 - **USG-51** Limits reported 41.4 and 12.6 → footer "Blocked waiting on you: 0m   5-hour limit 41%
   · 7-day 13%" then the estimate line.
-- **USG-52** Exec cell of a session with human 4,320 s and peer 360 s → shows "1.3h", tooltip
-  "Started by: human 1.2h, peer 6m".
-- **USG-53** Collapse "Client work" → its sessions disappear and its arrow points right; switch to
-  By day and back → still collapsed.
 - **USG-54** Pick "30 days" then "Today" quickly → only the Today report is shown, whichever
   finishes first.
 

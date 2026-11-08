@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { readFile, unlink, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
-import { BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { now } from '../core/clock'
 import { buildCommand, type Start } from '../core/command'
 import type { Reading } from '../core/context/types'
-import { t } from '../core/i18n'
+import { checkTyped, expandInput } from '../core/files/check'
+import { type Key, t } from '../core/i18n'
 import { log } from '../core/log'
 import {
   closeTab as closeLayoutTab,
@@ -40,6 +42,7 @@ import {
   setGroup,
 } from '../core/projects/model'
 import { saveProjects } from '../core/projects/store'
+import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
 import { AGENT_COMMANDS, findOnPath } from '../core/sessions/installed'
 import {
@@ -59,11 +62,25 @@ import type {
   TabView,
   WindowState,
 } from '../shared/workspace'
+import { chooseChatFolder, closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
 import { contextReading, sessionSettingsFile, trackContext } from './context'
+import {
+  applyEdit,
+  bufferState,
+  isDirty,
+  keepMine,
+  onBufferUpdate,
+  openBuffer,
+  releaseBuffersExcept,
+  reloadBuffer,
+  saveBuffer,
+} from './files'
 import { notifySeen, type PaneHandle, registerAgentPane } from './panes'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
 import { sessions } from './sessions'
 import { appMessage, Terminal } from './terminal'
+import { sessionTokens } from './usage'
+import { openAbout, openMcpServers, openPreferences, openUsage } from './windows'
 
 const LAYOUT_SAVE_DELAY_MS = 500
 const JOIN_POLL_MS = 1500
@@ -88,7 +105,12 @@ interface Pane {
   handle: PaneHandle | undefined
   pending: Pending | undefined
   readonly cwd: string | null
+  // Started with `--remote-control`: kept until the pane goes.
+  readonly remote: boolean
 }
+
+// The sessions in state.json's `remote_control`, kept current from the sessions service.
+let remoteIds = new Set<string>()
 
 // The orientation of a tab that is not a session tab in the layout (a transient tab split).
 const tabOrientation = new Map<string, 'horizontal' | 'vertical'>()
@@ -103,6 +125,9 @@ const panes = new Map<string, Pane>()
 const tabPanes = new Map<string, string[]>()
 const tabLabels = new Map<string, { title: string; tooltip: string }>()
 const tabReplays = new Map<string, readonly Turn[]>()
+// Chat tabs (plan 14): tab id → chat id.
+const tabChats = new Map<string, string>()
+const lastDirty = new Map<string, boolean>()
 const windows = new Map<string, BrowserWindow>()
 const allowedToClose = new Set<string>()
 // Windows, the most recently focused first.
@@ -152,12 +177,21 @@ function tabView(tab: Tab): TabView {
   const ids = tabPanes.get(tab.id) ?? []
   const paneViews = ids.flatMap((id) => {
     const pane = panes.get(id)
-    return pane ? [{ id: pane.id, agent: pane.agent, sessionId: pane.sessionId }] : []
+    return pane
+      ? [{ id: pane.id, agent: pane.agent, sessionId: pane.sessionId, remote: pane.remote }]
+      : []
   })
   const label = tabLabels.get(tab.id)
   let title = label?.title ?? ''
   let tooltip = label?.tooltip ?? ''
   let groupColor: string | null = null
+  if (tab.kind === 'file') {
+    const name = basename(tab.path)
+    title = tab.preview
+      ? t('files.previewTitle', { name })
+      : `${name}${isDirty(tab.path) ? ' •' : ''}`
+    tooltip = tab.path
+  }
   if (tab.kind === 'session') {
     if (!label) title = tab.panes.map(sessionName).join(' │ ')
     const first = tab.panes[0]
@@ -186,6 +220,8 @@ function tabView(tab: Tab): TabView {
     orientation,
     groupColor,
     ...(tabReplays.has(tab.id) ? { replay: tabReplays.get(tab.id) ?? [] } : {}),
+    ...(tab.kind === 'file' ? { file: { path: tab.path, preview: tab.preview } } : {}),
+    ...(tabChats.has(tab.id) ? { chat: tabChats.get(tab.id) ?? '' } : {}),
   }
 }
 
@@ -229,6 +265,8 @@ function stateFor(windowId: string): WindowState | undefined {
       .map((p) => p.sessionId as string),
     open: [...panes.values()].flatMap((p) => (p.sessionId ? [p.sessionId] : [])),
     readings: readingsOf(w.shown),
+    remoteControl: [...remoteIds],
+    ghostty: ghosttyInstalled(),
     notices: currentNotices(),
     agents: installedAgents,
   }
@@ -257,6 +295,11 @@ export function windowState(contents: WebContents): WindowState | undefined {
   return id ? stateFor(id) : undefined
 }
 
+// For modules that change what a window shows (a setting written elsewhere): every window redraws.
+export function pushWindowStates(): void {
+  push()
+}
+
 function push(): void {
   for (const [id, window] of windows) {
     const state = stateFor(id)
@@ -278,7 +321,14 @@ function saveProjectsNow(): Promise<void> {
 }
 
 // Projects, groups and membership are saved at once; the layout 500 ms after the last change.
+function filePaths(): Set<string> {
+  return new Set(
+    layout.windows.flatMap((w) => w.tabs.flatMap((tab) => (tab.kind === 'file' ? [tab.path] : []))),
+  )
+}
+
 function changed(options: { projects?: boolean } = {}): void {
+  releaseBuffersExcept(filePaths())
   push()
   if (options.projects) {
     clearTimeout(saveTimer)
@@ -300,6 +350,8 @@ interface PaneSpec {
   readonly cwd: string | null
   readonly sessionId: string | null
   readonly pending?: Pending
+  // The name to start with `--remote-control=<name>` (Claude Code only).
+  readonly remote?: string
 }
 
 async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
@@ -313,11 +365,11 @@ async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
     if (cli === null) messages.push(appMessage(tag, t('terminal.notFound', { cli: cliName })))
     else {
       const settingsFile = spec.agent === 'claude' ? await sessionSettingsFile() : undefined
-      command = buildCommand(
-        spec.agent,
-        spec.start,
-        settingsFile ? { cli, settings: settingsFile } : { cli },
-      )
+      command = buildCommand(spec.agent, spec.start, {
+        cli,
+        ...(settingsFile ? { settings: settingsFile } : {}),
+        ...(spec.agent === 'claude' && spec.remote ? { remoteControl: spec.remote } : {}),
+      })
     }
   }
   const size = { cols: 80, rows: 24 }
@@ -349,6 +401,7 @@ async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
     handle: undefined,
     pending: spec.pending,
     cwd: spec.cwd,
+    remote: spec.agent === 'claude' && spec.remote !== undefined,
   }
   const self = pane
   if (spec.agent !== 'shell') {
@@ -441,6 +494,11 @@ function closeTab(tabId: string): void {
   const w = windowOfTab(tabId)
   if (!w) return
   tabReplays.delete(tabId)
+  const chat = tabChats.get(tabId)
+  if (chat !== undefined) {
+    tabChats.delete(tabId)
+    closeChat(chat)
+  }
   const ids = tabPanes.get(tabId) ?? []
   tabPanes.delete(tabId)
   tabLabels.delete(tabId)
@@ -537,6 +595,15 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   window.on('close', (event) => {
     if (allowedToClose.has(windowId)) return
     event.preventDefault()
+    const unsaved = unsavedHere(windowId)
+    if (unsaved.length > 0 && !unsavedAnswered.has(windowId)) {
+      window.webContents.send('window:confirm-unsaved', {
+        paths: unsaved,
+        names: unsaved.map((p) => basename(p)),
+      })
+      return
+    }
+    unsavedAnswered.delete(windowId)
     const names = runningNames(windowId)
     if (names.length === 0) void finishClose(windowId)
     else window.webContents.send('window:confirm-close', names)
@@ -583,6 +650,168 @@ async function finishClose(windowId: string): Promise<void> {
   windows.get(windowId)?.close()
 }
 
+let quitAnswer: ((confirmed: boolean) => void) | undefined
+
+// Quitting the whole app (F27, "Restart now"): one question listing the running sessions of every
+// window, then the layout saved and every pty hung up; false when the user cancels.
+export async function quitApp(): Promise<boolean> {
+  if (quitAnswer) return false
+  const names = layout.windows.flatMap((w) => runningNames(w.id))
+  if (names.length > 0) {
+    const asking = windows.get(focusOrder[0] ?? '') ?? [...windows.values()][0]
+    if (!asking || asking.isDestroyed()) return false
+    const confirmed = await new Promise<boolean>((resolve) => {
+      quitAnswer = resolve
+      asking.webContents.send('window:confirm-close', names)
+    })
+    quitAnswer = undefined
+    if (!confirmed) return false
+  }
+  clearTimeout(saveTimer)
+  saveTimer = undefined
+  const saved = saveProjectsNow()
+  closingLast = true
+  await saved
+  for (const w of layout.windows) {
+    hangUpWindow(w.id)
+    allowedToClose.add(w.id)
+  }
+  app.quit()
+  return true
+}
+
+const unsavedAnswered = new Set<string>()
+
+// The edited files whose every editor tab is in this window: a file also open elsewhere keeps its
+// edits there and is not asked about.
+function unsavedHere(windowId: string): string[] {
+  const here = new Set<string>()
+  const elsewhere = new Set<string>()
+  for (const w of layout.windows) {
+    for (const tab of w.tabs) {
+      if (tab.kind !== 'file' || tab.preview || !isDirty(tab.path)) continue
+      if (w.id === windowId) here.add(tab.path)
+      else elsewhere.add(tab.path)
+    }
+  }
+  return [...here].filter((p) => !elsewhere.has(p))
+}
+
+function editorTabsOf(path: string): number {
+  return layout.windows.reduce(
+    (n, w) =>
+      n + w.tabs.filter((tab) => tab.kind === 'file' && !tab.preview && tab.path === path).length,
+    0,
+  )
+}
+
+async function openFileTab(windowId: string, path: string): Promise<Key | null> {
+  const opened = await openBuffer(path)
+  if ('refusal' in opened) return opened.refusal
+  const w = layout.windows.find((x) => x.id === windowId)
+  if (!w) return null
+  const existing = w.tabs.find(
+    (tab) =>
+      tab.kind === 'file' && !tab.preview && tab.path === opened.path && tab.project === w.shown,
+  )
+  if (existing) putWindow({ ...w, selected: { ...w.selected, [w.shown]: existing.id } })
+  else {
+    const tab: Tab = {
+      kind: 'file',
+      id: newId(),
+      project: w.shown,
+      path: opened.path,
+      preview: false,
+    }
+    putWindow({ ...w, tabs: [...w.tabs, tab], selected: { ...w.selected, [w.shown]: tab.id } })
+  }
+  changed()
+  return null
+}
+
+// The preview goes right after its editor tab; one per project; from the preview, back to the editor.
+function togglePreview(windowId: string, tabId: string): void {
+  const w = layout.windows.find((x) => x.id === windowId)
+  const tab = w?.tabs.find((x) => x.id === tabId)
+  if (!w || tab?.kind !== 'file') return
+  const twin = w.tabs.find(
+    (x) =>
+      x.kind === 'file' &&
+      x.project === tab.project &&
+      x.path === tab.path &&
+      x.preview !== tab.preview,
+  )
+  if (twin) {
+    putWindow({ ...w, selected: { ...w.selected, [tab.project]: twin.id } })
+  } else if (!tab.preview) {
+    const preview: Tab = {
+      kind: 'file',
+      id: newId(),
+      project: tab.project,
+      path: tab.path,
+      preview: true,
+    }
+    const index = w.tabs.findIndex((x) => x.id === tabId)
+    const tabs = [...w.tabs.slice(0, index + 1), preview, ...w.tabs.slice(index + 1)]
+    putWindow({ ...w, tabs, selected: { ...w.selected, [tab.project]: preview.id } })
+  }
+  changed()
+}
+
+// Files handed over by `menkar open`: one window opens them; with several, the active one asks
+// which; with none, a window on the current project opens. A plain second start comes forward.
+export function deliverFiles(paths: readonly string[]): void {
+  if (windows.size === 0) openWindowOn(projects.current)
+  const ordered = [...layout.windows].sort((a, b) => rank(a.id) - rank(b.id))
+  const active = ordered[0]
+  const win = active ? windows.get(active.id) : undefined
+  if (!active || !win) return
+  if (win.isMinimized()) win.restore()
+  win.focus()
+  if (paths.length === 0) return
+  if (ordered.length === 1) {
+    void openFilesIn(active.id, paths)
+    return
+  }
+  const choices = ordered.map((w) => ({
+    window: w.id,
+    label: projects.projects.find((p) => p.id === w.shown)?.name ?? '',
+  }))
+  const send = () =>
+    win.webContents.send('files:which-window', {
+      paths,
+      names: paths.map((p) => basename(p)),
+      choices,
+    })
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send)
+  else send()
+}
+
+async function openFilesIn(windowId: string, paths: readonly string[]): Promise<void> {
+  const refused: { name: string; reason: Key }[] = []
+  for (const path of paths) {
+    const refusal = await openFileTab(windowId, path)
+    if (refusal) refused.push({ name: basename(path), reason: refusal })
+  }
+  const win = windows.get(windowId)
+  win?.focus()
+  if (refused.length > 0 && win && !win.isDestroyed())
+    win.webContents.send('files:refused', refused)
+}
+
+// A chat tab in the window's current project, selected. Not saved, not reopened, its session not
+// added to the project, its dot idle, and no confirmation counts it.
+export function openChatTab(
+  window: BrowserWindow,
+  tab: { chatId: string; title: string; tooltip: string },
+): void {
+  const windowId = [...windows].find(([, w]) => w === window)?.[0]
+  if (!windowId) return
+  const id = addTransientTab(windowId, tab.title, tab.tooltip)
+  tabChats.set(id, tab.chatId)
+  changed()
+}
+
 function openWindowOn(projectId: string): void {
   const id = newId()
   layout = { windows: [...layout.windows, { id, shown: projectId, tabs: [], selected: {} }] }
@@ -602,11 +831,17 @@ const isFile = (path: string) => {
 
 function resumeSpec(sessionId: string): PaneSpec {
   const info = sessionInfo(sessionId)
+  const agent = info?.agent ?? 'claude'
+  const remote =
+    agent === 'claude' && remoteIds.has(sessionId)
+      ? remoteName(info?.name ?? '', info?.cwd ?? null, sessionId)
+      : undefined
   return {
-    agent: info?.agent ?? 'claude',
+    agent,
     start: { kind: 'resume', id: sessionId },
     cwd: info?.cwd ?? null,
     sessionId,
+    ...(remote ? { remote } : {}),
   }
 }
 
@@ -618,6 +853,7 @@ export async function startWorkspace(): Promise<void> {
   projects = loaded
   sessionList = await sessions.list()
   settings = settingsOf(await sessions.currentState())
+  remoteIds = new Set(remoteControlList(await sessions.currentState()))
   installedAgents = []
   if (await findOnPath(AGENT_COMMANDS.claude)) installedAgents.push('claude')
   if (await findOnPath(AGENT_COMMANDS.cursor)) installedAgents.push('cursor')
@@ -625,6 +861,7 @@ export async function startWorkspace(): Promise<void> {
     sessionList = list
     void sessions.currentState().then((state) => {
       settings = settingsOf(state)
+      remoteIds = new Set(remoteControlList(state))
       push()
     })
   })
@@ -640,6 +877,30 @@ export async function startWorkspace(): Promise<void> {
       }),
     })),
   }
+  // Files are checked off the UI path first, keeping their order; one that fails is dropped.
+  for (const w of layout.windows) {
+    const kept: Tab[] = []
+    for (const tab of w.tabs) {
+      if (tab.kind !== 'file') kept.push(tab)
+      else {
+        const opened = await openBuffer(tab.path)
+        if ('refusal' in opened)
+          log.info('a saved file tab was not reopened', { path: tab.path, reason: opened.refusal })
+        else kept.push({ ...tab, path: opened.path })
+      }
+    }
+    putWindow({ ...w, tabs: kept })
+  }
+  onBufferUpdate((update) => {
+    const markChanged = lastDirty.get(update.path) !== update.dirty || update.changes === undefined
+    lastDirty.set(update.path, update.dirty)
+    for (const lw of layout.windows) {
+      if (!lw.tabs.some((tab) => tab.kind === 'file' && tab.path === update.path)) continue
+      const win = windows.get(lw.id)
+      if (win && !win.isDestroyed()) win.webContents.send('file:update', update)
+    }
+    if (markChanged) push()
+  })
   for (const w of layout.windows) {
     createBrowserWindow(w.id)
     for (const tab of w.tabs)
@@ -821,8 +1082,82 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed()
       return {}
     }
-    case 'closeTab':
+    case 'closeTab': {
+      const tab = tabById(action.tab)
+      if (
+        !action.force &&
+        tab?.kind === 'file' &&
+        !tab.preview &&
+        isDirty(tab.path) &&
+        editorTabsOf(tab.path) <= 1
+      ) {
+        return { unsaved: [basename(tab.path)], value: tab.path }
+      }
       closeTab(action.tab)
+      return {}
+    }
+    case 'openFile': {
+      const expanded = expandInput(action.input, homedir())
+      if ('refusal' in expanded) return { refusal: expanded.refusal }
+      const typed = await checkTyped(expanded.path)
+      if (typed) return { refusal: typed }
+      const refusal = await openFileTab(windowId, expanded.path)
+      return refusal ? { refusal } : {}
+    }
+    case 'openFilePath': {
+      const refusal = await openFileTab(windowId, action.path)
+      return refusal ? { refusal } : {}
+    }
+    case 'pickFile': {
+      const members = projects.projects.find((p) => p.id === w.shown)?.members ?? []
+      const folders = new Set(members.map((id) => sessionInfo(id)?.cwd ?? null))
+      const only = folders.size === 1 ? [...folders][0] : null
+      const chosen = await dialog.showOpenDialog({
+        title: t('files.chooseFile'),
+        properties: ['openFile'],
+        ...(only && statSafeDir(only) ? { defaultPath: only } : {}),
+      })
+      return { value: chosen.canceled ? null : (chosen.filePaths[0] ?? null) }
+    }
+    case 'fileState': {
+      const state = bufferState(action.path)
+      return state ? { file: state } : {}
+    }
+    case 'fileEdit':
+      applyEdit(action.path, action.base, action.changes, action.tab)
+      return {}
+    case 'saveFile': {
+      const refusal = await saveBuffer(action.path)
+      return refusal ? { refusal } : {}
+    }
+    case 'reloadFile':
+      await reloadBuffer(action.path)
+      return {}
+    case 'keepMine':
+      keepMine(action.path)
+      return {}
+    case 'saveFiles': {
+      for (const path of action.paths) {
+        const refusal = await saveBuffer(path)
+        if (refusal) return { refusal, value: path }
+      }
+      return {}
+    }
+    case 'discardFiles':
+      for (const path of action.paths) await reloadBuffer(path)
+      return {}
+    case 'closeWindowNow':
+      unsavedAnswered.add(windowId)
+      windows.get(windowId)?.close()
+      return {}
+    case 'openFilesIn':
+      await openFilesIn(action.window, action.paths)
+      return {}
+    case 'togglePreview':
+      togglePreview(windowId, action.tab)
+      return {}
+    case 'openExternal':
+      if (/^https?:\/\//.test(action.url)) await shell.openExternal(action.url)
       return {}
     case 'closeAllTabs':
       for (const tab of w.tabs) closeTab(tab.id)
@@ -866,6 +1201,11 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         t('tab.tooltipNew', { agent: agentName(action.agent), cwd: action.folder }),
       )
       await rememberFolder(action.folder)
+      // With the switch on, the id joins the list at once, before Claude has created the session.
+      if (action.remoteControl && id) {
+        await sessions.updateState((state) => setRemoteControl(state, id, true))
+        remoteIds.add(id)
+      }
       const start: Start = {
         kind: 'new',
         ...(id ? { id } : {}),
@@ -880,9 +1220,49 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         cwd: action.folder,
         sessionId: null,
         pending: newSessionPending(windowId, action.folder, id),
+        ...(action.remoteControl && id ? { remote: remoteName(name, action.folder, id) } : {}),
       })
       changed()
       return {}
+    }
+    case 'newChat': {
+      const win = windows.get(windowId)
+      if (!win) return {}
+      const folder = await chooseChatFolder(win)
+      if (folder === null) return {}
+      const chat = startChat(action.agent, action.key, { folder })
+      if (chat) openChatTab(win, chat)
+      return {}
+    }
+    case 'continueInChat': {
+      const win = windows.get(windowId)
+      const info = sessionInfo(action.session)
+      if (!win || !info) return {}
+      const chat = startChat(info.agent, action.key, {
+        folder: info.cwd ?? homedir(),
+        resume: { id: info.id, name: info.name },
+      })
+      if (chat) openChatTab(win, chat)
+      return {}
+    }
+    case 'openInGhostty': {
+      const info = sessionInfo(action.session)
+      if (info) openInGhostty(info.agent, info.id, info.cwd)
+      return {}
+    }
+    case 'openMcpServers': {
+      const win = windows.get(windowId)
+      if (win) openMcpServers(win)
+      return {}
+    }
+    case 'setRemoteControl': {
+      await sessions.updateState((state) => setRemoteControl(state, action.session, action.on))
+      if (action.on) remoteIds.add(action.session)
+      else remoteIds.delete(action.session)
+      const pane = paneOfSession(action.session)
+      changed()
+      // Nothing is typed: a running session connects at its next start, or when the user types /rc.
+      return action.on && pane?.terminal.running && !pane.remote ? { value: 'toast' } : {}
     }
     case 'continueLast': {
       const folder = await pickFolder()
@@ -929,7 +1309,14 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       push()
       return {}
     case 'confirmClose':
+      if (quitAnswer) {
+        quitAnswer(true)
+        return {}
+      }
       await finishClose(windowId)
+      return {}
+    case 'cancelClose':
+      quitAnswer?.(false)
       return {}
     case 'copyText':
       clipboard.writeText(action.text)
@@ -962,7 +1349,16 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'sessionDetails': {
       const info = sessionInfo(action.session)
       if (!info) return {}
-      return { details: details(await readFile(info.file, 'utf8'), info.agent) }
+      const [read, tokens] = await Promise.all([
+        readFile(info.file, 'utf8'),
+        sessionTokens(info.id),
+      ])
+      return {
+        details: details(read, info.agent),
+        ...(tokens
+          ? { tokens: { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead } }
+          : {}),
+      }
     }
     case 'exportSession': {
       const info = sessionInfo(action.session)
@@ -1075,9 +1471,14 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'openPreferences':
     case 'openUsage':
-    case 'openAbout':
-      log.info('a main-menu item whose window is not built yet was chosen', { item: action.type })
+    case 'openAbout': {
+      const parent = windows.get(windowId)
+      if (!parent) return {}
+      if (action.type === 'openPreferences') openPreferences(parent)
+      else if (action.type === 'openUsage') openUsage(parent)
+      else openAbout(parent)
       return {}
+    }
     case 'swapOrientation': {
       const tab = tabById(action.tab)
       if (!tab || (tabPanes.get(action.tab) ?? []).length < 2) return {}

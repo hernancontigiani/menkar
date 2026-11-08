@@ -50,4 +50,29 @@ recorded decision (then say so to `set`).
 
 ## Execution log
 
-(Written by the session that executes it.)
+### B1 — Inventory (2026-11-08)
+
+The states:
+- **T**: tested already under the id (Vitest or e2e); the spec line only needs trimming.
+- **U**: built, untested; to test.
+- **M**: missing; to build and test.
+- **H**: needs a real desktop service; to check by hand.
+- **D**: decided against, struck with the decision.
+- **b2**: in `b2`'s area.
+
+Native file choosers become testable by patching `dialog.showOpenDialog` / `showSaveDialog` from
+the e2e through `electronApp.evaluate`.
+
+| Area | T (trim) | U (test) | M (build) | H (by hand) | D / b2 |
+|---|---|---|---|---|---|
+| look | 21, 38, 41, 44 | 1, 4, 7–15, 16, 17 (dot classes, computed), 18–20 (the ring: a pure function + Vitest), 24–28, 30–36, 40 (emulated `prefers-color-scheme`), 42, 43, 45–49, 52 | — | 5 (an unfocused window keeps its bars), 22 and 29 (need real blocked or working agents) | 50, 51 (the Usage window: b2) |
+| terminal | 56 | 10–14, 17, 18 (chooser patched), 19, 21–25, 27, 29, 30, 33, 36, 40, 47, 48, 50, 52, 55 (font set live through b2's settings path); 20 (the give-up after 120 tries: the join matcher pulled into a pure function with Vitest) | — | 15 (cancel in the native chooser) | 39, 41–46, 51: decision 1.9 (hang up, nothing typed); the behaviour the cases now hold is asserted as built. 16: a non-local folder cannot come out of Electron's chooser |
+| sessions | 41 | 2 (UI), 13 (the join part), 16–18, 30, 33, 34, 35, 39, 40 (`new_session_dir`), 42, 43, 45, 46, 47, 50, 55 (save dialog patched), 57, 60–63, 70; 44 (`joinTarget`: T in core, plus an e2e) | — | 64, 66, 68 (the desktop's trash, `shell.trashItem`) | — |
+| files | — | 7, 9, 11, 14, 16, 17, 18, 19 (a save refused by the system: the file made read-only after opening), 21, 22, 26–30, 33, 35, 36, 37, 38 | 39 ("Could not open transcript" when the file goes between choosing and reading) | 34 (`menkar open` as the first instance under Playwright: `cliArguments` cannot see past Playwright's loader flags) | — |
+| remote-control | 20, 27 | 3, 4, 11, 12, 14, 17, 18, 19, 21, 25, 26 | — | — | — |
+| projects | — | 1, 2, 12, 15–26, 28–44, 46, 47, 48, 54, 56, 57 | — | — | — |
+| agent-state | — | 18 (a shell pane gets no mirror, so no state), 28 (reveal through `panes:reveal`; the desktop notification's own click is H) | — | the notification click of 28; 38 (needs real working or blocked agents) | — |
+
+Totals: about 160 U, 1 M, 9 H (LOOK-5, 22, 29; TRM-15; SES-64, 66, 68; FIL-34; AST-38 and the
+notification click of AST-28), 7 cases decided against by 1.9 (TRM-39, 41–46, 51) and TRM-16 by
+what Electron's chooser can return, and LOOK-50 and 51 for b2.

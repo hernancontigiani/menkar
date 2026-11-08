@@ -139,34 +139,17 @@ is `$XDG_CONFIG_HOME/menkar/state.json`; on first start the list is imported fro
 
 ## Acceptance cases
 
-- **RC-1** Add session → New, Claude Code, name `JWT auth`, switch on, Start session with app-chosen
-  id `5e0a…` → `remote_control` in `state.json` contains `5e0a…` immediately; the command contains
-  `--remote-control='JWT auth'` before `--settings`.
-- **RC-2** Open New again after RC-1 → the switch is off.
+The cases built and tested (RC-1, 2, 5–10, 13, 15, 16, 22–24) left for the history; the tests carry their
+ids.
+
 - **RC-3** On New, choose agent Cursor → the switch row is hidden; choose Claude Code → shown, off.
 - **RC-4** Only Cursor installed → New shows no Agent row and no switch.
-- **RC-5** Session `9c1b…` named `billing` in the list, opened → command
-  `{cli} --resume 9c1b… --remote-control=billing --settings {settings} && exit`.
-- **RC-6** Session not in the list, opened → no `--remote-control` in its command.
-- **RC-7** Session in the list with no `custom-title`, no app name, no `ai-title`, first message
-  `fix the login bug` → `--remote-control='fix the login bug'`.
-- **RC-8** The name computation given a blank name `"  "` and folder `/home/ana/src/shop` → `shop`;
-  given a blank name and no folder, id `d4e5f6a7-…` → `d4e5f6a7`.
-- **RC-9** Session in the list named `  spaced  ` → `--remote-control=spaced` (trimmed).
-- **RC-10** Session named `-x` → the argument is `--remote-control=-x`, one word.
 - **RC-11** Fork of a session in the list → no `--remote-control`; the fork's id is not added to the
   list.
 - **RC-12** Continue last → no `--remote-control`.
-- **RC-13** Row menu of a Claude Code session → the section `Open`, `Open beside the current tab`,
-  `Stop`, `Remote control` (check). Row menu of a Cursor session → no `Remote control`.
 - **RC-14** Tab menu of a tab holding one Claude Code session → a second section with `Remote control`;
   of a tab with two sessions side by side → none; of a tab with a session and a shell → present; of a
   file tab → none; of a new session's tab before its first message → none.
-- **RC-15** Check `Remote control` in the row menu → the tab menu's item for that session is checked
-  too, and `state.json` lists the id.
-- **RC-16** Running session started without the flag, check `Remote control` → toast
-  `Remote control connects when this session restarts, or type /rc in it` for 6 s; nothing typed
-  into the terminal; row icon tooltip `Remote control from this session's next start, or type /rc in it`.
 - **RC-17** Stopped session, check `Remote control` → no toast; icon tooltip `Remote control on`;
   the next open carries the flag.
 - **RC-18** Running session started with the flag, uncheck → no toast; the id leaves the list; icon
@@ -176,10 +159,6 @@ is `$XDG_CONFIG_HOME/menkar/state.json`; on first start the list is imported fro
 - **RC-20** Session not in the list and not running → no phone icon on its row.
 - **RC-21** Session in the list, renamed in the app from `api` to `api v2` while running → still
   connected as `api` (the CLI's); the next start passes `--remote-control='api v2'`.
-- **RC-22** `state.json` with `"remote_control": ["a", 3, null]` → only `a` is on; on the next save
-  the list is `["a"]`.
-- **RC-23** `state.json` with no `remote_control` key → every session is off.
-- **RC-24** Toggling writes `state.json` sorted: turning on `b` then `a` → `["a", "b"]`.
 - **RC-25** Session in the list trashed → its id stays in `remote_control`.
 - **RC-26** Reopen tabs on start with a session in the list → the resumed tab carries the flag; Open
   beside the current tab with it → the pane carries the flag.

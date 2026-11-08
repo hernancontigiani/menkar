@@ -339,3 +339,94 @@ the seven keys). Other fields may be present and are ignored. agent-tablet's set
 - **CLS-39** The evaluation run with no arguments → prints its usage, exit 2; with two files of 50
   and 91 records → prints a line per file stem, `all`, `answered`, and 7 recall lines; it makes
   ⌈50/30⌉ + ⌈91/30⌉ = 2 + 4 = 6 calls; the user's `$XDG_DATA_HOME/menkar/` is untouched.
+
+## The switch (F42)
+
+> Left on 2026-11-08: built by plan 12, described in `docs/preferences.md`.
+Preferences → page "Integrations" (icon: a puzzle piece, `application-x-addon-symbolic`) → a second
+group titled **"Classify turns"**, under the "Claude Code settings" group of `context.md`.
+
+- A switch row, title **"Classify each new turn by development stage"**, **off by default**.
+  Its subtitle is always:
+  "Each prompt you type from now on is sent to Claude Haiku with your login, with your previous
+  prompt and the files and commands the agent used, and counts against your plan. The Usage window
+  then splits each project by category."
+  followed, on a second line, by the status of the last run when there is one (below).
+- **Turning it on** stores the current time as `classify_since`; **turning it off** stores `null`.
+  Turning it off and on again starts again from the new moment: turns opened while it was off are
+  never sent by the hourly pass (only by "Classify earlier turns"). Off, nothing is sent and nothing
+  runs; time, tokens and cost stay by project and session.
+- The switch does not touch `~/.claude/settings.json`; unlike the status line row above it, it is
+  the app's own setting.
+
+**The status line** (second line of the subtitle), from the last run's record `classify_last`:
+
+- success: "{count} turns classified · {when}" — `count` is how many turns that run got a category
+  for (it can be 0);
+- failure: "Could not run Claude (see the log) · {when}".
+
+`{when}` is the run's local time as `HH:MM` when it is today (local date), otherwise
+`YYYY-MM-DD HH:MM`. With no record (never ran) the line is absent. agent-tablet's `docs/usage.md`
+quotes the failure text without " · {when}"; the code appends it.
+
+## Classify earlier turns (F43)
+
+> Left on 2026-11-08: built by plan 12, described in `docs/preferences.md`.
+Below the switch, a row titled **"Classify earlier turns"**, **visible only while the switch is
+on**, with subtitle "Turns from before you turned it on, from a date you choose." and a button
+**"Classify earlier turns…"** at its end.
+
+1. The button opens a dialog: heading **"Classify earlier turns"**, body
+   "Turns opened from this day on that have no category yet are sent to Claude Haiku.", a month
+   calendar with **today minus 7 days** preselected, and under it a line with a spinner and
+   "Counting turns…". Responses: **"Cancel"** (also Esc / closing) and a suggested button that
+   reads **"Counting…"**, disabled, while counting.
+2. Counting runs in the background for the selected day (from its local midnight to now):
+   - which turns: origin `human` **or** `unknown` (transcripts from before Claude Code wrote
+     `turnOrigin`), opened at or after that midnight, no category, fewer than 3 tries, and ready
+     (as in the hourly pass: a later turn in the session, or older than an hour);
+   - each is checked only against its transcript's **size**, never its text (reading thousands of
+     turns made the dialog wait): a turn whose transcript is unknown to the cache, missing, or now
+     no longer than the turn's recorded offset counts as **unavailable**; the rest are **to send**
+     (agent-tablet's docs say only "whether each transcript is still there"; the code also counts
+     a transcript cut shorter than the turn's offset).
+3. When counting ends, the spinner hides, the line shows the estimate, one line each:
+   - "Turns to send: {turns}"
+   - "Estimated use of your plan: {cost}" — `turns × 0.021 / 141` US$, shown "under US$0.01" below
+     one cent, else "US$" with two decimals (e.g. `US$0.04`);
+   - "Estimated time: {took}, in the background" — calls = ⌈turns / 30⌉, seconds = calls × 68 / 5
+     (13.6 s per call), minutes rounded to the nearest: "under a minute" when that is 0, else
+     "about {minutes} min";
+   - only when some are unavailable: "Left unclassified, their transcript is gone: {count}".
+
+   The button reads **"Classify {count} turns"** and is enabled when turns to send > 0; with 0 it
+   reads "Classify" and stays disabled. If the history or the cache cannot be read, the line reads
+   "Could not read the usage history (see the log)." and the button stays disabled with "Classify".
+4. Picking another day restarts counting (button back to "Counting…", disabled); a count that
+   finishes for a day no longer selected is dropped.
+5. **Confirming** starts the run at once in the background and closes the dialog. It waits for an
+   hourly pass in flight, then re-reads what is still unclassified (so no turn is sent twice), and
+   sends **all** of them in batches of 30, with **no** per-pass cap. A turn whose text can no longer
+   be read when its batch is built is skipped **with no try counted**.
+6. While it runs, the row's button is replaced by **"Stop"** and the subtitle shows
+   **"{sent} of {total}"** (starting at "0 of N"; `sent` advances by each batch's size, the last
+   step reaching `total`). Preferences re-reads the progress once a second while it is open; the run
+   continues when Preferences is closed.
+7. **Stop** ends the run after the call in flight; what was classified stays.
+8. When the run ends (finished, stopped, or failed) its result becomes `classify_last` and the
+   switch's status line updates ("{count} turns classified · {when}" or the failure line); the row
+   returns to its button and its usual subtitle.
+9. Running it again continues where it stopped: it only ever picks turns with no category.
+
+Edge: turning the switch off during a run hides the row (and its Stop button) but does not stop the
+run.
+
+## Acceptance cases
+
+> Left on 2026-11-08: built by plan 12; the tests in `e2e/integrations.spec.ts` carry these ids.
+- **CLS-25** Switch off → the "Classify earlier turns" row is hidden; switch on → it shows with the
+  button "Classify earlier turns…" and subtitle
+  "Turns from before you turned it on, from a date you choose."
+- **CLS-26** Opening the earlier-turns dialog on 2026-11-08 → the calendar's selected day is
+  2026-11-01; while counting, the button reads "Counting…" and is disabled and the line reads
+  "Counting turns…".

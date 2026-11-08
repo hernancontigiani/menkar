@@ -10,6 +10,7 @@ export default defineConfig({
           // Usage passes run on a worker thread, which loads its own file.
           'usage-worker': resolve('src/main/usage-worker.ts'),
           'classifier-worker': resolve('src/main/classifier-worker.ts'),
+          'usage-query-worker': resolve('src/main/usage-query-worker.ts'),
           // Claude Code runs the statusline as a program of its own, through Electron's binary.
           statusline: resolve('src/core/context/statusline.ts'),
         },
@@ -28,7 +29,16 @@ export default defineConfig({
   renderer: {
     root: resolve('src/renderer'),
     build: {
-      rollupOptions: { input: resolve('src/renderer/index.html') },
+      rollupOptions: {
+        input: {
+          index: resolve('src/renderer/index.html'),
+          // Preferences, About and the Usage window: child windows with pages of their own.
+          preferences: resolve('src/renderer/preferences.html'),
+          about: resolve('src/renderer/about.html'),
+          usage: resolve('src/renderer/usage.html'),
+          mcp: resolve('src/renderer/mcp.html'),
+        },
+      },
     },
   },
 })

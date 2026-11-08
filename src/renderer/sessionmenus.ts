@@ -1,5 +1,7 @@
-import { formatSize, formatTimestamp } from '../core/format'
+import { variantsFor } from '../core/chat/variants'
+import { formatSize, formatTimestamp, formatTokens } from '../core/format'
 import type { SessionInfo } from '../core/sessions/info'
+import { MODE_KEY } from './addsession'
 import { act, currentState, renameSessionDialog } from './app'
 import { el } from './dom'
 import { t, translate } from './i18n'
@@ -48,7 +50,7 @@ export async function sessionDetails(info: SessionInfo): Promise<void> {
   })
   document.body.append(scrim)
   close.focus()
-  const { details } = await act({ type: 'sessionDetails', session: info.id })
+  const { details, tokens } = await act({ type: 'sessionDetails', session: info.id })
   if (!details) return
   const row = (title: string, value: string) =>
     el('div', { class: 'prop' }, el('div', { class: 'dim caption' }, title), el('div', {}, value))
@@ -68,6 +70,18 @@ export async function sessionDetails(info: SessionInfo): Promise<void> {
   )
   if (details.toolCalls > 0) rows.push(row(t('details.toolCalls'), String(details.toolCalls)))
   if (details.models.length > 0) rows.push(row(t('details.models'), details.models.join(', ')))
+  if (tokens && (tokens.input > 0 || tokens.output > 0 || tokens.cacheRead > 0)) {
+    rows.push(
+      row(
+        t('details.tokens'),
+        t('details.tokenCounts', {
+          in: formatTokens(tokens.input),
+          out: formatTokens(tokens.output),
+          cache: formatTokens(tokens.cacheRead),
+        }),
+      ),
+    )
+  }
   rows.push(row(t('details.size'), formatSize(info.size)))
   rows.push(el('div', { class: 'group-title' }, 'MCP'))
   rows.push(
@@ -167,11 +181,24 @@ export function historyRowMenu(info: SessionInfo, at: { x: number; y: number }):
   const open = [
     { label: t('row.open'), run: () => void act({ type: 'openSession', session: info.id }) },
   ]
+  if (currentState()?.ghostty)
+    open.push({
+      label: t('row.ghostty'),
+      run: () => void act({ type: 'openInGhostty', session: info.id }),
+    })
   if (info.agent === 'claude')
     open.push({
       label: t('row.fork'),
       run: () => void act({ type: 'forkSession', session: info.id }),
     })
+  for (const v of variantsFor(new Set([info.agent]))) {
+    open.push({
+      label: v.mode
+        ? t('chat.continueMode', { mode: translate(MODE_KEY[v.mode]) })
+        : t('chat.continueSole'),
+      run: () => void act({ type: 'continueInChat', session: info.id, key: v.key }),
+    })
+  }
   showMenu(
     [
       ...open,

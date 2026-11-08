@@ -1,16 +1,21 @@
+import { resolve as resolvePath } from 'node:path'
 import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain } from 'electron'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile } from '../core/paths'
-import { NO_MEMBERSHIPS } from '../core/usage/history'
+import { settingsOf } from '../core/settings'
+import { loadState } from '../core/state'
 import type { InvokeChannel, InvokeChannels, SendChannel, SendChannels } from '../shared/ipc'
 import { startAgentState } from './agentstate'
+import { closeAllChats, registerChatIpc } from './chat'
 import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
 import { startContextReadings } from './context'
+import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
 import { broadcastSessions, sessions } from './sessions'
-import { cliArguments, runUsageCommand, startUsagePasses } from './usage'
+import { cliArguments, currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
+  deliverFiles,
   openFirstWindowIfNone,
   paneBuffer,
   paneInput,
@@ -63,7 +68,10 @@ if (process.platform === 'linux') app.setPath('userData', electronUserData())
 
 async function start(): Promise<void> {
   await app.whenReady()
-  language = chooseLanguage(undefined, app.getPreferredSystemLanguages())
+  // The language setting is read once, before any window opens; a change waits for a restart.
+  const chosen = settingsOf(await loadState()).language
+  language = chooseLanguage(chosen || undefined, app.getPreferredSystemLanguages())
+  setStartLanguage(chosen)
   setLanguage(language)
   try {
     const file = await openFileSink(logFile(), LOG_FILE_MAX_BYTES)
@@ -78,10 +86,11 @@ async function start(): Promise<void> {
     .start()
     .catch((error: unknown) => log.error('the first sessions scan failed', { error }))
   app.on('will-quit', () => sessions.stop())
-  // Projects do not exist yet: every turn is written with none and takes its session's project
-  // once one does.
   registerClassifierIpc()
-  const usage = startUsagePasses(() => NO_MEMBERSHIPS, classifyAfterUsagePass)
+  registerPreferencesIpc()
+  registerChatIpc()
+  app.on('will-quit', () => closeAllChats())
+  const usage = startUsagePasses(currentMemberships, classifyAfterUsagePass)
   app.on('will-quit', () => usage.stop())
   // Agent state and context (plan 09): the panes' states and the statusline's readings.
   const stopAgentState = startAgentState()
@@ -95,8 +104,28 @@ async function start(): Promise<void> {
 }
 
 const command = cliArguments(process.argv, app.isPackaged)
+// `menkar open <file>…`: relative paths are made absolute here, in the caller's folder, before
+// they travel to the running app.
+const openFiles =
+  command[0] === 'open' ? command.slice(1).map((file) => resolvePath(process.cwd(), file)) : []
 if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
-else void start()
+else if (command[0] === 'open' && openFiles.length === 0) {
+  process.stderr.write('Usage: menkar open <file> [<file>…]\n')
+  app.exit(2)
+} else if (!app.requestSingleInstanceLock({ files: openFiles })) {
+  // Another Menkar runs: it got the files (or comes forward); this one ends.
+  app.exit(0)
+} else {
+  app.on('second-instance', (_event, _argv, _cwd, data) => {
+    const files = (data as { files?: unknown } | null)?.files
+    deliverFiles(
+      Array.isArray(files) ? files.filter((f): f is string => typeof f === 'string') : [],
+    )
+  })
+  void start().then(() => {
+    if (openFiles.length > 0) deliverFiles(openFiles)
+  })
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

@@ -91,3 +91,12 @@ For Menkar (2026-11-08):
   the cache has.
 - Figures are rounded half to even (`2.5m` prints as `2m`), as agent-tablet printed them, so the two
   apps print the same report.
+
+## The Usage window
+
+Built by plan 12; how it is wired is in `docs/preferences.md`. The window reads `src/core/usage/`
+only: the Totals are `buildReport`, the bars `buildSeries` (folded by category while classification
+is on), the chart's series, axis and labels `src/core/usage/chart.ts`, the month stepper
+`src/core/usage/stepper.ts`. The types the page receives (`UsageView`, `UsageWhich`) and the shared
+formats live in `src/core/usage/nodes.ts`, which imports no Node module, so the renderer can use
+them.

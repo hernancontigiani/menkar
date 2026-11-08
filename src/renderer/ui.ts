@@ -109,7 +109,7 @@ const TOAST_MS = 4000
 
 export function toast(
   text: string,
-  options: { sticky?: boolean; action?: { label: string; run: () => void } } = {},
+  options: { sticky?: boolean; ms?: number; action?: { label: string; run: () => void } } = {},
 ): void {
   const host = document.getElementById('toasts')
   if (!host) return
@@ -127,7 +127,7 @@ export function toast(
     const close = el('button', { class: 'toast-action', 'aria-label': t('toast.dismiss') }, '×')
     close.addEventListener('click', () => node.remove())
     node.append(close)
-  } else setTimeout(() => node.remove(), TOAST_MS)
+  } else setTimeout(() => node.remove(), options.ms ?? TOAST_MS)
   host.append(node)
 }
 

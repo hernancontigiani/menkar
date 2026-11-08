@@ -100,3 +100,6 @@
 > by `b1`. Left for later plans: the Remote control switch on New, MCP servers, the details' Tokens
 > row from the usage module, Open in Ghostty and Continue in chat; trash is not exercised in e2e (it
 > needs the desktop's trash service). In `docs/window.md` and `docs/sessions.md`.
+
+> Left §3 on 2026-11-08: plan 12 built, waiting to be committed with plan 13.
+| 7 | `12-preferences-usage-window.md` (Preferences, Integrations, About; the Usage window) | Written 2026-11-08; `b2` |

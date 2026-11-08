@@ -1,3 +1,4 @@
+import { AGENT_NAMES, variantsFor } from '../core/chat/variants'
 import { now } from '../core/clock'
 import type { Key } from '../core/i18n'
 import {
@@ -13,6 +14,7 @@ import type { SessionInfo } from '../core/sessions/info'
 import type { WindowState } from '../shared/workspace'
 import { act, currentState, onRender, showHiddenSessions } from './app'
 import { el, icon } from './dom'
+import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
 import { historyRowMenu, renameFromHistory, trashSelected } from './sessionmenus'
 import { dialogClosed, dialogOpened, showDialog, showMenu, toast } from './ui'
@@ -364,6 +366,15 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
       newStep = 'folder'
       void drawNew()
     })
+    // Off every time the page opens: a session is connected on purpose.
+    const remoteSwitch = el('input', { type: 'checkbox' })
+    const remoteRow = el(
+      'label',
+      { class: 'switch-row remote-row' },
+      el('span', {}, t('rc.switch')),
+      remoteSwitch,
+    )
+    remoteRow.hidden = agent !== 'claude'
     const agentRow =
       state.agents.length > 1
         ? (() => {
@@ -379,6 +390,8 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
             }
             select.addEventListener('change', () => {
               agent = select.value === 'cursor' ? 'cursor' : 'claude'
+              remoteSwitch.checked = false
+              remoteRow.hidden = agent !== 'claude'
             })
             return el('label', { class: 'form-row' }, el('span', {}, t('add.agent')), select)
           })()
@@ -387,7 +400,15 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
     const submit = async () => {
       const name = nameEntry.value.trim()
       if (!name && agent === 'claude') return showError(error, 'newSession.needName')
-      const { refusal } = await act({ type: 'startNew', agent, folder, name, ...flags })
+      const remoteControl = agent === 'claude' && remoteSwitch.checked
+      const { refusal } = await act({
+        type: 'startNew',
+        agent,
+        folder,
+        name,
+        ...flags,
+        remoteControl,
+      })
       if (refusal) return showError(error, refusal)
       flags = {}
       close()
@@ -407,6 +428,7 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
       ),
       el('label', { class: 'form-row' }, el('span', {}, t('dialog.name')), nameEntry),
       ...(agentRow ? [agentRow] : []),
+      remoteRow,
       error,
       el('div', { class: 'form-actions' }, start),
     )
@@ -559,8 +581,20 @@ export function plusMenu(anchor: { x: number; y: number }, newWindow: () => void
         run: () => void act({ type: 'continueLast', agent: a }),
       })),
       'separator' as const,
+      { label: t('menu.openFile'), run: () => openFileDialog() },
+      ...variantsFor(new Set(agents)).map((v) => ({
+        label: v.mode
+          ? t('chat.newMode', { name: AGENT_NAMES[v.agent], mode: translate(MODE_KEY[v.mode]) })
+          : t('chat.newSole', { name: AGENT_NAMES[v.agent] }),
+        run: () => void act({ type: 'newChat', agent: v.agent, key: v.key }),
+      })),
       { label: t('menu.newWindow'), run: newWindow },
     ],
     anchor,
   )
+}
+
+export const MODE_KEY: Record<'askReadOnly' | 'trustedAutoRun', Key> = {
+  askReadOnly: 'chat.modeAskReadOnly',
+  trustedAutoRun: 'chat.modeTrustedAutoRun',
 }

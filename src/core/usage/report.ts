@@ -1,53 +1,34 @@
+import { keyOf, type UsageHistory } from './history'
 import {
   addTokens,
-  keyOf,
-  type Tokens,
+  CATEGORIES,
+  formatCost,
+  formatDuration,
+  formatPercent,
+  formatTokens,
+  NO_PROJECT,
+  type Node,
+  type Report,
+  totalExecution,
   totalTokens,
-  type UsageHistory,
+  UNCLASSIFIED,
   ZERO_TOKENS,
-} from './history'
+} from './nodes'
 import { type Bounds, type Bucket, buckets, localDay } from './periods'
 import { latestLimits, statuslineIncrements } from './statusline'
 
-export const CATEGORIES = [
-  'plan',
-  'design',
-  'build',
-  'test',
-  'deploy',
-  'maintain',
-  'other',
-] as const
-export const NO_PROJECT = '(no project)'
-export const UNCLASSIFIED = '(unclassified)'
-
-export interface Node {
-  readonly label: string
-  readonly kind: 'project' | 'category' | 'session'
-  readonly execution: Readonly<Record<string, number>>
-  readonly blocked: number
-  readonly tokens: Tokens
-  readonly cost: number
-  // every session under it reported its cost through the statusline
-  readonly costExact: boolean
-  // every model under it was in the price table
-  readonly allPriced: boolean
-  readonly children: readonly Node[]
-  // a category node's: one of CATEGORIES, null for "(unclassified)"
-  readonly category?: string | null
-}
-
-export interface Report {
-  readonly bounds: Bounds
-  readonly nodes: readonly Node[]
-  readonly limits: readonly [number, number] | null
-  readonly tooNew: boolean
-}
-
-export function totalExecution(node: Pick<Node, 'execution'>): number {
-  let sum = 0
-  for (const seconds of Object.values(node.execution)) sum += seconds
-  return sum
+export {
+  CATEGORIES,
+  formatCost,
+  formatDuration,
+  formatPercent,
+  formatTokens,
+  NO_PROJECT,
+  type Node,
+  type Report,
+  totalExecution,
+  totalTokens,
+  UNCLASSIFIED,
 }
 
 function sum(label: string, kind: Node['kind'], children: Node[], category?: string | null): Node {
@@ -187,35 +168,6 @@ export function foldByCategory(result: Report): Report {
 
 // -- formats, shared by the terminal and the window -----------------------------------------
 
-// Rounds half to even, as the figures agent-tablet printed did, so the two apps print the same.
-function fixed(value: number, digits: number): string {
-  const scale = 10 ** digits
-  const scaled = value * scale
-  const floor = Math.floor(scaled)
-  const diff = scaled - floor
-  let rounded: number
-  if (Math.abs(diff - 0.5) < 1e-9) rounded = floor % 2 === 0 ? floor : floor + 1
-  else rounded = Math.round(scaled)
-  return (rounded / scale).toFixed(digits)
-}
-
-// Hours with one decimal from an hour up; whole minutes below, so a short session is not 0.0h.
-export function formatDuration(seconds: number): string {
-  return seconds >= 3600 ? `${fixed(seconds / 3600, 1)}h` : `${fixed(seconds / 60, 0)}m`
-}
-
-export function formatTokens(count: number): string {
-  return count >= 1_000_000 ? `${fixed(count / 1_000_000, 1)}M` : `${fixed(count / 1000, 0)}k`
-}
-
-export function formatCost(node: Pick<Node, 'cost' | 'costExact' | 'allPriced'>): string {
-  return `${node.costExact ? '$' : '~$'}${fixed(node.cost, 2)}${node.allPriced ? '' : '+'}`
-}
-
-export function formatPercent(value: number): string {
-  return fixed(value, 0)
-}
-
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
 // Local time with its offset, to the second: 2026-11-02T00:00:00-03:00.
@@ -286,5 +238,3 @@ export function reportJson(result: Report) {
     history_too_new: result.tooNew,
   }
 }
-
-export { totalTokens }

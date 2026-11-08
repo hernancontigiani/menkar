@@ -11,9 +11,14 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { CONTEXT_READ_KEYS } from '../../../src/core/context/reading'
-import { SESSION_KEYS, USAGE_KEYS } from '../../../src/core/context/statusline'
+import {
+  CHAINED_TIMEOUT_MS,
+  runStatusline,
+  SESSION_KEYS,
+  USAGE_KEYS,
+} from '../../../src/core/context/statusline'
 import { STATUSLINE_READ_KEYS } from '../../../src/core/usage/statusline'
 
 const SCRIPT = resolve('src/core/context/statusline.ts')
@@ -109,7 +114,13 @@ test('CTX-21 a read-only cache costs the reading, never the bar', () => {
 test("CTX-22 the user's own statusline is the bar, and the records are still written", () => {
   const d = dirs()
   chain(d, 'echo mine')
-  expect(run(d, '{"session_id":"s1"}').out).toBe('mine\n')
+  for (const [key, value] of Object.entries(d.env)) vi.stubEnv(key, value)
+  try {
+    // A generous limit: this checks the chained output is shown, not how fast the machine is.
+    expect(runStatusline('{"session_id":"s1"}', 30_000)).toBe('mine')
+  } finally {
+    vi.unstubAllEnvs()
+  }
   expect(existsSync(join(d.cache, 'sessions', 's1.json'))).toBe(true)
   expect(usageLines(d)).toHaveLength(1)
 })
@@ -119,18 +130,30 @@ test.each([['exit 3'], ['printf "   \\n"']])(
   (command) => {
     const d = dirs()
     chain(d, command)
-    expect(run(d, '{"session_id":"s1","session_name":"own"}').out).toBe('own\n')
+    for (const [key, value] of Object.entries(d.env)) vi.stubEnv(key, value)
+    try {
+      expect(runStatusline('{"session_id":"s1","session_name":"own"}', 30_000)).toBe('own')
+    } finally {
+      vi.unstubAllEnvs()
+    }
   },
 )
 
-test('CTX-23 a chained command still running after 2 seconds is abandoned', () => {
+test("CTX-23 a chained command still running at its limit is abandoned for Menkar's bar", () => {
   const d = dirs()
   chain(d, 'sleep 5; echo late')
-  const started = performance.now()
-  expect(run(d, '{"session_id":"s1","session_name":"own"}').out).toBe('own\n')
-  const elapsed = performance.now() - started
-  expect(elapsed).toBeGreaterThanOrEqual(2000)
-  expect(elapsed).toBeLessThan(4500)
+  for (const [key, value] of Object.entries(d.env)) vi.stubEnv(key, value)
+  try {
+    const started = performance.now()
+    expect(runStatusline('{"session_id":"s1","session_name":"own"}', 200)).toBe('own')
+    expect(performance.now() - started).toBeLessThan(4000)
+  } finally {
+    vi.unstubAllEnvs()
+  }
+})
+
+test('the limit for the chained command is 2 seconds: Claude Code cancels a run when the next comes', () => {
+  expect(CHAINED_TIMEOUT_MS).toBe(2000)
 })
 
 test('CTX-24 the chained command receives the same stdin, byte for byte', () => {

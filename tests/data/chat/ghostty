@@ -1,0 +1,4 @@
+#!/bin/sh
+# A stand-in for Ghostty: it records its arguments and exits.
+[ -n "$FAKE_CHAT_LOG" ] && printf '%s\n' "$@" > "$FAKE_CHAT_LOG/ghostty.txt"
+exit 0

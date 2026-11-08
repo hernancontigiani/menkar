@@ -297,40 +297,19 @@ element carries `data-theme="light"` or `"dark"`. Styles (both themes; the color
 
 ## Acceptance cases
 
-- **FIL-1** `Ctrl+Shift+O` with a terminal focused → the "Open file" dialog opens with the entry
-  focused; the terminal receives nothing.
-- **FIL-2** Typing `notes.md` and Enter → the error line reads
-  "Type a full path, starting with / or ~." and the dialog stays open.
-- **FIL-3** Typing `~/notes.md` with that file present → it opens (the home folder replaced `~`);
-  typing `~bob/x` → "Type a full path, starting with / or ~.".
-- **FIL-4** Typing a folder → "That is a folder; choose a file."; a missing path →
-  "There is no file at that path.".
-- **FIL-5** A 12 MiB text file → "The file is larger than 10 MiB."; a file whose byte 100 is NUL →
-  "The file looks binary, not text."; a Latin-1 file containing byte 0xE9 →
-  "The file is not UTF-8 text."; a file without read permission → "The file could not be read.".
-- **FIL-6** A file with a NUL byte only after its first 8 KiB, otherwise valid UTF-8 → opens.
+The cases built and tested (FIL-1–6, 8, 10, 12, 13, 15, 20, 23–25, 31, 32) left for the history; the tests
+carry their ids.
+
 - **FIL-7** Browse… in a project whose two sessions both run in `/work/api` → the chooser starts
   there; with sessions in `/work/api` and `/work/web` → the chooser's default folder. Choosing
   `/work/api/README.md` puts that path in the entry and does not open it.
-- **FIL-8** Opening `/work/api/README.md` → a tab titled `README.md`, tooltip
-  `/work/api/README.md`, selected, editor focused, line numbers and Markdown syntax colors.
 - **FIL-9** Opening the same file again in the same project → no new tab; the existing one is
   selected. Opening it in project B (same or other window) → a second tab; typing in either shows
   in both, both titles get ` •`, one `Ctrl+S` clears both.
-- **FIL-10** `/home/u/link.md` is a symbolic link to `/home/u/real.md`; opening both in one project
-  → one tab (the second open selects the first); its tooltip is `/home/u/real.md`.
 - **FIL-11** Switching the window from project A to B hides A's file tabs; switching back shows
   them unchanged, unsaved edits included.
-- **FIL-12** Opening `~/.claude/settings.json` → the bar
-  "This file belongs to Claude Code: Menkar only reads it."; typing changes nothing; `Ctrl+S` →
-  "settings.json was not saved" with that sentence; the file's bytes and modification time are
-  unchanged. Same for `~/.claude.json`, and for a file reached through a link into `~/.claude/`.
-- **FIL-13** A file with mode `0444` owned by the user → the bar "You cannot write this file." and
-  the text not editable.
 - **FIL-14** `Ctrl+S` in a terminal tab → the terminal receives `Ctrl+S`; `Ctrl+Shift+V` in a
   terminal tab → paste. In a file tab → save / preview, and the terminal receives nothing.
-- **FIL-15** Edit, then `Ctrl+S` → the file on disk has the new content, the ` •` clears, and no
-  "changed on disk" bar appears.
 - **FIL-16** No unsaved edits; another program rewrites the file → the tab shows the new content
   with the cursor on the same line number (or the last line if shorter); no bar.
 - **FIL-17** Unsaved edits; another program rewrites the file → the bar
@@ -341,22 +320,11 @@ element carries `data-theme="light"` or `"dark"`. Styles (both themes; the color
   with no buttons; `Ctrl+S` → the file exists again with the tab's text, bar gone.
 - **FIL-19** A save the system refuses (e.g. the disk is full) → "{name} was not saved" /
   "It could not be written; the edits are still in the tab."; the ` •` stays.
-- **FIL-20** Closing the only editor tab of a file with unsaved edits → "Save changes to notes.md?";
-  Cancel → still open; Discard → closed, file on disk unchanged; Save → saved, then closed.
 - **FIL-21** The same edited file has an editor tab in projects A and B; closing A's → closes with
   no question; closing B's afterwards → asks.
 - **FIL-22** Closing a window holding the only editors of edited `a.md` and `b.txt` → one question
   "Save changes to a.md, b.txt?"; Save → both saved, then the running-sessions confirmation (if
   any), then the window closes. A file also edited in another window → not in the question.
-- **FIL-23** A Markdown editor tab shows the flat "Preview" button with tooltip
-  "Show it rendered (Ctrl+Shift+V)"; a `.py` tab does not; `Ctrl+Shift+V` in the `.py` tab does
-  nothing.
-- **FIL-24** With tabs `[session] [notes.md] [other.txt]`, Preview on `notes.md` → strip becomes
-  `[session] [notes.md] [Preview — notes.md] [other.txt]` with the preview selected; pressing
-  Preview again → selects the same preview; `Ctrl+Shift+V` in the preview → selects `notes.md`.
-- **FIL-25** A file containing a two-column pipe table and `~~old~~` → the preview shows an HTML
-  table with borders and struck-through "old". A line `<script>alert(1)</script>` → shown
-  literally as text, nothing runs.
 - **FIL-26** Typing in the editor → the preview updates 300 ms after the last keystroke, not
   before; typing continuously for 2 s → one update ~300 ms after it stops. The preview's scroll
   position is the same after the update.
@@ -370,9 +338,6 @@ element carries `data-theme="light"` or `"dark"`. Styles (both themes; the color
 - **FIL-30** Closing the app with a project holding `notes.md` and its preview, then starting it →
   both tabs reopen in the same order and project; if `notes.md` was deleted meanwhile, neither
   reopens and no error is shown.
-- **FIL-31** `menkar open` with no file → stderr "Usage: menkar open <file> [<file>…]", exit 2.
-- **FIL-32** App running with one window on project A; in `/work/api`, `menkar open README.md` → a
-  tab for `/work/api/README.md` in project A, the window raised.
 - **FIL-33** App running with windows on A (active) and B; `menkar open a.md b.md` → dialog "Open
   in which window?", body "a.md, b.md", buttons Cancel, A (suggested), B; choosing B → both open in
   B's project; Cancel → none opens.

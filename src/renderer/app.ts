@@ -7,7 +7,9 @@ import type { SessionInfo } from '../core/sessions/info'
 import { SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, TabView, WindowState } from '../shared/workspace'
 import { openAddSession, plusMenu } from './addsession'
+import { mountChat } from './chat'
 import { el, icon } from './dom'
+import { fileElement, forgetFilesExcept, setFileTheme } from './editor'
 import { t, translate } from './i18n'
 import { applyLook } from './look'
 import { forgetReplaysExcept, replayElement } from './replay'
@@ -16,6 +18,7 @@ import { applyTerminalLook, forgetPanesExcept, paneElement, showPanes } from './
 import {
   closePopover,
   type MenuEntry,
+  type MenuItem,
   showDialog,
   showError,
   showMenu,
@@ -168,6 +171,7 @@ export function buildFrame(): void {
           run: () => toggleShowHidden(),
         },
         'separator',
+        { label: t('menu.mcp'), run: () => void act({ type: 'openMcpServers' }) },
         { label: t('menu.usage'), run: () => void act({ type: 'openUsage' }) },
         { label: t('menu.preferences'), run: () => void act({ type: 'openPreferences' }) },
         { label: t('menu.about'), run: () => void act({ type: 'openAbout' }) },
@@ -248,7 +252,11 @@ export function render(next: WindowState): void {
   const previous = state
   state = next
   for (const listener of stateListeners) listener(next)
-  const look = applyLook(next.settings, (changed) => applyTerminalLook(next.settings, changed))
+  const look = applyLook(next.settings, (changed) => {
+    applyTerminalLook(next.settings, changed)
+    setFileTheme(changed.dark)
+  })
+  setFileTheme(look.dark)
   if (previous?.settings !== next.settings) applyTerminalLook(next.settings, look)
   if (previous && previous.settings.sidebar_width !== next.settings.sidebar_width) {
     document.documentElement.style.setProperty(
@@ -338,6 +346,8 @@ function row(
   project: ProjectInfo,
 ): HTMLElement {
   const dot = stateDot(sessionState(info.id))
+  const phone = phoneIcon(info.id)
+  if (phone) queueMicrotask(() => dot.after(phone))
   const more = el(
     'button',
     { class: 'more', title: t('sidebar.actionsFor', { name: info.name }) },
@@ -388,11 +398,13 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       run: () => void refusalToast(act({ type: 'openBeside', session: info.id })),
     },
   ]
-  if (running)
+  // Stop applies to a session with a tab, whatever its agent is doing right now.
+  if (running || state?.open.includes(info.id))
     entries.push({
       label: t('row.stop'),
       run: () => void act({ type: 'stopSession', session: info.id }),
     })
+  if (info.agent === 'claude') entries.push(remoteItem(info.id))
   entries.push({
     label: t('row.group'),
     submenu: [
@@ -486,11 +498,11 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
   )
   close.addEventListener('click', (event) => {
     event.stopPropagation()
-    void act({ type: 'closeTab', tab: tab.id })
+    void closeTabAsking(tab.id)
   })
   node.addEventListener('click', () => void act({ type: 'selectTab', tab: tab.id }))
   node.addEventListener('auxclick', (event) => {
-    if (event.button === 1) void act({ type: 'closeTab', tab: tab.id })
+    if (event.button === 1) void closeTabAsking(tab.id)
   })
   node.addEventListener('contextmenu', (event) => {
     event.preventDefault()
@@ -504,7 +516,8 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
           run: () => first && void act({ type: 'copyText', text: first }),
         },
         { label: t('tab.menuSwap'), run: () => void act({ type: 'swapOrientation', tab: tab.id }) },
-        { label: t('tab.menuClose'), run: () => void act({ type: 'closeTab', tab: tab.id }) },
+        { label: t('tab.menuClose'), run: () => void closeTabAsking(tab.id) },
+        ...remoteTabItems(tab),
       ],
       { x: r.left, y: r.bottom + 2 },
     )
@@ -513,10 +526,14 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
 }
 
 function renderContent(s: WindowState): void {
+  // Re-attaching the kept nodes below takes the focus away from an editor or terminal in them.
+  const active = document.activeElement
   const content = $('tab-content')
   const live = new Set(s.tabs.flatMap((tab) => tab.panes.map((p) => p.id)))
   forgetPanesExcept(live)
   forgetReplaysExcept(new Set(s.tabs.filter((tab) => tab.replay).map((tab) => tab.id)))
+  forgetFilesExcept(new Set(s.tabs.filter((tab) => tab.file).map((tab) => tab.id)))
+  forgetChatsExcept(new Set(s.tabs.filter((tab) => tab.chat !== undefined).map((tab) => tab.id)))
   const bodies: HTMLElement[] = []
   for (const tab of s.tabs) {
     const visible = tab.id === s.selectedTab && tab.project === s.shown
@@ -527,6 +544,8 @@ function renderContent(s: WindowState): void {
     const zoomed = zoomedTabs.has(tab.id) && tab.panes.length === 2
     const focused = focusedPane.get(tab.id)
     if (tab.replay) body.append(replayElement(tab.id, tab.replay))
+    if (tab.file) body.append(fileElement(tab))
+    if (tab.chat !== undefined) body.append(chatElement(tab.id, tab.chat))
     for (const pane of tab.panes) {
       const node = paneElement(pane)
       node.classList.toggle('hidden', zoomed && pane.id !== focused)
@@ -547,6 +566,8 @@ function renderContent(s: WindowState): void {
     )
   }
   content.replaceChildren(...bodies)
+  if (active instanceof HTMLElement && active.isConnected && document.activeElement !== active)
+    active.focus()
   const selected = s.tabs.find((tab) => tab.id === s.selectedTab)
   if (selected)
     showPanes(
@@ -778,5 +799,127 @@ export async function confirmClose(names: readonly string[]): Promise<void> {
     ],
     defaultValue: 'cancel',
   })
-  if (answer.value === 'stop') await act({ type: 'confirmClose' })
+  await act({ type: answer.value === 'stop' ? 'confirmClose' : 'cancelClose' })
+}
+
+export function selectedTabView(): TabView | undefined {
+  const s = state
+  return s?.tabs.find((tab) => tab.id === s.selectedTab && tab.project === s.shown)
+}
+
+async function saveAsking(paths: readonly string[]): Promise<boolean> {
+  const { refusal, value } = await act({ type: 'saveFiles', paths })
+  if (!refusal) return true
+  const name = (value ?? '').split('/').pop() ?? ''
+  await showDialog({
+    heading: t('files.notSaved', { name }),
+    body: translate(refusal),
+    buttons: [{ label: t('dialog.ok'), value: 'ok' }],
+    defaultValue: 'ok',
+  })
+  return false
+}
+
+// "Save changes to {names}?": Save (default), Discard, Cancel. True when the close may go on.
+async function unsavedQuestion(
+  paths: readonly string[],
+  names: readonly string[],
+): Promise<boolean> {
+  const answer = await showDialog({
+    heading: t('files.saveChanges', { names: names.join(', ') }),
+    body: t('files.unsavedBody'),
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('files.discard'), value: 'discard', style: 'destructive' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value === 'cancel') return false
+  if (answer.value === 'discard') {
+    await act({ type: 'discardFiles', paths })
+    return true
+  }
+  return saveAsking(paths)
+}
+
+// Closing a file's last editor tab with unsaved edits asks first; every other close goes through.
+export async function closeTabAsking(tab: string): Promise<void> {
+  const result = await act({ type: 'closeTab', tab })
+  if (!result.unsaved || typeof result.value !== 'string') return
+  if (await unsavedQuestion([result.value], result.unsaved))
+    await act({ type: 'closeTab', tab, force: true })
+}
+
+window.menkar.window.onConfirmUnsaved(({ paths, names }) => {
+  void unsavedQuestion(paths, names).then((go) => {
+    if (go) void act({ type: 'closeWindowNow' })
+  })
+})
+
+export async function saveSelectedFile(): Promise<void> {
+  const tab = selectedTabView()
+  if (!tab?.file || tab.file.preview) return
+  const name = tab.file.path.split('/').pop() ?? ''
+  const { refusal } = await act({ type: 'saveFile', path: tab.file.path })
+  if (refusal)
+    await showDialog({
+      heading: t('files.notSaved', { name }),
+      body: translate(refusal),
+      buttons: [{ label: t('dialog.ok'), value: 'ok' }],
+      defaultValue: 'ok',
+    })
+}
+
+const REMOTE_TOAST_MS = 6000
+
+// The "Remote control" check of a session row's menu and of a one-session tab's menu.
+function remoteItem(sessionId: string): MenuItem {
+  const on = state?.remoteControl.includes(sessionId) ?? false
+  return {
+    label: `${on ? '✓ ' : ''}${t('rc.item')}`,
+    run: async () => {
+      const { value } = await act({ type: 'setRemoteControl', session: sessionId, on: !on })
+      if (value === 'toast') toast(t('rc.toast'), { ms: REMOTE_TOAST_MS })
+    },
+  }
+}
+
+function remoteTabItems(tab: TabView): MenuEntry[] {
+  const sessions = tab.panes.filter((p) => p.sessionId !== null)
+  const only = sessions.length === 1 ? sessions[0] : undefined
+  if (tab.kind !== 'session' || !only?.sessionId || only.agent !== 'claude') return []
+  return ['separator', remoteItem(only.sessionId)]
+}
+
+// The phone on a session row: on in the list or live in a pane started with it.
+function phoneIcon(sessionId: string): HTMLElement | null {
+  const s = state
+  if (!s) return null
+  const inList = s.remoteControl.includes(sessionId)
+  const pane = s.tabs.flatMap((tab) => tab.panes).find((p) => p.sessionId === sessionId)
+  const running = s.running.includes(sessionId)
+  let tip: Key | null = null
+  if (inList) tip = running && pane && !pane.remote ? 'rc.nextStart' : 'rc.on'
+  else if (running && pane?.remote) tip = 'rc.untilRestart'
+  return tip ? el('span', { class: 'phone dim', title: translate(tip) }, '📱') : null
+}
+
+// A chat tab's body: b2's view mounted once per tab, unmounted when the tab goes.
+const chatBodies = new Map<string, { root: HTMLElement; unmount: Promise<() => void> }>()
+
+function chatElement(tabId: string, chatId: string): HTMLElement {
+  const existing = chatBodies.get(tabId)
+  if (existing) return existing.root
+  const root = el('div', { class: 'chat-host' })
+  chatBodies.set(tabId, { root, unmount: mountChat(root, chatId) })
+  return root
+}
+
+function forgetChatsExcept(live: ReadonlySet<string>): void {
+  for (const [id, body] of chatBodies) {
+    if (live.has(id)) continue
+    chatBodies.delete(id)
+    void body.unmount.then((unmount) => unmount())
+  }
 }
