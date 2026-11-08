@@ -91,8 +91,7 @@ directories.
 
 - [ ] Each file of the table with its four parts; screenshots in `docs/spec/img/`.
 - **Verification:** every acceptance case is concrete (an input and an expected output); every
-  screenshot is referenced; `npm run ci`'s history check (or `python3 docs/history/nothing_lost.py`
-  until plan 01 ports it) passes.
+  screenshot is referenced; `npm run ci` passes.
 
 ### B3 — Deferred entries
 
