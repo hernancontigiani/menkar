@@ -82,23 +82,73 @@ directories.
 
 ### B1 — Inventory
 
-- [ ] `docs/spec/README.md`: every feature, shortcut and menu item of agent-tablet, from the README,
+- [x] `docs/spec/README.md`: every feature, shortcut and menu item of agent-tablet, from the README,
       the docs and the code, each assigned to an area file. Counted: the number of menu items and
       shortcuts, compared with what the code registers (actions and accelerators), so none is missed.
 - **Verification:** the counts match the code's; `set` reviews the index before B2.
 
 ### B2 — The area files
 
-- [ ] Each file of the table with its four parts; screenshots in `docs/spec/img/`.
+- [x] Each file of the table with its four parts; screenshots in `docs/spec/img/`.
 - **Verification:** every acceptance case is concrete (an input and an expected output); every
   screenshot is referenced; `npm run ci` passes.
 
 ### B3 — Deferred entries
 
-- [ ] agent-tablet's `docs/NOT_BUILT_YET.md` entries that still apply to Menkar, rewritten for it, in
+- [x] agent-tablet's `docs/NOT_BUILT_YET.md` entries that still apply to Menkar, rewritten for it, in
       Menkar's `docs/NOT_BUILT_YET.md`; the ones that do not apply listed in the log with why.
 - **Verification:** the history check passes.
 
 ## Execution log
 
-(Written by the session that executes it.)
+Executed by `b2`, 2026-11-08.
+
+**B1.** The index (`docs/spec/README.md`): 58 features, 42 key rows, 45 menu-item templates, 3
+commands, each counted against what agent-tablet's code registers (window shortcut controller,
+application accelerator, file-tab, terminal, prefix, chat and switcher key handlers; the five
+`Gio.Menu`s; the 46 registered actions). Reviewed by `set`. Two conflicts with Menkar's rules went to
+the human and became decisions 1.7 (the question card is not carried over) and 1.8 (import
+agent-tablet's data on first start). agent-tablet's README says `Ctrl+Shift+F` focuses the history
+search; the code opens Add session on Existing; the spec follows the code.
+
+**B2.** Twelve area files, written in parallel by seven subagents from one brief, each file checked
+by `b2` before it was accepted: sessions 84 cases, terminal 57, projects 57, agent-state 39,
+context 39, usage 70, classifier 39, files 39, remote-control 27, chat 50, preferences 36, look 52.
+44 screenshots in `docs/spec/img/` (22 views, dark and light, from agent-tablet's `make ui-check`
+on demo data); every one is referenced. Corrections made on review: index rows F4 (the count line
+carries the total size), F34 (`Ctrl+B g` lists every tab of every window), F48 ("Open session
+file…" opens a replay, not a session), F54 (scrollback lines); `terminal.md` claimed no scrollback
+control in Preferences, there is one.
+
+Not anticipated:
+- **Screenshots the capture cannot take right**: under Broadway the Preferences dialog's rows are
+  laid out too narrow (titles wrap one letter per line) and the Markdown preview cannot start
+  (WebKit's sandbox), so `integrations-*`, `preferences-*` and `file-preview-*` carry a caveat
+  where they are referenced. They need retaking by hand, on a real display, with demo data.
+- **agent-tablet bugs found while reading**, each marked in its area file as not to be carried:
+  a split shell pane is typed ` && exit` (bash prints an error); opening a session whose project is
+  open in another window also opens a second tab here; deleting a project open in another window
+  stops only this window's sessions; a new session joins the project last chosen in any window;
+  moving a session out of a two-pane tab moves the whole tab; trash/delete close the tab only in
+  this window; Preferences re-colors only the opening window's terminals; Details over-counts
+  tokens; Cursor's export is empty; a rescan requested during a scan is dropped; untranslated
+  strings and raw error texts in chat and dialogs.
+- **Decisions left open, flagged in their files**: graceful close types `/exit` (and `exit` into
+  leftover shells) into running agents, against `CLAUDE.md`'s rule (`terminal.md`); `unknown`
+  turns get a category from the backfill that no report shows (`classifier.md`, `usage.md`); the
+  import's details beyond 1.8 (`sessions.md`, `usage.md`: what marks a first start, partly valid
+  files keep their good entries, `current` and `classify_since` imported, the window layout and
+  `integrations.json` not); the integrations record and backups placed under
+  `$XDG_STATE_HOME/menkar/`, a directory `CLAUDE.md` does not name (`context.md`); the Classic
+  style's terminal colors with theme Default, and popover menus in the sans font (`look.md`);
+  Menkar's About links and copyright lines (`preferences.md`).
+
+**B3.** Thirteen of agent-tablet's deferred entries carried to Menkar's `docs/NOT_BUILT_YET.md`,
+rewritten (no agent-tablet paths, numbers attributed or dropped). Not carried: "A packaged release
+(`.deb`, PyPI)" — packaging for Ubuntu is on Menkar's roadmap (`plans/00-STATUS.md` §3), not
+deferred; "Running natively on Windows and macOS" — Menkar is that port; its findings already live
+in Menkar's `CLAUDE.md` (the xterm.js key handler) and §2 (the Windows shell), and the rest
+(Chromium's sandbox on Ubuntu, `electron/install.js`, node-pty rebuild, the fit addon's padding, a
+statusline that is not Python) stays readable in agent-tablet's file for the plans that need it.
+
+Verification: `npm run ci` passes (history check: 5 documents, 0 lines lost).
