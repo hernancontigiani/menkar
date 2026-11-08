@@ -16,43 +16,14 @@ in `projects.md`; the Ghostty, fork and chat items of the history menu (M34–M3
 
 ### Discovery (F1)
 
-- On start the app scans every **installed** agent's transcripts off the UI path. An agent is
-  installed when its CLI is on the `PATH`: `claude` for Claude Code, `cursor-agent` for Cursor. An
-  agent that is not installed contributes no sessions, even if its transcripts are on disk.
-- **Claude Code**: every file `~/.claude/projects/<folder>/<id>.jsonl` where `<id>` is a lowercase
-  UUID (`8-4-4-4-12` hex digits) and the file is not empty. Files with other names, and anything
-  deeper (`<id>/subagents/…`, `<id>/tool-results/…`, `memory/`), are not sessions.
-- **Cursor**: every directory `~/.cursor/projects/<folder>/agent-transcripts/<id>/`; its transcript
-  is `<id>/<id>.jsonl`, else the first `*.jsonl` in that directory; an empty file, or a directory
-  with no `.jsonl`, is skipped. The session's id is the directory's name.
-- For each session the scan reads: its folder (`cwd`), a preview (the first message the user
-  typed), the transcript's modification time ("last active") and size, its tail state (waiting /
-  interrupted, F3) and, for Claude, its names (F2). All sessions of all agents form one list, newest
-  modification time first.
-- **Live updates.** The app watches, for Claude, `~/.claude/projects/` and each folder directly
-  inside it; for Cursor, `~/.cursor/projects/`, each folder inside it and each `agent-transcripts/`
-  inside those. Any change starts a **2000 ms** debounce; when it ends the whole list is rescanned.
-  The watches are set again after every scan, so a folder Claude creates later is watched too.
+- Built: `docs/sessions.md` describes how; `src/core/sessions/` holds it. It covers which files are sessions, what a scan reads, the live updates, and one scan for every window.
 - The history's refresh button (tooltip "Refresh session list") rescans at once. A rescan asked
   while one runs is dropped in agent-tablet (so an event during a long scan can be missed until the
   next one); Menkar runs one more scan after the running one instead.
-- One scan and one set of watches serve every window.
 
 ### A session's name (F2)
 
-- The name shown everywhere (history row, project list row, tab title, dialogs) is the first that
-  is not empty of:
-  1. **Claude's name**: the `customTitle` of the **last** `custom-title` line in the transcript
-     (written by `claude -n <name>` at start and by `/rename` inside the session);
-  2. **the app's name** for the session, set with Rename (kept in Menkar's `state.json`, `names`);
-  3. **Claude's generated title**: the `aiTitle` of the last `ai-title` line;
-  4. the **preview** (the first typed message, see Data contracts);
-  5. the first 8 characters of the session id.
-- Names are read incrementally: per transcript the app keeps how far it read; each rescan reads
-  only the complete lines appended since. A file that became shorter is read again from the start.
-  A last line without its newline is left for the next read.
-- Cursor sessions have no Claude name nor generated title: their name is the app's, else the
-  preview, else the id's first 8 characters.
+- Built: `docs/sessions.md` describes how; `src/core/sessions/` holds it. It covers the name's precedence, incremental reading, and Cursor's names.
 - **Rename** (history row ✎ button, M26, M37): if the session has a Claude name, the app refuses
   with an error dialog — heading "This name comes from Claude", body "Change it with /rename inside
   the session; the list follows on its next refresh.", button "OK". Otherwise the rename dialog:
@@ -65,15 +36,7 @@ in `projects.md`; the Ghostty, fork and chat items of the history menu (M34–M3
 
 ### Waiting and interrupted badges (F3)
 
-- From the last **64 KiB** of the transcript, line by line in order, considering only lines whose
-  message has text (a string content, or the `text` blocks of a list, joined):
-  - text containing `[Request interrupted by user` → the latest event is *interrupted* (any line
-    type);
-  - else a Claude `assistant` line → the latest event is *assistant*, and its text is kept;
-  - else a Claude `user` line whose trimmed text does not start with `<` → *user*.
-- **Interrupted** when the latest event is *interrupted*; **waiting** when it is *assistant* and
-  that text, right-trimmed, ends with `?`; otherwise no badge. Cursor: the same with `role`
-  instead of `type`, the user's text stripped of `<user_query>` tags, and never *interrupted*.
+- Built: `docs/sessions.md` describes how; `src/core/sessions/` holds it. It covers which lines decide waiting and interrupted, and Cursor.
 - Waiting shows a question-mark icon in amber with tooltip "Claude is waiting for your reply";
   interrupted a stop icon in red with tooltip "You interrupted Claude here". The same strings are
   used for Cursor sessions.
@@ -441,11 +404,7 @@ agent-tablet lets the environment move the first three (`CSM_PROJECTS_DIR`, `CSM
 `CSM_CURSOR_PROJECTS_DIR`) for demos and tests; Menkar resolves them through its paths module so a
 test points them at a temporary directory.
 
-**Cursor's folder → `cwd`.** The encoding loses where the `-` were, so the `cwd` is rebuilt against
-the real filesystem: from `/`, take the longest run of the remaining dash-separated parts that,
-joined by `-`, names an existing directory under the path built so far; descend into it and repeat.
-When no run exists, the rest of the parts are joined by `/`. Example: `home-demo-my-app` with
-`/home/demo/my-app` on disk → `/home/demo/my-app`; with nothing on disk → `/home/demo/my/app`.
+**Cursor's folder → `cwd`:** Built: `docs/sessions.md` describes how; `src/core/sessions/` holds it.
 
 ### Claude Code transcript lines
 
@@ -488,11 +447,7 @@ decides — a top-level `type` → Claude, a top-level `role` → Cursor; otherw
 
 ### Formats shown
 
-| Value | Format |
-|---|---|
-| Size | under 1024: "{n} B" (no decimals); then "{x.x} KB", "{x.x} MB", "{x.x} GB" (1024 steps, one decimal, GB the last unit) |
-| Tokens | ≥ 1,000,000: "{x.x}M"; ≥ 1,000: "{x.x}k"; else the number |
-| Timestamp | local time `YYYY-MM-DD HH:MM`; a value that does not parse is shown as written; none is "—" |
+`src/core/format.ts` holds them (sizes, token counts, timestamps), described in `docs/sessions.md`.
 
 ### Menkar's `state.json` (this area's keys)
 
@@ -610,42 +565,18 @@ Session Manager in a file agent-tablet never re-saved) is ignored. Written with 
 
 ## Acceptance cases
 
+The cases of discovery, names and badges that are built (SES-1, 3–12, 14, 15, 19–22) left for the
+history; the Vitest tests in `tests/core/sessions/` carry their ids.
+
 Discovery
 
-- **SES-1** `claude` on the `PATH`; `~/.claude/projects/-home-demo-api/` holds
-  `1b4e28ba-2fa1-11d2-883f-0016d3cca427.jsonl` (2 KB), `notes.jsonl`, an empty
-  `9c2d…-uuid.jsonl` and `1b4e…427/subagents/agent-a1.jsonl` → exactly one session, id
-  `1b4e28ba-2fa1-11d2-883f-0016d3cca427`.
 - **SES-2** Transcripts exist under `~/.claude/projects/` but `claude` is not on the `PATH` → no
   Claude session is listed; the history shows "No sessions found" when Cursor has none either.
-- **SES-3** A new transcript appears in a watched folder → it is listed within 2 s plus one scan;
-  ten files written within one second cause one rescan, not ten.
-- **SES-4** A new folder `-home-demo-new` is created under `~/.claude/projects/` and a transcript
-  written in it → listed; a second transcript written there later is also picked up (the folder is
-  watched after the scan that found it).
-- **SES-5** A file event arrives while a scan runs → another scan follows it, and the change shows.
-- **SES-6** Cursor: `~/.cursor/projects/home-demo-my-app/agent-transcripts/abc/abc.jsonl` with
-  `/home/demo/my-app` existing → a Cursor session id `abc`, folder `/home/demo/my-app`; with no
-  such directory on disk → folder `/home/demo/my/app`.
-- **SES-7** Cursor session directory `xyz/` containing only `other.jsonl` (non-empty) → session
-  `xyz` read from `other.jsonl`; a directory with no `.jsonl` → no session.
 
 Names and preview
 
-- **SES-8** Transcript with `custom-title` "alpha", later `custom-title` "beta", and `ai-title`
-  "Fix login" → the name is "beta".
-- **SES-9** No `custom-title`; app name "Mine"; `ai-title` "Fix login" → "Mine". App name cleared →
-  "Fix login".
-- **SES-10** No titles, no app name, first `user` line text `<command-name>/clear</command-name>`,
-  second `user` line "  fix   the\nlogin bug " → name and preview "fix the login bug".
-- **SES-11** No titles, no typed message, id `1b4e28ba-…` → name "1b4e28ba".
-- **SES-12** A first typed message of 300 characters → preview is its first 120 characters.
 - **SES-13** The first typed message is on line 51 → no preview; a new session with that file does
   not join its project.
-- **SES-14** `/rename gamma` appends `custom-title` "gamma" to a 40 MB transcript → after the next
-  rescan the name is "gamma", and that rescan read only the appended bytes.
-- **SES-15** The last line of a transcript is a `custom-title` without its newline → not applied;
-  once the newline is written, applied on the next rescan.
 - **SES-16** Rename on a session with a Claude name → error dialog "This name comes from Claude";
   `state.json` unchanged.
 - **SES-17** Rename on an unnamed session, type "  Payments  ", Save → `names[id]` is "Payments";
@@ -653,14 +584,6 @@ Names and preview
 - **SES-18** Rename with an empty entry → `names` loses the id.
 
 Badges
-
-- **SES-19** Last text-bearing line: an `assistant` line "Should I also update the tests?" → waiting
-  badge with tooltip "Claude is waiting for your reply".
-- **SES-20** An `assistant` question followed by a `user` line "yes" → no badge.
-- **SES-21** Last text-bearing line: a `user` line "[Request interrupted by user]" → interrupted
-  badge, tooltip "You interrupted Claude here".
-- **SES-22** An `assistant` question followed only by `user` lines holding `tool_result` blocks →
-  waiting (tool results carry no text).
 
 History browser
 

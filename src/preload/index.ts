@@ -24,6 +24,11 @@ const api: MenkarApi = {
   i18n: {
     catalog: () => ipcRenderer.invoke('i18n:catalog'),
   },
+  sessions: {
+    list: () => ipcRenderer.invoke('sessions:list'),
+    setHidden: (ids, hidden) => ipcRenderer.invoke('sessions:set-hidden', { ids, hidden }),
+    onChanged: (listener) => subscribe('sessions:changed', listener),
+  },
   terminal: {
     start: (size) => ipcRenderer.invoke('terminal:start', size),
     write: (data) => send('terminal:input', data),

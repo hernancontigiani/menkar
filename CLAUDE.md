@@ -41,6 +41,7 @@ what matters from being lost when a plan is deleted.
 | `docs/toolchain.md` | Changing the build, the checks in `npm run ci` or `npm run ui-check`, or adding a dev dependency |
 | `docs/foundations.md` | Logging, writing the app's JSON state, adding a user-visible string, or opening a SQLite database |
 | `docs/packaging.md` | Changing the .deb, its post-install, the sandbox profile, or anything installed outside `/opt/Menkar` |
+| `docs/sessions.md` | Finding, reading or naming sessions, watching the agents' folders, or the sessions' keys of `state.json` |
 
 ## Product rules the code must hold
 

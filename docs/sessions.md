@@ -1,0 +1,66 @@
+# Sessions — how they are found, read and named
+
+`src/core/sessions/` finds every Claude Code and Cursor session on the machine, reads what a row
+needs, and keeps the list current. `src/main/sessions.ts` gives the list to every window over IPC
+(`sessions:list`, `sessions:changed`, `sessions:set-hidden`). The rules come from
+`docs/spec/sessions.md`; this file keeps how they are built and why.
+
+## Reading a transcript
+
+- **Discovery** (`scanner.ts`): a Claude session is a non-empty `<lowercase uuid>.jsonl` directly in
+  a folder of `~/.claude/projects/`; anything deeper (`subagents/`, `tool-results/`) is not one. A
+  Cursor session is a directory under `~/.cursor/projects/<folder>/agent-transcripts/`, read from
+  `<id>.jsonl` or else its first `*.jsonl` by name. An agent contributes only when its CLI
+  (`claude`, `cursor-agent`) is an executable on the `PATH` (`installed.ts`), checked on every
+  scan. The list is newest modification first, ties by id.
+- **Three reads per file, each as small as the rule allows:**
+  - **Names** (`names.ts`): `custom-title` and `ai-title`, the last of each wins, trimmed. Read
+    **incrementally**: the scanner keeps the inode and how far it read, and on each rescan reads
+    only the complete lines appended since, in 4 MiB slices so a first read never holds a large
+    file whole. A last line without its newline waits for the next read. A file that shrank or
+    was replaced (another inode) is read from the start. Lines without `-title"` are not parsed.
+  - **Head** (`head.ts`): within the first 50 lines and 256 KiB, the first `cwd` and the preview
+    (the first typed user message, not starting with `<`, whitespace collapsed, 120 characters).
+    It is read again until both are found or the window is full, then never again for that file.
+  - **Tail** (`badges.ts`): the last 64 KiB, re-read when the size or mtime changes, for the
+    waiting / interrupted badge. A tail that starts mid-file drops its first, cut line.
+- **A session's name** (`sessionName`): Claude's name, then the app's name (`state.json` `names`),
+  then Claude's generated title, then the preview, then the id's first 8 characters. Cursor has no
+  Claude names. `claudeNamed` tells the UI that Rename must refuse.
+- **Cursor's folder → cwd** (`cursor.ts`): rebuilt against the filesystem, taking at each level the
+  longest run of dash-joined parts that names an existing directory; the rest joined by `/` when
+  none exists.
+- **Read only**: transcripts are opened with `'r'` and never written; a test asserts that a scan and
+  a rescan leave every transcript's bytes and mtime unchanged.
+
+## Keeping it current
+
+- **Watches** (`service.ts`): non-recursive `fs.watch` on `~/.claude/projects/` and each folder in
+  it, and on `~/.cursor/projects/`, each folder in it and each `agent-transcripts/` in those. They
+  are set again after every scan, so a folder created later is watched too. Not recursive:
+  a running session's `subagents/` and `tool-results/` change constantly and hold no session.
+  A projects directory that does not exist when a scan runs is not watched until a later scan
+  finds it (the refresh, or an event elsewhere).
+- **Debounce and coalescing** (`Coalescer`): an event starts a 2000 ms quiet period; a request
+  while a scan runs schedules exactly one more scan after it. agent-tablet dropped that request and
+  could miss a change until the next event.
+- **Off the UI path**: all I/O is async. Measured 2026-11-08 on a generated tree of 400 transcripts,
+  2 GB (never the human's files): a first scan took 1.7 s; the longest event-loop stall was about
+  8 ms. A rescan with nothing changed took 11 ms. No worker thread is needed.
+- **One service for every window**: main pushes the whole list to every window after each scan and
+  after each change to the hidden set.
+
+## Menkar's `state.json`
+
+`src/core/state.ts` reads and writes the sessions' keys, `names` (id → name; a cleared name
+removes the key) and `hidden` (sorted, unique). Every other key is carried through untouched, so a
+later area's settings survive a save. It is written whole through `jsonstate`.
+
+**Only a user action writes it** (hiding a session). Reading never creates it, because a start
+without `state.json` and `projects.json` is the first start that imports agent-tablet's data.
+
+## Formats
+
+`src/core/format.ts`: sizes (`B`, then `KB`/`MB`/`GB` in 1024 steps with one decimal, GB the
+last), token counts (`k`, `M`), and timestamps (local `YYYY-MM-DD HH:MM`; one that does not parse
+is shown as written; none is `—`).

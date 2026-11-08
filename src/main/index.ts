@@ -11,6 +11,7 @@ import type {
   SendChannel,
   SendChannels,
 } from '../shared/ipc'
+import { broadcastSessions, sessions } from './sessions'
 import { Terminal } from './terminal'
 
 const LOG_FILE_MAX_BYTES = 1024 * 1024
@@ -88,6 +89,11 @@ on('terminal:resize', (event, size) => terminalOf(event)?.resize(size))
 let language = chooseLanguage(undefined, [])
 
 handle('i18n:catalog', () => ({ language, messages: catalog(language) }))
+handle('sessions:list', () => sessions.list())
+handle('sessions:set-hidden', async (_event, { ids, hidden }) => {
+  await sessions.setHidden(ids, hidden)
+  return undefined
+})
 
 // Before `ready`: Chromium opens its profile at startup. Windows and macOS keep Electron's default,
 // already a per-app folder of the platform.
@@ -104,6 +110,11 @@ async function start(): Promise<void> {
   } catch (error) {
     log.error('log file could not be opened; logging to stderr only', { path: logFile(), error })
   }
+  broadcastSessions()
+  void sessions
+    .start()
+    .catch((error: unknown) => log.error('the first sessions scan failed', { error }))
+  app.on('will-quit', () => sessions.stop())
   createWindow()
 }
 

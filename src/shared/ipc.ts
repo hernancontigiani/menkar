@@ -1,6 +1,9 @@
 // Every IPC channel and its payload, declared once and imported by main, preload and renderer.
 
 import type { Language, Messages } from '../core/i18n'
+import type { SessionInfo } from '../core/sessions/info'
+
+export type { SessionInfo }
 
 export interface Catalog {
   readonly language: Language
@@ -16,6 +19,11 @@ export interface TerminalSize {
 export interface InvokeChannels {
   'terminal:start': { request: TerminalSize; response: undefined }
   'i18n:catalog': { request: undefined; response: Catalog }
+  'sessions:list': { request: undefined; response: readonly SessionInfo[] }
+  'sessions:set-hidden': {
+    request: { ids: readonly string[]; hidden: boolean }
+    response: undefined
+  }
 }
 
 // Renderer → main, fire and forget.
@@ -28,6 +36,8 @@ export interface SendChannels {
 export interface EventChannels {
   'terminal:data': string
   'terminal:exit': { readonly exitCode: number }
+  // The whole list, after every rescan and every change to the app's names or hidden set.
+  'sessions:changed': readonly SessionInfo[]
 }
 
 export type InvokeChannel = keyof InvokeChannels
@@ -38,6 +48,11 @@ export type EventChannel = keyof EventChannels
 export interface MenkarApi {
   readonly i18n: {
     catalog(): Promise<Catalog>
+  }
+  readonly sessions: {
+    list(): Promise<readonly SessionInfo[]>
+    setHidden(ids: readonly string[], hidden: boolean): Promise<void>
+    onChanged(listener: (list: readonly SessionInfo[]) => void): () => void
   }
   readonly terminal: {
     start(size: TerminalSize): Promise<void>
