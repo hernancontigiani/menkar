@@ -103,3 +103,22 @@
 
 > Left §3 on 2026-11-08: plan 12 built, waiting to be committed with plan 13.
 | 7 | `12-preferences-usage-window.md` (Preferences, Integrations, About; the Usage window) | Written 2026-11-08; `b2` |
+
+> Left §3 on 2026-11-08: plans 12, 13 and 14 closed.
+| 7 | `12-preferences-usage-window.md` (Preferences, Integrations, About; the Usage window) | Built 2026-11-08 by `b2`; to commit with plan 13 |
+| 8 | `13-files-remote-control.md` (file tabs, the Markdown preview, `menkar open`; Remote Control; the details' Tokens row) | Built 2026-11-08 by `b1`; to commit with plans 12 and 14 |
+| 8 | `14-chat-mcp-ghostty.md` (chat tabs with the permission card, the MCP servers browser, Open in Ghostty) | Written 2026-11-08; `b2` |
+
+> Closed 2026-11-08 — plan 12, "Preferences and the Usage window", built by `b2`: Preferences
+> (General, themes, languages, Restart now through `quitApp`), Integrations, About, the Usage window.
+> Found: the usage passes ran with no memberships, so every turn would have been "(no project)". In
+> `docs/preferences.md` and `docs/usage.md`.
+
+> Closed 2026-11-08 — plan 13, "Files and Remote Control", built by `b1`: file tabs, the Markdown
+> preview, `menkar open`, Remote Control per session, the details' tokens. Found: every state push
+> took the focus from an editor or terminal; an edit's echo lost keystrokes. Cases left untested go to
+> plan 15. In `docs/files.md` and `docs/sessions.md`.
+
+> Closed 2026-11-08 — plan 14, "Chat, MCP servers, Ghostty", built by `b2`: chat tabs with Claude's
+> permission card and Cursor's two variants, Continue in chat, the MCP browser, Open in Ghostty; CTX-22
+> no longer races the clock. In `docs/chat.md`.
