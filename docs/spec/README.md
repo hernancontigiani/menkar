@@ -247,3 +247,19 @@ switches, previous / next month and All; Preferences' Restart now, Classify earl
 - **F14 imports agent-tablet's data, not Agent Session Manager's** (1.8, 2026-11-08): on its first
   start Menkar reads agent-tablet's `projects.json`, `state.json` and `history.sqlite`, never
   writing them.
+
+## Decisions that override the area files (2026-11-08)
+
+Where an area file describes agent-tablet's behaviour and one of these says otherwise, this wins
+(`plans/00-STATUS.md` §1):
+
+- **Closing a running agent hangs up its pty** (SIGHUP), as closing a terminal does: close tab,
+  Stop, `Ctrl+B x`, closing a window and quitting, after their confirmations. Nothing is typed —
+  not `/exit`, and not `exit` into a leftover shell (its pty is closed the same way). (1.9)
+- The agent-tablet import (F14) also takes `usage.jsonl`, so imported turns keep their exact cost.
+- The integrations record and the settings backups live in the data directory.
+- Turns with origin `unknown` show their own category in reports.
+- Popover menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's
+  defaults.
+- About: the human's copyright, and one credit line to agent-tablet and Agent Session Manager.
+- "Restart now" asks and saves the layout as quitting does.

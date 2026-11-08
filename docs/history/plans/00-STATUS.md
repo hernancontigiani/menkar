@@ -21,3 +21,19 @@
 > `db.ts` on `node:sqlite` (works in Vitest on Node 22 and in Electron 45's main; no native module).
 > Found and fixed: under a Wayland session Electron ignored xvfb's display, so e2e forces X11 and a
 > test asserts it. Their why-nots are in `docs/foundations.md`.
+
+> Left §3 on 2026-11-08: plans 02 and 04 closed.
+| 1 | `02-spec.md` (agent-tablet's behaviour and look, feature by feature, in `docs/spec/`) | Written 2026-11-08; `b2` |
+| 2 | `04-ubuntu-package.md` (the `.deb` with Chromium's sandbox, `menkar` command and launcher; Electron's data in the cache) | Written 2026-11-08; `b1` |
+
+> Closed 2026-11-08 — plan 02, "agent-tablet's behaviour and look", built by `b2`: `docs/spec/`,
+> an index of 58 features (every shortcut and menu item counted against the code) and twelve area
+> files with 589 acceptance cases and 22 views in both themes; 13 deferred entries carried into
+> `docs/NOT_BUILT_YET.md`. Open points it raised were decided in §1 1.9 and 1.10. The Integrations,
+> Preferences and Markdown-preview screenshots are Broadway's and need retaking on a real display.
+
+> Closed 2026-11-08 — plan 04, "The Ubuntu package", built by `b1`: a `.deb` with the launcher, the
+> `menkar` command and an AppArmor userns profile (the premise of a setuid `chrome-sandbox` was wrong
+> on 24.04: electron-builder's postinst sets 0755 and installs the profile, as Ubuntu does for VS
+> Code); `package:check` and `package:smoke`; Electron's userData under the cache. Left open: the
+> human's install check (§2 2.2). How it is built is in `docs/packaging.md`.

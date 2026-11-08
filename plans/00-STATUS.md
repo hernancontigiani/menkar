@@ -21,6 +21,8 @@
 | 1.6 | Toolchain: Node 22, npm, TypeScript strict, Biome, Vitest, Playwright on the real Electron app under `xvfb-run`, electron-vite to build, electron-builder to package | 2026-11-08 | plan 01 |
 | 1.7 | Not carried over from agent-tablet: the question card over the terminal (answers are given in the terminal itself, so nothing is typed into an agent on the user's behalf) | 2026-11-08 | `CLAUDE.md` · `docs/spec/` |
 | 1.8 | On its first start Menkar imports agent-tablet's own data, read only: `projects.json` (projects, groups, members), `state.json` (settings, hidden sessions, the Remote control list) and the usage history (`history.sqlite`); agent-tablet's files are never written | 2026-11-08 | `docs/spec/` |
+| 1.9 | Closing a running agent (close tab, Stop, close window, quit, after the confirmations) hangs up its pty as closing a terminal does (SIGHUP); nothing is typed into it, not even `/exit`, and a turn in progress is cut | 2026-11-08 | `docs/spec/README.md` |
+| 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to agent-tablet and Agent Session Manager; "Restart now" asks and saves like quitting | 2026-11-08 | `docs/spec/README.md` |
 
 ## 2. Open
 
@@ -33,8 +35,6 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 1 | `02-spec.md` (agent-tablet's behaviour and look, feature by feature, in `docs/spec/`) | Written 2026-11-08; `b2` |
-| 2 | `04-ubuntu-package.md` (the `.deb` with Chromium's sandbox, `menkar` command and launcher; Electron's data in the cache) | Written 2026-11-08; `b1` |
 | 2 | The features, designed by `set` from `docs/spec/` once plans 01 and 02 are delivered: sessions and transcripts; the window, tabs and terminals; projects and windows; agent state, notifications, switcher and keys; preferences, themes, i18n; context ring, statusline and integrations; usage history and window; the classifier; file tabs; remote control; packaging for Ubuntu | Not designed yet |
 
 ## 4. Next plan number
