@@ -92,3 +92,11 @@
 > The evaluation on the human's 141 labelled turns (6 Haiku calls, the human's OK): 72% on the 50,
 > 63% on the 141, against agent-tablet's 74% / 66% with the same prompt — within one rerun's spread;
 > `other` stays the weakest category. In `docs/classifier.md`.
+
+> Left §3 on 2026-11-08: plan 11 closed.
+| 7 | `11-keys-panes-sessions-ui.md` (the `Ctrl+B` keys, split panes, the switcher, the ⚙ menu; Add session and the session menus) | Written 2026-11-08; `b1` |
+
+> Closed 2026-11-08 — plan 11, "Keys, panes, the switcher; Add session and the session menus", built
+> by `b1`. Left for later plans: the Remote control switch on New, MCP servers, the details' Tokens
+> row from the usage module, Open in Ghostty and Continue in chat; trash is not exercised in e2e (it
+> needs the desktop's trash service). In `docs/window.md` and `docs/sessions.md`.
