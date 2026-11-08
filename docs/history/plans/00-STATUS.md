@@ -63,3 +63,6 @@
 > model, `projects.json`, the first-start import of agent-tablet's projects and state before any
 > window, and a projects directory that appears after start. In `docs/projects.md`. Cases that need
 > the window are listed in its log for plan 08.
+
+> Left §3 on 2026-11-08: plan 09 built, waiting to be committed with plan 08.
+| 5 | `09-state-and-context.md` (agent state from the terminal, counts, notifications; the context ring's data, the statusline script, `--settings`, the integrations) | Written 2026-11-08; `b2` |
