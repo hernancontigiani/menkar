@@ -37,3 +37,6 @@
 > on 24.04: electron-builder's postinst sets 0755 and installs the profile, as Ubuntu does for VS
 > Code); `package:check` and `package:smoke`; Electron's userData under the cache. Left open: the
 > human's install check (§2 2.2). How it is built is in `docs/packaging.md`.
+
+> Left §3 on 2026-11-08: plans 05 and 06 took the first two features.
+| 2 | The features, designed by `set` from `docs/spec/` once plans 01 and 02 are delivered: sessions and transcripts; the window, tabs and terminals; projects and windows; agent state, notifications, switcher and keys; preferences, themes, i18n; context ring, statusline and integrations; usage history and window; the classifier; file tabs; remote control; packaging for Ubuntu | Not designed yet |
