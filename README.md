@@ -7,10 +7,6 @@ and macOS.
 
 **Status:** in construction. Not usable yet.
 
-Menkar is the multiplatform successor of agent-tablet, itself started from
-[Agent Session Manager](https://github.com/r4nd3l/agent-session-manager) by Máté Molnár. It is
-written from scratch from agent-tablet's documented behaviour; no code is carried over.
-
 ## Install (Ubuntu)
 
 Build the package and install it with apt (Ubuntu 24.04, amd64):
@@ -65,6 +61,11 @@ development build's `chrome-sandbox`. Playwright's runs are unsandboxed too (it 
 
 `npm run ui-check` never opens a window on your display, and the app it starts uses a temporary
 `HOME` and XDG directories, never yours. Its screenshots land in `test-results/`.
+
+## Acknowledgements
+
+Menkar began as agent-tablet, a fork of Máté Molnár's Agent Session Manager. It has been
+rewritten from scratch since, but the idea started there.
 
 ## License
 
