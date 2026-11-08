@@ -4,7 +4,13 @@ import { defineConfig } from 'electron-vite'
 export default defineConfig({
   main: {
     build: {
-      rollupOptions: { input: resolve('src/main/index.ts') },
+      rollupOptions: {
+        input: {
+          index: resolve('src/main/index.ts'),
+          // Usage passes run on a worker thread, which loads its own file.
+          'usage-worker': resolve('src/main/usage-worker.ts'),
+        },
+      },
     },
   },
   preload: {

@@ -3,6 +3,7 @@ import { app, BrowserWindow, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain
 import { catalog, chooseLanguage, setLanguage, t } from '../core/i18n'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile } from '../core/paths'
+import { NO_MEMBERSHIPS } from '../core/usage/history'
 import type {
   EventChannel,
   EventChannels,
@@ -11,8 +12,10 @@ import type {
   SendChannel,
   SendChannels,
 } from '../shared/ipc'
+import { projectsSnapshot, startProjects } from './projects'
 import { broadcastSessions, sessions } from './sessions'
 import { Terminal } from './terminal'
+import { cliArguments, runUsageCommand, startUsagePasses } from './usage'
 
 const LOG_FILE_MAX_BYTES = 1024 * 1024
 
@@ -94,6 +97,7 @@ handle('sessions:set-hidden', async (_event, { ids, hidden }) => {
   await sessions.setHidden(ids, hidden)
   return undefined
 })
+handle('projects:get', () => projectsSnapshot())
 
 // Before `ready`: Chromium opens its profile at startup. Windows and macOS keep Electron's default,
 // already a per-app folder of the platform.
@@ -110,15 +114,22 @@ async function start(): Promise<void> {
   } catch (error) {
     log.error('log file could not be opened; logging to stderr only', { path: logFile(), error })
   }
+  await startProjects()
   broadcastSessions()
   void sessions
     .start()
     .catch((error: unknown) => log.error('the first sessions scan failed', { error }))
   app.on('will-quit', () => sessions.stop())
+  // Projects do not exist yet: every turn is written with none and takes its session's project
+  // once one does.
+  const usage = startUsagePasses(() => NO_MEMBERSHIPS)
+  app.on('will-quit', () => usage.stop())
   createWindow()
 }
 
-void start()
+const command = cliArguments(process.argv, app.isPackaged)
+if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
+else void start()
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

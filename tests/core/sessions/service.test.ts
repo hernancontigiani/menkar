@@ -112,4 +112,20 @@ describe('the sessions service', () => {
       svc.stop()
     }
   })
+
+  test('a projects directory that appears after start is found without a restart', async () => {
+    const root = join(process.env.MENKAR_TEST_ROOT ?? '', 'svc-late')
+    await mkdir(root, { recursive: true })
+    const svc = service(root)
+    try {
+      expect(await svc.list()).toEqual([])
+      const appeared = nextList(svc, (list) => list.length === 1)
+      const folder = join(root, 'claude', '-home-demo-late')
+      await mkdir(folder, { recursive: true })
+      await writeFile(join(folder, `${ID}.jsonl`), jsonl([user('late')]))
+      expect((await appeared).map((s) => s.preview)).toEqual(['late'])
+    } finally {
+      svc.stop()
+    }
+  })
 })

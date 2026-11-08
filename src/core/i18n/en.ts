@@ -1,4 +1,40 @@
 // The source catalog: every key the app uses, with its English text. `{name}` is a placeholder.
 export const en = {
   'window.title': 'Menkar',
+  'projects.nameEmpty': 'A project needs a name.',
+  'projects.nameTaken': 'There is already a project with that name.',
+  'projects.lastProject': 'The last project cannot be deleted.',
+  'projects.fileUnreadable':
+    'The projects file could not be read; it was kept as {name} and a new one started',
+  'groups.nameEmpty': 'A group needs a name.',
+  'groups.nameTaken': 'There is already a group with that name.',
+  'layout.twoPanesMax': 'A tab holds two panes at most',
+  'layout.otherProject': 'It belongs to another project; add it here first',
+  'layout.alreadyBeside': 'It is already beside another session',
+  'layout.sharesTab': 'It shares a tab with another session there',
+  'import.projectsUnreadable':
+    "Agent Tablet's projects could not be read, so they were not imported.",
+  'import.stateUnreadable':
+    "Agent Tablet's settings could not be read, so names, hidden sessions and settings were not imported.",
+  'usage.noProject': '(no project)',
+  'usage.unclassified': 'Unclassified',
+  'usage.tooNew': 'Usage history is from a newer version of Menkar',
+  'usage.cli.usage': 'usage:',
+  'usage.cli.error': 'menkar usage: error: {message}',
+  'usage.cli.unknownArgument': 'unrecognized argument: {argument}',
+  'usage.cli.needsValue': '{flag} needs a value',
+  'usage.cli.notTogether': '{first} and {second} cannot be used together',
+  'usage.cli.fromAndTo': '--from and --to go together',
+  'usage.cli.badChoice': "{flag}: '{value}' is not one of {choices}",
+  'usage.cli.badMonth': "--month: '{value}' is not a month (YYYY-MM)",
+  'usage.cli.badDay': "'{value}' is not a date (YYYY-MM-DD)",
+  'usage.cli.passFailed':
+    'Could not read the latest transcripts into the usage history; showing it as it was.',
+  'usage.cli.cannotOpen': 'Could not open the usage history.',
+  'usage.cli.exec': 'exec',
+  'usage.cli.blocked': 'blocked',
+  'usage.cli.tokens': 'tokens',
+  'usage.cli.cost': 'cost',
+  'usage.cli.subscription': 'subscription: 5-hour {five}%, 7-day {seven}%',
+  'usage.cli.legend': '~ = list-price estimate; + = a model without a price',
 } as const

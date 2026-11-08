@@ -29,30 +29,53 @@ async function moveAside(path: string): Promise<string> {
   return target
 }
 
+// Thrown by a `parse` whose file is JSON but not a shape it can read: the file is then moved aside
+// as one that is not JSON is.
+export class UnreadableShape extends Error {}
+
+export interface ReadReport<T> {
+  readonly value: T
+  // The name the unreadable file was moved to, or null when it was read (or absent).
+  readonly movedTo: string | null
+}
+
 // `parse` turns whatever the file held into the caller's shape, repairing what it must, and keeps
 // the keys it does not know so a later write does not drop what a newer version stored. A file
-// that is not JSON at all is moved aside, never deleted, and `fallback` is returned.
+// that is not JSON, or that `parse` rejects with UnreadableShape, is moved aside, never deleted,
+// and `fallback` is returned.
+export async function readJsonReport<T>(
+  path: string,
+  parse: (value: unknown) => T,
+  fallback: () => T,
+): Promise<ReadReport<T>> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return { value: fallback(), movedTo: null }
+    throw error
+  }
+  try {
+    return { value: parse(JSON.parse(text)), movedTo: null }
+  } catch (error) {
+    if (!(error instanceof SyntaxError) && !(error instanceof UnreadableShape)) throw error
+    const movedTo = await moveAside(path)
+    const message =
+      error instanceof SyntaxError
+        ? 'state file is not JSON; moved aside'
+        : 'state file has an unreadable shape; moved aside'
+    log.warn(message, { path, movedTo, error })
+    return { value: fallback(), movedTo }
+  }
+}
+
 export async function readJson<T>(
   path: string,
   parse: (value: unknown) => T,
   fallback: () => T,
 ): Promise<T> {
-  let text: string
-  try {
-    text = await readFile(path, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return fallback()
-    throw error
-  }
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch (error) {
-    const movedTo = await moveAside(path)
-    log.warn('state file is not JSON; moved aside', { path, movedTo, error })
-    return fallback()
-  }
-  return parse(value)
+  return (await readJsonReport(path, parse, fallback)).value
 }
 
 const writes = new Map<string, Promise<void>>()

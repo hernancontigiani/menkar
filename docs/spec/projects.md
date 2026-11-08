@@ -294,18 +294,8 @@ With "Reopen tabs on start" on (the default, `preferences.md`), the start reopen
 window with its shown project and its tabs; off, it opens one window on the file's `current`
 project with no tabs (the saved windows are overwritten by the next save).
 
-What reopens, from the saved `windows` (Data contracts), in order:
-- A window entry needs a string `current`; other entries are skipped.
-- A project id that no longer exists, or that an earlier window already took, is skipped (a
-  project is in one window).
-- A session tab keeps, in order, the pane ids that are still members of that project and were not
-  already placed in an earlier tab, at most two; with none left, the tab is dropped. An unknown
-  orientation reads as side by side.
-- A file tab whose path is no longer a regular file is dropped; one that exists but no longer opens
-  (`files.md`) is dropped when opened, with a log line.
-- The window's shown project is its saved `current` if it exists and is not taken; else the first
-  project it has tabs of; else the window is dropped.
-- If nothing usable is left, one window on `current`, no tabs.
+What reopens is computed by `src/core/projects/layout.ts` (`reopen`); `docs/projects.md` has the
+rules.
 
 Each window waits for the first scan of the transcripts, checks its file tabs off the UI thread, then
 opens the tabs project by project in their saved order: each session is resumed (`terminal.md`) and
@@ -391,50 +381,8 @@ On the first start Menkar imports agent-tablet's `~/.config/agent-tablet/project
 }
 ```
 
-Top level:
-
-| Key | Type | Meaning | Read rule |
-|---|---|---|---|
-| `version` | int | Format version | Must be `1`, else the file is unreadable |
-| `current` | string | The project last chosen in a window; new windows and a start without reopening open on it | Not a project's id → the first project |
-| `projects` | array of project | In display order (creation order) | Not an array, or empty → unreadable |
-| `windows` | array of window | The saved layout | Not an array → `[]` |
-| any other key | any | Written by a later version | Kept and written back as it came, before the known keys |
-
-Project:
-
-| Key | Type | Meaning | Read rule |
-|---|---|---|---|
-| `id` | string | 12 lowercase hex characters, random (the first 12 of a random UUID's hex) | Not a string → unreadable |
-| `name` | string | Unique ignoring case and surrounding spaces; stored trimmed | Not a string → unreadable |
-| `members` | array of string | Session ids, in the order they joined | Missing → `[]`; not an array of strings → unreadable. An id already a member of an earlier project is dropped from this one |
-| `groups` | array of group | In creation order | Missing or `null` → `[]` |
-| any other key | any | Later version | Kept and written back as it came |
-
-Group:
-
-| Key | Type | Meaning | Read rule |
-|---|---|---|---|
-| `name` | string | Unique in the project ignoring case and spaces | Not a string, or the group not an object → unreadable |
-| `color` | string | `#rrggbb`, from the palette at creation | Missing or empty → `#5ec4b6`; any other value is stringified |
-| `members` | array of string | Session ids, each also in the project's `members` | Not an array of strings → unreadable; ids not in the project's members are dropped; a group left with none is dropped |
-| other keys | — | — | **Not** kept (agent-tablet drops them) |
-
-Window (in `windows`), written from the live windows on every save; unknown keys here are not kept:
-
-| Key | Type | Meaning |
-|---|---|---|
-| `current` | string | The project the window shows |
-| `tabs` | object: project id → array of tab | The window's tabs of each project, in tab order; only projects with at least one saved tab appear |
-
-Tab, one of two shapes:
-
-| Shape | Keys | Meaning |
-|---|---|---|
-| Session tab | `panes`: array of 1–2 session ids; `orientation`: `"horizontal"` (side by side, the default) or `"vertical"` (stacked) | The sessions that have joined a project, primary pane first; shell panes are not saved. A tab with no such session (a new session not joined yet, a fork before joining) is not saved |
-| File tab | `file`: absolute path; `preview`: bool (`true` = the rendered Markdown) | `files.md` |
-
-Chat and replay tabs are never saved.
+Read and written by `src/core/projects/store.ts`; `docs/projects.md` has the read rule of each key,
+the windows and tabs saved, the written form and a missing file.
 
 **When it is written**: on every change to projects, groups or membership; on switching project
 (`current`); and the layout 500 ms after the last change to any window's tabs (a tab opened,
@@ -442,14 +390,10 @@ closed, moved, retitled or changing state: the first change schedules one save 5
 changes before it fires ride on it). The layout written is every open window's, except windows already confirmed
 closing. Once the last window is closing, layout saves stop so the closing tabs do not erase it.
 
-**Written form**: UTF-8, non-ASCII kept as is, indented 2 spaces, keys in the order: unknown top-level
-keys, `version`, `current`, `projects`, `windows`; in each project its unknown keys, then `id`,
-`name`, `members`, `groups`.
-
-**A missing file** is a fresh state: one project "Default" with a new id, `current` = it, no
-windows; nothing is created on disk until the first save.
-
 ## Acceptance cases
+
+The cases built in `core` (PRJ-3–10, 49–53, 55) left for the history; the Vitest tests in
+`tests/core/projects/` carry their ids.
 
 PRJ-1. No `projects.json` → the window shows "Default" in the dropdown, an empty list titled
 "Default has no sessions", and no file exists until the first change.
@@ -457,25 +401,6 @@ PRJ-1. No `projects.json` → the window shows "Default" in the dropdown, an emp
 PRJ-2. `projects.json` is `{` (not JSON) → it is renamed aside (not deleted), the app starts with
 one empty "Default", and a toast reads "The projects file could not be read; it was kept as
 <moved name> and a new one started" until dismissed.
-
-PRJ-3. `projects.json` has `"version": 2` → treated as unreadable, as PRJ-2.
-
-PRJ-4. `projects.json` has `"projects": []` → unreadable, as PRJ-2.
-
-PRJ-5. A project whose `members` is `"abc"` (a string) → unreadable, as PRJ-2.
-
-PRJ-6. Session `S` is in the `members` of projects A then B → after loading, `S` is in A only; the
-next save writes it only in A.
-
-PRJ-7. A group lists a session that is not in its project's `members` → that id is dropped from the
-group; if none remain the group is gone.
-
-PRJ-8. A group with no `color` → it shows and saves `#5ec4b6`.
-
-PRJ-9. `current` names no project → the first project is current.
-
-PRJ-10. A file with a top-level key `"future": {"x": 1}` and a project key `"pinned": true` → after
-renaming any project, the saved file still has both, unchanged.
 
 PRJ-11. Create with "  " → the popover stays open with "A project needs a name."; no project added.
 
@@ -592,22 +517,7 @@ resumed and nothing of B.
 PRJ-48. Saved window with a tab `{"panes": ["S1","S2"], "orientation": "vertical"}` → reopens one
 tab with S1 above S2.
 
-PRJ-49. Saved panes `["S1","S2","S3"]` all members → reopens with S1, S2 only.
-
-PRJ-50. Saved tab with a session no longer a member of that project → that pane is dropped; a tab
-with no pane left is dropped.
-
-PRJ-51. Two saved windows both listing project A → A's tabs reopen only in the first; the second,
-with nothing else usable, is dropped.
-
-PRJ-52. Saved file tab whose file was deleted → not reopened, no error shown.
-
-PRJ-53. "Reopen tabs on start" off → one window on `current`, no tabs, whatever `windows` says.
-
 PRJ-54. A fork tab, a chat tab and a replay tab open at close → none is in the saved `windows`.
-
-PRJ-55. A saved file is reread: 2-space indentation, non-ASCII project names unescaped ("Café"
-written as `"Café"`), key order `version`, `current`, `projects`, `windows`.
 
 PRJ-56. Drag the sidebar to 360 px → after 600 ms `sidebar_width` is 360; a new window opens with a
 360 px sidebar. Hide the sidebar → the width is not overwritten.

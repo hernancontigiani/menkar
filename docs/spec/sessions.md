@@ -360,33 +360,17 @@ The only writes under `~/.claude`, each started and confirmed by the user.
 
 ### First start: importing agent-tablet's data (decision 1.8)
 
-- **A first start** is a start where Menkar's config directory (`$XDG_CONFIG_HOME/menkar/`) has
-  **neither** `state.json` **nor** `projects.json`. Their content does not matter: an unreadable
-  file of Menkar's own is handled by Menkar's own rule (moved aside), never by re-importing.
-- On a first start Menkar reads, **read only**, agent-tablet's
-  `$XDG_CONFIG_HOME/agent-tablet/projects.json` and `$XDG_CONFIG_HOME/agent-tablet/state.json`
-  (`$XDG_CONFIG_HOME` resolved as Menkar resolves its own; `~/.config` when unset or relative), on
-  Linux only (agent-tablet never ran elsewhere). It imports projects, groups and members from the
-  first; the app's names, hidden sessions, the Remote Control list and the settings from the
-  second; then **writes Menkar's own `projects.json` and `state.json`**, both, even when nothing was
-  imported, so the next start is not a first start. If writing fails, the error is logged and the
-  next start is a first start again.
-- agent-tablet's files are opened for reading only: never written, renamed, moved aside or touched,
-  even when unreadable (unlike Menkar's own files). agent-tablet may be running: it writes through a
-  temporary file and a rename, so a read sees a whole file.
+- Built: `src/core/projects/import.ts`, described in `docs/projects.md`. It covers what a first start
+  is, the read-only reads, what each file contributes and how a bad one is handled, and what is not
+  imported.
+
 - The usage history import (agent-tablet's `history.sqlite`) is specified in `usage.md`.
-- What each file contributes, and how a bad one is handled, is in Data contracts.
 - Messages: an unreadable source file (not JSON, not an object, or for `projects.json` a version
   other than 1 or no `projects` list) logs a warning and shows a toast that stays until closed —
   "Agent Tablet's projects could not be read, so they were not imported." or "Agent Tablet's
   settings could not be read, so names, hidden sessions and settings were not imported." (Menkar's
   own strings; agent-tablet has none). A missing source file is silent. Entries dropped from a
   partly valid file are logged with their count, without a toast.
-- agent-tablet's own first start imported Agent Session Manager's names (F14 as agent-tablet does
-  it); **that import is not carried over**: Menkar reads nothing of Agent Session Manager's.
-- Not imported (not named by decision 1.8): the `windows` layout of `projects.json` (no tab is
-  reopened from agent-tablet's last run) and agent-tablet's `integrations.json`
-  (`$XDG_STATE_HOME/agent-tablet/`, `context.md`).
 
 ## Data contracts
 
@@ -464,104 +448,11 @@ on every change.
 
 ### agent-tablet's `projects.json` (import source)
 
-```json
-{
-  "version": 1,
-  "current": "3f9a1c2b7d4e",
-  "projects": [
-    {
-      "id": "3f9a1c2b7d4e",
-      "name": "Client work",
-      "members": ["0b6e…uuid", "5d21…uuid"],
-      "groups": [{ "name": "api pair", "color": "#5ec4b6", "members": ["0b6e…uuid"] }]
-    }
-  ],
-  "windows": [
-    { "current": "3f9a1c2b7d4e",
-      "tabs": { "3f9a1c2b7d4e": [ { "panes": ["0b6e…uuid"], "orientation": "horizontal" },
-                                  { "file": "/home/demo/notes.md", "preview": true } ] } }
-  ]
-}
-```
-
-| Key | Type | Meaning in agent-tablet |
-|---|---|---|
-| `version` | integer, `1` | any other value makes agent-tablet treat the file as unreadable |
-| `current` | string | the id of the project shown at start; an unknown id means the first project |
-| `projects` | non-empty array | in order |
-| `projects[].id` | string (12 hex digits when agent-tablet made it) | |
-| `projects[].name` | string | unique, case-insensitively, by agent-tablet's own checks |
-| `projects[].members` | array of session ids | a session in an earlier project is dropped from a later one |
-| `projects[].groups` | array | each `name` (string), `color` (string `#rrggbb`; missing → `#5ec4b6`), `members` (ids, kept only if members of the project); a group left with no member is dropped |
-| `windows` | array | the saved layout: per window `current` and `tabs` (project id → tabs; a tab is `panes` (≤ 2 ids) + `orientation` `horizontal`\|`vertical`, or `file` + `preview`) |
-| any other key, at the top or in a project | any | kept as it came by agent-tablet |
-
-Written with 2-space indentation, UTF-8 unescaped. agent-tablet moves an unreadable file of its own
-aside as `projects.json.broken`; Menkar never reads that file.
-
-**What Menkar imports from it:**
-- File not JSON, not an object, `version` ≠ 1, or `projects` not an array → nothing (toast above);
-  Menkar starts with one empty project "Default".
-- Each project entry that is an object with a string `id` and a string `name` is imported with that
-  id and name; any other entry is skipped (agent-tablet would reject the whole file; Menkar keeps
-  the good ones). Two entries with the same id: the first wins.
-- Members: strings only, each kept in the first project that lists it, once.
-- Groups: an object with a string `name`; members kept only if members of its project and not
-  already in an earlier group of that project; a group with no member left is dropped; `color` kept
-  when a string, else `#5ec4b6`.
-- No project left → one empty "Default". `current` imported when it names an imported project,
-  else the first one.
-- `windows` and unknown keys are not imported.
+How Menkar reads it: `src/core/projects/import.ts`, described in `docs/projects.md`.
 
 ### agent-tablet's `state.json` (import source)
 
-```json
-{
-  "names": { "5d21…uuid": "Homepage redesign" },
-  "hidden": ["7a10…uuid"],
-  "remote_control": ["0b6e…uuid"],
-  "settings": {
-    "font": "", "scrollback": 10000, "color_scheme": "system", "terminal_theme": "Default",
-    "ui_style": "tui", "language": "", "notify_idle": true, "notify_sound": true,
-    "new_session_dir": "/home/demo/projects/todo-api", "sidebar_width": 300, "reopen_tabs": true,
-    "show_folder_path": false, "classify_since": 1762560000.0,
-    "classify_last": { "at": 1762563600.0, "classified": 42, "failed": false }
-  }
-}
-```
-
-| Key | Type | Default when absent |
-|---|---|---|
-| `names` | object, id → string | `{}` |
-| `hidden` | array of ids (sorted when written) | `[]` |
-| `remote_control` | array of ids (sorted; non-strings ignored on read) | `[]` |
-| `settings.font` | string, `""` = the terminal's default | `""` |
-| `settings.scrollback` | integer, lines | `10000` |
-| `settings.color_scheme` | `"system"` \| `"light"` \| `"dark"` | `"system"` |
-| `settings.terminal_theme` | string, a theme's name | `"Default"` |
-| `settings.ui_style` | `"tui"` \| `"classic"` | `"tui"` |
-| `settings.language` | string, a language code, `""` = the system's | `""` |
-| `settings.notify_idle` | boolean | `true` |
-| `settings.notify_sound` | boolean | `true` |
-| `settings.new_session_dir` | string, a folder | `""` |
-| `settings.sidebar_width` | integer, px | `300` |
-| `settings.reopen_tabs` | boolean | `true` |
-| `settings.show_folder_path` | boolean | absent = `false` |
-| `settings.classify_since` | number (Unix seconds) or `null`; not `null` = classification on | absent = off |
-| `settings.classify_last` | object `{at: number, classified: integer, failed: boolean}` | absent |
-
-Only these four top-level keys are written by agent-tablet; another top-level key (left by Agent
-Session Manager in a file agent-tablet never re-saved) is ignored. Written with 2-space indentation.
-
-**What Menkar imports from it:**
-- Not JSON or not an object → nothing (toast above); Menkar's defaults.
-- `names`: each pair whose key and trimmed value are non-empty strings. A name for a session Claude
-  has named since is imported but not shown (F2's order).
-- `hidden`, `remote_control`: each string; anything else dropped; a key of the wrong type is `[]`.
-- `settings`: each key of the table whose value has the listed type (and, for the enumerations,
-  one of the listed values) is imported under the same meaning (`preferences.md` maps them to
-  Menkar's settings); a wrong-typed value takes Menkar's default; unknown keys are not imported.
-  `classify_since` carries the user's opt-in to classification (`classifier.md`).
+How Menkar reads it: `src/core/projects/import.ts`, described in `docs/projects.md`.
 
 ## Acceptance cases
 
@@ -695,42 +586,7 @@ Copy, hide, trash, delete, select
 - **SES-70** A selected session's transcript is deleted outside the app → after the rescan the count
   drops by one.
 
-First start
-
-- **SES-71** No Menkar config, agent-tablet's two files valid (2 projects, 3 groups, 5 members, 2
-  names, 1 hidden, 1 Remote Control id, `ui_style` "classic") → Menkar starts with those projects,
-  ids, groups (colors kept), members, names, hidden, Remote Control list and the classic style;
-  Menkar's `projects.json` and `state.json` exist afterwards.
-- **SES-72** No Menkar config and no `~/.config/agent-tablet/` → Menkar starts with one empty
-  project "Default" and default settings; no toast; both Menkar files are written.
-- **SES-73** agent-tablet's `projects.json` is `{"version": 1, "projects": [` (cut off) → no
-  project imported, one "Default", the projects toast shown; `state.json` still imported;
-  agent-tablet's file keeps its bytes and name (no `.broken` made).
-- **SES-74** agent-tablet's `state.json` is a JSON array → nothing from it imported, the settings
-  toast shown; projects still imported.
-- **SES-75** agent-tablet's `projects.json` has `"version": 2` → treated as unreadable (SES-73).
-- **SES-76** Partly valid `projects.json`: projects `[{"id":"a1","name":"A","members":["s1","s2",
-  7]}, {"name":"no id"}, {"id":"b2","name":"B","members":["s2","s3"],"groups":[{"name":"g",
-  "members":["s1","s3"]},{"name":"empty","members":["s9"]}]}]` → A with s1, s2; B with s3 and group
-  "g" holding s3 with color `#5ec4b6`; no group "empty"; the log records the dropped entries; no
-  toast.
-- **SES-77** Partly valid `state.json`: `"hidden": ["s1", 3]`, `"names": {"s2": "  ", "s3":
-  "Ok"}`, `"settings": {"scrollback": "lots", "notify_sound": false}` → hidden `["s1"]`, names
-  `{"s3": "Ok"}`, scrollback Menkar's default, sound off.
-- **SES-78** `current` names a project not in the file → the first imported project is current.
-- **SES-79** Second start (Menkar's files exist) with agent-tablet's files changed meanwhile →
-  nothing imported; Menkar's state is as it left it.
-- **SES-80** Menkar's `projects.json` deleted by hand, `state.json` present → not a first start;
-  nothing imported; a fresh "Default" (Menkar's own rule).
-- **SES-81** After a first start that imported both files, agent-tablet's `projects.json` and
-  `state.json` have the same bytes and the same mtime as before, and no file was created in
-  `~/.config/agent-tablet/`.
-- **SES-82** No file of Agent Session Manager is read on a first start, even when
-  `~/.config/agent-session-manager/state.json` exists.
-- **SES-83** Writing Menkar's files fails on the first start (read-only config dir) → an error is
-  logged; the next start is again a first start.
-- **SES-84** agent-tablet's `windows` lists two windows with tabs → Menkar opens one window on the
-  imported `current` project with no tabs.
+First start: SES-71–84 are built; the Vitest tests in `tests/core/projects/` carry their ids.
 
 ## Look
 

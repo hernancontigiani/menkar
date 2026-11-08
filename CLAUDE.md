@@ -42,6 +42,8 @@ what matters from being lost when a plan is deleted.
 | `docs/foundations.md` | Logging, writing the app's JSON state, adding a user-visible string, or opening a SQLite database |
 | `docs/packaging.md` | Changing the .deb, its post-install, the sandbox profile, or anything installed outside `/opt/Menkar` |
 | `docs/sessions.md` | Finding, reading or naming sessions, watching the agents' folders, or the sessions' keys of `state.json` |
+| `docs/projects.md` | Projects, groups, membership, windows and tabs as data, `projects.json`, or the first-start import |
+| `docs/usage.md` | Measuring time, tokens or cost, reading or writing the usage history, `menkar usage`, or the agent-tablet import |
 
 ## Product rules the code must hold
 

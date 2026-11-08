@@ -36,17 +36,37 @@ export function findUses(file, source) {
 }
 
 /**
+ * Every string literal in a file: a key written as a literal (a refusal `core` returns for the UI
+ * to translate) counts as used.
+ * @param {string} source
+ * @returns {string[]}
+ */
+export function findLiterals(source) {
+  const sf = ts.createSourceFile('x.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  /** @type {string[]} */
+  const found = []
+  /** @param {ts.Node} node */
+  const visit = (node) => {
+    if (ts.isStringLiteralLike(node)) found.push(node.text)
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return found
+}
+
+/**
  * @param {Use[]} uses
  * @param {Record<string, string>} en
  * @param {Record<string, Record<string, string>>} translations
+ * @param {string[]} [literals] string literals found outside the catalogs
  * @returns {{ errors: string[], warnings: string[] }}
  */
-export function compare(uses, en, translations) {
+export function compare(uses, en, translations, literals = []) {
   /** @type {string[]} */
   const errors = []
   /** @type {string[]} */
   const warnings = []
-  const used = new Set()
+  const used = new Set(literals.filter((literal) => literal in en))
   for (const use of uses) {
     if (use.key === null) errors.push(`${use.file}:${use.line}: t() takes a literal key`)
     else if (!(use.key in en)) errors.push(`${use.file}:${use.line}: '${use.key}' is not in en`)
@@ -76,9 +96,12 @@ function sources(dir) {
 }
 
 async function main() {
-  const uses = sources('src').flatMap((file) =>
-    findUses(file, readFileSync(join(ROOT, file), 'utf8')),
-  )
+  const files = sources('src')
+  const texts = new Map(files.map((file) => [file, readFileSync(join(ROOT, file), 'utf8')]))
+  const uses = files.flatMap((file) => findUses(file, texts.get(file) ?? ''))
+  const literals = files
+    .filter((file) => !file.startsWith(`${CATALOGS}/`))
+    .flatMap((file) => findLiterals(texts.get(file) ?? ''))
   if (uses.length === 0) {
     console.error(
       '✗ check-i18n: no t() call found under src/; the scan is looking in the wrong place',
@@ -94,7 +117,7 @@ async function main() {
     if (language === 'en') en = module.en
     else translations[language] = module[language]
   }
-  const { errors, warnings } = compare(uses, en, translations)
+  const { errors, warnings } = compare(uses, en, translations, literals)
   for (const warning of warnings) console.log(`! check-i18n: ${warning}`)
   for (const error of errors) console.error(`✗ check-i18n: ${error}`)
   if (errors.length) process.exit(1)

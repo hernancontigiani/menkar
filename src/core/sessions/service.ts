@@ -1,6 +1,6 @@
 import { type FSWatcher, watch } from 'node:fs'
-import { readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { readdir, stat } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { log } from '../log'
 import { loadState, type State, saveState, setHidden } from '../state'
 import type { SessionInfo } from './info'
@@ -108,6 +108,23 @@ async function subdirs(dir: string): Promise<string[]> {
 // The directories whose changes matter: for Claude the projects directory and each folder in it;
 // for Cursor the projects directory, each folder in it and each agent-transcripts inside those.
 // Not recursive: a session's subagents/ and tool-results/ churn constantly and are not sessions.
+// A projects directory that does not exist yet (the agent installed after Menkar started) is
+// stood in for by its nearest existing ancestor, whose change event reveals it appearing.
+async function nearestExisting(dir: string): Promise<string> {
+  let current = dir
+  for (;;) {
+    try {
+      if ((await stat(current)).isDirectory()) return current
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
+    }
+    const parent = dirname(current)
+    if (parent === current) return current
+    current = parent
+  }
+}
+
 export async function watchedDirs(roots: Roots): Promise<string[]> {
   const claudeFolders = await subdirs(roots.claudeProjects)
   const cursorFolders = await subdirs(roots.cursorProjects)
@@ -115,9 +132,9 @@ export async function watchedDirs(roots: Roots): Promise<string[]> {
     .flat()
     .filter((dir) => dir.endsWith('/agent-transcripts'))
   return [
-    roots.claudeProjects,
+    await nearestExisting(roots.claudeProjects),
     ...claudeFolders,
-    roots.cursorProjects,
+    await nearestExisting(roots.cursorProjects),
     ...cursorFolders,
     ...cursorTranscripts,
   ]

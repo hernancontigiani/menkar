@@ -1,0 +1,93 @@
+# Usage — how it is measured and kept
+
+How long Claude worked and how many tokens it used, per session and project. All of it lives in
+`src/core/usage/`, and every figure the app or `menkar usage` shows is read from there. The code
+says what each step does. This file keeps why it is shaped this way, and what was rejected. What the
+user sees in the Usage window is still `docs/spec/usage.md` until the window is built.
+
+## The shape
+
+- **Two files.** The **cache** (`<cache>/usage.sqlite`, `cache.ts`) is derived data, rebuilt from
+  the transcripts whenever its layout version changes. The **history** (`<data>/history.sqlite`,
+  `history.ts`) is the only file reports read, one row per turn, never pruned: it keeps what Claude
+  Code deletes with its transcripts. Its tables and columns are agent-tablet's version 2, so
+  importing agent-tablet's history is a copy.
+- **A pass** (`pass.ts`): the cache reads what each transcript gained since the last pass. Then every
+  turn the pass may have changed is copied whole into the history, together with the turn before it
+  in its session, because a turn read later takes responses from it. A turn the cache no longer has
+  is never touched.
+- **A failed write loses nothing.** The turns a pass changed are recorded as pending in the cache, in
+  the same transaction as the new read offsets. They leave the pending set only after the history
+  commits. A history locked past the 30-second busy timeout, a full disk, or a history from a newer
+  Menkar leaves them for the next pass, and writing a turn twice is the same as writing it once.
+- **Off the UI path.** `node:sqlite` and the transcript reads are synchronous. In the app a pass
+  runs on a worker thread (`src/main/usage-worker.ts`, a second main entry in
+  `electron.vite.config.ts`). `PassRunner` runs one pass at a time, and a request made during a pass
+  waits for it, since both would read the same appended bytes. Main starts a pass on launch and
+  every hour. For now it passes no memberships, because projects do not exist yet: such turns are
+  written with no project and take their session's project once it has one.
+- **`menkar usage`** is the app's own binary. When main sees `usage` as the first argument (after
+  Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
+  it and exits before `ready`, so no window opens and no display is needed. Checked on 2026-11-08
+  under `env -i`, with no `DISPLAY`.
+- **The import** (`importer.ts`): the first time Menkar opens its history and finds no file at its
+  path, it copies agent-tablet's `history.sqlite` (versions 1 and 2, opened read only) into a
+  temporary file. The file is renamed into place once committed. agent-tablet's `usage.jsonl` is
+  copied too, to `<data>/agent-tablet-usage.jsonl`, which sits in the data directory because it
+  cannot be rebuilt. Reports read it before Menkar's own `usage.jsonl`. A copy that fails leaves no
+  history, and the opening throws, so the next start tries again. When there is nothing to import
+  (no file, an unreadable one, or one from a newer agent-tablet), Menkar starts empty and does not
+  try again.
+
+## Checked against agent-tablet
+
+On 2026-11-08, 60 synthetic sessions were generated (118 transcripts over three months). They mixed
+legacy prompts, every origin, duplicate and sidechain copies, subagents, decided tools,
+`AskUserQuestion`, two-hour gaps, unknown and synthetic models, Haiku 5.5 and bad lines. Both apps'
+`usage --period all --by month` printed identical text, and their `--json` matched to 1e-9.
+After a third of the transcripts were deleted, Menkar's first start imported agent-tablet's history
+and its statusline log and printed the same report as agent-tablet, exact cost and limits included.
+
+## Rejected, and why
+
+These were inherited from agent-tablet, where each was measured or decided by the human:
+
+- **Rereading the transcripts on every report**: 3.6 s for 2 GB on the human's machine, and growing.
+- **Making the cache permanent** instead of a history beside it: one row per response and per gap,
+  and every layout change would need a migration of data that can be recomputed.
+- **Writing a turn only once it is finished**: there is no end marker, so a turn left open would
+  never arrive. Rewriting every turn a pass touched needs no such state.
+- **Reports reading the cache and the history together**: two sources, two definitions of a turn.
+- **JSON for either file**: sums over months of rows, and whole-file rewrites.
+- **Tokens only for transcripts older than `turnOrigin`**: a month with tokens and no hours
+  misleads a comparison by month.
+- **Hooks to time turns**: they only cover the sessions the app starts, from the day they are
+  installed.
+- **Wall-clock time** (`total_duration_ms`): it counts the nights a session sat open.
+- **Grouping by UTC day**: the human is at UTC−3. Days are local midnights built from calendar
+  dates, never start + 24 h.
+- **A live price lookup**: the app makes no network connections, so the table carries its date and
+  source (`prices.ts`).
+- **Writing an inherited category into the history**: a late classification would then need a
+  second write to every turn after it. Categories are resolved when a report is built.
+
+For Menkar (2026-11-08):
+
+- **A worker per pass rather than a long-lived one**: one pass an hour, and a worker that exits
+  holds no SQLite handle between passes.
+- **Electron's main process for `menkar usage` instead of `ELECTRON_RUN_AS_NODE`**: the same
+  binary, and no wrapper for the package to install.
+
+## Limits
+
+- US-only inference (1.1×) is not applied: the transcript does not say where a request ran.
+- Tokens are kept per UTC hour. A day boundary splits them exactly in a whole-hour zone; in a
+  half-hour zone a day is off by up to half an hour of tokens. Time is kept as spans and is exact.
+- Haiku 5.5's long-prompt rate applies to what is priced at once, which is a (model, UTC hour,
+  project, session) group. The history keeps no per-request tokens, so a busy hour of short
+  requests can be priced at the long rate.
+- When Claude Code deletes one of a session's files while another file of the same session survives,
+  a turn the next pass rewrites loses the deleted file's tokens: the history copies a turn from what
+  the cache has.
+- Figures are rounded half to even (`2.5m` prints as `2m`), as agent-tablet printed them, so the two
+  apps print the same report.

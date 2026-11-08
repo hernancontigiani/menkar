@@ -1,9 +1,10 @@
 // Every IPC channel and its payload, declared once and imported by main, preload and renderer.
 
 import type { Language, Messages } from '../core/i18n'
+import type { ProjectsSnapshot } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 
-export type { SessionInfo }
+export type { ProjectsSnapshot, SessionInfo }
 
 export interface Catalog {
   readonly language: Language
@@ -20,6 +21,7 @@ export interface InvokeChannels {
   'terminal:start': { request: TerminalSize; response: undefined }
   'i18n:catalog': { request: undefined; response: Catalog }
   'sessions:list': { request: undefined; response: readonly SessionInfo[] }
+  'projects:get': { request: undefined; response: ProjectsSnapshot }
   'sessions:set-hidden': {
     request: { ids: readonly string[]; hidden: boolean }
     response: undefined
@@ -48,6 +50,9 @@ export type EventChannel = keyof EventChannels
 export interface MenkarApi {
   readonly i18n: {
     catalog(): Promise<Catalog>
+  }
+  readonly projects: {
+    get(): Promise<ProjectsSnapshot>
   }
   readonly sessions: {
     list(): Promise<readonly SessionInfo[]>

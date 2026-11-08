@@ -78,10 +78,12 @@ test("Chromium's data lands in the cache, and the config directory holds none of
   try {
     expect(userData).toBe(join(root, 'cache', 'menkar', 'electron'))
     expect(readdirSync(userData).length).toBeGreaterThan(0)
-    // The app's own config directory; other programs (the input method's client) may write their
-    // own folders beside it under the same XDG_CONFIG_HOME.
+    // The app's own config directory holds its state files (the first start writes both) and
+    // nothing of Chromium's; other programs (the input method's client) may write their own
+    // folders beside it under the same XDG_CONFIG_HOME.
     const config = join(root, 'config', 'menkar')
-    expect(existsSync(config) ? readdirSync(config, { recursive: true }) : []).toEqual([])
+    const entries = existsSync(config) ? readdirSync(config, { recursive: true }).map(String) : []
+    expect(entries.sort()).toEqual(['projects.json', 'state.json'])
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

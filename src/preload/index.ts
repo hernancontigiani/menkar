@@ -24,6 +24,9 @@ const api: MenkarApi = {
   i18n: {
     catalog: () => ipcRenderer.invoke('i18n:catalog'),
   },
+  projects: {
+    get: () => ipcRenderer.invoke('projects:get'),
+  },
   sessions: {
     list: () => ipcRenderer.invoke('sessions:list'),
     setHidden: (ids, hidden) => ipcRenderer.invoke('sessions:set-hidden', { ids, hidden }),

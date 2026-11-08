@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { compare, findUses } from '../../scripts/check-i18n.mjs'
+import { compare, findLiterals, findUses } from '../../scripts/check-i18n.mjs'
 
 const en = { 'a.one': 'One', 'a.two': 'Two' }
 
@@ -28,5 +28,11 @@ describe('check-i18n', () => {
       errors: ["es: 'a.gone' is not in en"],
       warnings: ["es: 'a.two' has no translation", "en: 'a.two' is not used under src/"],
     })
+  })
+
+  test('a key written as a literal outside the catalogs counts as used', () => {
+    const literals = findLiterals("const refusal: Key = 'a.two'\n// 'a.one' in a comment")
+    expect(literals).toEqual(['a.two'])
+    expect(compare([], en, {}, literals).warnings).toEqual(["en: 'a.one' is not used under src/"])
   })
 })

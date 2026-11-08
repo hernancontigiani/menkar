@@ -27,6 +27,22 @@ blocks that for unconfined apps, and ships the same kind of profile for VS Code,
 Obsidian. The installed app runs with the sandbox, never with `--no-sandbox`. `sudo apt remove
 menkar` takes it all out.
 
+## Usage in the terminal
+
+`menkar usage` prints how long Claude worked and how many tokens it used, per project and
+session, from Menkar's usage history. It opens no window.
+
+```sh
+menkar usage                          # the last 7 days
+menkar usage --period today           # today, 7d, 30d or all
+menkar usage --month 2026-10          # a calendar month
+menkar usage --from 2026-11-01 --to 2026-11-03   # both days included
+menkar usage --period today --by hour # one report per hour (or day, month)
+menkar usage --json                   # JSON instead of text
+```
+
+Costs marked `~` are list-price estimates, not a bill. A `+` means some model had no price.
+
 ## Development
 
 Node 22 LTS and npm, on Linux (Ubuntu). `npm run ui-check` also needs `xvfb-run` (the `xvfb`

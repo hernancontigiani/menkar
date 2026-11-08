@@ -58,19 +58,80 @@ Every widget (dropdown, rows, menus, tabs on screen); starting or stopping sessi
 ## Execution blocks
 
 ### B1 — The model, the layout, the file
-- [ ] The cases as tests; `core/projects/`.
+- [x] The cases as tests; `core/projects/`.
 - **Verification:** `npm run ci` on your paths (the tree's may be red on `b2`'s files in progress).
 
 ### B2 — The import, and watching a projects directory that appears later
-- [ ] The import with its cases and the invariance test; main runs it before the first window; the
+- [x] The import with its cases and the invariance test; main runs it before the first window; the
       watcher fix with its test.
 - **Verification:** `npm run ci`; an e2e: a temporary HOME with an agent-tablet `projects.json` and
       `state.json` → Menkar's files written with the imported projects, agent-tablet's unchanged.
 
 ### B3 — Exit
-- [ ] `docs/projects.md`, its `CLAUDE.md` row, the spec trimmed with its history.
+- [x] `docs/projects.md`, its `CLAUDE.md` row, the spec trimmed with its history.
 - **Verification:** `npm run ci`.
 
 ## Execution log
 
-(Written by the session that executes it.)
+Executed by `b1` on 2026-11-08, B1 → B3.
+
+**Built:**
+- `src/core/projects/model.ts`, `layout.ts`, `store.ts` and `import.ts`, plus `info.ts` (the
+  snapshot types, with no Node import, for the renderer's compile).
+- `src/main/projects.ts` and `projects:get`. Main runs the import before the sessions' first scan
+  and before the first window.
+- The watch on an absent projects directory's nearest existing ancestor
+  (`src/core/sessions/service.ts`).
+- Every case without a widget is a Vitest test named after its id, seen red first (the modules
+  missing). Then injected defects:
+  - the import renaming an unreadable source fails SES-73;
+  - reopening without the taken-project rule fails PRJ-51;
+  - no ancestor watch fails the late-directory test;
+  - the import left out of main fails the e2e.
+
+**Cases built in `core`, as tests:**
+- PRJ-1 (data), 3–10, 11–16 and 22–25 (the model's refusals and changes), 18 and 19 (switching),
+  27–35 (open, open beside, the F5 pick), 36 and 37 (`joinTarget`), 38–40, 44, 47, 49–55, 57
+  (data).
+- SES-47 (the layout part), SES-71–84.
+
+**Left for the window plan** (they need a widget, a toast, a key or a running terminal):
+- PRJ-1 and PRJ-2 on screen, and PRJ-2's toast (its text and moved name are in
+  `projects:get`'s notices);
+- the dropdown, dialogs and error dialogs of PRJ-11–16;
+- PRJ-17 (stopping sessions in another window);
+- PRJ-20 and 21 (the list's sections and folder lines);
+- the menus of PRJ-22–26;
+- every on-screen part of PRJ-27–35, 41–43, 45, 46 and 48 (vertical shown stacked);
+- PRJ-36 and 37's watching for the first typed message;
+- PRJ-56 (the sidebar);
+- the toasts of SES-72–75.
+
+**Deviations:**
+- **`jsonstate.readJsonReport`** (my plan 03 module, extended). A `parse` may throw
+  `UnreadableShape` to have a JSON file of the wrong shape moved aside like a non-JSON one, and the
+  moved name comes back for the notice. `readJson` keeps its signature.
+- **`Projects.windows` holds the saved windows as the file had them** (`unknown[]`). `reopen()`
+  checks each entry by the spec's rules, and a save writes the live layout (`toSaved`).
+- **`check-i18n` counts a key written as a string literal under `src/` as used**: `core` returns
+  refusal keys that the UI will pass to `t()`. Without that, every refusal would warn as unused.
+- **Notices travel as data**: the import's two notices and an unreadable `projects.json` are
+  returned in `projects:get`, `{ key, params }`, for the window plan to show.
+- **Writing both files on the first start:** `state.json` goes first; if `projects.json` then
+  fails, `state.json` is removed, so the next start is a first start again (SES-83).
+- **Settings imported** keep agent-tablet's keys, which are Menkar's. `remote_control` and
+  `settings` are written only when not empty.
+
+**For a person reading the diff (`npm run ci`'s test-integrity step is red on purpose):**
+`e2e/terminal.spec.ts`'s config-directory assertion
+`expect(existsSync(config) ? readdirSync(config, { recursive: true }) : []).toEqual([])` became
+false by design: the first start now writes `projects.json` and `state.json` there. It is replaced
+by an assertion that the directory holds exactly those two files, with nothing of Chromium's. The
+guard has no override; once this change is committed the baseline moves and the step is green.
+
+**Not anticipated:**
+- `docs/history/spec/sessions.md` received its new sections at the end rather than in the
+  document's section order: moving committed lines would read as a loss to the history check. The
+  file only grows.
+- `src/core/i18n/en.ts` and `es.ts` were written whole once in this plan, before `b2`'s `usage.*`
+  block existed. Since `set`'s coordination message, they have been edited only in place.
