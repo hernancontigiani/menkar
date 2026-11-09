@@ -291,6 +291,7 @@ export function render(next: WindowState): void {
   const face = blockedPill(faceBadge(agentStates?.blocked ?? {}, next.shown))
   if (face) $('project-button').querySelector('.project-name')?.after(face)
   $('close-all').style.display = next.tabCount >= 2 ? '' : 'none'
+  document.documentElement.classList.toggle('maximized', next.maximized)
   renderSessionList(next, project)
   renderStrip(next)
   renderContent(next)
@@ -333,7 +334,10 @@ function sendTitleBar(): void {
   const style = getComputedStyle(header)
   const color = drawn(getComputedStyle(document.body).backgroundColor, style.backgroundColor)
   const symbolColor = drawn(color, style.color)
-  const height = Math.round(Number.parseFloat(style.minHeight))
+  // Above the header's bottom line, which stays visible under the window buttons.
+  const height = Math.round(
+    Number.parseFloat(style.minHeight) - Number.parseFloat(style.borderBottomWidth),
+  )
   const key = `${color} ${symbolColor} ${height}`
   if (key === titleBarSent || height === 0) return
   titleBarSent = key

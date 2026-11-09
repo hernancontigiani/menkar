@@ -144,10 +144,27 @@ export interface MenuItem {
 export type MenuEntry = MenuItem | 'separator'
 
 let openPopover: HTMLElement | null = null
+// The button whose click opened the popover; clicking it again closes it.
+let openPopoverOpener: Element | null = null
+// The button being clicked while a click is dispatched, whoever handles it; mouse and keyboard
+// clicks alike.
+let clickingButton: Element | null = null
+
+document.addEventListener(
+  'click',
+  (event) => {
+    clickingButton = event.target instanceof Element ? event.target.closest('button') : null
+    setTimeout(() => {
+      clickingButton = null
+    })
+  },
+  true,
+)
 
 export function closePopover(): void {
   openPopover?.remove()
   openPopover = null
+  openPopoverOpener = null
 }
 
 // Esc closes an open menu or popover, and goes no further (not to a terminal under it).
@@ -166,7 +183,12 @@ export function showPopover(
   content: HTMLElement,
   anchor: { x: number; y: number },
   extraClass = '',
-): HTMLElement {
+): HTMLElement | null {
+  const opener = clickingButton
+  if (opener && openPopover && openPopoverOpener === opener) {
+    closePopover()
+    return null
+  }
   closePopover()
   const popover = el('div', { class: `popover ${extraClass}` }, content)
   popover.style.left = `${Math.max(4, anchor.x)}px`
@@ -178,9 +200,18 @@ export function showPopover(
   if (rect.bottom > window.innerHeight - 4)
     popover.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`
   openPopover = popover
+  openPopoverOpener = opener
   setTimeout(() => {
     const away = (event: MouseEvent) => {
-      if (openPopover === popover && !popover.contains(event.target as Node)) {
+      if (openPopover !== popover) {
+        document.removeEventListener('mousedown', away, true)
+        return
+      }
+      const target = event.target as Node
+      // A press on the opener is left to its click, which closes the popover; closing here would
+      // let that click open it again.
+      if (opener?.contains(target)) return
+      if (!popover.contains(target)) {
         closePopover()
         document.removeEventListener('mousedown', away, true)
       }

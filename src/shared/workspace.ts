@@ -60,6 +60,8 @@ export interface WindowState {
   // Sessions with Remote Control on.
   readonly remoteControl: readonly string[]
   readonly ghostty: boolean
+  // Maximized or full screen: the window's edge is the screen's.
+  readonly maximized: boolean
 }
 
 export type Action =

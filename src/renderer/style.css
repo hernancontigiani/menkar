@@ -169,10 +169,26 @@ html.classic #sidebar .dim {
   padding: 4px 6px;
   min-height: 43px;
 }
-/* The headers are the window's title bar: dragged to move it; their controls stay clickable. */
+/* The headers are the window's title bar: dragged to move it; their controls stay clickable.
+   One surface a step from the content toward the text, so the bar reads apart from what is under
+   it in every theme, dark or light. */
 .sidebar-header,
 .content-header {
   -webkit-app-region: drag;
+  background: color-mix(in srgb, var(--fg) 7%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 14%, var(--bg));
+}
+html.classic .sidebar-header {
+  min-height: 46px;
+}
+/* A window that does not fill the screen has no frame to end it: a hairline marks its edge. */
+html:not(.maximized) body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--fg) 22%, var(--bg));
+  pointer-events: none;
+  z-index: 10000;
 }
 .sidebar-header button,
 .content-header button,

@@ -272,8 +272,12 @@ function stateFor(windowId: string): WindowState | undefined {
     home: homedir(),
     notices: currentNotices(),
     agents: installedAgents,
+    maximized: filled(windows.get(windowId)),
   }
 }
+
+const filled = (window: BrowserWindow | undefined) =>
+  window !== undefined && !window.isDestroyed() && (window.isMaximized() || window.isFullScreen())
 
 const tracked = new Set<string>()
 
@@ -612,8 +616,16 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   })
   windows.set(windowId, window)
   window.once('ready-to-show', () => window.show())
-  window.on('maximize', () => lastMaximizeChange.set(windowId, now()))
-  window.on('unmaximize', () => lastMaximizeChange.set(windowId, now()))
+  window.on('maximize', () => {
+    lastMaximizeChange.set(windowId, now())
+    push()
+  })
+  window.on('unmaximize', () => {
+    lastMaximizeChange.set(windowId, now())
+    push()
+  })
+  window.on('enter-full-screen', () => push())
+  window.on('leave-full-screen', () => push())
   window.on('focus', () => {
     focusOrder = [windowId, ...focusOrder.filter((id) => id !== windowId)]
     notifySeen()

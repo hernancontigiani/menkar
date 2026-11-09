@@ -182,7 +182,7 @@ test('LOOK-1, LOOK-4 a first start: 1280 × 800 titled Menkar, the title centere
     ).toBeLessThanOrEqual(1)
 
     await expect(page.locator('#toggle-sidebar')).toHaveAttribute('aria-pressed', 'true')
-    expect(nearBy(await pixelOf(app, page, '#toggle-sidebar', 3, 3), '#2f3042')).toBe(true)
+    expect(nearBy(await pixelOf(app, page, '#toggle-sidebar', 3, 3), '#3b3c4e')).toBe(true)
     const toggle = await box(page, '#toggle-sidebar')
     const split = await box(page, '.content-header .split')
     expect(split.x).toBeGreaterThan(toggle.x)
@@ -322,7 +322,7 @@ test('LOOK-13 the sidebar header: the stretched project dropdown and ⚙; Add se
       'font-weight': '700',
     })
     await expect(page.locator('#project-button svg')).toBeVisible()
-    expect(nearBy(await pixelOf(app, page, '#project-button', 3, 3), '#2a2b3a')).toBe(true)
+    expect(nearBy(await pixelOf(app, page, '#project-button', 3, 3), '#3b3c4e')).toBe(true)
     await expect(page.locator('#sidebar .sidebar-header button')).toHaveCount(2)
     const add = await box(page, '#add-session')
     expect([

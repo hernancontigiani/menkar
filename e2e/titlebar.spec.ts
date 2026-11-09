@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { resolveLook, THEME_NAMES } from '../src/core/theme'
 import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app'
 import { clientWork } from './fixtures'
 import { near } from './measure'
@@ -294,6 +295,187 @@ test('LOOK-60 (2026-11-09) no drag region covers a control: every element that d
     expect(found.drags.length).toBeGreaterThanOrEqual(2)
     expect(found.controls).toBeGreaterThanOrEqual(8)
     expect(found.overlaps).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-62 (2026-11-09) a menu’s button closes the menu it opened: the project selector, ⚙ and New’s ▾, by mouse and by keyboard; Esc and a click outside still close it', async () => {
+  const launched = await client()
+  const page = launched.window
+  try {
+    const popovers = page.locator('.popover')
+    for (const opener of ['#project-button', '#main-menu', '#new-menu']) {
+      const button = page.locator(opener)
+      await button.click()
+      await expect(popovers, opener).toHaveCount(1)
+      await button.click()
+      await expect(popovers, opener).toHaveCount(0)
+      await button.click()
+      await expect(popovers, opener).toHaveCount(1)
+      await page.keyboard.press('Escape')
+      await expect(popovers, opener).toHaveCount(0)
+      await button.click()
+      await expect(popovers, opener).toHaveCount(1)
+      await page.locator('#session-list').click({ position: { x: 20, y: 300 } })
+      await expect(popovers, opener).toHaveCount(0)
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await expect(popovers, opener).toHaveCount(1)
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await expect(popovers, opener).toHaveCount(0)
+    }
+    // Another opener while one menu is open opens its own.
+    const firstItem = () => popovers.locator('.menu-item').first().textContent()
+    await page.locator('#main-menu').click()
+    const gearFirst = await firstItem()
+    await page.locator('#new-menu').click()
+    await expect(popovers).toHaveCount(1)
+    expect(await firstItem()).not.toBe(gearFirst)
+  } finally {
+    await launched.close()
+  }
+})
+
+// Colors as drawn over the window's background, as #rrggbb.
+const drawnColors = (page: Page) =>
+  page.evaluate(() => {
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+    const drawn = (...colors: string[]) => {
+      if (!ctx) return ''
+      ctx.clearRect(0, 0, 1, 1)
+      for (const c of colors) {
+        ctx.fillStyle = c
+        ctx.fillRect(0, 0, 1, 1)
+      }
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+      return `#${[r, g, b].map((v) => (v ?? 0).toString(16).padStart(2, '0')).join('')}`
+    }
+    const style = (selector: string) =>
+      getComputedStyle(document.querySelector(selector) as Element)
+    const body = getComputedStyle(document.body).backgroundColor
+    const content = style('.content-header')
+    const side = style('.sidebar-header')
+    return {
+      body: drawn(body),
+      header: drawn(body, content.backgroundColor),
+      sideHeader: drawn(body, side.backgroundColor),
+      line: drawn(body, content.borderBottomColor),
+      sideLine: drawn(body, side.borderBottomColor),
+      lineWidth: content.borderBottomWidth,
+      sideLineWidth: side.borderBottomWidth,
+    }
+  })
+
+const apart = (a: string, b: string) => {
+  const ch = (c: string) => [1, 3, 5].map((i) => Number.parseInt(c.slice(i, i + 2), 16))
+  const x = ch(a)
+  return Math.max(...ch(b).map((v, i) => Math.abs(v - (x[i] ?? 0))))
+}
+
+test('LOOK-63 (2026-11-09) the title bar is its own surface: both headers share a background apart from the content’s and a bottom line, in both styles and schemes and every theme; the window buttons take that background, above the line', async () => {
+  for (const settings of [
+    { ui_style: 'tui', color_scheme: 'dark' },
+    { ui_style: 'tui', color_scheme: 'light' },
+    { ui_style: 'classic', color_scheme: 'dark' },
+    { ui_style: 'classic', color_scheme: 'light' },
+  ]) {
+    const launched = await client(settings)
+    const { app, window: page } = launched
+    try {
+      const c = await drawnColors(page)
+      const what = JSON.stringify({ settings, c })
+      expect(c.sideHeader, what).toBe(c.header)
+      expect(c.sideLine, what).toBe(c.line)
+      expect([c.lineWidth, c.sideLineWidth], what).toEqual(['1px', '1px'])
+      expect(apart(c.header, c.body), what).toBeGreaterThanOrEqual(8)
+      expect(apart(c.line, c.header), what).toBeGreaterThanOrEqual(8)
+      const content = await page.locator('.content-header').boundingBox()
+      const side = await page.locator('.sidebar-header').boundingBox()
+      expect((side?.y ?? 0) + (side?.height ?? 0), what).toBe(
+        (content?.y ?? 0) + (content?.height ?? 0),
+      )
+      // Under the window buttons, the header's bottom line still shows: the overlay stops above it.
+      const bounds = await app.evaluate(
+        ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getBounds() ?? null,
+      )
+      if (!bounds || !content) throw new Error('no window')
+      const lineY = bounds.y + Math.round(content.y + content.height) - 1
+      await expect
+        .poll(
+          async () =>
+            near(await screenPixel(app, bounds.x + bounds.width - 12, lineY), c.line, 2) &&
+            near(await screenPixel(app, bounds.x + bounds.width - 12, lineY - 2), c.header, 2),
+          { timeout: 5000 },
+        )
+        .toBe(true)
+    } finally {
+      await launched.close()
+    }
+  }
+  const launched = await client()
+  const page = launched.window
+  try {
+    const { body } = await drawnColors(page)
+    for (const name of THEME_NAMES) {
+      for (const style of ['tui', 'classic']) {
+        for (const dark of [true, false]) {
+          const look = resolveLook(
+            { ui_style: style, terminal_theme: name, color_scheme: dark ? 'dark' : 'light' },
+            dark,
+          )
+          await page.evaluate((r) => {
+            const root = document.documentElement
+            root.style.setProperty('--bg', r.bg)
+            root.style.setProperty('--fg', r.fg)
+            document.body.style.background = r.bg
+          }, look.roles)
+          const c = await drawnColors(page)
+          const what = JSON.stringify({ name, style, dark, c })
+          expect(apart(c.header, c.body), what).toBeGreaterThanOrEqual(8)
+          expect(apart(c.line, c.header), what).toBeGreaterThanOrEqual(8)
+        }
+      }
+    }
+    expect(body).not.toBe('')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-64 (2026-11-09) a window that does not fill the screen shows a hairline edge; maximized or full screen it has none', async () => {
+  const launched = await client()
+  const { app, window: page } = launched
+  try {
+    const edge = () =>
+      page.evaluate(() => {
+        const s = getComputedStyle(document.body, '::after')
+        return s.content === 'none' ? 'none' : `${s.borderTopWidth} ${s.position}`
+      })
+    await expect.poll(edge).toBe('1px fixed')
+    // No window manager under xvfb: the window is told it is maximized, as one would tell it.
+    await app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows()[0]
+      if (!w) return
+      w.isMaximized = () => true
+      w.emit('maximize')
+    })
+    await expect.poll(edge).toBe('none')
+    await app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows()[0]
+      if (!w) return
+      w.isMaximized = () => false
+      w.emit('unmaximize')
+    })
+    await expect.poll(edge).toBe('1px fixed')
+    await app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows()[0]
+      if (!w) return
+      w.isFullScreen = () => true
+      w.emit('enter-full-screen')
+    })
+    await expect.poll(edge).toBe('none')
   } finally {
     await launched.close()
   }

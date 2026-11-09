@@ -83,11 +83,19 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   double click on a header's empty space asks main to maximize or restore; main skips a toggle right
   after the system's own, so a desktop that also maximizes on a caption double click does not
   undo it.
+- The two headers are one surface (2026-11-09): a background a step from the content's toward the
+  text color, with a 1 px line under it, derived from the theme's roles so every theme and scheme
+  gets it. The window buttons take that background and stop above the line. A window that does not
+  fill the screen draws a 1 px edge around itself, since without a system frame nothing else ends
+  it; maximized or full screen (`maximized` in the window's state) it has none.
 - Preferences, Usage, About and MCP keep the system's frame.
 - A right click on a terminal opens its menu (decision 1.20, 2026-11-09): Copy (off with no
   selection), Paste, Select all, Find…, each with its keys; it opens on `contextmenu`, after xterm
   handled the press, so the selection stays. Paste is the user's own action, as `Ctrl+Shift+V` is.
   Esc closes any open menu and goes no further.
+- The button that opened a menu or popover closes it again, by mouse or keyboard (2026-11-09): a
+  press on that button is left to its click, which would otherwise reopen what the press outside
+  had just closed.
 - A session row shows its context ring only while its agent runs (decision 1.21, 2026-11-09): a
   stopped session's estimate is too often wrong. The windows hear of an agent reaching or leaving
   the foreground from a short poll of the panes in main, since nothing else marks that moment.
