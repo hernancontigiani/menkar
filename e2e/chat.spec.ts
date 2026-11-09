@@ -338,24 +338,48 @@ test('CHT-27, CHT-28 a user message is plain text; the view follows the bottom o
     await expect
       .poll(() => conversation.evaluate((n) => n.scrollHeight - n.clientHeight))
       .toBeGreaterThan(400)
-    await conversation.evaluate((n) => {
-      n.scrollTop = n.scrollHeight - n.clientHeight - 200
-    })
-    const held = await conversation.evaluate((n) => n.scrollTop)
-    const height = await conversation.evaluate((n) => n.scrollHeight)
-    await expect
-      .poll(() => conversation.evaluate((n) => n.scrollHeight))
-      .toBeGreaterThan(height + 200)
-    expect(await conversation.evaluate((n) => n.scrollTop)).toBe(held)
-    expect(await gap()).toBeGreaterThan(200)
+    // Text arrives every 40 ms, so a paragraph could land between a scroll and the moment the view
+    // handles it, and the view would rightly judge the bottom too far. The stand-in holds its
+    // stream while `pause` exists: each position is set with nothing in flight, and the stream
+    // goes on once the scroll has been handled.
+    const pause = join(log, 'pause')
+    const scrollAbove = async (offset: number) => {
+      writeFileSync(pause, '')
+      let last = -1
+      await expect
+        .poll(
+          async () => {
+            const height = await conversation.evaluate((n) => n.scrollHeight)
+            const still = height === last
+            last = height
+            return still
+          },
+          { intervals: [150] },
+        )
+        .toBe(true)
+      await conversation.evaluate(
+        (n, above) =>
+          new Promise<void>((handled) => {
+            n.addEventListener('scroll', () => requestAnimationFrame(() => handled()), {
+              once: true,
+            })
+            n.scrollTop = n.scrollHeight - n.clientHeight - above
+          }),
+        offset,
+      )
+      rmSync(pause)
+      const height = await conversation.evaluate((n) => n.scrollHeight)
+      await expect
+        .poll(() => conversation.evaluate((n) => n.scrollHeight))
+        .toBeGreaterThan(height + 200)
+    }
 
-    await conversation.evaluate((n) => {
-      n.scrollTop = n.scrollHeight - n.clientHeight - 40
-    })
-    const again = await conversation.evaluate((n) => n.scrollHeight)
-    await expect
-      .poll(() => conversation.evaluate((n) => n.scrollHeight))
-      .toBeGreaterThan(again + 200)
+    for (const above of [200, 60]) {
+      await scrollAbove(above)
+      // Not followed: the view stayed where it was put while the text grew below it.
+      expect(await gap()).toBeGreaterThan(200)
+    }
+    await scrollAbove(40)
     await expect.poll(gap).toBeLessThanOrEqual(1)
   } finally {
     await launched.close()

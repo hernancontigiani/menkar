@@ -27,6 +27,8 @@ process.stdin.on('data', (chunk) => {
         // A long answer, one paragraph every 40 ms, for following the bottom while text arrives.
         let n = 0
         const timer = setInterval(() => {
+          // A test holds the stream while it scrolls: no paragraph while $FAKE_CHAT_LOG/pause exists.
+          if (log && fs.existsSync(path.join(log, 'pause'))) return
           n += 1
           out({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: `paragraph ${n}\n\n` } } })
           if (n === 150) {
