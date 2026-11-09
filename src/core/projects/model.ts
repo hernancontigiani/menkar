@@ -16,6 +16,8 @@ export interface Project {
   readonly name: string
   readonly members: readonly string[]
   readonly groups: readonly Group[]
+  // Members kept out of the project's list (decision 1.25): still members, so still counted.
+  readonly hidden?: readonly string[]
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }
@@ -86,6 +88,14 @@ function leaveGroups(p: Project, sessionId: string): Project {
   }
 }
 
+// A member leaving its project leaves its group and the project's hidden list too.
+function leave(p: Project, sessionId: string): Project {
+  const left = leaveGroups({ ...p, members: p.members.filter((m) => m !== sessionId) }, sessionId)
+  return p.hidden?.includes(sessionId)
+    ? { ...left, hidden: p.hidden.filter((m) => m !== sessionId) }
+    : left
+}
+
 export function createProject(state: Projects, name: string, id: string = newProjectId()): Result {
   const refusal = nameRefusal(state, name)
   if (refusal) return { ok: false, refusal }
@@ -127,7 +137,7 @@ export function addMember(state: Projects, projectId: string, sessionId: string)
     projects: state.projects.map((p) => {
       if (p.id === projectId) return { ...p, members: [...p.members, sessionId] }
       if (!p.members.includes(sessionId)) return p
-      return leaveGroups({ ...p, members: p.members.filter((m) => m !== sessionId) }, sessionId)
+      return leave(p, sessionId)
     }),
   }
 }
@@ -135,11 +145,7 @@ export function addMember(state: Projects, projectId: string, sessionId: string)
 export function removeMember(state: Projects, sessionId: string): Projects {
   return {
     ...state,
-    projects: state.projects.map((p) =>
-      p.members.includes(sessionId)
-        ? leaveGroups({ ...p, members: p.members.filter((m) => m !== sessionId) }, sessionId)
-        : p,
-    ),
+    projects: state.projects.map((p) => (p.members.includes(sessionId) ? leave(p, sessionId) : p)),
   }
 }
 
@@ -183,6 +189,31 @@ export function newGroup(
     groups: [...left.groups, { name: trimmed, color, members: [sessionId] }],
   }
   return { ok: true, projects: update(state, projectId, () => after) }
+}
+
+// Hidden in its project's list (decision 1.25): only while it does not run, since a running session
+// has a tab and a tab is never without its row. A session in no project has no list to leave.
+export function hideMember(state: Projects, sessionId: string, running: boolean): Result {
+  if (running) return { ok: false, refusal: 'projects.hideRunning' }
+  const project = projectOf(state, sessionId)
+  if (!project || project.hidden?.includes(sessionId)) return { ok: true, projects: state }
+  return {
+    ok: true,
+    projects: update(state, project.id, (p) => ({
+      ...p,
+      hidden: [...(p.hidden ?? []), sessionId],
+    })),
+  }
+}
+
+// Shown again: from its menu, picked in Add session, or started (running implies shown).
+export function showMember(state: Projects, sessionId: string): Projects {
+  const project = projectOf(state, sessionId)
+  if (!project?.hidden?.includes(sessionId)) return state
+  return update(state, project.id, (p) => ({
+    ...p,
+    hidden: (p.hidden ?? []).filter((m) => m !== sessionId),
+  }))
 }
 
 // A new session joins the project its tab was started in, or `current` if that one is gone.

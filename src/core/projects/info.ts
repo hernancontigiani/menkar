@@ -6,6 +6,7 @@ export interface ProjectInfo {
   readonly id: string
   readonly name: string
   readonly members: readonly string[]
+  readonly hidden: readonly string[]
   readonly groups: readonly {
     readonly name: string
     readonly color: string

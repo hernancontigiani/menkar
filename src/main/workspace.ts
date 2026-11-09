@@ -34,6 +34,7 @@ import {
   addMember,
   createProject,
   deleteProject,
+  hideMember,
   joinTarget,
   newGroup,
   type Projects,
@@ -42,6 +43,7 @@ import {
   renameProject,
   setCurrent,
   setGroup,
+  showMember,
 } from '../core/projects/model'
 import { saveProjects } from '../core/projects/store'
 import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
@@ -248,10 +250,11 @@ function stateFor(windowId: string): WindowState | undefined {
     windowId,
     settings,
     shown: w.shown,
-    projects: projects.projects.map(({ id, name, members, groups }) => ({
+    projects: projects.projects.map(({ id, name, members, groups, hidden }) => ({
       id,
       name,
       members,
+      hidden: hidden ?? [],
       groups,
     })),
     heldElsewhere,
@@ -371,6 +374,14 @@ interface PaneSpec {
 }
 
 async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
+  // Running implies shown: a hidden member started from anywhere is back in its project's list.
+  if (spec.sessionId) {
+    const shownAgain = showMember(projects, spec.sessionId)
+    if (shownAgain !== projects) {
+      projects = shownAgain
+      changed({ projects: true })
+    }
+  }
   const id = newId()
   const tag = t('terminal.tag')
   const messages: string[] = []
@@ -1074,6 +1085,21 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed({ projects: true })
       return {}
     }
+    case 'hideSession': {
+      const result = hideMember(
+        projects,
+        action.session,
+        paneOfSession(action.session) !== undefined,
+      )
+      if (!result.ok) return { refusal: result.refusal }
+      projects = result.projects
+      changed({ projects: true })
+      return {}
+    }
+    case 'showSession':
+      projects = showMember(projects, action.session)
+      changed({ projects: true })
+      return {}
     case 'removeMember': {
       const pane = paneOfSession(action.session)
       if (pane) await runAction(contents, { type: 'stopSession', session: action.session })
@@ -1472,7 +1498,8 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const moved = moveSessionHere(layout, projects, windowId, action.session, newId)
       if (!moved.ok) return { refusal: moved.refusal }
       layout = moved.layout
-      projects = moved.projects
+      // Picking a hidden member of this project shows it again rather than adding it twice.
+      projects = showMember(moved.projects, action.session)
       // A pane taken alone out of a two-pane tab now lives in a new tab of this window.
       if (before && fromTab) {
         const target = layout.windows

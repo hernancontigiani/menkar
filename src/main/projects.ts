@@ -43,10 +43,11 @@ export function projectsSnapshot(): ProjectsSnapshot {
   if (!state) return { current: '', projects: [], notices }
   return {
     current: state.current,
-    projects: state.projects.map(({ id, name, members, groups }) => ({
+    projects: state.projects.map(({ id, name, members, groups, hidden }) => ({
       id,
       name,
       members,
+      hidden: hidden ?? [],
       groups,
     })),
     notices,

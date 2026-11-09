@@ -21,6 +21,8 @@ interface Entry {
   readonly dot: HTMLElement | null
   readonly search: string
   readonly choose: () => void
+  // Hidden in its project's list: listed, dimmed.
+  readonly dimmed?: boolean
 }
 
 const FILTER_PAUSE_MS = 120
@@ -47,7 +49,10 @@ function jumpDialog(title: string, placeholder: string, entries: readonly Entry[
       ...shown.map((entry, i) => {
         const row = el(
           'div',
-          { class: `jump-row${i === selected ? ' selected' : ''}`, role: 'option' },
+          {
+            class: `jump-row${i === selected ? ' selected' : ''}${entry.dimmed ? ' hidden-member' : ''}`,
+            role: 'option',
+          },
           entry.dot,
           el(
             'div',
@@ -117,6 +122,7 @@ export function quickSwitcher(): void {
   if (!s) return
   const project = s.projects.find((p) => p.id === s.shown)
   const members = new Set(project?.members ?? [])
+  const hiddenHere = new Set(project?.hidden ?? [])
   const known = s.sessions.filter((x) => members.has(x.id) && (showHiddenSessions() || !x.hidden))
   const ordered = groupByFolder(known).flatMap((g) =>
     g.sessions.map((session) => ({ session, folder: g.name })),
@@ -129,7 +135,9 @@ export function quickSwitcher(): void {
       subtitle: session.preview ? `${folder} · ${session.preview}` : folder,
       dot: null,
       search: [session.name, folder, session.preview, session.id].join(' ').toLowerCase(),
+      // Opening it runs it, which shows it again in the list.
       choose: () => void act({ type: 'openSession', session: session.id }),
+      dimmed: hiddenHere.has(session.id),
     })),
   )
 }

@@ -367,6 +367,9 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     )
     return
   }
+  // Hidden in this project (decision 1.25): out of the list unless this window shows them, dimmed.
+  const hiddenHere = new Set(project.hidden.filter((id) => byId.has(id)))
+  const listed = (id: string) => !hiddenHere.has(id) || showHiddenInProject
   const folders = new Set(
     known.map((id) => {
       const info = byId.get(id)
@@ -377,20 +380,32 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   const running = new Set(s.running)
   const grouped = new Set(project.groups.flatMap((g) => g.members))
   const children: HTMLElement[] = []
-  const shownGroups = project.groups.filter((g) => g.members.some((m) => byId.has(m)))
+  const shownGroups = project.groups.filter((g) => g.members.some((m) => byId.has(m) && listed(m)))
   for (const group of shownGroups) {
     children.push(el('div', { class: 'group-heading dim' }, groupDot(group.color), group.name))
     for (const id of group.members) {
       const info = byId.get(id)
-      if (info) children.push(row(info, showFolder, running.has(id), project))
+      if (info && listed(id)) children.push(row(info, showFolder, running.has(id), project))
     }
   }
-  const loose = known.filter((id) => !grouped.has(id))
+  const loose = known.filter((id) => !grouped.has(id) && listed(id))
   if (loose.length > 0 && shownGroups.length > 0)
     children.push(el('div', { class: 'group-heading dim' }, t('sidebar.noGroup')))
   for (const id of loose) {
     const info = byId.get(id)
     if (info) children.push(row(info, showFolder, running.has(id), project))
+  }
+  if (hiddenHere.size > 0) {
+    const foot = el(
+      'button',
+      { class: 'hidden-foot dim', 'aria-pressed': String(showHiddenInProject) },
+      t('sidebar.hiddenCount', { n: hiddenHere.size }),
+    )
+    foot.addEventListener('click', () => {
+      showHiddenInProject = !showHiddenInProject
+      if (state) render(state)
+    })
+    children.push(foot)
   }
   list.replaceChildren(...children)
 }
@@ -406,6 +421,9 @@ function groupDot(color: string): HTMLElement {
   dot.style.color = color
   return dot
 }
+
+// Per window and not saved: whether the project's hidden members are listed, dimmed.
+let showHiddenInProject = false
 
 function row(
   info: SessionInfo,
@@ -423,7 +441,10 @@ function row(
   )
   const node = el(
     'div',
-    { class: 'row', 'data-session': info.id },
+    {
+      class: `row${project.hidden.includes(info.id) ? ' hidden-member' : ''}`,
+      'data-session': info.id,
+    },
     dot,
     el(
       'div',
@@ -494,6 +515,21 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
     })
   entries.push(...infoItems(info))
   entries.push('separator')
+  if (project.hidden.includes(info.id))
+    entries.push({
+      label: t('row.showInProject'),
+      run: () => void act({ type: 'showSession', session: info.id }),
+    })
+  else {
+    // Only a session without a tab: a tab is never without its row.
+    const hasTab = state?.open.includes(info.id) ?? false
+    entries.push({
+      label: t('row.hideInProject'),
+      disabled: hasTab,
+      ...(hasTab ? { title: t('projects.hideRunning') } : {}),
+      run: () => void act({ type: 'hideSession', session: info.id }),
+    })
+  }
   entries.push({ label: t('row.remove'), run: () => void removeFromProject(info, running) })
   return entries
 }
@@ -679,6 +715,16 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
   return node
 }
 
+const tabBodies = new Map<string, HTMLElement>()
+let emptyContent: HTMLElement | null = null
+
+// Only when they differ, in nodes or order.
+function setChildren(parent: HTMLElement, children: readonly HTMLElement[]): void {
+  const now = parent.children
+  if (now.length === children.length && children.every((c, i) => now[i] === c)) return
+  parent.replaceChildren(...children)
+}
+
 function renderContent(s: WindowState): void {
   // Re-attaching the kept nodes below takes the focus away from an editor or terminal in them.
   const active = document.activeElement
@@ -688,38 +734,44 @@ function renderContent(s: WindowState): void {
   forgetReplaysExcept(new Set(s.tabs.filter((tab) => tab.replay).map((tab) => tab.id)))
   forgetFilesExcept(new Set(s.tabs.filter((tab) => tab.file).map((tab) => tab.id)))
   forgetChatsExcept(new Set(s.tabs.filter((tab) => tab.chat !== undefined).map((tab) => tab.id)))
+  // Patched in place: a node moved in the DOM loses a click in progress on it (a find bar's
+  // button, a terminal) and its focus, and states arrive often while agents start and stop.
   const bodies: HTMLElement[] = []
   for (const tab of s.tabs) {
     const visible = tab.id === s.selectedTab && tab.project === s.shown
-    const body = el('div', {
-      class: `tab-body ${tab.orientation}${visible ? '' : ' hidden'}`,
-      'data-tab-body': tab.id,
-    })
+    let body = tabBodies.get(tab.id)
+    if (!body) {
+      body = el('div', { 'data-tab-body': tab.id })
+      tabBodies.set(tab.id, body)
+    }
+    body.className = `tab-body ${tab.orientation}${visible ? '' : ' hidden'}`
     const zoomed = zoomedTabs.has(tab.id) && tab.panes.length === 2
     const focused = focusedPane.get(tab.id)
-    if (tab.replay) body.append(replayElement(tab.id, tab.replay))
-    if (tab.file) body.append(fileElement(tab))
-    if (tab.chat !== undefined) body.append(chatElement(tab.id, tab.chat))
+    const children: HTMLElement[] = []
+    if (tab.replay) children.push(replayElement(tab.id, tab.replay))
+    if (tab.file) children.push(fileElement(tab))
+    if (tab.chat !== undefined) children.push(chatElement(tab.id, tab.chat))
     for (const pane of tab.panes) {
       const node = paneElement(pane)
       node.classList.toggle('hidden', zoomed && pane.id !== focused)
-      body.append(node)
+      children.push(node)
     }
+    setChildren(body, children)
     if (tab.panes.length < 2) zoomedTabs.delete(tab.id)
     bodies.push(body)
   }
+  for (const id of tabBodies.keys()) if (!s.tabs.some((tab) => tab.id === id)) tabBodies.delete(id)
   if (!s.tabs.some((tab) => tab.id === s.selectedTab && tab.project === s.shown)) {
-    bodies.push(
-      el(
-        'div',
-        { class: 'status-page', id: 'empty-content' },
-        logo('big'),
-        el('div', { class: 'heading' }, t('empty.noSessionTitle')),
-        el('div', { class: 'body dim' }, t('empty.noSessionBody')),
-      ),
+    emptyContent ??= el(
+      'div',
+      { class: 'status-page', id: 'empty-content' },
+      logo('big'),
+      el('div', { class: 'heading' }, t('empty.noSessionTitle')),
+      el('div', { class: 'body dim' }, t('empty.noSessionBody')),
     )
+    bodies.push(emptyContent)
   }
-  content.replaceChildren(...bodies)
+  setChildren(content, bodies)
   if (active instanceof HTMLElement && active.isConnected && document.activeElement !== active)
     active.focus()
   const selected = s.tabs.find((tab) => tab.id === s.selectedTab)

@@ -138,6 +138,8 @@ export interface MenuItem {
   // The keys that do the same, shown at the item's right.
   readonly shortcut?: string
   readonly disabled?: boolean
+  // Why it is disabled, or what it does.
+  readonly title?: string
 }
 export type MenuEntry = MenuItem | 'separator'
 
@@ -203,6 +205,7 @@ export function showMenu(entries: readonly MenuEntry[], anchor: { x: number; y: 
       entry.shortcut ? el('span', { class: 'menu-shortcut dim' }, entry.shortcut) : null,
     )
     if (entry.disabled) item.disabled = true
+    if (entry.title) item.title = entry.title
     item.addEventListener('click', (event) => {
       if (entry.submenu) {
         const rect = item.getBoundingClientRect()

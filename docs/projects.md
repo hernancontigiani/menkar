@@ -23,6 +23,20 @@ keeps how they are built and why.
   project is gone.
 - Ids are the first 12 hex characters of a random UUID.
 
+## Hidden in a project (decision 1.25, 2026-11-09)
+
+- A project keeps a `hidden` list of its own members (`model.ts` `hideMember`, `showMember`). A
+  hidden member leaves the project's list and **stays a member**: usage still counts it under the
+  project, and no other project or the history's global hide is touched.
+- Only a session without a tab can be hidden (a tab is never without its row): the row menu's
+  Hide is off for it, saying to close its tab first.
+- It is shown again from its menu's Show (with the list's "N hidden" toggle on, which is per window
+  and not saved), by being picked in Add session, or by being started from anywhere: running
+  implies shown (`startPane`). The quick switcher lists hidden members, dimmed.
+- In `projects.json` the list sits after `groups`, only when not empty. It is read leniently: ids
+  that are not members are dropped, and a malformed list reads as none; a member leaving the
+  project leaves the list too.
+
 ## The layout — `layout.ts`
 
 - A `Layout` is windows; a window shows one project and keeps the tabs of every project it holds,

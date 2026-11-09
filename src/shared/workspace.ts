@@ -77,6 +77,8 @@ export type Action =
     }
   | { readonly type: 'newGroup'; readonly session: string; readonly name: string }
   | { readonly type: 'removeMember'; readonly session: string }
+  | { readonly type: 'hideSession'; readonly session: string }
+  | { readonly type: 'showSession'; readonly session: string }
   | { readonly type: 'renameSession'; readonly session: string; readonly name: string }
   | { readonly type: 'renameTab'; readonly tab: string; readonly title: string }
   | { readonly type: 'selectTab'; readonly tab: string }

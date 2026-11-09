@@ -524,6 +524,17 @@ html.classic .frame-label {
 .menu-item:hover {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
+/* A member hidden in its project's list, shown while the list shows them, or in the switcher. */
+.row.hidden-member,
+.jump-row.hidden-member {
+  opacity: 0.5;
+}
+.hidden-foot {
+  margin: 4px 10px;
+  align-self: flex-start;
+  background: transparent;
+  font-size: 9pt;
+}
 .menu-item:disabled {
   opacity: 0.45;
   background: transparent;

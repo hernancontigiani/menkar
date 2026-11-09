@@ -713,3 +713,31 @@ test('the window is told when an agent reaches the foreground, without waiting f
     await launched.close()
   }
 })
+
+test('a state with no layout change moves nothing in the tab content: a pane under the pointer stays put', async () => {
+  const launched = await launchApp({ prepare: savedCursorTab })
+  const page = launched.window
+  try {
+    await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+    await page.evaluate(() => {
+      const g = globalThis as unknown as { moves: number }
+      g.moves = 0
+      const content = document.getElementById('tab-content')
+      if (!content) return
+      // The content and its tab bodies only: what xterm draws inside a pane is its own.
+      new MutationObserver((records) => {
+        for (const r of records) {
+          const target = r.target as HTMLElement
+          if (target === content || target.classList.contains('tab-body'))
+            g.moves += r.addedNodes.length + r.removedNodes.length
+        }
+      }).observe(content, { childList: true, subtree: true })
+    })
+    const tab = await page.locator('.tab.selected').getAttribute('data-tab')
+    for (let i = 0; i < 3; i += 1) await act(page, { type: 'selectTab', tab })
+    await page.waitForTimeout(500)
+    expect(await page.evaluate(() => (globalThis as unknown as { moves: number }).moves)).toBe(0)
+  } finally {
+    await launched.close()
+  }
+})

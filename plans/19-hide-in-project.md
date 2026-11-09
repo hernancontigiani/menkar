@@ -91,11 +91,34 @@ hide does not touch the sidebar.
 ## Execution blocks
 
 ### B1: build
-- [ ] Core, main, renderer, strings, tests.
+- [x] Core, main, renderer, strings, tests.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B2: exit
-- [ ] `docs/projects.md`, the plan's log.
+- [x] `docs/projects.md`, the plan's log.
 - **Verification:** `npm run ci`.
 
 ## Execution log
+
+### B1 — Build (2026-11-09)
+
+- Core: `Project.hidden` (optional, so files without it are unchanged), `hideMember` refusing a
+  session with a tab (`projects.hideRunning`), `showMember`, and `leave()` pruning the list when a
+  member is removed or moves. `store.ts` reads it leniently and writes it only when not empty.
+- Main: `hideSession` / `showSession` actions; `startPane` shows a session again (running implies
+  shown); `pickSession` shows a hidden member again. `ProjectInfo.hidden` reaches the windows.
+- Renderer: hidden rows out of the list, a "N hidden" foot toggling them back dimmed (per window),
+  Hide / Show in the row menu with Hide off and titled while the session has a tab, the quick
+  switcher listing hidden members dimmed. `MenuItem` gains `title`.
+- Strings in en and es: `row.hideInProject`, `row.showInProject`, `sidebar.hiddenCount`,
+  `projects.hideRunning` (`row.hide` was taken by the history's "Hide session").
+- The search the plan first named is the quick switcher: the sidebar has none (`set`, 2026-11-09).
+- Tests: `tests/core/projects/hidden.test.ts` (5, each seen red on its own defect);
+  `e2e/projects.spec.ts` PRJ-60–64, each seen red on its own defect. PRJ-64 first passed against
+  hidden-means-removed, because usage takes membership at its pass; it now starts with the session
+  hidden and was red against a scope that filters hidden members out.
+- Screenshot: `/tmp/menkar-shots/hidden-foot.png`.
+
+### B2 — Exit (2026-11-09)
+
+`docs/projects.md` gains "Hidden in a project".

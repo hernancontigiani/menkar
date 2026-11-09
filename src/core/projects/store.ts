@@ -40,7 +40,7 @@ export function parseProjects(value: unknown): Projects {
   const seen = new Set<string>()
   const parsed: Project[] = projects.map((raw) => {
     if (!isObject(raw)) unreadable('a project is not an object')
-    const { id, name, members, groups, ...projectRest } = raw
+    const { id, name, members, groups, hidden, ...projectRest } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
     if (typeof name !== 'string') unreadable('a project name is not a string')
     const own = (members === undefined ? [] : strings(members, 'members')).filter(
@@ -65,7 +65,18 @@ export function parseProjects(value: unknown): Projects {
         }
       })
       .filter((g) => g.members.length > 0)
-    return { id, name, members: unique, groups: parsedGroups, rest: projectRest }
+    // Lenient, unlike members: a list this version cannot read only shows every member again.
+    const keptHidden = Array.isArray(hidden)
+      ? [...new Set(hidden.filter((h): h is string => typeof h === 'string' && memberSet.has(h)))]
+      : []
+    return {
+      id,
+      name,
+      members: unique,
+      groups: parsedGroups,
+      ...(keptHidden.length > 0 ? { hidden: keptHidden } : {}),
+      rest: projectRest,
+    }
   })
   const first = parsed[0]
   if (!first) unreadable('no projects')
@@ -80,7 +91,7 @@ export function parseProjects(value: unknown): Projects {
 }
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
-// keys, then id, name, members, groups. A group keeps only its three keys.
+// keys, then id, name, members, groups, and hidden when any. A group keeps only its three keys.
 export function serializeProjects(
   state: Projects,
   windows: readonly SavedWindow[] = [],
@@ -95,6 +106,7 @@ export function serializeProjects(
       name: p.name,
       members: p.members,
       groups: p.groups.map((g) => ({ name: g.name, color: g.color, members: g.members })),
+      ...(p.hidden && p.hidden.length > 0 ? { hidden: p.hidden } : {}),
     })),
     windows,
   }

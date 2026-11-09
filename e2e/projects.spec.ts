@@ -62,9 +62,10 @@ test("the first start imports agent-tablet's projects and settings, and leaves i
           id: 'a1a1a1a1a1a1',
           name: 'Client work',
           members: ['s1', 's2'],
+          hidden: [],
           groups: [{ name: 'api pair', color: '#c17be0', members: ['s1'] }],
         },
-        { id: 'b2b2b2b2b2b2', name: 'Research', members: ['s3'], groups: [] },
+        { id: 'b2b2b2b2b2b2', name: 'Research', members: ['s3'], hidden: [], groups: [] },
       ],
       notices: [],
     })
@@ -96,6 +97,7 @@ interface Shown {
     id: string
     name: string
     members: string[]
+    hidden: string[]
     groups: { name: string; color: string; members: string[] }[]
   }[]
   tabs: {
@@ -1045,5 +1047,146 @@ test('PRJ-59 (decision 1.23) the order the user made survives a restart', async 
   } finally {
     await launched.close()
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// ---------------------------------------------------------------- hidden in a project (decision 1.25)
+
+const listedRows = (page: Page) =>
+  page
+    .locator('#session-list .row')
+    .evaluateAll((ns) => ns.map((n) => n.getAttribute('data-session')))
+
+test('PRJ-60 (decision 1.25) Hide takes a stopped row out of the list, still a member; "1 hidden" toggles it back dimmed, and Show restores it', async () => {
+  const { launched, page, root } = await client()
+  try {
+    await rowMenu(page, CLIENT.long, 'Hide')
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api])
+    expect((await shown(page)).projects[0]?.members).toContain(CLIENT.long)
+    await expect
+      .poll(
+        () =>
+          JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8'))
+            .projects[0].hidden,
+      )
+      .toEqual([CLIENT.long])
+    const foot = page.locator('#session-list .hidden-foot')
+    await expect(foot).toHaveText('1 hidden')
+    await foot.click()
+    await expect(page.locator(`.row[data-session="${CLIENT.long}"]`)).toHaveClass(/hidden-member/)
+    expect(
+      await page
+        .locator(`.row[data-session="${CLIENT.long}"]`)
+        .evaluate((n) => getComputedStyle(n).opacity),
+    ).toBe('0.5')
+    await rowMenu(page, CLIENT.long, 'Show')
+    await expect(page.locator(`.row[data-session="${CLIENT.long}"]`)).not.toHaveClass(
+      /hidden-member/,
+    )
+    await expect(foot).toHaveCount(0)
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api, CLIENT.long])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRJ-61 (decision 1.25) a row with a tab cannot be hidden: the item is off, saying to close its tab first', async () => {
+  const { launched, page } = await client({ tabs: [['login']] })
+  try {
+    await page.locator(`.row[data-session="${CLIENT.login}"] .more`).click()
+    const item = page.locator('.menu-item', { hasText: /^Hide$/ })
+    await expect(item).toBeDisabled()
+    await expect(item).toHaveAttribute('title', 'Close its tab first')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRJ-62 (decision 1.25) picking a hidden member in Add session → Existing shows it again', async () => {
+  const { launched, page } = await client()
+  try {
+    await rowMenu(page, CLIENT.long, 'Hide')
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api])
+    await act(page, { type: 'pickSession', session: CLIENT.long })
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api, CLIENT.long])
+    expect((await shown(page)).projects[0]?.hidden).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRJ-63 (decision 1.25) the quick switcher lists a hidden member, dimmed; opening it shows it again', async () => {
+  const { launched, page } = await client()
+  try {
+    await rowMenu(page, CLIENT.long, 'Hide')
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api])
+    await page.locator('#session-list').click()
+    await page.keyboard.press('Control+Shift+K')
+    const entry = page.locator('.jump-row', { hasText: 'abcdefghij' })
+    await expect(entry).toHaveClass(/hidden-member/)
+    await page.locator('.jump-head input').fill('abcdef')
+    await expect(page.locator('.jump-row')).toHaveCount(1)
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api, CLIENT.long])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRJ-64 (decision 1.25) Usage still counts a hidden member under its project', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = clientWork(dirs)
+      const cwd = join(dirs.home, 'work', 'web')
+      const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+      writeFileSync(
+        join(
+          dirs.home,
+          '.claude',
+          'projects',
+          cwd.replace(/[^A-Za-z0-9]/g, '-'),
+          `${CLIENT.long}.jsonl`,
+        ),
+        [
+          { type: 'custom-title', customTitle: 'long one' },
+          {
+            type: 'user',
+            uuid: 'u1',
+            cwd,
+            timestamp: at(90),
+            turnOrigin: 'human',
+            message: { content: 'go' },
+          },
+          {
+            type: 'assistant',
+            timestamp: at(60),
+            requestId: 'req-1',
+            message: { id: 'msg-1', model: 'claude-opus-5-5', usage: { output_tokens: 900 } },
+          },
+        ]
+          .map((l) => JSON.stringify(l))
+          .join('\n') + '\n',
+      )
+      // Hidden from the start, so every usage pass sees it hidden.
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const saved = JSON.parse(readFileSync(file, 'utf8'))
+      saved.projects[0].hidden = [CLIENT.long]
+      writeFileSync(file, JSON.stringify(saved))
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    await expect.poll(() => listedRows(page)).toEqual([CLIENT.login, CLIENT.api])
+    const [usage] = await Promise.all([
+      launched.app.waitForEvent('window'),
+      act(page, { type: 'openUsage' }),
+    ])
+    await usage.waitForLoadState('domcontentloaded')
+    await expect(usage.locator('.usage-row.project .name')).toHaveText(['Client work'])
+    await expect(usage.locator('.usage-row.session .name')).toContainText(['long one'])
+  } finally {
+    await launched.close()
   }
 })
