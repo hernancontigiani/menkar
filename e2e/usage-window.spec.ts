@@ -465,7 +465,7 @@ test("decision 1.15: Usage shows the opener window's project; All projects shows
 
     await usage.locator('[data-toggles="view"] [data-value="chart"]').click()
     await expect(usage.locator('.legend-item')).toHaveText(['Shop'])
-    await expect(usage.locator('[data-toggles="stack"]')).toHaveCount(0)
+    await expect(usage.locator('[data-toggles="stack"] button')).toHaveText(['Project', 'Model'])
 
     await scope.click()
     await expect(scope).toHaveAttribute('aria-pressed', 'true')
@@ -498,9 +498,13 @@ test('decision 1.15: with classification on, one project stacks by category; Tot
     await expect(usage.locator('.usage-row.category .name')).toHaveText(['Unclassified'])
     await usage.locator('[data-toggles="view"] [data-value="chart"]').click()
     await expect(usage.locator('.legend-item')).toHaveText(['Unclassified'])
-    await expect(usage.locator('[data-toggles="stack"]')).toHaveCount(0)
+    await expect(usage.locator('[data-toggles="stack"] button')).toHaveText(['Category', 'Model'])
     await usage.locator('[data-key="all-projects"]').click()
-    await expect(usage.locator('[data-toggles="stack"]')).toHaveCount(1)
+    await expect(usage.locator('[data-toggles="stack"] button')).toHaveText([
+      'Project',
+      'Category',
+      'Model',
+    ])
     await expect(usage.locator('.legend-item')).toHaveText(['Blog', 'Shop'])
   } finally {
     await launched.close()
@@ -536,6 +540,70 @@ test('decision 1.15: asked from anywhere but a Usage window, the figures are eve
     expect(view.project).toBeNull()
     expect(view.scoped).toBe(false)
     expect(view.totals.nodes.map((n) => n.label)).toEqual(['Blog', 'Shop'])
+  } finally {
+    await launched.close()
+  }
+})
+
+// Plan 17: one session whose turn ran on Opus while a subagent ran on Haiku.
+function twoModels(home: string): void {
+  const dir = join(home, '.claude', 'projects', '-home-demo-models')
+  mkdirSync(dir, { recursive: true })
+  const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+  const answer = (id: string, model: string, minutes: number, output: number) => ({
+    type: 'assistant',
+    timestamp: at(minutes),
+    requestId: `req-${id}`,
+    message: { id, model, usage: { input_tokens: 1000, output_tokens: output } },
+  })
+  const lines = [
+    {
+      type: 'user',
+      uuid: 'm-1',
+      timestamp: at(60),
+      turnOrigin: 'human',
+      message: { content: 'go' },
+    },
+    answer('msg_opus', 'claude-opus-4-5', 50, 4000),
+    answer('msg_haiku', 'claude-haiku-4-5', 45, 900),
+  ]
+  writeFileSync(join(dir, 'models.jsonl'), `${lines.map((l) => JSON.stringify(l)).join('\n')}\n`)
+}
+
+test('plan 17: Model stacks tokens and cost, never time; Exec falls back to Project; rows list their models', async () => {
+  const launched = await launchApp({
+    prepare: ({ home }) => {
+      twoModels(home)
+      return undefined
+    },
+  })
+  try {
+    const usage = await openUsage(launched.app, launched.window)
+    const tokens = usage.locator('.usage-row.project .w8').nth(1)
+    await expect(tokens).toHaveAttribute('title', /^Opus 4\.5: \S+ · ~\$\d+\.\d\d\nHaiku 4\.5: /)
+
+    await usage.locator('[data-toggles="view"] [data-value="chart"]').click()
+    const model = usage.locator('[data-toggles="stack"] [data-value="model"]')
+    await expect(model).toBeDisabled()
+    await expect(model).toHaveAttribute(
+      'title',
+      'Time is not split by model: one turn can use several at once.',
+    )
+    await usage.locator('[data-toggles="metric"] [data-value="tokens"]').click()
+    await expect(model).toBeEnabled()
+    await model.click()
+    await expect(pressed(usage, 'stack')).toHaveText('Model')
+    await expect(usage.locator('.legend-item')).toHaveText(['Haiku 4.5', 'Opus 4.5'])
+    await usage.locator('[data-toggles="metric"] [data-value="cost"]').click()
+    await expect(usage.locator('.legend-item')).toHaveText(['Haiku 4.5', 'Opus 4.5'])
+
+    await usage.locator('[data-toggles="metric"] [data-value="exec"]').click()
+    await expect(pressed(usage, 'stack')).toHaveText('Project')
+    await expect(usage.locator('.legend-item')).toHaveText(['(no project)'])
+    await expect(model).toBeDisabled()
+    // The fallback is a choice, not a mask: back on Tokens, the chart stays by project.
+    await usage.locator('[data-toggles="metric"] [data-value="tokens"]').click()
+    await expect(pressed(usage, 'stack')).toHaveText('Project')
   } finally {
     await launched.close()
   }

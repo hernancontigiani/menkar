@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { now } from '../clock'
 import { t } from '../i18n'
 import { appDirs } from '../paths'
+import { exportCsv, exportJsonl, exportRows } from './export'
 import { type Memberships, NO_MEMBERSHIPS, type UsageHistory } from './history'
 import { openHistory } from './importer'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
@@ -95,19 +96,18 @@ export function parseArgs(argv: readonly string[]): Options {
     if (value === undefined) throw new UsageError(t('usage.cli.needsValue', { flag: flag ?? '' }))
     values.set(flag ?? '', value)
   }
-  const chosen = ['--period', '--month', '--from'].filter((f) => values.has(f))
-  if (chosen.length > 1) {
-    throw new UsageError(
-      t('usage.cli.notTogether', { first: chosen[0] ?? '', second: chosen[1] ?? '' }),
-    )
-  }
-  if (values.has('--from') !== values.has('--to')) throw new UsageError(t('usage.cli.fromAndTo'))
+  checkPeriodFlags(values)
   const by = values.get('--by') ?? null
   if (by !== null && !(BUCKETS as readonly string[]).includes(by)) {
     throw new UsageError(
       t('usage.cli.badChoice', { flag: '--by', value: by, choices: BUCKETS.join(', ') }),
     )
   }
+  return { which: whichOf(values), by: by as Bucket | null, json }
+}
+
+// --period, --month or --from/--to, already checked not to be mixed; 7 days when none is given.
+function whichOf(values: ReadonlyMap<string, string>): Which {
   let which: Which
   const month = values.get('--month')
   const from = values.get('--from')
@@ -131,7 +131,60 @@ export function parseArgs(argv: readonly string[]): Options {
     }
     which = { kind: 'period', period: period as Period }
   }
-  return { which, by: by as Bucket | null, json }
+  return which
+}
+
+function checkPeriodFlags(values: ReadonlyMap<string, string>): void {
+  const chosen = ['--period', '--month', '--from'].filter((f) => values.has(f))
+  if (chosen.length > 1) {
+    throw new UsageError(
+      t('usage.cli.notTogether', { first: chosen[0] ?? '', second: chosen[1] ?? '' }),
+    )
+  }
+  if (values.has('--from') !== values.has('--to')) throw new UsageError(t('usage.cli.fromAndTo'))
+}
+
+const EXPORT_USAGE =
+  'menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD' +
+  ' --to YYYY-MM-DD] [--project NAME] [--format jsonl|csv] [--output FILE]'
+const FORMATS = ['jsonl', 'csv'] as const
+
+export interface ExportArgs {
+  readonly which: Which
+  readonly project: string | null
+  readonly format: (typeof FORMATS)[number]
+  readonly output: string | null
+}
+
+export function parseExportArgs(argv: readonly string[]): ExportArgs | 'help' {
+  const values = new Map<string, string>()
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i] ?? ''
+    if (arg === '--help' || arg === '-h') return 'help'
+    const [flag, inline] = arg.includes('=')
+      ? [arg.slice(0, arg.indexOf('=')), arg.slice(arg.indexOf('=') + 1)]
+      : [arg, undefined]
+    const known = ['--period', '--month', '--from', '--to', '--project', '--format', '--output']
+    if (!known.includes(flag ?? '')) {
+      throw new UsageError(t('usage.cli.unknownArgument', { argument: arg }))
+    }
+    const value = inline ?? argv[++i]
+    if (value === undefined) throw new UsageError(t('usage.cli.needsValue', { flag: flag ?? '' }))
+    values.set(flag ?? '', value)
+  }
+  checkPeriodFlags(values)
+  const format = values.get('--format') ?? 'jsonl'
+  if (!(FORMATS as readonly string[]).includes(format)) {
+    throw new UsageError(
+      t('usage.cli.badChoice', { flag: '--format', value: format, choices: FORMATS.join(', ') }),
+    )
+  }
+  return {
+    which: whichOf(values),
+    project: values.get('--project') ?? null,
+    format: format as ExportArgs['format'],
+    output: values.get('--output') ?? null,
+  }
 }
 
 function readJsonFile(path: string): unknown {
@@ -236,7 +289,87 @@ export interface CliDeps {
 }
 
 // `menkar usage`: a pass, then the report for the period, as text or JSON. The exit code.
+// The text written whole: a temporary file beside it, then a rename, so a reader never sees half.
+function writeWhole(path: string, text: string): void {
+  const temporary = `${path}.${process.pid}.tmp`
+  writeFileSync(temporary, text)
+  renameSync(temporary, path)
+}
+
+function runExport(argv: readonly string[], output: Output, deps: CliDeps): number {
+  let args: ExportArgs | 'help'
+  try {
+    args = parseExportArgs(argv)
+  } catch (error) {
+    if (!(error instanceof UsageError)) throw error
+    output.err(`${t('usage.cli.usage')} ${EXPORT_USAGE}`)
+    output.err(t('usage.cli.error', { message: error.message }))
+    return 2
+  }
+  if (args === 'help') {
+    output.out(`${t('usage.cli.usage')} ${EXPORT_USAGE}`)
+    output.out(t('usage.cli.exportHelp'))
+    return 0
+  }
+  const configDir = deps.configDir ?? appDirs().config
+  const passPaths = deps.passPaths ?? defaultPassPaths()
+  const memberships = readMemberships(configDir)
+  try {
+    runPass(memberships, passPaths)
+  } catch {
+    output.err(t('usage.cli.passFailed'))
+  }
+  let history: UsageHistory
+  try {
+    history = openHistory(passPaths.history)
+  } catch {
+    output.err(t('usage.cli.cannotOpen'))
+    return 1
+  }
+  try {
+    let project: string | undefined
+    if (args.project !== null) {
+      const labels = history.projectLabels(memberships.projectNames)
+      for (const [id, name] of memberships.projectNames) if (!labels.has(id)) labels.set(id, name)
+      project = [...labels].find(([, name]) => name === args.project)?.[0]
+      if (project === undefined) {
+        const known = [...new Set(labels.values())].sort((a, b) => a.localeCompare(b))
+        output.err(`${t('usage.cli.usage')} ${EXPORT_USAGE}`)
+        output.err(
+          t('usage.cli.error', {
+            message: t('usage.cli.unknownProject', {
+              name: args.project,
+              known: known.map((name) => `'${name}'`).join(', '),
+            }),
+          }),
+        )
+        return 2
+      }
+    }
+    const rows = exportRows(history, boundsOf(args.which, history, now() / 1000), {
+      projectNames: memberships.projectNames,
+      statuslineLogs: deps.statuslineLogs ?? [importedStatuslineLogPath(), statuslineLogPath()],
+      ...(project === undefined ? {} : { project }),
+    })
+    const text = args.format === 'csv' ? exportCsv(rows) : exportJsonl(rows)
+    if (args.output === null) {
+      if (text !== '') output.out(text.replace(/\n$/, ''))
+      return 0
+    }
+    try {
+      writeWhole(args.output, text)
+    } catch {
+      output.err(t('usage.cli.cannotWrite', { path: args.output }))
+      return 1
+    }
+    return 0
+  } finally {
+    history.close()
+  }
+}
+
 export function runUsageCli(argv: readonly string[], output: Output, deps: CliDeps = {}): number {
+  if (argv[0] === 'export') return runExport(argv.slice(1), output, deps)
   let options: Options
   try {
     options = parseArgs(argv)

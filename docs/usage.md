@@ -123,3 +123,79 @@ The chart, as the human decided it (2026-11-08):
   3, 7 or 14 days, the smallest stride whose labels do not collide at the plot's width (8 pt sans
   taken as 5.5 px a character, 4 px apart); Today and All, every n-th bar as before. All through
   `Intl.DateTimeFormat` in the app's language: no month or day name is written by hand.
+
+## By model
+
+Tokens and cost are kept by model all the way up: every node of a report carries `models`, each
+model's tokens and list-price cost, summed exactly as `tokens` and `cost` are, so the two cannot
+disagree (a test holds it: the models add up to the tokens always, and to the cost wherever the
+cost is the estimate). The history already stores tokens by turn, model and hour; nothing new is
+stored.
+
+- **Time is per turn, never per model** (decision 1.16). A turn can run on several models at once,
+  the main answer on Opus while a subagent runs on Haiku, and splitting its seconds between them
+  would invent data. So the window's Model stack is offered only for Tokens and Cost: under Exec
+  its button is disabled with a tooltip saying why, and choosing Exec while Model is chosen goes
+  back to Project.
+- **A model's cost is always the list-price estimate.** An exact cost reported by the statusline
+  comes per session, never per model; a session's exact cost and the sum of its models' estimates
+  differ, and the window marks every per-model cost "~".
+- **The Model stack** shows the five models with the most tokens (or cost) in the period, by name,
+  and the rest as "Other", the project series' rule; it respects the window's scope (decision
+  1.15). A model the price table knows shows as its family and version ("Opus 4.5", whether the id
+  is dated or `[1m]`); any other id shows as stored.
+- **Totals** add no column: a row's tokens and cost cells list its models in their tooltip.
+- **`menkar usage --json`** gives each node `models`, keyed by model id as stored, with the token
+  fields in snake_case as `tokens` has them, `cost_usd` and `priced`. The text report is unchanged.
+
+## Exporting for analysis
+
+`menkar usage export` writes the history's turns as rows for an LLM session or a spreadsheet to
+analyse ("what did Opus cost me on project X in October"). It is the supported way to read usage
+from outside the app (decision 1.16): `history.sqlite`, in the data directory, is internal and
+migrates between versions, so nothing outside `src/core/usage/` reads it. An MCP server that would
+answer such questions directly is deferred (`docs/NOT_BUILT_YET.md`).
+
+```
+menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD --to YYYY-MM-DD]
+                    [--project NAME] [--format jsonl|csv] [--output FILE]
+```
+
+- **Which turns.** The period flags are the report's, parsed by the same code; 7 days by default.
+  A turn is in the range by the moment it opened and goes out whole, its time and tokens never
+  clipped at the range's ends; the report clips, so at the edges the two differ. `--project`
+  takes a project's exact name (an unknown one is an error that lists them). Like the report, a
+  pass runs first, so the latest turns are in.
+- **Where.** Standard output, or `--output`, written whole through a temporary file.
+- **JSONL** (the default): one object per turn, oldest first. `schema` is 1; it changes only when
+  a field changes meaning or goes away, never when one is added.
+
+| Field | What it holds |
+|---|---|
+| `schema` | The row format's version: 1 |
+| `turn` | The turn's id, as the transcript has it |
+| `session_id` | Its session's id |
+| `session_name` | The session's name, or `null` |
+| `project` | The project the turn was filed under, by its current name, or `null` |
+| `category` | Its category as reports show it (a turn the human did not start takes its session's), or `null` |
+| `origin` | Who opened it: `human`, `peer`, `task_notification`, `system`, `sdk` or `unknown` |
+| `opened` | When it opened, local time with its offset (`2026-11-08T10:42:05-03:00`) |
+| `opened_epoch` | The same moment in Unix seconds |
+| `execution_seconds` | Its working time, keyed by its origin, as the report's JSON keys it; `{}` with none |
+| `blocked_seconds` | Its time waiting on the user |
+| `models` | By model id as stored: `input`, `output`, `cache_write`, `cache_write_1h`, `cache_read`, `cost_usd` (list price) and `priced` |
+| `cost_usd` | The turn's cost: the statusline's exact figure when its session reported one, else the list-price estimate |
+| `cost_exact` | Whether `cost_usd` is the statusline's figure |
+
+- **Exact cost, turn by turn.** The statusline reports a session's running total; each increase
+  goes to the turn in effect when it was reported, the rule categories use. A session with any
+  report in the range is exact for every turn (one with none costs 0), so the rows' `cost_usd`
+  add up to the report's cost for a range no turn crosses. A model's `cost_usd` is always the list
+  price.
+- **CSV**: the same scalar fields, one row per turn, with the turn's token totals as columns
+  (`input` … `cache_read`) and `models` the model ids joined by `;`. Analysis by model uses JSONL.
+- **Never in a row**: prompt or answer text (the history does not keep it, and the export does not
+  reach for the transcripts), and any path. A test holds the keys to exactly the table above.
+
+An example, for a Claude session in a terminal: *"Run `menkar usage export --month 2026-10` and
+tell me the cost per model for each project, and which category used the most cache reads."*

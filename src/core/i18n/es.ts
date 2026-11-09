@@ -299,6 +299,11 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.cli.badDay': "'{value}' no es una fecha (AAAA-MM-DD)",
   'usage.cli.passFailed':
     'No se pudieron leer los últimos transcripts en el historial de uso; se muestra como estaba.',
+  'usage.cli.cannotWrite': 'No se pudo escribir {path}.',
+  'usage.cli.unknownProject':
+    "--project: ningún proyecto se llama '{name}'; los proyectos son: {known}",
+  'usage.cli.exportHelp':
+    'Una fila por turno: líneas JSON (por defecto) o CSV. Un turno entra en el rango por el momento en que se abrió, y se exporta entero, nunca recortado en los extremos del rango. Los campos se describen en la documentación de Menkar, en "Exporting for analysis".',
   'usage.cli.cannotOpen': 'No se pudo abrir el historial de uso.',
   'usage.cli.exec': 'ejec.',
   'usage.cli.blocked': 'bloqueado',
@@ -418,6 +423,9 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.cost': 'Costo',
   'usage.project': 'Proyecto',
   'usage.category': 'Categoría',
+  'usage.model': 'Modelo',
+  'usage.modelNoTime': 'El tiempo no se divide por modelo: un turno puede usar varios a la vez.',
+  'usage.byModel': '{model}: {tokens} · {cost}',
   'usage.projectSession': 'Proyecto / sesión',
   'usage.blocked': 'Bloqueado',
   'usage.startedBy': 'Iniciado por: {parts}',

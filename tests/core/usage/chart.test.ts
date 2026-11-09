@@ -9,9 +9,11 @@ import {
   barLabel,
   buildChart,
   labelEvery,
+  OTHER_PROJECTS,
   seriesColor,
 } from '../../../src/core/usage/chart'
 import { ZERO_TOKENS } from '../../../src/core/usage/history'
+import { modelName } from '../../../src/core/usage/prices'
 import type { Node, Report } from '../../../src/core/usage/report'
 
 const node = (label: string, seconds: number, kind: Node['kind'] = 'project'): Node => ({
@@ -20,6 +22,7 @@ const node = (label: string, seconds: number, kind: Node['kind'] = 'project'): N
   execution: { human: seconds },
   blocked: 0,
   tokens: { ...ZERO_TOKENS, output: seconds * 10 },
+  models: {},
   cost: seconds / 100,
   costExact: false,
   allPriced: true,
@@ -95,6 +98,56 @@ describe('series', () => {
     expect(seriesColor({ key: 'plan', slot: 0 }, true)).toBe('#3987e5')
     expect(seriesColor({ key: 'Other', slot: null }, true)).toBe('#8f8e8a')
     expect(seriesColor({ key: 'other', slot: 6 }, false)).toBe('#6250d6')
+  })
+})
+
+// Plan 17: By day stacked by model, for tokens and cost; time is never split by model.
+describe('by model', () => {
+  const used = (models: Record<string, number>): Node => ({
+    ...node('P', 60),
+    models: Object.fromEntries(
+      Object.entries(models).map(([id, output]) => [
+        id,
+        { tokens: { ...ZERO_TOKENS, output }, cost: output / 1000, priced: true },
+      ]),
+    ),
+  })
+
+  test('the five models with the most tokens keep a color, ordered by name; the rest are Other', () => {
+    const bars = [
+      report(used({ 'claude-opus-4-5': 600, 'claude-haiku-4-5': 500, 'claude-sonnet-4-5': 50 })),
+      report(used({ 'claude-opus-4-1': 400, 'claude-fable-5': 300, 'claude-sonnet-4': 200, x: 1 })),
+    ]
+    const chart = buildChart(bars, 'tokens', 'model')
+    expect(chart.series.map((s) => [s.key, s.slot])).toEqual([
+      ['claude-fable-5', 0],
+      ['claude-haiku-4-5', 1],
+      ['claude-opus-4-1', 2],
+      ['claude-opus-4-5', 3],
+      ['claude-sonnet-4', 4],
+      [OTHER_PROJECTS, null],
+    ])
+    expect(chart.bars[0]).toEqual([0, 500, 0, 600, 0, 50])
+    expect(chart.bars[1]).toEqual([300, 0, 400, 0, 200, 1])
+    const cost = buildChart(bars, 'cost', 'model')
+    expect(cost.bars[0]?.[3]).toBeCloseTo(0.6, 12)
+  })
+
+  test('Exec has no model stack: asked for one, the chart is by project', () => {
+    const bars = [report(used({ 'claude-opus-4-5': 600 }))]
+    expect(buildChart(bars, 'exec', 'model')).toEqual(buildChart(bars, 'exec', 'project'))
+  })
+
+  test.each([
+    ['claude-opus-4-5', 'Opus 4.5'],
+    ['claude-opus-4-5-20251101', 'Opus 4.5'],
+    ['claude-haiku-5-5[1m]', 'Haiku 5.5'],
+    ['claude-fable-5', 'Fable 5'],
+    ['claude-sonnet-4', 'Sonnet 4'],
+    ['gpt-unknown-1', 'gpt-unknown-1'],
+    ['<synthetic>', '<synthetic>'],
+  ])('model %s is shown as %s', (id, name) => {
+    expect(modelName(id)).toBe(name)
   })
 })
 

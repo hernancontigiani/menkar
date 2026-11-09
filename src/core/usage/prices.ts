@@ -67,6 +67,16 @@ export function normalizeModel(model: string): string {
   return base.replace(/-\d{8}$/, '')
 }
 
+// "Opus 4.5" for claude-opus-4-5 (dated or [1m] alike) when the table knows the model; any other id
+// as stored.
+export function modelName(model: string): string {
+  const id = normalizeModel(model)
+  const known = /^claude-([a-z]+)-(\d+)(?:-(\d+))?$/.exec(id)
+  if (!(id in TABLE) || !known) return model
+  const [, family = '', major, minor] = known
+  return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${major}${minor ? `.${minor}` : ''}`
+}
+
 function utcDay(seconds: number): string {
   return new Date(seconds * 1000).toISOString().slice(0, 10)
 }

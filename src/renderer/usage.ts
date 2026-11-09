@@ -25,6 +25,7 @@ import {
   type UsageView,
   type UsageWhich,
 } from '../core/usage/nodes'
+import { modelName } from '../core/usage/prices'
 import { arrows, type Month, type StepperState, step } from '../core/usage/stepper'
 import { el } from './dom'
 import { loadCatalog, t } from './i18n'
@@ -55,8 +56,9 @@ const askReport = latestOnly()
 // and are that project's plain bar otherwise; every project's follow the switch.
 function stackShown(): Stack {
   const view = state.data
+  if (state.stack === 'model' && state.metric !== 'exec') return 'model'
   if (view?.scoped) return view.categories ? 'category' : 'project'
-  return state.stack
+  return state.stack === 'model' ? 'project' : state.stack
 }
 
 function thisMonth(): Month {
@@ -87,6 +89,8 @@ function label(key: string, kind: Node['kind'] | 'series'): string {
   if (kind === 'category' || (kind === 'series' && stackShown() === 'category')) {
     return CATEGORY_NAMES[key]?.() ?? key
   }
+  if (kind === 'series' && stackShown() === 'model')
+    return key === OTHER_PROJECTS ? t('usage.otherProjects') : modelName(key)
   return key
 }
 
@@ -116,6 +120,21 @@ function toggles<T extends string>(
 }
 
 // -- the table ----------------------------------------------------------------------------------
+
+// A row's tokens and cost by model, largest first. The cost is always the list-price estimate: an
+// exact cost comes per session, never per model.
+function byModel(node: Node): string {
+  return Object.entries(node.models)
+    .sort(([a, x], [b, y]) => totalTokens(y.tokens) - totalTokens(x.tokens) || (a < b ? -1 : 1))
+    .map(([model, m]) =>
+      t('usage.byModel', {
+        model: modelName(model),
+        tokens: formatTokens(totalTokens(m.tokens)),
+        cost: `~$${m.cost.toFixed(2)}${m.priced ? '' : '+'}`,
+      }),
+    )
+    .join('\n')
+}
 
 function tableRow(node: Node, depth: number, path: string, rows: HTMLElement[]): void {
   const hasChildren = node.children.length > 0
@@ -153,8 +172,8 @@ function tableRow(node: Node, depth: number, path: string, rows: HTMLElement[]):
       el('span', { class: 'name' }, label(node.label, node.kind)),
       exec,
       el('span', { class: 'num w8' }, formatDuration(node.blocked)),
-      el('span', { class: 'num w8' }, formatTokens(totalTokens(node.tokens))),
-      el('span', { class: 'num w9' }, formatCost(node)),
+      el('span', { class: 'num w8', title: byModel(node) }, formatTokens(totalTokens(node.tokens))),
+      el('span', { class: 'num w9', title: byModel(node) }, formatCost(node)),
     ),
   )
   if (!collapsed)
@@ -476,26 +495,30 @@ function render(): void {
         state.metric,
         (value) => {
           state.metric = value
+          // Time is not split by model: Exec stacks by project again.
+          if (value === 'exec' && state.stack === 'model') state.stack = 'project'
           render()
         },
       ),
     )
-    if (view.categories && !view.scoped) {
-      views.append(
-        toggles(
-          'stack',
-          [
-            ['project', t('usage.project')],
-            ['category', t('usage.category')],
-          ] as const,
-          state.stack,
-          (value) => {
-            state.stack = value
-            render()
-          },
-        ),
-      )
+    // One project shows its categories (or its plain bar) where every project shows the switch.
+    const stacks: (readonly [Stack, string])[] = view.scoped
+      ? [view.categories ? ['category', t('usage.category')] : ['project', t('usage.project')]]
+      : [
+          ['project', t('usage.project')],
+          ...(view.categories ? [['category', t('usage.category')] as const] : []),
+        ]
+    stacks.push(['model', t('usage.model')])
+    const stack = toggles('stack', stacks, stackShown(), (value) => {
+      state.stack = value
+      render()
+    })
+    const model = stack.querySelector<HTMLButtonElement>('[data-value="model"]')
+    if (model && state.metric === 'exec') {
+      model.disabled = true
+      model.title = t('usage.modelNoTime')
     }
+    views.append(stack)
   }
   const drawn = state.view === 'chart' ? chartBox(view) : null
   body.append(views, drawn ? drawn.box : table(view), ...footer(view))

@@ -63,6 +63,31 @@ describe('menkar usage', () => {
     ])
   })
 
+  test('--json gives each node its tokens and list-price cost by model, in snake_case', () => {
+    const dirs = usageDirs('models-json')
+    dirs.transcript('s1', [
+      prompt('10:00:00'),
+      response('10:00:10', { model: 'claude-opus-4-5', tokens: { input: 100, cacheWrite: 40 } }),
+      response('10:00:20', { id: 'msg_h', model: 'claude-haiku-4-5', tokens: { output: 7 } }),
+    ])
+    config(dirs, { projects: [{ id: 'p', name: 'Client work', members: ['s1'] }] })
+    const json = JSON.parse(cli(dirs, ['--period', 'today', '--json']).out)
+    const project = json.nodes[0] as NodeJson
+    expect(Object.keys(project.models).sort()).toEqual(['claude-haiku-4-5', 'claude-opus-4-5'])
+    expect(project.models['claude-opus-4-5']).toMatchObject({
+      input: 100,
+      output: 0,
+      cache_write: 40,
+      cache_write_1h: 0,
+      cache_read: 0,
+      priced: true,
+    })
+    expect(project.models['claude-haiku-4-5']?.output).toBe(7)
+    expect(project.children[0]?.models).toEqual(project.models)
+    const costs = Object.values(project.models).map((m) => m.cost_usd)
+    expect(costs.reduce((a, b) => a + b, 0)).toBeCloseTo(project.cost_usd, 12)
+  })
+
   test('USG-56 --from and --to cover both days whole', () => {
     const dirs = usageDirs('usg56')
     const result = cli(dirs, ['--from', '2026-11-01', '--to', '2026-11-03', '--json'])

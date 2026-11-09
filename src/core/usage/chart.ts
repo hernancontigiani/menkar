@@ -7,11 +7,12 @@ import {
   type Node,
   type Report,
   totalExecution,
+  totalTokens,
   UNCLASSIFIED,
 } from './nodes'
 
 export type Metric = 'exec' | 'tokens' | 'cost'
-export type Stack = 'project' | 'category'
+export type Stack = 'project' | 'category' | 'model'
 
 // The series colors by slot; "Other" projects and "(unclassified)" are gray. The set follows the
 // light / dark scheme, not the theme.
@@ -72,12 +73,16 @@ export function axisScale(tallest: number, metric: Metric): { top: number; step:
   }
 }
 
-function projectSeries(reports: readonly Report[], metric: Metric): Chart {
+// The five largest parts of the period (projects or models) by name, each with its color, and the
+// rest summed into "Other", last.
+function topSeries(
+  reports: readonly Report[],
+  metric: Metric,
+  parts: (report: Report) => readonly (readonly [string, number])[],
+): Chart {
   const totals = new Map<string, number>()
   for (const report of reports) {
-    for (const project of report.nodes) {
-      totals.set(project.label, (totals.get(project.label) ?? 0) + metricValue(project, metric))
-    }
+    for (const [key, value] of parts(report)) totals.set(key, (totals.get(key) ?? 0) + value)
   }
   const top = [...totals]
     .filter(([, total]) => total > 0)
@@ -94,15 +99,34 @@ function projectSeries(reports: readonly Report[], metric: Metric): Chart {
   if (others) series.push({ key: OTHER_PROJECTS, slot: null })
   const bars = reports.map((report) => {
     const values = series.map(() => 0)
-    for (const project of report.nodes) {
-      const index = top.indexOf(project.label)
+    for (const [key, value] of parts(report)) {
+      const index = top.indexOf(key)
       const at = index >= 0 ? index : others ? series.length - 1 : -1
-      if (at >= 0) values[at] = (values[at] ?? 0) + metricValue(project, metric)
+      if (at >= 0) values[at] = (values[at] ?? 0) + value
     }
     return values
   })
   const scale = axisScale(Math.max(0, ...bars.map(sum)), metric)
   return { series, bars, axisTop: scale.top, axisStep: scale.step }
+}
+
+function projectSeries(reports: readonly Report[], metric: Metric): Chart {
+  return topSeries(reports, metric, (report) =>
+    report.nodes.map((project) => [project.label, metricValue(project, metric)] as const),
+  )
+}
+
+// Tokens or cost by model, across the report's projects. Never time: a turn can run on several
+// models at once, and its seconds are not split between them.
+function modelSeries(reports: readonly Report[], metric: Exclude<Metric, 'exec'>): Chart {
+  return topSeries(reports, metric, (report) =>
+    report.nodes.flatMap((project) =>
+      Object.entries(project.models).map(
+        ([model, usage]) =>
+          [model, metric === 'tokens' ? totalTokens(usage.tokens) : usage.cost] as const,
+      ),
+    ),
+  )
 }
 
 // The reports must have been built with categories and folded across projects (foldByCategory).
@@ -134,6 +158,9 @@ function sum(values: readonly number[]): number {
 }
 
 export function buildChart(reports: readonly Report[], metric: Metric, stack: Stack): Chart {
+  if (stack === 'model') {
+    return metric === 'exec' ? projectSeries(reports, metric) : modelSeries(reports, metric)
+  }
   return stack === 'project' ? projectSeries(reports, metric) : categorySeries(reports, metric)
 }
 

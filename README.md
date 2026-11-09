@@ -90,6 +90,19 @@ menkar usage --json                   # JSON instead of text
 
 Costs marked `~` are list-price estimates, not a bill. A `+` means some model had no price.
 
+`menkar usage export` writes every turn as a row, for a spreadsheet or for an AI session to
+analyse: who opened it, when, its project and category, its time, and its tokens and cost by model.
+No prompt or answer text is in it.
+
+```sh
+menkar usage export --month 2026-10                 # JSON lines, one per turn
+menkar usage export --period 30d --format csv       # CSV, for a spreadsheet
+menkar usage export --project "Client work" --output turns.jsonl
+```
+
+For example, ask a Claude session: *"Run `menkar usage export --month 2026-10` and tell me the cost
+per model for each project."*
+
 ## Development
 
 Node 22 LTS and npm, on Linux (Ubuntu). `npm run ui-check` also needs `xvfb-run` (the `xvfb`

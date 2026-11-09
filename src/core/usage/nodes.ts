@@ -13,6 +13,33 @@ export const ZERO_TOKENS: Tokens = {
   cacheRead: 0,
 }
 
+// One model's share of a node: its tokens and their list-price cost. Time is not split by model: a
+// turn can run on several at once (a subagent on Haiku while the main model answers).
+export interface ModelUsage {
+  readonly tokens: Tokens
+  // list price; an exact cost reported by the statusline is per session, never per model
+  readonly cost: number
+  // false: this model is missing from the price table, so its cost counts as 0
+  readonly priced: boolean
+}
+
+export type Models = Readonly<Record<string, ModelUsage>>
+
+export function addModels(a: Models, b: Models): Record<string, ModelUsage> {
+  const out: Record<string, ModelUsage> = { ...a }
+  for (const [model, usage] of Object.entries(b)) {
+    const had = out[model]
+    out[model] = had
+      ? {
+          tokens: addTokens(had.tokens, usage.tokens),
+          cost: had.cost + usage.cost,
+          priced: had.priced && usage.priced,
+        }
+      : usage
+  }
+  return out
+}
+
 export function addTokens(a: Tokens, b: Tokens): Tokens {
   return {
     input: a.input + b.input,
@@ -45,6 +72,8 @@ export interface Node {
   readonly execution: Readonly<Record<string, number>>
   readonly blocked: number
   readonly tokens: Tokens
+  // the same tokens and the list-price cost, by model id as stored
+  readonly models: Models
   readonly cost: number
   // every session under it reported its cost through the statusline
   readonly costExact: boolean

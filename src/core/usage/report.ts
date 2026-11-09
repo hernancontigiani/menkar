@@ -1,14 +1,17 @@
 import { keyOf, type UsageHistory } from './history'
 import {
+  addModels,
   addTokens,
   CATEGORIES,
   formatCost,
   formatDuration,
   formatPercent,
   formatTokens,
+  type Models,
   NO_PROJECT,
   type Node,
   type Report,
+  type Tokens,
   totalExecution,
   totalTokens,
   UNCLASSIFIED,
@@ -23,6 +26,7 @@ export {
   formatDuration,
   formatPercent,
   formatTokens,
+  type Models,
   NO_PROJECT,
   type Node,
   type Report,
@@ -34,9 +38,11 @@ export {
 function sum(label: string, kind: Node['kind'], children: Node[], category?: string | null): Node {
   const execution: Record<string, number> = {}
   let tokens = ZERO_TOKENS
+  let models: Models = {}
   let blocked = 0
   let cost = 0
   for (const child of children) {
+    models = addModels(models, child.models)
     for (const [origin, seconds] of Object.entries(child.execution)) {
       execution[origin] = (execution[origin] ?? 0) + seconds
     }
@@ -50,6 +56,7 @@ function sum(label: string, kind: Node['kind'], children: Node[], category?: str
     execution,
     blocked,
     tokens,
+    models,
     cost,
     costExact: children.every((c) => c.costExact),
     allPriced: children.every((c) => c.allPriced),
@@ -120,6 +127,7 @@ export function buildReport(history: UsageHistory, bounds: Bounds, options: Repo
       execution: usage.execution,
       blocked: usage.blocked,
       tokens: usage.tokens,
+      models: usage.models,
       cost: exactCost ?? usage.cost,
       costExact: exactCost !== undefined,
       allPriced: usage.allPriced,
@@ -198,17 +206,31 @@ export interface NodeJson {
   category?: string | null
   execution_seconds: Record<string, number>
   blocked_seconds: number
-  tokens: {
-    input: number
-    output: number
-    cache_write: number
-    cache_write_1h: number
-    cache_read: number
-  }
+  tokens: TokensJson
+  // by model id: the same tokens and their list-price cost (an exact cost is never per model)
+  models: Record<string, TokensJson & { cost_usd: number; priced: boolean }>
   cost_usd: number
   cost_exact: boolean
   all_priced: boolean
   children: NodeJson[]
+}
+
+interface TokensJson {
+  input: number
+  output: number
+  cache_write: number
+  cache_write_1h: number
+  cache_read: number
+}
+
+export function tokensJson(tokens: Tokens): TokensJson {
+  return {
+    input: tokens.input,
+    output: tokens.output,
+    cache_write: tokens.cacheWrite,
+    cache_write_1h: tokens.cacheWrite1h,
+    cache_read: tokens.cacheRead,
+  }
 }
 
 export function nodeJson(node: Node): NodeJson {
@@ -218,13 +240,13 @@ export function nodeJson(node: Node): NodeJson {
     ...(node.kind === 'category' ? { category: node.category ?? null } : {}),
     execution_seconds: { ...node.execution },
     blocked_seconds: node.blocked,
-    tokens: {
-      input: node.tokens.input,
-      output: node.tokens.output,
-      cache_write: node.tokens.cacheWrite,
-      cache_write_1h: node.tokens.cacheWrite1h,
-      cache_read: node.tokens.cacheRead,
-    },
+    tokens: tokensJson(node.tokens),
+    models: Object.fromEntries(
+      Object.entries(node.models).map(([model, m]) => [
+        model,
+        { ...tokensJson(m.tokens), cost_usd: m.cost, priced: m.priced },
+      ]),
+    ),
     cost_usd: node.cost,
     cost_exact: node.costExact,
     all_priced: node.allPriced,

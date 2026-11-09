@@ -131,3 +131,14 @@ of languages.
 
 **Trigger:** someone asks for a language. First question: who reviews its translation, and whether a
 partial catalog is acceptable or `check-i18n` holds it to complete like Spanish.
+
+### An MCP server for usage
+
+`menkar usage export` hands an LLM session the history's turns as rows it reads through its shell
+(decision 1.16). A server (`menkar mcp`, with tools such as `query_usage`) would let a session ask
+for exactly the slice it needs instead, but it is one more process and protocol to keep working,
+and Claude only reaches it once registered in Claude's settings, which is the integrations menu's
+consent, not a side effect.
+
+**Trigger:** the export proves too coarse for a real analysis, or the human asks for it. First
+question: which questions the export could not answer, so the tools are shaped by them.

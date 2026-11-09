@@ -5,7 +5,7 @@ import { type Db, openDb } from '../db'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import type { UsageCache } from './cache'
-import { addTokens, type Tokens, ZERO_TOKENS } from './nodes'
+import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
 import { cost } from './prices'
 
 export { addTokens, type Tokens, totalTokens, ZERO_TOKENS } from './nodes'
@@ -65,8 +65,23 @@ export interface Usage {
   execution: Record<string, number>
   blocked: number
   tokens: Tokens
+  models: Record<string, ModelUsage>
   cost: number
   allPriced: boolean
+}
+
+// One turn as the export reads it, whole.
+export interface ExportedTurn {
+  readonly uuid: string
+  readonly sessionId: string
+  readonly origin: string
+  readonly opened: number
+  readonly projectId: string | null
+  readonly category: string | null
+  // its spans: working and blocked, in seconds
+  seconds: number
+  blocked: number
+  readonly tokens: { readonly model: string; readonly hour: number; readonly tokens: Tokens }[]
 }
 
 // (project id, session, category) → its usage; category is null without categories.
@@ -253,7 +268,14 @@ export class UsageHistory {
       if (!entry) {
         entry = {
           key: { projectId, sessionId, category: cat },
-          usage: { execution: {}, blocked: 0, tokens: ZERO_TOKENS, cost: 0, allPriced: true },
+          usage: {
+            execution: {},
+            blocked: 0,
+            tokens: ZERO_TOKENS,
+            models: {},
+            cost: 0,
+            allPriced: true,
+          },
         }
         found.set(id, entry)
       }
@@ -293,6 +315,9 @@ export class UsageHistory {
       const priced = cost(String(r.m), num(r, 'h'), tokens)
       if (priced === null) u.allPriced = false
       else u.cost += priced
+      u.models = addModels(u.models, {
+        [String(r.m)]: { tokens, cost: priced ?? 0, priced: priced !== null },
+      })
     }
     return found
   }
@@ -370,6 +395,81 @@ export class UsageHistory {
       )
       .get(sessionId, at)
     return nullableStr(row, 'c')
+  }
+
+  // The turn a moment belongs to in a session: the latest opened at or before it, else its first.
+  turnAt(sessionId: string, at: number): string | null {
+    if (this.db === null) return null
+    const raw = this.db.raw
+    const row =
+      raw
+        .prepare(
+          'SELECT uuid FROM turns WHERE session_id = ? AND opened <= ? ORDER BY opened DESC, uuid DESC',
+        )
+        .get(sessionId, at) ??
+      raw
+        .prepare('SELECT uuid FROM turns WHERE session_id = ? ORDER BY opened, uuid')
+        .get(sessionId)
+    return nullableStr(row, 'uuid')
+  }
+
+  // Every turn opened in [low, high), whole: its spans and tokens are not clipped to the range. The
+  // category is the one reports show (a turn the human did not start takes its session's).
+  turnsOpened(low: number, high: number): ExportedTurn[] {
+    if (this.db === null) return []
+    const raw = this.db.raw
+    const turns = new Map<string, ExportedTurn>()
+    for (const r of raw
+      .prepare(
+        `SELECT t.uuid AS u, t.session_id AS s, t.origin AS o, t.opened AS d, t.project_id AS p,` +
+          ` ${CATEGORY} AS c FROM turns t WHERE t.opened >= ? AND t.opened < ?` +
+          ' ORDER BY t.opened, t.uuid',
+      )
+      .all(low, high)) {
+      turns.set(String(r.u), {
+        uuid: String(r.u),
+        sessionId: String(r.s),
+        origin: String(r.o),
+        opened: num(r, 'd'),
+        projectId: nullableStr(r, 'p'),
+        category: nullableStr(r, 'c'),
+        seconds: 0,
+        blocked: 0,
+        tokens: [],
+      })
+    }
+    for (const r of raw
+      .prepare(
+        'SELECT s.uuid AS u, s.kind AS k, SUM(s.end - s.start) AS seconds FROM spans s' +
+          ' JOIN turns t ON t.uuid = s.uuid WHERE t.opened >= ? AND t.opened < ? GROUP BY s.uuid, s.kind',
+      )
+      .all(low, high)) {
+      const turn = turns.get(String(r.u))
+      if (!turn) continue
+      if (r.k === 'blocked') turn.blocked += num(r, 'seconds')
+      else turn.seconds += num(r, 'seconds')
+    }
+    for (const r of raw
+      .prepare(
+        'SELECT k.uuid AS u, k.model AS m, k.hour AS h, k.input AS i, k.output AS o,' +
+          ' k.cache_write AS cw, k.cache_write_1h AS cw1h, k.cache_read AS cr FROM tokens k' +
+          ' JOIN turns t ON t.uuid = k.uuid WHERE t.opened >= ? AND t.opened < ?' +
+          ' ORDER BY k.uuid, k.model, k.hour',
+      )
+      .all(low, high)) {
+      turns.get(String(r.u))?.tokens.push({
+        model: String(r.m),
+        hour: num(r, 'h'),
+        tokens: {
+          input: num(r, 'i'),
+          output: num(r, 'o'),
+          cacheWrite: num(r, 'cw'),
+          cacheWrite1h: num(r, 'cw1h'),
+          cacheRead: num(r, 'cr'),
+        },
+      })
+    }
+    return [...turns.values()]
   }
 
   name(sessionId: string): string | null {

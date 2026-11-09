@@ -4,7 +4,13 @@ process.env.TZ = 'America/Argentina/Buenos_Aires'
 
 import { rmSync, writeFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
-import { BUSY_TIMEOUT_MS, historyPath, UsageHistory } from '../../../src/core/usage/history'
+import {
+  addTokens,
+  BUSY_TIMEOUT_MS,
+  historyPath,
+  UsageHistory,
+  ZERO_TOKENS,
+} from '../../../src/core/usage/history'
 import { runPass } from '../../../src/core/usage/pass'
 import { type Bounds, midnight, periodBounds } from '../../../src/core/usage/periods'
 import { cost } from '../../../src/core/usage/prices'
@@ -379,6 +385,40 @@ describe('cost', () => {
     writeFileSync(log, JSON.stringify({ at: at('10:00:05'), session_id: 's1', cost_usd: 1 }))
     const report = measure(dirs, NOV_8, memberships({ s1: ['p', 'P'], s2: ['p', 'P'] }), [log])
     expect(formatCost(report.nodes[0] as Node).startsWith('~$')).toBe(true)
+  })
+})
+
+describe('by model', () => {
+  // Plan 17: tokens and cost by model, summed as the totals are, so the two cannot disagree. One
+  // turn here uses two models: the main answer on Opus while a subagent runs on Haiku.
+  test('a node by model adds up to its tokens, and to its cost when the cost is estimated', () => {
+    const dirs = usageDirs('models')
+    dirs.transcript('s1', [
+      prompt('10:00:00'),
+      response('10:00:10', { model: 'claude-opus-4-5', tokens: { input: 1000, output: 200 } }),
+      response('10:00:20', {
+        id: 'msg_haiku',
+        model: 'claude-haiku-4-5',
+        tokens: { input: 5000, output: 50, cacheRead: 7000 },
+      }),
+    ])
+    dirs.transcript('s2', [
+      { ...prompt('11:00:00'), uuid: 'u2' },
+      response('11:00:05', { id: 'msg_2', model: 'claude-opus-4-5', tokens: { output: 30 } }),
+    ])
+    const report = measure(dirs, NOV_8, memberships({ s1: ['p', 'P'], s2: ['p', 'P'] }))
+    const project = report.nodes[0] as Node
+    const nodes = [project, ...project.children]
+    expect(Object.keys(project.models).sort()).toEqual(['claude-haiku-4-5', 'claude-opus-4-5'])
+    expect(project.models['claude-haiku-4-5']?.tokens.cacheRead).toBe(7000)
+    for (const node of nodes) {
+      const models = Object.values(node.models)
+      expect(models.length).toBeGreaterThan(0)
+      const tokens = models.reduce((t, m) => addTokens(t, m.tokens), ZERO_TOKENS)
+      expect(tokens).toEqual(node.tokens)
+      if (!node.costExact) expect(models.reduce((c, m) => c + m.cost, 0)).toBeCloseTo(node.cost, 12)
+      expect(models.every((m) => m.priced)).toBe(node.allPriced)
+    }
   })
 })
 

@@ -298,6 +298,10 @@ export const en = {
   'usage.cli.passFailed':
     'Could not read the latest transcripts into the usage history; showing it as it was.',
   'usage.cli.cannotOpen': 'Could not open the usage history.',
+  'usage.cli.cannotWrite': 'Could not write {path}.',
+  'usage.cli.unknownProject': "--project: no project is named '{name}'; the projects are: {known}",
+  'usage.cli.exportHelp':
+    'One row per turn: JSON lines (the default) or CSV. A turn is in the range by the moment it opened, and is exported whole, never clipped at the range\'s ends. The fields are described in Menkar\'s documentation, under "Exporting for analysis".',
   'usage.cli.exec': 'exec',
   'usage.cli.blocked': 'blocked',
   'usage.cli.tokens': 'tokens',
@@ -413,6 +417,9 @@ export const en = {
   'usage.cost': 'Cost',
   'usage.project': 'Project',
   'usage.category': 'Category',
+  'usage.model': 'Model',
+  'usage.modelNoTime': 'Time is not split by model: one turn can use several at once.',
+  'usage.byModel': '{model}: {tokens} · {cost}',
   'usage.projectSession': 'Project / session',
   'usage.blocked': 'Blocked',
   'usage.startedBy': 'Started by: {parts}',
