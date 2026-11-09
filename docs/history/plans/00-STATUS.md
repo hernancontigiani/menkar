@@ -175,3 +175,12 @@
 
 > Replaced 2026-11-09: §2 row 2.5 gained the dock's count (a seen pane's notification is closed). It was:
 | 2.5 | The human's check of notifications (PRF-19): with an agent in a tab you are not watching, let it finish — a desktop notification and the completion sound; turn "Notify about background agents" off — no notification; turn "Play a sound" off — no sound | Human | Trusting the notifications |
+
+| 12 | `19-hide-in-project.md` (hide a session from its project's list, keeping it a member) | Written 2026-11-09; `b1`, after the current batch |
+
+> Closed 2026-11-09 — plan 19, "Hide a session from its project's list", built by `b1`: Hide and
+> Show in a row's menu, a hidden member staying a member (usage still counts it), off while it has
+> a tab, back on a start, a pick in Add session or the quick switcher; a "N hidden" foot toggling
+> them back dimmed. Found: the search the plan named does not exist (the quick switcher it is); a
+> usage test that could not see hidden-means-removed. With it, the tab content patched in place
+> instead of rebuilt on every state. In `docs/projects.md`.

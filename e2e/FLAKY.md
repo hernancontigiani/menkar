@@ -14,3 +14,4 @@ The format is exactly these three columns — the check parses them.
 
 | test | reason | expires |
 | ---- | ------ | ------- |
+| TRM-25 after the last match, down wraps to the first | 2026-11-09: under the full suite the second down button left the selection on the first match (expected its top 213, got 138; poll timed out at 15 s). Never reproduced alone, 25 times under parallel load, or in a full run with a trace (which waited 300 ms between finds); the addon's debounced highlighting of every match is the unproven suspect | 2026-12-09 |

@@ -65,7 +65,6 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 12 | `19-hide-in-project.md` (hide a session from its project's list, keeping it a member) | Written 2026-11-09; `b1`, after the current batch |
 
 ## 4. Next plan number
 
