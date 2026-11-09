@@ -1,3 +1,4 @@
+import type { BridgeState } from '../remote/live'
 import type { RawState } from './detect'
 
 // What a pane shows on top of what its agent is doing: "done" when it finished while nobody was
@@ -9,6 +10,9 @@ export interface PaneState {
   readonly paneId: string
   readonly sessionId: string | null
   readonly state: ShownState
+  // A Remote Control bridge connected now; 'unknown' when it could not be read (the app's own
+  // list stands in).
+  readonly remoteLive: BridgeState
 }
 
 // Every pane's shown state and every project's blocked count, as main sends them to the windows.

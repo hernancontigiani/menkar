@@ -91,8 +91,32 @@ is shown as written; none is `—`).
 - Forks and Continue last never carry it. Nothing is ever typed into a running session: turning it
   on while the session runs without the flag shows the 6 s toast; the session connects at its
   next start or when the user types `/rc`.
-- Each pane remembers whether it started with the flag. That and the list decide the row's phone
-  icon and its tooltip.
+- **What the phone shows** (decision 1.18, 2026-11-09): whether a Remote Control bridge is
+  connected **now** for the session's running process, however it was turned on (New's switch, the
+  menu, or `/remote-control` typed in the session). The switch in the menus and on New keeps its
+  meaning: what Menkar does when it starts the session.
+  - **The source** is Claude Code's per-process registry, `~/.claude/sessions/<pid>.json`, read
+    only. Its shape, as of Claude Code 2.1.319: `{"pid":…, "sessionId":"…", "procStart":"…",
+    "status":"idle", …, "bridgeSessionId":"session_…"}`. `bridgeSessionId` is a string while a
+    bridge is connected, `null` after a disconnect, and absent in a process that never had one.
+  - **How it is read** (`src/core/remote/live.ts`, `src/main/remote-live.ts`): the agent is found
+    as the descendant of the pane's shell named `claude` (or a `node …/claude` script), by
+    `/proc/<pid>/task/*/children` and `cmdline`; its file must match its pid, its session (once
+    the pane knows it) and its start time (`/proc/<pid>/stat`, field 22), so a reused pid is not
+    taken for it. The folder is watched (250 ms debounce) and polled every 5 s, since a watch can
+    miss events; the result rides on the agent-state push, `remoteLive` per pane.
+  - **The fallback**: the format is undocumented, so a missing or unreadable file, an unexpected
+    shape, or a pid that does not match reads as *unknown*, never as off. Then a running session
+    in Menkar's list, or one started with the flag, keeps the phone with the tooltip "Remote
+    Control on at start (state unknown)". A malformed file is logged once per pid.
+  - A session with no running pane shows no phone; its setting stays in the menu's switch. The
+    phone is the same outline in the row (after the state dot) and on the tab (before its name),
+    in the dimmed text color (decision 1.19).
+  - **Rejected sources**: the transcript records each connect (`bridge_status`) but never a
+    disconnect, and a resume reconnects without writing one; `replBridgePlaceholders` in
+    `~/.claude.json` is keyed by bridge, not session, capped and swept later; the statusline's
+    input has no bridge field (its `remote` is the remote *mode*); no hook concerns the bridge;
+    `argv` shows only the flag.
 - The details' **Tokens** row comes from the usage history, `sessionTokens()` in
   `src/main/usage.ts` (deduplicated, subagents counted for their parent), shown when any count is
   above 0.

@@ -132,6 +132,15 @@ of languages.
 **Trigger:** someone asks for a language. First question: who reviews its translation, and whether a
 partial catalog is acceptable or `check-i18n` holds it to complete like Spanish.
 
+### The live Remote Control phone on macOS and Windows
+
+The claude process behind a pane is found through Linux's `/proc` (its shell's children and their
+command lines, and the start time that guards a reused pid). macOS and Windows have no `/proc`, so
+there the phone falls back to the app's own list.
+
+**Trigger:** the macOS or Windows port. First question: whether Claude Code's registry keeps the
+same shape there, and how each system lists a process's children.
+
 ### An MCP server for usage
 
 `menkar usage export` hands an LLM session the history's turns as rows it reads through its shell

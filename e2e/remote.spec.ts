@@ -63,7 +63,10 @@ test('RC-5 a session in the list resumes with its name as the flag', async () =>
     await expect
       .poll(args)
       .toMatch(new RegExp(`^--resume ${SESSION} --remote-control=fix the login bug --settings `))
-    await expect(page.locator('.row .phone')).toHaveAttribute('title', 'Remote control on')
+    await expect(page.locator('.row .phone')).toHaveAttribute(
+      'title',
+      'Remote Control on at start (state unknown)',
+    )
   } finally {
     await launched.close()
   }
@@ -91,7 +94,7 @@ test('RC-6, RC-13, RC-15, RC-16 not in the list: no flag; checking it while runn
     await expect.poll(() => stateFile().remote_control).toEqual([SESSION])
     await expect(page.locator('.row .phone')).toHaveAttribute(
       'title',
-      "Remote control from this session's next start, or type /rc in it",
+      'Remote Control on at start (state unknown)',
     )
     await page.locator('.tab.selected').click({ button: 'right' })
     await expect(page.locator('.menu-item', { hasText: 'Remote control' })).toHaveText(
@@ -236,22 +239,27 @@ test('RC-14 the tab menu’s Remote control: one session yes; two sessions no; a
   }
 })
 
-test('RC-17 a stopped session checked: no toast, "Remote control on", and the next open carries the flag', async () => {
+test('RC-17 a stopped session checked: no toast, no phone until it runs, and the next open carries the flag', async () => {
   const launched = await launchApp({ prepare: setup([]) })
   const page = launched.window
   try {
     await page.locator('.row', { hasText: 'fix the login bug' }).click({ button: 'right' })
     await page.locator('.menu-item', { hasText: 'Remote control' }).click()
-    await expect(page.locator('.row .phone')).toHaveAttribute('title', 'Remote control on')
+    await expect.poll(() => stateFile().remote_control).toEqual([SESSION])
+    await expect(page.locator('.row .phone')).toHaveCount(0)
     await expect(page.locator('.toast')).toHaveCount(0)
     await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
     await expect.poll(args).toMatch(/--remote-control=fix the login bug/)
+    await expect(page.locator('.row .phone')).toHaveAttribute(
+      'title',
+      'Remote Control on at start (state unknown)',
+    )
   } finally {
     await launched.close()
   }
 })
 
-test('RC-18, RC-19 running with the flag: unchecking leaves the list, no toast, "until this session restarts"; checking again is "on"; unchecked, a reopen has no icon and no flag', async () => {
+test('RC-18, RC-19 running with the flag: unchecking leaves the list with no toast and the phone kept; checking again keeps it; unchecked, a reopen has no icon and no flag', async () => {
   const launched = await launchApp({ prepare: setup([SESSION]) })
   const page = launched.window
   // No toast at any toggle: checked at once, before a toast would time out.
@@ -281,11 +289,14 @@ test('RC-18, RC-19 running with the flag: unchecking leaves the list, no toast, 
     await toggle()
     await expect(page.locator('.row .phone')).toHaveAttribute(
       'title',
-      'Remote control until this session restarts',
+      'Remote Control on at start (state unknown)',
     )
     await expect.poll(() => stateFile().remote_control).toEqual([])
     await toggle()
-    await expect(page.locator('.row .phone')).toHaveAttribute('title', 'Remote control on')
+    await expect(page.locator('.row .phone')).toHaveAttribute(
+      'title',
+      'Remote Control on at start (state unknown)',
+    )
     await toggle()
     await expect(page.locator('.toast')).toHaveCount(0)
     await act(page, { type: 'closeAllTabs' })

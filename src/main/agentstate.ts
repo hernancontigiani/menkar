@@ -18,6 +18,7 @@ import { loadState } from '../core/state'
 import type { EventChannel, EventChannels } from '../shared/ipc'
 import { type AgentPane, agentPanes, onAgentPane } from './panes'
 import { currentProjects } from './projects'
+import { remoteLive, remoteLiveSoon, startRemoteLive } from './remote-live'
 
 function broadcast<C extends EventChannel>(channel: C, payload: EventChannels[C]): void {
   for (const window of BrowserWindow.getAllWindows()) {
@@ -40,6 +41,7 @@ export function agentStates(): AgentStates {
     paneId: pane.id,
     sessionId: pane.sessionId(),
     state,
+    remoteLive: remoteLive(pane.id),
   }))
   const projects = currentProjects()
   const blocked = blockedCounts(panes, (sessionId) =>
@@ -113,6 +115,7 @@ function track(pane: AgentPane): void {
     }),
   }
   tracked.set(pane.id, entry)
+  remoteLiveSoon(refreshAgentStates)
   const stopSeen = pane.onSeen(() => {
     if (pane.seen()) setState(entry, afterSeen(entry.state))
   })
@@ -126,5 +129,10 @@ function track(pane: AgentPane): void {
 
 export function startAgentState(): () => void {
   for (const pane of agentPanes()) track(pane)
-  return onAgentPane(track)
+  const stopTracking = onAgentPane(track)
+  const stopRemote = startRemoteLive(refreshAgentStates)
+  return () => {
+    stopTracking()
+    stopRemote()
+  }
 }

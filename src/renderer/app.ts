@@ -566,6 +566,7 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
     'button',
     { class: `tab${selected ? ' selected' : ''}`, 'data-tab': tab.id, title: tab.tooltip },
     tabDot(tab),
+    phoneFor(tab.panes),
     el('span', { class: 'title' }, shortTitle(tab.title)),
     tabRing(tab),
     close,
@@ -971,15 +972,53 @@ function remoteTabItems(tab: TabView): MenuEntry[] {
 
 // The phone on a session row: on in the list or live in a pane started with it.
 function phoneIcon(sessionId: string): HTMLElement | null {
+  const panes = state?.tabs.flatMap((tab) => tab.panes).filter((p) => p.sessionId === sessionId)
+  return phoneFor(panes ?? [])
+}
+
+// The phone shows a bridge connected now, as Claude Code reports it for the pane's process. Where
+// that cannot be read, a running session started with Remote Control, or in the app's list, keeps
+// it: an unreadable state never hides the phone. A session with no running pane shows none.
+function phoneFor(panes: readonly TabView['panes'][number][]): HTMLElement | null {
   const s = state
   if (!s) return null
-  const inList = s.remoteControl.includes(sessionId)
-  const pane = s.tabs.flatMap((tab) => tab.panes).find((p) => p.sessionId === sessionId)
-  const running = s.running.includes(sessionId)
   let tip: Key | null = null
-  if (inList) tip = running && pane && !pane.remote ? 'rc.nextStart' : 'rc.on'
-  else if (running && pane?.remote) tip = 'rc.untilRestart'
-  return tip ? el('span', { class: 'phone dim', title: translate(tip) }, '📱') : null
+  for (const pane of panes) {
+    const live = agentStates?.panes.find((p) => p.paneId === pane.id)?.remoteLive ?? 'unknown'
+    if (live === 'on') {
+      tip = 'rc.connected'
+      break
+    }
+    const session = pane.sessionId
+    const running = session !== null && s.running.includes(session)
+    if (live === 'unknown' && running && (pane.remote || s.remoteControl.includes(session)))
+      tip = 'rc.fallback'
+  }
+  return tip ? el('span', { class: 'phone dim', title: translate(tip) }, phoneGlyph()) : null
+}
+
+// A phone's outline in the text color: an emoji has too much detail and color at this size.
+function phoneGlyph(): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(ns, 'svg')
+  const attrs = (node: Element, values: Record<string, string>) => {
+    for (const [key, value] of Object.entries(values)) node.setAttribute(key, value)
+  }
+  attrs(svg, {
+    viewBox: '0 0 9 13',
+    width: '9',
+    height: '13',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '1.5',
+    'aria-hidden': 'true',
+  })
+  const body = document.createElementNS(ns, 'rect')
+  attrs(body, { x: '.75', y: '.75', width: '7.5', height: '11.5', rx: '1.6' })
+  const speaker = document.createElementNS(ns, 'line')
+  attrs(speaker, { x1: '3.4', y1: '10.1', x2: '5.6', y2: '10.1', 'stroke-linecap': 'round' })
+  svg.append(body, speaker)
+  return svg
 }
 
 // A chat tab's body: b2's view mounted once per tab, unmounted when the tab goes.

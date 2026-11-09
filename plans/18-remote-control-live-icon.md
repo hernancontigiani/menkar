@@ -108,15 +108,81 @@ bridge is connected now, whichever way it was turned on. The menu switch keeps i
 ## Execution blocks
 
 ### B1: the reader
-- [ ] Core `bridgeState` and the pid finder, with their tests; the main watcher; one IPC field.
+- [x] Core `bridgeState` and the pid finder, with their tests; the main watcher; one IPC field.
 - **Verification:** `npm run ci`.
 
 ### B2: the icon
-- [ ] Row, tab and tooltips; e2e.
+- [x] Row, tab and tooltips; e2e.
 - **Verification:** `npm run ci`; `npm run ui-check` from a clean `out/`.
 
 ### B3: exit
-- [ ] The exit's files.
+- [x] The exit's files.
 - **Verification:** `npm run ci`.
 
 ## Execution log
+
+### Decisions and findings on the way (2026-11-09)
+
+- **Decision 1.19** (the human, through `set`): the 📱 emoji becomes a phone outline, an inline
+  SVG in a 9 × 13 viewBox (a rect at .75, .75, 7.5 × 11.5, rx 1.6; a line from 3.4, 10.1 to
+  5.6, 10.1 with round caps; stroke `currentColor`, 1.5, no fill), in the dimmed text color. It
+  stays where the emoji was: after the row's state dot, and before the tab's name.
+- **The registry confirmed by hand** (`set`, on the session `redesign`): connect sets
+  `bridgeSessionId`, disconnect sets it to `null` (not removed) with `updatedAt` moving, and
+  reconnecting sets it again.
+- **The pid**: `b1` added `shellPid()` to the existing `agentPanes()` (`src/main/panes.ts`,
+  `workspace.ts`) instead of a second export. Claude runs as the shell's child, found through
+  `/proc`; the registry's `procStart` is `/proc/<pid>/stat` field 22, checked on every live
+  process here.
+- **The finder** matches the command's name, or the script's name only under an interpreter
+  (`node`, `bun`, `deno`, `sh`, `bash`): its own test showed `vim claude` matching otherwise.
+- **The doc's destination**: `docs/remote-control.md` does not exist; Remote Control lives in
+  `docs/sessions.md`, whose phone bullet this plan made false. "What the phone shows" replaces it
+  there, and the old bullet went to `docs/history/sessions.md`.
+- **The old tooltips** ("Remote control on", "…from this session's next start…", "…until this
+  session restarts") are replaced by "Remote Control connected" and "Remote Control on at start
+  (state unknown)"; a stopped session shows no phone (the plan's rule). `e2e/remote.spec.ts`
+  (`b1`'s) asserts the new ones in RC-5, RC-6, RC-17, RC-18/19: the e2e has no registry, so the
+  fallback; three lines are replaced (test integrity reports them).
+
+### B1 — The reader
+
+- `src/core/remote/live.ts`: `bridgeState()`, `procStartOf()`, `findAgentPid()`.
+- `src/main/remote-live.ts`: the watcher (`fs.watch`, 250 ms debounce, 5 s poll), the `/proc`
+  snapshot, one log per pid; started and stopped with agent state (`src/main/agentstate.ts`),
+  and a new pane read soon after it opens.
+- `PaneState.remoteLive` (`src/core/agentstate/shown.ts`); `agentPaths().claudeSessions`
+  (`src/core/paths.ts`).
+- Vitest `tests/core/remote/live.test.ts` (on, null, absent, empty, wrong type, wrong pid, wrong
+  session, reused pid, garbage, the session not known yet, no `procStart`; `procStartOf` with
+  spaces and parentheses in the command; the finder on a fake `/proc`), each rule seen red
+  against its own defect.
+
+### B2 — The phone
+
+- `src/renderer/app.ts` (`b1`'s, targeted): `phoneFor()` for the row and the tab, `phoneGlyph()`;
+  strings `rc.connected` and `rc.fallback` replace `rc.on`, `rc.nextStart`, `rc.untilRestart`.
+- e2e `e2e/remote-live.spec.ts`: a stand-in that keeps the registry file with its own pid and
+  start time; connected (a session neither in the list nor started with the flag), `null`, no
+  file (the fallback once in the list), and an entry with no key; the outline and its position.
+- Found by the e2e: the watcher's first pass, at start with no pane, finished synchronously and
+  cleared its "running" mark before the mark was set, so every later pass returned at once. The
+  cleanup is now chained after the assignment (`refresh()` in `src/main/remote-live.ts`).
+- Found, not changed (the window state's code is `b1`'s): the renderer's `running` list is not
+  pushed again when an agent reaches the foreground, so until another action pushes the window
+  state, a running session reads as stopped there. The old phone code read the same list. The
+  "no bridge key" test pushes a fresh state first, so it tells off from unknown.
+- Seen red, each with its own defect: the live `on` ignored, `off` read as unknown, the fallback
+  dropped, the emoji back.
+
+### B3 — Exit
+
+- `docs/sessions.md` "What the phone shows" (in place of the bullet this plan made false; the
+  plan's `docs/remote-control.md` does not exist); the old bullet in `docs/history/sessions.md`.
+- `docs/NOT_BUILT_YET.md`: the live phone on macOS and Windows.
+- `plans/00-STATUS.md` §2 row 2.15: the hand check.
+
+Verification: `npm run ci`: Biome, tsc, Vitest (628 passed), code rules, i18n, flaky and history
+green; test integrity red only on the three replaced tooltip lines in `e2e/remote.spec.ts`.
+`npm run ui-check` from a clean `out/`: 210 passed. Screenshot: `/tmp/menkar-shots/rc-live.png`.
+

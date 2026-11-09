@@ -229,12 +229,12 @@ describe('roll-up and counts', () => {
   })
 
   const panes: PaneState[] = [
-    { paneId: 'p1', sessionId: 'a1', state: 'blocked' },
-    { paneId: 'p2', sessionId: 'b1', state: 'blocked' },
-    { paneId: 'p3', sessionId: 'b2', state: 'blocked' },
-    { paneId: 'p4', sessionId: 'b3', state: 'working' },
-    { paneId: 'p5', sessionId: 'unjoined', state: 'blocked' },
-    { paneId: 'p6', sessionId: null, state: 'blocked' },
+    { paneId: 'p1', sessionId: 'a1', state: 'blocked', remoteLive: 'unknown' },
+    { paneId: 'p2', sessionId: 'b1', state: 'blocked', remoteLive: 'unknown' },
+    { paneId: 'p3', sessionId: 'b2', state: 'blocked', remoteLive: 'unknown' },
+    { paneId: 'p4', sessionId: 'b3', state: 'working', remoteLive: 'unknown' },
+    { paneId: 'p5', sessionId: 'unjoined', state: 'blocked', remoteLive: 'unknown' },
+    { paneId: 'p6', sessionId: null, state: 'blocked', remoteLive: 'unknown' },
   ]
   const member: Record<string, string> = { a1: 'A', b1: 'B', b2: 'B', b3: 'B' }
 
