@@ -146,3 +146,18 @@
 > the report. Found: an exact session's cost cannot split by model (per-model cost is the list
 > price); an unknown `--project` listed comma-joined names, ambiguous with a comma in a name. The
 > MCP server is deferred in `docs/NOT_BUILT_YET.md`. In `docs/usage.md`.
+
+| 9 | `15-spec-closure-b1.md` (every remaining case of `b1`'s spec areas built and tested, checked by hand, or decided against) | Written 2026-11-08; `b1` |
+
+> Closed 2026-11-08 — plan 15, "Closing the spec in `b1`'s areas", built by `b1`: every case of
+> look, terminal, projects, agent state, sessions, files and Remote Control tested by id, checked by
+> hand (§2.6–2.12) or decided against (TRM-16, 39, 41–46, 51; PRJ-1's no-file clause; SES-44's UI
+> path); FIL-39 built; the human's header star, gear, tab ring order and group line. Found: the
+> divider could not be grabbed or dragged, a pane's output could show twice, the editor ignored the
+> font, a delete missed sessions running in another window, Open beside kept the focus, a file tab's
+> rename did nothing, `~` paths guessed home, the preview lost its scroll. The spec areas now point
+> at `docs/window.md`, `docs/sessions.md`, `docs/files.md`, `docs/projects.md`.
+
+| 4 | The features, designed by `set` from `docs/spec/` once plans 01 and 02 are delivered: the window, tabs and terminals; projects and windows; agent state, notifications, switcher and keys; preferences, themes, i18n; context ring, statusline and integrations; the Usage window; the classifier; file tabs; remote control; packaging for Ubuntu | Not designed yet |
+
+> Removed 2026-11-08: every feature it listed is built (plans 03–17).
