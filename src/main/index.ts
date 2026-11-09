@@ -1,5 +1,5 @@
 import { resolve as resolvePath } from 'node:path'
-import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain } from 'electron'
+import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain, Menu } from 'electron'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile } from '../core/paths'
@@ -68,6 +68,9 @@ if (process.platform === 'linux') app.setPath('userData', electronUserData())
 
 async function start(): Promise<void> {
   await app.whenReady()
+  // No application menu anywhere: its bar sat between the frame and the header, and its
+  // accelerators (reload, DevTools, close the window, quit) fired over the terminal's keys.
+  Menu.setApplicationMenu(null)
   // The language setting is read once, before any window opens; a change waits for a restart.
   const chosen = settingsOf(await loadState()).language
   language = chooseLanguage(chosen || undefined, app.getPreferredSystemLanguages())

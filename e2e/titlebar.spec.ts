@@ -1,0 +1,261 @@
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app'
+import { clientWork } from './fixtures'
+import { near } from './measure'
+
+const act = (page: Page, action: Record<string, unknown>) =>
+  page.evaluate(
+    (a) =>
+      (
+        globalThis as unknown as { menkar: { window: { act(x: unknown): Promise<unknown> } } }
+      ).menkar.window.act(a),
+    action,
+  )
+
+async function client(
+  settings: Record<string, unknown> = {},
+  tabs: (readonly ('login' | 'api' | 'long')[])[] = [],
+) {
+  const launched = await launchApp({ prepare: (dirs) => clientWork(dirs, { settings, tabs }) })
+  await expect(launched.window.locator('#session-list .row')).toHaveCount(3)
+  await expect
+    .poll(() =>
+      launched.app.evaluate(
+        ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false,
+      ),
+    )
+    .toBe(true)
+  return launched
+}
+
+const overlay = (page: Page) =>
+  page.evaluate(() => {
+    const wco = (
+      navigator as unknown as {
+        windowControlsOverlay?: { visible: boolean; getTitlebarAreaRect(): DOMRect }
+      }
+    ).windowControlsOverlay
+    return wco
+      ? { visible: wco.visible, width: wco.getTitlebarAreaRect().width }
+      : { visible: false, width: 0 }
+  })
+
+// A pixel of the whole screen, the system's window buttons included (a page capture leaves them out).
+async function screenPixel(app: ElectronApplication, x: number, y: number): Promise<string> {
+  return app.evaluate(
+    async ({ desktopCapturer, screen }, [px, py]) => {
+      const size = screen.getPrimaryDisplay().size
+      const [source] = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: size })
+      const bitmap = source?.thumbnail.toBitmap()
+      const width = source?.thumbnail.getSize().width ?? 0
+      if (!bitmap) return 'none'
+      const i = ((py ?? 0) * width + (px ?? 0)) * 4
+      return `#${[bitmap[i + 2], bitmap[i + 1], bitmap[i]].map((v) => (v ?? 0).toString(16).padStart(2, '0')).join('')}`
+    },
+    [x, y],
+  )
+}
+
+test('LOOK-55 (2026-11-09) no menu bar anywhere; Ctrl+R and Ctrl+Shift+I reach nothing', async () => {
+  const launched = await client()
+  const { app, window: page } = launched
+  try {
+    expect(await app.evaluate(({ Menu }) => Menu.getApplicationMenu())).toBeNull()
+    const opened = app.waitForEvent('window')
+    await act(page, { type: 'openPreferences' })
+    await opened
+    expect(
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().map((w) => w.isMenuBarVisible()),
+      ),
+    ).toEqual([false, false])
+    await page.evaluate(() => {
+      ;(globalThis as unknown as { stillHere: boolean }).stillHere = true
+    })
+    await page.locator('#session-list').click()
+    await page.keyboard.press('Control+r')
+    await page.keyboard.press('Control+Shift+I')
+    await page.waitForTimeout(800)
+    expect(
+      await page.evaluate(() => (globalThis as unknown as { stillHere?: boolean }).stillHere),
+    ).toBe(true)
+    expect(
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().some((w) => w.webContents.isDevToolsOpened()),
+      ),
+    ).toBe(false)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-56 (2026-11-09) the main window has no frame: the window buttons sit over the header in its colors, in both styles and schemes; Preferences, Usage, About and MCP keep the system’s', async () => {
+  for (const settings of [
+    { ui_style: 'tui', color_scheme: 'dark' },
+    { ui_style: 'tui', color_scheme: 'light' },
+    { ui_style: 'classic', color_scheme: 'dark' },
+    { ui_style: 'classic', color_scheme: 'light' },
+  ]) {
+    const launched = await client(settings)
+    const { app, window: page } = launched
+    try {
+      const o = await overlay(page)
+      const bounds = await app.evaluate(({ BrowserWindow }) => {
+        const w = BrowserWindow.getAllWindows()[0]
+        return { outer: w?.getBounds(), content: w?.getContentBounds() }
+      })
+      expect(bounds.content).toEqual(bounds.outer)
+      expect(o.visible).toBe(true)
+      expect(o.width).toBeLessThan(bounds.outer?.width ?? 0)
+      const header = await page.locator('.content-header').boundingBox()
+      const x = (bounds.outer?.x ?? 0) + (bounds.outer?.width ?? 0) - 3
+      const y = (bounds.outer?.y ?? 0) + 2
+      const hx = (bounds.outer?.x ?? 0) + Math.floor((header?.x ?? 0) + 200)
+      await expect
+        .poll(async () => near(await screenPixel(app, x, y), await screenPixel(app, hx, y), 2), {
+          timeout: 5000,
+        })
+        .toBe(true)
+    } finally {
+      await launched.close()
+    }
+  }
+  const launched = await client()
+  const { app, window: page } = launched
+  try {
+    for (const type of ['openPreferences', 'openUsage', 'openAbout', 'openMcpServers']) {
+      const opened = app.waitForEvent('window')
+      await act(page, { type })
+      const child = await opened
+      await child.waitForLoadState()
+      expect((await overlay(child)).visible, type).toBe(false)
+      await child.close()
+    }
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-57 (2026-11-09) the headers drag the window, their controls and the tabs do not; nothing sits under the window buttons', async () => {
+  const launched = await client({}, [['login']])
+  const page = launched.window
+  try {
+    const region = (selector: string) =>
+      page
+        .locator(selector)
+        .evaluateAll((ns) =>
+          ns.map(
+            (n) =>
+              getComputedStyle(n).getPropertyValue('app-region') ||
+              getComputedStyle(n).getPropertyValue('-webkit-app-region'),
+          ),
+        )
+    expect(await region('.sidebar-header, .content-header')).toEqual(['drag', 'drag'])
+    const controls = await region('.sidebar-header button, .content-header button, #tab-strip')
+    expect(controls.length).toBeGreaterThanOrEqual(6)
+    expect(new Set(controls)).toEqual(new Set(['no-drag']))
+    const free = (await overlay(page)).width
+    await expect(page.locator('#close-all')).toBeHidden()
+    await act(page, { type: 'openSession', session: '3c3c3c3c-0000-4000-8000-000000000003' })
+    await expect(page.locator('#close-all')).toBeVisible()
+    const rights = await page
+      .locator('.content-header button:visible, .content-header .title-text')
+      .evaluateAll((ns) => ns.map((n) => n.getBoundingClientRect().right))
+    expect(Math.max(...rights)).toBeLessThanOrEqual(free)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-58 (2026-11-09) a double click on a header’s empty space maximizes and restores; on its buttons it does not', async () => {
+  const launched = await client()
+  const { app, window: page } = launched
+  try {
+    await app.evaluate(({ BrowserWindow }) => {
+      const g = globalThis as unknown as { toggles: number }
+      g.toggles = 0
+      const w = BrowserWindow.getAllWindows()[0]
+      if (!w) return
+      w.maximize = () => {
+        g.toggles += 1
+      }
+    })
+    const toggles = () => app.evaluate(() => (globalThis as unknown as { toggles: number }).toggles)
+    const header = await page.locator('.content-header').boundingBox()
+    if (!header) throw new Error('no header')
+    await page.mouse.dblclick(header.x + 200, header.y + header.height / 2)
+    await expect.poll(toggles).toBe(1)
+    await page.locator('#main-menu').dblclick()
+    await page.keyboard.press('Escape')
+    await page.locator('#project-button').dblclick()
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(800)
+    expect(await toggles()).toBe(1)
+    const side = await page.locator('.sidebar-header').boundingBox()
+    // In its top padding, above the project button (the divider's grip covers its right edge).
+    await page.mouse.dblclick((side?.x ?? 0) + 60, (side?.y ?? 0) + 2)
+    await expect.poll(toggles).toBe(2)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-59 (2026-11-09) copy and paste without a menu: Ctrl+C / Ctrl+V in a field and the editor, Ctrl+Shift+C / Ctrl+Shift+V in the terminal', async () => {
+  let home = ''
+  const launched: LaunchedApp = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return savedCursorTab(dirs, { color_scheme: 'dark' })
+    },
+  })
+  const { app, window: page } = launched
+  const clip = () => app.evaluate(({ clipboard }) => clipboard.readText())
+  const setClip = (text: string) => app.evaluate(({ clipboard }, t) => clipboard.writeText(t), text)
+  try {
+    await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+    await page.locator('.xterm').click()
+    await page.keyboard.type('echo copy-me-term')
+    await page.keyboard.press('Enter')
+    const word = page.locator('.xterm-rows span', { hasText: /^copy-me-term$/ }).last()
+    await expect(word).toBeVisible()
+    const at = await word.boundingBox()
+    await page.mouse.dblclick(
+      (at?.x ?? 0) + (at?.width ?? 0) / 2,
+      (at?.y ?? 0) + (at?.height ?? 0) / 2,
+    )
+    await page.keyboard.press('Control+Shift+C')
+    await expect.poll(clip).toBe('copy-me-term')
+    await setClip('echo pasted-in-term')
+    await page.keyboard.press('Control+Shift+V')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toContain('\npasted-in-term')
+
+    await page.keyboard.press('Control+Shift+O')
+    const field = page.locator('.open-file input')
+    await field.fill('~/field-text')
+    await field.press('Control+a')
+    await field.press('Control+c')
+    await expect.poll(clip).toBe('~/field-text')
+    await setClip('/pasted/path')
+    await field.press('Control+a')
+    await field.press('Control+v')
+    await expect(field).toHaveValue('/pasted/path')
+    await page.keyboard.press('Escape')
+
+    writeFileSync(join(home, 'note.txt'), 'editor-line\n')
+    await act(page, { type: 'openFilePath', path: join(home, 'note.txt') })
+    const editor = page.locator('.tab-body:not(.hidden) .cm-content')
+    await editor.click()
+    await page.keyboard.press('Control+a')
+    await page.keyboard.press('Control+c')
+    await expect.poll(clip).toBe('editor-line\n')
+    await setClip('from-clipboard')
+    await page.keyboard.press('Control+End')
+    await page.keyboard.press('Control+v')
+    await expect(editor).toContainText('from-clipboard')
+  } finally {
+    await launched.close()
+  }
+})

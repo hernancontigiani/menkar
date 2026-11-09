@@ -68,6 +68,25 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   file instead of the new `projects.json`.
 - Projects, groups and membership are saved at once; the layout 500 ms after its last change.
 
+## The frame (2026-11-09)
+
+- **No application menu** (`Menu.setApplicationMenu(null)`): its bar was a third one between the
+  frame and the header, and its accelerators (reload, DevTools, close the window, quit) fired over
+  the terminal's keys. No key of Menkar's came from it; copy and paste are Chromium's own in fields
+  and the editor, and the terminal's `Ctrl+Shift+C` / `Ctrl+Shift+V`.
+- **The main window has no system frame**: the headers are its title bar (`titleBarStyle: 'hidden'`
+  with `titleBarOverlay`). The system draws only minimize, maximize and close over the header's
+  right end, and the renderer sends their colors and height (`titleBar`) as the header is drawn,
+  so they follow the style and the scheme. The content header keeps clear of them through
+  `env(titlebar-area-width)`.
+- The headers are `-webkit-app-region: drag`; their buttons and the tab strip are `no-drag`. A
+  double click on a header's empty space asks main to maximize or restore; main skips a toggle right
+  after the system's own, so a desktop that also maximizes on a caption double click does not
+  undo it.
+- Preferences, Usage, About and MCP keep the system's frame.
+- Under `xvfb-run` there is no window manager: maximize, minimize, edge resize and snapping are the
+  human's check on a real desktop.
+
 ## Checks
 
 - Vitest: the themes, settings and command lines (`tests/core/{theme,settings,command}.test.ts`).

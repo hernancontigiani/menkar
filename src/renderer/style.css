@@ -169,6 +169,16 @@ html.classic #sidebar .dim {
   padding: 4px 6px;
   min-height: 43px;
 }
+/* The headers are the window's title bar: dragged to move it; their controls stay clickable. */
+.sidebar-header,
+.content-header {
+  -webkit-app-region: drag;
+}
+.sidebar-header button,
+.content-header button,
+#tab-strip {
+  -webkit-app-region: no-drag;
+}
 #project-button {
   flex: 1;
   min-width: 0;
@@ -265,6 +275,8 @@ html.classic .dot.running {
   align-items: center;
   gap: 2px;
   padding: 4px 6px;
+  /* Clear of the window buttons drawn over the header's right end. */
+  padding-right: calc(100vw - env(titlebar-area-width, 100vw) + 6px);
   min-height: 43px;
 }
 html.classic .content-header {

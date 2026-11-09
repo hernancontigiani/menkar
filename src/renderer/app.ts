@@ -216,6 +216,13 @@ export function buildFrame(): void {
       el('div', { id: 'toasts' }),
     ),
   )
+  // A double click on a header's empty space maximizes and restores, as on a title bar.
+  for (const header of document.querySelectorAll<HTMLElement>('.sidebar-header, .content-header')) {
+    header.addEventListener('dblclick', (event) => {
+      const target = event.target as HTMLElement
+      if (target === header || target.closest('.title')) void act({ type: 'toggleMaximize' })
+    })
+  }
 }
 
 export function toggleSidebar(): void {
@@ -262,6 +269,7 @@ export function render(next: WindowState): void {
   const look = applyLook(next.settings, (changed) => {
     applyTerminalLook(next.settings, changed)
     setFileTheme(changed.dark)
+    syncTitleBar()
   })
   setFileTheme(look.dark)
   if (previous?.settings !== next.settings) applyTerminalLook(next.settings, look)
@@ -284,6 +292,37 @@ export function render(next: WindowState): void {
   renderStrip(next)
   renderContent(next)
   renderNotices(next)
+  syncTitleBar()
+}
+
+// The window buttons the system draws over the header take the header's colors and height: as
+// drawn, so a translucent header over the window's background comes out as one opaque color.
+let titleBarSent = ''
+function syncTitleBar(): void {
+  const header = document.querySelector<HTMLElement>('.content-header')
+  if (!header) return
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return
+  const drawn = (...colors: string[]) => {
+    ctx.clearRect(0, 0, 1, 1)
+    for (const c of colors) {
+      ctx.fillStyle = c
+      ctx.fillRect(0, 0, 1, 1)
+    }
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+    return `#${[r, g, b].map((v) => (v ?? 0).toString(16).padStart(2, '0')).join('')}`
+  }
+  const style = getComputedStyle(header)
+  const color = drawn(getComputedStyle(document.body).backgroundColor, style.backgroundColor)
+  const symbolColor = drawn(color, style.color)
+  const height = Math.round(header.getBoundingClientRect().height)
+  const key = `${color} ${symbolColor} ${height}`
+  if (key === titleBarSent || height === 0) return
+  titleBarSent = key
+  void act({ type: 'titleBar', color, symbolColor, height })
 }
 
 const sessionsById = (s: WindowState) => new Map(s.sessions.map((x) => [x.id, x]))

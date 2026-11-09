@@ -89,6 +89,9 @@ const LAYOUT_SAVE_DELAY_MS = 500
 const JOIN_POLL_MS = 1500
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 800
+const TITLE_BAR_HEIGHT = 43
+const MAXIMIZE_SETTLE_MS = 500
+const lastMaximizeChange = new Map<string, number>()
 
 interface Pane {
   readonly id: string
@@ -567,6 +570,10 @@ function createBrowserWindow(windowId: string): BrowserWindow {
     title: t('window.title'),
     backgroundColor: '#1e1e2e',
     show: false,
+    // The header is the title bar; the system draws only its window buttons, over the header's
+    // right end, in the colors the window sends once its look is applied.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#1e1e2e', symbolColor: '#cdd6f4', height: TITLE_BAR_HEIGHT },
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -576,6 +583,8 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   })
   windows.set(windowId, window)
   window.once('ready-to-show', () => window.show())
+  window.on('maximize', () => lastMaximizeChange.set(windowId, now()))
+  window.on('unmaximize', () => lastMaximizeChange.set(windowId, now()))
   window.on('focus', () => {
     focusOrder = [windowId, ...focusOrder.filter((id) => id !== windowId)]
     notifySeen()
@@ -598,6 +607,7 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   })
   window.on('closed', () => {
     windows.delete(windowId)
+    lastMaximizeChange.delete(windowId)
     allowedToClose.delete(windowId)
     hangUpWindow(windowId)
     if (layout.windows.some((w) => w.id === windowId) && windows.size > 0) {
@@ -1473,6 +1483,22 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed()
       return {}
     }
+    case 'toggleMaximize': {
+      const win = windows.get(windowId)
+      // The system may toggle on its own for a double click on the header; a second toggle right
+      // after would undo it.
+      if (!win || now() - (lastMaximizeChange.get(windowId) ?? 0) < MAXIMIZE_SETTLE_MS) return {}
+      if (win.isMaximized()) win.unmaximize()
+      else win.maximize()
+      return {}
+    }
+    case 'titleBar':
+      windows.get(windowId)?.setTitleBarOverlay({
+        color: action.color,
+        symbolColor: action.symbolColor,
+        height: action.height,
+      })
+      return {}
     case 'openPreferences':
     case 'openUsage':
     case 'openAbout': {

@@ -156,6 +156,13 @@ export type Action =
   | { readonly type: 'replaySession'; readonly session: string }
   | { readonly type: 'openSessionFile' }
   | { readonly type: 'revealTab'; readonly tab: string }
+  | {
+      readonly type: 'titleBar'
+      readonly color: string
+      readonly symbolColor: string
+      readonly height: number
+    }
+  | { readonly type: 'toggleMaximize' }
   | { readonly type: 'openPreferences' }
   | { readonly type: 'openUsage' }
   | { readonly type: 'openAbout' }
