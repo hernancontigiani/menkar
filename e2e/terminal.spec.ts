@@ -415,7 +415,7 @@ test('TRM-18 the advanced dialog: Start opens New at the name step with the fold
     await advanced(page, 'Cursor')
     await page.locator('.dialog button', { hasText: 'Start' }).click()
     await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
-    await expect(page.locator('.add-session')).toContainText(`web${join(home, 'work')}`)
+    await expect(page.locator('.add-session')).toContainText('web~/work')
     await expect(page.locator('.add-session select').first()).toHaveValue('cursor')
     await expect(page.locator('.add-session input[type="text"]:visible').first()).toBeFocused()
     await expect(page.locator('.tab')).toHaveCount(0)

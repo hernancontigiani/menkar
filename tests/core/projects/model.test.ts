@@ -142,7 +142,7 @@ describe('the model', () => {
     expect(addMember(after, 'a', 's1')).toEqual(after)
   })
 
-  test('PRJ-36/37 a new session joins the project its tab was started in, else current', () => {
+  test('PRJ-36/37, SES-44 a new session joins the project its tab was started in, else current', () => {
     const state = projects([project('a', 'A'), project('b', 'B')], 'a')
     expect(joinTarget(state, 'b')).toBe('b')
     expect(joinTarget(state, 'gone')).toBe('a')

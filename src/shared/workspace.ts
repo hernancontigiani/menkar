@@ -36,6 +36,8 @@ export interface TabView {
 
 export interface WindowState {
   readonly windowId: string
+  // The user's home folder, for paths shown as ~/…
+  readonly home: string
   readonly settings: Settings
   readonly shown: string
   readonly projects: readonly ProjectInfo[]

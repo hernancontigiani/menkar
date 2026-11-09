@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { now } from '../core/clock'
 import { buildCommand, type Start } from '../core/command'
@@ -10,6 +10,7 @@ import type { Reading } from '../core/context/types'
 import { checkTyped, expandInput } from '../core/files/check'
 import { type Key, t } from '../core/i18n'
 import { log } from '../core/log'
+import { agentPaths } from '../core/paths'
 import {
   closeTab as closeLayoutTab,
   holder,
@@ -46,6 +47,7 @@ import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
 import { AGENT_COMMANDS, findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
+import { applyNameLines, emptyNames } from '../core/sessions/names'
 import {
   details,
   exportMarkdown,
@@ -260,6 +262,7 @@ function stateFor(windowId: string): WindowState | undefined {
     readings: readingsOf(w.shown),
     remoteControl: [...remoteIds],
     ghostty: ghosttyInstalled(),
+    home: homedir(),
     notices: currentNotices(),
     agents: installedAgents,
   }
@@ -1403,15 +1406,30 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     }
     case 'openSessionFile': {
+      const claudeDir = dirname(agentPaths().claudeProjects)
       const chosen = await dialog.showOpenDialog({
-        title: t('menu.openSessionFile'),
+        title: t('replay.chooserTitle'),
+        ...(statSafeDir(claudeDir) ? { defaultPath: claudeDir } : {}),
         properties: ['openFile'],
         filters: [{ name: 'JSONL', extensions: ['jsonl'] }],
       })
       const path = chosen.filePaths[0]
       if (chosen.canceled || !path) return {}
-      const text = await readFile(path, 'utf8')
-      openReplay(windowId, basename(path, '.jsonl'), text, agentOfFile(text, path))
+      let text: string
+      try {
+        text = await readFile(path, 'utf8')
+      } catch (error) {
+        // Gone, or unreadable, between the chooser and the read.
+        log.warn('a chosen transcript could not be read', { path, error })
+        return { refusal: 'replay.unreadable' }
+      }
+      const title = applyNameLines(emptyNames(), text.endsWith('\n') ? text : `${text}\n`)
+      openReplay(
+        windowId,
+        title.customTitle ?? title.aiTitle ?? basename(path, '.jsonl'),
+        text,
+        agentOfFile(text, path),
+      )
       return {}
     }
     case 'checkFolder':

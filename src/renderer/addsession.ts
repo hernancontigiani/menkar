@@ -11,6 +11,7 @@ import {
   sessionSearchText,
 } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
+import { tilde as tildeOf } from '../core/tilde'
 import type { WindowState } from '../shared/workspace'
 import { act, currentState, logo, onRender, showHiddenSessions } from './app'
 import { el, icon } from './dom'
@@ -29,16 +30,7 @@ export interface NewOptions {
 
 let openDialog: { close(): void } | null = null
 
-const home = () =>
-  currentState()
-    ?.sessions.find((s) => s.cwd?.startsWith('/home/'))
-    ?.cwd?.split('/')
-    .slice(0, 3)
-    .join('/') ?? ''
-const tilde = (path: string) => {
-  const h = home()
-  return h && (path === h || path.startsWith(`${h}/`)) ? `~${path.slice(h.length)}` : path
-}
+const tilde = (path: string) => tildeOf(path, currentState()?.home ?? '')
 const parentOf = (path: string) => tilde(path.split('/').slice(0, -1).join('/') || '/')
 const lastOf = (path: string) => path.split('/').filter(Boolean).pop() ?? path
 
@@ -87,18 +79,23 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   })
   const close = () => {
     off()
+    document.removeEventListener('keydown', onKey)
     dialogClosed()
     scrim.remove()
     openDialog = null
   }
   openDialog = { close }
   closeButton.addEventListener('click', close)
-  scrim.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      close()
-    }
-  })
+  // On the document: a click on a row (not focusable) leaves the focus on the body, outside the
+  // dialog. An open menu, or a dialog over this one, takes the Esc first.
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || document.querySelector('.popover')) return
+    if (document.body.lastElementChild !== scrim && document.querySelectorAll('.scrim').length > 1)
+      return
+    event.preventDefault()
+    close()
+  }
+  document.addEventListener('keydown', onKey)
   existingButton.addEventListener('click', () => show('existing'))
   newButton.addEventListener('click', () => show('new'))
 

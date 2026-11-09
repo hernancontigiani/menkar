@@ -33,19 +33,19 @@ recorded decision (then say so to `set`).
 ## Execution blocks
 
 ### B1 — Inventory
-- [ ] The table of remaining cases and their state, in the log; send it to `set` before closing them.
+- [x] The table of remaining cases and their state, in the log; send it to `set` before closing them.
 - **Verification:** `set` has the table.
 
 ### B2 — Close look, terminal, projects, agent-state
-- [ ] Each case to one of the three states.
+- [x] Each case to one of the three states.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B3 — Close sessions, files, remote-control
-- [ ] Each case to one of the three states.
+- [x] Each case to one of the three states.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B4 — Exit
-- [ ] The spec files trimmed; §2 gets the hand checks, one line each.
+- [x] The spec files trimmed; §2 gets the hand checks, one line each.
 - **Verification:** `npm run ci`.
 
 ## Execution log
@@ -145,3 +145,53 @@ Tested by id in `e2e/agent-panes.spec.ts`: AST-18 (with the agent pane's own que
 control that does block; the stand-in prints one on `ASK`) and AST-28 through `panes:reveal` (the
 notification's own click stays the human's check). Seen red: shell panes registered as agent
 panes, and a reveal that does not switch the window's project.
+
+### B3 — Sessions (2026-11-08)
+
+Tested by id in `e2e/sessions-cases.spec.ts`: SES-2, 13, 16, 17, 18, 30, 35, 39–43, 45, 46, 47,
+50, 55, 57, 60–63, 70; SES-33 and 34 with PRJ-34 and 35; SES-30 also in `tests/core/tilde.test.ts`.
+SES-44 stays in core (`joinTarget`, named in `tests/core/projects/model.test.ts`): through the UI
+the start project's deletion closes the new session's tab, so it never joins (asked `set`). Seen
+red: one run with a defect per case failed all 19.
+
+Fixed:
+- Paths under home were shortened to `~` by guessing home from a session folder that starts
+  with `/home/`: wrong on macOS and with any other home. The window state carries the home
+  folder, and `src/core/tilde.ts` shortens by its prefix.
+- After a right click on a history row the focus fell to the body, and Esc no longer closed Add
+  session: it listens on the document now (a menu or a dialog over it takes Esc first).
+
+`set` (2026-11-08): SES-44's path through the UI is unreachable by design (deleting a project closes its tabs); the spec says so in B4, pointing at the core test.
+
+### B3 — Files (2026-11-08)
+
+Tested by id in `e2e/files-cases.spec.ts`: FIL-7, 9, 11, 14, 16–19, 21, 22, 26–29, 33, 35–39
+(FIL-30 was tested already). Seen red: one run with a defect per case failed all 16; the preview's
+scroll fix also alone.
+
+Built: FIL-39. A transcript that is gone or unreadable between the chooser and the read is
+refused, and the window says "Could not open transcript" with Menkar's sentence.
+
+Fixed:
+- Open session file named the replay tab after the file's id, not the transcript's title, and
+  its chooser was titled "Open session file…" and did not start in `~/.claude` (FIL-36).
+- The preview lost its scroll when it re-rendered while its tab was not shown: the scroll is
+  kept as the user leaves it and put back when the frame shows (FIL-26).
+
+### B3 — Remote Control (2026-11-08)
+
+Tested by id in `e2e/remote.spec.ts`: RC-3, 4, 11, 12, 14, 17, 18, 19, 21, 25, 26 (the trash
+replaced by a removal: the desktop's trash is the human's check). Seen red: one run with a defect
+per case failed all; RC-18/19 first passed against its defect because the toast had timed out
+before the check, and now checks right after each toggle. Nothing to fix in the code.
+
+### B4 — Exit (2026-11-08)
+
+`docs/spec/look.md`, `terminal.md`, `sessions.md`, `files.md`, `remote-control.md`, `projects.md`
+and `agent-state.md` hold only pointers to the built docs and code. Each Acceptance section names
+its test files, the cases checked by hand and those decided against; the removed lines went
+verbatim to `docs/history/spec/`. LOOK-50 and 51, built and tested by `b2`'s plan 16, point at `e2e/usage-window.spec.ts`. The hand
+checks are `plans/00-STATUS.md` §2.6–2.12, one line each.
+
+The test-integrity check flags one `expect(` line: TRM-18's, which asked for the folder's full
+path and now asks for `web~/work` after the `~` fix; `set` read it and accepted it (2026-11-08).

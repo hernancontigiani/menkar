@@ -92,18 +92,25 @@ export function renderPreview(
       title: path,
     }) as HTMLIFrameElement
     const created: Frame = { frame, timer: undefined, rendered: false }
+    // The scroll is kept as the user leaves it; a hidden frame (another tab selected) reads 0 and
+    // cannot be scrolled, so it is put back when the frame shows again.
+    const restore = () => {
+      if (frame.offsetWidth > 0) frame.contentWindow?.scrollTo(0, Number(frame.dataset.scroll ?? 0))
+    }
     frame.addEventListener('load', () => {
       const doc = frame.contentDocument
       doc?.addEventListener('click', (event) => onLink(event, path))
-      const keep = Number(frame.dataset.scroll ?? 0)
-      frame.contentWindow?.scrollTo(0, keep)
+      frame.contentWindow?.addEventListener('scroll', () => {
+        if (frame.offsetWidth > 0) frame.dataset.scroll = String(frame.contentWindow?.scrollY ?? 0)
+      })
+      restore()
     })
+    new ResizeObserver(restore).observe(frame)
     frames.set(tabId, created)
     f = created
   }
   const target = f
   const write = () => {
-    target.frame.dataset.scroll = String(target.frame.contentWindow?.scrollY ?? 0)
     target.frame.srcdoc = previewPage(text, path, dark)
     target.rendered = true
   }

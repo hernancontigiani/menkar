@@ -166,7 +166,7 @@ export function buildFrame(): void {
     const r = gear.getBoundingClientRect()
     showMenu(
       [
-        { label: t('menu.openSessionFile'), run: () => mainMenuHandlers.openSessionFile() },
+        { label: t('menu.openSessionFile'), run: () => void mainMenuHandlers.openSessionFile() },
         {
           label: `${showHidden ? '✓ ' : ''}${t('menu.showHidden')}`,
           run: () => toggleShowHidden(),
@@ -477,7 +477,12 @@ export function tabStateOf(paneIds: readonly string[]): DotState {
 
 let showHidden = false
 // Set by the module that owns the item (replay opens a chosen transcript).
-export const mainMenuHandlers = { openSessionFile: () => void act({ type: 'openSessionFile' }) }
+export const mainMenuHandlers = {
+  openSessionFile: async () => {
+    const { refusal } = await act({ type: 'openSessionFile' })
+    if (refusal) await showError(t('replay.notOpened'), refusal)
+  },
+}
 export const showHiddenSessions = () => showHidden
 export function toggleShowHidden(): void {
   showHidden = !showHidden

@@ -754,7 +754,7 @@ test('PRJ-18 choosing a project held by another window brings that window forwar
   }
 })
 
-test('PRJ-34 picking a session running alone in another window moves its tab here, not restarted', async () => {
+test('PRJ-34, SES-33 picking a session running alone in another window moves its tab here, not restarted', async () => {
   const { launched, page, other, home } = await withTwoWindows([['login']])
   try {
     await act(other, { type: 'openSession', session: OTHER })
@@ -782,7 +782,7 @@ test('PRJ-34 picking a session running alone in another window moves its tab her
   }
 })
 
-test('PRJ-35 a session sharing a tab in another window is refused and stays there', async () => {
+test('PRJ-35, SES-34 a session sharing a tab in another window is refused and stays there', async () => {
   const { launched, page, other } = await withTwoWindows()
   try {
     // A second Research member, beside OTHER in window 2's tab.
