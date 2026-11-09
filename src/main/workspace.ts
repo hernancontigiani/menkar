@@ -88,7 +88,7 @@ import { currentNotices, currentProjects, dismissNotice, setProjects } from './p
 import { sessions } from './sessions'
 import { appMessage, Terminal } from './terminal'
 import { sessionTokens } from './usage'
-import { openAbout, openMcpServers, openPreferences, openUsage } from './windows'
+import { openSettings, openUsage } from './windows'
 
 const LAYOUT_SAVE_DELAY_MS = 500
 const JOIN_POLL_MS = 1500
@@ -329,7 +329,6 @@ function stateFor(windowId: string): WindowState | undefined {
     heldElsewhere,
     tabs: w.tabs.map(tabView),
     selectedTab: shownTab(w),
-    tabCount: w.tabs.length,
     sessions: sessionList,
     running: [...panes.values()]
       .filter((p) => p.sessionId && p.terminal.running)
@@ -1295,6 +1294,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'closeAllTabs':
       for (const tab of w.tabs) closeTab(tab.id)
       return {}
+    case 'closeOtherTabs':
+      for (const tab of w.tabs) if (tab.id !== action.tab) closeTab(tab.id)
+      return {}
     case 'toggleDrawer': {
       const tabId = shownTab(w)
       if (!tabId) return {}
@@ -1345,6 +1347,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         t('tab.tooltipNew', { agent: agentName(action.agent), cwd: action.folder }),
       )
       await rememberFolder(action.folder)
+      await sessions.updateState((state) => withSetting(state, 'last_agent', action.agent))
       // With the switch on, the id joins the list at once, before Claude has created the session.
       if (action.remoteControl && id) {
         await sessions.updateState((state) => setRemoteControl(state, id, true))
@@ -1380,11 +1383,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'openInGhostty': {
       const info = sessionInfo(action.session)
       if (info) openInGhostty(info.agent, info.id, info.cwd)
-      return {}
-    }
-    case 'openMcpServers': {
-      const win = windows.get(windowId)
-      if (win) openMcpServers(win)
       return {}
     }
     case 'setRemoteControl': {
@@ -1614,14 +1612,12 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         height: action.height,
       })
       return {}
-    case 'openPreferences':
-    case 'openUsage':
-    case 'openAbout': {
+    case 'openSettings':
+      openSettings(action.section)
+      return {}
+    case 'openUsage': {
       const parent = windows.get(windowId)
-      if (!parent) return {}
-      if (action.type === 'openPreferences') openPreferences(parent)
-      else if (action.type === 'openUsage') openUsage(parent)
-      else openAbout(parent)
+      if (parent) openUsage(parent)
       return {}
     }
     case 'swapOrientation': {

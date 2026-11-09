@@ -25,7 +25,7 @@ Close agent-tablet first. Start Menkar from the launcher (not from a terminal).
 - a window opens and a session tab shows a working terminal: the sandbox is on (`ps -ef | grep
   /opt/Menkar/menkar` shows no `--no-sandbox`);
 - your agent-tablet projects, groups and settings (theme, font, language) are there;
-- the Usage window (⚙ → Usage, period "All") shows days from before Menkar's first start;
+- the Usage window (the header's Usage button, period "All") shows days from before Menkar's first start;
 - agent-tablet's own files are unchanged (it still starts and shows the same projects).
 
 ## 3. A day of work

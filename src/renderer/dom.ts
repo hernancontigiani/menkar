@@ -25,6 +25,9 @@ const PATHS: Readonly<Record<string, string>> = {
   tabNew:
     '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><line x1="8" y1="5" x2="8" y2="11"/><line x1="5" y1="8" x2="11" y2="8"/>',
   down: '<polyline points="4,6 8,10 12,6"/>',
+  plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
+  chart:
+    '<line x1="2.5" y1="13.5" x2="13.5" y2="13.5"/><rect x="3.5" y="8" width="2.4" height="5"/><rect x="6.8" y="4" width="2.4" height="9"/><rect x="10.1" y="6.5" width="2.4" height="6.5"/>',
   gear: '<path d="M6.36 2.96 L6.50 1.16 L9.50 1.16 L9.64 2.96 L10.41 3.28 L11.77 2.10 L13.90 4.23 L12.72 5.59 L13.04 6.36 L14.84 6.50 L14.84 9.50 L13.04 9.64 L12.72 10.41 L13.90 11.77 L11.77 13.90 L10.41 12.72 L9.64 13.04 L9.50 14.84 L6.50 14.84 L6.36 13.04 L5.59 12.72 L4.23 13.90 L2.10 11.77 L3.28 10.41 L2.96 9.64 L1.16 9.50 L1.16 6.50 L2.96 6.36 L3.28 5.59 L2.10 4.23 L4.23 2.10 L5.59 3.28Z" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.2"/>',
   more: '<circle cx="8" cy="3.5" r="0.9"/><circle cx="8" cy="8" r="0.9"/><circle cx="8" cy="12.5" r="0.9"/>',
   check: '<polyline points="3,8.5 6.5,12 13,4.5"/>',

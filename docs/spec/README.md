@@ -42,7 +42,7 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F8 | Export a session as Markdown | sessions | R |
 | F9 | Replay a session in a tab (with "Show all") | sessions | R |
 | F10 | Copy session ID; reveal transcript in the file manager | sessions | R |
-| F11 | Hide / unhide a session; "Show hidden sessions" in the main menu | sessions | R · S 1.17 |
+| F11 | Hide / unhide a session; "Show hidden sessions" as a switch in Add session → Existing | sessions | R · S 1.17 |
 | F12 | Move a transcript to the trash; delete permanently — each confirmed; the only writes under `~/.claude` | sessions | R · S 1.10 |
 | F13 | Select mode: All, None, open selected in tabs, hide selected, trash selected | sessions | R |
 | F14 | First start imports agent-tablet's own data, read only: `projects.json`, `state.json`, the usage history (Menkar decision 1.8; agent-tablet's own import of Agent Session Manager is not carried over) | sessions · usage | R · C · Menkar 1.8 |
@@ -79,11 +79,11 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F45 | File tabs: open from the `+` menu, `Ctrl+Shift+O`, `open` CLI; syntax colors, line numbers, `Ctrl+S` | files | R · D files · S 1.24 |
 | F46 | Markdown rendered in a read-only second tab (`Ctrl+Shift+V`, "Preview") | files | R · D files |
 | F47 | A file changed or deleted on disk: Reload / Keep mine; one buffer shared across projects; `~/.claude/` opens read only; unsaved files asked on close | files | R · D files · C |
-| F48 | Open session file… (main menu): a `*.jsonl` transcript chosen from disk opens as a read-only replay tab | files | C |
+| F48 | Open session file… (New ▾): a `*.jsonl` transcript chosen from disk opens as a read-only replay tab | files | C |
 | F49 | Remote Control per session: New's switch, the row's and the tab's menu, `--remote-control=<name>`, phone icon on the row | remote-control | R · S 1.26 |
 | F50 | Native streaming chat tabs with permission cards (Allow once / Always allow / Deny); Continue in chat (Cursor: ask, trusted) | chat | R · S 1.17 · S 1.30 |
 | F51 | The question card over the terminal for Claude's AskUserQuestion — **not carried over** (Menkar decision 1.7); listed in `chat.md` only | chat | C · Menkar 1.7 |
-| F52 | MCP servers browser (main menu) | chat | R |
+| F52 | MCP servers browser (Settings → MCP servers) | chat | R |
 | F53 | Open in Ghostty, when `ghostty` is on the `PATH` | chat | R |
 | F54 | Preferences: terminal font, scrollback lines, color scheme, interface style, color theme, Add session's folder path, language (restart), notifications, sound, reopen tabs on start | preferences | R · C |
 | F55 | Themes: Catppuccin by default, Tokyo Night, Gruvbox, Nord, Dracula and more, coloring the whole window; the Classic (Adwaita) style | preferences · look | R |
@@ -143,6 +143,7 @@ terminal sees them.
 | K41 | `↓` / `↑` | Move the selection | quick switcher | agent-state |
 | K42 | `Esc` | Close the switcher | quick switcher | agent-state |
 | K43 | `Ctrl+`` ` `` | Show or hide the tab's drawer shell (the key left of `1`) | window | terminal |
+| K44 | `Ctrl+Shift+End` | Jump to the bottom of the terminal (also the button shown while scrolled up) | terminal | terminal |
 
 **Count against the code:**
 
@@ -164,12 +165,12 @@ K31 (go to tab N) and K38–K39.
 
 | # | Menu | Item | Action | Area |
 |---|---|---|---|---|
-| M1 | Main (⚙, sidebar header) | Open session file… | `open-session-file` | files |
-| M2 | Main | Show hidden sessions (a check) | `show-hidden` | sessions |
-| M3 | Main | MCP servers | `mcp-servers` | chat |
-| M4 | Main | Usage | `usage` | usage |
-| M5 | Main | Preferences | `preferences` | preferences |
-| M6 | Main | About Agent Tablet | `about` | preferences |
+| M1 | New ▾ | Open session file… (after Open file…) | `open-session-file` | files |
+| M2 | Add session → Existing (a switch, not a menu) | Show hidden sessions | `show-hidden` | sessions |
+| M3 | Settings (a section, not a menu) | MCP servers | `mcp-servers` | chat |
+| M4 | Header (a button, not a menu) | Usage | `usage` | usage |
+| M5 | Header (⚙ Settings, a button, not a menu) | Settings | `preferences` | preferences |
+| M6 | Settings (a section, not a menu) | About | `about` | preferences |
 | M7 | New ▾ (header text button) | New session (shows `Ctrl+Shift+T`; opens Add session on New) | `new-session` | sessions |
 | M10 | New ▾ | Open file… (shows `Ctrl+Shift+O`) | `open-file` | files |
 | M46 | New ▾ | Terminal in this tab (shows `Ctrl+`` ` ``; the tab's drawer) | `toggle-drawer` | terminal |
@@ -223,7 +224,7 @@ the tab strip's `+`), `close-tab` (K4, K34), `next-tab` / `prev-tab` (K5–K8, K
 refresh button), `app.focus-session` (a notification or toast).
 
 **Buttons that are actions but not menus** (in their area files): the sidebar's "Add session"; the
-header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's `+` and each tab's
+header's sidebar toggle, ⚙ Settings and Usage; the tab strip's `+` and each tab's
 ×; the project dropdown's entry and Create, and each project's ✎ rename and 🗑 delete; the history's
 select, refresh, search, collapse all, expand all; select mode's All, None, open / hide / trash
 selected; the file tab's Reload, Keep mine, Preview; the chat's Stop, Send, Allow once, Always
@@ -262,6 +263,9 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
   defaults.
 - About: the human's copyright, and one credit line to Agent Session Manager, with no link.
 - "Restart now" asks and saves the layout as quitting does.
+- No main menu (plan 24, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
+  Existing (Show hidden sessions), the header's Usage and ⚙ Settings buttons, and Settings'
+  sections (MCP servers, About). Close all and Close other tabs are in a tab's menu.
 - One "New ▾" menu (1.30, 2026-11-09): New session, Terminal in this tab, Open file…, New window,
   each with its key. The advanced new session (M8), Continue last (M9) and New chat (M11) are gone;
   the agent is picked on Add session → New, where an agent that is not installed is greyed out. The

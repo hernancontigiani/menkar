@@ -5,7 +5,7 @@ import type { Key } from '../core/i18n'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import type { SessionInfo } from '../core/sessions/info'
-import { SIDEBAR_MIN_WIDTH } from '../core/settings'
+import { DEFAULT_SETTINGS, SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, TabView, WindowState } from '../shared/workspace'
 import { openAddSession } from './addsession'
 import { mountChat } from './chat'
@@ -147,18 +147,13 @@ export function buildFrame(): void {
   const newMenu = el(
     'button',
     { id: 'new-menu', class: 'header-text', title: t('header.newTooltip') },
+    icon('plus'),
     t('header.new'),
   )
   newMenu.addEventListener('click', () => {
     const r = newMenu.getBoundingClientRect()
     newMenuAt({ x: r.left, y: r.bottom + 4 })
   })
-  const closeAll = el(
-    'button',
-    { id: 'close-all', class: 'header-text', title: t('header.closeAll') },
-    t('header.closeAllLabel'),
-  )
-  closeAll.addEventListener('click', () => void act({ type: 'closeAllTabs' }))
 
   const projectButton = el(
     'button',
@@ -167,36 +162,36 @@ export function buildFrame(): void {
     icon('down'),
   )
   projectButton.addEventListener('click', () => openProjectPopover(projectButton))
-  const gear = el('button', { id: 'main-menu', title: t('menu.main') }, icon('gear'))
-  gear.addEventListener('click', () => {
-    const r = gear.getBoundingClientRect()
-    showMenu(
-      [
-        { label: t('menu.openSessionFile'), run: () => void mainMenuHandlers.openSessionFile() },
-        {
-          label: `${showHidden ? '✓ ' : ''}${t('menu.showHidden')}`,
-          run: () => toggleShowHidden(),
-        },
-        'separator',
-        { label: t('menu.mcp'), run: () => void act({ type: 'openMcpServers' }) },
-        { label: t('menu.usage'), run: () => void act({ type: 'openUsage' }) },
-        { label: t('menu.preferences'), run: () => void act({ type: 'openPreferences' }) },
-        { label: t('menu.about'), run: () => void act({ type: 'openAbout' }) },
-      ],
-      { x: r.left, y: r.bottom + 4 },
-    )
-  })
+  const settings = el(
+    'button',
+    { id: 'settings-button', class: 'header-text', title: t('header.settingsTooltip') },
+    icon('gear'),
+    t('header.settings'),
+  )
+  settings.addEventListener('click', () => void act({ type: 'openSettings' }))
+  const usage = el(
+    'button',
+    { id: 'usage-button', class: 'header-text', title: t('header.usageTooltip') },
+    icon('chart'),
+    t('header.usage'),
+  )
+  usage.addEventListener('click', () => void act({ type: 'openUsage' }))
   const addSession = el('button', { id: 'add-session' }, t('sidebar.addSession'))
   addSession.addEventListener('click', () => openAddSession('existing'))
 
   const divider = el('div', { id: 'divider' })
   dragDivider(divider)
+  divider.addEventListener('dblclick', () => {
+    const width = DEFAULT_SETTINGS.sidebar_width
+    document.documentElement.style.setProperty('--sidebar-width', `${width}px`)
+    if (sidebarShown) void act({ type: 'setSidebarWidth', width })
+  })
 
   $('app').replaceChildren(
     el(
       'aside',
       { id: 'sidebar' },
-      el('div', { class: 'sidebar-header' }, projectButton, gear),
+      el('div', { class: 'sidebar-header' }, projectButton, settings),
       el('div', { id: 'session-list' }),
       addSession,
     ),
@@ -209,7 +204,7 @@ export function buildFrame(): void {
         { class: 'content-header' },
         toggle,
         newMenu,
-        closeAll,
+        usage,
         el(
           'div',
           { class: 'title' },
@@ -226,6 +221,7 @@ export function buildFrame(): void {
   for (const header of document.querySelectorAll<HTMLElement>('.sidebar-header, .content-header')) {
     header.addEventListener('dblclick', (event) => {
       const target = event.target as HTMLElement
+      if (target.closest('button')) return
       if (target === header || target.closest('.title')) void act({ type: 'toggleMaximize' })
     })
   }
@@ -293,7 +289,6 @@ export function render(next: WindowState): void {
   $('project-button').querySelector('.blocked-pill')?.remove()
   const face = blockedPill(faceBadge(agentStates?.blocked ?? {}, next.shown))
   if (face) $('project-button').querySelector('.project-name')?.after(face)
-  $('close-all').style.display = next.tabCount >= 2 ? '' : 'none'
   document.documentElement.classList.toggle('maximized', next.maximized)
   renderSessionList(next, project)
   renderStrip(next)
@@ -684,7 +679,6 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
     'button',
     { class: `tab${selected ? ' selected' : ''}`, 'data-tab': tab.id, title: tab.tooltip },
     tabDot(tab),
-    phoneFor(tab.panes),
     el('span', { class: 'title' }, shortTitle(tab.title)),
     tabRing(tab),
     close,
@@ -715,6 +709,11 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
         },
         { label: t('tab.menuSwap'), run: () => void act({ type: 'swapOrientation', tab: tab.id }) },
         { label: t('tab.menuClose'), run: () => void closeTabAsking(tab.id) },
+        {
+          label: t('tab.menuCloseOthers'),
+          run: () => void act({ type: 'closeOtherTabs', tab: tab.id }),
+        },
+        { label: t('tab.menuCloseAll'), run: () => void act({ type: 'closeAllTabs' }) },
         ...remoteTabItems(tab),
       ],
       { x: r.left, y: r.bottom + 2 },
@@ -878,6 +877,7 @@ function newMenuAt(anchor: { x: number; y: number }): void {
         ...(drawerOff ? { disabled: true, title: t('menu.drawerNone') } : {}),
       },
       { label: t('menu.openFile'), shortcut: 'Ctrl+Shift+O', run: () => openFileDialog() },
+      { label: t('menu.openSessionFile'), run: () => void mainMenuHandlers.openSessionFile() },
       { label: t('menu.newWindow'), shortcut: 'Ctrl+Shift+N', run: () => void newWindow() },
     ],
     anchor,

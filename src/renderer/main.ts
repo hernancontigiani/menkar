@@ -45,7 +45,7 @@ function appKey(event: KeyboardEvent): (() => void) | null {
   }
   if (event.shiftKey && lower === 'n') return () => void newWindow()
   if (event.shiftKey && lower === 'k') return () => quickSwitcher()
-  if (!event.shiftKey && key === ',') return () => void act({ type: 'openPreferences' })
+  if (!event.shiftKey && key === ',') return () => void act({ type: 'openSettings' })
   if (event.shiftKey && lower === 'o') return () => openFileDialog()
   // The file keys act only while a file tab is selected; in a terminal they are the terminal's.
   const fileTab = selectedTabView()?.file
@@ -112,7 +112,7 @@ setPrefixHandlers({
   addExisting: () => openAddSession('existing'),
   goToAgent: () => void goToAgent(),
   renameTab: () => undefined,
-  preferences: () => void act({ type: 'openPreferences' }),
+  preferences: () => void act({ type: 'openSettings' }),
 })
 
 window.menkar.window.onState(render)

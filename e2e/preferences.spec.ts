@@ -5,9 +5,9 @@ import { launchApp } from './app'
 import { prepare } from './fixtures'
 
 // Preferences on the real app (docs/spec/preferences.md, PRF-1 to PRF-24), never on the human's
-// display or with their HOME.
+// display or with their HOME. They live in the Settings window's sections (2026-11-10).
 
-async function openPreferences(
+async function openSettings(
   app: ElectronApplication,
   page: Page,
   keys = 'Control+Comma',
@@ -15,8 +15,13 @@ async function openPreferences(
   await page.locator('body').click({ position: { x: 5, y: 5 } })
   const [prefs] = await Promise.all([app.waitForEvent('window'), page.keyboard.press(keys)])
   await prefs.waitForLoadState('domcontentloaded')
-  await expect(prefs.locator('[data-page="general"].page')).toBeVisible()
+  await expect(prefs.locator('main[data-section="appearance"]')).toBeVisible()
   return prefs
+}
+
+async function section(prefs: Page, name: string): Promise<void> {
+  await prefs.locator(`.section-item[data-section="${name}"]`).click()
+  await expect(prefs.locator(`main[data-section="${name}"]`)).toBeVisible()
 }
 
 function writeState(root: string, settings: Record<string, unknown>): void {
@@ -31,22 +36,26 @@ const savedSettings = (root: string) =>
 const cssVar = (page: Page, name: string) =>
   page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)
 
-test('PRF-1, PRF-3 Ctrl+, opens Preferences on General, every row at its default', async () => {
+test('PRF-1, PRF-3 Ctrl+, opens Settings on Appearance, every row at its default', async () => {
   const launched = await launchApp()
   try {
-    const prefs = await openPreferences(launched.app, launched.window)
-    await expect(prefs).toHaveTitle('Preferences')
+    const prefs = await openSettings(launched.app, launched.window)
+    await expect(prefs).toHaveTitle('Settings')
+    await section(prefs, 'terminal')
     await expect(prefs.locator('[data-key="font-family"]')).toHaveValue('')
     await expect(prefs.locator('[data-key="scrollback"]')).toHaveValue('10000')
+    await section(prefs, 'appearance')
     await expect(prefs.locator('[data-key="color_scheme"]')).toHaveValue('system')
     await expect(prefs.locator('[data-expander="ui_style"] summary')).toContainText(
       'Terminal workspace',
     )
     await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('Default')
+    await section(prefs, 'language')
     await expect(prefs.locator('[data-expander="language"] summary')).toContainText(
       'System default',
     )
     for (const key of ['notify_idle', 'notify_sound', 'reopen_tabs']) {
+      await section(prefs, key === 'reopen_tabs' ? 'sessions' : 'notifications')
       await expect(prefs.locator(`[data-key="${key}"]`)).toBeChecked()
     }
     await expect(prefs.locator('[data-key="show_folder_path"]')).not.toBeChecked()
@@ -66,7 +75,7 @@ test('PRF-2 Ctrl+B then s opens the same window', async () => {
         await launched.window.keyboard.press('s')
       })(),
     ])
-    await expect(prefs).toHaveTitle('Preferences')
+    await expect(prefs).toHaveTitle('Settings')
   } finally {
     await launched.close()
   }
@@ -82,7 +91,8 @@ test('PRF-4, PRF-8 a saved scrollback is shown, kept in range, and unknown keys 
     },
   })
   try {
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openSettings(launched.app, launched.window)
+    await section(prefs, 'terminal')
     const scrollback = prefs.locator('[data-key="scrollback"]')
     await expect(scrollback).toHaveValue('5000')
     await scrollback.fill('999')
@@ -107,7 +117,7 @@ test('PRF-14, PRF-16, PRF-17 a theme is saved and recolors every window at once'
   })
   try {
     const before = await cssVar(launched.window, '--bg')
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openSettings(launched.app, launched.window)
     const themes = prefs.locator('[data-expander="terminal_theme"] label')
     await expect(themes).toHaveText([
       'Default',
@@ -146,7 +156,7 @@ test('PRF-15 an unknown saved theme reads as Default', async () => {
     },
   })
   try {
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openSettings(launched.app, launched.window)
     await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('Default')
     await expect(prefs.locator('input[name="terminal_theme"][value="Default"]')).toBeChecked()
   } finally {
@@ -163,14 +173,15 @@ test('PRF-22, PRF-23 choosing another language shows Restart now; going back hid
     },
   })
   try {
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openSettings(launched.app, launched.window)
+    await section(prefs, 'language')
     const restart = prefs.locator('[data-key="restart"]')
     await expect(restart).toBeHidden()
     await prefs.locator('[data-expander="language"] summary').click()
     await prefs.locator('[data-expander="language"] label', { hasText: 'Español' }).click()
     await expect(restart).toBeVisible()
     await expect(prefs.locator('[data-expander="language"] summary')).toContainText('Español')
-    await expect(prefs.locator('[data-page="general"] .group-title').first()).toHaveText('Terminal')
+    await expect(prefs.locator('.section-item').first()).toHaveText('Appearance')
     await expect.poll(() => savedSettings(root)?.language).toBe('es')
     await prefs.locator('[data-expander="language"] label', { hasText: 'System default' }).click()
     await expect(restart).toBeHidden()
@@ -210,7 +221,7 @@ test('PRF-24 Restart now with nothing running quits at once and starts the app a
     },
   })
   const firstPid = launched.app.process().pid ?? -1
-  const prefs = await openPreferences(launched.app, launched.window)
+  const prefs = await openSettings(launched.app, launched.window)
   const exited = new Promise<void>((resolve) =>
     launched.app.process().once('exit', () => resolve()),
   )
@@ -258,7 +269,7 @@ test('PRF-24 Restart now with a session running asks; Cancel keeps the app and d
   try {
     await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
     await expect.poll(() => existsSync(join(home, 'claude-pid.txt'))).toBe(true)
-    const prefs = await openPreferences(launched.app, page)
+    const prefs = await openSettings(launched.app, page)
     const restarting = prefs.evaluate(() =>
       (
         window as unknown as { menkar: { preferences: { restart(): Promise<boolean> } } }

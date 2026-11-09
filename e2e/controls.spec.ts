@@ -150,11 +150,12 @@ test('LOOK-65 (2026-11-09) a segmented control reads as one group: a 1 px border
 
     const [prefs] = await Promise.all([
       app.waitForEvent('window'),
-      act(page, { type: 'openPreferences' }),
+      act(page, { type: 'openSettings' }),
     ])
     await prefs.waitForLoadState('domcontentloaded')
-    await expect(prefs.locator('.page-switch button').first()).toBeVisible()
-    expectReadable(await groups(prefs), 'Preferences', 1)
+    // Settings switches sections with its list (2026-11-10), not a segmented group.
+    await expect(prefs.locator('.section-item').first()).toBeVisible()
+    expectReadable(await groups(prefs), 'Settings', 0)
   } finally {
     await launched.close()
   }
@@ -176,9 +177,9 @@ test('LOOK-67 (2026-11-09) buttons, fields and segmented groups have rounded cor
       for (const selector of [
         '#toggle-sidebar',
         '#new-menu',
-        '#main-menu',
+        '#settings-button',
         '#project-button',
-        '#close-all',
+        '#usage-button',
         '#add-session',
       ])
         expect(await radius(page, selector), `${ui_style} ${selector}`).toBeGreaterThan(0)
@@ -190,10 +191,11 @@ test('LOOK-67 (2026-11-09) buttons, fields and segmented groups have rounded cor
       expect(await radius(page, '.add-session .segmented > button'), ui_style).toBe(0)
       const [prefs] = await Promise.all([
         app.waitForEvent('window'),
-        act(page, { type: 'openPreferences' }),
+        act(page, { type: 'openSettings' }),
       ])
-      await expect(prefs.locator('.page-switch button').first()).toBeVisible()
-      expect(await radius(prefs, '.page-switch .segmented'), ui_style).toBeGreaterThan(0)
+      await expect(prefs.locator('.section-item').first()).toBeVisible()
+      expect(await radius(prefs, '.section-item'), ui_style).toBeGreaterThan(0)
+      await prefs.locator('.section-item[data-section="terminal"]').click()
       expect(await radius(prefs, 'main button'), ui_style).toBeGreaterThan(0)
     } finally {
       await launched.close()

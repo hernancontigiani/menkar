@@ -2,8 +2,12 @@ import { execFile } from 'node:child_process'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import {
   IntegrationError,
+  installRetention,
   installStatusline,
+  removeRetention,
   removeStatusline,
+  retentionInstalled,
+  retentionStatus,
   statuslineInstalled,
 } from '../core/context/integrations'
 import { thresholdsOf } from '../core/context/levels'
@@ -126,6 +130,20 @@ export function registerPreferencesIpc(): void {
     } catch (error) {
       if (!(error instanceof IntegrationError)) throw error
       return { on: await statuslineInstalled(), error: error.message }
+    }
+  })
+  handle('integrations:retention', async () => ({
+    on: await retentionInstalled(),
+    status: await retentionStatus(),
+  }))
+  handle('integrations:set-retention', async ({ on }) => {
+    try {
+      if (on) await installRetention()
+      else await removeRetention()
+      return { on: await retentionInstalled(), error: null }
+    } catch (error) {
+      if (!(error instanceof IntegrationError)) throw error
+      return { on: await retentionInstalled(), error: error.message }
     }
   })
 }

@@ -1,13 +1,16 @@
 import { join } from 'node:path'
 import { BrowserWindow, type WebContents } from 'electron'
 import { t } from '../core/i18n'
+import type { SettingsSection } from '../core/preferences'
 
-// Preferences, About and the MCP browser: dialogs, modal over the main window that asked. Usage is
-// a window of its own (decision 1.24): no parent, since a desktop like GNOME keeps a child window
-// attached to its parent and the parent then takes no clicks while it is open. There is one Usage
-// per main window, scoped to that window's project while the window exists.
+// Settings and Usage are windows of their own, never children of a main window: a desktop like
+// GNOME keeps a child window attached to its parent, and the parent then takes no clicks while it
+// is open. There is one Settings for the app, and one Usage per main window, scoped to that
+// window's project while the window exists.
 
-type Page = 'preferences' | 'about' | 'usage' | 'mcp'
+type Page = 'settings' | 'usage'
+
+let settingsWindow: BrowserWindow | null = null
 
 const usageWindows = new Map<number, BrowserWindow>()
 
@@ -44,21 +47,26 @@ function open(
   return window
 }
 
-export function openPreferences(
-  parent: BrowserWindow,
-  page: 'general' | 'integrations' = 'general',
-): void {
-  open('preferences', parent, {
-    width: 640,
-    height: 720,
-    modal: true,
-    title: t('preferences.title'),
-    query: `page=${page}`,
+// Asking again brings the open one forward, on the asked section.
+export function openSettings(section?: SettingsSection): void {
+  const existing = settingsWindow
+  if (existing && !existing.isDestroyed()) {
+    if (section) existing.webContents.send('settings:section', section)
+    existing.show()
+    existing.focus()
+    return
+  }
+  const window = open('settings', null, {
+    width: 860,
+    height: 640,
+    modal: false,
+    title: t('settings.title'),
+    ...(section ? { query: `section=${section}` } : {}),
   })
-}
-
-export function openAbout(parent: BrowserWindow): void {
-  open('about', parent, { width: 420, height: 560, modal: true, title: t('about.title') })
+  settingsWindow = window
+  window.on('closed', () => {
+    if (settingsWindow === window) settingsWindow = null
+  })
 }
 
 // The main window a Usage window was opened from.
@@ -95,9 +103,4 @@ export function openUsage(opener: BrowserWindow): void {
     if (usageWindows.get(openerId) === window) usageWindows.delete(openerId)
     if (!opener.isDestroyed()) opener.removeListener('closed', rescope)
   })
-}
-
-// The MCP servers browser: read only, ~/.claude.json read once when it opens.
-export function openMcpServers(parent: BrowserWindow): void {
-  open('mcp', parent, { width: 540, height: 600, modal: true, title: t('mcp.title') })
 }

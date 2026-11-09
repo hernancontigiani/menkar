@@ -13,7 +13,7 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { tilde as tildeOf } from '../core/tilde'
 import type { WindowState } from '../shared/workspace'
-import { act, currentState, logo, onRender, showHiddenSessions } from './app'
+import { act, currentState, logo, onRender, showHiddenSessions, toggleShowHidden } from './app'
 import { el, icon } from './dom'
 import { t, translate } from './i18n'
 import { historyRowMenu, renameFromHistory, trashSelected } from './sessionmenus'
@@ -52,7 +52,13 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   let current: 'existing' | 'new' = page
   let newStep: 'folder' | 'name' = 'folder'
   let folder = options.folder ?? ''
-  let agent: Agent = options.agent ?? s.agents[0] ?? 'claude'
+  // The agent last started, while it is installed; else Claude Code, else the first installed.
+  const remembered = s.agents.find((a) => a === s.settings.last_agent)
+  let agent: Agent =
+    options.agent ??
+    remembered ??
+    (s.agents.includes('claude') ? 'claude' : s.agents[0]) ??
+    'claude'
 
   const body = el('div', { class: 'add-body' })
   const existingButton = el('button', { class: 'switch' }, t('add.existing'))
@@ -113,13 +119,25 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   const list = el('div', { class: 'history-list' })
   const bar = el('div', { class: 'select-bar', hidden: '' })
   const count = el('div', { class: 'count-line dim caption' })
+  // The history's own hide (not a project's): off each time the app starts.
+  const hiddenSwitch = el('input', { type: 'checkbox' })
+  hiddenSwitch.checked = showHiddenSessions()
+  hiddenSwitch.addEventListener('change', () => {
+    toggleShowHidden()
+    drawExisting(false)
+  })
   const existingPage = el(
     'div',
     { class: 'add-page' },
     el('div', { class: 'search-row' }, search, collapseAll, expandAll, selectToggle, refresh),
     list,
     bar,
-    count,
+    el(
+      'div',
+      { class: 'existing-foot' },
+      el('label', { class: 'switch-row show-hidden' }, hiddenSwitch, t('menu.showHidden')),
+      count,
+    ),
   )
   collapseAll.addEventListener('click', () => {
     for (const g of groups()) collapsed.set(g.name, true)

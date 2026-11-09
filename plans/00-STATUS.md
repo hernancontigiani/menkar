@@ -36,13 +36,17 @@
 | 1.21 | A session that is not running shows no context ring in its row: a stopped session's estimate is often wrong | 2026-11-09 | `docs/context.md` |
 | 1.22 | The context ring's levels: yellow from 60 %, red from 90 % by default, both editable in Preferences (yellow below red); one definition for the ring, the level and notifications | 2026-11-09 | `docs/context.md` |
 | 1.23 | Tabs are reordered by dragging them with the mouse within their strip; no keys, no tear-off; the order is saved | 2026-11-09 | `docs/window.md` |
-| 1.24 | The Usage window is an independent top-level window (usable beside the main one or on another monitor); Preferences, About and MCP stay modal dialogs | 2026-11-09 | `docs/usage.md` |
+| 1.24 | No window blocks the main one: Usage, Settings (with About and MCP inside) are independent windows, one each, focused when already open | 2026-11-09 | `docs/preferences.md` |
 | 1.25 | A sidebar row can be hidden from its project's list ("Hide" / "Show"): it stays a member and in Usage; only a stopped session; shown again from Add session, the list's "N hidden" foot, or by starting it | 2026-11-09 | plan 19 |
 | 1.26 | Haiku 5.5's long-prompt price is decided per request (prompt over 100,000 tokens, input + cache reads + writes), as the pricing page says, stored under `claude-haiku-5-5@long` and shown as one Haiku 5.5; turns whose per-request data the cache still holds are re-derived once, the rest (agent-tablet imports, transcripts gone) keep group pricing. Menkar stops matching agent-tablet there (1.17) | 2026-11-09 | `docs/usage.md` |
 | 1.27 | `menkar` started from a terminal detaches and returns at once, as `code` does; `usage`, a bare `open`, help/version and `-f`/`--foreground` stay attached | 2026-11-09 | `docs/packaging.md` |
 | 1.28 | A file editor tab with unsaved changes shows a dot between its name and ×, cleared on save; a Save button, always visible, sits left of Preview | 2026-11-09 | `docs/files.md` |
 | 1.29 | Ctrl+` toggles a temporary shell under the current tab, in its agent's folder: hidden, not closed; never a tab, never saved | 2026-11-09 | `docs/window.md` |
 | 1.30 | The header's New is a text button "New ▾" whose menu holds New session, Terminal in this tab, Open file and New window with their shortcuts; the agent (Claude Code, Cursor…) is chosen in Add session → New, uninstalled ones greyed; the advanced dialog, Continue last and chat entries leave the menu | 2026-11-09 | `docs/window.md` |
+| 1.31 | Add session → New preselects the agent last started (`last_agent` in state.json), if installed; else Claude, else the first installed | 2026-11-09 | `docs/window.md` |
+| 1.32 | A project's saved tabs start the first time it is shown in its window; once started they keep running when the window switches away | 2026-11-09 | plan 25 |
+| 1.33 | Replay is removed: no Open session file…, no Replay… item, no replay tab; retention option B is dropped (the retention integration covers it) | 2026-11-09 | plan 25 / `docs/sessions.md` |
+| 1.34 | Settings is one window like Ubuntu's: sections with icons in groups (Appearance, Work, Data, Integrations, System) under a "Settings" title; the header has "⚙ Settings", "+ New ▾" and "Usage"; Close all lives in the tab's right-click menu; the sidebar defaults to 250 px (minimum 180), a divider double-click resets it; transcript retention is an integration that shows the current cleanupPeriodDays and can raise it to 3650 days | 2026-11-09 | `docs/preferences.md` · `docs/window.md` |
 
 ## 2. Open
 
@@ -69,6 +73,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 19 | `26-ubuntu-terminal-theme.md` (a theme matching the human's GNOME Terminal; why Claude Code's colours vanish in one look) | Stub 2026-11-09; low priority, last |
 | 18 | `25-startup-and-project-tabs.md` (start timings, a turning star at once, each project's tabs started when shown) | Stub 2026-11-09 |
 | 17 | `24-settings-window-and-header.md` (Settings as a sectioned window, no blocking windows, header with Usage, Close all to the tab menu, transcript retention) | Stub 2026-11-09; for 2026-11-10 |
 | 16 | `23-scroll-and-rc-tab.md` (jump-to-bottom button in terminals; the phone icon off the tab) | Stub 2026-11-09; for 2026-11-10 |

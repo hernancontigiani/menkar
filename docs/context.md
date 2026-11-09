@@ -24,15 +24,31 @@ Integrations page are still `docs/spec/context.md` until they are built.
 - **The levels** (`levels.ts`, decision 1.22): one definition, `level(percentage, thresholds)`,
   read by the ring (`src/core/ring.ts`) and re-exported by `reading.ts`. The thresholds are the
   settings `ring_warn` and `ring_full` (defaults 60 and 90), kept only as a pair (whole numbers
-  1–100, yellow below red) when `state.json` is read and when Preferences saves one; anything else
+  1–100, yellow below red) when `state.json` is read and when Settings saves one; anything else
   is both defaults. The window redraws its rings from the settings it is pushed, so a change in
-  Preferences shows at once. The agent-tablet import has no such settings, so they start at the
+  Settings shows at once. The agent-tablet import has no such settings, so they start at the
   defaults.
 - **The integrations** (`integrations.ts`): turning the statusline on or off in
   `~/.claude/settings.json` keeps a byte copy of the file first and records what was installed and
   what it replaced in `<data>/integrations.json`. It refuses to remove a statusline the user changed
   since. The other keys of both files are kept. The record and the backups live in the data
   directory (decision 1.10), since the cache can be cleared.
+- **Transcript retention** (2026-11-10) is a second piece of the same kind, the record's
+  `retention` key.
+  - **Why it exists:** Claude Code deletes a transcript 30 days after its last change unless
+    `cleanupPeriodDays` says otherwise, and with it go the replay, the details and the
+    classifier's input.
+  - **Turning it on** sets that key to `RETENTION_DAYS`, 3650. Ten years reads as "keep them" and
+    stays an ordinary number; `0` does not mean "forever" there. A larger value the user already
+    set is kept, so turning it on never shortens retention.
+  - **The record** keeps `{ installed, previous }`.
+  - **Turning it off** puts `previous` back, or deletes the key when there was none. It is refused
+    when the file no longer holds `installed`.
+  - **What the section says first** (`retentionStatus`, read-only, again each time it is shown and
+    after each change): the value in the file, which is never a constant. When the key is absent,
+    Claude Code's own default applies, `CLAUDE_DEFAULT_CLEANUP_DAYS` (30, its documented default),
+    and the text says "Not set" so it never reads as a value from the file. A file it cannot read,
+    or a value that is not a number, gets our sentence.
 
 ## Why
 

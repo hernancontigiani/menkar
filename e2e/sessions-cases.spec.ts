@@ -550,9 +550,9 @@ test('SES-62, SES-63 Hide leaves the history, not the project; hidden holds it; 
     await page.keyboard.press('Escape')
     await expect(page.locator('.add-session')).toHaveCount(0)
     await expect(page.locator(`#session-list .row[data-session="${CLIENT.long}"]`)).toBeVisible()
-    await page.locator('#main-menu').click()
-    await page.locator('.menu-item', { hasText: 'Show hidden sessions' }).click()
-    await existing(page)
+    await page.locator('#add-session').click()
+    await page.locator('.add-session .show-hidden input').check()
+    await page.locator('.add-session button[title="Expand all groups"]').click()
     await page.locator(`.history-row[data-session="${CLIENT.long}"]`).click({ button: 'right' })
     await expect(page.locator('.menu-item', { hasText: 'Unhide session' })).toBeVisible()
     await page.keyboard.press('Escape')
@@ -564,10 +564,8 @@ test('SES-62, SES-63 Hide leaves the history, not the project; hidden holds it; 
         return env
       },
     })
-    await launched.window.locator('#main-menu').click()
-    await expect(
-      launched.window.locator('.menu-item', { hasText: 'Show hidden sessions' }),
-    ).toHaveText('Show hidden sessions')
+    await launched.window.locator('#add-session').click()
+    await expect(launched.window.locator('.add-session .show-hidden input')).not.toBeChecked()
   } finally {
     await launched.close()
     rmSync(root, { recursive: true, force: true })
@@ -585,6 +583,26 @@ test('SES-70 a selected session whose transcript is deleted outside the app drop
     rmSync(join(transcriptDir(home, join(home, 'work', 'web')), `${CLIENT.long}.jsonl`))
     await page.locator('.add-session button[title="Refresh session list"]').click()
     await expect(page.locator('.add-session .selected-count')).toHaveText('1 selected')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('SES-73 (plan 24) Show hidden sessions is a switch in Add session → Existing: off, it lists no hidden session; on, it does', async () => {
+  const { launched, page } = await launch((dirs) => clientWork(dirs))
+  try {
+    await existing(page)
+    const row = page.locator(`.history-row[data-session="${CLIENT.long}"]`)
+    await row.click({ button: 'right' })
+    await page.locator('.menu-item', { hasText: 'Hide session' }).click()
+    await expect(row).toHaveCount(0)
+    const toggle = page.locator('.add-session .show-hidden input[type="checkbox"]')
+    await expect(page.locator('.add-session .show-hidden')).toContainText('Show hidden sessions')
+    await expect(toggle).not.toBeChecked()
+    await toggle.check()
+    await expect(row).toHaveCount(1)
+    await toggle.uncheck()
+    await expect(row).toHaveCount(0)
   } finally {
     await launched.close()
   }

@@ -60,22 +60,33 @@ menkar` takes it all out.
   split, `h j k l` move between panes, `z` zoom, `x` close the pane, `g` go to any agent, `?` the
   full list.
 
-## Preferences and usage
+## Settings and usage
 
-The ⚙ menu (or `Ctrl+,`) opens Preferences: terminal font and scrollback, the color scheme, the
-interface style and the color theme, the language (English or Spanish), notifications, and reopening
-tabs on start. Its Integrations page turns on Menkar's status line in every Claude session and the
-classification of your turns by development stage, both off until you turn them on. The ⚙ menu's
-Usage opens a window with how long Claude worked and how many tokens it used, per project and
-session, by period or by day.
+The header's Settings button (or `Ctrl+,`) opens Settings, a window with its sections listed on the
+left. It holds:
+
+- the look: color scheme, interface style and color theme;
+- the terminal's font and scrollback;
+- reopening tabs on start;
+- notifications;
+- the context ring's thresholds;
+- the language (English or Spanish);
+- About.
+
+Under Integrations you can turn on Menkar's status line in every Claude session, and have Claude
+Code keep its transcripts for 10 years instead of 30 days. Under Usage & classifier you can turn on
+the classification of your turns by development stage. All three are off until you turn them on.
+
+The header's Usage button opens a window with how long Claude worked and how many tokens it used,
+per project and session, by period or by day.
 
 ## Chat, MCP servers and Ghostty
 
-Besides terminal tabs, the `+` menu opens chat tabs: Claude Code in a chat that asks before every
-file edit or command (Allow once, Always allow, Deny), and Cursor read-only or trusted to run edits
-on its own. A session in Add session's history can be continued in chat, or opened in
-[Ghostty](https://ghostty.org) when it is installed. The ⚙ menu's MCP servers lists the servers
-Claude Code is configured with, read only.
+Besides its terminal tab, a session in Add session's history can be continued in a chat tab: Claude
+Code in a chat that asks before every file edit or command (Allow once, Always allow, Deny), and
+Cursor read-only or trusted to run edits on its own. It can also be opened in
+[Ghostty](https://ghostty.org) when it is installed. Settings' MCP servers lists the servers Claude
+Code is configured with, read only.
 
 ## Usage in the terminal
 

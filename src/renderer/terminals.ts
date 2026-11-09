@@ -190,6 +190,28 @@ function create(pane: PaneView, label?: string): View {
     host,
   )
   const root = el('div', { class: 'pane', 'data-pane': pane.id }, frame)
+  // Shown while the view is scrolled up from the end; output arriving meanwhile marks it, and the
+  // view stays where the reader left it.
+  const jump = el(
+    'button',
+    { class: 'jump-bottom', title: t('terminal.jumpBottom'), hidden: '' },
+    icon('down'),
+  )
+  frame.append(jump)
+  const scrolledUp = () => term.buffer.active.viewportY < term.buffer.active.baseY
+  const syncJump = (wrote: boolean) => {
+    const up = scrolledUp()
+    jump.hidden = !up
+    if (!up) jump.classList.remove('fresh')
+    else if (wrote) jump.classList.add('fresh')
+  }
+  term.onScroll(() => syncJump(false))
+  term.onWriteParsed(() => syncJump(true))
+  jump.addEventListener('click', () => {
+    term.scrollToBottom()
+    syncJump(false)
+    term.focus()
+  })
   const view: View = {
     id: pane.id,
     root,
@@ -205,6 +227,11 @@ function create(pane: PaneView, label?: string): View {
     const key = event.key
     if (key === 'Enter' && event.shiftKey && !event.ctrlKey) {
       if (event.type === 'keydown') window.menkar.panes.input(pane.id, '\x1b\r')
+      return false
+    }
+    // Every modified End is the agent's (xterm sends it on); this one alone is the view's.
+    if (key === 'End' && event.ctrlKey && event.shiftKey && !event.altKey) {
+      if (event.type === 'keydown') term.scrollToBottom()
       return false
     }
     if (event.ctrlKey && event.shiftKey && !event.altKey) {

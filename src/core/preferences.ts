@@ -86,3 +86,23 @@ export function parseFont(description: string): { family: string; size: number |
     ? { family: match[1] ?? '', size: Number(match[2]) }
     : { family: description.trim(), size: null }
 }
+
+// The Settings window's sections, in the order its list shows them; a null marks a group's end.
+export const SETTINGS_LIST = [
+  'appearance',
+  'terminal',
+  null,
+  'sessions',
+  'notifications',
+  'context',
+  null,
+  'usage',
+  null,
+  'statusline',
+  'retention',
+  'mcp',
+  null,
+  'language',
+  'about',
+] as const
+export type SettingsSection = NonNullable<(typeof SETTINGS_LIST)[number]>

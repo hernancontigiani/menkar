@@ -65,7 +65,7 @@ test('LOOK-55 (2026-11-09) no menu bar anywhere; Ctrl+R and Ctrl+Shift+I reach n
   try {
     expect(await app.evaluate(({ Menu }) => Menu.getApplicationMenu())).toBeNull()
     const opened = app.waitForEvent('window')
-    await act(page, { type: 'openPreferences' })
+    await act(page, { type: 'openSettings' })
     await opened
     expect(
       await app.evaluate(({ BrowserWindow }) =>
@@ -92,7 +92,7 @@ test('LOOK-55 (2026-11-09) no menu bar anywhere; Ctrl+R and Ctrl+Shift+I reach n
   }
 })
 
-test('LOOK-56 (2026-11-09) the main window has no frame: the window buttons sit over the header in its colors, in both styles and schemes; Preferences, Usage, About and MCP keep the system’s', async () => {
+test('LOOK-56 (2026-11-09) the main window has no frame: the window buttons sit over the header in its colors, in both styles and schemes; Settings and Usage keep the system’s', async () => {
   for (const settings of [
     { ui_style: 'tui', color_scheme: 'dark' },
     { ui_style: 'tui', color_scheme: 'light' },
@@ -126,7 +126,7 @@ test('LOOK-56 (2026-11-09) the main window has no frame: the window buttons sit 
   const launched = await client()
   const { app, window: page } = launched
   try {
-    for (const type of ['openPreferences', 'openUsage', 'openAbout', 'openMcpServers']) {
+    for (const type of ['openSettings', 'openUsage']) {
       const opened = app.waitForEvent('window')
       await act(page, { type })
       const child = await opened
@@ -158,9 +158,8 @@ test('LOOK-57 (2026-11-09) the headers drag the window, their controls and the t
     expect(controls.length).toBeGreaterThanOrEqual(6)
     expect(new Set(controls)).toEqual(new Set(['no-drag']))
     const free = (await overlay(page)).width
-    await expect(page.locator('#close-all')).toBeHidden()
     await act(page, { type: 'openSession', session: '3c3c3c3c-0000-4000-8000-000000000003' })
-    await expect(page.locator('#close-all')).toBeVisible()
+    await expect(page.locator('#usage-button')).toBeVisible()
     const rights = await page
       .locator('.content-header button:visible, .content-header .title-text')
       .evaluateAll((ns) => ns.map((n) => n.getBoundingClientRect().right))
@@ -186,9 +185,10 @@ test('LOOK-58 (2026-11-09) a double click on a header’s empty space maximizes 
     const toggles = () => app.evaluate(() => (globalThis as unknown as { toggles: number }).toggles)
     const header = await page.locator('.content-header').boundingBox()
     if (!header) throw new Error('no header')
-    await page.mouse.dblclick(header.x + 200, header.y + header.height / 2)
+    // Right of the title, left of the window buttons: empty header.
+    await page.mouse.dblclick(header.x + header.width * 0.72, header.y + header.height / 2)
     await expect.poll(toggles).toBe(1)
-    await page.locator('#main-menu').dblclick()
+    await page.locator('#new-menu').dblclick()
     await page.keyboard.press('Escape')
     await page.locator('#project-button').dblclick()
     await page.keyboard.press('Escape')
@@ -265,7 +265,7 @@ test('LOOK-60 (2026-11-09) no drag region covers a control: every element that d
   const launched = await client({}, [['login'], ['api']])
   const page = launched.window
   try {
-    await expect(page.locator('#close-all')).toBeVisible()
+    await expect(page.locator('#usage-button')).toBeVisible()
     // The drawer's hide button counts too.
     await page.evaluate(() =>
       (
@@ -312,7 +312,7 @@ test('LOOK-62 (2026-11-09) a menu’s button closes the menu it opened: the proj
   const page = launched.window
   try {
     const popovers = page.locator('.popover')
-    for (const opener of ['#project-button', '#main-menu', '#new-menu']) {
+    for (const opener of ['#project-button', '#new-menu']) {
       const button = page.locator(opener)
       await button.click()
       await expect(popovers, opener).toHaveCount(1)
@@ -334,12 +334,12 @@ test('LOOK-62 (2026-11-09) a menu’s button closes the menu it opened: the proj
       await expect(popovers, opener).toHaveCount(0)
     }
     // Another opener while one menu is open opens its own.
-    const firstItem = () => popovers.locator('.menu-item').first().textContent()
-    await page.locator('#main-menu').click()
-    const gearFirst = await firstItem()
+    await page.locator('#project-button').click()
+    await expect(popovers.locator('.project-row').first()).toBeVisible()
     await page.locator('#new-menu').click()
     await expect(popovers).toHaveCount(1)
-    expect(await firstItem()).not.toBe(gearFirst)
+    await expect(popovers.locator('.project-row')).toHaveCount(0)
+    await expect(popovers.locator('.menu-item').first()).toHaveText(/New session/)
   } finally {
     await launched.close()
   }
@@ -488,55 +488,7 @@ test('LOOK-64 (2026-11-09) a window that does not fill the screen shows a hairli
   }
 })
 
-test('LOOK-66 (2026-11-09) Close all is a text button in the header’s button style, clear of the title, and closes every tab with no question; in Spanish it reads Cerrar todo', async () => {
-  for (const [language, label] of [
-    ['en', 'Close all'],
-    ['es', 'Cerrar todo'],
-  ] as const) {
-    const launched = await client({ language }, [['login'], ['api']])
-    const page = launched.window
-    try {
-      const button = page.locator('#close-all')
-      await expect(button).toBeVisible()
-      await expect(button).toHaveText(label)
-      await expect(button.locator('svg')).toHaveCount(0)
-      expect(await button.getAttribute('title')).toBeTruthy()
-      const look = (selector: string) =>
-        page.locator(selector).evaluate((n) => {
-          const s = getComputedStyle(n)
-          return [s.fontSize, s.paddingTop, s.paddingBottom, s.borderRadius]
-        })
-      expect(await look('#close-all')).toEqual(await look('#toggle-sidebar'))
-      // At rest it is a button, not a word: its fill stands off the header.
-      const { header } = await drawnColors(page)
-      const resting = await button.evaluate((n, under) => {
-        const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
-        if (!ctx) return ''
-        ctx.fillStyle = under
-        ctx.fillRect(0, 0, 1, 1)
-        ctx.fillStyle = getComputedStyle(n).backgroundColor
-        ctx.fillRect(0, 0, 1, 1)
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
-        return `#${[r, g, b].map((v) => (v ?? 0).toString(16).padStart(2, '0')).join('')}`
-      }, header)
-      expect(apart(resting, header), `${resting} on ${header}`).toBeGreaterThanOrEqual(8)
-      const box = await button.boundingBox()
-      const newBox = await page.locator('#toggle-sidebar').boundingBox()
-      const title = await page.locator('.content-header .title').boundingBox()
-      expect(box?.height).toBe(newBox?.height)
-      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThan(title?.x ?? 0)
-      if (language === 'en') {
-        await button.click()
-        await expect(page.locator('.tab')).toHaveCount(0)
-        await expect(page.locator('.dialog')).toHaveCount(0)
-      }
-    } finally {
-      await launched.close()
-    }
-  }
-})
-
-test('LOOK-68 (decision 1.30) the header has one text button "New ▾" (es "Nuevo ▾") in Close all’s look, no + icon; it sits before Close all, clear of the title', async () => {
+test('LOOK-68 (decision 1.30) the header has one text button "New ▾" (es "Nuevo ▾") in the header buttons’ look, clear of the title', async () => {
   for (const [language, label] of [
     ['en', 'New ▾'],
     ['es', 'Nuevo ▾'],
@@ -547,13 +499,14 @@ test('LOOK-68 (decision 1.30) the header has one text button "New ▾" (es "Nuev
       await expect(page.locator('#new-session')).toHaveCount(0)
       const button = page.locator('#new-menu')
       await expect(button).toHaveText(label)
-      await expect(button.locator('svg')).toHaveCount(0)
+      // Its plus icon (plan 24).
+      await expect(button.locator('svg')).toHaveCount(1)
       const look = (selector: string) =>
         page.locator(selector).evaluate((n) => {
           const s = getComputedStyle(n)
           return [s.fontSize, s.paddingTop, s.borderRadius, s.backgroundColor, s.boxShadow]
         })
-      expect(await look('#new-menu')).toEqual(await look('#close-all'))
+      expect(await look('#new-menu')).toEqual(await look('#usage-button'))
       const { header } = await drawnColors(page)
       const resting = await button.evaluate((n, under) => {
         const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
@@ -567,24 +520,23 @@ test('LOOK-68 (decision 1.30) the header has one text button "New ▾" (es "Nuev
       }, header)
       expect(apart(resting, header)).toBeGreaterThanOrEqual(8)
       const box = await button.boundingBox()
-      const close = await page.locator('#close-all').boundingBox()
+      const usage = await page.locator('#usage-button').boundingBox()
       const title = await page.locator('.content-header .title').boundingBox()
-      expect(box?.height).toBe(close?.height)
-      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(close?.x ?? 0)
-      expect((close?.x ?? 0) + (close?.width ?? 0)).toBeLessThan(title?.x ?? 0)
+      expect(box?.height).toBe(usage?.height)
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThan(title?.x ?? 0)
     } finally {
       await launched.close()
     }
   }
 })
 
-test('SES-71 (decision 1.30) New ▾ holds four items with their keys, and each does its job; nothing advanced, no Continue last, no chat', async () => {
+test('SES-71 (decision 1.30) New ▾ holds its items with their keys, and each does its job; nothing advanced, no Continue last, no chat', async () => {
   const launched = await client({}, [['login']])
   const { app, window: page } = launched
   try {
     await page.locator('#new-menu').click()
     const items = page.locator('.popover .menu-item')
-    await expect(items).toHaveCount(4)
+    await expect(items).toHaveCount(5)
     const read = await items.evaluateAll((ns) =>
       ns.map((n) => {
         const key = n.querySelector('.menu-shortcut')?.textContent ?? ''
@@ -595,6 +547,7 @@ test('SES-71 (decision 1.30) New ▾ holds four items with their keys, and each 
       ['New session', 'Ctrl+Shift+T'],
       ['Terminal in this tab', 'Ctrl+`'],
       ['Open file…', 'Ctrl+Shift+O'],
+      ['Open session file…', ''],
       ['New window', 'Ctrl+Shift+N'],
     ])
     for (const gone of ['advanced', 'Continue last', 'chat'])
@@ -640,6 +593,78 @@ test('SES-71 (decision 1.30) New ▾ holds four items with their keys, and each 
     await page.locator('.dialog button', { hasText: 'Save' }).click()
     await opened
     await expect.poll(() => app.windows().length).toBe(2)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-69 (plan 24) the header: "+ New ▾" with its icon; "⚙ Settings" opens Settings with no menu; "📊 Usage" right after New opens Usage; no Close all and no gear menu', async () => {
+  const launched = await client({}, [['login'], ['api']])
+  const { app, window: page } = launched
+  try {
+    await expect(page.locator('#new-menu')).toHaveText('New ▾')
+    await expect(page.locator('#new-menu svg')).toHaveCount(1)
+    await expect(page.locator('#close-all')).toHaveCount(0)
+    await expect(page.locator('#main-menu')).toHaveCount(0)
+
+    const settings = page.locator('#settings-button')
+    await expect(settings).toHaveText('Settings')
+    await expect(settings.locator('svg')).toHaveCount(1)
+    const settingsOpened = app.waitForEvent('window')
+    await settings.click()
+    const settingsWindow = await settingsOpened
+    await settingsWindow.waitForLoadState()
+    expect(settingsWindow.url()).toContain('settings.html')
+    await expect(page.locator('.popover')).toHaveCount(0)
+
+    const usage = page.locator('#usage-button')
+    await expect(usage).toHaveText('Usage')
+    await expect(usage.locator('svg')).toHaveCount(1)
+    const newBox = await page.locator('#new-menu').boundingBox()
+    const usageBox = await usage.boundingBox()
+    const titleText = await page.locator('.content-header .title').boundingBox()
+    expect(usageBox?.x ?? 0).toBeGreaterThanOrEqual((newBox?.x ?? 0) + (newBox?.width ?? 0))
+    expect(usageBox?.x ?? 0).toBeLessThan((newBox?.x ?? 0) + (newBox?.width ?? 0) + 12)
+    expect((usageBox?.x ?? 0) + (usageBox?.width ?? 0)).toBeLessThan(titleText?.x ?? 0)
+    expect(usageBox?.height).toBe(newBox?.height)
+    // The title stays alone in the centre.
+    const content = await page.locator('#content').boundingBox()
+    const titleBox = await page.locator('.content-header .title').boundingBox()
+    expect(
+      Math.abs(
+        (titleBox?.x ?? 0) +
+          (titleBox?.width ?? 0) / 2 -
+          ((content?.x ?? 0) + (content?.width ?? 0) / 2),
+      ),
+    ).toBeLessThanOrEqual(1)
+    const usageOpened = app.waitForEvent('window')
+    await usage.click()
+    const usageWindow = await usageOpened
+    await usageWindow.waitForLoadState()
+    expect(usageWindow.url()).toContain('usage.html')
+    // A double click on the Usage button is the button's, not the title bar's.
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(3)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRJ-65 (plan 24) the tab menu closes the other tabs or all of them, with no question', async () => {
+  const launched = await client({}, [['login'], ['api'], ['long']])
+  const page = launched.window
+  try {
+    await expect(page.locator('.tab')).toHaveCount(3)
+    await page.locator('.tab').nth(1).click({ button: 'right' })
+    await expect(page.locator('.menu-item', { hasText: 'Close other tabs' })).toBeVisible()
+    await expect(page.locator('.menu-item', { hasText: 'Close all tabs' })).toBeVisible()
+    await page.locator('.menu-item', { hasText: 'Close other tabs' }).click()
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect(page.locator('.tab')).toContainText('api')
+    await expect(page.locator('.dialog')).toHaveCount(0)
+    await page.locator('.tab').click({ button: 'right' })
+    await page.locator('.menu-item', { hasText: 'Close all tabs' }).click()
+    await expect(page.locator('.tab')).toHaveCount(0)
+    await expect(page.locator('.dialog')).toHaveCount(0)
   } finally {
     await launched.close()
   }

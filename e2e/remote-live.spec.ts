@@ -59,19 +59,19 @@ async function outline(phone: Locator): Promise<void> {
   expect(await phone.locator('svg rect').getAttribute('rx')).toBe('1.6')
 }
 
-test('the phone follows the bridge as Claude Code reports it: connected, gone at null, and the app list when unreadable', async () => {
+test('the row’s phone follows the bridge as Claude Code reports it: connected, gone at null, and the app list when unreadable', async () => {
   const launched = await launchApp({ prepare: setup([], 'session_01FakeBridge') })
   const page = launched.window
   try {
     const row = page.locator('.row', { hasText: 'fix the login bug' })
     await row.dblclick()
     const rowPhone = row.locator('.phone')
+    // The row only, never the tab (plan 23).
     const tabPhone = page.locator('.tab.selected .phone')
     // Turned on inside the session (not in the app's list, not started with the flag): shown.
     await expect(rowPhone).toHaveAttribute('title', 'Remote Control connected', { timeout: 10_000 })
-    await expect(tabPhone).toHaveAttribute('title', 'Remote Control connected')
+    await expect(tabPhone).toHaveCount(0)
     await outline(rowPhone)
-    await outline(tabPhone)
     // Where the emoji was: after the state dot, left of the name, centered on name and folder.
     const box = async (l: Locator) => {
       const b = await l.boundingBox()
@@ -85,9 +85,6 @@ test('the phone follows the bridge as Claude Code reports it: connected, gone at
     expect(
       Math.abs(phoneBox.y + phoneBox.height / 2 - (textBox.y + textBox.height / 2)),
     ).toBeLessThanOrEqual(2)
-    const tabPhoneBox = await box(tabPhone.locator('svg'))
-    const tabTitle = await box(page.locator('.tab.selected .title'))
-    expect(tabPhoneBox.x + tabPhoneBox.width).toBeLessThanOrEqual(tabTitle.x)
     await page.screenshot({ path: 'test-results/rc-live.png' })
 
     // Disconnected (`null`): gone from the row and the tab.
@@ -104,7 +101,23 @@ test('the phone follows the bridge as Claude Code reports it: connected, gone at
     await expect(rowPhone).toHaveAttribute('title', 'Remote Control on at start (state unknown)', {
       timeout: 10_000,
     })
-    await expect(tabPhone).toHaveAttribute('title', 'Remote Control on at start (state unknown)')
+    await expect(tabPhone).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('RC-27 (plan 23) the phone shows in the row and never on a tab', async () => {
+  const launched = await launchApp({ prepare: setup([], 'session_01FakeBridge') })
+  const page = launched.window
+  try {
+    const row = page.locator('.row', { hasText: 'fix the login bug' })
+    await row.dblclick()
+    await expect(row.locator('.phone')).toHaveAttribute('title', 'Remote Control connected', {
+      timeout: 10_000,
+    })
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect(page.locator('.tab .phone')).toHaveCount(0)
   } finally {
     await launched.close()
   }

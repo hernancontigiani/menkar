@@ -63,13 +63,15 @@ test('AST-32, AST-35 the quick switcher lists the shown project’s visible memb
   }
 })
 
-test('AST-35 with Show hidden sessions checked in the main menu, the hidden member is listed', async () => {
+test('AST-35 with Show hidden sessions checked in Add session, the hidden member is listed', async () => {
   const launched = await launchApp({ prepare: twoMembers })
   const page = launched.window
   try {
     await expect(page.locator('.row')).toHaveCount(3)
-    await page.locator('#main-menu').click()
-    await page.locator('.menu-item', { hasText: 'Show hidden sessions' }).click()
+    await page.locator('#add-session').click()
+    await page.locator('.add-session .show-hidden input').check()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.add-session')).toHaveCount(0)
     await page.keyboard.press('Control+Shift+K')
     await expect(rows(page)).toHaveCount(3)
   } finally {

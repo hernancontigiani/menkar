@@ -429,3 +429,48 @@ test('SES-72 (decision 1.30) New picks the agent: both installed, Claude Code ch
     await claudeOnly.close()
   }
 })
+
+test('SES-74 (decision 1.31) New remembers the last agent started: Cursor again next time; remembered but not installed, or unreadable, it falls back to Claude Code', async () => {
+  const both = await launchApp({
+    prepare: (dirs) => {
+      const env = setup([])(dirs)
+      withCursor(dirs)
+      return env
+    },
+  })
+  try {
+    const page = both.window
+    await newPage(page)
+    await segment(page, 'Cursor').click()
+    await page.locator('.add-session .pill').click()
+    await expect(page.locator('.add-session')).toHaveCount(0)
+    await expect.poll(() => stateFile().settings?.last_agent).toBe('cursor')
+    await page.locator('#strip-plus').click()
+    await expect(segment(page, 'Cursor')).toHaveAttribute('aria-pressed', 'true')
+  } finally {
+    await both.close()
+  }
+
+  for (const remembered of ['cursor', 'bogus', 7]) {
+    const claudeOnly = await launchApp({
+      prepare: (dirs) => {
+        const env = setup([])(dirs)
+        writeFileSync(
+          join(dirs.root, 'config', 'menkar', 'state.json'),
+          JSON.stringify({ settings: { color_scheme: 'dark', last_agent: remembered } }),
+        )
+        return env
+      },
+    })
+    try {
+      const page = claudeOnly.window
+      await page.locator('#strip-plus').click()
+      await expect(segment(page, 'Claude Code'), String(remembered)).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    } finally {
+      await claudeOnly.close()
+    }
+  }
+})

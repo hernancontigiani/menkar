@@ -6,17 +6,22 @@ import { PALETTES } from '../src/core/theme'
 import { launchApp, savedCursorTab } from './app'
 import { clientWork, prepare } from './fixtures'
 
-// Preferences' General rows applied to the real app (docs/spec/preferences.md PRF-5 to PRF-30),
+// The Settings window's rows applied to the real app (docs/spec/preferences.md PRF-5 to PRF-30),
 // with a terminal tab open where a row reaches the terminals. Never on the human's display.
 
-async function openPreferences(app: ElectronApplication, page: Page): Promise<Page> {
+async function openPreferences(
+  app: ElectronApplication,
+  page: Page,
+  section = 'appearance',
+): Promise<Page> {
   await page.locator('body').click({ position: { x: 5, y: 5 } })
   const [prefs] = await Promise.all([
     app.waitForEvent('window'),
     page.keyboard.press('Control+Comma'),
   ])
   await prefs.waitForLoadState('domcontentloaded')
-  await expect(prefs.locator('[data-page="general"].page')).toBeVisible()
+  await prefs.locator(`.section-item[data-section="${section}"]`).click()
+  await expect(prefs.locator(`main[data-section="${section}"]`)).toBeVisible()
   return prefs
 }
 
@@ -64,7 +69,7 @@ test('PRF-7, PRF-5, PRF-6 opening and closing writes no font; a chosen font reac
     await window.waitForTimeout(300)
     expect(readFileSync(statePath(root))).toEqual(before)
 
-    const prefs = await openPreferences(app, window)
+    const prefs = await openPreferences(app, window, 'terminal')
     const rows = window.locator('.xterm-rows').first()
     await prefs.locator('[data-key="font-family"]').selectOption('DejaVu Sans Mono')
     await prefs.locator('[data-key="font-size"]').fill('14')
@@ -176,7 +181,7 @@ test('PRF-18 Show folder path: the next Add session dialog shows each row its fo
     await expect(page.locator('.history-row .path')).toHaveCount(0)
     await page.locator(`.add-session button[aria-label="${en['tab.close']}"]`).click()
     await expect(page.locator('.add-session')).toHaveCount(0)
-    const prefs = await openPreferences(launched.app, page)
+    const prefs = await openPreferences(launched.app, page, 'sessions')
     await prefs.locator('[data-key="show_folder_path"]').check()
     await expect.poll(() => saved(root).show_folder_path).toBe(true)
     await prefs.close()
@@ -198,7 +203,7 @@ test('PRF-19 the two notification switches are saved off', async () => {
     },
   })
   try {
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openPreferences(launched.app, launched.window, 'notifications')
     await prefs.locator('[data-key="notify_idle"]').uncheck()
     await prefs.locator('[data-key="notify_sound"]').uncheck()
     await expect.poll(() => saved(root)).toMatchObject({ notify_idle: false, notify_sound: false })
@@ -217,7 +222,7 @@ test('PRF-20 Reopen tabs on start off: saved, and a start with saved tabs opens 
   })
   try {
     await expect(launched.window.locator('.xterm')).toBeVisible()
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openPreferences(launched.app, launched.window, 'sessions')
     await prefs.locator('[data-key="reopen_tabs"]').uncheck()
     await expect.poll(() => saved(root).reopen_tabs).toBe(false)
   } finally {
@@ -257,7 +262,7 @@ test('PRF-21, PRF-25 the languages in their own names; Español applies at the n
     },
   })
   try {
-    const prefs = await openPreferences(launched.app, launched.window)
+    const prefs = await openPreferences(launched.app, launched.window, 'language')
     await expect(prefs.locator('[data-expander="language"] label')).toHaveText([
       'System default',
       'English',
@@ -351,7 +356,7 @@ test('decision 1.22: "Red from" changes an open window\'s ring at once; a pair w
     const stroke = () => page.locator('.tab .ring circle').first().getAttribute('stroke')
     await expect.poll(stroke).toBe('rgb(242,191,64)')
 
-    const prefs = await openPreferences(app, page)
+    const prefs = await openPreferences(app, page, 'context')
     await expect(prefs.locator('[data-key="ring_warn"]')).toHaveValue('60')
     await expect(prefs.locator('[data-key="ring_full"]')).toHaveValue('90')
     const full = prefs.locator('[data-key="ring_full"]')

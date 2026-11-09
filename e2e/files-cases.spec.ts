@@ -49,7 +49,7 @@ const asked = (launched: LaunchedApp) =>
   launched.app.evaluate(() => (globalThis as unknown as { asked?: Record<string, unknown> }).asked)
 
 async function openSessionFile(page: Page) {
-  await page.locator('#main-menu').click()
+  await page.locator('#new-menu').click()
   await page.locator('.menu-item', { hasText: 'Open session file…' }).click()
 }
 

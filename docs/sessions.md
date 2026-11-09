@@ -110,8 +110,8 @@ is shown as written; none is `—`).
     in Menkar's list, or one started with the flag, keeps the phone with the tooltip "Remote
     Control on at start (state unknown)". A malformed file is logged once per pid.
   - A session with no running pane shows no phone; its setting stays in the menu's switch. The
-    phone is the same outline in the row (after the state dot) and on the tab (before its name),
-    in the dimmed text color (decision 1.19).
+    phone is an outline in the row only (after the state dot), in the dimmed text color; a tab is
+    its state dot, name, ring and × (decision 1.19, 2026-11-10).
   - **Rejected sources**: the transcript records each connect (`bridge_status`) but never a
     disconnect, and a resume reconnects without writing one; `replBridgePlaceholders` in
     `~/.claude.json` is keyed by bridge, not session, capped and swept later; the statusline's

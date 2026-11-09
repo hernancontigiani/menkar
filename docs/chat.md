@@ -28,8 +28,9 @@ The code says what each part does. This file keeps why it is shaped this way.
   keeps the model, sends messages, and answers cards through `chat:reply` with the denial sentence
   in the UI's language. b1's tab system owns the tab: `openChatTab` creates it, its body calls
   `mountChat`, and closing it calls `closeChat`.
-- **The MCP servers browser** is a modal child window (`openMcpServers`, `src/renderer/mcp.ts`). It
-  reads `~/.claude.json` once, when it opens, and never writes it.
+- **The MCP servers browser** is a section of the Settings window (2026-11-10;
+  `src/renderer/mcp.ts`). It reads `~/.claude.json` each time the section is shown, and never
+  writes it.
 
 ## Why
 

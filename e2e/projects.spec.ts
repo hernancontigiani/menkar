@@ -92,7 +92,6 @@ interface Shown {
   shown: string
   selectedTab: string | null
   running: string[]
-  tabCount: number
   projects: {
     id: string
     name: string
@@ -552,14 +551,17 @@ test('PRJ-41, PRJ-43 a middle click closes a tab; a right click shows its menu; 
     await expect(page.locator('.tab')).toHaveCount(2)
     await page.locator('.tab').first().click({ button: 'right' })
     await expect(page.locator('.menu-item')).toHaveText(
-      ['Rename…', 'Copy session ID', "Swap the split's orientation", 'Close', /.*/].slice(
-        0,
-        await page.locator('.menu-item').count(),
-      ),
+      [
+        'Rename…',
+        'Copy session ID',
+        "Swap the split's orientation",
+        'Close',
+        'Close other tabs',
+        'Close all tabs',
+        /.*/,
+      ].slice(0, await page.locator('.menu-item').count()),
     )
-    await page.keyboard.press('Escape')
-    await expect(page.locator('#close-all')).toBeVisible()
-    await page.locator('#close-all').click()
+    await page.locator('.menu-item', { hasText: 'Close all tabs' }).click()
     await expect.poll(async () => (await shown(page)).tabs.length).toBe(0)
   } finally {
     await launched.close()

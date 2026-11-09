@@ -2,6 +2,7 @@
 // window's renderer. Types only.
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
+import type { SettingsSection } from '../core/preferences'
 import type { Notice, ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Details, Turn } from '../core/sessions/transcript'
@@ -49,8 +50,6 @@ export interface WindowState {
   readonly heldElsewhere: Readonly<Record<string, string>>
   readonly tabs: readonly TabView[]
   readonly selectedTab: string | null
-  // Every window's tab count, for "Close all tabs" (shown with two or more).
-  readonly tabCount: number
   readonly sessions: readonly SessionInfo[]
   // Sessions whose agent is in the foreground of their pane.
   readonly running: readonly string[]
@@ -91,6 +90,7 @@ export type Action =
   | { readonly type: 'moveTab'; readonly tab: string; readonly before: string | null }
   | { readonly type: 'closeTab'; readonly tab: string; readonly force?: boolean }
   | { readonly type: 'closeAllTabs' }
+  | { readonly type: 'closeOtherTabs'; readonly tab: string }
   // Shows or hides the selected tab's drawer, starting its shell in the folder of `pane` (the
   // focused one) when it has none.
   | { readonly type: 'toggleDrawer'; readonly pane?: string }
@@ -137,7 +137,6 @@ export type Action =
       readonly key: 'default' | 'ask' | 'trusted'
     }
   | { readonly type: 'openInGhostty'; readonly session: string }
-  | { readonly type: 'openMcpServers' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'copyText'; readonly text: string }
   | {
@@ -166,9 +165,8 @@ export type Action =
       readonly height: number
     }
   | { readonly type: 'toggleMaximize' }
-  | { readonly type: 'openPreferences' }
+  | { readonly type: 'openSettings'; readonly section?: SettingsSection }
   | { readonly type: 'openUsage' }
-  | { readonly type: 'openAbout' }
 
 // One tab of any window, for Go to agent.
 export interface TabEntry {

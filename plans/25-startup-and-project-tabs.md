@@ -43,3 +43,77 @@ misreading, so:
   other projects' saved tabs are remembered and start when the window switches to that project the
   first time. Once started they keep running in the background when the window switches away, as
   today.
+
+## 3. Part 2 designed (`b1`, 2026-11-10, read in the tree; not built yet)
+
+### What exists
+
+- `reopen()` in `src/core/projects/layout.ts` already keeps every project's saved tabs for each
+  window. `startWorkspace` in `src/main/workspace.ts` then starts **every** session tab of
+  **every** project at boot: `for (const tab of w.tabs) … await startPane(tab.id, resumeSpec(id))`,
+  before `changed()`.
+- A tab's live panes are `tabPanes` (tab id → pane ids). `tabView`, `closeTab`, the drawer and the
+  agent states all read it, and a tab with no entry is drawn with no panes. A session's pane is
+  found by `paneOfSession`.
+- `switchProject`, `revealTab` (Go to agent), `openWindowOn` and `newWindowWithProject` change
+  which project a window shows; each one ends in `changed()`.
+
+### The design
+
+- **Deferred tab:** a session tab in the layout with no `tabPanes` entry. At boot, only the tabs
+  of each window's **shown** project are started. Every other project's session tabs stay in the
+  layout, saved and listed, with no process.
+- **One place starts them:** `startShownTabs()`, called from `changed()`. For each window, it
+  starts every deferred session tab of the shown project (`startPane` per session, as boot does
+  today). A `starting` set guards against re-entry while a start is awaited. Every way a project
+  becomes shown (switch, Go to agent, a new window, a moved session) goes through `changed()`, so
+  no action has its own start.
+- **Once started, they stay running** when the window shows another project, as today. Nothing
+  is ever stopped by a switch.
+- **Closing a deferred tab** only removes it: `closeTab` already skips missing panes.
+  `closeAllTabs` and `closeOtherTabs` do the same.
+- **A deferred session opened from elsewhere** (the row's Open, the quick switcher):
+  `openSession` reveals its existing tab. That switches the project, and `startShownTabs` starts
+  it. Open beside of a deferred session: `paneOfSession` is undefined, so it already starts a fresh
+  pane in the target. The deferred source tab then loses that session in the layout, as a moved
+  session does.
+- **What a deferred session shows:** not running (no dot, no ring) in its project's list, which is
+  only visible once that project is shown, and by then it is starting. Go to agent lists only
+  started tabs, so a deferred tab is reached by switching to its project.
+- **The rule this touches:** "a session runs if and only if it has a tab" becomes "…has a tab, once
+  its project has been shown in that window since the app started". This is the human's call from
+  the stub. It is recorded in `docs/projects.md` and as a decision in STATUS §1 (number from
+  `set`).
+
+### Rejected
+
+- **Starting every project in the background after the first paint:** it still costs the same
+  processes, and the human asked for on-demand starts.
+- **Stopping a project's sessions when switching away:** it would kill running work, which the
+  stub excludes.
+- **A placeholder "not started" pane in the tab body:** nobody sees a deferred tab before it
+  starts, so a placeholder would have no reader.
+
+### Tests, written first
+
+- **PRJ-66 (settles the human's report, runs before any code):** a saved layout where one window
+  holds tabs in A (login) and B (api), current B. On start, B's tab shows. After switching to A,
+  A's tab is there with its session's pane. After a restart, switching back to A again shows A's
+  tab. If this fails on today's build, it is the bug, and the plan's log says so.
+- **PRJ-67 (lazy start):** the same fixture. After start, the stand-in's `claude-args.txt` holds
+  only B's `--resume`. After switching to A, it holds A's too. Switching back to B leaves A's pid
+  alive (`/proc/<pid>`). Quitting before ever showing A keeps A's tab in `projects.json`.
+- **PRJ-68:** with A's tab still deferred, "Close all tabs" (which closes every tab of every project
+  in the window) removes it too. Nothing of A is left in `projects.json`, there is no process to
+  hang up, and no error is logged.
+- **The existing PRJ, TRM and AST suites stay green unchanged.**
+
+### Blocks
+
+1. PRJ-66 on the current build, red or green; the log records which. Then PRJ-67 and PRJ-68,
+   red.
+2. `startShownTabs` and the boot change in `workspace.ts`. Verify: PRJ-66, PRJ-67, PRJ-68, the
+   projects, terminal and switcher specs, then `npm run ci`.
+3. Docs: `docs/projects.md` (when a project's tabs start) and the rule's new wording. The decision
+   goes to `set`. Verify: `npm run ci` (nothing-lost) and a full ui-check, coordinated with `b2`'s
+   plan 22 harness.

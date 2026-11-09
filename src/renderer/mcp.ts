@@ -1,9 +1,8 @@
-import './windows.css'
 import { el } from './dom'
-import { loadCatalog, t } from './i18n'
-import { applyLook } from './look'
+import { t } from './i18n'
 
-// The MCP servers browser: what Claude Code's ~/.claude.json configures, read once, read only.
+// Settings' MCP servers section: what Claude Code's ~/.claude.json configures, read each time the
+// section is shown, never written.
 
 function row(title: string, subtitle: string | null): HTMLElement {
   return el(
@@ -18,18 +17,9 @@ function row(title: string, subtitle: string | null): HTMLElement {
   )
 }
 
-async function main(): Promise<void> {
-  await loadCatalog()
-  const info = await window.menkar.preferences.get()
-  applyLook(info.settings)
-  document.title = t('mcp.title')
+export async function mcpSection(): Promise<HTMLElement> {
   const sections = await window.menkar.chat.mcpSections()
-  const page = el(
-    'div',
-    { class: 'page', 'data-page': 'mcp' },
-    el('h2', { class: 'mcp-title' }, t('mcp.title')),
-    el('div', { class: 'dim' }, t('mcp.readOnly')),
-  )
+  const page = el('div', {}, el('div', { class: 'dim' }, t('mcp.readOnly')))
   if (sections.length === 0)
     page.append(el('div', { class: 'card', 'data-key': 'none' }, row(t('mcp.none'), null)))
   for (const section of sections) {
@@ -48,7 +38,5 @@ async function main(): Promise<void> {
       ),
     )
   }
-  document.getElementById('app')?.replaceChildren(page)
+  return page
 }
-
-void main()

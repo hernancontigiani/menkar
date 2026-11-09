@@ -25,6 +25,8 @@ export interface Settings {
   // The context ring: yellow from, red from (%); green below yellow.
   readonly ring_warn: number
   readonly ring_full: number
+  // The agent of the last session started from Add session → New; '' before any.
+  readonly last_agent: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,7 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   color_scheme: 'system',
   font: '',
   scrollback: 10_000,
-  sidebar_width: 300,
+  sidebar_width: 250,
   reopen_tabs: true,
   new_session_dir: '',
   show_folder_path: false,
@@ -42,9 +44,10 @@ export const DEFAULT_SETTINGS: Settings = {
   notify_sound: true,
   ring_warn: DEFAULT_THRESHOLDS.warn,
   ring_full: DEFAULT_THRESHOLDS.full,
+  last_agent: '',
 }
 
-export const SIDEBAR_MIN_WIDTH = 220
+export const SIDEBAR_MIN_WIDTH = 180
 export const SIDEBAR_SAVE_MIN_WIDTH = 150
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -77,6 +80,7 @@ export function parseSettings(value: unknown): Settings {
     notify_sound: raw.notify_sound !== false,
     ring_warn: ring.warn,
     ring_full: ring.full,
+    last_agent: str('last_agent', DEFAULT_SETTINGS.last_agent),
   }
 }
 

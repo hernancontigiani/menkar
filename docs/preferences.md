@@ -1,33 +1,41 @@
-# Preferences, About and the Usage window — how they are built
+# The Settings and Usage windows — how they are built
 
 Menkar's own windows besides the main one. The code says what each does. This file keeps why they
 are shaped this way.
 
 ## The shape
 
-- **Preferences and About are child windows of the main window that asked**
-  (`src/main/windows.ts`): `openPreferences(parent, page?)` and `openAbout(parent)` are modal over
-  it, as the spec's dialogs are. **Usage is a window of its own** (decision 1.24, 2026-11-09):
-  `openUsage(opener)` gives it no parent, since GNOME's mutter keeps a child window attached to its
-  parent and the parent then takes no clicks while it is open. There is still one per main window,
-  scoped to that window's project (decision 1.15); closing the opener leaves Usage open and reloads
-  it, now showing every project. b1's ⚙ menu, `Ctrl+,` and `Ctrl+B s` call them through the
-  workspace's `openPreferences`, `openUsage` and `openAbout` actions.
-- **Each has its own page** (`src/renderer/{preferences,about,usage}.html`, their own entries in
-  `electron.vite.config.ts`) and imports the main window's `look.ts`, `dom.ts` and `i18n.ts`
+- **Settings and Usage are windows of their own** (`src/main/windows.ts`), never children of a
+  main window: GNOME's mutter keeps a child window attached to its parent, and the parent then
+  takes no clicks while it is open (decision 1.24 for Usage, 2026-11-10 for the rest).
+  - **Settings** is one window for the app. `openSettings(section?)` shows the open one, focuses it
+    and sends it the asked section on `settings:section`. The window actions are `openSettings`
+    (with an optional section), `Ctrl+,` and `Ctrl+B s`.
+  - **Usage** is one per main window, scoped to that window's project (decision 1.15). Closing the
+    opener leaves Usage open and reloads it, now showing every project.
+- **Settings is laid out as Ubuntu's Settings** (2026-11-10): a list of sections on the left, the
+  chosen section on the right under its title.
+  - The list's order and its group separators are one constant, `SETTINGS_LIST`
+    (`src/core/preferences.ts`), and the section names are typed from it.
+  - Up and Down move through the list. The page remembers the last section shown, in its own
+    storage, only as a convenience.
+  - About and the MCP servers browser are sections, not windows. MCP reads `~/.claude.json` again
+    each time it is shown, and never writes it. The other sections are built once.
+- **Each window has its own page** (`src/renderer/{settings,usage}.html`, each with its own entry in
+  `electron.vite.config.ts`). It imports the main window's `look.ts`, `dom.ts` and `i18n.ts`
   read-only. Its CSS is its own (`windows.css`, `usage.css`), so it shares no file with the main
   window's renderer.
 - **Settings**: a row writes through `settings:set`. Main checks the value
   (`src/core/preferences.ts`, `validSetting`), writes it through `sessions.updateState()` (the one
   holder of `state.json`), then pushes every main window's state (`pushWindowStates()`) and sends
   `settings:changed` to every window. So a theme, style, scheme, font or scrollback change reaches
-  every window at once (agent-tablet reached only the window that opened Preferences).
+  every window at once (the original reached only the window that opened its Preferences).
 - **The language** is read once at start, before any window (`src/main/index.ts`). "Restart now"
   calls the workspace's `quitApp()` (one question for the running sessions, the layout saved), and
   registers `app.relaunch()` only once that quit was confirmed, so a cancelled restart never
   relaunches later (decision 1.10).
-- **Integrations**: the status line switch calls `installStatusline` / `removeStatusline`
-  (`docs/context.md`). A refused change comes back with our sentence, shown for 8 s, and the switch
+- **Integrations**: the status line switch calls `installStatusline` / `removeStatusline`, and the
+  transcript retention switch calls `installRetention` / `removeRetention` (`docs/context.md`). A refused change comes back with our sentence, shown for 8 s, and the switch
   shows what the files say. The classification switch and its earlier-turns dialog use the
   classifier's IPC (`docs/classifier.md`).
 - **About** opens its two links (website, issues) only on a click, through `app:open-link`, which
@@ -40,8 +48,8 @@ are shaped this way.
 
 ## Why
 
-- **Windows of their own, not dialogs inside the main window**: a page of their own keeps Preferences,
-  About and Usage out of the main window's renderer, which another session builds, and gives the
+- **Windows of their own, not dialogs inside the main window**: a page of their own keeps Settings
+  and Usage out of the main window's renderer, which another session builds, and gives the
   Usage window the size and life of its own the spec asks for.
 - **The Font row lists the installed monospace families (`fc-list`) with a size**: Electron has no
   system font chooser. The setting keeps agent-tablet's form, `"Family Size"`, which the terminals
@@ -55,8 +63,10 @@ are shaped this way.
 ## Checks
 
 - Vitest: `tests/core/settings.test.ts`, `tests/core/usage/{chart,stepper}.test.ts`.
-- e2e under `npm run ui-check`: `e2e/preferences.spec.ts` (the General page, themes reaching every
-  window, languages, Restart now with nothing running and with a session running),
+- e2e under `npm run ui-check`: `e2e/settings.spec.ts` (one window with no parent, the sections and
+  their groups, the keys, the retention switch, screenshots in `/tmp/menkar-shots/settings-*.png`),
+  `e2e/preferences.spec.ts` (the rows at their defaults, themes reaching every window, languages,
+  Restart now with nothing running and with a session running),
   `e2e/integrations.spec.ts` (the status line switch with its backup and refusal, the
   classification switch and the earlier-turns dialog with the stand-in `claude`, About),
   `e2e/usage-window.spec.ts` (periods, the stepper, Totals and By day; screenshots in

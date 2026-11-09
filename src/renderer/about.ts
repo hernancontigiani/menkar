@@ -1,9 +1,8 @@
-import './windows.css'
+import type { PreferencesInfo } from '../shared/ipc'
 import { el } from './dom'
-import { loadCatalog, t } from './i18n'
-import { applyLook } from './look'
+import { t } from './i18n'
 
-// The About window: Menkar's star, its name, its developer and version, then Details, the issue
+// Settings' About section: Menkar's star, its name, its developer and version, then Details, the issue
 // tracker, Credits and Legal.
 
 const STAR =
@@ -22,13 +21,8 @@ function section(name: string, title: string, ...content: (HTMLElement | string)
   )
 }
 
-async function main(): Promise<void> {
-  await loadCatalog()
+export function aboutSection(info: PreferencesInfo): HTMLElement {
   const prefs = window.menkar.preferences
-  const info = await prefs.get()
-  applyLook(info.settings)
-  prefs.onSettings((settings) => applyLook(settings))
-  document.title = t('about.title')
   const logo = el('div', { class: 'about-logo' })
   logo.innerHTML = STAR
   const website = el('button', { class: 'link', 'data-key': 'website' }, t('about.website'))
@@ -39,45 +33,39 @@ async function main(): Promise<void> {
     `${t('about.reportIssue')} ↗`,
   )
   issues.addEventListener('click', () => void prefs.openLink('issues'))
-  document
-    .getElementById('app')
-    ?.replaceChildren(
-      el(
-        'div',
-        { class: 'page about' },
-        logo,
-        el('h1', { 'data-key': 'name' }, 'Menkar'),
-        el('div', { class: 'dim', 'data-key': 'developer' }, DEVELOPER),
-        el('span', { class: 'badge', 'data-key': 'version' }, info.version),
-        el(
-          'div',
-          { class: 'card' },
-          section(
-            'details',
-            t('about.details'),
-            el('p', {}, t('about.comments')),
-            el('p', {}, t('about.unofficial')),
-            website,
-          ),
-          issues,
-          section(
-            'credits',
-            t('about.credits'),
-            el('h3', {}, t('about.developer')),
-            el('p', {}, DEVELOPER),
-            el('h3', {}, t('about.basedOn')),
-            el('p', {}, t('about.basedOnText')),
-          ),
-          section(
-            'legal',
-            t('about.legal'),
-            el('p', {}, COPYRIGHT),
-            el('p', {}, LICENSE),
-            el('p', {}, t('about.license')),
-          ),
-        ),
+  return el(
+    'div',
+    { class: 'about' },
+    logo,
+    el('h1', { 'data-key': 'name' }, 'Menkar'),
+    el('div', { class: 'dim', 'data-key': 'developer' }, DEVELOPER),
+    el('span', { class: 'badge', 'data-key': 'version' }, info.version),
+    el(
+      'div',
+      { class: 'card' },
+      section(
+        'details',
+        t('about.details'),
+        el('p', {}, t('about.comments')),
+        el('p', {}, t('about.unofficial')),
+        website,
       ),
-    )
+      issues,
+      section(
+        'credits',
+        t('about.credits'),
+        el('h3', {}, t('about.developer')),
+        el('p', {}, DEVELOPER),
+        el('h3', {}, t('about.basedOn')),
+        el('p', {}, t('about.basedOnText')),
+      ),
+      section(
+        'legal',
+        t('about.legal'),
+        el('p', {}, COPYRIGHT),
+        el('p', {}, LICENSE),
+        el('p', {}, t('about.license')),
+      ),
+    ),
+  )
 }
-
-void main()

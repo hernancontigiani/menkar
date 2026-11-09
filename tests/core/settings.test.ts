@@ -9,9 +9,15 @@ describe('settings', () => {
       ui_style: 'tui',
       terminal_theme: 'Default',
       scrollback: 10_000,
-      sidebar_width: 300,
+      sidebar_width: 250,
       reopen_tabs: true,
+      last_agent: '',
     })
+  })
+
+  test('decision 1.31 the remembered agent is read as a string, anything else as none', () => {
+    expect(parseSettings({ last_agent: 'cursor' }).last_agent).toBe('cursor')
+    expect(parseSettings({ last_agent: 7 }).last_agent).toBe('')
   })
 
   test('TRM-56 a scrollback that is not a number keeps 10 000; a wrong-typed value takes its default', () => {

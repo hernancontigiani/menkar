@@ -66,6 +66,9 @@ const api: MenkarApi = {
     onSettings: (listener) => subscribe('settings:changed', listener),
     statusline: () => ipcRenderer.invoke('integrations:statusline'),
     setStatusline: (on) => ipcRenderer.invoke('integrations:set-statusline', { on }),
+    retention: () => ipcRenderer.invoke('integrations:retention'),
+    setRetention: (on) => ipcRenderer.invoke('integrations:set-retention', { on }),
+    onSection: (listener) => subscribe('settings:section', listener),
   },
   chat: {
     agents: () => ipcRenderer.invoke('chat:agents'),

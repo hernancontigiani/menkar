@@ -116,7 +116,7 @@ input[type="text"]:focus {
 
 #sidebar {
   width: var(--sidebar-width);
-  min-width: 220px;
+  min-width: 180px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -303,14 +303,17 @@ html.classic .content-header {
 }
 /* Text among icons (New ▾, Close all): a resting fill and edge so it reads as a button, as tall
    as the icon buttons beside it. */
+.sidebar-header .header-text,
 .content-header .header-text {
   min-height: 26px;
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
 }
+.sidebar-header .header-text:hover,
 .content-header .header-text:hover {
   background: color-mix(in srgb, var(--fg) 14%, transparent);
 }
+.sidebar-header .header-text:active,
 .content-header .header-text:active {
   background: color-mix(in srgb, var(--fg) 20%, transparent);
 }
@@ -327,6 +330,9 @@ html.classic .content-header {
   gap: 6px;
   font-weight: 700;
   pointer-events: none;
+}
+.header-text svg.icon {
+  margin-right: 4px;
 }
 /* Tall enough for its four short points to read, within the header icons' box. */
 .title-star {
@@ -468,6 +474,39 @@ html.classic .tab.selected .title {
   color: var(--accent);
   line-height: 16px;
   font-size: 10pt;
+}
+/* Over the terminal's lower right, clear of its scrollbar column (the inset plus the bar). */
+.jump-bottom {
+  position: absolute;
+  right: 24px;
+  bottom: 10px;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface1);
+  color: var(--fg);
+  box-shadow: 0 1px 4px var(--scrim);
+}
+.jump-bottom[hidden] {
+  display: none;
+}
+.jump-bottom:hover {
+  background: color-mix(in srgb, var(--fg) 25%, var(--surface1));
+}
+.jump-bottom.fresh::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 html.classic .frame {
   border: 0;
@@ -986,6 +1025,17 @@ html.classic .drawer-hide {
 }
 .pick.flat {
   opacity: 0.55;
+}
+.existing-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.existing-foot .show-hidden {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .count-line {
   text-align: center;

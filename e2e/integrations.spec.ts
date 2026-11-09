@@ -12,7 +12,7 @@ import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp } from './app'
 
-// Preferences → Integrations and About on the real app (docs/spec/preferences.md PRF-31 to PRF-36,
+// Settings' Integrations, Usage & classifier and About sections on the real app (docs/spec/preferences.md PRF-31 to PRF-36,
 // context.md's switch, classifier.md CLS-25 to CLS-32). The real `claude` is never run.
 
 const FAKE_DIR = resolve('tests/data/classifier')
@@ -28,10 +28,14 @@ async function openWindow(
   return child
 }
 
-async function integrations(app: ElectronApplication, page: Page): Promise<Page> {
+async function integrations(
+  app: ElectronApplication,
+  page: Page,
+  section: 'statusline' | 'retention' | 'usage' = 'usage',
+): Promise<Page> {
   const prefs = await openWindow(app, page, () => page.keyboard.press('Control+Comma'))
-  await prefs.locator('.page-switch button[data-page="integrations"]').click()
-  await expect(prefs.locator('[data-page="integrations"].page')).toBeVisible()
+  await prefs.locator(`.section-item[data-section="${section}"]`).click()
+  await expect(prefs.locator(`main[data-section="${section}"]`)).toBeVisible()
   return prefs
 }
 
@@ -55,11 +59,8 @@ test('PRF-31, CTX-31, CTX-32, CTX-33 the status line switch installs and removes
   try {
     const settings = join(home, '.claude', 'settings.json')
     const original = readFileSync(settings, 'utf8')
-    const prefs = await integrations(launched.app, launched.window)
-    await expect(prefs.locator('.group-title')).toHaveText([
-      'Claude Code settings',
-      'Classify turns',
-    ])
+    const prefs = await integrations(launched.app, launched.window, 'statusline')
+    await expect(prefs.locator('.group-title')).toHaveText(['Claude Code settings'])
     await expect(prefs.locator('.row-subtitle').first()).toContainText('started outside Menkar')
     const toggle = prefs.locator('[data-key="statusline"]')
     await expect(toggle).not.toBeChecked()
@@ -97,7 +98,7 @@ test('CTX-36, CTX-37 a refused change says why, leaves the file as it is, and th
   try {
     const settings = join(home, '.claude', 'settings.json')
     const before = sha(settings)
-    const prefs = await integrations(launched.app, launched.window)
+    const prefs = await integrations(launched.app, launched.window, 'statusline')
     const toggle = prefs.locator('[data-key="statusline"]')
     await toggle.click()
     await expect(prefs.locator('[data-toast]')).toHaveText(
@@ -191,10 +192,12 @@ test('PRF-32 to PRF-36 About shows the star, the name, the developer and the ver
         (
           window as unknown as { menkar: { window: { act(a: unknown): Promise<unknown> } } }
         ).menkar.window.act({
-          type: 'openAbout',
+          type: 'openSettings',
+          section: 'about',
         }),
       )
     })
+    await expect(about.locator('main[data-section="about"]')).toBeVisible()
     await expect(about.locator('[data-key="name"]')).toHaveText('Menkar')
     await expect(about.locator('[data-key="developer"]')).toHaveText('Hernan Contigiani')
     const version = JSON.parse(readFileSync('package.json', 'utf8')).version

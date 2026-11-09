@@ -122,7 +122,7 @@ test('LOOK-6 F9 hides the sidebar and shows it again; the toggle follows', async
     await page.locator('#toggle-sidebar').click()
     await expect(page.locator('#sidebar')).toBeVisible()
     expect(await page.locator('#sidebar').evaluate((n) => n.getBoundingClientRect().width)).toBe(
-      300,
+      250,
     )
   } finally {
     await launched.close()
@@ -187,15 +187,9 @@ test('LOOK-1, LOOK-4 a first start: 1280 × 800 titled Menkar, the title centere
     const split = await box(page, '#new-menu')
     expect(split.x).toBeGreaterThan(toggle.x)
     await expect(page.locator('#new-menu')).toHaveText('New ▾')
-    await expect(page.locator('#close-all')).toBeHidden()
-
-    await act(page, { type: 'openSession', session: CLIENT.long })
-    await expect(page.locator('.tab')).toHaveCount(2)
-    await expect(page.locator('#close-all')).toBeVisible()
-    expect((await box(page, '#close-all')).x).toBeGreaterThan(split.x + split.width - 1)
-    await page.locator('.tab.selected .close').click()
-    await expect(page.locator('.tab')).toHaveCount(1)
-    await expect(page.locator('#close-all')).toBeHidden()
+    // Close all is in the tab's menu, not the header (plan 24); Usage sits right of the title.
+    await expect(page.locator('#close-all')).toHaveCount(0)
+    expect((await box(page, '#usage-button')).x).toBeGreaterThan(split.x + split.width - 1)
   } finally {
     await launched.close()
   }
@@ -231,7 +225,7 @@ async function dragDivider(page: Page, to: number): Promise<void> {
   await page.mouse.up()
 }
 
-test('LOOK-8, LOOK-9, LOOK-11 the divider: 420 px is saved and restored; it stops at 220; hidden at quit, it comes back shown at the saved width', async () => {
+test('LOOK-8, LOOK-9, LOOK-11 the divider: 420 px is saved and restored; it stops at 180; hidden at quit, it comes back shown at the saved width', async () => {
   let root = ''
   let launched = await launchApp({
     prepare: (dirs) => {
@@ -243,7 +237,7 @@ test('LOOK-8, LOOK-9, LOOK-11 the divider: 420 px is saved and restored; it stop
     const page = launched.window
     await expect(page.locator('#session-list .row')).toHaveCount(3)
     await dragDivider(page, 40)
-    expect((await box(page, '#sidebar')).width).toBe(220)
+    expect((await box(page, '#sidebar')).width).toBe(180)
     await dragDivider(page, 420)
     expect((await box(page, '#sidebar')).width).toBe(420)
     const statePath = join(root, 'config', 'menkar', 'state.json')
@@ -281,7 +275,7 @@ test('LOOK-10 widening the window keeps the sidebar and grows the content', asyn
       if (win && b) win.setContentBounds({ ...b, width: 1600 })
     })
     await expect.poll(async () => (await box(page, '#content')).width).toBe(before.width + 320)
-    expect((await box(page, '#sidebar')).width).toBe(300)
+    expect((await box(page, '#sidebar')).width).toBe(250)
   } finally {
     await launched.close()
   }
@@ -306,13 +300,13 @@ test('LOOK-12 F9 in one of two windows leaves the other’s sidebar shown', asyn
   }
 })
 
-test('LOOK-13 the sidebar header: the stretched project dropdown and ⚙; Add session 8 px from the sides, 6 px from the bottom, 34 px tall', async () => {
+test('LOOK-13 the sidebar header: the stretched project dropdown and ⚙ Settings; Add session 8 px from the sides, 6 px from the bottom, 34 px tall', async () => {
   const launched = await client()
   const { app, window: page } = launched
   try {
     const sidebar = await box(page, '#sidebar')
     const project = await box(page, '#project-button')
-    const gear = await box(page, '#main-menu')
+    const gear = await box(page, '#settings-button')
     expect(gear.x).toBeGreaterThan(project.x + project.width - 1)
     expect(project.width).toBeGreaterThan(sidebar.width / 2)
     await expect(page.locator('#project-button .project-name')).toHaveText('Client work')
@@ -826,14 +820,14 @@ test('LOOK-42 switching to Classic at once: the sans UI font, no frame labels, t
   }
 })
 
-test('LOOK-44 an unknown terminal_theme starts as Default, and Preferences shows Default', async () => {
+test('LOOK-44 an unknown terminal_theme starts as Default, and Settings shows Default', async () => {
   const launched = await shellTab({ terminal_theme: 'Matrix' })
   const page = launched.window
   try {
     expect(await color(page, 'body', 'background-color')).toBe('#1e1e2e')
     expect(await color(page, '#sidebar', 'background-color')).toBe('#181825')
     const opened = launched.app.waitForEvent('window')
-    await act(page, { type: 'openPreferences' })
+    await act(page, { type: 'openSettings' })
     const preferences = await opened
     await expect(preferences.locator('[data-expander="terminal_theme"] .row-subtitle')).toHaveText(
       'Default',
@@ -942,7 +936,8 @@ test('LOOK-48, LOOK-49 a dialog dims the window (black at 50 % dark, 14 % light)
         expect([dialog.width, dialog.height]).toEqual([560, 640])
         const head = await pixelOf(app, page, '.add-session .add-head', 20, 6)
         expect(nearBy(head, '#1e1e2e'), head).toBe(true)
-        const body = await pixelOf(app, page, '.add-session .add-body', 20, -20)
+        // Above the foot, which holds the Show hidden switch.
+        const body = await pixelOf(app, page, '.add-session .add-body', 20, -60)
         expect(nearBy(body, '#181825'), body).toBe(true)
         const selected = await pixelOf(app, page, '.add-session .switch.selected', 3, 3)
         expect(nearBy(selected, '#cba6f7'), selected).toBe(true)
@@ -1010,7 +1005,7 @@ test('LOOK-53 (2026-11-08) the header: the star before "Menkar", 1.15 em within 
         Math.abs((group.left + group.right) / 2 - (content.x + content.width / 2)),
       ).toBeLessThanOrEqual(1)
       // A gear: one closed toothed outline around a hole, not a sun's separate rays.
-      const gear = await page.locator('#main-menu svg').evaluate((svg) => ({
+      const gear = await page.locator('#settings-button svg').evaluate((svg) => ({
         paths: [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d') ?? ''),
         circles: svg.querySelectorAll('circle').length,
       }))
@@ -1101,6 +1096,34 @@ test('LOOK-61 (decision 1.21) a stopped session’s row has no ring; once it run
     await expect.poll(ringed, { timeout: 5000 }).toEqual([CLIENT.login])
     await act(page, { type: 'closeAllTabs' })
     await expect.poll(ringed, { timeout: 5000 }).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-70 (plan 24) the sidebar starts at 250 px, stops at 180, and a double click on the divider puts it back at 250', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return clientWork(dirs)
+    },
+  })
+  try {
+    const page = launched.window
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    expect((await box(page, '#sidebar')).width).toBe(250)
+    await dragDivider(page, 40)
+    expect((await box(page, '#sidebar')).width).toBe(180)
+    const statePath = join(root, 'config', 'menkar', 'state.json')
+    await expect
+      .poll(() => JSON.parse(readFileSync(statePath, 'utf8')).settings?.sidebar_width)
+      .toBe(180)
+    await page.locator('#divider').dblclick()
+    expect((await box(page, '#sidebar')).width).toBe(250)
+    await expect
+      .poll(() => JSON.parse(readFileSync(statePath, 'utf8')).settings?.sidebar_width)
+      .toBe(250)
   } finally {
     await launched.close()
   }

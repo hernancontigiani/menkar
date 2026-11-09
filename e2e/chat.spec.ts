@@ -163,7 +163,7 @@ test('CHT-8, CHT-12, CHT-30 a Cursor ask chat starts nothing until a message, th
   }
 })
 
-test('CHT-42, CHT-44 MCP servers lists ~/.claude.json, read only; nothing configured says so', async () => {
+test('CHT-42, CHT-44 MCP servers (a Settings section) lists ~/.claude.json, read only; nothing configured says so', async () => {
   let home = ''
   const launched = await launchApp({
     prepare: (dirs) => {
@@ -188,8 +188,9 @@ test('CHT-42, CHT-44 MCP servers lists ~/.claude.json, read only; nothing config
     const before = readFileSync(join(home, '.claude.json'), 'utf8')
     const [mcp] = await Promise.all([
       launched.app.waitForEvent('window'),
-      act(launched.window, { type: 'openMcpServers' }),
+      act(launched.window, { type: 'openSettings', section: 'mcp' }),
     ])
+    await expect(mcp.locator('main[data-section="mcp"]')).toBeVisible()
     await expect(mcp.locator('.group-title')).toHaveText(['Global', 'shop'])
     await expect(mcp.locator('[data-section="Global"] .row-title')).toHaveText(['fs', 'web'])
     await expect(mcp.locator('[data-section="Global"] .row-subtitle')).toHaveText([
@@ -204,7 +205,7 @@ test('CHT-42, CHT-44 MCP servers lists ~/.claude.json, read only; nothing config
     writeFileSync(join(home, '.claude.json'), '[1,2]')
     const [again] = await Promise.all([
       launched.app.waitForEvent('window'),
-      act(launched.window, { type: 'openMcpServers' }),
+      act(launched.window, { type: 'openSettings', section: 'mcp' }),
     ])
     await expect(again.locator('[data-key="none"]')).toHaveText('No MCP servers configured')
   } finally {

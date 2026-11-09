@@ -33,10 +33,8 @@ export default defineConfig({
         input: {
           index: resolve('src/renderer/index.html'),
           // Preferences, About and the Usage window: child windows with pages of their own.
-          preferences: resolve('src/renderer/preferences.html'),
-          about: resolve('src/renderer/about.html'),
+          settings: resolve('src/renderer/settings.html'),
           usage: resolve('src/renderer/usage.html'),
-          mcp: resolve('src/renderer/mcp.html'),
         },
       },
     },

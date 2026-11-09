@@ -47,6 +47,12 @@ How the main window is built and why that way. The behaviour it follows is in `d
 - Output is kept per pane (512 KiB). A window that shows a pane later (a moved tab, a reopened one)
   attaches and replays it; events that arrive before the attach answers are already in that
   buffer, because IPC keeps the order.
+- **Jump to the bottom** (2026-11-10): every terminal (agent pane, shell, drawer) scrolled up from
+  its end shows a round button with a down arrow at its lower right, left of the scrollbar, so it
+  never covers the thumb. A click or `Ctrl+Shift+End` goes to the end and the button hides; output
+  that arrives while scrolled up keeps the view where it is and puts an accent dot on the button.
+  Every other modified End goes to the agent (xterm sends it on), so only `Ctrl+Shift+End` is
+  caught, for every key event type.
 - Each agent pane is registered for the agent-state module (`src/main/panes.ts`): its screen
   mirror, whether its agent owns the foreground, whether it is seen, and `reveal()`.
 
@@ -114,15 +120,23 @@ session) takes the newest session of that folder modified since the tab started,
   gets it. The window buttons take that background and stop above the line. A window that does not
   fill the screen draws a 1 px edge around itself, since without a system frame nothing else ends
   it; maximized or full screen (`maximized` in the window's state) it has none.
-- Preferences, Usage, About and MCP keep the system's frame.
-- "Close all" in the content header is a text button (2026-11-09): its ✕ icon read as the window's
-  close. Being text among icons it has a resting fill and a 1 px edge, so it reads as a button; the
-  icon buttons stay flat. It still closes every tab with no question, and shows with two tabs or
-  more.
-- "New ▾" is the header's one menu for starting things (decision 1.30, 2026-11-09), a text button in
-  Close all's look: New session, Terminal in this tab, Open file…, New window, each showing its
-  key. The agent is picked on Add session → New, not per menu item.
-- Every segmented control (Add session's Existing / New, Usage's rows, Preferences' pages) shares
+- Settings and Usage keep the system's frame.
+- **The header's text buttons** (plan 24, 2026-11-10), each an icon with its word, with a resting
+  fill and a 1 px edge so text among icons reads as a button; the icon buttons stay flat:
+  - "+ New ▾", the one menu for starting things (decision 1.30): New session, Terminal in this tab,
+    Open file…, Open session file…, New window, each with its key where it has one. The agent is
+    picked on Add session → New, which preselects the agent last started while it is installed
+    (`last_agent` in `state.json`, decision 1.31).
+  - "⚙ Settings" in the sidebar header opens the Settings window (`openSettings`), with no menu.
+  - "Usage" (a chart icon) sits right after New ▾; it opens Usage. The title stays alone in the
+    centre.
+- There is no main menu. Show hidden sessions (the history's own hide, a check per window, not
+  saved) is a switch at the foot of Add session → Existing.
+- **Closing tabs from a tab's menu**: Close, Close other tabs, Close all tabs, none of them asking
+  (plan 24, 2026-11-10).
+- **The sidebar** starts at 250 px and stops at 180 px; a double click on the divider puts it back
+  at 250 and saves that. A width saved before is kept (2026-11-10).
+- Every segmented control (Add session's Existing / New, Usage's rows) shares
   one style (2026-11-09): a bordered group with a line between segments; the unchosen segments a
   translucent step off the page with dimmed text, the chosen one in the accent, bold. Text on the
   accent is the theme's background or its text, whichever has more contrast with the accent (a
@@ -174,7 +188,3 @@ session) takes the newest session of that folder modified since the tab started,
 - **The quick switcher** (`Ctrl+Shift+K`) and **Go to agent** (`Ctrl+B g`) share one jump dialog
   (`src/renderer/switcher.ts`). Only one opens at a time. Go to agent asks main for every tab of
   every window (`listTabs`, the most recently focused window first) and reveals the chosen one.
-- **The ⚙ main menu**: Open session file… (a chosen `.jsonl` as a replay), Show hidden sessions (a
-  check per window, not saved), Usage, Preferences, About. The last three call
-  `openUsage`/`openPreferences`/`openAbout` in main, which log until plan 12 provides their
-  windows.

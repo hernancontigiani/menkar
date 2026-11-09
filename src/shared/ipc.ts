@@ -5,9 +5,9 @@ import type { McpSection } from '../core/chat/mcp'
 import type { Reply } from '../core/chat/model'
 import type { ChatEvent } from '../core/chat/protocol'
 import type { ChatAgent, VariantKey } from '../core/chat/variants'
-import type { Reading } from '../core/context/types'
+import type { Reading, RetentionStatus } from '../core/context/types'
 import type { Key, Language, Messages } from '../core/i18n'
-import type { PreferenceKey } from '../core/preferences'
+import type { PreferenceKey, SettingsSection } from '../core/preferences'
 import type { ProjectsSnapshot } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Settings } from '../core/settings'
@@ -77,6 +77,15 @@ export interface InvokeChannels {
     request: { on: boolean }
     response: { on: boolean; error: string | null }
   }
+  // Transcript retention (cleanupPeriodDays), the same shape as the status line.
+  'integrations:retention': {
+    request: undefined
+    response: { on: boolean; status: RetentionStatus }
+  }
+  'integrations:set-retention': {
+    request: { on: boolean }
+    response: { on: boolean; error: string | null }
+  }
   // Classification (plan 10): the switch, its status, the earlier-turns estimate, run and stop.
   'classifier:status': { request: undefined; response: ClassifierStatus }
   'classifier:set': { request: { on: boolean }; response: ClassifierStatus }
@@ -133,6 +142,8 @@ export interface EventChannels {
   'chat:event': { readonly chatId: string; readonly event: ChatEvent | { readonly kind: 'ended' } }
   // A setting changed (plan 12): Menkar's own windows re-apply the look.
   'settings:changed': Settings
+  // The open Settings window was asked for again, on this section.
+  'settings:section': SettingsSection
   // A session's context reading changed (null: no reading, no ring).
   'context:reading': { readonly sessionId: string; readonly reading: Reading | null }
 }
@@ -188,6 +199,9 @@ export interface MenkarApi {
     onSettings(listener: (settings: Settings) => void): () => void
     statusline(): Promise<{ on: boolean }>
     setStatusline(on: boolean): Promise<{ on: boolean; error: string | null }>
+    retention(): Promise<{ on: boolean; status: RetentionStatus }>
+    setRetention(on: boolean): Promise<{ on: boolean; error: string | null }>
+    onSection(listener: (section: SettingsSection) => void): () => void
   }
   readonly chat: {
     agents(): Promise<readonly ChatAgent[]>
