@@ -51,15 +51,6 @@ export function startUsagePasses(
   return { runner, stop: () => clearInterval(timer) }
 }
 
-// The command's own arguments: after the executable, Chromium's switches placed before the command,
-// and (unpackaged) the app's folder.
-export function cliArguments(argv: readonly string[], packaged: boolean): string[] {
-  let rest = argv.slice(1)
-  while (rest[0]?.startsWith('--')) rest = rest.slice(1)
-  if (!packaged) rest = rest.slice(1)
-  return rest
-}
-
 // `menkar usage …`: the report printed in the terminal, with no window. The exit code.
 export function runUsageCommand(args: readonly string[]): number {
   setLanguage(

@@ -22,7 +22,10 @@ Before calling it the first version, go through `docs/release-checklist.md`: the
 person on a real desktop can make.
 
 It installs the app under `/opt/Menkar`, a **Menkar** launcher with its icon, and the `menkar`
-command (`/usr/bin/menkar`). The post-install also installs an AppArmor profile,
+command (`/usr/bin/menkar`). Run from a terminal, `menkar` (and `menkar open <file>…`) starts the
+app on its own and gives the terminal back at once, as `code` does; closing the terminal leaves
+the app running. `menkar --foreground` (or `-f`) keeps it attached, to watch its log. `menkar
+usage` prints in the terminal as before. The post-install also installs an AppArmor profile,
 `/etc/apparmor.d/menkar`, that lets Chromium's sandbox create its user namespace. Ubuntu 24.04
 blocks that for unconfined apps, and ships the same kind of profile for VS Code, Slack and
 Obsidian. The installed app runs with the sandbox, never with `--no-sandbox`. `sudo apt remove

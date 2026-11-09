@@ -1,6 +1,8 @@
+import { spawn } from 'node:child_process'
 import { resolve as resolvePath } from 'node:path'
 import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain, Menu } from 'electron'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
+import { cliArguments, DETACHED, shouldDetach } from '../core/launch'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile } from '../core/paths'
 import { settingsOf } from '../core/settings'
@@ -13,7 +15,7 @@ import { startContextReadings } from './context'
 import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
 import { broadcastSessions, sessions } from './sessions'
-import { cliArguments, currentMemberships, runUsageCommand, startUsagePasses } from './usage'
+import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
   deliverFiles,
   openFirstWindowIfNone,
@@ -106,12 +108,36 @@ async function start(): Promise<void> {
   openFirstWindowIfNone()
 }
 
+// From a terminal, the app runs as a copy of this process in a session of its own, with no tie to
+// the terminal (closing it sends that copy no SIGHUP), and the command returns at once.
+function startedDetached(): boolean {
+  const context = {
+    argv: process.argv,
+    packaged: app.isPackaged,
+    stdoutIsTTY: process.stdout.isTTY === true,
+    env: process.env,
+    platform: process.platform,
+  }
+  if (!shouldDetach(context)) return false
+  try {
+    spawn(process.execPath, [DETACHED, ...process.argv.slice(1)], {
+      detached: true,
+      stdio: 'ignore',
+    }).unref()
+    return true
+  } catch (error) {
+    log.warn('could not leave the terminal; running in it', { error })
+    return false
+  }
+}
+
 const command = cliArguments(process.argv, app.isPackaged)
 // `menkar open <file>…`: relative paths are made absolute here, in the caller's folder, before
 // they travel to the running app.
 const openFiles =
   command[0] === 'open' ? command.slice(1).map((file) => resolvePath(process.cwd(), file)) : []
-if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
+if (startedDetached()) app.exit(0)
+else if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
 else if (command[0] === 'open' && openFiles.length === 0) {
   process.stderr.write('Usage: menkar open <file> [<file>…]\n')
   app.exit(2)

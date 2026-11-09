@@ -46,6 +46,28 @@ maintain (decided 2026-11-08). **AppImage first:** it cannot carry a setuid help
 profile, so it needs `--no-sandbox`; it can come later as a second target. **Snap and Flatpak:**
 each is a sandbox of its own, with `claude` and `~/.claude` outside it.
 
+## The command in a terminal
+
+Decision 1.27 (2026-11-09): `/usr/bin/menkar` run from a terminal gives it back at once, as VS
+Code's `code` does. When stdout is a terminal, the process starts a copy of itself with an internal
+`--menkar-detached` first argument, in a session of its own (`setsid`, so closing the terminal
+sends it no SIGHUP) with stdin, stdout and stderr on `/dev/null`, and exits 0. The copy then runs
+as any start does, single-instance hand-off included. The decision is `shouldDetach` in
+`src/core/launch.ts`.
+
+- **Stays attached:** `menkar usage …`, `menkar open` with no file (it prints how to use it),
+  `--help`, `--version`, `--foreground` / `-f`, and any start whose stdout is not a terminal (the
+  launcher, a pipe, Playwright).
+- **Never detaches:** under `ELECTRON_RUN_AS_NODE` (the statusline helper), the UI checks
+  (`MENKAR_E2E_XVFB`, `MENKAR_E2E_EXECUTABLE`), the dev server (`ELECTRON_RENDERER_URL`), and on
+  Windows.
+- **The log** is `$XDG_CACHE_HOME/menkar/menkar.log` however the app starts (warnings and errors
+  unless `MENKAR_LOG` asks for more). Its copy on stderr goes to `/dev/null` once detached. From
+  the launcher it goes wherever GNOME sends a launched app's output: on the human's Ubuntu 24.04,
+  no Menkar line was found in the user journal (2026-11-09). `menkar -f` shows it in the terminal.
+- **The test** (`e2e/detach.spec.ts`) runs the built app under a pseudo-terminal with those
+  variables removed, and against the packaged one under `package:smoke`.
+
 ## Checks
 
 - **`npm run package:check`** (`scripts/check-package.mjs`) installs nothing. It reads the `.deb`
