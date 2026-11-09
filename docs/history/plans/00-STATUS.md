@@ -136,3 +136,13 @@
 > project. Found: cards square in Terminal workspace, the footer's spaces collapsed, the chat look
 > off its table, PRF-24's relaunch test blind to the packaged build. In `docs/usage.md`,
 > `docs/packaging.md` and `docs/release-checklist.md`.
+
+| 10 | `17-usage-export-models.md` (tokens and cost by model in the report and the window; `menkar usage export` for an LLM session to analyse) | Written 2026-11-08; `b2`, after 16 |
+
+> Closed 2026-11-08 — plan 17, "Usage by model, and an export an LLM session can analyse", built
+> by `b2`: tokens and list-price cost by model in every report node, `--json` and the window's
+> Model stack (Tokens and Cost only: time is per turn, decision 1.16); `menkar usage export`, one
+> JSONL or CSV row per turn, whole, with exact cost attributed turn by turn so the rows add up to
+> the report. Found: an exact session's cost cannot split by model (per-model cost is the list
+> price); an unknown `--project` listed comma-joined names, ambiguous with a comma in a name. The
+> MCP server is deferred in `docs/NOT_BUILT_YET.md`. In `docs/usage.md`.
