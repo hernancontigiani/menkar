@@ -211,8 +211,12 @@ test('PRF-32 to PRF-36 About shows the star, the name, the developer and the ver
       'not affiliated with or endorsed by Anthropic',
     )
     await about.locator('[data-section="credits"] summary').click()
-    await expect(about.locator('[data-section="credits"]')).toContainText('agent-tablet')
-    await expect(about.locator('[data-section="credits"]')).toContainText('Máté Molnár')
+    await expect(about.locator('[data-section="credits"]')).toContainText(
+      'Menkar grew out of Agent Session Manager by Máté Molnár. It was written from scratch, but the idea started there.',
+    )
+    await expect(about.locator('[data-section="credits"]')).not.toContainText('agent-tablet')
+    // No credit points anywhere: nothing in About names or links the original's repository.
+    expect(await about.locator('body').innerHTML()).not.toContain('github.com/r4nd3l')
     await about.locator('[data-section="legal"] summary').click()
     await expect(about.locator('[data-section="legal"]')).toContainText('GPL-3.0-or-later')
     await about.locator('[data-key="issues"]').click()

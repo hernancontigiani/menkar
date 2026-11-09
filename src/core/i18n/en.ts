@@ -420,7 +420,7 @@ export const en = {
   'about.developer': 'Developer',
   'about.basedOn': 'Based on',
   'about.basedOnText':
-    'Menkar is the successor of agent-tablet, itself started from Agent Session Manager by Máté Molnár. No code is carried over from either.',
+    'Menkar grew out of Agent Session Manager by Máté Molnár. It was written from scratch, but the idea started there.',
   'about.legal': 'Legal',
   'about.license':
     'This program comes with absolutely no warranty. See the GNU General Public License, version 3 or later, for details.',

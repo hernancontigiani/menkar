@@ -84,8 +84,8 @@ Each one is broken by an ordinary-looking line of code.
   is our own sentence, never an exception's message.
 - **Nothing is typed into a running agent's terminal on the user's behalf**: at a permission prompt
   an Enter approves the highlighted choice, and a half-written message would be sent.
-- **License: GPL-3.0-or-later.** Credit to agent-tablet and its origin, Agent Session Manager, is a
-  line in `README.md`; no code is carried over from either.
+- **License: GPL-3.0-or-later.** Credit to Agent Session Manager is one line in `README.md` and
+  About, with no link; no code is carried over from it, and new text never names agent-tablet.
 
 ## TypeScript and Electron
 

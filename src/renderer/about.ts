@@ -67,7 +67,6 @@ async function main(): Promise<void> {
             el('p', {}, DEVELOPER),
             el('h3', {}, t('about.basedOn')),
             el('p', {}, t('about.basedOnText')),
-            el('p', { class: 'dim' }, 'https://github.com/r4nd3l/agent-session-manager'),
           ),
           section(
             'legal',

@@ -136,8 +136,8 @@ development build's `chrome-sandbox`. Playwright's runs are unsandboxed too (it 
 
 ## Acknowledgements
 
-Menkar began as agent-tablet, a fork of Máté Molnár's Agent Session Manager. It has been
-rewritten from scratch since, but the idea started there.
+Menkar grew out of Máté Molnár's Agent Session Manager. It was written from scratch, but the idea
+started there.
 
 ## License
 

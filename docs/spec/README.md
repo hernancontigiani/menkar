@@ -261,5 +261,5 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
 - Turns with origin `unknown` show their own category in reports.
 - Popover menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's
   defaults.
-- About: the human's copyright, and one credit line to agent-tablet and Agent Session Manager.
+- About: the human's copyright, and one credit line to Agent Session Manager, with no link.
 - "Restart now" asks and saves the layout as quitting does.

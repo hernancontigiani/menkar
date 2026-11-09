@@ -425,7 +425,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'about.developer': 'Desarrollo',
   'about.basedOn': 'Basado en',
   'about.basedOnText':
-    'Menkar es el sucesor de agent-tablet, que a su vez empezó a partir de Agent Session Manager de Máté Molnár. No se reutiliza código de ninguno de los dos.',
+    'Menkar nació a partir de Agent Session Manager, de Máté Molnár. Se escribió desde cero, pero la idea empezó ahí.',
   'about.legal': 'Legal',
   'about.license':
     'Este programa no tiene ninguna garantía. Consultá la Licencia Pública General de GNU, versión 3 o posterior, para más detalles.',
