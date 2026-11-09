@@ -297,8 +297,20 @@ export function render(next: WindowState): void {
 
 // The window buttons the system draws over the header take the header's colors and height: as
 // drawn, so a translucent header over the window's background comes out as one opaque color.
+// Read after the render, from styles only: a layout forced in the middle of a render left the
+// terminals of hidden tabs without their rows.
 let titleBarSent = ''
+let titleBarQueued = false
 function syncTitleBar(): void {
+  if (titleBarQueued) return
+  titleBarQueued = true
+  setTimeout(() => {
+    titleBarQueued = false
+    sendTitleBar()
+  })
+}
+
+function sendTitleBar(): void {
   const header = document.querySelector<HTMLElement>('.content-header')
   if (!header) return
   const canvas = document.createElement('canvas')
@@ -318,7 +330,7 @@ function syncTitleBar(): void {
   const style = getComputedStyle(header)
   const color = drawn(getComputedStyle(document.body).backgroundColor, style.backgroundColor)
   const symbolColor = drawn(color, style.color)
-  const height = Math.round(header.getBoundingClientRect().height)
+  const height = Math.round(Number.parseFloat(style.minHeight))
   const key = `${color} ${symbolColor} ${height}`
   if (key === titleBarSent || height === 0) return
   titleBarSent = key
