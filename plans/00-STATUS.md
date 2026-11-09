@@ -31,7 +31,7 @@
 | 1.16 | Usage data for analysis goes out through the CLI (`menkar usage export`, JSONL or CSV, one row per turn, tokens and cost per model; no prompt text); no MCP server for now; time is per turn, never split by model | 2026-11-08 | plan 17 |
 | 1.17 | agent-tablet is deprecated and may be deleted: Menkar stops depending on it or naming it. 0.1.0 keeps what the switch needs (the first-start import, the release checklist's comparisons, the credit line); after 0.1.0 is accepted, every other mention goes — code comments, docs, the spec's references, tests' wording — and new text never names it | 2026-11-09 | this row |
 | 1.18 | The phone icon shows whether a session's Remote Control bridge is connected now, read from Claude Code's `~/.claude/sessions/<pid>.json` (`bridgeSessionId`), however it was turned on; the menu switch keeps meaning "start with Remote Control"; an unreadable source falls back to Menkar's own list, never to off | 2026-11-09 | plan 18 |
-| 1.19 | The Remote Control icon is a phone outline in the text color (9×13, stroke 1.5), not the emoji, in the row (after the state dot) and the tab | 2026-11-09 | `docs/sessions.md` |
+| 1.19 | The Remote Control icon is a phone outline in the text color (9×13, stroke 1.5), not the emoji, in the row only (after the state dot); a tab shows no phone | 2026-11-10 | `docs/sessions.md` |
 | 1.20 | A terminal's right-click menu: Copy (disabled without a selection), Paste, Select all, Find…, each with its shortcut | 2026-11-09 | `docs/window.md` |
 | 1.21 | A session that is not running shows no context ring in its row: a stopped session's estimate is often wrong | 2026-11-09 | `docs/context.md` |
 | 1.22 | The context ring's levels: yellow from 60 %, red from 90 % by default, both editable in Preferences (yellow below red); one definition for the ring, the level and notifications | 2026-11-09 | `docs/context.md` |
@@ -69,6 +69,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 18 | `25-startup-and-project-tabs.md` (start timings, a turning star at once, each project's tabs started when shown) | Stub 2026-11-09 |
 | 17 | `24-settings-window-and-header.md` (Settings as a sectioned window, no blocking windows, header with Usage, Close all to the tab menu, transcript retention) | Stub 2026-11-09; for 2026-11-10 |
 | 16 | `23-scroll-and-rc-tab.md` (jump-to-bottom button in terminals; the phone icon off the tab) | Stub 2026-11-09; for 2026-11-10 |
 | 15 | `22-parallel-e2e.md` (e2e in parallel, one Xvfb per worker) | Stub 2026-11-09; `b2`, from 2026-11-10 |
