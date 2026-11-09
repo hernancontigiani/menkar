@@ -1,0 +1,32 @@
+/* A row of buttons where one is chosen (Add session's Existing / New, Usage's toggles, Preferences'
+   pages): one bordered group, each segment a step off the page whatever the page is; at a glance
+   the chosen one is colored and the others grey. */
+.segmented {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--fg) 24%, transparent);
+  border-radius: var(--control-radius);
+  overflow: hidden;
+}
+/* Classic's groups keep their rounder outline. */
+html.classic .segmented {
+  border-radius: var(--radius);
+}
+.segmented > button {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  color: color-mix(in srgb, var(--fg) 58%, transparent);
+}
+.segmented > button + button {
+  border-left: 1px solid color-mix(in srgb, var(--fg) 24%, transparent);
+}
+.segmented > button:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+  color: var(--fg);
+}
+.segmented > button[aria-pressed="true"],
+.segmented > button.selected {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}

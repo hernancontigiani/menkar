@@ -1,4 +1,5 @@
 import './windows.css'
+import './segmented.css'
 import { thresholdsOf } from '../core/context/levels'
 import {
   parseFont,
@@ -307,7 +308,7 @@ async function main(): Promise<void> {
   document.title = t('preferences.title')
   const pages = { general: generalPage(), integrations: await integrationsPage() }
   const body = el('main', {})
-  const switcher = el('nav', { class: 'page-switch' })
+  const switcher = el('div', { class: 'segmented' })
   const show = (name: keyof typeof pages) => {
     body.replaceChildren(pages[name])
     for (const button of switcher.querySelectorAll('button')) {
@@ -322,7 +323,9 @@ async function main(): Promise<void> {
     button.addEventListener('click', () => show(name))
     switcher.append(button)
   }
-  document.getElementById('app')?.replaceChildren(switcher, body)
+  document
+    .getElementById('app')
+    ?.replaceChildren(el('nav', { class: 'page-switch' }, switcher), body)
   show(
     new URLSearchParams(location.search).get('page') === 'integrations'
       ? 'integrations'

@@ -53,13 +53,13 @@ test('FIL-15, FIL-20 an edit marks the tab; Ctrl+S saves it; closing with edits 
     await page.locator('.cm-content').click()
     await page.keyboard.press('Control+End')
     await page.keyboard.type('more')
-    await expect(page.locator('.tab.selected')).toHaveText(/notes\.md •/)
+    await expect(page.locator('.tab.selected .unsaved-dot')).toHaveCount(1)
     await page.keyboard.press('Control+s')
-    await expect(page.locator('.tab.selected')).not.toHaveText(/•/)
+    await expect(page.locator('.tab.selected .unsaved-dot')).toHaveCount(0)
     expect(readFileSync(join(home, 'notes.md'), 'utf8')).toBe(`${NOTES}more`)
 
     await page.keyboard.type(' unsaved')
-    await expect(page.locator('.tab.selected')).toHaveText(/•/)
+    await expect(page.locator('.tab.selected .unsaved-dot')).toHaveCount(1)
     await page.locator('.tab.selected .close').click()
     await expect(page.locator('[role="alertdialog"] .heading')).toHaveText(
       'Save changes to notes.md?',
@@ -106,11 +106,11 @@ test('FIL-23, FIL-24, FIL-25, FIL-30 the preview: after its editor, tables and s
   const page = launched.window
   try {
     await openTyped(page, join(home, 'notes.md'))
-    await expect(page.locator('.preview-row button')).toHaveAttribute(
+    await expect(page.locator('.preview-row button:not(.save)')).toHaveAttribute(
       'title',
       'Show it rendered (Ctrl+Shift+V)',
     )
-    await page.locator('.preview-row button').click()
+    await page.locator('.preview-row button:not(.save)').click()
     await expect(page.locator('.tab.selected')).toHaveText(/Preview — notes\.md/)
     const titles = await page.locator('.tab .title').allTextContents()
     expect(titles.slice(-2)).toEqual(['notes.md', 'Preview — notes.md'])

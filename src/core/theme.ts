@@ -232,6 +232,27 @@ const isLight = (color: string) => {
   return 0.299 * r + 0.587 * g + 0.114 * b > 140
 }
 
+// WCAG's contrast ratio between two #rrggbb colors.
+export function contrast(a: string, b: string): number {
+  const luminance = (color: string) => {
+    const [r, g, bl] = rgb(color).map((v) => {
+      const c = v / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }) as [number, number, number]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+  }
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number]
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+// Text on the accent: Classic's stock white; in Terminal workspace the theme's background or text,
+// whichever reads better (a dark accent such as Tango's purple takes the light text).
+export function onAccent(look: Look): string {
+  if (look.style === 'classic') return '#ffffff'
+  const { bg, fg, accent } = look.roles
+  return contrast(bg, accent) >= contrast(fg, accent) ? bg : fg
+}
+
 export function resolveLook(settings: LookSettings, systemDark: boolean): Look {
   const style = settings.ui_style === 'tui' ? 'tui' : 'classic'
   const schemeDark =

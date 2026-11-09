@@ -17,12 +17,15 @@
   --ui-font: monospace;
   --menu-font: sans-serif;
   --radius: 0;
+  /* Buttons, fields and segmented groups: softened even where the rest of the look is square. */
+  --control-radius: 4px;
   --sidebar-width: 300px;
 }
 
 html.classic {
   --ui-font: sans-serif;
   --radius: 6px;
+  --control-radius: 6px;
 }
 
 * {
@@ -45,7 +48,7 @@ button {
   color: inherit;
   background: transparent;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
   padding: 4px 8px;
   cursor: default;
 }
@@ -94,7 +97,7 @@ input[type="text"] {
   min-height: 34px;
   padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
   background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
 input[type="text"]:focus {
@@ -298,6 +301,19 @@ html.classic .dot.running {
 html.classic .content-header {
   min-height: 46px;
 }
+/* Text among icons: a resting fill and edge so it reads as a button, as tall as the icon buttons
+   beside it. */
+#close-all {
+  min-height: 26px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+#close-all:hover {
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+}
+#close-all:active {
+  background: color-mix(in srgb, var(--fg) 20%, transparent);
+}
 /* As wide as its star and text only: the header's drag region holds it, and a box spanning the
    header would cover the buttons' no-drag holes in the window's drag map. */
 .content-header .title {
@@ -367,6 +383,7 @@ html.classic #tab-strip {
   color: var(--subtext0);
   white-space: nowrap;
   flex: none;
+  border-radius: var(--radius);
 }
 .tab:hover {
   background: var(--surface0);
@@ -724,6 +741,15 @@ html.classic .dot.blocked {
   flex: none;
   line-height: 0;
 }
+/* In a file tab, the ring's slot: the buffer has unsaved edits. */
+.unsaved-dot {
+  width: 8px;
+  height: 8px;
+  margin: 0 3px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
 .blocked-pill {
   background: var(--red);
   color: var(--mantle);
@@ -836,9 +862,6 @@ html.classic .blocked-pill {
 .add-head .heading {
   font-weight: 700;
   flex: 1;
-}
-.switcher .switch.selected {
-  background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
 .add-body {
   flex: 1;
@@ -1056,7 +1079,11 @@ html.classic .blocked-pill {
 .preview-row {
   display: flex;
   justify-content: flex-end;
+  gap: 4px;
   padding: 4px 8px 4px 0;
+}
+.preview-row button:disabled {
+  opacity: 0.45;
 }
 .editor-host {
   flex: 1;

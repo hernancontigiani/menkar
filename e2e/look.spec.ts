@@ -925,7 +925,7 @@ test('LOOK-47 no session anywhere: Existing shows the star, "No sessions found" 
   }
 })
 
-test('LOOK-48, LOOK-49 a dialog dims the window (black at 50 % dark, 14 % light); Add session is 560 × 640, its list mantle, its header the base, the selected switch fg at 10 %', async () => {
+test('LOOK-48, LOOK-49 a dialog dims the window (black at 50 % dark, 14 % light); Add session is 560 × 640, its list mantle, its header the base, the selected switch in the accent', async () => {
   for (const scheme of ['dark', 'light']) {
     const launched = await client({ settings: { color_scheme: scheme } })
     const { app, window: page } = launched
@@ -947,7 +947,7 @@ test('LOOK-48, LOOK-49 a dialog dims the window (black at 50 % dark, 14 % light)
         const body = await pixelOf(app, page, '.add-session .add-body', 20, -20)
         expect(nearBy(body, '#181825'), body).toBe(true)
         const selected = await pixelOf(app, page, '.add-session .switch.selected', 3, 3)
-        expect(nearBy(selected, '#2f3042'), selected).toBe(true)
+        expect(nearBy(selected, '#cba6f7'), selected).toBe(true)
       }
     } finally {
       await launched.close()

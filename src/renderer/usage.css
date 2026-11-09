@@ -10,14 +10,6 @@ header {
   display: inline-flex;
 }
 
-.linked button {
-  border-radius: 0;
-}
-
-.linked button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--fg) 30%, transparent);
-}
-
 .usage-body {
   margin: 12px;
   display: flex;

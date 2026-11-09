@@ -40,6 +40,9 @@
 | 1.25 | A sidebar row can be hidden from its project's list ("Hide" / "Show"): it stays a member and in Usage; only a stopped session; shown again from Add session, the list's "N hidden" foot, or by starting it | 2026-11-09 | plan 19 |
 | 1.26 | Haiku 5.5's long-prompt price is decided per request (prompt over 100,000 tokens, input + cache reads + writes), as the pricing page says, stored under `claude-haiku-5-5@long` and shown as one Haiku 5.5; turns whose per-request data the cache still holds are re-derived once, the rest (agent-tablet imports, transcripts gone) keep group pricing. Menkar stops matching agent-tablet there (1.17) | 2026-11-09 | `docs/usage.md` |
 | 1.27 | `menkar` started from a terminal detaches and returns at once, as `code` does; `usage`, a bare `open`, help/version and `-f`/`--foreground` stay attached | 2026-11-09 | `docs/packaging.md` |
+| 1.28 | A file editor tab with unsaved changes shows a dot between its name and ×, cleared on save; a Save button, always visible, sits left of Preview | 2026-11-09 | `docs/files.md` |
+| 1.29 | Ctrl+` toggles a temporary shell under the current tab, in its agent's folder: hidden, not closed; never a tab, never saved | 2026-11-09 | plan 20 |
+| 1.30 | The header's New is a text button "New ▾" whose menu holds New session, Terminal in this tab, Open file and New window with their shortcuts; the agent (Claude Code, Cursor…) is chosen in Add session → New, uninstalled ones greyed; the advanced dialog, Continue last and chat entries leave the menu | 2026-11-09 | plan 21 |
 
 ## 2. Open
 
@@ -66,6 +69,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 13 | `20-terminal-drawer.md` (Ctrl+` opens a temporary shell under the tab) | Written 2026-11-09; `b2` |
 
 ## 4. Next plan number
 

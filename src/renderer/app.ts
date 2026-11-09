@@ -154,7 +154,11 @@ export function buildFrame(): void {
     const r = newMenu.getBoundingClientRect()
     plusMenu({ x: r.left, y: r.bottom + 4 }, () => void newWindow())
   })
-  const closeAll = el('button', { id: 'close-all', title: t('header.closeAll') }, icon('tabClose'))
+  const closeAll = el(
+    'button',
+    { id: 'close-all', title: t('header.closeAll') },
+    t('header.closeAllLabel'),
+  )
   closeAll.addEventListener('click', () => void act({ type: 'closeAllTabs' }))
 
   const projectButton = el(
@@ -600,6 +604,7 @@ function tabDot(tab: TabView): HTMLElement | null {
 }
 
 function tabRing(tab: TabView): HTMLElement | null {
+  if (tab.file?.unsaved) return el('span', { class: 'unsaved-dot', title: t('files.unsavedDot') })
   const readings = tab.panes.flatMap((p) => {
     const reading = p.sessionId ? readingOf(p.sessionId) : null
     return reading ? [reading] : []
@@ -1072,8 +1077,12 @@ window.menkar.window.onConfirmUnsaved(({ paths, names }) => {
 export async function saveSelectedFile(): Promise<void> {
   const tab = selectedTabView()
   if (!tab?.file || tab.file.preview) return
-  const name = tab.file.path.split('/').pop() ?? ''
-  const { refusal } = await act({ type: 'saveFile', path: tab.file.path })
+  await saveFile(tab.file.path)
+}
+
+export async function saveFile(path: string): Promise<void> {
+  const name = path.split('/').pop() ?? ''
+  const { refusal } = await act({ type: 'saveFile', path })
   if (refusal)
     await showDialog({
       heading: t('files.notSaved', { name }),

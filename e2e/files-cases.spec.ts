@@ -178,19 +178,23 @@ test('FIL-9, FIL-11 the same file again selects its tab; in another project it i
     await act(page, { type: 'openFilePath', path: file })
     await expect(page.locator('.tab')).toHaveCount(1)
     await typeInto(page, 'edited in A')
-    await expect(page.locator('.tab .title')).toHaveText('notes.md •')
+    await expect(page.locator('.tab .title')).toHaveText('notes.md')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(1)
     await act(page, { type: 'switchProject', project: RESEARCH.id })
     await expect(page.locator('.tab')).toHaveCount(0)
     await act(page, { type: 'openFilePath', path: file })
-    await expect(page.locator('.tab .title')).toHaveText('notes.md •')
+    await expect(page.locator('.tab .title')).toHaveText('notes.md')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(1)
     await expect(visibleEditor(page)).toContainText('edited in A')
     await typeInto(page, ' and B')
     await act(page, { type: 'switchProject', project: 'cccccccccccc' })
-    await expect(page.locator('.tab .title')).toHaveText('notes.md •')
+    await expect(page.locator('.tab .title')).toHaveText('notes.md')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(1)
     await expect(visibleEditor(page)).toContainText('edited in A and B')
     await visibleEditor(page).click()
     await page.keyboard.press('Control+s')
     await expect(page.locator('.tab .title')).toHaveText('notes.md')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(0)
     await expect.poll(() => readFileSync(file, 'utf8')).toBe('# notes\nedited in A and B')
     await act(page, { type: 'switchProject', project: RESEARCH.id })
     await expect(page.locator('.tab .title')).toHaveText('notes.md')
@@ -319,7 +323,8 @@ test('FIL-19 a save the system refuses: "{name} was not saved" with Menkar’s s
     await expect(page.locator('[role="alertdialog"] .body')).toHaveText(
       'It could not be written; the edits are still in the tab.',
     )
-    await expect(page.locator('.tab .title')).toHaveText('notes.md •')
+    await expect(page.locator('.tab .title')).toHaveText('notes.md')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(1)
     chmodSync(dir, 0o755)
     chmodSync(file, 0o644)
   } finally {
@@ -400,7 +405,7 @@ async function previewOf(
   writeFileSync(file, text)
   extra(home)
   await act(page, { type: 'openFilePath', path: file })
-  await page.locator('.preview-row button').click()
+  await page.locator('.preview-row button:not(.save)').click()
   const frame = page.frameLocator('.tab-body:not(.hidden) iframe.preview-frame')
   return { file, frame }
 }
@@ -597,6 +602,119 @@ test('FIL-33, FIL-35 `menkar open` with two windows asks which; B takes both, Ca
     await expect(dialog(page).locator('.heading')).toHaveText('The file was not opened')
     await expect(dialog(page).locator('.body')).toContainText('The file looks binary, not text.')
     await expect(page.locator('.tab', { hasText: 'ok.md' })).toHaveCount(1)
+  } finally {
+    await launched.close()
+  }
+})
+
+const tabOf = (page: Page, name: string) => page.locator('.tab', { hasText: name })
+
+test('FIL-40 (decision 1.28) an editor tab with unsaved edits shows a dot in the ring’s slot, in every tab of that file in every window; saving clears it; a preview tab never has one', async () => {
+  const { launched, page, home } = await launch((dirs) =>
+    clientWork(dirs, { extraProjects: [RESEARCH] }),
+  )
+  try {
+    const file = join(home, 'notes.md')
+    writeFileSync(file, '# notes\n')
+    const opened = launched.app.waitForEvent('window')
+    await act(page, { type: 'newWindow' })
+    const other = await opened
+    await act(other, { type: 'openFilePath', path: file })
+    await act(page, { type: 'openFilePath', path: file })
+    await page.locator('.preview-row button', { hasText: 'Preview' }).click()
+    await expect(page.locator('.tab')).toHaveCount(2)
+    const editorTab = page.locator('.tab').first()
+    await editorTab.click()
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(0)
+    await expect(other.locator('.tab .unsaved-dot')).toHaveCount(0)
+
+    await typeInto(page, 'edited')
+    await expect(editorTab.locator('.unsaved-dot')).toHaveCount(1)
+    await expect(editorTab.locator('.title')).toHaveText('notes.md')
+    await expect(editorTab.locator('.unsaved-dot')).toHaveAttribute('title', 'Unsaved changes')
+    // Between the name and the ×, in the tab's own text color.
+    const order = await editorTab.evaluate((n) =>
+      [...n.children].map((c) => c.className.toString().split(' ')[0]),
+    )
+    expect(order.indexOf('unsaved-dot')).toBe(order.indexOf('title') + 1)
+    expect(order.indexOf('close')).toBe(order.indexOf('unsaved-dot') + 1)
+    const colors = await editorTab.evaluate((n) => [
+      getComputedStyle(n.querySelector('.unsaved-dot') as Element).backgroundColor,
+      getComputedStyle(n.querySelector('.title') as Element).color,
+    ])
+    expect(colors[0]).toBe(colors[1])
+    await expect(tabOf(page, 'Preview').locator('.unsaved-dot')).toHaveCount(0)
+    await expect(other.locator('.tab .unsaved-dot')).toHaveCount(1)
+
+    await visibleEditor(page).click()
+    await page.keyboard.press('Control+s')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(0)
+    await expect(other.locator('.tab .unsaved-dot')).toHaveCount(0)
+    await expect.poll(() => readFileSync(file, 'utf8')).toBe('# notes\nedited')
+
+    await typeInto(other, ' again')
+    await expect(editorTab.locator('.unsaved-dot')).toHaveCount(1)
+    await expect(other.locator('.tab .unsaved-dot')).toHaveCount(1)
+    await launched.app.evaluate(({ BrowserWindow }) => {
+      for (const w of BrowserWindow.getAllWindows()) w.destroy()
+    })
+  } finally {
+    await launched.close()
+  }
+})
+
+test('FIL-41 (decision 1.28) Save sits left of Preview (where Preview would be in a non-Markdown file): off while there is nothing to save, on after typing, and saves like Ctrl+S; off in a read-only tab, saying why', async () => {
+  const { launched, page, home } = await launch((dirs) => clientWork(dirs))
+  try {
+    const md = join(home, 'notes.md')
+    const txt = join(home, 'plain.txt')
+    writeFileSync(md, '# notes\n')
+    writeFileSync(txt, 'plain\n')
+    await act(page, { type: 'openFilePath', path: md })
+    const row = page.locator('.tab-body:not(.hidden) .preview-row')
+    await expect(row.locator('button')).toHaveText(['Save', 'Preview'])
+    const save = row.locator('button', { hasText: 'Save' })
+    await expect(save).toBeDisabled()
+    await expect(save).toHaveAttribute('title', 'No unsaved changes')
+    const preview = await row.locator('button', { hasText: 'Preview' }).evaluate((n) => {
+      const s = getComputedStyle(n)
+      return [n.className, s.fontSize, s.paddingTop, s.borderRadius]
+    })
+    expect(
+      await save.evaluate((n) => {
+        const s = getComputedStyle(n)
+        return [n.className.replace(' save', ''), s.fontSize, s.paddingTop, s.borderRadius]
+      }),
+    ).toEqual(preview)
+
+    await typeInto(page, 'more')
+    await expect(save).toBeEnabled()
+    await expect(save).toHaveAttribute('title', 'Save (Ctrl+S)')
+    await save.click()
+    await expect.poll(() => readFileSync(md, 'utf8')).toBe('# notes\nmore')
+    await expect(page.locator('.tab .unsaved-dot')).toHaveCount(0)
+    await expect(save).toBeDisabled()
+
+    await act(page, { type: 'openFilePath', path: txt })
+    const txtRow = page.locator('.tab-body:not(.hidden) .preview-row')
+    await expect(txtRow.locator('button')).toHaveText(['Save'])
+    const rowBox = await txtRow.boundingBox()
+    const saveBox = await txtRow.locator('button').boundingBox()
+    // At the row's right end, where Preview sits in a Markdown file.
+    expect(
+      (rowBox?.x ?? 0) + (rowBox?.width ?? 0) - ((saveBox?.x ?? 0) + (saveBox?.width ?? 0)),
+    ).toBe(8)
+
+    const agentFile = join(home, '.claude', 'CLAUDE.md')
+    mkdirSync(join(home, '.claude'), { recursive: true })
+    writeFileSync(agentFile, '# rules\n')
+    await act(page, { type: 'openFilePath', path: agentFile })
+    const roSave = page.locator('.tab-body:not(.hidden) .preview-row button', { hasText: 'Save' })
+    await expect(roSave).toBeDisabled()
+    await expect(roSave).toHaveAttribute(
+      'title',
+      'This file belongs to Claude Code: Menkar only reads it.',
+    )
   } finally {
     await launched.close()
   }

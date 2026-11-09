@@ -89,6 +89,18 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   fill the screen draws a 1 px edge around itself, since without a system frame nothing else ends
   it; maximized or full screen (`maximized` in the window's state) it has none.
 - Preferences, Usage, About and MCP keep the system's frame.
+- "Close all" in the content header is a text button (2026-11-09): its ✕ icon read as the window's
+  close. Being text among icons it has a resting fill and a 1 px edge, so it reads as a button; the
+  icon buttons stay flat. It still closes every tab with no question, and shows with two tabs or
+  more.
+- Every segmented control (Add session's Existing / New, Usage's rows, Preferences' pages) shares
+  one style (2026-11-09): a bordered group with a line between segments; the unchosen segments a
+  translucent step off the page with dimmed text, the chosen one in the accent, bold. Text on the
+  accent is the theme's background or its text, whichever has more contrast with the accent (a
+  dark accent such as Tango's purple takes the light text).
+- Buttons, text fields and segmented groups round their corners even in Terminal workspace
+  (`--control-radius`, 4 px there, Classic's own 6 px; 2026-11-09); a group rounds only its
+  outline. Tabs, rows, the terminal frame and the dialog's response row keep the style's corners.
 - A right click on a terminal opens its menu (decision 1.20, 2026-11-09): Copy (off with no
   selection), Paste, Select all, Find…, each with its keys; it opens on `contextmenu`, after xterm
   handled the press, so the selection stays. Paste is the user's own action, as `Ctrl+Shift+V` is.

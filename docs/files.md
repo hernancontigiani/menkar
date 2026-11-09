@@ -50,6 +50,15 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
 - **Links** are handled by the parent window, since the frame runs no script: `http(s)` opens the
   system browser (`shell.openExternal`), a `.md` file opens in a tab, everything else does
   nothing. It re-renders 300 ms after the last change and keeps its scroll.
+- **Unsaved edits** (decision 1.28, 2026-11-09): an editor tab whose buffer carries the unsaved
+  mark shows a dot, in its text color, in the slot where a terminal tab has its context ring. The
+  tab view carries the mark from main, so every tab of the file in every window shows and clears
+  it together. The mark is the buffer's: the text differs from the disk's (or the file was
+  deleted), so editing back to the saved text by hand clears it.
+  A preview tab has none.
+- **Save** sits left of Preview (alone at the row's end in a file with no preview), for whoever
+  does not know `Ctrl+S`, and does the same: the same refusals and messages. It is off, with a
+  tooltip saying why, while there is nothing to save and in a read-only tab.
 
 ## `menkar open`
 

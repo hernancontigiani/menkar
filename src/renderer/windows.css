@@ -9,11 +9,13 @@
   --on-accent: #1e1e2e;
   --ui-font: monospace;
   --radius: 0;
+  --control-radius: 4px;
 }
 
 html.classic {
   --ui-font: sans-serif;
   --radius: 12px;
+  --control-radius: 6px;
 }
 
 html,
@@ -37,7 +39,7 @@ select,
 input[type="number"] {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
   border: none;
-  border-radius: calc(var(--radius) / 2);
+  border-radius: var(--control-radius);
   padding: 6px 12px;
   cursor: default;
 }
@@ -61,14 +63,6 @@ button.suggested {
   justify-content: center;
   gap: 0;
   padding: 8px;
-}
-
-.page-switch button {
-  border-radius: 0;
-}
-
-.page-switch button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--fg) 30%, transparent);
 }
 
 .page {

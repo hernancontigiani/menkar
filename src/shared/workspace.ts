@@ -28,8 +28,9 @@ export interface TabView {
   readonly groupColor: string | null
   // A replay tab's turns (read once, whole).
   readonly replay?: readonly Turn[]
-  // A file tab's resolved path, and whether it is the Markdown preview.
-  readonly file?: { readonly path: string; readonly preview: boolean }
+  // A file tab's resolved path, whether it is the Markdown preview, and whether an editor tab's
+  // buffer has unsaved edits.
+  readonly file?: { readonly path: string; readonly preview: boolean; readonly unsaved: boolean }
   // A chat tab's chat id (plan 14): never saved, never a member, no confirmation.
   readonly chat?: string
 }

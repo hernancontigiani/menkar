@@ -68,7 +68,7 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
       'div',
       { class: 'add-head' },
       el('div', { class: 'heading' }, t('add.title', { name: project?.name ?? '' })),
-      el('div', { class: 'switcher' }, existingButton, newButton),
+      el('div', { class: 'switcher segmented' }, existingButton, newButton),
       closeButton,
     ),
     body,
@@ -453,6 +453,8 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
     current = which
     existingButton.classList.toggle('selected', which === 'existing')
     newButton.classList.toggle('selected', which === 'new')
+    existingButton.setAttribute('aria-pressed', String(which === 'existing'))
+    newButton.setAttribute('aria-pressed', String(which === 'new'))
     if (which === 'existing') {
       body.replaceChildren(existingPage)
       drawExisting(true)

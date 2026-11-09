@@ -188,9 +188,7 @@ function tabView(tab: Tab): TabView {
   if (tab.kind === 'file') {
     // A rename lasts while the tab does; it is not saved.
     const name = label?.title ?? basename(tab.path)
-    title = tab.preview
-      ? t('files.previewTitle', { name })
-      : `${name}${isDirty(tab.path) ? ' •' : ''}`
+    title = tab.preview ? t('files.previewTitle', { name }) : name
     tooltip = tab.path
   }
   if (tab.kind === 'session') {
@@ -221,7 +219,15 @@ function tabView(tab: Tab): TabView {
     orientation,
     groupColor,
     ...(tabReplays.has(tab.id) ? { replay: tabReplays.get(tab.id) ?? [] } : {}),
-    ...(tab.kind === 'file' ? { file: { path: tab.path, preview: tab.preview } } : {}),
+    ...(tab.kind === 'file'
+      ? {
+          file: {
+            path: tab.path,
+            preview: tab.preview,
+            unsaved: !tab.preview && isDirty(tab.path),
+          },
+        }
+      : {}),
     ...(tabChats.has(tab.id) ? { chat: tabChats.get(tab.id) ?? '' } : {}),
   }
 }

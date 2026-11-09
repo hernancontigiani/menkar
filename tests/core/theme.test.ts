@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { resolveLook, THEME_NAMES } from '../../src/core/theme'
+import { contrast, onAccent, resolveLook, THEME_NAMES } from '../../src/core/theme'
 
 // The resolved chrome roles of look.md, per theme: bg, fg, mantle, surface0, surface1, overlay0,
 // subtext0, accent, green, yellow, red.
@@ -266,4 +266,34 @@ describe('themes', () => {
     ).terminal
     expect([t?.bg, t?.fg, t?.ansi[1]]).toEqual(['#1e1e2e', '#cdd6f4', '#f38ba8'])
   })
+})
+
+test('the text on the accent reads on it (3:1 or better) in every theme, style and scheme', () => {
+  for (const name of THEME_NAMES) {
+    for (const ui_style of ['tui', 'classic']) {
+      for (const dark of [true, false]) {
+        const look = resolveLook(
+          { ui_style, terminal_theme: name, color_scheme: dark ? 'dark' : 'light' },
+          dark,
+        )
+        expect(
+          contrast(onAccent(look), look.roles.accent),
+          `${name} ${ui_style} ${dark}`,
+        ).toBeGreaterThanOrEqual(3)
+      }
+    }
+  }
+})
+
+test('the text on the accent is the theme’s background when that reads better, its text otherwise', () => {
+  const mocha = resolveLook(
+    { ui_style: 'tui', terminal_theme: 'Catppuccin Mocha', color_scheme: 'dark' },
+    true,
+  )
+  expect(onAccent(mocha)).toBe(mocha.roles.bg)
+  const tango = resolveLook(
+    { ui_style: 'tui', terminal_theme: 'Tango Dark', color_scheme: 'dark' },
+    true,
+  )
+  expect(onAccent(tango)).toBe(tango.roles.fg)
 })

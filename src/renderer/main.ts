@@ -1,5 +1,6 @@
 import '@xterm/xterm/css/xterm.css'
 import './style.css'
+import './segmented.css'
 import { openAddSession } from './addsession'
 import {
   act,

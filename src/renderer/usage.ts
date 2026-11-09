@@ -1,5 +1,6 @@
 import './windows.css'
 import './usage.css'
+import './segmented.css'
 import { now } from '../core/clock'
 import { latestOnly } from '../core/latest'
 import { resolveLook } from '../core/theme'
@@ -106,7 +107,7 @@ function toggles<T extends string>(
   current: T,
   choose: (value: T) => void,
 ): HTMLElement {
-  const group = el('div', { class: 'linked', 'data-toggles': name })
+  const group = el('div', { class: 'linked segmented', 'data-toggles': name })
   for (const [value, text] of options) {
     const button = el(
       'button',

@@ -1,5 +1,5 @@
 import type { Settings } from '../core/settings'
-import { type Look, resolveLook } from '../core/theme'
+import { type Look, onAccent, resolveLook } from '../core/theme'
 
 const dark = window.matchMedia('(prefers-color-scheme: dark)')
 let current: Settings | undefined
@@ -25,7 +25,7 @@ export function applyLook(settings: Settings, onChange?: (look: Look) => void): 
     '--overlay0': r.overlay0,
     '--subtext0': r.subtext0,
     '--accent': r.accent,
-    '--on-accent': look.style === 'tui' ? r.bg : '#ffffff',
+    '--on-accent': onAccent(look),
     '--green': r.green,
     '--yellow': r.yellow,
     '--red': r.red,

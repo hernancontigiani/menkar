@@ -17,7 +17,7 @@ import {
 } from '@codemirror/view'
 import type { Key } from '../core/i18n'
 import type { FileUpdate, TabView } from '../shared/workspace'
-import { act } from './app'
+import { act, saveFile } from './app'
 import { el } from './dom'
 import { t, translate } from './i18n'
 import { renderPreview } from './preview'
@@ -33,6 +33,7 @@ interface EditorTab {
   view: EditorView | null
   readonly preview: boolean
   readonly theme: Compartment
+  readonly save: HTMLButtonElement
 }
 
 const editors = new Map<string, EditorTab>()
@@ -93,6 +94,16 @@ function bar(text: string, buttons: HTMLElement[] = [], kind = 'info'): HTMLElem
     el('span', { class: 'bar-text' }, text),
     ...buttons,
   )
+}
+
+// Save is there for whoever does not know Ctrl+S; off, saying why, when there is nothing to save.
+function drawSave(e: EditorTab, state: { readOnly: Key | null; dirty: boolean }): void {
+  e.save.disabled = state.readOnly !== null || !state.dirty
+  e.save.title = state.readOnly
+    ? translate(state.readOnly)
+    : state.dirty
+      ? t('files.saveTooltip')
+      : t('files.saveClean')
 }
 
 async function drawBars(
@@ -162,7 +173,9 @@ export function fileElement(tab: TabView): HTMLElement {
     view: null,
     preview,
     theme: new Compartment(),
+    save: el('button', { class: 'flat save', disabled: '' }, t('files.save')),
   }
+  e.save.addEventListener('click', () => void saveFile(path))
   editors.set(tab.id, e)
   void act({ type: 'fileState', path }).then(({ file }) => {
     if (!file) return
@@ -172,6 +185,8 @@ export function fileElement(tab: TabView): HTMLElement {
       root.append(renderPreview(tab.id, path, file.text, dark))
       return
     }
+    drawSave(e, file)
+    const row = el('div', { class: 'preview-row' }, e.save)
     if (isMarkdown(path)) {
       const button = el(
         'button',
@@ -179,8 +194,9 @@ export function fileElement(tab: TabView): HTMLElement {
         t('files.preview'),
       )
       button.addEventListener('click', () => void act({ type: 'togglePreview', tab: tab.id }))
-      root.append(el('div', { class: 'preview-row' }, button))
+      row.append(button)
     }
+    root.append(row)
     const host = el('div', { class: 'editor-host' })
     root.append(host)
     e.view = makeView(e, file.text, file.readOnly !== null, host)
@@ -193,6 +209,7 @@ window.menkar.files.onUpdate((update: FileUpdate) => {
   for (const e of editors.values()) {
     if (e.path !== update.path) continue
     void drawBars(e, update)
+    drawSave(e, update)
     if (e.preview) {
       renderPreview(e.tab, e.path, update.text, dark)
       continue

@@ -480,3 +480,51 @@ test('LOOK-64 (2026-11-09) a window that does not fill the screen shows a hairli
     await launched.close()
   }
 })
+
+test('LOOK-66 (2026-11-09) Close all is a text button in the header’s button style, clear of the title, and closes every tab with no question; in Spanish it reads Cerrar todo', async () => {
+  for (const [language, label] of [
+    ['en', 'Close all'],
+    ['es', 'Cerrar todo'],
+  ] as const) {
+    const launched = await client({ language }, [['login'], ['api']])
+    const page = launched.window
+    try {
+      const button = page.locator('#close-all')
+      await expect(button).toBeVisible()
+      await expect(button).toHaveText(label)
+      await expect(button.locator('svg')).toHaveCount(0)
+      expect(await button.getAttribute('title')).toBeTruthy()
+      const look = (selector: string) =>
+        page.locator(selector).evaluate((n) => {
+          const s = getComputedStyle(n)
+          return [s.fontSize, s.paddingTop, s.paddingBottom, s.borderRadius]
+        })
+      expect(await look('#close-all')).toEqual(await look('#new-session'))
+      // At rest it is a button, not a word: its fill stands off the header.
+      const { header } = await drawnColors(page)
+      const resting = await button.evaluate((n, under) => {
+        const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+        if (!ctx) return ''
+        ctx.fillStyle = under
+        ctx.fillRect(0, 0, 1, 1)
+        ctx.fillStyle = getComputedStyle(n).backgroundColor
+        ctx.fillRect(0, 0, 1, 1)
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+        return `#${[r, g, b].map((v) => (v ?? 0).toString(16).padStart(2, '0')).join('')}`
+      }, header)
+      expect(apart(resting, header), `${resting} on ${header}`).toBeGreaterThanOrEqual(8)
+      const box = await button.boundingBox()
+      const newBox = await page.locator('#new-session').boundingBox()
+      const title = await page.locator('.content-header .title').boundingBox()
+      expect(box?.height).toBe(newBox?.height)
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThan(title?.x ?? 0)
+      if (language === 'en') {
+        await button.click()
+        await expect(page.locator('.tab')).toHaveCount(0)
+        await expect(page.locator('.dialog')).toHaveCount(0)
+      }
+    } finally {
+      await launched.close()
+    }
+  }
+})
