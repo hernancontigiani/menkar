@@ -933,3 +933,117 @@ test('PRJ-56 the sidebar width is saved 600 ms after a drag and a new window tak
     await launched.close()
   }
 })
+
+// ---------------------------------------------------------------- reordering tabs (decision 1.23)
+
+const order = (page: Page) => page.locator('.tab .title').allTextContents()
+
+async function dragTab(page: Page, from: number, to: number, side: 'before' | 'after') {
+  // The strip is rebuilt on each state the window gets: a box read while a tab is replaced is null.
+  const boxOf = async (n: number) => {
+    let found: { x: number; y: number; width: number; height: number } | null = null
+    await expect
+      .poll(async () => {
+        found = await page.locator('.tab').nth(n).boundingBox()
+        return found !== null
+      })
+      .toBe(true)
+    if (!found) throw new Error('no tab')
+    return found as { x: number; y: number; width: number; height: number }
+  }
+  const a = await boxOf(from)
+  const b = await boxOf(to)
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+  await page.mouse.down()
+  const x = side === 'before' ? b.x + 4 : b.x + b.width - 4
+  await page.mouse.move(x, b.y + b.height / 2, { steps: 10 })
+  await expect(page.locator('#tab-strip .tab-marker')).toBeVisible()
+  await page.mouse.up()
+}
+
+test('PRJ-58 (decision 1.23) dragging a tab past another moves it there, with a marker while dragging; a click without movement only selects; dropped outside the strip nothing moves', async () => {
+  const { launched, page } = await client({ tabs: [['login'], ['api'], ['long']] })
+  try {
+    await expect(page.locator('.tab')).toHaveCount(3)
+    await expect
+      .poll(() =>
+        launched.app.evaluate(
+          ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false,
+        ),
+      )
+      .toBe(true)
+    const start = await order(page)
+    await dragTab(page, 0, 2, 'after')
+    await expect.poll(() => order(page)).toEqual([start[1], start[2], start[0]])
+    await expect(page.locator('#tab-strip .tab-marker')).toHaveCount(0)
+
+    const a = await page.locator('.tab').nth(1).boundingBox()
+    await page.mouse.move((a?.x ?? 0) + 10, (a?.y ?? 0) + 8)
+    await page.mouse.down()
+    await page.mouse.move((a?.x ?? 0) + 12, (a?.y ?? 0) + 8)
+    await page.mouse.up()
+    await expect(page.locator('.tab').nth(1)).toHaveClass(/selected/)
+    expect(await order(page)).toEqual([start[1], start[2], start[0]])
+
+    const c = await page.locator('.tab').nth(0).boundingBox()
+    await page.mouse.move((c?.x ?? 0) + 10, (c?.y ?? 0) + 8)
+    await page.mouse.down()
+    await page.mouse.move((c?.x ?? 0) + 200, (c?.y ?? 0) + 400, { steps: 10 })
+    await page.mouse.up()
+    expect(await order(page)).toEqual([start[1], start[2], start[0]])
+    await expect(page.locator('#tab-strip .tab-marker')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('PRJ-59 (decision 1.23) the order the user made survives a restart', async () => {
+  let root = ''
+  let launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return clientWork(dirs, { tabs: [['login'], ['api'], ['long']] })
+    },
+  })
+  try {
+    const page = launched.window
+    await expect(page.locator('.tab')).toHaveCount(3)
+    await expect
+      .poll(() =>
+        launched.app.evaluate(
+          ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false,
+        ),
+      )
+      .toBe(true)
+    const [a, b, c] = await order(page)
+    await dragTab(page, 2, 1, 'before')
+    await expect.poll(() => order(page)).toEqual([a, c, b])
+    await expect
+      .poll(() =>
+        JSON.parse(
+          readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8'),
+        ).windows[0].tabs.cccccccccccc.map((t: { panes: string[] }) => t.panes[0]),
+      )
+      .toEqual([CLIENT.login, CLIENT.long, CLIENT.api])
+    // Running agents make closing ask; Stop and close keeps the layout as it is saved.
+    await launched.app.evaluate(({ app, BrowserWindow }) => {
+      app.removeAllListeners('window-all-closed')
+      BrowserWindow.getAllWindows()[0]?.close()
+    })
+    await page.locator('.dialog button', { hasText: 'Stop and close' }).click()
+    await expect.poll(() => launched.app.windows().length).toBe(0)
+    await launched.app.close()
+    launched = await launchApp({
+      prepare: (dirs) => {
+        const env = clientWork(dirs)
+        cpSync(join(root, 'config'), join(dirs.root, 'config'), { recursive: true })
+        return env
+      },
+    })
+    await expect(launched.window.locator('.tab')).toHaveCount(3)
+    expect(await order(launched.window)).toEqual([a, c, b])
+  } finally {
+    await launched.close()
+    rmSync(root, { recursive: true, force: true })
+  }
+})

@@ -5,11 +5,14 @@ are shaped this way.
 
 ## The shape
 
-- **Each is a child window of the main window that asked** (`src/main/windows.ts`):
-  `openPreferences(parent, page?)` and `openAbout(parent)` are modal over it, as the spec's dialogs
-  are; `openUsage(parent)` is not, and there is one per main window. b1's ⚙ menu, `Ctrl+,` and
-  `Ctrl+B s` call them through the workspace's `openPreferences`, `openUsage` and `openAbout`
-  actions.
+- **Preferences and About are child windows of the main window that asked**
+  (`src/main/windows.ts`): `openPreferences(parent, page?)` and `openAbout(parent)` are modal over
+  it, as the spec's dialogs are. **Usage is a window of its own** (decision 1.24, 2026-11-09):
+  `openUsage(opener)` gives it no parent, since GNOME's mutter keeps a child window attached to its
+  parent and the parent then takes no clicks while it is open. There is still one per main window,
+  scoped to that window's project (decision 1.15); closing the opener leaves Usage open and reloads
+  it, now showing every project. b1's ⚙ menu, `Ctrl+,` and `Ctrl+B s` call them through the
+  workspace's `openPreferences`, `openUsage` and `openAbout` actions.
 - **Each has its own page** (`src/renderer/{preferences,about,usage}.html`, their own entries in
   `electron.vite.config.ts`) and imports the main window's `look.ts`, `dom.ts` and `i18n.ts`
   read-only. Its CSS is its own (`windows.css`, `usage.css`), so it shares no file with the main
@@ -37,7 +40,7 @@ are shaped this way.
 
 ## Why
 
-- **Child windows, not dialogs inside the main window**: a page of their own keeps Preferences,
+- **Windows of their own, not dialogs inside the main window**: a page of their own keeps Preferences,
   About and Usage out of the main window's renderer, which another session builds, and gives the
   Usage window the size and life of its own the spec asks for.
 - **The Font row lists the installed monospace families (`fc-list`) with a size**: Electron has no

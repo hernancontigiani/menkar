@@ -6,6 +6,7 @@ import {
   removeStatusline,
   statuslineInstalled,
 } from '../core/context/integrations'
+import { thresholdsOf } from '../core/context/levels'
 import { log } from '../core/log'
 import { LANGUAGE_NAMES, monospaceFamilies, validSetting } from '../core/preferences'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
@@ -88,6 +89,14 @@ export function registerPreferencesIpc(): void {
   handle('settings:set', async ({ key, value }) => {
     const valid = validSetting(key, value)
     if (valid === null) return currentSettings()
+    if (key === 'ring_warn' || key === 'ring_full') {
+      // The two edges are one setting: a value that breaks the pair is not saved.
+      const now = await currentSettings()
+      const warn = key === 'ring_warn' ? valid : now.ring_warn
+      const full = key === 'ring_full' ? valid : now.ring_full
+      const kept = thresholdsOf(warn, full)
+      if (kept.warn !== warn || kept.full !== full) return now
+    }
     await sessions.updateState((state) => withSetting(state, key, valid))
     const settings = await currentSettings()
     announce(settings)

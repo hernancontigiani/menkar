@@ -370,3 +370,16 @@ without trying the change again:
 
 agent-tablet's `docs/context.md` says the switch "says why" a removal was refused; the code shows a
 toast instead, as above.
+
+## The context ring (F35)
+
+> Replaced 2026-11-09 by decision 1.22: red from 90 instead of 80, and both edges a setting.
+- **Level and color**, from the percentage: below 60 → green ("ok"); 60 up to below 80 → yellow
+  ("warn"); 80 and above → red ("full"). The thresholds are inclusive at 60 and 80.
+
+## The context ring — where
+
+> Replaced on 2026-11-09: a stopped session's row shows no ring (decision 1.21, the human), and the tab's ring sits after its title (LOOK-54).
+- **Where.** One ring in each session row of the project list (between the name/folder text and the
+  row's ⋯ button), and one on each tab of the tab strip (after the group color swatch and the state
+  dot, before the title). History rows (Add session → Existing) have none.

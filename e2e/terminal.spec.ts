@@ -603,3 +603,113 @@ test('TRM-52 a new session not yet joined, running at window close, is listed as
     await launched.close()
   }
 })
+
+const menuItems = (page: Page) =>
+  page
+    .locator('.popover .menu-item')
+    .evaluateAll((ns) =>
+      ns.map(
+        (n) => `${n.textContent?.trim()}${(n as HTMLButtonElement).disabled ? ' (disabled)' : ''}`,
+      ),
+    )
+const hasSelection = (page: Page) =>
+  page
+    .locator('.tab-body:not(.hidden) .xterm-selection div')
+    .count()
+    .then((n) => n > 0)
+
+test('TRM-57 (decision 1.20) a right click on a terminal: Copy (disabled with no selection), Paste, Select all, Find…, each with its keys; the selection survives; Esc and a click outside close it', async () => {
+  const { launched, page } = await shell()
+  try {
+    await page.locator('.xterm').click({ button: 'right', position: { x: 300, y: 200 } })
+    expect(await menuItems(page)).toEqual([
+      'CopyCtrl+Shift+C (disabled)',
+      'PasteCtrl+Shift+V',
+      'Select all',
+      'Find…Ctrl+Shift+G',
+    ])
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.popover')).toHaveCount(0)
+
+    await run(page, 'echo copy-by-menu', 'copy-by-menu\n')
+    const word = page.locator('.xterm-rows span', { hasText: /^copy-by-menu$/ }).last()
+    const at = await word.boundingBox()
+    if (!at) throw new Error('no word')
+    await page.mouse.dblclick(at.x + at.width / 2, at.y + at.height / 2)
+    expect(await hasSelection(page)).toBe(true)
+    await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2, { button: 'right' })
+    await expect(page.locator('.popover')).toBeVisible()
+    expect(await hasSelection(page)).toBe(true)
+    expect((await menuItems(page))[0]).toBe('CopyCtrl+Shift+C')
+    await page.locator('.popover .menu-item', { hasText: 'Copy' }).click()
+    await expect.poll(() => clipboardText(launched)).toBe('copy-by-menu')
+
+    await page.mouse.click(at.x, at.y, { button: 'right' })
+    await expect(page.locator('.popover')).toBeVisible()
+    await page.locator('#session-list').click()
+    await expect(page.locator('.popover')).toHaveCount(0)
+
+    await launched.app.evaluate(({ clipboard }) => clipboard.writeText('echo pasted-by-$((2+3))'))
+    await page.locator('.xterm').click({ button: 'right', position: { x: 300, y: 300 } })
+    await page.locator('.popover .menu-item', { hasText: 'Paste' }).click()
+    await expect.poll(() => terminalText(page)).toContain('echo pasted-by-$((2+3))')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toContain('pasted-by-5')
+
+    await page.locator('.xterm').click({ button: 'right', position: { x: 300, y: 300 } })
+    await page.locator('.popover .menu-item', { hasText: 'Select all' }).click()
+    await page.keyboard.press('Control+Shift+C')
+    await expect.poll(() => clipboardText(launched)).toContain('pasted-by-5')
+    await page.locator('.xterm').click({ button: 'right', position: { x: 300, y: 300 } })
+    await page.locator('.popover .menu-item', { hasText: 'Find…' }).click()
+    await expect(page.locator('.find-bar input')).toBeFocused()
+  } finally {
+    await launched.close()
+  }
+})
+
+test('TRM-57 (decision 1.20) the terminal menu is on an agent’s pane too', async () => {
+  const { launched, page } = await started({ tabs: [['login']] })
+  try {
+    await expect.poll(() => terminalText(page)).toContain('stand-in claude ready')
+    await page.locator('.xterm').click({ button: 'right', position: { x: 300, y: 200 } })
+    expect(await menuItems(page)).toHaveLength(4)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('the window is told when an agent reaches the foreground, without waiting for another change', async () => {
+  // A shell slow to start, as with a real ~/.bashrc: the tab's own push goes out before the agent
+  // runs.
+  const { launched, page } = await started({}, {}, (home) =>
+    writeFileSync(join(home, '.bashrc'), 'sleep 2\n'),
+  )
+  try {
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    await page.evaluate(() => {
+      const g = globalThis as unknown as { pushed: string[] }
+      g.pushed = []
+      ;(
+        globalThis as unknown as {
+          menkar: { window: { onState(l: (s: { running: string[] }) => void): void } }
+        }
+      ).menkar.window.onState((s) => {
+        g.pushed = s.running
+      })
+    })
+    await act(page, { type: 'openSession', session: CLIENT.login })
+    await expect
+      .poll(async () => (await windowState(page)).running, { intervals: [100] })
+      .toEqual([CLIENT.login])
+    // Soon after, not at whatever change comes next.
+    await expect
+      .poll(() => page.evaluate(() => (globalThis as unknown as { pushed: string[] }).pushed), {
+        timeout: 1500,
+        intervals: [100],
+      })
+      .toEqual([CLIENT.login])
+  } finally {
+    await launched.close()
+  }
+})

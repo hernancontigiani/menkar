@@ -260,6 +260,29 @@ export function closeTab(layout: Layout, windowId: string, tabId: string): Layou
   return put(layout, withoutTab(windowOf(layout, windowId), tabId))
 }
 
+// A tab dragged within its strip: put before `before`, or last among its project's tabs when null.
+// Only within one project of one window; anything else leaves the layout as it was.
+export function moveTab(
+  layout: Layout,
+  windowId: string,
+  tabId: string,
+  before: string | null,
+): Layout {
+  const w = windowOf(layout, windowId)
+  const moving = w.tabs.find((t) => t.id === tabId)
+  if (!moving || before === tabId) return layout
+  const rest = w.tabs.filter((t) => t.id !== tabId)
+  let at: number
+  if (before === null) {
+    const last = rest.map((t) => t.project).lastIndexOf(moving.project)
+    at = last + 1
+  } else {
+    at = rest.findIndex((t) => t.id === before)
+    if (at < 0 || rest[at]?.project !== moving.project) return layout
+  }
+  return put(layout, { ...w, tabs: [...rest.slice(0, at), moving, ...rest.slice(at)] })
+}
+
 // Next (1) or previous (-1) among the shown project's tabs, wrapping; null with fewer than two.
 export function stepTab(w: LayoutWindow, direction: 1 | -1): string | null {
   const tabs = shownTabs(w)

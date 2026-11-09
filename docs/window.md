@@ -84,6 +84,16 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   after the system's own, so a desktop that also maximizes on a caption double click does not
   undo it.
 - Preferences, Usage, About and MCP keep the system's frame.
+- A right click on a terminal opens its menu (decision 1.20, 2026-11-09): Copy (off with no
+  selection), Paste, Select all, Find…, each with its keys; it opens on `contextmenu`, after xterm
+  handled the press, so the selection stays. Paste is the user's own action, as `Ctrl+Shift+V` is.
+  Esc closes any open menu and goes no further.
+- A session row shows its context ring only while its agent runs (decision 1.21, 2026-11-09): a
+  stopped session's estimate is too often wrong. The windows hear of an agent reaching or leaving
+  the foreground from a short poll of the panes in main, since nothing else marks that moment.
+- Tabs reorder by dragging within their strip (decision 1.23, 2026-11-09): past a few pixels a
+  press becomes a drag with a marker in the gap it would drop into; let go outside the strip and
+  nothing moves; no tab leaves its window. The order is the layout's, saved like the rest.
 - Under `xvfb-run` there is no window manager: maximize, minimize, edge resize and snapping are the
   human's check on a real desktop.
 

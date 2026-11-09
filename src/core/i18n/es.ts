@@ -286,6 +286,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'replay.chooserTitle': 'Abrir la transcripción de una sesión',
   'replay.notOpened': 'No se pudo abrir la transcripción',
   'replay.unreadable': 'El archivo no se pudo leer como la transcripción de una sesión.',
+  'terminal.copy': 'Copiar',
+  'terminal.paste': 'Pegar',
+  'terminal.selectAll': 'Seleccionar todo',
+  'terminal.find': 'Buscar…',
   'find.next': 'Coincidencia siguiente',
   'usage.noProject': '(sin proyecto)',
   'usage.unclassified': 'Sin clasificar',
@@ -364,13 +368,19 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'prefs.languageRestart': 'Reiniciar para aplicar',
   'prefs.restartNow': 'Reiniciar ahora',
   'prefs.systemDefault': 'Predeterminado del sistema',
+  'prefs.ring': 'Anillo de contexto',
+  'prefs.ringWarn': 'Amarillo desde (%)',
+  'prefs.ringFull': 'Rojo desde (%)',
+  'prefs.ringGreen': 'Verde por debajo del amarillo',
+  'prefs.ringInvalid':
+    'El amarillo debe ser menor que el rojo, ambos enteros de 1 a 100. Se mantienen los valores anteriores.',
   'prefs.notifications': 'Notificaciones',
-  'prefs.notifyIdle': 'Avisar de agentes en segundo plano',
+  'prefs.notifyIdle': 'Avisar de sesiones que no estás mirando',
   'prefs.notifyIdleSubtitle':
-    'Un aviso cuando un agente que no estás mirando termina o necesita tu respuesta',
+    'Cuando una sesión en otra pestaña o ventana termina o necesita tu respuesta',
   'prefs.notifySound': 'Reproducir un sonido',
   'prefs.notifySoundSubtitle':
-    'Cuando un agente que no estás mirando termina o necesita tu respuesta',
+    'Cuando una sesión en otra pestaña o ventana termina o necesita tu respuesta',
   'prefs.start': 'Inicio',
   'prefs.reopenTabs': 'Reabrir las pestañas al iniciar',
   'prefs.reopenTabsSubtitle':

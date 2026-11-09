@@ -12,13 +12,13 @@ const reading = (
 })
 
 describe('the context ring', () => {
-  it('LOOK-18 green below 60 %, yellow from 60 to 79, red from 80; full at 100 and above', () => {
+  it('LOOK-18 green below 60 %, yellow from 60 to 89, red from 90 (decision 1.22); full at 100 and above', () => {
     expect(RING_COLORS).toEqual({
       ok: 'rgb(102,191,115)',
       warn: 'rgb(242,191,64)',
       full: 'rgb(235,84,84)',
     })
-    expect([59, 60, 79, 80, 100, 130].map((p) => ringOf(reading(p)).color)).toEqual([
+    expect([59, 60, 89, 90, 100, 130].map((p) => ringOf(reading(p)).color)).toEqual([
       RING_COLORS.ok,
       RING_COLORS.warn,
       RING_COLORS.warn,
@@ -27,6 +27,13 @@ describe('the context ring', () => {
       RING_COLORS.full,
     ])
     expect(ringOf(reading(100)).fraction).toBe(1)
+    const custom = { warn: 30, full: 50 }
+    expect([29, 30, 49, 50].map((p) => ringOf(reading(p), custom).color)).toEqual([
+      RING_COLORS.ok,
+      RING_COLORS.warn,
+      RING_COLORS.warn,
+      RING_COLORS.full,
+    ])
     expect(ringOf(reading(130)).fraction).toBe(1)
   })
 

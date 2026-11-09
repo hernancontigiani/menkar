@@ -2,9 +2,10 @@ import { join } from 'node:path'
 import { BrowserWindow, type WebContents } from 'electron'
 import { t } from '../core/i18n'
 
-// Preferences, About and the Usage window: each a child window of the main window that asked, with
-// its own page. Preferences and About are modal over it, as dialogs are; Usage is not, and there is
-// one per main window.
+// Preferences, About and the MCP browser: dialogs, modal over the main window that asked. Usage is
+// a window of its own (decision 1.24): no parent, since a desktop like GNOME keeps a child window
+// attached to its parent and the parent then takes no clicks while it is open. There is one Usage
+// per main window, scoped to that window's project while the window exists.
 
 type Page = 'preferences' | 'about' | 'usage' | 'mcp'
 
@@ -12,11 +13,11 @@ const usageWindows = new Map<number, BrowserWindow>()
 
 function open(
   page: Page,
-  parent: BrowserWindow,
+  parent: BrowserWindow | null,
   options: { width: number; height: number; modal: boolean; title: string; query?: string },
 ): BrowserWindow {
   const window = new BrowserWindow({
-    parent,
+    ...(parent ? { parent } : {}),
     modal: options.modal,
     width: options.width,
     height: options.height,
@@ -69,24 +70,30 @@ export function usageOpener(contents: WebContents): BrowserWindow | null {
   return null
 }
 
-// One Usage window per main window: asking again brings it forward.
-export function openUsage(parent: BrowserWindow): void {
-  const existing = usageWindows.get(parent.id)
+// One Usage window per main window: asking again brings it forward. Closing the opener leaves it
+// open; it reloads, and with no opener left it shows every project.
+export function openUsage(opener: BrowserWindow): void {
+  const existing = usageWindows.get(opener.id)
   if (existing && !existing.isDestroyed()) {
     existing.show()
     existing.focus()
     return
   }
-  const window = open('usage', parent, {
+  const window = open('usage', null, {
     width: 760,
     height: 600,
     modal: false,
     title: t('usage.title'),
   })
-  const parentId = parent.id
-  usageWindows.set(parentId, window)
+  const openerId = opener.id
+  usageWindows.set(openerId, window)
+  const rescope = () => {
+    if (!window.isDestroyed()) window.webContents.reload()
+  }
+  opener.once('closed', rescope)
   window.on('closed', () => {
-    if (usageWindows.get(parentId) === window) usageWindows.delete(parentId)
+    if (usageWindows.get(openerId) === window) usageWindows.delete(openerId)
+    if (!opener.isDestroyed()) opener.removeListener('closed', rescope)
   })
 }
 

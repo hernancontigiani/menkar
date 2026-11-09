@@ -15,6 +15,9 @@ built.
   - `shown.ts` turns raw states into shown ones (done and seen), and holds the roll-up and the
     blocked counts.
   - `notify.ts` decides what a notification does: sound, toast or desktop notice.
+  - `tray.ts` keeps one desktop notification per session. A newer one replaces it, and it is
+    closed as soon as its pane is seen or closed, and on quit: the dock shows the count of
+    notifications still in the tray, and the human saw it stay at 3 after opening every tab.
 - **`src/main/agentstate.ts`** follows every agent pane that b1's `src/main/panes.ts` registers.
   Shell splits are never registered, so they have no state. It sends every window `agentState:changed`
   (every pane's shown state and every project's blocked count) and `agentState:toast`. It shows

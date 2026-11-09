@@ -161,3 +161,17 @@
 | 4 | The features, designed by `set` from `docs/spec/` once plans 01 and 02 are delivered: the window, tabs and terminals; projects and windows; agent state, notifications, switcher and keys; preferences, themes, i18n; context ring, statusline and integrations; the Usage window; the classifier; file tabs; remote control; packaging for Ubuntu | Not designed yet |
 
 > Removed 2026-11-08: every feature it listed is built (plans 03–17).
+
+| 11 | `18-remote-control-live-icon.md` (the phone icon from the live bridge state, however Remote Control was turned on) | Written 2026-11-09; `b2` |
+
+> Closed 2026-11-09 — plan 18, "The phone icon shows Remote Control as it is now", built by `b2`:
+> the phone reads Claude Code's per-process registry (`~/.claude/sessions/<pid>.json`,
+> `bridgeSessionId`) for the pane's claude, found under its shell through `/proc` and matched by
+> pid, session and start time; anything unreadable falls back to the app's list, never to off
+> (1.18). The emoji became a phone outline in the row and on the tab (1.19). Found: the watcher's
+> first pass cleared its running mark before it was set, so no later pass ran; the renderer's
+> `running` is not pushed when an agent reaches the foreground (left to `b1`). In
+> `docs/sessions.md`.
+
+> Replaced 2026-11-09: §2 row 2.5 gained the dock's count (a seen pane's notification is closed). It was:
+| 2.5 | The human's check of notifications (PRF-19): with an agent in a tab you are not watching, let it finish — a desktop notification and the completion sound; turn "Notify about background agents" off — no notification; turn "Play a sound" off — no sound | Human | Trusting the notifications |

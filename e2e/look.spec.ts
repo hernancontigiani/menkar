@@ -151,10 +151,18 @@ async function client(options: Parameters<typeof clientWork>[1] = {}) {
   return launched
 }
 
+// Retried: the strip and the rows are rebuilt on each state the window gets, and a box read while
+// an element is replaced is null.
 const box = async (page: Page, selector: string) => {
-  const b = await page.locator(selector).first().boundingBox()
+  let b: { x: number; y: number; width: number; height: number } | null = null
+  await expect
+    .poll(async () => {
+      b = await page.locator(selector).first().boundingBox()
+      return b !== null
+    })
+    .toBe(true)
   if (!b) throw new Error(`${selector} has no box`)
-  return b
+  return b as { x: number; y: number; width: number; height: number }
 }
 
 test('LOOK-1, LOOK-4 a first start: 1280 × 800 titled Menkar, the title centered over the content; the header buttons, Close all only with two tabs', async () => {
@@ -1053,6 +1061,48 @@ test('LOOK-54 (2026-11-08) a tab reads: state dot, name, ring, ×', async () => 
           .map((c) => c.className.split(' ')[0]),
       ),
     ).toEqual(['dot', 'title', 'ring', 'close'])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('LOOK-61 (decision 1.21) a stopped session’s row has no ring; once it runs, the ring is back', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = clientWork(dirs)
+      const cwd = join(dirs.home, 'work', 'api')
+      const file = join(
+        dirs.home,
+        '.claude',
+        'projects',
+        cwd.replace(/[^A-Za-z0-9]/g, '-'),
+        `${CLIENT.login}.jsonl`,
+      )
+      writeFileSync(
+        file,
+        `${JSON.stringify({ type: 'assistant', timestamp: '2026-11-09T10:00:00Z', message: { model: 'claude-sonnet-4-5', usage: { input_tokens: 90_000 } } })}\n`,
+        { flag: 'a' },
+      )
+      return env
+    },
+  })
+  const page = launched.window
+  const ringed = () =>
+    page
+      .locator('#session-list .row')
+      .evaluateAll((ns) =>
+        ns.filter((n) => n.querySelector('.ring')).map((n) => n.getAttribute('data-session')),
+      )
+  try {
+    await expect(page.locator('#session-list .row')).toHaveCount(3)
+    // The reading is there (the tab shows it once open), but the stopped row shows none.
+    await page.waitForTimeout(1500)
+    expect(await ringed()).toEqual([])
+    await act(page, { type: 'openSession', session: CLIENT.login })
+    await expect(page.locator('.tab .ring')).toHaveCount(1)
+    await expect.poll(ringed, { timeout: 5000 }).toEqual([CLIENT.login])
+    await act(page, { type: 'closeAllTabs' })
+    await expect.poll(ringed, { timeout: 5000 }).toEqual([])
   } finally {
     await launched.close()
   }

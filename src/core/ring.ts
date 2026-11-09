@@ -1,3 +1,4 @@
+import { DEFAULT_THRESHOLDS, level, type Thresholds } from './context/levels'
 import type { Reading } from './context/types'
 import type { Key } from './i18n'
 
@@ -22,13 +23,8 @@ export interface Ring {
   readonly title: { readonly key: Key; readonly values: Readonly<Record<string, string>> }
 }
 
-export function ringOf(reading: Reading): Ring {
-  const color =
-    reading.percentage >= 80
-      ? RING_COLORS.full
-      : reading.percentage >= 60
-        ? RING_COLORS.warn
-        : RING_COLORS.ok
+export function ringOf(reading: Reading, thresholds: Thresholds = DEFAULT_THRESHOLDS): Ring {
+  const color = RING_COLORS[level(reading.percentage, thresholds)]
   const scale = reading.source === 'estimate' ? ESTIMATE_SCALE : 1
   const windowText =
     reading.window >= 1_000_000

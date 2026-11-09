@@ -608,3 +608,79 @@ test('plan 17: Model stacks tokens and cost, never time; Exec falls back to Proj
     await launched.close()
   }
 })
+
+// Decision 1.24: Usage is a window of its own, not a child of the window that opened it.
+const usageWindowFacts = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) => {
+    const usage = BrowserWindow.getAllWindows().filter((w) => w.getTitle() === 'Usage')
+    return {
+      count: usage.length,
+      parents: usage.map((w) => w.getParentWindow()?.id ?? null),
+      focused: BrowserWindow.getFocusedWindow()?.getTitle() ?? null,
+    }
+  })
+
+test('decision 1.24: Usage has no parent; the main window keeps working beside it; asking again focuses the same one', async () => {
+  const launched = await launchApp()
+  try {
+    const page = launched.window
+    await openUsage(launched.app, page, true)
+    expect(await usageWindowFacts(launched.app)).toMatchObject({ count: 1, parents: [null] })
+
+    // The main window takes focus and clicks while Usage is open. (Under xvfb no window manager
+    // attaches windows to each other; the desktop's own behaviour is a check by hand.)
+    await launched.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()
+        .find((w) => w.getTitle() !== 'Usage')
+        ?.focus()
+    })
+    const sidebar = page.locator('#toggle-sidebar')
+    const before = await sidebar.getAttribute('aria-pressed')
+    await sidebar.click()
+    await expect(sidebar).not.toHaveAttribute('aria-pressed', before ?? '')
+
+    await page.evaluate(() =>
+      (
+        window as unknown as { menkar: { window: { act(a: unknown): Promise<unknown> } } }
+      ).menkar.window.act({ type: 'openUsage' }),
+    )
+    await expect
+      .poll(() => usageWindowFacts(launched.app))
+      .toMatchObject({
+        count: 1,
+        focused: 'Usage',
+      })
+  } finally {
+    await launched.close()
+  }
+})
+
+test('decision 1.24: closing the window Usage was opened from leaves Usage open, now showing every project', async () => {
+  const launched = await launchApp({
+    prepare: ({ root, home }) => {
+      twoProjects(root, home, 'aaaaaaaaaaa1')
+      return undefined
+    },
+  })
+  try {
+    const usage = await openUsage(launched.app, launched.window, true)
+    await expect(usage.locator('.usage-row.project .name')).toHaveText(['Shop'])
+    await expect(usage.locator('[data-key="all-projects"]')).toBeVisible()
+    // A second main window, so closing the first does not end the app.
+    await launched.window.evaluate(() =>
+      (
+        window as unknown as { menkar: { window: { act(a: unknown): Promise<unknown> } } }
+      ).menkar.window.act({ type: 'newWindowWithProject', name: 'Second' }),
+    )
+    await expect.poll(() => launched.app.windows().length).toBe(3)
+    await launched.app.evaluate(({ BrowserWindow }) => {
+      const mains = BrowserWindow.getAllWindows().filter((w) => w.getTitle() !== 'Usage')
+      mains.sort((a, b) => a.id - b.id)[0]?.destroy()
+    })
+    await expect.poll(() => usageWindowFacts(launched.app)).toMatchObject({ count: 1 })
+    await expect(usage.locator('[data-key="all-projects"]')).toHaveCount(0, { timeout: 10_000 })
+    await expect(usage.locator('.usage-row.project .name')).toHaveText(['Blog', 'Shop'])
+  } finally {
+    await launched.close()
+  }
+})

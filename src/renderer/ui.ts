@@ -135,6 +135,9 @@ export interface MenuItem {
   readonly label: string
   readonly run?: () => void
   readonly submenu?: readonly MenuItem[]
+  // The keys that do the same, shown at the item's right.
+  readonly shortcut?: string
+  readonly disabled?: boolean
 }
 export type MenuEntry = MenuItem | 'separator'
 
@@ -144,6 +147,18 @@ export function closePopover(): void {
   openPopover?.remove()
   openPopover = null
 }
+
+// Esc closes an open menu or popover, and goes no further (not to a terminal under it).
+document.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.key !== 'Escape' || !openPopover) return
+    event.preventDefault()
+    event.stopPropagation()
+    closePopover()
+  },
+  true,
+)
 
 export function showPopover(
   content: HTMLElement,
@@ -185,7 +200,9 @@ export function showMenu(entries: readonly MenuEntry[], anchor: { x: number; y: 
       { class: 'menu-item', role: 'menuitem' },
       entry.label,
       entry.submenu ? ' ▸' : '',
+      entry.shortcut ? el('span', { class: 'menu-shortcut dim' }, entry.shortcut) : null,
     )
+    if (entry.disabled) item.disabled = true
     item.addEventListener('click', (event) => {
       if (entry.submenu) {
         const rect = item.getBoundingClientRect()

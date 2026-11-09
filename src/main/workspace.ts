@@ -17,6 +17,7 @@ import {
   type Layout,
   type LayoutWindow,
   moveSessionHere,
+  moveTab,
   newWindowProject,
   nthTab,
   openBeside,
@@ -300,11 +301,27 @@ export function pushWindowStates(): void {
 }
 
 function push(): void {
+  lastRunning = runningKey()
   for (const [id, window] of windows) {
     const state = stateFor(id)
     if (state && !window.isDestroyed()) window.webContents.send('window:state', state)
   }
 }
+
+// Which sessions run changes with no event of ours: the shell starts the agent (after its rc
+// files, seconds for some users) and the agent exits back to it. The windows hear of it within
+// the poll, not at whatever change comes next.
+const RUNNING_POLL_MS = 500
+let lastRunning = ''
+const runningKey = () =>
+  [...panes.values()]
+    .filter((p) => p.terminal.running)
+    .map((p) => p.id)
+    .sort()
+    .join(' ')
+setInterval(() => {
+  if (runningKey() !== lastRunning) push()
+}, RUNNING_POLL_MS).unref()
 
 // ---------------------------------------------------------------- saving
 
@@ -1075,6 +1092,10 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed()
       return {}
     }
+    case 'moveTab':
+      layout = moveTab(layout, windowId, action.tab, action.before)
+      changed()
+      return {}
     case 'selectTab': {
       const tab = w.tabs.find((x) => x.id === action.tab)
       if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })

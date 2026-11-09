@@ -14,7 +14,7 @@ export const SOUNDS = {
 export const TOAST_SECONDS = 6
 
 export interface NotifySettings {
-  // "Notify about background agents"
+  // "Notify about sessions you're not watching"
   readonly notifyIdle: boolean
   // "Play a sound"
   readonly notifySound: boolean

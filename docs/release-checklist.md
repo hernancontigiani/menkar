@@ -60,7 +60,7 @@ With an agent working in a tab you are not looking at (another tab, or the windo
 it finish.
 
 **Passes when** a desktop notification appears with the completion sound; with "Notify about
-background agents" off, no notification; with "Play a sound" off, no sound.
+sessions you're not watching" off, no notification; with "Play a sound" off, no sound.
 
 ## 7. Remote Control from the phone
 

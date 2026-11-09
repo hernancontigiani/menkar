@@ -4,10 +4,12 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
+  DEFAULT_THRESHOLDS,
   fullest,
   level,
   type Reading,
   readingFor,
+  thresholdsOf,
   tooltip,
 } from '../../../src/core/context/reading'
 import { ReadingTracker } from '../../../src/core/context/tracker'
@@ -65,14 +67,48 @@ describe('the reading', () => {
     expect((await read(d))?.percentage).toBe(79.5)
   })
 
+  // Decision 1.22: red from 90 by default (it was 80), and both edges a setting.
   test.each([
     [59.9, 'ok'],
     [60, 'warn'],
-    [79.99, 'warn'],
-    [80, 'full'],
+    [80, 'warn'],
+    [89.99, 'warn'],
+    [90, 'full'],
   ] as const)('CTX-4 %d%% is %s', (percentage, expected) => {
     expect(level(percentage)).toBe(expected)
   })
+
+  test.each([
+    [49.99, 'ok'],
+    [50, 'warn'],
+    [69.99, 'warn'],
+    [70, 'full'],
+  ] as const)('with yellow from 50 and red from 70, %d%% is %s', (percentage, expected) => {
+    expect(level(percentage, { warn: 50, full: 70 })).toBe(expected)
+  })
+
+  test.each([
+    [
+      { warn: 60, full: 90 },
+      { warn: 60, full: 90 },
+    ],
+    [
+      { warn: 1, full: 100 },
+      { warn: 1, full: 100 },
+    ],
+    [{ warn: 70, full: 70 }, DEFAULT_THRESHOLDS],
+    [{ warn: 80, full: 60 }, DEFAULT_THRESHOLDS],
+    [{ warn: 0, full: 90 }, DEFAULT_THRESHOLDS],
+    [{ warn: 60, full: 101 }, DEFAULT_THRESHOLDS],
+    [{ warn: 60.5, full: 90 }, DEFAULT_THRESHOLDS],
+    [{ warn: '60', full: 90 }, DEFAULT_THRESHOLDS],
+    [{}, DEFAULT_THRESHOLDS],
+  ] as [Record<string, unknown>, unknown][])(
+    'the edges %j read as %j: whole numbers 1 to 100, yellow below red',
+    (raw, expected) => {
+      expect(thresholdsOf(raw.warn, raw.full)).toEqual(expected)
+    },
+  )
 
   test('CTX-5 a stale report still gives the window', async () => {
     const d = dirs()

@@ -18,13 +18,14 @@ export const DEFAULT_WINDOW = 200_000
 // The last assistant message is almost always in the last few lines.
 const TAIL_BYTES = 256 * 1024
 
+export {
+  DEFAULT_THRESHOLDS,
+  type Level,
+  level,
+  type Thresholds,
+  thresholdsOf,
+} from './levels'
 export type { Reading }
-
-export type Level = 'ok' | 'warn' | 'full'
-
-export function level(percentage: number): Level {
-  return percentage >= 80 ? 'full' : percentage >= 60 ? 'warn' : 'ok'
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

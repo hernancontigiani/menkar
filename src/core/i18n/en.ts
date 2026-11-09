@@ -284,6 +284,10 @@ export const en = {
   'replay.chooserTitle': 'Open session transcript',
   'replay.notOpened': 'Could not open transcript',
   'replay.unreadable': 'The file couldn’t be read as a session transcript.',
+  'terminal.copy': 'Copy',
+  'terminal.paste': 'Paste',
+  'terminal.selectAll': 'Select all',
+  'terminal.find': 'Find…',
   'find.next': 'Next match',
   'usage.noProject': '(no project)',
   'usage.unclassified': 'Unclassified',
@@ -360,12 +364,19 @@ export const en = {
   'prefs.languageRestart': 'Restart to apply',
   'prefs.restartNow': 'Restart now',
   'prefs.systemDefault': 'System default',
+  'prefs.ring': 'Context ring',
+  'prefs.ringWarn': 'Yellow from (%)',
+  'prefs.ringFull': 'Red from (%)',
+  'prefs.ringGreen': 'Green below yellow',
+  'prefs.ringInvalid':
+    'Yellow must be below red, both whole numbers from 1 to 100. The previous values are kept.',
   'prefs.notifications': 'Notifications',
-  'prefs.notifyIdle': 'Notify about background agents',
+  'prefs.notifyIdle': "Notify about sessions you're not watching",
   'prefs.notifyIdleSubtitle':
-    'A notice when an agent you are not watching finishes or needs your input',
+    'When a session in another tab or window finishes or needs your input',
   'prefs.notifySound': 'Play a sound',
-  'prefs.notifySoundSubtitle': 'When an agent you are not watching finishes or needs your input',
+  'prefs.notifySoundSubtitle':
+    'When a session in another tab or window finishes or needs your input',
   'prefs.start': 'Start',
   'prefs.reopenTabs': 'Reopen tabs on start',
   'prefs.reopenTabsSubtitle':

@@ -31,6 +31,13 @@
 | 1.16 | Usage data for analysis goes out through the CLI (`menkar usage export`, JSONL or CSV, one row per turn, tokens and cost per model; no prompt text); no MCP server for now; time is per turn, never split by model | 2026-11-08 | plan 17 |
 | 1.17 | agent-tablet is deprecated and may be deleted: Menkar stops depending on it or naming it. 0.1.0 keeps what the switch needs (the first-start import, the release checklist's comparisons, the credit line); after 0.1.0 is accepted, every other mention goes — code comments, docs, the spec's references, tests' wording — and new text never names it | 2026-11-09 | this row |
 | 1.18 | The phone icon shows whether a session's Remote Control bridge is connected now, read from Claude Code's `~/.claude/sessions/<pid>.json` (`bridgeSessionId`), however it was turned on; the menu switch keeps meaning "start with Remote Control"; an unreadable source falls back to Menkar's own list, never to off | 2026-11-09 | plan 18 |
+| 1.19 | The Remote Control icon is a phone outline in the text color (9×13, stroke 1.5), not the emoji, in the row (after the state dot) and the tab | 2026-11-09 | `docs/sessions.md` |
+| 1.20 | A terminal's right-click menu: Copy (disabled without a selection), Paste, Select all, Find…, each with its shortcut | 2026-11-09 | `docs/window.md` |
+| 1.21 | A session that is not running shows no context ring in its row: a stopped session's estimate is often wrong | 2026-11-09 | `docs/context.md` |
+| 1.22 | The context ring's levels: yellow from 60 %, red from 90 % by default, both editable in Preferences (yellow below red); one definition for the ring, the level and notifications | 2026-11-09 | `docs/context.md` |
+| 1.23 | Tabs are reordered by dragging them with the mouse within their strip; no keys, no tear-off; the order is saved | 2026-11-09 | `docs/window.md` |
+| 1.24 | The Usage window is an independent top-level window (usable beside the main one or on another monitor); Preferences, About and MCP stay modal dialogs | 2026-11-09 | `docs/usage.md` |
+| 1.25 | A sidebar row can be hidden from its project's list ("Hide" / "Show"): it stays a member and in Usage; only a stopped session; shown again from Add session, the list's "N hidden" foot, or by starting it | 2026-11-09 | plan 19 |
 
 ## 2. Open
 
@@ -40,7 +47,7 @@
 | 2.2 | The human's check of the 0.1.0 release candidate: `docs/release-checklist.md`, in order (install, first start with the import, a day of work, Usage, the classifier, notifications, Remote Control, the preview, the screenshots, remove) | Human | Calling 0.1.0 the first version |
 | 2.3 | The human's check of the window: use Menkar for a day of work — open your projects, start and resume sessions, close and reopen | Human | Trusting the window for daily use |
 | 2.4 | The human's check of Remote Control: turn it on for a session (New's switch or its menu), start it, and drive it from the phone or claude.ai | Human | Trusting Remote Control |
-| 2.5 | The human's check of notifications (PRF-19): with an agent in a tab you are not watching, let it finish — a desktop notification and the completion sound; turn "Notify about background agents" off — no notification; turn "Play a sound" off — no sound | Human | Trusting the notifications |
+| 2.5 | The human's check of notifications (PRF-19): with an agent in a tab you are not watching, let it finish — a desktop notification and the completion sound; turn "Notify about background agents" off — no notification; turn "Play a sound" off — no sound; then open that tab: its notification leaves the tray and the count on Menkar's icon in the dock goes down with it | Human | Trusting the notifications |
 | 2.6 | The human's check of LOOK-5: with the window unfocused, the header and the tab strip keep their colors (no fade) | Human | Trusting the look on a real desktop |
 | 2.7 | The human's check of LOOK-22 and LOOK-29 with real agents: a session blocked in another project puts a red count beside the project's name (none when none is); a working tab shows the yellow dot, an idle one none | Human | Trusting the states on screen |
 | 2.8 | The human's check of TRM-15: New session (advanced)…, cancel the folder chooser — no dialog, no tab, the remembered folder unchanged | Human | Trusting the native chooser |
@@ -51,12 +58,13 @@
 | 2.13 | After 0.1.0 is accepted: which of the three agent-tablet mentions 0.1.0 keeps also go — the first-start import (1.8), the credit in the README and About (1.10), the checklist's comparisons — then a plan removes the rest (1.17) | Human | Removing agent-tablet |
 | 2.14 | The human's check of the frameless main window (LOOK-55–58) on a real desktop: drag the header to move the window; double-click the header's empty space to maximize, again to restore (once each, not twice); the minimize, maximize and close buttons at the header's right; resize from every edge and corner; snap to the screen's edges and corners; Preferences, Usage, About and MCP keep the system's frame, and no window has a menu bar | Human | Trusting the window's frame |
 | 2.15 | The human's check of the live phone (1.18): in a session in a tab, `/remote-control` connect shows the phone on its row and tab within a second or two ("Remote Control connected"); disconnect removes it; a session started with the flag shows it once its bridge connects | Human | Trusting the phone icon |
+| 2.16 | The human's check of the Usage window (1.24) on the real desktop: with Usage open, clicks and keys reach the main window; Usage has its own entry in the dock and Alt+Tab and can sit beside the main window or on another monitor; closing the main window it came from leaves Usage open, showing every project | Human | Trusting Usage beside the main window |
 
 ## 3. Roadmap and plans in flight
 
 | Order | Plan | State |
 |---|---|---|
-| 11 | `18-remote-control-live-icon.md` (the phone icon from the live bridge state, however Remote Control was turned on) | Written 2026-11-09; `b2` |
+| 12 | `19-hide-in-project.md` (hide a session from its project's list, keeping it a member) | Written 2026-11-09; `b1`, after the current batch |
 
 ## 4. Next plan number
 

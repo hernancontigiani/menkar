@@ -1,4 +1,5 @@
 import './windows.css'
+import { thresholdsOf } from '../core/context/levels'
 import {
   parseFont,
   SCROLLBACK_MAX,
@@ -173,6 +174,40 @@ function fontRow(): HTMLElement {
   return row(t('prefs.font'), t('prefs.fontSubtitle'), family, size, reset)
 }
 
+// The ring's two edges: yellow from, red from. A pair that is not whole numbers from 1 to 100 with
+// yellow below red is refused with our sentence, and the last valid values come back.
+function ringGroup(): HTMLElement {
+  const input = (key: 'ring_warn' | 'ring_full') => {
+    const field = el('input', { type: 'number', min: '1', max: '100', step: '1', 'data-key': key })
+    field.value = String(settings[key])
+    return field
+  }
+  const warn = input('ring_warn')
+  const full = input('ring_full')
+  const error = el('div', { class: 'row-subtitle dim', 'data-key': 'ring-error', hidden: '' })
+  const edit = async (key: 'ring_warn' | 'ring_full', field: HTMLInputElement) => {
+    const w = key === 'ring_warn' ? Number(field.value) : settings.ring_warn
+    const f = key === 'ring_full' ? Number(field.value) : settings.ring_full
+    const kept = thresholdsOf(w, f)
+    if (kept.warn !== w || kept.full !== f) {
+      error.textContent = t('prefs.ringInvalid')
+      error.hidden = false
+      field.value = String(settings[key])
+      return
+    }
+    error.hidden = true
+    await set(key, Number(field.value))
+    field.value = String(settings[key])
+  }
+  warn.addEventListener('change', () => void edit('ring_warn', warn))
+  full.addEventListener('change', () => void edit('ring_full', full))
+  return group(t('prefs.ring'), [
+    row(t('prefs.ringWarn'), t('prefs.ringGreen'), warn),
+    row(t('prefs.ringFull'), null, full),
+    error,
+  ])
+}
+
 function scrollbackRow(): HTMLElement {
   const input = el('input', {
     type: 'number',
@@ -249,6 +284,7 @@ function generalPage(): HTMLElement {
       ],
       { description: t('prefs.languageRestart'), action: restart },
     ),
+    ringGroup(),
     group(t('prefs.notifications'), [
       row(t('prefs.notifyIdle'), t('prefs.notifyIdleSubtitle'), toggle('notify_idle')),
       row(t('prefs.notifySound'), t('prefs.notifySoundSubtitle'), toggle('notify_sound')),

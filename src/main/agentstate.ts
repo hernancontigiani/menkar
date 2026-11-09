@@ -10,6 +10,7 @@ import {
   notifies,
   type ShownState,
 } from '../core/agentstate/shown'
+import { NotificationTray } from '../core/agentstate/tray'
 import { PaneWatcher } from '../core/agentstate/watch'
 import { t } from '../core/i18n'
 import { log } from '../core/log'
@@ -33,8 +34,18 @@ interface Tracked {
 }
 
 const tracked = new Map<string, Tracked>()
-// A newer notification for the same session (or unjoined tab) replaces the earlier one.
-const shownNotifications = new Map<string, Notification>()
+// One desktop notification per session (or unjoined tab): a newer one replaces it, and looking at
+// the pane closes it, so the dock's count of unread notifications goes down.
+const tray = new NotificationTray<Notification>()
+// The key each pane's notification was filed under: a session can join after it was shown.
+const notifiedAs = new Map<string, string>()
+
+function withdraw(paneId: string): void {
+  const identity = notifiedAs.get(paneId)
+  if (identity === undefined) return
+  tray.seen(identity)
+  notifiedAs.delete(paneId)
+}
 
 export function agentStates(): AgentStates {
   const panes = [...tracked.values()].map(({ pane, state }) => ({
@@ -84,10 +95,10 @@ async function notify(pane: AgentPane, state: 'blocked' | 'done'): Promise<void>
   }
   if (!Notification.isSupported()) return
   const identity = pane.sessionId() ?? pane.tabTitle()
-  shownNotifications.get(identity)?.close()
   const notification = new Notification({ title: pane.tabTitle(), body: text })
   notification.on('click', () => pane.reveal())
-  shownNotifications.set(identity, notification)
+  tray.show(identity, notification)
+  notifiedAs.set(pane.id, identity)
   notification.show()
 }
 
@@ -117,9 +128,12 @@ function track(pane: AgentPane): void {
   tracked.set(pane.id, entry)
   remoteLiveSoon(refreshAgentStates)
   const stopSeen = pane.onSeen(() => {
-    if (pane.seen()) setState(entry, afterSeen(entry.state))
+    if (!pane.seen()) return
+    setState(entry, afterSeen(entry.state))
+    withdraw(pane.id)
   })
   pane.onClose(() => {
+    withdraw(pane.id)
     entry.watcher.dispose()
     stopSeen()
     tracked.delete(pane.id)
@@ -134,5 +148,7 @@ export function startAgentState(): () => void {
   return () => {
     stopTracking()
     stopRemote()
+    tray.closeAll()
+    notifiedAs.clear()
   }
 }

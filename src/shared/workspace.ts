@@ -80,6 +80,7 @@ export type Action =
   | { readonly type: 'renameSession'; readonly session: string; readonly name: string }
   | { readonly type: 'renameTab'; readonly tab: string; readonly title: string }
   | { readonly type: 'selectTab'; readonly tab: string }
+  | { readonly type: 'moveTab'; readonly tab: string; readonly before: string | null }
   | { readonly type: 'closeTab'; readonly tab: string; readonly force?: boolean }
   | { readonly type: 'closeAllTabs' }
   | { readonly type: 'stepTab'; readonly direction: 1 | -1 }

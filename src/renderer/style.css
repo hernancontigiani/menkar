@@ -316,12 +316,25 @@ html.classic .content-header {
 }
 
 #tab-strip {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
   padding: 2px 6px 0 6px;
   overflow-x: auto;
   scrollbar-width: none;
+}
+.tab.dragging {
+  opacity: 0.6;
+}
+/* Where a dragged tab would drop. */
+.tab-marker {
+  position: absolute;
+  top: 2px;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
 }
 html.classic #tab-strip {
   padding: 3px 6px;
@@ -510,6 +523,14 @@ html.classic .frame-label {
 }
 .menu-item:hover {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.menu-item:disabled {
+  opacity: 0.45;
+  background: transparent;
+}
+.menu-shortcut {
+  margin-left: auto;
+  padding-left: 24px;
 }
 .menu-sep {
   height: 1px;

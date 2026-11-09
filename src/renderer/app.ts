@@ -85,7 +85,10 @@ function readingOf(id: string): Reading | null {
 // A track at 25 % and an arc from 12 o'clock over the percentage.
 function ring(reading: Reading | null): HTMLElement | null {
   if (!reading) return null
-  const r = ringOf(reading)
+  const r = ringOf(
+    reading,
+    state ? { warn: state.settings.ring_warn, full: state.settings.ring_full } : undefined,
+  )
   const c = RING_SIZE / 2
   const length = 2 * Math.PI * RING_RADIUS
   const node = el('span', { class: 'ring', title: translate(r.title.key, r.title.values) })
@@ -430,7 +433,8 @@ function row(
     ),
     more,
   )
-  const ringNode = ring(readingOf(info.id))
+  // Only while its agent runs (decision 1.21): a stopped session's estimate is too often wrong.
+  const ringNode = running ? ring(readingOf(info.id)) : null
   if (ringNode) more.before(ringNode)
   const menu = (x: number, y: number) => showMenu(rowMenu(info, running, project), { x, y })
   more.addEventListener('click', (event) => {
@@ -513,6 +517,10 @@ function renderStrip(s: WindowState): void {
   const pill = el('span', { id: 'prefix-pill' }, 'PREFIX')
   pill.toggleAttribute('hidden', !prefixPill)
   strip.replaceChildren(...nodes, plus, pill)
+  if (tabDrag) {
+    strip.append(tabDrag.marker)
+    strip.querySelector(`.tab[data-tab="${tabDrag.tabId}"]`)?.classList.add('dragging')
+  }
 }
 
 function shortTitle(title: string): string {
@@ -560,6 +568,72 @@ function tabRing(tab: TabView): HTMLElement | null {
   return ring(fullest ?? null)
 }
 
+// Reordering by dragging a tab within its strip (decision 1.23): past a few pixels it is a drag,
+// shown by a marker in the gap it would drop into; let go outside the strip and nothing moves.
+const TAB_DRAG_THRESHOLD_PX = 5
+let tabDragged = false
+// The drag in progress, kept across renders: the strip is rebuilt on every state the window gets.
+let tabDrag: { tabId: string; marker: HTMLElement } | null = null
+
+function dragToReorder(node: HTMLElement, tabId: string): void {
+  node.addEventListener('pointerdown', (down) => {
+    if (down.button !== 0 || (down.target as HTMLElement).closest('.close')) return
+    const strip = $('tab-strip')
+    let marker: HTMLElement | null = null
+    let before: string | null = null
+    const place = (x: number) => {
+      const others = [...strip.querySelectorAll<HTMLElement>('.tab')].filter(
+        (t) => t.dataset.tab !== tabId,
+      )
+      const next = others.find((t) => {
+        const r = t.getBoundingClientRect()
+        return x < r.left + r.width / 2
+      })
+      before = next?.dataset.tab ?? null
+      const anchor = next ?? others[others.length - 1]
+      if (!anchor || !marker) return
+      const r = anchor.getBoundingClientRect()
+      const s = strip.getBoundingClientRect()
+      marker.style.left = `${(next ? r.left - 2 : r.right + 1) - s.left + strip.scrollLeft}px`
+    }
+    const move = (event: PointerEvent) => {
+      if (!marker) {
+        if (
+          Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY) <
+          TAB_DRAG_THRESHOLD_PX
+        )
+          return
+        marker = el('span', { class: 'tab-marker' })
+        strip.append(marker)
+        node.classList.add('dragging')
+        tabDrag = { tabId, marker }
+      }
+      place(event.clientX)
+    }
+    const up = (event: PointerEvent) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      if (!marker) return
+      marker.remove()
+      tabDrag = null
+      strip.querySelector(`.tab[data-tab="${tabId}"]`)?.classList.remove('dragging')
+      tabDragged = true
+      setTimeout(() => {
+        tabDragged = false
+      })
+      const s = strip.getBoundingClientRect()
+      const inside =
+        event.clientX >= s.left &&
+        event.clientX <= s.right &&
+        event.clientY >= s.top &&
+        event.clientY <= s.bottom
+      if (inside) void act({ type: 'moveTab', tab: tabId, before })
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  })
+}
+
 function tabButton(tab: TabView, selected: boolean): HTMLElement {
   const close = el('span', { class: 'close', role: 'button', title: t('tab.close') }, icon('close'))
   const node = el(
@@ -576,7 +650,11 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
     event.stopPropagation()
     void closeTabAsking(tab.id)
   })
-  node.addEventListener('click', () => void act({ type: 'selectTab', tab: tab.id }))
+  dragToReorder(node, tab.id)
+  node.addEventListener('click', () => {
+    if (tabDragged) tabDragged = false
+    else void act({ type: 'selectTab', tab: tab.id })
+  })
   node.addEventListener('auxclick', (event) => {
     if (event.button === 1) void closeTabAsking(tab.id)
   })

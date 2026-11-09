@@ -46,3 +46,23 @@ describe('settings', () => {
     )
   })
 })
+
+test('decision 1.22: the ring edges are 60 and 90 by default, kept as a valid pair, else both defaults', () => {
+  expect(parseSettings({})).toMatchObject({ ring_warn: 60, ring_full: 90 })
+  expect(parseSettings({ ring_warn: 50, ring_full: 70 })).toMatchObject({
+    ring_warn: 50,
+    ring_full: 70,
+  })
+  // One edge saved, the other at its default: Preferences saves a row at a time.
+  expect(parseSettings({ ring_full: 80 })).toMatchObject({ ring_warn: 60, ring_full: 80 })
+  expect(parseSettings({ ring_warn: 30 })).toMatchObject({ ring_warn: 30, ring_full: 90 })
+  expect(parseSettings({ ring_full: 50 })).toMatchObject({ ring_warn: 60, ring_full: 90 })
+  expect(parseSettings({ ring_warn: 95, ring_full: 90 })).toMatchObject({
+    ring_warn: 60,
+    ring_full: 90,
+  })
+  expect(parseSettings({ ring_warn: 50, ring_full: 'red' })).toMatchObject({
+    ring_warn: 60,
+    ring_full: 90,
+  })
+})

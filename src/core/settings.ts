@@ -1,5 +1,7 @@
 // No Node import: the renderer reads Settings through the IPC types.
 
+import { DEFAULT_THRESHOLDS, thresholdsOf } from './context/levels'
+
 interface WithRest {
   readonly rest: Readonly<Record<string, unknown>>
 }
@@ -20,6 +22,9 @@ export interface Settings {
   readonly language: string
   readonly notify_idle: boolean
   readonly notify_sound: boolean
+  // The context ring: yellow from, red from (%); green below yellow.
+  readonly ring_warn: number
+  readonly ring_full: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -35,6 +40,8 @@ export const DEFAULT_SETTINGS: Settings = {
   language: '',
   notify_idle: true,
   notify_sound: true,
+  ring_warn: DEFAULT_THRESHOLDS.warn,
+  ring_full: DEFAULT_THRESHOLDS.full,
 }
 
 export const SIDEBAR_MIN_WIDTH = 220
@@ -45,6 +52,11 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 export function parseSettings(value: unknown): Settings {
   const raw = isObject(value) ? value : {}
+  // An edge not saved is its default; Preferences saves one row at a time.
+  const ring = thresholdsOf(
+    raw.ring_warn ?? DEFAULT_THRESHOLDS.warn,
+    raw.ring_full ?? DEFAULT_THRESHOLDS.full,
+  )
   const str = (key: keyof Settings, fallback: string) =>
     typeof raw[key] === 'string' ? (raw[key] as string) : fallback
   const int = (key: keyof Settings, fallback: number) =>
@@ -63,6 +75,8 @@ export function parseSettings(value: unknown): Settings {
     language: str('language', DEFAULT_SETTINGS.language),
     notify_idle: raw.notify_idle !== false,
     notify_sound: raw.notify_sound !== false,
+    ring_warn: ring.warn,
+    ring_full: ring.full,
   }
 }
 

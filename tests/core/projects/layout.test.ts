@@ -5,6 +5,7 @@ import {
   type Layout,
   type LayoutWindow,
   moveSessionHere,
+  moveTab,
   newWindowProject,
   nthTab,
   openBeside,
@@ -381,5 +382,30 @@ describe('reopening on start', () => {
     ])
     expect(layout.windows.map((w) => w.shown)).toEqual(['B'])
     expect(reopenWith([]).windows.map((w) => [w.shown, w.tabs.length])).toEqual([['A', 0]])
+  })
+})
+
+describe('reordering tabs (decision 1.23)', () => {
+  const layout = layoutOf(
+    win('w', 'a', [
+      session('A1', 'a', ['s1']),
+      session('B1', 'b', ['s9']),
+      session('A2', 'a', ['s2']),
+      session('A3', 'a', ['s3']),
+    ]),
+  )
+  const ids = (l: Layout) => tabsOf(l, 'w').map((t) => t.id)
+  const ofA = (l: Layout) => ids(l).filter((id) => id.startsWith('A'))
+
+  test('PRJ-58 a tab moves before another of its project, or last when dropped after them all', () => {
+    expect(ofA(moveTab(layout, 'w', 'A3', 'A1'))).toEqual(['A3', 'A1', 'A2'])
+    expect(ofA(moveTab(layout, 'w', 'A1', null))).toEqual(['A2', 'A3', 'A1'])
+    expect(ids(moveTab(layout, 'w', 'A1', null))).toEqual(['B1', 'A2', 'A3', 'A1'])
+  })
+
+  test('PRJ-58 onto itself, onto another project’s tab or an unknown one, nothing moves', () => {
+    expect(moveTab(layout, 'w', 'A2', 'A2')).toBe(layout)
+    expect(moveTab(layout, 'w', 'A2', 'B1')).toBe(layout)
+    expect(moveTab(layout, 'w', 'nope', 'A1')).toBe(layout)
   })
 })

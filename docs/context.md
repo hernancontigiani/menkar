@@ -21,6 +21,13 @@ Integrations page are still `docs/spec/context.md` until they are built.
   in flight per session, plus one re-read. Main watches the sessions folder and sends every window
   `context:reading`. The window calls `trackContext(sessionId, transcript)` for each session it
   shows.
+- **The levels** (`levels.ts`, decision 1.22): one definition, `level(percentage, thresholds)`,
+  read by the ring (`src/core/ring.ts`) and re-exported by `reading.ts`. The thresholds are the
+  settings `ring_warn` and `ring_full` (defaults 60 and 90), kept only as a pair (whole numbers
+  1–100, yellow below red) when `state.json` is read and when Preferences saves one; anything else
+  is both defaults. The window redraws its rings from the settings it is pushed, so a change in
+  Preferences shows at once. The agent-tablet import has no such settings, so they start at the
+  defaults.
 - **The integrations** (`integrations.ts`): turning the statusline on or off in
   `~/.claude/settings.json` keeps a byte copy of the file first and records what was installed and
   what it replaced in `<data>/integrations.json`. It refuses to remove a statusline the user changed

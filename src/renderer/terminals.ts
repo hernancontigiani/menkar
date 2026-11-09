@@ -7,6 +7,7 @@ import type { Look } from '../core/theme'
 import type { PaneView } from '../shared/workspace'
 import { el, icon } from './dom'
 import { t } from './i18n'
+import { showMenu } from './ui'
 
 interface View {
   readonly id: string
@@ -219,6 +220,50 @@ function create(pane: PaneView): View {
       }
     }
     return true
+  })
+  // The terminal's own menu, as GNOME Terminal's: each item is the user's action, as its keys are.
+  // Opened on contextmenu, after xterm handled the button press, so a selection is kept.
+  host.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    const selection = term.getSelection()
+    const back = () => term.focus()
+    showMenu(
+      [
+        {
+          label: t('terminal.copy'),
+          shortcut: 'Ctrl+Shift+C',
+          disabled: !term.hasSelection(),
+          run: () => {
+            void window.menkar.window.act({ type: 'copyText', text: selection })
+            back()
+          },
+        },
+        {
+          label: t('terminal.paste'),
+          shortcut: 'Ctrl+Shift+V',
+          run: () => {
+            void navigator.clipboard.readText().then((text) => term.paste(text))
+            back()
+          },
+        },
+        {
+          label: t('terminal.selectAll'),
+          run: () => {
+            term.selectAll()
+            back()
+          },
+        },
+        {
+          label: t('terminal.find'),
+          shortcut: 'Ctrl+Shift+G',
+          run: () => {
+            if (!view.findBar) toggleFind(view)
+            else view.findBar.querySelector('input')?.focus()
+          },
+        },
+      ],
+      { x: event.clientX, y: event.clientY },
+    )
   })
   term.onData((data) => window.menkar.panes.input(pane.id, data))
   term.textarea?.addEventListener('focus', () => focusListener(pane.id))

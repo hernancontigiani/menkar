@@ -14,16 +14,19 @@ belongs to this area; the Integrations page is reached through Preferences (M5, 
 
 ### The context ring (F35)
 
-- **Where.** One ring in each session row of the project list (between the name/folder text and the
-  row's ⋯ button), and one on each tab of the tab strip (after the group color swatch and the state
-  dot, before the title). History rows (Add session → Existing) have none.
+- **Where.** One ring in the row of each session whose agent runs (between the name/folder text and
+  the row's ⋯ button; a stopped session's row has none, decision 1.21), and one on each tab of the
+  tab strip (after the title, before its ×). History rows (Add session → Existing) have none.
 - **No reading, no ring.** A session with neither a statusline report nor any assistant message in
   its transcript shows no ring (the widget is hidden, not drawn empty). A tab shows a ring only
   when at least one of its sessions has a reading.
 - **The tab's ring** shows the **fullest** reading among the tab's sessions (the pane about to run
   out is what matters): the reading with the highest percentage.
-- **Level and color**, from the percentage: below 60 → green ("ok"); 60 up to below 80 → yellow
-  ("warn"); 80 and above → red ("full"). The thresholds are inclusive at 60 and 80.
+- **Level and color** (decision 1.22, 2026-11-09), from the percentage: below "yellow from" →
+  green ("ok"); from "yellow from" up to below "red from" → yellow ("warn"); from "red from" → red
+  ("full"). Both edges are inclusive. Defaults: yellow from 60, red from 90. Both are set in
+  Preferences → Context ring: whole numbers from 1 to 100, yellow below red; an edit that breaks
+  that is refused with our sentence and the last valid values stay.
 - **Fill.** The ring fills clockwise from 12 o'clock in proportion to the percentage, clamped to
   0–100 (a reading above 100 draws a full ring, the tooltip still says the real figure).
 - **Exact vs estimate.** A statusline reading is drawn opaque; an estimate is drawn faint (see

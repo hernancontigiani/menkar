@@ -4,7 +4,7 @@ import { type ElectronApplication, expect, type Page, test } from '@playwright/t
 import { en } from '../src/core/i18n/en'
 import { PALETTES } from '../src/core/theme'
 import { launchApp, savedCursorTab } from './app'
-import { prepare } from './fixtures'
+import { clientWork, prepare } from './fixtures'
 
 // Preferences' General rows applied to the real app (docs/spec/preferences.md PRF-5 to PRF-30),
 // with a terminal tab open where a row reaches the terminals. Never on the human's display.
@@ -317,6 +317,59 @@ test('PRF-29 the sidebar dragged to 420 px is saved after the pause, and a new w
     await expect
       .poll(() => second.locator('#sidebar').evaluate((n) => n.getBoundingClientRect().width))
       .toBe(420)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('decision 1.22: "Red from" changes an open window\'s ring at once; a pair with red not above yellow is refused', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return clientWork(dirs, { tabs: [['login']] })
+    },
+  })
+  const { app, window: page } = launched
+  try {
+    await expect(page.locator('.tab')).toHaveCount(1)
+    const pane = await page.evaluate(() =>
+      (
+        globalThis as unknown as {
+          menkar: { window: { state(): Promise<{ tabs: { panes: { sessionId: string }[] }[] }> } }
+        }
+      ).menkar.window
+        .state()
+        .then((s) => s.tabs[0]?.panes[0]),
+    )
+    await app.evaluate(({ BrowserWindow }, sessionId) => {
+      BrowserWindow.getAllWindows()[0]?.webContents.send('context:reading', {
+        sessionId,
+        reading: { percentage: 85, window: 200000, source: 'statusline' },
+      })
+    }, pane?.sessionId)
+    const stroke = () => page.locator('.tab .ring circle').first().getAttribute('stroke')
+    await expect.poll(stroke).toBe('rgb(242,191,64)')
+
+    const prefs = await openPreferences(app, page)
+    await expect(prefs.locator('[data-key="ring_warn"]')).toHaveValue('60')
+    await expect(prefs.locator('[data-key="ring_full"]')).toHaveValue('90')
+    const full = prefs.locator('[data-key="ring_full"]')
+    await full.fill('80')
+    await full.dispatchEvent('change')
+    await expect.poll(() => saved(root).ring_full).toBe(80)
+    await expect.poll(stroke).toBe('rgb(235,84,84)')
+
+    const before = readFileSync(statePath(root), 'utf8')
+    await full.fill('50')
+    await full.dispatchEvent('change')
+    await expect(prefs.locator('[data-key="ring-error"]')).toHaveText(
+      'Yellow must be below red, both whole numbers from 1 to 100. The previous values are kept.',
+    )
+    await expect(full).toHaveValue('80')
+    await page.waitForTimeout(300)
+    expect(readFileSync(statePath(root), 'utf8')).toBe(before)
+    expect(await stroke()).toBe('rgb(235,84,84)')
   } finally {
     await launched.close()
   }

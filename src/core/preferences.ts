@@ -19,6 +19,8 @@ export const PREFERENCE_KEYS = [
   'notify_idle',
   'notify_sound',
   'reopen_tabs',
+  'ring_warn',
+  'ring_full',
 ] as const
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[number]
 
@@ -44,6 +46,11 @@ export function validSetting(key: string, value: unknown): string | number | boo
         : null
     case 'language':
       return value === '' || (typeof value === 'string' && value in LANGUAGE_NAMES) ? value : null
+    case 'ring_warn':
+    case 'ring_full':
+      return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 100
+        ? (value as number)
+        : null
     case 'show_folder_path':
     case 'notify_idle':
     case 'notify_sound':
