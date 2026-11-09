@@ -187,7 +187,7 @@ test('LOOK-1, LOOK-4 a first start: 1280 × 800 titled Menkar, the title centere
     const split = await box(page, '#new-menu')
     expect(split.x).toBeGreaterThan(toggle.x)
     await expect(page.locator('#new-menu')).toHaveText('New ▾')
-    // Close all is in the tab's menu, not the header (plan 24); Usage sits right of the title.
+    // Close all is in the tab's menu, not the header (decision 1.34); Usage sits right of the title.
     await expect(page.locator('#close-all')).toHaveCount(0)
     expect((await box(page, '#usage-button')).x).toBeGreaterThan(split.x + split.width - 1)
   } finally {
@@ -1101,7 +1101,7 @@ test('LOOK-61 (decision 1.21) a stopped session’s row has no ring; once it run
   }
 })
 
-test('LOOK-70 (plan 24) the sidebar starts at 250 px, stops at 180, and a double click on the divider puts it back at 250', async () => {
+test('LOOK-70 (decision 1.34) the sidebar starts at 250 px, stops at 180, and a double click on the divider puts it back at 250', async () => {
   let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {

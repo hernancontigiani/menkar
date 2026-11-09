@@ -588,7 +588,7 @@ test('SES-70 a selected session whose transcript is deleted outside the app drop
   }
 })
 
-test('SES-73 (plan 24) Show hidden sessions is a switch in Add session → Existing: off, it lists no hidden session; on, it does', async () => {
+test('SES-73 (decision 1.34) Show hidden sessions is a switch in Add session → Existing: off, it lists no hidden session; on, it does', async () => {
   const { launched, page } = await launch((dirs) => clientWork(dirs))
   try {
     await existing(page)

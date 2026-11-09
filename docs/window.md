@@ -121,7 +121,7 @@ session) takes the newest session of that folder modified since the tab started,
   fill the screen draws a 1 px edge around itself, since without a system frame nothing else ends
   it; maximized or full screen (`maximized` in the window's state) it has none.
 - Settings and Usage keep the system's frame.
-- **The header's text buttons** (plan 24, 2026-11-10), each an icon with its word, with a resting
+- **The header's text buttons** (decision 1.34, 2026-11-10), each an icon with its word, with a resting
   fill and a 1 px edge so text among icons reads as a button; the icon buttons stay flat:
   - "+ New ▾", the one menu for starting things (decision 1.30): New session, Terminal in this tab,
     Open file…, Open session file…, New window, each with its key where it has one. The agent is
@@ -133,7 +133,7 @@ session) takes the newest session of that folder modified since the tab started,
 - There is no main menu. Show hidden sessions (the history's own hide, a check per window, not
   saved) is a switch at the foot of Add session → Existing.
 - **Closing tabs from a tab's menu**: Close, Close other tabs, Close all tabs, none of them asking
-  (plan 24, 2026-11-10).
+  (decision 1.34, 2026-11-10).
 - **The sidebar** starts at 250 px and stops at 180 px; a double click on the divider puts it back
   at 250 and saves that. A width saved before is kept (2026-11-10).
 - Every segmented control (Add session's Existing / New, Usage's rows) shares

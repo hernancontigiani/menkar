@@ -220,3 +220,26 @@
 
 > Replaced 2026-11-09 by the Settings window (plan 24): no window is modal any more.
 | 1.24 | The Usage window is an independent top-level window (usable beside the main one or on another monitor); Preferences, About and MCP stay modal dialogs | 2026-11-09 | `docs/usage.md` |
+
+| 16 | `23-scroll-and-rc-tab.md` (jump-to-bottom button in terminals; the phone icon off the tab) | Stub 2026-11-09; for 2026-11-10 |
+
+> Closed 2026-11-10 — plan 23, "A jump-to-bottom button in terminals; no phone icon on tabs", built by
+> `b1` (committed in 45ebd41 with plan 24's header part): every terminal (agent pane, shell, drawer)
+> scrolled up shows a round down-arrow button left of its scrollbar; a click or `Ctrl+Shift+End`
+> (K44, caught before the agent) goes to the end, and output arriving while scrolled up keeps the
+> view and marks the button. The phone left the tab; the row keeps it (1.19 reworded). Found: every
+> modified End reaches the agent through xterm, so only `Ctrl+Shift+End` is the view's; "at the
+> bottom" is read from the drawn cursor row, the scrollbar thumb being off by a few pixels. The
+> plan 24 header part (b1) was logged in it. In `docs/window.md` and `docs/sessions.md`.
+
+| 17 | `24-settings-window-and-header.md` (Settings as a sectioned window, no blocking windows, header with Usage, Close all to the tab menu, transcript retention) | Stub 2026-11-09; for 2026-11-10 |
+
+> Closed 2026-11-10 — plan 24, "A Settings window with sections, non-blocking windows, the header
+> reorganized, transcript retention", built by `b2` (Settings, retention) and `b1` (the header, the
+> tab menu, the sidebar width). Settings is one window of its own, laid out as Ubuntu's: grouped
+> sections with icons under a title, About and MCP among them (decisions 1.24, 1.34). Transcript
+> retention raises `cleanupPeriodDays` with consent, never shortening it, puts the old value back
+> on removal, and shows the current period read from the file, Claude Code's default only when the
+> key is absent. Found: the integrity check flags every moved selector (ten renames, read and
+> accepted by `set`); a type imported from a Node module pulled Node into the renderer's
+> typecheck. In `docs/preferences.md`, `docs/context.md`, `docs/window.md`.

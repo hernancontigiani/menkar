@@ -499,7 +499,7 @@ test('LOOK-68 (decision 1.30) the header has one text button "New ▾" (es "Nuev
       await expect(page.locator('#new-session')).toHaveCount(0)
       const button = page.locator('#new-menu')
       await expect(button).toHaveText(label)
-      // Its plus icon (plan 24).
+      // Its plus icon (decision 1.34).
       await expect(button.locator('svg')).toHaveCount(1)
       const look = (selector: string) =>
         page.locator(selector).evaluate((n) => {
@@ -598,7 +598,7 @@ test('SES-71 (decision 1.30) New ▾ holds its items with their keys, and each d
   }
 })
 
-test('LOOK-69 (plan 24) the header: "+ New ▾" with its icon; "⚙ Settings" opens Settings with no menu; "📊 Usage" right after New opens Usage; no Close all and no gear menu', async () => {
+test('LOOK-69 (decision 1.34) the header: "+ New ▾" with its icon; "⚙ Settings" opens Settings with no menu; "📊 Usage" right after New opens Usage; no Close all and no gear menu', async () => {
   const launched = await client({}, [['login'], ['api']])
   const { app, window: page } = launched
   try {
@@ -649,7 +649,7 @@ test('LOOK-69 (plan 24) the header: "+ New ▾" with its icon; "⚙ Settings" op
   }
 })
 
-test('PRJ-65 (plan 24) the tab menu closes the other tabs or all of them, with no question', async () => {
+test('PRJ-65 (decision 1.34) the tab menu closes the other tabs or all of them, with no question', async () => {
   const launched = await client({}, [['login'], ['api'], ['long']])
   const page = launched.window
   try {

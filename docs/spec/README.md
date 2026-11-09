@@ -263,7 +263,7 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
   defaults.
 - About: the human's copyright, and one credit line to Agent Session Manager, with no link.
 - "Restart now" asks and saves the layout as quitting does.
-- No main menu (plan 24, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
+- No main menu (decision 1.34, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
   Existing (Show hidden sessions), the header's Usage and ⚙ Settings buttons, and Settings'
   sections (MCP servers, About). Close all and Close other tabs are in a tab's menu.
 - One "New ▾" menu (1.30, 2026-11-09): New session, Terminal in this tab, Open file…, New window,

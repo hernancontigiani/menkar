@@ -28,3 +28,7 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   check per window, not saved), Usage, Preferences, About. The last three call
   `openUsage`/`openPreferences`/`openAbout` in main, which log until plan 12 provides their
   windows.
+
+> Replaced 2026-11-10: plan 24 was closed, and its lines name decision 1.34 instead. It was:
+- **The header's text buttons** (plan 24, 2026-11-10), each an icon with its word, with a resting
+  (plan 24, 2026-11-10).

@@ -38,3 +38,6 @@
 | M5 | Main | Preferences | `preferences` | preferences |
 | M6 | Main | About Agent Tablet | `about` | preferences |
 header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's `+` and each tab's
+
+> Replaced 2026-11-10: plan 24 was closed, and its lines name decision 1.34 instead. It was:
+- No main menu (plan 24, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
