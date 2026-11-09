@@ -30,6 +30,7 @@
 | 1.15 | The Usage window opens scoped to the project of the window it was opened from, with an "All projects" toggle; scoped, By day stacks by category when the classifier is on and is a plain bar otherwise; an empty project stays scoped | 2026-11-08 | `docs/usage.md` |
 | 1.16 | Usage data for analysis goes out through the CLI (`menkar usage export`, JSONL or CSV, one row per turn, tokens and cost per model; no prompt text); no MCP server for now; time is per turn, never split by model | 2026-11-08 | plan 17 |
 | 1.17 | agent-tablet is deprecated and may be deleted: Menkar stops depending on it or naming it. 0.1.0 keeps what the switch needs (the first-start import, the release checklist's comparisons, the credit line); after 0.1.0 is accepted, every other mention goes — code comments, docs, the spec's references, tests' wording — and new text never names it | 2026-11-09 | this row |
+| 1.18 | The phone icon shows whether a session's Remote Control bridge is connected now, read from Claude Code's `~/.claude/sessions/<pid>.json` (`bridgeSessionId`), however it was turned on; the menu switch keeps meaning "start with Remote Control"; an unreadable source falls back to Menkar's own list, never to off | 2026-11-09 | plan 18 |
 
 ## 2. Open
 
@@ -54,6 +55,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 11 | `18-remote-control-live-icon.md` (the phone icon from the live bridge state, however Remote Control was turned on) | Written 2026-11-09; `b2` |
 
 ## 4. Next plan number
 
