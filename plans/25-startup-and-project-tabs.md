@@ -19,6 +19,15 @@ is created hidden and shown on `ready-to-show` (`src/main/workspace.ts`).
 - **Show something at once.** The window appears as soon as the app is ready, with the logo star
   turning in the centre, and the content replaces it when ready. The spinner respects reduced
   motion (a still star) and never shows for a start that is already fast (e.g. only after ~300 ms).
+- **Measured by `set`, 2026-11-09** (the packaged build from 8e4c76f under xvfb, throwaway
+  config/cache/data dirs, warm disk, nothing to import, no tabs to reopen; Playwright timing to the
+  first window): **with the human's real HOME, 6.4–6.6 s to the first window; with an empty HOME,
+  0.54 s.** So the wait is work on the home's data before `openFirstWindowIfNone()` — `~/.claude/projects`
+  is 2.0 GB here — not Electron itself. Suspects in `src/main/index.ts` order: something in
+  `startProjects`, the sessions scan's synchronous part, `startUsagePasses`, `startAgentState`,
+  `startContextReadings` or `startWorkspace` blocking the main thread or awaited before the window.
+  A cold boot adds disk reads on top. The script: a Playwright `_electron.launch` of
+  `release/linux-unpacked/menkar` with XDG_* pointed at a temp dir.
 - **Then fix what the numbers point at** — nothing is optimised before it is measured.
 
 ## 2. Each project's tabs (the human, 2026-11-09)
