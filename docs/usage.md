@@ -83,9 +83,13 @@ For Menkar (2026-11-08):
 - US-only inference (1.1×) is not applied: the transcript does not say where a request ran.
 - Tokens are kept per UTC hour. A day boundary splits them exactly in a whole-hour zone; in a
   half-hour zone a day is off by up to half an hour of tokens. Time is kept as spans and is exact.
-- Haiku 5.5's long-prompt rate applies to what is priced at once, which is a (model, UTC hour,
-  project, session) group. The history keeps no per-request tokens, so a busy hour of short
-  requests can be priced at the long rate.
+- Haiku 5.5's long-prompt rate is decided per request (decision 1.26, 2026-11-09): a request whose
+  prompt (input + cache reads + cache writes) is over 100,000 tokens has its tokens stored under
+  the model key `claude-haiku-5-5@long` and priced at the long row; a sum of requests is never
+  sized. The window, the report and its JSON sum both keys into one model, Haiku 5.5. Turns written
+  before 1.26 were re-derived once from the cache's requests; a turn with no transcript left (one
+  imported from agent-tablet, or deleted before the cache read it), or whose transcript changed
+  since, keeps the old pricing of its summed rows.
 - When Claude Code deletes one of a session's files while another file of the same session survives,
   a turn the next pass rewrites loses the deleted file's tokens: the history copies a turn from what
   the cache has.
@@ -183,7 +187,7 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
 | `opened_epoch` | The same moment in Unix seconds |
 | `execution_seconds` | Its working time, keyed by its origin, as the report's JSON keys it; `{}` with none |
 | `blocked_seconds` | Its time waiting on the user |
-| `models` | By model id as stored: `input`, `output`, `cache_write`, `cache_write_1h`, `cache_read`, `cost_usd` (list price) and `priced` |
+| `models` | By model id as stored, with Haiku 5.5's long-prompt requests apart as `claude-haiku-5-5@long`: `input`, `output`, `cache_write`, `cache_write_1h`, `cache_read`, `cost_usd` (list price) and `priced` |
 | `cost_usd` | The turn's cost: the statusline's exact figure when its session reported one, else the list-price estimate |
 | `cost_exact` | Whether `cost_usd` is the statusline's figure |
 

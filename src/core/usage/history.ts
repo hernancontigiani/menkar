@@ -4,15 +4,15 @@ import { fileStamp, now } from '../clock'
 import { type Db, openDb } from '../db'
 import { log } from '../log'
 import { appDirs } from '../paths'
-import type { UsageCache } from './cache'
+import type { HourTokens, UsageCache } from './cache'
 import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
-import { cost } from './prices'
+import { cost, shownModel } from './prices'
 
 export { addTokens, type Tokens, totalTokens, ZERO_TOKENS } from './nodes'
 
 // The one file whose loss loses what no transcript can rebuild: one row per turn, never pruned. A
 // file from a newer Menkar is left untouched; an unreadable one is moved aside, never deleted.
-export const HISTORY_VERSION = 2
+export const HISTORY_VERSION = 3
 export const BUSY_TIMEOUT_MS = 30_000
 
 export const HISTORY_SCHEMA = `
@@ -33,12 +33,17 @@ CREATE TABLE tokens (
 );
 CREATE INDEX tokens_hour ON tokens (hour);
 CREATE TABLE names (session_id TEXT PRIMARY KEY, name TEXT NOT NULL, claude INTEGER NOT NULL);
+CREATE TABLE rederive (uuid TEXT PRIMARY KEY);
 `
 
 // Each step takes a file from the version it is keyed by to the next.
 const MIGRATIONS: Readonly<Record<number, string>> = {
   1: `ALTER TABLE turns ADD COLUMN category TEXT;
 ALTER TABLE turns ADD COLUMN category_tries INTEGER NOT NULL DEFAULT 0;`,
+  // Tokens written before Haiku 5.5 was priced per request: every turn is queued for `rederive`,
+  // which needs the cache and so runs in the pass, not here.
+  2: `CREATE TABLE rederive (uuid TEXT PRIMARY KEY);
+INSERT INTO rederive SELECT uuid FROM turns;`,
 }
 
 export function historyPath(): string {
@@ -101,6 +106,32 @@ const nullableStr = (row: Row | undefined, key: string): string | null => {
 function quickCheckOk(db: Db): boolean {
   const row = db.raw.prepare('PRAGMA quick_check').get()
   return row !== undefined && Object.values(row)[0] === 'ok'
+}
+
+// Whether two sets of a turn's token rows hold the same tokens per (model, hour), the long-prompt
+// mark aside.
+function sameTotals(a: readonly HourTokens[], b: readonly HourTokens[]): boolean {
+  const sums = (rows: readonly HourTokens[]) => {
+    const out = new Map<string, number[]>()
+    for (const t of rows) {
+      const key = JSON.stringify([shownModel(t.model), t.hour])
+      const had = out.get(key) ?? [0, 0, 0, 0, 0]
+      const add = [t.input, t.output, t.cacheWrite, t.cacheWrite1h, t.cacheRead]
+      out.set(
+        key,
+        had.map((v, i) => v + (add[i] ?? 0)),
+      )
+    }
+    return out
+  }
+  const x = sums(a)
+  const y = sums(b)
+  if (x.size !== y.size) return false
+  for (const [key, values] of x) {
+    const other = y.get(key)
+    if (!other || values.some((v, i) => v !== other[i])) return false
+  }
+  return true
 }
 
 export function keyOf(
@@ -187,7 +218,7 @@ export class UsageHistory {
       const kept = raw.prepare(
         'SELECT project_id, project_name, category, category_tries FROM turns WHERE uuid = ?',
       )
-      const removes = ['turns', 'spans', 'tokens'].map((table) =>
+      const removes = ['turns', 'spans', 'tokens', 'rederive'].map((table) =>
         raw.prepare(`DELETE FROM ${table} WHERE uuid = ?`),
       )
       const insertTurn = raw.prepare('INSERT INTO turns VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
@@ -249,6 +280,72 @@ export class UsageHistory {
       }
     })
     cache.written(pending) // only after the commit: writing a turn twice is the same as once
+  }
+
+  // Rewrites the tokens of each turn queued by the version-3 migration from the cache's requests,
+  // so Haiku 5.5's long-prompt tier is decided per request. A turn is replaced only when what the
+  // cache has adds up to what the history holds; one with no transcript left, or whose files
+  // changed since, keeps its rows as they were. One short transaction per turn, touching only its
+  // tokens, so a classifier writing categories meanwhile waits at most one turn.
+  rederive(cache: Pick<UsageCache, 'turnUsage'>): void {
+    const db = this.db
+    if (db === null) return
+    const raw = db.raw
+    const queued = raw
+      .prepare(
+        'SELECT r.uuid AS uuid, t.session_id AS s FROM rederive r LEFT JOIN turns t ON t.uuid = r.uuid',
+      )
+      .all()
+    if (queued.length === 0) return
+    const stored = raw.prepare(
+      'SELECT model, hour, input, output, cache_write AS cw, cache_write_1h AS cw1h,' +
+        ' cache_read AS cr FROM tokens WHERE uuid = ?',
+    )
+    const removeTokens = raw.prepare('DELETE FROM tokens WHERE uuid = ?')
+    const insertTokens = raw.prepare('INSERT INTO tokens VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    const done = raw.prepare('DELETE FROM rederive WHERE uuid = ?')
+    let rederived = 0
+    let groupPriced = 0
+    for (const q of queued) {
+      const uuid = String(q.uuid)
+      const found = q.s === null || q.s === undefined ? null : cache.turnUsage(String(q.s), uuid)
+      const replaced = db.transaction(() => {
+        const same =
+          found !== null &&
+          sameTotals(
+            stored.all(uuid).map((t) => ({
+              model: String(t.model),
+              hour: num(t, 'hour'),
+              input: num(t, 'input'),
+              output: num(t, 'output'),
+              cacheWrite: num(t, 'cw'),
+              cacheWrite1h: num(t, 'cw1h'),
+              cacheRead: num(t, 'cr'),
+            })),
+            found.tokens,
+          )
+        if (same) {
+          removeTokens.run(uuid)
+          for (const t of found.tokens) {
+            insertTokens.run(
+              uuid,
+              t.model,
+              t.hour,
+              t.input,
+              t.output,
+              t.cacheWrite,
+              t.cacheWrite1h,
+              t.cacheRead,
+            )
+          }
+        }
+        done.run(uuid)
+        return same
+      })
+      if (replaced) rederived += 1
+      else groupPriced += 1
+    }
+    log.info('usage history re-derived per request', { rederived, groupPriced })
   }
 
   // Time, tokens and estimated cost per (project, session, category) in [low, high): spans
@@ -316,7 +413,7 @@ export class UsageHistory {
       if (priced === null) u.allPriced = false
       else u.cost += priced
       u.models = addModels(u.models, {
-        [String(r.m)]: { tokens, cost: priced ?? 0, priced: priced !== null },
+        [shownModel(String(r.m))]: { tokens, cost: priced ?? 0, priced: priced !== null },
       })
     }
     return found

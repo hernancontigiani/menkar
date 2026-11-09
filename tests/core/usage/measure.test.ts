@@ -4,6 +4,7 @@ process.env.TZ = 'America/Argentina/Buenos_Aires'
 
 import { rmSync, writeFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
+import { buildChart } from '../../../src/core/usage/chart'
 import {
   addTokens,
   BUSY_TIMEOUT_MS,
@@ -13,13 +14,14 @@ import {
 } from '../../../src/core/usage/history'
 import { runPass } from '../../../src/core/usage/pass'
 import { type Bounds, midnight, periodBounds } from '../../../src/core/usage/periods'
-import { cost } from '../../../src/core/usage/prices'
+import { cost, modelName } from '../../../src/core/usage/prices'
 import {
   buildReport,
   buildSeries,
   formatCost,
   formatDuration,
   type Node,
+  reportJson,
   totalExecution,
 } from '../../../src/core/usage/report'
 import { feed, freshTurn, parseSeconds } from '../../../src/core/usage/transcript'
@@ -31,6 +33,7 @@ import {
   prompt,
   response,
   result,
+  type Tokens,
   usageDirs,
 } from '../../factories/usage'
 
@@ -344,9 +347,81 @@ describe('cost', () => {
     expect(formatCost(report.nodes[0] as Node)).toBe('~$0.00+')
   })
 
-  test("USG-23 Haiku 5.5's long-prompt row applies over 100,000 prompt tokens", () => {
-    const dollars = cost('claude-haiku-5-5', noon, tokens({ input: 60_000, cacheRead: 50_000 }))
-    expect(dollars).toBeCloseTo((60_000 * 0.5 + 50_000 * 0.05) / 1_000_000, 12)
+  // Decision 1.26: the long-prompt row is decided per request when the history is written, so a
+  // sum of tokens is priced at the row its model key names, never by its own size.
+  test("USG-23 Haiku 5.5's long-prompt row is the '@long' key's, not a large sum's", () => {
+    const sum = tokens({ input: 60_000, cacheRead: 50_000 })
+    expect(cost('claude-haiku-5-5', noon, sum)).toBeCloseTo(
+      (60_000 * 0.1 + 50_000 * 0.01) / 1_000_000,
+      12,
+    )
+    expect(cost('claude-haiku-5-5@long', noon, sum)).toBeCloseTo(
+      (60_000 * 0.5 + 50_000 * 0.05) / 1_000_000,
+      12,
+    )
+    expect(cost('claude-haiku-5-5-20261001@long', noon, sum)).toBe(
+      cost('claude-haiku-5-5@long', noon, sum),
+    )
+  })
+
+  describe("Haiku 5.5's long prompt, per request (decision 1.26)", () => {
+    const haiku = (time: string, id: string, input: number, extra: Partial<Tokens> = {}) =>
+      response(time, { id, model: 'claude-haiku-5-5', tokens: { input, output: 1000, ...extra } })
+    const NORMAL = { input: 0.1, cacheRead: 0.01, output: 0.5 }
+    const LONG = { input: 0.5, cacheRead: 0.05, output: 2.5 }
+    const usd = (rate: typeof NORMAL, input: number, output: number, cacheRead = 0) =>
+      (input * rate.input + output * rate.output + cacheRead * rate.cacheRead) / 1_000_000
+
+    test('two requests of 60,000 prompt tokens in the same hour are both at the normal price', () => {
+      const dirs = usageDirs('haiku-two-short')
+      dirs.transcript('s1', [
+        prompt('10:00:00'),
+        haiku('10:00:10', 'msg_a', 60_000),
+        haiku('10:00:20', 'msg_b', 60_000),
+      ])
+      const node = only(measure(dirs))
+      expect(node.tokens.input).toBe(120_000)
+      expect(node.cost).toBeCloseTo(usd(NORMAL, 120_000, 2000), 12)
+    })
+
+    test('one request of 120,000 prompt tokens is at the long price, kept apart as @long', () => {
+      const dirs = usageDirs('haiku-one-long')
+      dirs.transcript('s1', [
+        prompt('10:00:00'),
+        haiku('10:00:10', 'msg_a', 20_000, { cacheRead: 100_000 }),
+      ])
+      const node = only(measure(dirs))
+      expect(node.cost).toBeCloseTo(usd(LONG, 20_000, 1000, 100_000), 12)
+      expect(rowsOf(dirs, 'SELECT model, input, cache_read FROM tokens')).toEqual([
+        { model: 'claude-haiku-5-5@long', input: 20_000, cache_read: 100_000 },
+      ])
+    })
+
+    test('a turn with one long and one short request prices each at its own row', () => {
+      const dirs = usageDirs('haiku-split')
+      dirs.transcript('s1', [
+        prompt('10:00:00'),
+        haiku('10:00:10', 'msg_long', 120_000),
+        haiku('10:00:20', 'msg_short', 10_000),
+      ])
+      const node = only(measure(dirs))
+      expect(node.cost).toBeCloseTo(usd(LONG, 120_000, 1000) + usd(NORMAL, 10_000, 1000), 12)
+      expect(rowsOf(dirs, 'SELECT model, input FROM tokens ORDER BY model')).toEqual([
+        { model: 'claude-haiku-5-5', input: 10_000 },
+        { model: 'claude-haiku-5-5@long', input: 120_000 },
+      ])
+    })
+
+    test('exactly 100,000 prompt tokens is not over the line', () => {
+      const dirs = usageDirs('haiku-edge')
+      dirs.transcript('s1', [
+        prompt('10:00:00'),
+        haiku('10:00:10', 'msg_a', 50_000, { cacheWrite: 50_000 }),
+      ])
+      const node = only(measure(dirs))
+      expect(node.cost).toBeCloseTo(usd(NORMAL, 50_000, 1000) + (50_000 * 0.125) / 1_000_000, 12)
+      expect(rowsOf(dirs, 'SELECT model FROM tokens')).toEqual([{ model: 'claude-haiku-5-5' }])
+    })
   })
 
   test("USG-24 the statusline's running total is the exact cost, across a /clear", () => {
@@ -419,6 +494,33 @@ describe('by model', () => {
       if (!node.costExact) expect(models.reduce((c, m) => c + m.cost, 0)).toBeCloseTo(node.cost, 12)
       expect(models.every((m) => m.priced)).toBe(node.allPriced)
     }
+  })
+
+  // Decision 1.26: Haiku 5.5's long-prompt tokens are stored apart, but everything shown sums
+  // them into the one model the user knows.
+  test("'@long' never reaches what is shown: Haiku 5.5's two rows sum into one model", () => {
+    const dirs = usageDirs('models-long')
+    dirs.transcript('s1', [
+      prompt('10:00:00'),
+      response('10:00:10', { id: 'msg_l', model: 'claude-haiku-5-5', tokens: { input: 150_000 } }),
+      response('10:00:20', { id: 'msg_s', model: 'claude-haiku-5-5', tokens: { input: 5000 } }),
+    ])
+    const report = measure(dirs, NOV_8, memberships({ s1: ['p', 'P'] }))
+    const project = report.nodes[0] as Node
+    const nodes = [project, ...project.children]
+    expect(nodes).toHaveLength(2)
+    for (const node of nodes) {
+      expect(Object.keys(node.models)).toEqual(['claude-haiku-5-5'])
+      expect(node.models['claude-haiku-5-5']?.tokens.input).toBe(155_000)
+      expect(node.models['claude-haiku-5-5']?.cost).toBeCloseTo(node.cost, 12)
+    }
+    const json = JSON.stringify(reportJson(report))
+    expect(json).toContain('claude-haiku-5-5')
+    expect(json).not.toContain('@long')
+    const chart = buildChart([report], 'tokens', 'model')
+    expect(chart.series.map((s) => s.key)).toEqual(['claude-haiku-5-5'])
+    expect(modelName('claude-haiku-5-5@long')).toBe('Haiku 5.5')
+    expect(modelName('claude-haiku-5-5-20261001@long')).toBe('Haiku 5.5')
   })
 })
 

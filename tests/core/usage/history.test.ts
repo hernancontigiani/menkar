@@ -71,6 +71,7 @@ const fingerprint = (path: string) => ({
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 describe('the history file', () => {
@@ -322,5 +323,143 @@ describe('the passes', () => {
     } finally {
       remove()
     }
+  })
+})
+
+// Decision 1.26: Haiku 5.5's long-prompt row is decided per request. A history written before
+// that kept one summed row per (turn, model, hour); this puts a fresh history back in that shape.
+function asVersion2(path: string): void {
+  const db = openDb(path)
+  try {
+    db.transaction(() => {
+      db.raw.exec(`
+        CREATE TABLE grouped AS SELECT uuid, replace(model, '@long', '') AS model, hour,
+          SUM(input) AS input, SUM(output) AS output, SUM(cache_write) AS cache_write,
+          SUM(cache_write_1h) AS cache_write_1h, SUM(cache_read) AS cache_read
+          FROM tokens GROUP BY uuid, replace(model, '@long', ''), hour;
+        DELETE FROM tokens;
+        INSERT INTO tokens SELECT * FROM grouped;
+        DROP TABLE grouped;
+        DROP TABLE rederive;
+      `)
+      db.setUserVersion(2)
+    })
+  } finally {
+    db.close()
+  }
+}
+
+const tokenRows = (path: string, uuid: string) => {
+  const db = openDb(path)
+  try {
+    return db.raw.prepare('SELECT model, input FROM tokens WHERE uuid = ? ORDER BY model').all(uuid)
+  } finally {
+    db.close()
+  }
+}
+
+const haikuTurn = (time: string, long: number, short: number) => [
+  prompt(time),
+  response(time.replace(/:00$/, ':10'), {
+    id: `msg_l_${time}`,
+    model: 'claude-haiku-5-5',
+    tokens: { input: long },
+  }),
+  response(time.replace(/:00$/, ':20'), {
+    id: `msg_s_${time}`,
+    model: 'claude-haiku-5-5',
+    tokens: { input: short },
+  }),
+]
+
+describe('re-deriving the history per request (decision 1.26)', () => {
+  test('a turn with its transcript is re-derived, one without or changed since is left, and twice is once', () => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    vi.stubEnv('MENKAR_LOG', 'info')
+    const records: string[] = []
+    const remove = addSink((line) => records.push(line))
+    try {
+      const dirs = usageDirs('rederive')
+      dirs.transcript('kept', haikuTurn('10:00:00', 120_000, 10_000))
+      dirs.transcript('changed', haikuTurn('12:00:00', 140_000, 30_000))
+      pass(dirs)
+      const db = openDb(dirs.history)
+      db.raw.prepare("UPDATE turns SET category = 'build' WHERE uuid = 'u-10:00:00'").run()
+      db.close()
+      asVersion2(dirs.history)
+      const old = openDb(dirs.history)
+      // as if one of its files had been deleted since: what the cache has no longer adds up
+      old.raw.prepare("UPDATE tokens SET input = input + 1 WHERE uuid = 'u-12:00:00'").run()
+      // a turn no transcript has, as agent-tablet's imported ones
+      const hour = NOV_8.start + 11 * 3600
+      old.raw
+        .prepare("INSERT INTO turns VALUES ('u-11:00:00', 'gone', 'human', ?, NULL, NULL, NULL, 0)")
+        .run(hour)
+      old.raw
+        .prepare(
+          "INSERT INTO tokens VALUES ('u-11:00:00', 'claude-haiku-5-5', ?, 150000, 0, 0, 0, 0)",
+        )
+        .run(hour)
+      old.close()
+      pass(dirs)
+      expect(tokenRows(dirs.history, 'u-10:00:00')).toEqual([
+        { model: 'claude-haiku-5-5', input: 10_000 },
+        { model: 'claude-haiku-5-5@long', input: 120_000 },
+      ])
+      expect(tokenRows(dirs.history, 'u-11:00:00')).toEqual([
+        { model: 'claude-haiku-5-5', input: 150_000 },
+      ])
+      expect(tokenRows(dirs.history, 'u-12:00:00')).toEqual([
+        { model: 'claude-haiku-5-5', input: 170_001 },
+      ])
+      const history = new UsageHistory(dirs.history)
+      expect(history.handle?.userVersion()).toBe(HISTORY_VERSION)
+      expect(
+        history.handle?.raw.prepare("SELECT category FROM turns WHERE uuid = 'u-10:00:00'").get(),
+      ).toEqual({ category: 'build' })
+      history.close()
+      const line = records.filter((r) => r.includes('re-derived'))
+      expect(line).toHaveLength(1)
+      expect(line[0]).toContain('rederived=1')
+      expect(line[0]).toContain('groupPriced=2')
+      const after = dump(dirs.history)
+      pass(dirs)
+      expect(dump(dirs.history)).toEqual(after)
+      expect(records.filter((r) => r.includes('re-derived'))).toHaveLength(1)
+    } finally {
+      remove()
+    }
+  })
+
+  test("a category written between a turn's read and its re-derivation survives, and so do its tokens", () => {
+    const dirs = usageDirs('rederive-race')
+    dirs.transcript('s1', haikuTurn('10:00:00', 120_000, 10_000))
+    pass(dirs)
+    asVersion2(dirs.history)
+    const history = new UsageHistory(dirs.history)
+    const classifier = new UsageHistory(dirs.history)
+    const cache = new UsageCache(dirs.cache)
+    try {
+      history.rederive({
+        turnUsage(sessionId: string, uuid: string) {
+          classifier.setCategories(new Map([[uuid, 'debug']]))
+          classifier.countTry([uuid])
+          return cache.turnUsage(sessionId, uuid)
+        },
+      })
+    } finally {
+      cache.close()
+      classifier.close()
+      history.close()
+    }
+    expect(tokenRows(dirs.history, 'u-10:00:00')).toEqual([
+      { model: 'claude-haiku-5-5', input: 10_000 },
+      { model: 'claude-haiku-5-5@long', input: 120_000 },
+    ])
+    const db = openDb(dirs.history)
+    expect(
+      db.raw.prepare("SELECT category, category_tries FROM turns WHERE uuid = 'u-10:00:00'").get(),
+    ).toEqual({ category: 'debug', category_tries: 1 })
+    db.close()
   })
 })

@@ -72,7 +72,8 @@ export interface Node {
   readonly execution: Readonly<Record<string, number>>
   readonly blocked: number
   readonly tokens: Tokens
-  // the same tokens and the list-price cost, by model id as stored
+  // the same tokens and the list-price cost, by model id as stored, a long-prompt key folded into
+  // its model
   readonly models: Models
   readonly cost: number
   // every session under it reported its cost through the statusline

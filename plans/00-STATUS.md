@@ -38,6 +38,7 @@
 | 1.23 | Tabs are reordered by dragging them with the mouse within their strip; no keys, no tear-off; the order is saved | 2026-11-09 | `docs/window.md` |
 | 1.24 | The Usage window is an independent top-level window (usable beside the main one or on another monitor); Preferences, About and MCP stay modal dialogs | 2026-11-09 | `docs/usage.md` |
 | 1.25 | A sidebar row can be hidden from its project's list ("Hide" / "Show"): it stays a member and in Usage; only a stopped session; shown again from Add session, the list's "N hidden" foot, or by starting it | 2026-11-09 | plan 19 |
+| 1.26 | Haiku 5.5's long-prompt price is decided per request (prompt over 100,000 tokens, input + cache reads + writes), as the pricing page says, stored under `claude-haiku-5-5@long` and shown as one Haiku 5.5; turns whose per-request data the cache still holds are re-derived once, the rest (agent-tablet imports, transcripts gone) keep group pricing. Menkar stops matching agent-tablet there (1.17) | 2026-11-09 | `docs/usage.md` |
 
 ## 2. Open
 

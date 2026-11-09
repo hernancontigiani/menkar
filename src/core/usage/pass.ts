@@ -22,6 +22,7 @@ export function runPass(memberships: Memberships, paths: PassPaths = defaultPass
     const history: UsageHistory = openHistory(paths.history)
     try {
       history.write(cache, memberships)
+      history.rederive(cache)
     } finally {
       history.close()
     }

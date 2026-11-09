@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { type Db, openDb } from '../db'
 import { appDirs } from '../paths'
 import { listTranscripts } from './files'
+import { requestModel } from './prices'
 import {
   type ClosedSpan,
   dumpTurn,
@@ -329,7 +330,8 @@ export class UsageCache {
   }
 
   // A turn as the cache has it now: its spans, and every response of its session from its opening
-  // to the next turn's, summed per (model, UTC hour). Null when the cache has nothing of it.
+  // to the next turn's, summed per (model, UTC hour), each request under the key its own size
+  // prices it at. Null when the cache has nothing of it.
   turnUsage(
     sessionId: string,
     uuid: string,
@@ -371,23 +373,38 @@ export class UsageCache {
         .all(uuid)
         .map((s) => ({ kind: str(s, 'kind'), start: num(s, 'start'), end: num(s, 'end') }))
     }
-    const tokens = raw
+    const sums = new Map<string, HourTokens>()
+    for (const e of raw
       .prepare(
-        'SELECT model, CAST(at / 3600 AS INTEGER) * 3600.0 AS hour, SUM(input) AS input,' +
-          ' SUM(output) AS output, SUM(cache_write) AS cw, SUM(cache_write_1h) AS cw1h,' +
-          ' SUM(cache_read) AS cr FROM entries WHERE session_id = ? AND at >= ? AND at < ?' +
-          ' GROUP BY model, hour ORDER BY model, hour',
+        'SELECT model, CAST(at / 3600 AS INTEGER) * 3600.0 AS hour, input, output,' +
+          ' cache_write AS cw, cache_write_1h AS cw1h, cache_read AS cr FROM entries' +
+          ' WHERE session_id = ? AND at >= ? AND at < ?',
       )
-      .all(sessionId, finite(low), finite(high))
-      .map((t) => ({
-        model: str(t, 'model'),
-        hour: num(t, 'hour'),
-        input: num(t, 'input'),
-        output: num(t, 'output'),
-        cacheWrite: num(t, 'cw'),
-        cacheWrite1h: num(t, 'cw1h'),
-        cacheRead: num(t, 'cr'),
-      }))
+      .all(sessionId, finite(low), finite(high))) {
+      const request = {
+        input: num(e, 'input'),
+        output: num(e, 'output'),
+        cacheWrite: num(e, 'cw'),
+        cacheWrite1h: num(e, 'cw1h'),
+        cacheRead: num(e, 'cr'),
+      }
+      const model = requestModel(str(e, 'model'), request)
+      const hour = num(e, 'hour')
+      const key = JSON.stringify([model, hour])
+      const had = sums.get(key)
+      sums.set(key, {
+        model,
+        hour,
+        input: (had?.input ?? 0) + request.input,
+        output: (had?.output ?? 0) + request.output,
+        cacheWrite: (had?.cacheWrite ?? 0) + request.cacheWrite,
+        cacheWrite1h: (had?.cacheWrite1h ?? 0) + request.cacheWrite1h,
+        cacheRead: (had?.cacheRead ?? 0) + request.cacheRead,
+      })
+    }
+    const tokens = [...sums.values()].sort((a, b) =>
+      a.model < b.model ? -1 : a.model > b.model ? 1 : a.hour - b.hour,
+    )
     return { turn, spans, tokens }
   }
 

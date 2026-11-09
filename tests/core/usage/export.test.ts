@@ -89,6 +89,23 @@ describe('menkar usage export', () => {
     expect(found[0]).toMatchObject({ project: null, session_name: null })
   })
 
+  // Decision 1.26: the export is for analysis, so it keeps Haiku 5.5's long-prompt tokens under
+  // their own key, each priced at its own row.
+  test("Haiku 5.5's long-prompt requests keep their own '@long' key, apart from the short ones", () => {
+    const dirs = usageDirs('export-long')
+    dirs.transcript('s1', [
+      prompt('10:00:00'),
+      response('10:00:10', { id: 'msg_l', model: 'claude-haiku-5-5', tokens: { input: 120_000 } }),
+      response('10:00:20', { id: 'msg_s', model: 'claude-haiku-5-5', tokens: { input: 10_000 } }),
+    ])
+    const turn = rows(cli(dirs, ['--period', 'today']).out)[0] ?? {}
+    const models = turn.models as Record<string, Record<string, unknown>>
+    expect(Object.keys(models).sort()).toEqual(['claude-haiku-5-5', 'claude-haiku-5-5@long'])
+    expect(models['claude-haiku-5-5@long']).toMatchObject({ input: 120_000, priced: true })
+    expect(models['claude-haiku-5-5@long']?.cost_usd).toBeCloseTo((120_000 * 0.5) / 1_000_000, 12)
+    expect(models['claude-haiku-5-5']?.cost_usd).toBeCloseTo((10_000 * 0.1) / 1_000_000, 12)
+  })
+
   test('a turn is in the range by the moment it opened, at both edges, and is never clipped', () => {
     const dirs = usageDirs('export-edges')
     dirs.transcript('s1', [

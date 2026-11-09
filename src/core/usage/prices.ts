@@ -46,31 +46,43 @@ export const TABLE: Readonly<Record<string, Rows>> = {
   'claude-sonnet-4-5': p(3, 3.75, 6, 0.3, 15),
   'claude-sonnet-4': p(3, 3.75, 6, 0.3, 15),
   'claude-haiku-5-5': p(0.1, 0.125, 0.2, 0.01, 0.5),
+  'claude-haiku-5-5@long': p(0.5, 0.625, 1, 0.05, 2.5),
   'claude-haiku-4-5': p(1, 1.25, 2, 0.1, 5),
 }
 
-// Haiku 5.5 is priced by prompt size: over this many prompt tokens (input + cache reads + cache
-// writes) it pays the long-prompt row.
+// Haiku 5.5 is priced by the size of each request's prompt (input + cache reads + cache writes):
+// over this many tokens the request pays the long-prompt row. Only a single request knows its
+// size, so the tier is chosen when the tokens are stored and kept in the model key; a sum of
+// requests is never sized.
 export const HAIKU_5_5_LONG_PROMPT = 100_000
-const HAIKU_5_5_LONG: Price = {
-  input: 0.5,
-  cacheWrite5m: 0.625,
-  cacheWrite1h: 1,
-  cacheRead: 0.05,
-  output: 2.5,
+const LONG = '@long'
+
+// The stored key for one request's tokens: its model, marked long when Haiku 5.5's prompt is over
+// the line.
+export function requestModel(model: string, tokens: TokenCounts): string {
+  const prompt = tokens.input + tokens.cacheWrite + tokens.cacheRead
+  return normalizeModel(model) === 'claude-haiku-5-5' && prompt > HAIKU_5_5_LONG_PROMPT
+    ? `${model}${LONG}`
+    : model
+}
+
+// The model a stored key stands for, as the user knows it: the long-prompt mark dropped.
+export function shownModel(model: string): string {
+  return model.endsWith(LONG) ? model.slice(0, -LONG.length) : model
 }
 
 // The 1M-token context window is priced at the standard rate, so `[1m]` prices as its base model;
-// a dated id prices as its family.
+// a dated id prices as its family; a long-prompt key keeps its mark.
 export function normalizeModel(model: string): string {
-  const base = model.endsWith('[1m]') ? model.slice(0, -4) : model
-  return base.replace(/-\d{8}$/, '')
+  const shown = shownModel(model)
+  const base = shown.endsWith('[1m]') ? shown.slice(0, -4) : shown
+  return `${base.replace(/-\d{8}$/, '')}${shown === model ? '' : LONG}`
 }
 
 // "Opus 4.5" for claude-opus-4-5 (dated or [1m] alike) when the table knows the model; any other id
 // as stored.
 export function modelName(model: string): string {
-  const id = normalizeModel(model)
+  const id = normalizeModel(shownModel(model))
   const known = /^claude-([a-z]+)-(\d+)(?:-(\d+))?$/.exec(id)
   if (!(id in TABLE) || !known) return model
   const [, family = '', major, minor] = known
@@ -100,12 +112,8 @@ export interface TokenCounts {
 
 // USD for these tokens of one model at one time, or null for a model the table does not know.
 export function cost(model: string, atSeconds: number, tokens: TokenCounts): number | null {
-  let price = priceFor(model, atSeconds)
+  const price = priceFor(model, atSeconds)
   if (price === null) return null
-  const prompt = tokens.input + tokens.cacheWrite + tokens.cacheRead
-  if (normalizeModel(model) === 'claude-haiku-5-5' && prompt > HAIKU_5_5_LONG_PROMPT) {
-    price = HAIKU_5_5_LONG
-  }
   const write5m = Math.max(0, tokens.cacheWrite - tokens.cacheWrite1h)
   return (
     (tokens.input * price.input +
