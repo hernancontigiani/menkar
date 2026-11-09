@@ -1148,7 +1148,7 @@ test('PRJ-64 (decision 1.25) Usage still counts a hidden member under its projec
           cwd.replace(/[^A-Za-z0-9]/g, '-'),
           `${CLIENT.long}.jsonl`,
         ),
-        [
+        `${[
           { type: 'custom-title', customTitle: 'long one' },
           {
             type: 'user',
@@ -1166,7 +1166,7 @@ test('PRJ-64 (decision 1.25) Usage still counts a hidden member under its projec
           },
         ]
           .map((l) => JSON.stringify(l))
-          .join('\n') + '\n',
+          .join('\n')}\n`,
       )
       // Hidden from the start, so every usage pass sees it hidden.
       const file = join(dirs.root, 'config', 'menkar', 'projects.json')
