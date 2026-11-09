@@ -69,6 +69,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 17 | `24-settings-window-and-header.md` (Settings as a sectioned window, no blocking windows, header with Usage, Close all to the tab menu, transcript retention) | Stub 2026-11-09; for 2026-11-10 |
 | 16 | `23-scroll-and-rc-tab.md` (jump-to-bottom button in terminals; the phone icon off the tab) | Stub 2026-11-09; for 2026-11-10 |
 | 14 | `21-new-menu.md` (New ▾ with four items, the agent picker in Add session) | Written 2026-11-09; `b1` |
 | 15 | `22-parallel-e2e.md` (e2e in parallel, one Xvfb per worker) | Stub 2026-11-09; `b2`, from 2026-11-10 |
