@@ -187,3 +187,30 @@
 
 > Replaced 2026-11-09: About's credit no longer names agent-tablet or links the repository.
 | 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to agent-tablet and Agent Session Manager; "Restart now" asks and saves like quitting | 2026-11-08 | `docs/spec/README.md` |
+
+| 13 | `20-terminal-drawer.md` (Ctrl+` opens a temporary shell under the tab) | Written 2026-11-09; `b2` |
+
+> Closed 2026-11-10 — plan 20, "The drawer terminal", built by `b2`: Ctrl+` (K43, and New ▾'s
+> "Terminal in this tab") opens a shell under the selected tab, in its agent's folder; hiding keeps
+> it running, `exit` ends it, closing the tab, window or app hangs it up. Never a tab, a pane of the
+> layout, a session or saved. Added at the human's request: a ⌄ button that hides it, covered by
+> LOOK-60. Deviations accepted by `set`: a file tab's drawer starts in the file's folder and a chat
+> tab's in `HOME`; "gone after a restart" is asserted as "not in `projects.json`". Found: the state
+> push on the shell's exit is only testable by timing (the running-panes poll shows it anyway). In
+> `docs/window.md`.
+
+> Replaced 2026-11-10: §1 row 1.29 points at `docs/window.md` now that plan 20 is closed. It was:
+| 1.29 | Ctrl+` toggles a temporary shell under the current tab, in its agent's folder: hidden, not closed; never a tab, never saved | 2026-11-09 | plan 20 |
+
+| 14 | `21-new-menu.md` (New ▾ with four items, the agent picker in Add session) | Written 2026-11-09; `b1` |
+
+> Closed 2026-11-10 — plan 21, "One New ▾ menu, and the agent chosen in Add session", built by
+> `b1` (committed in 8e4c76f): the header's `+` and split arrow became one text button "New ▾" with
+> New session, Terminal in this tab, Open file… and New window, each showing its key; Add session →
+> New gained a segmented agent picker, an agent not on the PATH greyed out and saying so. The
+> advanced new session, Continue last and New chat were deleted with their flags and tests; chat
+> stays reachable through Continue in chat. Found: the agent table had to move to a pure core
+> module for the renderer to read it. In `docs/window.md` and `docs/sessions.md`.
+
+> Replaced 2026-11-10: §1 row 1.30's document became `docs/window.md` when plan 21 closed. It was:
+| 1.30 | The header's New is a text button "New ▾" whose menu holds New session, Terminal in this tab, Open file and New window with their shortcuts; the agent (Claude Code, Cursor…) is chosen in Add session → New, uninstalled ones greyed; the advanced dialog, Continue last and chat entries leave the menu | 2026-11-09 | plan 21 |
