@@ -28,44 +28,14 @@ describe('command lines', () => {
     ).toBe(`${CLI} --resume 7f3a --fork-session --session-id c41d --settings ${SETTINGS} && exit\n`)
   })
 
-  test('TRM-4 continue last', () => {
-    expect(buildCommand('claude', { kind: 'continue' }, opts)).toBe(
-      `${CLI} --continue --settings ${SETTINGS} && exit\n`,
-    )
-  })
-
-  test('TRM-5 the advanced flags come first, in order', () => {
-    expect(
-      buildCommand(
-        'claude',
-        {
-          kind: 'new',
-          model: 'opus',
-          mode: 'acceptEdits',
-          addDir: '/home/ana/docs',
-          id: 'id1',
-          name: 'api',
-        },
-        opts,
-      ),
-    ).toBe(
-      `${CLI} --model opus --permission-mode acceptEdits --add-dir /home/ana/docs --session-id id1 -n api --settings ${SETTINGS} && exit\n`,
-    )
-  })
-
-  test('TRM-6 with every advanced field at Default, none of those flags', () => {
-    const line = buildCommand('claude', { kind: 'new', id: 'id1', name: 'api' }, opts)
-    expect(line).not.toMatch(/--model|--permission-mode|--add-dir/)
-  })
-
-  test('TRM-7 a new Cursor session: model and mode, no id, no name, no --settings', () => {
+  test('TRM-7 a new Cursor session: no id, no name, no --settings', () => {
     expect(
       buildCommand(
         'cursor',
-        { kind: 'new', model: 'gpt-5', mode: 'ask', id: 'x', name: 'spike' },
+        { kind: 'new', id: 'x', name: 'spike' },
         { cli: '/bin/cursor-agent', settings: SETTINGS },
       ),
-    ).toBe('/bin/cursor-agent --model gpt-5 --mode ask && exit\n')
+    ).toBe('/bin/cursor-agent && exit\n')
   })
 
   test('TRM-8 a Cursor resume', () => {

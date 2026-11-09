@@ -11,6 +11,7 @@ import {
   render,
   saveSelectedFile,
   selectedTabView,
+  toggleDrawer,
   toggleSidebar,
 } from './app'
 import { isMarkdown } from './editor'
@@ -31,6 +32,8 @@ function appKey(event: KeyboardEvent): (() => void) | null {
   const ctrl = event.ctrlKey && !event.altKey && !event.metaKey
   if (key === 'F9' && !ctrl && !event.shiftKey) return toggleSidebar
   if (!ctrl) return null
+  // By its position, so it is the key left of 1 on every layout.
+  if (!event.shiftKey && (event.code === 'Backquote' || key === '`')) return toggleDrawer
   const lower = key.toLowerCase()
   if (event.shiftKey && lower === 't') return () => openAddSession('new')
   if (event.shiftKey && lower === 'f') return () => openAddSession('existing')

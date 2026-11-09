@@ -185,13 +185,13 @@ test('SES-35 New opens on the name step with a remembered folder that exists, an
     clientWork(dirs, { settings: { new_session_dir: join(dirs.home, 'work', 'api') } }),
   )
   try {
-    await page.locator('#new-session').click()
+    await page.locator('#strip-plus').click()
     await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
     await expect(page.locator('.add-session')).toContainText('api~/work')
     await expect(page.locator('.add-session .folder-list')).toHaveCount(0)
     await page.keyboard.press('Escape')
     rmSync(join(home, 'work', 'api'), { recursive: true })
-    await page.locator('#new-session').click()
+    await page.locator('#strip-plus').click()
     await expect(page.locator('.add-session .folder-list')).toBeVisible()
   } finally {
     await launched.close()
@@ -199,7 +199,7 @@ test('SES-35 New opens on the name step with a remembered folder that exists, an
 })
 
 async function newAt(page: Page, folder: string) {
-  await page.locator('#new-session').click()
+  await page.locator('#strip-plus').click()
   await page.locator('.add-session .folder-list .another').waitFor()
   await page.locator(`.add-session .folder-row[data-folder="${folder}"]`).click()
 }
@@ -233,18 +233,18 @@ test('SES-40, SES-41 Start with the switch on: a tab named as typed, its id in r
     const id = /--session-id (\S+)/.exec(readFileSync(join(home, 'claude-args.txt'), 'utf8'))?.[1]
     await expect.poll(() => readState(root).remote_control).toEqual([id])
     expect(readState(root).settings.new_session_dir).toBe(folder)
-    await page.locator('#new-session').click()
+    await page.locator('#strip-plus').click()
     await expect(page.locator('.add-session .remote-row input')).not.toBeChecked()
   } finally {
     await launched.close()
   }
 })
 
-test('SES-42 with only Claude there is no Agent row; with Cursor chosen there is no Remote control switch, and it is off', async () => {
+test('SES-42 with only Claude, Cursor is greyed out on New; with Cursor chosen there is no Remote control switch, and it is off', async () => {
   const { launched, page, home } = await launch((dirs) => clientWork(dirs))
   try {
     await newAt(page, join(home, 'work', 'web'))
-    await expect(page.locator('.add-session .form-row', { hasText: 'Agent' })).toHaveCount(0)
+    await expect(page.locator('.add-session [data-agent="cursor"]')).toBeDisabled()
     await expect(page.locator('.add-session .remote-row')).toBeVisible()
   } finally {
     await launched.close()
@@ -261,7 +261,7 @@ test('SES-42 with only Claude there is no Agent row; with Cursor chosen there is
   try {
     await newAt(both.page, join(both.home, 'work', 'web'))
     await both.page.locator('.add-session .remote-row input').check()
-    await both.page.locator('.add-session .form-row select').selectOption('cursor')
+    await both.page.locator('.add-session [data-agent="cursor"]').click()
     await expect(both.page.locator('.add-session .remote-row')).toBeHidden()
     await expect(both.page.locator('.add-session .remote-row input')).not.toBeChecked()
   } finally {
@@ -343,10 +343,14 @@ test('SES-45 Ctrl+Shift+T, Ctrl+B c and + open New; Add session, Ctrl+B N and Ct
     }, 'Existing')
     await opens(() => page.keyboard.press('Control+Shift+F'), 'Existing')
     await page.locator('#new-menu').click()
-    await page.locator('.menu-item', { hasText: 'New Cursor session…' }).click()
+    await page.locator('.menu-item', { hasText: 'New session' }).click()
     await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
+    await page.locator('.add-session [data-agent="cursor"]').click()
     await page.locator('.add-session .folder-row').first().click()
-    await expect(page.locator('.add-session .form-row select')).toHaveValue('cursor')
+    await expect(page.locator('.add-session [data-agent="cursor"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   } finally {
     await launched.close()
   }

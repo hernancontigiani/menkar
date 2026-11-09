@@ -454,3 +454,18 @@ in the "property" style: the subtitle in the regular text color and the title di
 
 **Tab strip**: a chat tab shows its title with the idle state dot and no context ring (see
 `projects.md` and `look.md` for the tab's look).
+
+## Chat, MCP servers, Ghostty
+
+> Left on 2026-11-09: one New ▾ menu; the advanced new session, Continue last and New chat removed (decision 1.30).
+headless mode, with permission cards for Claude Code (F50, M11, M36, K40); the MCP servers browser
+
+## Chat variants: which agent offers which chat
+
+> Left on 2026-11-09: one New ▾ menu; the advanced new session, Continue last and New chat removed (decision 1.30).
+### Starting a new chat (M11)
+
+## Starting a new chat (M11)
+
+> Left on 2026-11-09: one New ▾ menu; the advanced new session, Continue last and New chat removed (decision 1.30).
+- Built: `docs/chat.md` describes how; plan 14 built it.

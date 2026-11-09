@@ -1,6 +1,5 @@
-import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { mcpSections } from '../core/chat/mcp'
 import type { Reply } from '../core/chat/model'
 import {
@@ -15,13 +14,10 @@ import {
   startChat,
 } from '../core/chat/processes'
 import { allowLine, denyLine, userLine } from '../core/chat/protocol'
-import { t } from '../core/i18n'
 import { agentPaths } from '../core/paths'
-import { settingsOf, withSetting } from '../core/settings'
 import type { ChatInfo, InvokeChannel, InvokeChannels } from '../shared/ipc'
-import { sessions } from './sessions'
 
-// Chat tabs on Electron's side: the folder chooser, a chat's events sent to the windows, and the
+// Chat tabs on Electron's side: a chat's events sent to the windows, and the
 // IPC the view uses. The processes are src/core/chat/processes.ts.
 export { closeAllChats, closeChat, ghosttyInstalled, openInGhostty, startChat }
 
@@ -30,20 +26,6 @@ onChatEvent((chatId, event) => {
     if (!window.isDestroyed()) window.webContents.send('chat:event', { chatId, event })
   }
 })
-
-// "New {agent} chat…": a folder from the system chooser, remembered for the next one.
-export async function chooseChatFolder(parent: BrowserWindow): Promise<string | null> {
-  const remembered = settingsOf(await sessions.currentState()).new_session_dir
-  const result = await dialog.showOpenDialog(parent, {
-    title: t('chat.chooseFolder'),
-    properties: ['openDirectory'],
-    ...(remembered && existsSync(remembered) ? { defaultPath: remembered } : {}),
-  })
-  const folder = result.canceled ? undefined : result.filePaths[0]
-  if (!folder) return null
-  await sessions.updateState((state) => withSetting(state, 'new_session_dir', folder))
-  return folder
-}
 
 function handle<C extends InvokeChannel>(
   channel: C,

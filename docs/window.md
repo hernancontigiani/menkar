@@ -50,12 +50,38 @@ How the main window is built and why that way. The behaviour it follows is in `d
 - Each agent pane is registered for the agent-state module (`src/main/panes.ts`): its screen
   mirror, whether its agent owns the foreground, whether it is seen, and `reveal()`.
 
+## The drawer terminal
+
+Decision 1.29 (2026-11-09): each tab can open a shell under its panes for a moment's work (git in
+the session's folder) without a terminal tab piling up.
+
+- **`Ctrl+`` ` `` toggles it** for the selected tab (by `event.code`, so it is the key left of `1`
+  on any layout); the window action is `{ type: 'toggleDrawer', pane }`, which the New menu can
+  call too. The key never reaches a terminal.
+- **Its folder** is chosen once, when its shell starts (`drawerFolder` in `src/core/drawers.ts`):
+  the focused agent pane's folder, else another agent of the tab, else the tab's shell, else a file
+  tab's folder, else `HOME`. A chat tab's drawer starts in `HOME`.
+- **Main keeps one per tab** (`DrawerRegistry`, `src/core/drawers.ts`), apart from the panes: a
+  plain `Terminal` with no command, never in the layout, `projects.json`, Usage or agent state. Its
+  id travels on the panes' `pty:*` channels, which fall back to the drawers when no pane has the id.
+  `TabView.drawer` carries its id, whether it is shown, and its label, `shell · <folder>`.
+- **Hiding keeps it running**, scrollback and cwd included. `exit` closes it for real, and the next
+  toggle starts a fresh shell. Closing the tab, its window or the app hangs it up with SIGHUP, as a
+  pane's shell; it never adds a "running" question.
+- **The renderer** puts it at the bottom of the tab body, full width, as an absolutely placed pane
+  whose height the body keeps free with `padding-bottom`, so no pane node moves. It opens at 30 % of
+  the tab; the divider on its top edge resizes it, and that height holds for the window while the
+  app runs. Opening focuses it; hiding it (or its exit) focuses the pane that had the focus.
+- **A ⌄ button hides it too** (2026-11-09), for whoever does not know the key: on the frame's top
+  line at its right end, or the drawer's top-right corner in Classic, which has no frame. It only
+  hides; `exit` is still what ends the shell.
+
 ## A new session joining its project
 
 A new, forked or continued tab is transient until its session has a typed message. While one
 waits, the workspace asks the sessions service for a rescan every 1.5 s. A known id (a new Claude
-session or a fork) waits until the tab closes, then one last check. An unknown id (Continue last,
-Cursor) takes the newest session of that folder modified since the tab started, and gives up after
+session or a fork) waits until the tab closes, then one last check. An unknown id (a Cursor
+session) takes the newest session of that folder modified since the tab started, and gives up after
 120 tries. It then joins the project the tab was started in (`joinTarget`).
 
 ## Windows and quitting
@@ -93,6 +119,9 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   close. Being text among icons it has a resting fill and a 1 px edge, so it reads as a button; the
   icon buttons stay flat. It still closes every tab with no question, and shows with two tabs or
   more.
+- "New ▾" is the header's one menu for starting things (decision 1.30, 2026-11-09), a text button in
+  Close all's look: New session, Terminal in this tab, Open file…, New window, each showing its
+  key. The agent is picked on Add session → New, not per menu item.
 - Every segmented control (Add session's Existing / New, Usage's rows, Preferences' pages) shares
   one style (2026-11-09): a bordered group with a line between segments; the unchosen segments a
   translucent step off the page with dimmed text, the chosen one in the accent, bold. Text on the

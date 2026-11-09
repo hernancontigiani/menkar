@@ -175,7 +175,7 @@ test('LOOK-67 (2026-11-09) buttons, fields and segmented groups have rounded cor
           .evaluate((n) => Number.parseFloat(getComputedStyle(n).borderTopLeftRadius))
       for (const selector of [
         '#toggle-sidebar',
-        '#new-session',
+        '#new-menu',
         '#main-menu',
         '#project-button',
         '#close-all',

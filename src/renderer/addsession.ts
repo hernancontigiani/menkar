@@ -1,4 +1,4 @@
-import { AGENT_NAMES, variantsFor } from '../core/chat/variants'
+import { AGENT_COMMANDS } from '../core/agents'
 import { now } from '../core/clock'
 import type { Key } from '../core/i18n'
 import {
@@ -15,17 +15,15 @@ import { tilde as tildeOf } from '../core/tilde'
 import type { WindowState } from '../shared/workspace'
 import { act, currentState, logo, onRender, showHiddenSessions } from './app'
 import { el, icon } from './dom'
-import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
 import { historyRowMenu, renameFromHistory, trashSelected } from './sessionmenus'
-import { dialogClosed, dialogOpened, showDialog, showMenu, toast } from './ui'
+import { dialogClosed, dialogOpened, toast } from './ui'
 
 type Agent = 'claude' | 'cursor'
 
 export interface NewOptions {
   readonly agent?: Agent
   readonly folder?: string
-  readonly flags?: { readonly model?: string; readonly mode?: string; readonly addDir?: string }
 }
 
 let openDialog: { close(): void } | null = null
@@ -55,7 +53,6 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   let newStep: 'folder' | 'name' = 'folder'
   let folder = options.folder ?? ''
   let agent: Agent = options.agent ?? s.agents[0] ?? 'claude'
-  let flags = options.flags ?? {}
 
   const body = el('div', { class: 'add-body' })
   const existingButton = el('button', { class: 'switch' }, t('add.existing'))
@@ -318,6 +315,30 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   // ------------------------------------------------------------ New
   const newPage = el('div', { class: 'add-page' })
 
+  // Every supported agent; one not on the PATH is shown greyed out and off, saying so.
+  function agentPicker(changed: () => void): HTMLElement {
+    const installed = (currentState() ?? s).agents
+    const group = el('div', { class: 'segmented agent-picker', 'data-picker': 'agent' })
+    for (const a of Object.keys(AGENT_COMMANDS) as Agent[]) {
+      const button = el(
+        'button',
+        { 'data-agent': a, 'aria-pressed': String(a === agent) },
+        a === 'claude' ? t('agent.claude') : t('agent.cursor'),
+      )
+      if (!installed.includes(a)) {
+        button.disabled = true
+        button.title = t('add.agentMissing', { command: AGENT_COMMANDS[a] })
+      }
+      button.addEventListener('click', () => {
+        agent = a
+        for (const b of group.children) b.setAttribute('aria-pressed', String(b === button))
+        changed()
+      })
+      group.append(button)
+    }
+    return group
+  }
+
   async function drawNew(): Promise<void> {
     if (newStep === 'folder') {
       const folderSearch = el('input', { type: 'text', placeholder: t('add.searchFolders') })
@@ -351,12 +372,15 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
         const first = drawFolders()[0]
         if (first) chooseFolder(first)
       })
-      newPage.replaceChildren(folderSearch, folders)
+      newPage.replaceChildren(
+        agentPicker(() => undefined),
+        folderSearch,
+        folders,
+      )
       drawFolders()
       folderSearch.focus()
       return
     }
-    const state = currentState() ?? s
     const nameEntry = el('input', { type: 'text', placeholder: t('dialog.name') })
     const error = el('div', { class: 'error-line', hidden: '' })
     const change = el('button', { class: 'flat' }, t('add.change'))
@@ -373,27 +397,6 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
       remoteSwitch,
     )
     remoteRow.hidden = agent !== 'claude'
-    const agentRow =
-      state.agents.length > 1
-        ? (() => {
-            const select = el('select', {})
-            for (const a of state.agents) {
-              const option = el(
-                'option',
-                { value: a },
-                a === 'claude' ? t('agent.claude') : t('agent.cursor'),
-              )
-              option.selected = a === agent
-              select.append(option)
-            }
-            select.addEventListener('change', () => {
-              agent = select.value === 'cursor' ? 'cursor' : 'claude'
-              remoteSwitch.checked = false
-              remoteRow.hidden = agent !== 'claude'
-            })
-            return el('label', { class: 'form-row' }, el('span', {}, t('add.agent')), select)
-          })()
-        : null
     const start = el('button', { class: 'pill' }, t('newSession.start'))
     const submit = async () => {
       const name = nameEntry.value.trim()
@@ -404,11 +407,9 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
         agent,
         folder,
         name,
-        ...flags,
         remoteControl,
       })
       if (refusal) return showError(error, refusal)
-      flags = {}
       close()
     }
     start.addEventListener('click', () => void submit())
@@ -416,6 +417,10 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
       if (event.key === 'Enter') void submit()
     })
     newPage.replaceChildren(
+      agentPicker(() => {
+        remoteSwitch.checked = false
+        remoteRow.hidden = agent !== 'claude'
+      }),
       el('div', { class: 'dim' }, t('add.nameNote')),
       el(
         'div',
@@ -425,7 +430,6 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
         change,
       ),
       el('label', { class: 'form-row' }, el('span', {}, t('dialog.name')), nameEntry),
-      ...(agentRow ? [agentRow] : []),
       remoteRow,
       error,
       el('div', { class: 'form-actions' }, start),
@@ -477,124 +481,4 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
     }
     show(current)
   })()
-}
-
-// The advanced new session (M8): a folder, then optional flags, then New at its name step.
-const MODELS: Record<Agent, ReadonlyArray<[string, string]>> = {
-  claude: [
-    ['Opus', 'opus'],
-    ['Sonnet', 'sonnet'],
-    ['Haiku', 'haiku'],
-  ],
-  cursor: [
-    ['Sonnet 4', 'sonnet-4'],
-    ['Sonnet 4 (thinking)', 'sonnet-4-thinking'],
-    ['GPT-5', 'gpt-5'],
-  ],
-}
-const MODES: Record<Agent, ReadonlyArray<[Key, string]>> = {
-  claude: [
-    ['advanced.modePlan', 'plan'],
-    ['advanced.modeAcceptEdits', 'acceptEdits'],
-    ['advanced.modeBypass', 'bypassPermissions'],
-  ],
-  cursor: [
-    ['advanced.modePlan', 'plan'],
-    ['advanced.modeAsk', 'ask'],
-  ],
-}
-
-export async function advancedNewSession(agent: Agent): Promise<void> {
-  const { value: folder } = await act({ type: 'pickFolder' })
-  if (typeof folder !== 'string') return
-  const model = el(
-    'select',
-    {},
-    el('option', { value: '' }, t('advanced.default')),
-    ...MODELS[agent].map(([label, v]) => el('option', { value: v }, label)),
-  )
-  const mode = el(
-    'select',
-    {},
-    el('option', { value: '' }, t('advanced.default')),
-    ...MODES[agent].map(([key, v]) => el('option', { value: v }, translate(key))),
-  )
-  let addDir = ''
-  const dirLabel = el('span', { class: 'dim caption' }, t('advanced.none'))
-  const choose = el('button', {}, t('newSession.choose'))
-  choose.addEventListener('click', async () => {
-    const { value } = await act({ type: 'pickFolder' })
-    if (typeof value === 'string') {
-      addDir = value
-      dirLabel.textContent = value
-    }
-  })
-  const form = el(
-    'div',
-    { class: 'advanced-form' },
-    el('label', { class: 'form-row' }, el('span', {}, t('advanced.model')), model),
-    el('label', { class: 'form-row' }, el('span', {}, t('advanced.mode')), mode),
-    agent === 'claude'
-      ? el('div', { class: 'form-row' }, el('span', {}, t('advanced.extraDir')), dirLabel, choose)
-      : null,
-  )
-  const answer = await showDialog({
-    heading: t('newSession.heading', {
-      agent: agent === 'claude' ? t('agent.claude') : t('agent.cursor'),
-    }),
-    body: t('advanced.body'),
-    extra: form,
-    buttons: [
-      { label: t('dialog.cancel'), value: 'cancel' },
-      { label: t('advanced.start'), value: 'start', style: 'suggested' },
-    ],
-    defaultValue: 'start',
-  })
-  if (answer.value !== 'start') return
-  openAddSession('new', {
-    agent,
-    folder,
-    flags: {
-      ...(model.value ? { model: model.value } : {}),
-      ...(mode.value ? { mode: mode.value } : {}),
-      ...(addDir ? { addDir } : {}),
-    },
-  })
-}
-
-export function plusMenu(anchor: { x: number; y: number }, newWindow: () => void): void {
-  const agents = currentState()?.agents ?? ['claude']
-  const name = (a: Agent) => (a === 'claude' ? t('agent.claude') : t('agent.cursor'))
-  showMenu(
-    [
-      ...agents.map((a) => ({
-        label: t('menu.newAgent', { agent: name(a) }),
-        run: () => openAddSession('new', { agent: a }),
-      })),
-      ...agents.map((a) => ({
-        label: t('menu.advanced', { agent: name(a) }),
-        run: () => void advancedNewSession(a),
-      })),
-      'separator' as const,
-      ...agents.map((a) => ({
-        label: t('menu.continueAgent', { agent: name(a) }),
-        run: () => void act({ type: 'continueLast', agent: a }),
-      })),
-      'separator' as const,
-      { label: t('menu.openFile'), run: () => openFileDialog() },
-      ...variantsFor(new Set(agents)).map((v) => ({
-        label: v.mode
-          ? t('chat.newMode', { name: AGENT_NAMES[v.agent], mode: translate(MODE_KEY[v.mode]) })
-          : t('chat.newSole', { name: AGENT_NAMES[v.agent] }),
-        run: () => void act({ type: 'newChat', agent: v.agent, key: v.key }),
-      })),
-      { label: t('menu.newWindow'), run: newWindow },
-    ],
-    anchor,
-  )
-}
-
-export const MODE_KEY: Record<'askReadOnly' | 'trustedAutoRun', Key> = {
-  askReadOnly: 'chat.modeAskReadOnly',
-  trustedAutoRun: 'chat.modeTrustedAutoRun',
 }

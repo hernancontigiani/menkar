@@ -16,14 +16,23 @@ const act = (page: Page, action: unknown) =>
     action,
   )
 
-// The system folder chooser, answered by the test.
-async function chooseFolder(app: ElectronApplication, folder: string | null): Promise<void> {
-  await app.evaluate(({ dialog }, chosen) => {
-    dialog.showOpenDialog = (async () =>
-      chosen === null
-        ? { canceled: true, filePaths: [] }
-        : { canceled: false, filePaths: [chosen] }) as typeof dialog.showOpenDialog
-  }, folder)
+// A Cursor session in the list, for the Cursor chats: its transcript under ~/.cursor, in `folder`.
+const CURSOR_CHAT = 'c0ffee02'
+function withCursorSession(dirs: { root: string; home: string }): void {
+  const folder = dirs.root.slice(1).replace(/[^A-Za-z0-9]/g, '-')
+  const transcripts = join(
+    dirs.home,
+    '.cursor',
+    'projects',
+    folder,
+    'agent-transcripts',
+    CURSOR_CHAT,
+  )
+  mkdirSync(transcripts, { recursive: true })
+  writeFileSync(
+    join(transcripts, `${CURSOR_CHAT}.jsonl`),
+    `${JSON.stringify({ role: 'user', message: { content: [{ type: 'text', text: '<user_query>hello</user_query>' }] } })}\n`,
+  )
 }
 
 function withStandins(log: string) {
@@ -46,35 +55,21 @@ const records = (log: string, file: string) =>
         .map((l) => JSON.parse(l))
     : []
 
-test('CHT-5, CHT-6, CHT-13, CHT-15, CHT-16, CHT-32, CHT-35 a new Claude chat: folder, tab, message, permission card', async () => {
+test('CHT-6, CHT-13, CHT-15, CHT-16, CHT-32, CHT-35 a Claude chat: tab, message, permission card', async () => {
   const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
-  let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
-      root = dirs.root
       return withStandins(log)(dirs)
     },
   })
   const page = launched.window
   try {
-    await chooseFolder(launched.app, null)
-    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
-    await expect(page.locator('.chat')).toHaveCount(0)
-
-    const folder = join(root, 'shop')
-    mkdirSync(folder)
-    await chooseFolder(launched.app, folder)
-    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
-    await expect(page.locator('.tab.selected')).toContainText('Chat — shop')
+    await act(page, { type: 'continueInChat', session: SESSION, key: 'default' })
     const chat = page.locator('.chat')
     await expect(chat.locator('.banner')).toHaveText(
       'Chat with Claude Code — every file edit and command asks your permission first.',
     )
     await expect.poll(() => records(log, 'claude.json').length).toBe(1)
-    expect(records(log, 'claude.json')[0].cwd).toBe(folder)
-    expect(records(log, 'claude.json')[0].argv).not.toContain('--resume')
-    const state = JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8'))
-    expect(state.settings.new_session_dir).toBe(folder)
 
     const entry = chat.locator('[data-key="chat-entry"]')
     await expect(entry).toBeFocused()
@@ -137,17 +132,16 @@ test('CHT-9, CHT-39, CHT-40, CHT-41 Continue in chat; the chat tab is not saved,
 
 test('CHT-8, CHT-12, CHT-30 a Cursor ask chat starts nothing until a message, then answers once', async () => {
   const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
-  let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
-      root = dirs.root
-      return withStandins(log)(dirs)
+      const env = withStandins(log)(dirs)
+      withCursorSession(dirs)
+      return env
     },
   })
   const page = launched.window
   try {
-    await chooseFolder(launched.app, root)
-    await act(page, { type: 'newChat', agent: 'cursor', key: 'ask' })
+    await act(page, { type: 'continueInChat', session: CURSOR_CHAT, key: 'ask' })
     const chat = page.locator('.chat')
     await expect(chat.locator('.banner')).toHaveText(
       'Read-only chat with Cursor — analyses and answers, never edits.',
@@ -157,11 +151,12 @@ test('CHT-8, CHT-12, CHT-30 a Cursor ask chat starts nothing until a message, th
     await chat.locator('[data-key="chat-entry"]').fill('list files')
     await chat.locator('[data-key="chat-entry"]').press('Enter')
     await expect(chat.locator('.bubble.assistant')).toHaveText('echo: list files')
-    expect(records(log, 'cursor.json')[0].argv.slice(-4)).toEqual([
-      '--trust',
-      '--mode',
-      'ask',
-      'list files',
+    const argv = records(log, 'cursor.json')[0].argv
+    expect(argv.slice(-3)).toEqual(['--mode', 'ask', 'list files'])
+    expect(argv).toContain('--trust')
+    expect(argv.slice(argv.indexOf('--resume'), argv.indexOf('--resume') + 2)).toEqual([
+      '--resume',
+      CURSOR_CHAT,
     ])
   } finally {
     await launched.close()
@@ -251,7 +246,7 @@ const chooserSeen = (app: ElectronApplication) =>
         .chooserSeen,
   )
 
-test('CHT-4, PRF-30 the chat and session choosers open in the remembered folder, at their own default once it is gone', async () => {
+test('PRF-30 the session chooser opens in the remembered folder, at its own default once it is gone', async () => {
   let folder = ''
   const launched = await launchApp({
     prepare: (dirs) => {
@@ -270,19 +265,16 @@ test('CHT-4, PRF-30 the chat and session choosers open in the remembered folder,
   const page = launched.window
   try {
     await recordChooser(launched.app)
-    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
     await act(page, { type: 'pickFolder' })
-    await expect.poll(async () => (await chooserSeen(launched.app)).length).toBe(2)
+    await expect.poll(async () => (await chooserSeen(launched.app)).length).toBe(1)
     for (const seen of await chooserSeen(launched.app)) {
       expect(seen.title).toBe('Choose project directory')
       expect(seen.defaultPath).toBe(folder)
     }
-    await expect(page.locator('.chat')).toHaveCount(0)
     rmSync(folder, { recursive: true })
-    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
     await act(page, { type: 'pickFolder' })
-    await expect.poll(async () => (await chooserSeen(launched.app)).length).toBe(4)
-    for (const seen of (await chooserSeen(launched.app)).slice(2))
+    await expect.poll(async () => (await chooserSeen(launched.app)).length).toBe(2)
+    for (const seen of (await chooserSeen(launched.app)).slice(1))
       expect(seen.defaultPath).toBeUndefined()
   } finally {
     await launched.close()
@@ -291,16 +283,15 @@ test('CHT-4, PRF-30 the chat and session choosers open in the remembered folder,
 
 test('CHT-13 the trusted Cursor chat warns that it runs edits and commands without asking', async () => {
   const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
-  let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
-      root = dirs.root
-      return withStandins(log)(dirs)
+      const env = withStandins(log)(dirs)
+      withCursorSession(dirs)
+      return env
     },
   })
   try {
-    await chooseFolder(launched.app, root)
-    await act(launched.window, { type: 'newChat', agent: 'cursor', key: 'trusted' })
+    await act(launched.window, { type: 'continueInChat', session: CURSOR_CHAT, key: 'trusted' })
     await expect(launched.window.locator('.chat .banner')).toHaveText(
       'Chat with Cursor — ⚠ runs edits and commands automatically, without asking.',
     )
@@ -311,17 +302,14 @@ test('CHT-13 the trusted Cursor chat warns that it runs edits and commands witho
 
 test('CHT-27, CHT-28 a user message is plain text; the view follows the bottom only within 48 px', async () => {
   const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
-  let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
-      root = dirs.root
       return withStandins(log)(dirs)
     },
   })
   const page = launched.window
   try {
-    await chooseFolder(launched.app, root)
-    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
+    await act(page, { type: 'continueInChat', session: SESSION, key: 'default' })
     const chat = page.locator('.chat')
     const entry = chat.locator('[data-key="chat-entry"]')
     await entry.fill('**not bold**')
@@ -388,17 +376,14 @@ test('CHT-27, CHT-28 a user message is plain text; the view follows the bottom o
 
 test('the chat look: bubbles, the tool chip and the permission card as measured', async () => {
   const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
-  let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
-      root = dirs.root
       return withStandins(log)(dirs)
     },
   })
   const page = launched.window
   try {
-    await chooseFolder(launched.app, root)
-    await act(page, { type: 'newChat', agent: 'claude', key: 'default' })
+    await act(page, { type: 'continueInChat', session: SESSION, key: 'default' })
     const chat = page.locator('.chat')
     await chat.locator('[data-key="chat-entry"]').fill('run the tests')
     await chat.locator('[data-key="chat-entry"]').press('Enter')

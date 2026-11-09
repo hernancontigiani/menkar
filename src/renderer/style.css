@@ -301,17 +301,17 @@ html.classic .dot.running {
 html.classic .content-header {
   min-height: 46px;
 }
-/* Text among icons: a resting fill and edge so it reads as a button, as tall as the icon buttons
-   beside it. */
-#close-all {
+/* Text among icons (New ▾, Close all): a resting fill and edge so it reads as a button, as tall
+   as the icon buttons beside it. */
+.content-header .header-text {
   min-height: 26px;
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
 }
-#close-all:hover {
+.content-header .header-text:hover {
   background: color-mix(in srgb, var(--fg) 14%, transparent);
 }
-#close-all:active {
+.content-header .header-text:active {
   background: color-mix(in srgb, var(--fg) 20%, transparent);
 }
 /* As wide as its star and text only: the header's drag region holds it, and a box spanning the
@@ -336,15 +336,6 @@ html.classic .content-header {
 .title-star svg {
   width: min(1.15em, 16px);
   height: min(1.15em, 16px);
-}
-.split {
-  display: flex;
-  align-items: center;
-}
-.split .sep {
-  width: 1px;
-  height: 16px;
-  background: color-mix(in srgb, var(--fg) 15%, transparent);
 }
 
 #tab-strip {
@@ -783,6 +774,46 @@ html.classic .blocked-pill {
 .pane.hidden {
   display: none;
 }
+/* The drawer (decision 1.29): full width under every pane, its height kept free below them. */
+.tab-body.with-drawer {
+  padding-bottom: var(--drawer-height);
+}
+.tab-body > .pane.drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--drawer-height);
+  border-left: 0;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+/* Sits on the frame's top line at its right end, as the label does at its left. */
+.drawer-hide {
+  position: absolute;
+  top: 3px;
+  right: 12px;
+  padding: 0 4px;
+  line-height: 0;
+  background: var(--bg);
+  color: var(--subtext0);
+  z-index: 3;
+}
+.drawer-hide:hover {
+  background: color-mix(in srgb, var(--fg) 12%, var(--bg));
+}
+html.classic .drawer-hide {
+  top: 4px;
+  right: 6px;
+}
+.drawer-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -4px;
+  height: 8px;
+  cursor: row-resize;
+  z-index: 2;
+}
 #prefix-pill {
   margin: 0 6px 0 auto;
   padding: 1px 8px;
@@ -868,6 +899,10 @@ html.classic .blocked-pill {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.add-page .agent-picker {
+  align-self: flex-start;
+  margin-top: 6px;
 }
 .add-page {
   flex: 1;

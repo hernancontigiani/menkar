@@ -1,10 +1,11 @@
 import { type FSWatcher, watch } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { AGENT_COMMANDS } from '../agents'
 import { log } from '../log'
 import { loadState, type State, saveState, setHidden } from '../state'
 import type { SessionInfo } from './info'
-import { AGENT_COMMANDS, onPath } from './installed'
+import { onPath } from './installed'
 import { sessionName } from './names'
 import { type DiscoveredSession, type Installed, type Roots, SessionScanner } from './scanner'
 

@@ -47,7 +47,7 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F13 | Select mode: All, None, open selected in tabs, hide selected, trash selected | sessions | R |
 | F14 | First start imports agent-tablet's own data, read only: `projects.json`, `state.json`, the usage history (Menkar decision 1.8; agent-tablet's own import of Agent Session Manager is not carried over) | sessions · usage | R · C · Menkar 1.8 |
 | F15 | A tab runs the agent in an embedded terminal: `$SHELL` with the agent's command in the session's folder | terminal | R |
-| F16 | Start, resume, fork, continue last (per provider), advanced new session (model, permission mode, extra directories, continue) | terminal | R · S 1.17 |
+| F16 | Start, resume, fork (per provider; the agent is picked on Add session → New) | terminal | R · S 1.17 · S 1.30 |
 | F17 | Graceful close: closing a tab sends Claude Code's `/exit` first; Cursor is force-closed | terminal | R · S 1.15 |
 | F18 | Terminal keys: `Shift+Enter` newline, `Ctrl+Shift+C` / `V` copy / paste, `Ctrl+Shift+G` find | terminal | R · C |
 | F19 | The `Ctrl+B` prefix (herdr's keys), the PREFIX pill on the tab strip while it waits, `Ctrl+B ?` help, `Ctrl+B Ctrl+B` sends `Ctrl+B` through | terminal | R · C |
@@ -81,7 +81,7 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F47 | A file changed or deleted on disk: Reload / Keep mine; one buffer shared across projects; `~/.claude/` opens read only; unsaved files asked on close | files | R · D files · C |
 | F48 | Open session file… (main menu): a `*.jsonl` transcript chosen from disk opens as a read-only replay tab | files | C |
 | F49 | Remote Control per session: New's switch, the row's and the tab's menu, `--remote-control=<name>`, phone icon on the row | remote-control | R · S 1.26 |
-| F50 | Native streaming chat tabs with permission cards (Allow once / Always allow / Deny); New chat; Continue in chat (Cursor: ask, trusted) | chat | R · S 1.17 |
+| F50 | Native streaming chat tabs with permission cards (Allow once / Always allow / Deny); Continue in chat (Cursor: ask, trusted) | chat | R · S 1.17 · S 1.30 |
 | F51 | The question card over the terminal for Claude's AskUserQuestion — **not carried over** (Menkar decision 1.7); listed in `chat.md` only | chat | C · Menkar 1.7 |
 | F52 | MCP servers browser (main menu) | chat | R |
 | F53 | Open in Ghostty, when `ghostty` is on the `PATH` | chat | R |
@@ -142,6 +142,7 @@ terminal sees them.
 | K40 | `Enter` (no `Shift`) | Send the message | chat entry | chat |
 | K41 | `↓` / `↑` | Move the selection | quick switcher | agent-state |
 | K42 | `Esc` | Close the switcher | quick switcher | agent-state |
+| K43 | `Ctrl+`` ` `` | Show or hide the tab's drawer shell (the key left of `1`) | window | terminal |
 
 **Count against the code:**
 
@@ -169,12 +170,10 @@ K31 (go to tab N) and K38–K39.
 | M4 | Main | Usage | `usage` | usage |
 | M5 | Main | Preferences | `preferences` | preferences |
 | M6 | Main | About Agent Tablet | `about` | preferences |
-| M7 | `+` (split button; its click opens Add session on New) | New {agent} session… — one per agent | `new-session-provider` | sessions |
-| M8 | `+` | New {agent} session (advanced)… — one per agent | `new-session-advanced` | terminal |
-| M9 | `+` | Continue last {agent} session… — one per agent | `continue-session` | terminal |
-| M10 | `+` | Open file… (shows `Ctrl+Shift+O`) | `open-file` | files |
-| M11 | `+` | New {agent} chat… / New {agent} chat ({mode}) — one per chat variant | `new-chat-provider` | chat |
-| M12 | `+` | New window | `new-window` | projects |
+| M7 | New ▾ (header text button) | New session (shows `Ctrl+Shift+T`; opens Add session on New) | `new-session` | sessions |
+| M10 | New ▾ | Open file… (shows `Ctrl+Shift+O`) | `open-file` | files |
+| M46 | New ▾ | Terminal in this tab (shows `Ctrl+`` ` ``; the tab's drawer) | `toggle-drawer` | terminal |
+| M12 | New ▾ | New window (shows `Ctrl+Shift+N`) | `new-window` | projects |
 | M13 | Tab (right-click on a tab) | Rename… | `rename-tab` | projects |
 | M14 | Tab | Copy session ID | `copy-tab-session-id` | sessions |
 | M15 | Tab | Swap the split's orientation | `toggle-split` | terminal |
@@ -263,3 +262,7 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
   defaults.
 - About: the human's copyright, and one credit line to Agent Session Manager, with no link.
 - "Restart now" asks and saves the layout as quitting does.
+- One "New ▾" menu (1.30, 2026-11-09): New session, Terminal in this tab, Open file…, New window,
+  each with its key. The advanced new session (M8), Continue last (M9) and New chat (M11) are gone;
+  the agent is picked on Add session → New, where an agent that is not installed is greyed out. The
+  menu counts above are agent-tablet's.

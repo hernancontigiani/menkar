@@ -1,7 +1,7 @@
 import { variantsFor } from '../core/chat/variants'
 import { formatSize, formatTimestamp, formatTokens } from '../core/format'
+import type { Key } from '../core/i18n'
 import type { SessionInfo } from '../core/sessions/info'
-import { MODE_KEY } from './addsession'
 import { act, currentState, renameSessionDialog } from './app'
 import { el } from './dom'
 import { t, translate } from './i18n'
@@ -215,4 +215,9 @@ export function historyRowMenu(info: SessionInfo, at: { x: number; y: number }):
     ],
     at,
   )
+}
+
+const MODE_KEY: Record<'askReadOnly' | 'trustedAutoRun', Key> = {
+  askReadOnly: 'chat.modeAskReadOnly',
+  trustedAutoRun: 'chat.modeTrustedAutoRun',
 }

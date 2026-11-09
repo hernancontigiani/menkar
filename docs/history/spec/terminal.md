@@ -576,3 +576,10 @@ Measurable details:
   with the chosen path as subtitle and a `Choose…` button on the right); `Start` in the suggested
   (accent) style.
 - **Window close confirmation**: an alert dialog, `Stop and close` in the destructive (red) style.
+
+## Terminal: starting sessions, the embedded terminal, panes, close and stop
+
+> Left on 2026-11-09: one New ▾ menu; the advanced new session, Continue last and New chat removed (decision 1.30).
+fork, continue last, the advanced new session; `--settings`, `-n`, `--session-id`, `&& exit`), how a
+panes; the tab model they live in is `projects.md`), keys **K15–K27, K38, K39**, menu items **M8,
+M9, M15, M20, M35**. Remote Control's flag is built here but specified in `remote-control.md`

@@ -85,11 +85,50 @@ hides with the same key. It never becomes a tab.
 ## Execution blocks
 
 ### B1: build
-- [ ] Main, renderer, keys, strings, tests.
+- [x] Main, renderer, keys, strings, tests.
 - **Verification:** `npm run ci`; `npm run ui-check`.
 
 ### B2: exit
-- [ ] Docs, K table, the log.
+- [x] Docs, K table, the log.
 - **Verification:** `npm run ci`.
 
 ## Execution log
+
+2026-11-09, b2.
+
+- **Core** (`src/core/drawers.ts`): `drawerFolder` and `DrawerRegistry`, with
+  `tests/core/drawers.test.ts`. A late exit of an old shell leaves a tab's newer drawer alone.
+- **Main** (`src/main/workspace.ts`): drawers sit apart from `panes`, so they are in no layout, in
+  neither Usage nor agent state. The `pty:*` channels were reused, as the plan preferred:
+  `paneInput`, `paneResize` and `paneBuffer` fall back to the drawers, so there are no new IPC
+  channels. Every path that ends a tab hangs its drawer up: close, the last pane exiting, a window
+  closing, quitting. The toggle is a window action, `{ type: 'toggleDrawer', pane? }`, on the
+  selected tab, so plan 21's New menu can call it (its name was given to b1).
+  `TabView.drawer = { id, shown, label }`.
+- **Renderer**: the drawer is a pane view (`paneElement` gained a label argument), placed
+  absolutely at the bottom of the tab body. The body keeps its height free with `padding-bottom`,
+  so no pane node moves (the no-rebuild rule). The key is matched by `event.code === 'Backquote'`,
+  so it is the key left of 1 on any layout.
+- **Deviations:**
+  - A file tab's drawer starts in the file's folder, and a chat tab's starts in `HOME`. The plan
+    said "the tab's own folder" and named neither.
+  - "Gone after a restart" is asserted as "not in `projects.json`". The drawer lives only in main's
+    memory, and a start reads that file.
+- **Seen red:**
+  - focus never moved;
+  - closing a tab left its shell (alive by PID);
+  - the drawer ignoring the agent's folder.
+  Removing the state push on the shell's exit did NOT go red: another push (the running-panes
+  poll) shows it about 2 s later. That call only makes the close prompt; it is not testable
+  without a timing assertion.
+- **Not anticipated:** `e2e/app.ts`'s `savedCursorTab` gained an optional session folder, so the
+  test can tell the agent's folder from `HOME`.
+
+- **Addition (the human, via set, 2026-11-09): a hide button.** A ⌄ button (`.drawer-hide`, the
+  `down` icon) sits on the frame's top line at its right end; in Classic, which has no frame, it is
+  at the drawer's top-right corner. It calls the same `toggleDrawer()` as `Ctrl+`` ` ``. It
+  cancels its `pointerdown`, so the press does not take the focus, and hiding gives the focus back
+  to the pane. Its tooltip is `drawer.hide` ("Hide the shell (Ctrl+`)" / "Ocultar la terminal
+  (Ctrl+`)"). It is not a kill button. The drawer is never under a drag region; LOOK-60 now opens a
+  drawer first, so the button is one of the controls it checks. Test: `e2e/drawer.spec.ts`
+  "the drawer's hide button", tui and classic. Seen red: no button, in both styles.

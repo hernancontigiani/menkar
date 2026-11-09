@@ -72,8 +72,8 @@ is shown as written; none is `—`).
   and recent folders, all pure and tested. A group starts collapsed and keeps its state while the
   dialog lives. Picking calls the layout's `moveSessionHere`: the session's tab comes with it
   across windows; a pane alone leaves a two-pane tab. New skips to the name step when the
-  remembered folder still exists. The advanced dialog carries model, permission mode and an extra
-  folder to the start.
+  remembered folder still exists. A segmented picker at the top of New chooses the agent; one that
+  is not on the PATH is greyed out and off, saying so, and Claude Code is chosen when installed.
 - **Details, export and replay** read the whole transcript in main and use
   `src/core/sessions/transcript.ts`. Details' Tokens row is left out until it can come from the
   usage module, as the spec asks.
@@ -88,7 +88,7 @@ is shown as written; none is `—`).
   carries `--remote-control=<name>` before `--settings`. The name is the display name trimmed,
   else the folder's name, else the id's first 8 characters. New's switch (off every time the page
   opens) adds the new id **before** the start.
-- Forks and Continue last never carry it. Nothing is ever typed into a running session: turning it
+- Forks never carry it. Nothing is ever typed into a running session: turning it
   on while the session runs without the flag shows the 6 s toast; the session connects at its
   next start or when the user types `/rc`.
 - **What the phone shows** (decision 1.18, 2026-11-09): whether a Remote Control bridge is

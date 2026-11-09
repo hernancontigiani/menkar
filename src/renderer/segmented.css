@@ -20,7 +20,10 @@ html.classic .segmented {
 .segmented > button + button {
   border-left: 1px solid color-mix(in srgb, var(--fg) 24%, transparent);
 }
-.segmented > button:hover {
+.segmented > button:disabled {
+  color: color-mix(in srgb, var(--fg) 32%, transparent);
+}
+.segmented > button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--fg) 15%, transparent);
   color: var(--fg);
 }

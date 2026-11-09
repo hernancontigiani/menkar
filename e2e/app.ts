@@ -99,12 +99,15 @@ export const CURSOR_SESSION = 'c0ffee01'
 export function savedCursorTab(
   dirs: { readonly root: string; readonly home: string },
   settings: Readonly<Record<string, unknown>> = {},
+  // The session's folder, made if missing; HOME unless given.
+  cwd: string = dirs.home,
 ): Record<string, string> {
+  mkdirSync(cwd, { recursive: true })
   const bin = join(dirs.root, 'bin')
   mkdirSync(bin, { recursive: true })
   writeFileSync(join(bin, 'cursor-agent'), '#!/bin/sh\nexec /bin/bash --norc --noprofile -i\n')
   chmodSync(join(bin, 'cursor-agent'), 0o755)
-  const folder = dirs.home.slice(1).replace(/[^A-Za-z0-9]/g, '-')
+  const folder = cwd.slice(1).replace(/[^A-Za-z0-9]/g, '-')
   const transcripts = join(
     dirs.home,
     '.cursor',

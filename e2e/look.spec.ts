@@ -184,11 +184,9 @@ test('LOOK-1, LOOK-4 a first start: 1280 × 800 titled Menkar, the title centere
     await expect(page.locator('#toggle-sidebar')).toHaveAttribute('aria-pressed', 'true')
     expect(nearBy(await pixelOf(app, page, '#toggle-sidebar', 3, 3), '#3b3c4e')).toBe(true)
     const toggle = await box(page, '#toggle-sidebar')
-    const split = await box(page, '.content-header .split')
+    const split = await box(page, '#new-menu')
     expect(split.x).toBeGreaterThan(toggle.x)
-    await expect(page.locator('.split #new-session svg')).toBeVisible()
-    await expect(page.locator('.split .sep')).toBeVisible()
-    await expect(page.locator('.split #new-menu svg')).toBeVisible()
+    await expect(page.locator('#new-menu')).toHaveText('New ▾')
     await expect(page.locator('#close-all')).toBeHidden()
 
     await act(page, { type: 'openSession', session: CLIENT.long })

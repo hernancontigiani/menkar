@@ -1,12 +1,4 @@
-import {
-  chmodSync,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  readlinkSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app'
@@ -356,85 +348,6 @@ test('no output shows twice after a pane attaches: three tabs starting at once, 
     } finally {
       await launched.close()
     }
-  }
-})
-
-// A stand-in `cursor-agent` beside the stand-in `claude`, so both agents count as installed.
-function withCursor(dirs: { readonly root: string; readonly home: string }) {
-  const env = clientWork(dirs)
-  writeFileSync(
-    join(dirs.root, 'bin', 'cursor-agent'),
-    '#!/bin/sh\nexec /bin/bash --norc --noprofile -i\n',
-  )
-  chmodSync(join(dirs.root, 'bin', 'cursor-agent'), 0o755)
-  return env
-}
-
-async function pickFolderAs(launched: LaunchedApp, folder: string) {
-  await launched.app.evaluate(({ dialog }, f) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as never
-  }, folder)
-}
-
-async function advanced(page: Page, agent: string) {
-  await page.locator('#new-menu').click()
-  await page.locator('.menu-item', { hasText: `New ${agent} session (advanced)…` }).click()
-  await expect(page.locator('.dialog .advanced-form')).toBeVisible()
-}
-
-const options = (page: Page, nth: number) =>
-  page.locator('.advanced-form select').nth(nth).locator('option').allTextContents()
-
-test('TRM-17 the advanced dialog for Cursor: no Extra directory; its models and modes', async () => {
-  let home = ''
-  const launched = await launchApp({
-    prepare: (dirs) => {
-      home = dirs.home
-      return withCursor(dirs)
-    },
-  })
-  const page = launched.window
-  try {
-    await expect(page.locator('#session-list .row')).toHaveCount(3)
-    await pickFolderAs(launched, join(home, 'work', 'web'))
-    await advanced(page, 'Cursor')
-    await expect(page.locator('.advanced-form')).not.toContainText('Extra directory')
-    expect(await options(page, 0)).toEqual(['Default', 'Sonnet 4', 'Sonnet 4 (thinking)', 'GPT-5'])
-    expect(await options(page, 1)).toEqual(['Default', 'Plan (read-only)', 'Ask (read-only)'])
-  } finally {
-    await launched.close()
-  }
-})
-
-test('TRM-18 the advanced dialog: Start opens New at the name step with the folder and the agent; Cancel starts nothing', async () => {
-  let home = ''
-  const launched = await launchApp({
-    prepare: (dirs) => {
-      home = dirs.home
-      return withCursor(dirs)
-    },
-  })
-  const page = launched.window
-  try {
-    await expect(page.locator('#session-list .row')).toHaveCount(3)
-    const folder = join(home, 'work', 'web')
-    await pickFolderAs(launched, folder)
-    await advanced(page, 'Claude Code')
-    await expect(page.locator('.advanced-form')).toContainText('Extra directory')
-    await page.locator('.dialog button', { hasText: 'Cancel' }).click()
-    await expect(page.locator('.dialog')).toHaveCount(0)
-    await expect(page.locator('.tab')).toHaveCount(0)
-    expect(existsSync(join(home, 'claude-args.txt'))).toBe(false)
-
-    await advanced(page, 'Cursor')
-    await page.locator('.dialog button', { hasText: 'Start' }).click()
-    await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
-    await expect(page.locator('.add-session')).toContainText('web~/work')
-    await expect(page.locator('.add-session select').first()).toHaveValue('cursor')
-    await expect(page.locator('.add-session input[type="text"]:visible').first()).toBeFocused()
-    await expect(page.locator('.tab')).toHaveCount(0)
-  } finally {
-    await launched.close()
   }
 })
 

@@ -266,6 +266,13 @@ test('LOOK-60 (2026-11-09) no drag region covers a control: every element that d
   const page = launched.window
   try {
     await expect(page.locator('#close-all')).toBeVisible()
+    // The drawer's hide button counts too.
+    await page.evaluate(() =>
+      (
+        globalThis as unknown as { menkar: { window: { act(a: unknown): Promise<unknown> } } }
+      ).menkar.window.act({ type: 'toggleDrawer' }),
+    )
+    await expect(page.locator('.tab-body:not(.hidden) .drawer-hide')).toBeVisible()
     const found = await page.evaluate(() => {
       const region = (n: Element) =>
         getComputedStyle(n).getPropertyValue('app-region') ||
@@ -499,7 +506,7 @@ test('LOOK-66 (2026-11-09) Close all is a text button in the header’s button s
           const s = getComputedStyle(n)
           return [s.fontSize, s.paddingTop, s.paddingBottom, s.borderRadius]
         })
-      expect(await look('#close-all')).toEqual(await look('#new-session'))
+      expect(await look('#close-all')).toEqual(await look('#toggle-sidebar'))
       // At rest it is a button, not a word: its fill stands off the header.
       const { header } = await drawnColors(page)
       const resting = await button.evaluate((n, under) => {
@@ -514,7 +521,7 @@ test('LOOK-66 (2026-11-09) Close all is a text button in the header’s button s
       }, header)
       expect(apart(resting, header), `${resting} on ${header}`).toBeGreaterThanOrEqual(8)
       const box = await button.boundingBox()
-      const newBox = await page.locator('#new-session').boundingBox()
+      const newBox = await page.locator('#toggle-sidebar').boundingBox()
       const title = await page.locator('.content-header .title').boundingBox()
       expect(box?.height).toBe(newBox?.height)
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThan(title?.x ?? 0)
@@ -526,5 +533,114 @@ test('LOOK-66 (2026-11-09) Close all is a text button in the header’s button s
     } finally {
       await launched.close()
     }
+  }
+})
+
+test('LOOK-68 (decision 1.30) the header has one text button "New ▾" (es "Nuevo ▾") in Close all’s look, no + icon; it sits before Close all, clear of the title', async () => {
+  for (const [language, label] of [
+    ['en', 'New ▾'],
+    ['es', 'Nuevo ▾'],
+  ] as const) {
+    const launched = await client({ language }, [['login'], ['api']])
+    const page = launched.window
+    try {
+      await expect(page.locator('#new-session')).toHaveCount(0)
+      const button = page.locator('#new-menu')
+      await expect(button).toHaveText(label)
+      await expect(button.locator('svg')).toHaveCount(0)
+      const look = (selector: string) =>
+        page.locator(selector).evaluate((n) => {
+          const s = getComputedStyle(n)
+          return [s.fontSize, s.paddingTop, s.borderRadius, s.backgroundColor, s.boxShadow]
+        })
+      expect(await look('#new-menu')).toEqual(await look('#close-all'))
+      const { header } = await drawnColors(page)
+      const resting = await button.evaluate((n, under) => {
+        const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+        if (!ctx) return ''
+        ctx.fillStyle = under
+        ctx.fillRect(0, 0, 1, 1)
+        ctx.fillStyle = getComputedStyle(n).backgroundColor
+        ctx.fillRect(0, 0, 1, 1)
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+        return `#${[r, g, b].map((v) => (v ?? 0).toString(16).padStart(2, '0')).join('')}`
+      }, header)
+      expect(apart(resting, header)).toBeGreaterThanOrEqual(8)
+      const box = await button.boundingBox()
+      const close = await page.locator('#close-all').boundingBox()
+      const title = await page.locator('.content-header .title').boundingBox()
+      expect(box?.height).toBe(close?.height)
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(close?.x ?? 0)
+      expect((close?.x ?? 0) + (close?.width ?? 0)).toBeLessThan(title?.x ?? 0)
+    } finally {
+      await launched.close()
+    }
+  }
+})
+
+test('SES-71 (decision 1.30) New ▾ holds four items with their keys, and each does its job; nothing advanced, no Continue last, no chat', async () => {
+  const launched = await client({}, [['login']])
+  const { app, window: page } = launched
+  try {
+    await page.locator('#new-menu').click()
+    const items = page.locator('.popover .menu-item')
+    await expect(items).toHaveCount(4)
+    const read = await items.evaluateAll((ns) =>
+      ns.map((n) => {
+        const key = n.querySelector('.menu-shortcut')?.textContent ?? ''
+        return [(n.textContent ?? '').replace(key, '').trim(), key]
+      }),
+    )
+    expect(read).toEqual([
+      ['New session', 'Ctrl+Shift+T'],
+      ['Terminal in this tab', 'Ctrl+`'],
+      ['Open file…', 'Ctrl+Shift+O'],
+      ['New window', 'Ctrl+Shift+N'],
+    ])
+    for (const gone of ['advanced', 'Continue last', 'chat'])
+      await expect(page.locator('.popover')).not.toContainText(gone)
+
+    await items.nth(0).click()
+    await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.add-session')).toHaveCount(0)
+
+    const drawerShown = () =>
+      page.evaluate(async () => {
+        const s = await (
+          globalThis as unknown as {
+            menkar: {
+              window: {
+                state(): Promise<{
+                  selectedTab: string | null
+                  tabs: { id: string; drawer?: { shown: boolean } }[]
+                }>
+              }
+            }
+          }
+        ).menkar.window.state()
+        return s.tabs.find((tab) => tab.id === s.selectedTab)?.drawer?.shown === true
+      })
+    expect(await drawerShown()).toBe(false)
+    await page.locator('#new-menu').click()
+    await page.locator('.popover .menu-item', { hasText: 'Terminal in this tab' }).click()
+    await expect.poll(drawerShown).toBe(true)
+
+    await page.locator('#new-menu').click()
+    await page.locator('.popover .menu-item', { hasText: 'Open file…' }).click()
+    await expect(page.locator('.open-file')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.open-file')).toHaveCount(0)
+
+    // Every project is open here, so a new window first asks for a project's name.
+    const opened = app.waitForEvent('window')
+    await page.locator('#new-menu').click()
+    await page.locator('.popover .menu-item', { hasText: 'New window' }).click()
+    await page.locator('.dialog input').fill('Side')
+    await page.locator('.dialog button', { hasText: 'Save' }).click()
+    await opened
+    await expect.poll(() => app.windows().length).toBe(2)
+  } finally {
+    await launched.close()
   }
 })

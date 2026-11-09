@@ -144,9 +144,9 @@ test('RC-3 New: Cursor hides the switch; Claude Code shows it again, off', async
     await newPage(page)
     const row = page.locator('.add-session .remote-row')
     await row.locator('input').check()
-    await page.locator('.add-session .form-row select').selectOption('cursor')
+    await page.locator('.add-session [data-agent="cursor"]').click()
     await expect(row).toBeHidden()
-    await page.locator('.add-session .form-row select').selectOption('claude')
+    await page.locator('.add-session [data-agent="claude"]').click()
     await expect(row).toBeVisible()
     await expect(row.locator('input')).not.toBeChecked()
   } finally {
@@ -154,7 +154,7 @@ test('RC-3 New: Cursor hides the switch; Claude Code shows it again, off', async
   }
 })
 
-test('RC-4 only Cursor installed: New has no Agent row and no switch', async () => {
+test('RC-4 only Cursor installed: New has Claude Code greyed out and Cursor chosen, and no switch', async () => {
   const launched = await launchApp({
     prepare: (dirs) => {
       setup([])(dirs)
@@ -174,14 +174,22 @@ test('RC-4 only Cursor installed: New has no Agent row and no switch', async () 
     await page.locator('#strip-plus').click()
     await expect(page.locator('.add-session .switch.selected')).toHaveText('New')
     await expect(page.locator('.add-session .pill')).toBeVisible()
-    await expect(page.locator('.add-session .form-row', { hasText: 'Agent' })).toHaveCount(0)
+    await expect(page.locator('.add-session [data-agent="claude"]')).toBeDisabled()
+    await expect(page.locator('.add-session [data-agent="claude"]')).toHaveAttribute(
+      'title',
+      'claude is not installed',
+    )
+    await expect(page.locator('.add-session [data-agent="cursor"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     await expect(page.locator('.add-session .remote-row')).toBeHidden()
   } finally {
     await launched.close()
   }
 })
 
-test('RC-11, RC-12 a fork of a listed session carries no flag and is not listed; Continue last carries none', async () => {
+test('RC-11 a fork of a listed session carries no flag and is not listed', async () => {
   const launched = await launchApp({ prepare: setup([SESSION]) })
   const page = launched.window
   try {
@@ -190,16 +198,6 @@ test('RC-11, RC-12 a fork of a listed session carries no flag and is not listed;
     await expect.poll(args).toMatch(new RegExp(`^--resume ${SESSION} --fork-session --session-id `))
     expect(args()).not.toContain('--remote-control')
     expect(stateFile().remote_control).toEqual([SESSION])
-    // Continue last asks for the folder.
-    await launched.app.evaluate(
-      ({ dialog }, f) => {
-        dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [f] })) as never
-      },
-      join(home, 'work'),
-    )
-    await act(page, { type: 'continueLast', agent: 'claude' })
-    await expect.poll(() => args().trim().split('\n').length).toBe(2)
-    expect(args().trim().split('\n')[1]).toMatch(/^--continue --settings /)
   } finally {
     await launched.close()
   }
@@ -379,5 +377,55 @@ test('RC-26 a listed session reopened at start carries the flag, and so does Ope
     )
   } finally {
     await launched.close()
+  }
+})
+
+// The agent picker at the top of Add session → New: every supported agent, the ones not installed
+// greyed out and off, Claude Code chosen when it is there.
+const picker = (page: Page) => page.locator('.add-session [data-picker="agent"]')
+const segment = (page: Page, name: string) => picker(page).locator('button', { hasText: name })
+
+test('SES-72 (decision 1.30) New picks the agent: both installed, Claude Code chosen and Cursor hides the switch; Claude only, Cursor greyed and saying why', async () => {
+  const both = await launchApp({
+    prepare: (dirs) => {
+      const env = setup([])(dirs)
+      withCursor(dirs)
+      return env
+    },
+  })
+  try {
+    const page = both.window
+    await page.locator('#strip-plus').click()
+    await expect(picker(page)).toBeVisible()
+    await expect(picker(page)).toHaveClass(/segmented/)
+    await expect(picker(page).locator('button')).toHaveText(['Claude Code', 'Cursor'])
+    await expect(segment(page, 'Claude Code')).toHaveAttribute('aria-pressed', 'true')
+    await expect(segment(page, 'Cursor')).toBeEnabled()
+    await page.locator('.add-session .folder-row', { hasText: 'work' }).click()
+    await expect(picker(page)).toBeVisible()
+    const row = page.locator('.add-session .remote-row')
+    await expect(row).toBeVisible()
+    await row.locator('input').check()
+    await segment(page, 'Cursor').click()
+    await expect(segment(page, 'Cursor')).toHaveAttribute('aria-pressed', 'true')
+    await expect(row).toBeHidden()
+    await segment(page, 'Claude Code').click()
+    await expect(row).toBeVisible()
+    await expect(row.locator('input')).not.toBeChecked()
+    await expect(page.locator('.add-session select')).toHaveCount(0)
+  } finally {
+    await both.close()
+  }
+
+  const claudeOnly = await launchApp({ prepare: setup([]) })
+  try {
+    const page = claudeOnly.window
+    await page.locator('#strip-plus').click()
+    await expect(picker(page).locator('button')).toHaveText(['Claude Code', 'Cursor'])
+    await expect(segment(page, 'Claude Code')).toHaveAttribute('aria-pressed', 'true')
+    await expect(segment(page, 'Cursor')).toBeDisabled()
+    await expect(segment(page, 'Cursor')).toHaveAttribute('title', 'cursor-agent is not installed')
+  } finally {
+    await claudeOnly.close()
   }
 })

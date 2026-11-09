@@ -7,10 +7,11 @@ import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import type { SessionInfo } from '../core/sessions/info'
 import { SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, TabView, WindowState } from '../shared/workspace'
-import { openAddSession, plusMenu } from './addsession'
+import { openAddSession } from './addsession'
 import { mountChat } from './chat'
 import { el, icon } from './dom'
 import { fileElement, forgetFilesExcept, setFileTheme } from './editor'
+import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
 import { applyLook } from './look'
 import { forgetReplaysExcept, replayElement } from './replay'
@@ -37,6 +38,10 @@ let state: WindowState | undefined
 // Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
 export const focusedPane = new Map<string, string>()
 export const zoomedTabs = new Set<string>()
+// The drawers' height in this window, once dragged (decision 1.29: kept while the app runs, not
+// saved); until then 30 % of the tab. And which tabs showed theirs at the last render.
+let drawerHeight: number | null = null
+const drawerWasShown = new Set<string>()
 let prefixPill = false
 export function setPrefixPill(shown: boolean): void {
   prefixPill = shown
@@ -139,24 +144,18 @@ export function buildFrame(): void {
     icon('sidebar'),
   )
   toggle.addEventListener('click', () => toggleSidebar())
-  const newButton = el(
-    'button',
-    { id: 'new-session', title: t('header.newSession') },
-    icon('tabNew'),
-  )
-  newButton.addEventListener('click', () => openAddSession('new'))
   const newMenu = el(
     'button',
-    { id: 'new-menu', 'aria-label': t('header.newSession') },
-    icon('down'),
+    { id: 'new-menu', class: 'header-text', title: t('header.newTooltip') },
+    t('header.new'),
   )
   newMenu.addEventListener('click', () => {
     const r = newMenu.getBoundingClientRect()
-    plusMenu({ x: r.left, y: r.bottom + 4 }, () => void newWindow())
+    newMenuAt({ x: r.left, y: r.bottom + 4 })
   })
   const closeAll = el(
     'button',
-    { id: 'close-all', title: t('header.closeAll') },
+    { id: 'close-all', class: 'header-text', title: t('header.closeAll') },
     t('header.closeAllLabel'),
   )
   closeAll.addEventListener('click', () => void act({ type: 'closeAllTabs' }))
@@ -209,7 +208,7 @@ export function buildFrame(): void {
         'div',
         { class: 'content-header' },
         toggle,
-        el('div', { class: 'split' }, newButton, el('span', { class: 'sep' }), newMenu),
+        newMenu,
         closeAll,
         el(
           'div',
@@ -738,7 +737,12 @@ function renderContent(s: WindowState): void {
   // Re-attaching the kept nodes below takes the focus away from an editor or terminal in them.
   const active = document.activeElement
   const content = $('tab-content')
-  const live = new Set(s.tabs.flatMap((tab) => tab.panes.map((p) => p.id)))
+  const live = new Set(
+    s.tabs.flatMap((tab) => [
+      ...tab.panes.map((p) => p.id),
+      ...(tab.drawer ? [tab.drawer.id] : []),
+    ]),
+  )
   forgetPanesExcept(live)
   forgetReplaysExcept(new Set(s.tabs.filter((tab) => tab.replay).map((tab) => tab.id)))
   forgetFilesExcept(new Set(s.tabs.filter((tab) => tab.file).map((tab) => tab.id)))
@@ -765,6 +769,13 @@ function renderContent(s: WindowState): void {
       node.classList.toggle('hidden', zoomed && pane.id !== focused)
       children.push(node)
     }
+    if (tab.drawer) {
+      const node = drawerElement(tab.drawer)
+      node.classList.toggle('hidden', !tab.drawer.shown)
+      children.push(node)
+    }
+    body.classList.toggle('with-drawer', tab.drawer?.shown === true)
+    if (tab.drawer?.shown) body.style.setProperty('--drawer-height', `${drawerPixels()}px`)
     setChildren(body, children)
     if (tab.panes.length < 2) zoomedTabs.delete(tab.id)
     bodies.push(body)
@@ -786,12 +797,99 @@ function renderContent(s: WindowState): void {
   const selected = s.tabs.find((tab) => tab.id === s.selectedTab)
   if (selected)
     showPanes(
-      [...selected.panes.map((p) => p.id)].sort((a) =>
-        a === focusedPane.get(selected.id) ? -1 : 1,
-      ),
+      [
+        ...[...selected.panes.map((p) => p.id)].sort((a) =>
+          a === focusedPane.get(selected.id) ? -1 : 1,
+        ),
+        ...(selected.drawer?.shown ? [selected.drawer.id] : []),
+      ],
       lastSelected !== selected.id,
     )
   lastSelected = selected?.id ?? null
+  drawerFocus(s)
+}
+
+// Opening a drawer focuses it; hiding it, or its shell ending, gives the focus back to the pane
+// that had it.
+function drawerFocus(s: WindowState): void {
+  for (const tab of s.tabs) {
+    const shown = tab.drawer?.shown === true
+    const was = drawerWasShown.has(tab.id)
+    if (shown) drawerWasShown.add(tab.id)
+    else drawerWasShown.delete(tab.id)
+    if (tab.id !== s.selectedTab || shown === was) continue
+    const target = shown
+      ? tab.drawer?.id
+      : tab.panes.some((p) => p.id === focusedPane.get(tab.id))
+        ? focusedPane.get(tab.id)
+        : tab.panes[0]?.id
+    if (target) requestAnimationFrame(() => focusPane(target))
+  }
+  for (const id of drawerWasShown)
+    if (!s.tabs.some((tab) => tab.id === id)) drawerWasShown.delete(id)
+}
+
+function drawerPixels(): number {
+  const height = $('tab-content').clientHeight
+  return Math.round(drawerHeight ?? height * 0.3)
+}
+
+// The shell under the tab's panes: a pane's terminal, with a divider on top to resize it.
+function drawerElement(drawer: NonNullable<TabView['drawer']>): HTMLElement {
+  const node = paneElement({ id: drawer.id, agent: 'shell', sessionId: null }, drawer.label)
+  if (node.classList.contains('drawer')) return node
+  node.classList.add('drawer')
+  const divider = el('div', { class: 'drawer-divider', title: t('drawer.divider') })
+  divider.addEventListener('pointerdown', (event) => {
+    event.preventDefault()
+    divider.setPointerCapture(event.pointerId)
+    const move = (e: PointerEvent) => {
+      const area = $('tab-content').getBoundingClientRect()
+      drawerHeight = Math.min(Math.max(area.bottom - e.clientY, 60), Math.max(area.height - 60, 60))
+      for (const body of tabBodies.values())
+        if (body.classList.contains('with-drawer'))
+          body.style.setProperty('--drawer-height', `${drawerHeight}px`)
+    }
+    divider.addEventListener('pointermove', move)
+    divider.addEventListener('pointerup', () => divider.removeEventListener('pointermove', move), {
+      once: true,
+    })
+  })
+  const hide = el('button', { class: 'drawer-hide', title: t('drawer.hide') }, icon('down'))
+  // Pressing it must not move the focus first: hiding gives it back to the pane that had it.
+  hide.addEventListener('pointerdown', (event) => event.preventDefault())
+  hide.addEventListener('click', () => toggleDrawer())
+  node.prepend(divider)
+  node.append(hide)
+  return node
+}
+
+// The header's New ▾: what can be started, each with the key that does the same.
+function newMenuAt(anchor: { x: number; y: number }): void {
+  const tab = selectedTabView()
+  const drawerOff = !tab || tab.replay !== undefined
+  showMenu(
+    [
+      { label: t('menu.newSession'), shortcut: 'Ctrl+Shift+T', run: () => openAddSession('new') },
+      {
+        label: t('menu.drawer'),
+        shortcut: 'Ctrl+`',
+        run: () => toggleDrawer(),
+        ...(drawerOff ? { disabled: true, title: t('menu.drawerNone') } : {}),
+      },
+      { label: t('menu.openFile'), shortcut: 'Ctrl+Shift+O', run: () => openFileDialog() },
+      { label: t('menu.newWindow'), shortcut: 'Ctrl+Shift+N', run: () => void newWindow() },
+    ],
+    anchor,
+  )
+}
+
+// Ctrl+` (and the New menu): shows or hides the selected tab's drawer.
+export function toggleDrawer(): void {
+  const tab = selectedTabView()
+  if (!tab || tab.replay) return
+  const pane = focusedPane.get(tab.id) ?? tab.panes[0]?.id
+  void act({ type: 'toggleDrawer', ...(pane ? { pane } : {}) })
 }
 
 let shownNotices = 0

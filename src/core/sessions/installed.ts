@@ -2,8 +2,6 @@ import { constants } from 'node:fs'
 import { access, stat } from 'node:fs/promises'
 import { delimiter, join } from 'node:path'
 
-export const AGENT_COMMANDS = { claude: 'claude', cursor: 'cursor-agent' } as const
-
 // The absolute path of the first executable file of that name on the PATH, or null.
 export async function findOnPath(
   command: string,

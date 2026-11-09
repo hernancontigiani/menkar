@@ -4,9 +4,11 @@ import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
+import { AGENT_COMMANDS } from '../core/agents'
 import { now } from '../core/clock'
 import { buildCommand, type Start } from '../core/command'
 import type { Reading } from '../core/context/types'
+import { DrawerRegistry, drawerFolder } from '../core/drawers'
 import { checkTyped, expandInput } from '../core/files/check'
 import { type Key, t } from '../core/i18n'
 import { log } from '../core/log'
@@ -48,7 +50,7 @@ import {
 import { saveProjects } from '../core/projects/store'
 import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
-import { AGENT_COMMANDS, findOnPath } from '../core/sessions/installed'
+import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
 import { applyNameLines, emptyNames } from '../core/sessions/names'
 import {
@@ -68,7 +70,7 @@ import type {
   TabView,
   WindowState,
 } from '../shared/workspace'
-import { chooseChatFolder, closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
+import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
 import { contextReading, sessionSettingsFile, trackContext } from './context'
 import {
   applyEdit,
@@ -116,6 +118,12 @@ let remoteIds = new Set<string>()
 const tabOrientation = new Map<string, 'horizontal' | 'vertical'>()
 
 const newId = () => randomUUID().replaceAll('-', '').slice(0, 12)
+
+// Each tab's drawer shell (decision 1.29): kept apart from `panes`, so it is never in the layout,
+// in Usage or in agent state. Its id travels on the pty channels as a pane's does.
+const drawers = new DrawerRegistry<Terminal>(newId)
+const drawerShown = new Set<string>()
+const drawerLabels = new Map<string, string>()
 
 let projects: Projects
 let layout: Layout = { windows: [] }
@@ -229,7 +237,62 @@ function tabView(tab: Tab): TabView {
         }
       : {}),
     ...(tabChats.has(tab.id) ? { chat: tabChats.get(tab.id) ?? '' } : {}),
+    ...drawerView(tab.id),
   }
+}
+
+function drawerView(tabId: string): { drawer?: NonNullable<TabView['drawer']> } {
+  const id = drawers.ofTab(tabId)
+  if (id === undefined) return {}
+  return { drawer: { id, shown: drawerShown.has(tabId), label: drawerLabels.get(id) ?? '' } }
+}
+
+function openDrawer(tabId: string, focused: string | null): void {
+  const tab = tabById(tabId)
+  const tabPaneList = (tabPanes.get(tabId) ?? []).flatMap((id) => {
+    const pane = panes.get(id)
+    return pane ? [{ id, agent: pane.agent !== 'shell', cwd: pane.cwd }] : []
+  })
+  const folder = drawerFolder(tabPaneList, focused, tab?.kind === 'file' ? dirname(tab.path) : null)
+  const tag = t('terminal.tag')
+  let id = ''
+  const opened = drawers.open(
+    tabId,
+    () =>
+      new Terminal(
+        {
+          cwd: folder,
+          cols: 80,
+          rows: 24,
+          folderGone: (cwd) => appMessage(tag, t('terminal.folderGone', { cwd })),
+        },
+        {
+          data: (data, end) => {
+            const w = windowOfTab(tabId)
+            const window = w ? windows.get(w.id) : undefined
+            if (id && window && !window.isDestroyed())
+              window.webContents.send('pty:data', { pane: id, data, end })
+          },
+          exit: () => {
+            const closed = drawers.exited(id)
+            drawerLabels.delete(id)
+            if (closed === undefined) return
+            drawerShown.delete(closed)
+            changed()
+          },
+        },
+      ),
+  )
+  id = opened.id
+  if (opened.fresh)
+    drawerLabels.set(id, t('drawer.label', { folder: basename(folder ?? homedir()) }))
+}
+
+function closeDrawer(tabId: string): void {
+  const id = drawers.ofTab(tabId)
+  if (id !== undefined) drawerLabels.delete(id)
+  drawerShown.delete(tabId)
+  drawers.closeTab(tabId)
 }
 
 function runningNames(windowId: string): string[] {
@@ -486,6 +549,7 @@ function onPaneExit(paneId: string): void {
   if (ids.length === 0) {
     tabPanes.delete(pane.tabId)
     tabLabels.delete(pane.tabId)
+    closeDrawer(pane.tabId)
     const w = windowOfTab(pane.tabId)
     if (w) layout = closeLayoutTab(layout, w.id, pane.tabId)
   } else {
@@ -516,17 +580,18 @@ export function revealPane(paneId: string): void {
 }
 
 export function paneInput(paneId: string, data: string): void {
-  panes.get(paneId)?.terminal.write(data)
+  ;(panes.get(paneId)?.terminal ?? drawers.byId(paneId))?.write(data)
 }
 
 export function paneResize(paneId: string, cols: number, rows: number): void {
   const pane = panes.get(paneId)
+  if (!pane) drawers.byId(paneId)?.resize(cols, rows)
   pane?.terminal.resize(cols, rows)
   pane?.handle?.resize(cols, rows)
 }
 
 export function paneBuffer(paneId: string): { buffer: string; end: number } {
-  const terminal = panes.get(paneId)?.terminal
+  const terminal = panes.get(paneId)?.terminal ?? drawers.byId(paneId)
   return { buffer: terminal?.buffer ?? '', end: terminal?.end ?? 0 }
 }
 
@@ -542,6 +607,7 @@ function closeTab(tabId: string): void {
   const ids = tabPanes.get(tabId) ?? []
   tabPanes.delete(tabId)
   tabLabels.delete(tabId)
+  closeDrawer(tabId)
   layout = closeLayoutTab(layout, w.id, tabId)
   for (const id of ids) {
     const pane = panes.get(id)
@@ -670,8 +736,10 @@ function createBrowserWindow(windowId: string): BrowserWindow {
 
 function hangUpWindow(windowId: string): void {
   const w = layout.windows.find((x) => x.id === windowId)
-  for (const tab of w?.tabs ?? [])
+  for (const tab of w?.tabs ?? []) {
     for (const id of tabPanes.get(tab.id) ?? []) panes.get(id)?.terminal.hangUp()
+    closeDrawer(tab.id)
+  }
 }
 
 // The last window keeps its layout in the file for the next start; another window leaves it.
@@ -1227,6 +1295,17 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'closeAllTabs':
       for (const tab of w.tabs) closeTab(tab.id)
       return {}
+    case 'toggleDrawer': {
+      const tabId = shownTab(w)
+      if (!tabId) return {}
+      if (drawers.ofTab(tabId) !== undefined && drawerShown.has(tabId)) drawerShown.delete(tabId)
+      else {
+        openDrawer(tabId, action.pane ?? null)
+        drawerShown.add(tabId)
+      }
+      changed()
+      return {}
+    }
     case 'stepTab':
     case 'nthTab': {
       const id = action.type === 'stepTab' ? stepTab(w, action.direction) : nthTab(w, action.n)
@@ -1275,9 +1354,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         kind: 'new',
         ...(id ? { id } : {}),
         ...(name ? { name } : {}),
-        ...(action.model ? { model: action.model } : {}),
-        ...(action.mode ? { mode: action.mode } : {}),
-        ...(action.addDir && action.agent === 'claude' ? { addDir: action.addDir } : {}),
       }
       await startPane(tab, {
         agent: action.agent,
@@ -1288,15 +1364,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         ...(action.remoteControl && id ? { remote: remoteName(name, action.folder, id) } : {}),
       })
       changed()
-      return {}
-    }
-    case 'newChat': {
-      const win = windows.get(windowId)
-      if (!win) return {}
-      const folder = await chooseChatFolder(win)
-      if (folder === null) return {}
-      const chat = startChat(action.agent, action.key, { folder })
-      if (chat) openChatTab(win, chat)
       return {}
     }
     case 'continueInChat': {
@@ -1328,25 +1395,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed()
       // Nothing is typed: a running session connects at its next start, or when the user types /rc.
       return action.on && pane?.terminal.running && !pane.remote ? { value: 'toast' } : {}
-    }
-    case 'continueLast': {
-      const folder = await pickFolder()
-      if (!folder) return {}
-      await rememberFolder(folder)
-      const tab = addTransientTab(
-        windowId,
-        basename(folder),
-        t('tab.tooltipContinue', { agent: agentName(action.agent), cwd: folder }),
-      )
-      await startPane(tab, {
-        agent: action.agent,
-        start: { kind: 'continue' },
-        cwd: folder,
-        sessionId: null,
-        pending: newSessionPending(windowId, folder, null),
-      })
-      changed()
-      return {}
     }
     case 'forkSession': {
       const info = sessionInfo(action.session)

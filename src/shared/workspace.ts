@@ -33,6 +33,9 @@ export interface TabView {
   readonly file?: { readonly path: string; readonly preview: boolean; readonly unsaved: boolean }
   // A chat tab's chat id (plan 14): never saved, never a member, no confirmation.
   readonly chat?: string
+  // The shell under the tab's panes (decision 1.29), while it runs: its id on the pty channels,
+  // whether it is shown, and its label. Never saved.
+  readonly drawer?: { readonly id: string; readonly shown: boolean; readonly label: string }
 }
 
 export interface WindowState {
@@ -88,6 +91,9 @@ export type Action =
   | { readonly type: 'moveTab'; readonly tab: string; readonly before: string | null }
   | { readonly type: 'closeTab'; readonly tab: string; readonly force?: boolean }
   | { readonly type: 'closeAllTabs' }
+  // Shows or hides the selected tab's drawer, starting its shell in the folder of `pane` (the
+  // focused one) when it has none.
+  | { readonly type: 'toggleDrawer'; readonly pane?: string }
   | { readonly type: 'stepTab'; readonly direction: 1 | -1 }
   | { readonly type: 'nthTab'; readonly n: number }
   | { readonly type: 'newWindow' }
@@ -98,12 +104,8 @@ export type Action =
       readonly agent: 'claude' | 'cursor'
       readonly folder: string
       readonly name: string
-      readonly model?: string
-      readonly mode?: string
-      readonly addDir?: string
       readonly remoteControl?: boolean
     }
-  | { readonly type: 'continueLast'; readonly agent: 'claude' | 'cursor' }
   | { readonly type: 'forkSession'; readonly session: string }
   | { readonly type: 'pickFolder' }
   | { readonly type: 'dismissNotice'; readonly index: number }
@@ -129,11 +131,6 @@ export type Action =
   | { readonly type: 'togglePreview'; readonly tab: string }
   | { readonly type: 'openFilesIn'; readonly window: string; readonly paths: readonly string[] }
   | { readonly type: 'setRemoteControl'; readonly session: string; readonly on: boolean }
-  | {
-      readonly type: 'newChat'
-      readonly agent: 'claude' | 'cursor'
-      readonly key: 'default' | 'ask' | 'trusted'
-    }
   | {
       readonly type: 'continueInChat'
       readonly session: string

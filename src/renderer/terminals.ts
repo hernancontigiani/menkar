@@ -168,7 +168,7 @@ function closeFind(view: View): void {
   view.term.focus()
 }
 
-function create(pane: PaneView): View {
+function create(pane: PaneView, label?: string): View {
   const font = fontOf(lastSettings?.font ?? '')
   const term = new Terminal({
     fontFamily: font.family,
@@ -186,7 +186,7 @@ function create(pane: PaneView): View {
   const frame = el(
     'div',
     { class: 'frame' },
-    el('span', { class: 'frame-label' }, pane.agent),
+    el('span', { class: 'frame-label' }, label ?? pane.agent),
     host,
   )
   const root = el('div', { class: 'pane', 'data-pane': pane.id }, frame)
@@ -277,8 +277,8 @@ function create(pane: PaneView): View {
 }
 
 // The DOM of a pane, created once and moved between tab bodies as the layout changes.
-export function paneElement(pane: PaneView): HTMLElement {
-  return (views.get(pane.id) ?? create(pane)).root
+export function paneElement(pane: PaneView, label?: string): HTMLElement {
+  return (views.get(pane.id) ?? create(pane, label)).root
 }
 
 export function forgetPanesExcept(live: ReadonlySet<string>): void {

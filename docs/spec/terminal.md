@@ -2,12 +2,12 @@
 
 A tab of an agent session is an embedded terminal running the user's shell, into which the app types
 the agent's command. This file specifies how each kind of start builds that command (new, resume,
-fork, continue last, the advanced new session; `--settings`, `-n`, `--session-id`, `&& exit`), how a
+fork; `--settings`, `-n`, `--session-id`, `&& exit`), how a
 started session finds its transcript, the terminal itself (scrollback, find, `Shift+Enter`,
 copy/paste), the `Ctrl+B` prefix and its help, split panes, and how a tab, a pane and a window are
 closed — the graceful `/exit` and its fallback. Index rows: **F15, F16, F17, F18, F19, F20** (split
-panes; the tab model they live in is `projects.md`), keys **K15–K27, K38, K39**, menu items **M8,
-M9, M15, M20, M35**. Remote Control's flag is built here but specified in `remote-control.md`
+panes; the tab model they live in is `projects.md`), keys **K15–K27, K38, K39**, menu items
+**M15, M20, M35**. Remote Control's flag is built here but specified in `remote-control.md`
 (F49, M17, M21). Agent-state detection from the terminal is `agent-state.md`; the terminal's font,
 colors and the TUI/Classic style are `preferences.md` and `look.md`; the question card that
 agent-tablet overlays on the terminal is not carried over (Menkar decision 1.7, `chat.md`).

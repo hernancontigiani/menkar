@@ -1,7 +1,7 @@
 # Chat, MCP servers, Ghostty
 
 What the app offers besides the embedded terminal: native streaming chat tabs driven by the agent's
-headless mode, with permission cards for Claude Code (F50, M11, M36, K40); the MCP servers browser
+headless mode, with permission cards for Claude Code (F50, M36, K40); the MCP servers browser
 (F52, M3); and opening a session in the Ghostty terminal (F53, M34). The question card over the
 terminal (F51) is **not carried over** (decision 1.7); its subsection says so and has no acceptance
 cases.
@@ -9,10 +9,6 @@ cases.
 ## Behaviour
 
 ### Chat variants: which agent offers which chat
-
-- Built: `docs/chat.md` describes how; plan 14 built it.
-
-### Starting a new chat (M11)
 
 - Built: `docs/chat.md` describes how; plan 14 built it.
 
