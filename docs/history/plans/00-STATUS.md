@@ -184,3 +184,6 @@
 > them back dimmed. Found: the search the plan named does not exist (the quick switcher it is); a
 > usage test that could not see hidden-means-removed. With it, the tab content patched in place
 > instead of rebuilt on every state. In `docs/projects.md`.
+
+> Replaced 2026-11-09: About's credit no longer names agent-tablet or links the repository.
+| 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to agent-tablet and Agent Session Manager; "Restart now" asks and saves like quitting | 2026-11-08 | `docs/spec/README.md` |
