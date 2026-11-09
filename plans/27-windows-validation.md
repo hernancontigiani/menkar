@@ -18,18 +18,20 @@
 - e2e: runs under `xvfb` (`MENKAR_E2E_XVFB`), absent on Windows/macOS.
 - Notifications, the dock badge, `gsettings` reads in docs and scripts.
 
-## The proposed approach (to confirm)
+## The goal (the human, 2026-11-09)
 
-1. **Audit and isolate** first: every platform-specific call behind one module per concern with a
-   Linux implementation and a stub that fails loudly elsewhere; a code-rules check that forbids
-   `/proc`, `setsid`, `'/bin/sh'` and similar outside those modules.
-2. **Vitest on Windows**: `npm run ci` runs on a Windows machine — cheap, catches paths and process
-   handling.
-3. **e2e on Windows**: Playwright drives Electron natively there (no xvfb), on a real desktop —
-   ideally a Windows VM so windows never open on the human's own screen; the `MENKAR_E2E_XVFB` guard
-   gets a Windows equivalent.
-4. **A hand checklist** per platform: install, the launcher, Remote Control from the phone,
-   notifications, the shell.
+Not a Windows CI: `npm run ci` stays a Linux gate. The goal is that **the app works when it is
+shared with a developer on Windows who installs it** — once there is a Windows installer to offer.
+Validation serves that, before each Windows release, not every change.
 
-Open, for the human: where Windows runs (a local VM, or a hosted runner as the one exception to
-"no hosted CI", decision 1.5).
+## The proposed approach (to confirm when the port starts)
+
+1. **Audit and isolate**: every platform-specific call behind one module per concern, with a Linux
+   implementation and a Windows one; a code-rules check (on Linux, in `npm run ci`) that forbids
+   `/proc`, `setsid`, `'/bin/sh'` and similar outside those modules, so new Linux-only code cannot
+   slip in unnoticed.
+2. **Unit tests for the Windows implementations run on Linux** where they are pure (paths with `\`,
+   drive letters, `C:\Users\…`), so most of the Windows logic is checked without Windows.
+3. **Before a Windows release**: the installer built, installed on a Windows machine or VM, and a
+   smoke run there (Playwright drives Electron natively, no xvfb) plus a hand checklist: install,
+   the launcher, a Claude session in a terminal, Remote Control, notifications, uninstall.
