@@ -4,7 +4,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import * as pty from 'node-pty'
 
@@ -78,7 +78,8 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
   ])
     delete env[key]
   const packaged = process.env.MENKAR_E2E_EXECUTABLE
-  const executable = packaged ?? (createRequire(import.meta.url)('electron') as string)
+  // Absolute, as the app starts its detached copy with its own resolved path.
+  const executable = resolve(packaged ?? (createRequire(import.meta.url)('electron') as string))
   const args = packaged ? ['--ozone-platform=x11'] : ['--ozone-platform=x11', '.']
   let started: number[] = []
   try {
@@ -107,6 +108,13 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
     // setsid: the app leads a session of its own, so the terminal closing sends it no SIGHUP.
     expect(sessionOf(app)).toBe(app)
     expect(terminal.pid).not.toBe(app)
+    // Past Chromium's start (its sandbox included): the copy has a renderer for its window.
+    await expect
+      .poll(() => processesOf(root).some((pid) => cmdline(pid).includes(' --type=renderer ')), {
+        timeout: 10_000,
+      })
+      .toBe(true)
+    expect(alive(app)).toBe(true)
   } finally {
     const ours = new Set([...started, ...processesOf(root)])
     for (const pid of ours) {
