@@ -29,6 +29,7 @@
 | 1.14 | The By-day axis top is the first multiple of a 1/2/2.5/5 × 10ⁿ step at or above the tallest bar (at most five intervals; time stepped in the unit shown), for Exec, Tokens and Cost alike; the Usage views fill the window | 2026-11-08 | `docs/usage.md` |
 | 1.15 | The Usage window opens scoped to the project of the window it was opened from, with an "All projects" toggle; scoped, By day stacks by category when the classifier is on and is a plain bar otherwise; an empty project stays scoped | 2026-11-08 | `docs/usage.md` |
 | 1.16 | Usage data for analysis goes out through the CLI (`menkar usage export`, JSONL or CSV, one row per turn, tokens and cost per model; no prompt text); no MCP server for now; time is per turn, never split by model | 2026-11-08 | plan 17 |
+| 1.17 | agent-tablet is deprecated and may be deleted: Menkar stops depending on it or naming it. 0.1.0 keeps what the switch needs (the first-start import, the release checklist's comparisons, the credit line); after 0.1.0 is accepted, every other mention goes — code comments, docs, the spec's references, tests' wording — and new text never names it | 2026-11-09 | this row |
 
 ## 2. Open
 
@@ -46,6 +47,7 @@
 | 2.10 | The human's check of FIL-34: with Menkar closed and two windows saved, `menkar open x.md` reopens both windows, then asks "Open in which window?" | Human | Trusting `menkar open` from a terminal |
 | 2.11 | The human's check of AST-28: click the desktop notification of a session whose tab is in another window, in a project not shown there — that window comes forward, shows the project, the tab selected | Human | Trusting the notifications |
 | 2.12 | The human's check of AST-38 with real agents: `Ctrl+B g` lists every tab with its project and state across windows; typing "blocked" keeps only the blocked one; Enter brings its window forward with the tab selected | Human | Trusting Go to agent |
+| 2.13 | After 0.1.0 is accepted: which of the three agent-tablet mentions 0.1.0 keeps also go — the first-start import (1.8), the credit in the README and About (1.10), the checklist's comparisons — then a plan removes the rest (1.17) | Human | Removing agent-tablet |
 
 ## 3. Roadmap and plans in flight
 
