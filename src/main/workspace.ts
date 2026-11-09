@@ -408,6 +408,7 @@ async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
     self.handle = registerAgentPane(id, spec.agent, size, {
       sessionId: () => self.sessionId,
       foreground: () => self.terminal.running,
+      shellPid: () => self.terminal.pid,
       seen: () => {
         const w = windowOfTab(self.tabId)
         const window = w ? windows.get(w.id) : undefined

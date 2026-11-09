@@ -259,3 +259,42 @@ test('LOOK-59 (2026-11-09) copy and paste without a menu: Ctrl+C / Ctrl+V in a f
     await launched.close()
   }
 })
+
+test('LOOK-60 (2026-11-09) no drag region covers a control: every element that drags the window misses every no-drag control’s box, unless it contains that control', async () => {
+  const launched = await client({}, [['login'], ['api']])
+  const page = launched.window
+  try {
+    await expect(page.locator('#close-all')).toBeVisible()
+    const found = await page.evaluate(() => {
+      const region = (n: Element) =>
+        getComputedStyle(n).getPropertyValue('app-region') ||
+        getComputedStyle(n).getPropertyValue('-webkit-app-region')
+      const all = [...document.querySelectorAll('*')].filter((n) => {
+        const r = n.getBoundingClientRect()
+        return r.width > 0 && r.height > 0
+      })
+      const drags = all.filter((n) => region(n) === 'drag')
+      const controls = all.filter(
+        (n) => region(n) === 'no-drag' || n.matches('button, input, select, [role="button"]'),
+      )
+      const overlaps: string[] = []
+      const name = (n: Element) =>
+        `${n.tagName.toLowerCase()}${n.id ? `#${n.id}` : ''}.${[...n.classList].join('.')}`
+      for (const d of drags) {
+        const a = d.getBoundingClientRect()
+        for (const c of controls) {
+          if (d.contains(c)) continue
+          const b = c.getBoundingClientRect()
+          if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom)
+            overlaps.push(`${name(d)} over ${name(c)}`)
+        }
+      }
+      return { drags: drags.map(name), controls: controls.length, overlaps }
+    })
+    expect(found.drags.length).toBeGreaterThanOrEqual(2)
+    expect(found.controls).toBeGreaterThanOrEqual(8)
+    expect(found.overlaps).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})

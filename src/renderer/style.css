@@ -282,10 +282,13 @@ html.classic .dot.running {
 html.classic .content-header {
   min-height: 46px;
 }
+/* As wide as its star and text only: the header's drag region holds it, and a box spanning the
+   header would cover the buttons' no-drag holes in the window's drag map. */
 .content-header .title {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
   display: flex;
   align-items: center;
   justify-content: center;

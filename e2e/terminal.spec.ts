@@ -299,9 +299,12 @@ test('TRM-23, TRM-24, TRM-25 Ctrl+Shift+G finds case-insensitively and scrolls t
     expect(await selectionTop(page)).toBeNull()
     await page.keyboard.press('Escape')
 
-    await run(page, 'clear; echo mark-A; echo mark-B', 'mark-B\n')
+    // The command does not contain the text searched for, so exactly the two printed lines match
+    // whatever the scrollback holds; the text goes in at once, so no partial search moves the
+    // selection after it is read.
+    await run(page, "clear; printf 'ma%sk-%s\\n' r A r B", 'mark-B\n')
     await page.keyboard.press('Control+Shift+G')
-    await page.keyboard.type('mark-')
+    await page.locator('.find-bar input').fill('mark-')
     await expect.poll(() => selectionTop(page)).not.toBeNull()
     const last = (await selectionTop(page)) ?? 0
     await page.locator('.find-bar button').nth(1).click()
@@ -313,6 +316,22 @@ test('TRM-23, TRM-24, TRM-25 Ctrl+Shift+G finds case-insensitively and scrolls t
   }
 })
 
+// Each tab shown in turn, as a user sees it: xterm does not draw a terminal that is not visible,
+// so a hidden tab's rows can lag its buffer until the tab shows.
+async function readyOnShow(page: Page): Promise<number[]> {
+  const counts: number[] = []
+  for (let i = 0; i < (await page.locator('.tab').count()); i += 1) {
+    await page.locator('.tab').nth(i).click()
+    await page.waitForTimeout(150)
+    counts.push(
+      await page
+        .locator('.tab-body:not(.hidden) .xterm-rows')
+        .evaluate((n) => (n.textContent?.match(/stand-in claude ready/g) ?? []).length),
+    )
+  }
+  return counts
+}
+
 test('no output shows twice after a pane attaches: three tabs starting at once, each line once', async () => {
   // The buffer and the live chunks race; a few starts make a lost race likely to show.
   for (let round = 0; round < 4; round += 1) {
@@ -322,23 +341,9 @@ test('no output shows twice after a pane attaches: three tabs starting at once, 
     const page = launched.window
     try {
       await expect(page.locator('.tab')).toHaveCount(3)
-      await expect
-        .poll(() =>
-          page
-            .locator('.xterm-rows')
-            .evaluateAll((ns) =>
-              ns.map((n) => (n.textContent?.match(/stand-in claude ready/g) ?? []).length),
-            ),
-        )
-        .toEqual([1, 1, 1])
+      await expect.poll(() => readyOnShow(page)).toEqual([1, 1, 1])
       await page.waitForTimeout(500)
-      expect(
-        await page
-          .locator('.xterm-rows')
-          .evaluateAll((ns) =>
-            ns.map((n) => (n.textContent?.match(/stand-in claude ready/g) ?? []).length),
-          ),
-      ).toEqual([1, 1, 1])
+      expect(await readyOnShow(page)).toEqual([1, 1, 1])
     } finally {
       await launched.close()
     }

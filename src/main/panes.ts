@@ -9,6 +9,8 @@ export interface AgentPane {
   readonly mirror: ScreenMirror
   // The agent still owns the pty's foreground (it is not back at the shell).
   foreground(): boolean
+  // The pid of the shell the pty runs; the agent is that shell's child.
+  shellPid(): number
   onClose(listener: () => void): () => void
   // Its tab is its window's selected tab and that window is focused.
   seen(): boolean
@@ -23,6 +25,7 @@ export interface AgentPane {
 export interface PaneWhereabouts {
   sessionId(): string | null
   foreground(): boolean
+  shellPid(): number
   seen(): boolean
   tabTitle(): string
   windowFocused(): boolean
@@ -68,6 +71,7 @@ export function registerAgentPane(
     sessionId: () => where.sessionId(),
     mirror,
     foreground: () => where.foreground(),
+    shellPid: () => where.shellPid(),
     onClose: (listener) => {
       closers.add(listener)
       return () => closers.delete(listener)
