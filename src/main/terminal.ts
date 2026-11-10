@@ -70,7 +70,9 @@ export class Terminal {
       cols: options.cols,
       rows: options.rows,
       cwd,
-      env: process.env,
+      // xterm.js draws 24-bit colour, but a Menkar started from the desktop has no COLORTERM of
+      // its own, and without it Claude Code falls back to 256 colours instead of its own palette.
+      env: { ...process.env, COLORTERM: 'truecolor' },
     })
     this.#pty.onData(emit)
     this.#pty.onExit(({ exitCode }) => {

@@ -297,7 +297,7 @@ test('TRM-23, TRM-24 Ctrl+Shift+G finds case-insensitively and scrolls to it; Es
 
 // Quarantined (e2e/FLAKY.md): under the full suite the second down now and then leaves the
 // selection on the first match. Not reproduced alone, under parallel load or in a traced full run.
-test.fixme('TRM-25 after the last match, down wraps to the first', async () => {
+test('TRM-25 after the last match, down wraps to the first', async () => {
   const { launched, page } = await shell()
   try {
     // The command does not contain the text searched for, so exactly the two printed lines match
@@ -660,6 +660,27 @@ test('a state with no layout change moves nothing in the tab content: a pane und
     for (let i = 0; i < 3; i += 1) await act(page, { type: 'selectTab', tab })
     await page.waitForTimeout(500)
     expect(await page.evaluate(() => (globalThis as unknown as { moves: number }).moves)).toBe(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+// Claude Code paints its own colours in 24 bits only when COLORTERM says the terminal can; Menkar
+// started from the desktop has no COLORTERM of its own to pass on, so every pty is given it.
+test('every pty says truecolor (COLORTERM), the pane and the drawer alike, even when Menkar started without it', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => ({ ...savedCursorTab(dirs), COLORTERM: '' }),
+  })
+  const page = launched.window
+  try {
+    await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
+    await page.locator('.xterm').click()
+    await run(page, 'echo "pane=[$COLORTERM]"', 'pane=[truecolor]')
+    await page.keyboard.press('Control+Backquote')
+    const drawer = page.locator('.tab-body:not(.hidden) .pane.drawer .xterm-rows')
+    await expect(drawer).toContainText('$', { timeout: 10_000 })
+    await page.keyboard.type('echo "drawer=[$COLORTERM]"\n')
+    await expect(drawer).toContainText('drawer=[truecolor]')
   } finally {
     await launched.close()
   }

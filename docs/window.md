@@ -32,6 +32,15 @@ How the main window is built and why that way. The behaviour it follows is in `d
 - Classic with Default leaves the terminal without a theme: Menkar uses black on white in light
   and white on `#1e1e1e` in dark, close to VTE's defaults (decision 1.10).
 - The empty states show Menkar's star (decision 1.12), inlined with `fill="currentColor"`.
+- **Ubuntu** (2026-11-10) is the human's GNOME Terminal on Ubuntu with the desktop's colours:
+  Yaru-dark's aubergine `#300a24` and white, with GNOME's own 16-colour palette. It works in both
+  styles, and its chrome roles are derived like the others'.
+- **Every pty says `COLORTERM=truecolor`** (2026-11-10). xterm.js draws 24-bit colour, but a
+  Menkar started from the desktop has no `COLORTERM` of its own to pass on. Without it Claude
+  Code drops to 256 colours (Node's colour depth reads `TERM=xterm-256color` as 8 bits) instead
+  of painting its own RGB theme. That theme is what a reply's colours are: white text, `#b1b9f9`
+  inline code, `#999999` greys. Only the background and the 16-colour palette come from Menkar's
+  theme.
 
 ## Panes and terminals
 
