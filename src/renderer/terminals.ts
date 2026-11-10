@@ -245,6 +245,9 @@ function create(pane: PaneView, label?: string): View {
     // Every other modified End is the agent's (xterm sends it on); only the table's is the view's.
     const id = matchShortcut('terminal', event)
     if (!id) return true
+    // Returning false stops only xterm: Chromium would still run its own command for the key, and
+    // Ctrl+Shift+V (paste as plain text) pasted the clipboard a second time.
+    event.preventDefault()
     if (event.type === 'keydown') terminalActions[id]()
     return false
   })

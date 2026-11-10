@@ -230,6 +230,8 @@ test('LOOK-59 (2026-11-09) copy and paste without a menu: Ctrl+C / Ctrl+V in a f
     await expect.poll(clip).toBe('copy-me-term')
     await setClip('echo pasted-in-term')
     await page.keyboard.press('Control+Shift+V')
+    // The paste reads the clipboard first: an Enter pressed at once could arrive before it.
+    await expect.poll(() => terminalText(page)).toContain('echo pasted-in-term')
     await page.keyboard.press('Enter')
     await expect.poll(() => terminalText(page)).toContain('\npasted-in-term')
 
