@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import * as pty from 'node-pty'
+import { ensureDisplay } from './display'
 
 const DETACHED = '--menkar-detached'
 
@@ -55,6 +56,7 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
   test.setTimeout(30_000)
   // Inside xvfb-run only: the app this starts opens a window.
   expect(process.env.MENKAR_E2E_XVFB).toBe('1')
+  await ensureDisplay()
   const root = mkdtempSync(join(tmpdir(), 'menkar-detach-'))
   const home = join(root, 'home')
   mkdirSync(home)

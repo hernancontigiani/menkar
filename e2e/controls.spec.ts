@@ -169,6 +169,7 @@ test('LOOK-67 (2026-11-09) buttons, fields and segmented groups have rounded cor
     const { app, window: page } = launched
     try {
       await expect(page.locator('#session-list .row')).toHaveCount(3)
+      await expect(page.locator('.tab')).toHaveCount(2)
       const radius = (p: Page, selector: string) =>
         p
           .locator(selector)
@@ -183,7 +184,10 @@ test('LOOK-67 (2026-11-09) buttons, fields and segmented groups have rounded cor
         '#add-session',
       ])
         expect(await radius(page, selector), `${ui_style} ${selector}`).toBeGreaterThan(0)
-      expect(await radius(page, '.tab'), ui_style).toBe(ui_style === 'tui' ? 0 : 6)
+      // A tab redrawn while it is read gives no style: read again until one stands.
+      await expect
+        .poll(() => radius(page, '.tab'), { message: ui_style })
+        .toBe(ui_style === 'tui' ? 0 : 6)
       await page.locator('#add-session').click()
       await expect(page.locator('.add-session')).toBeVisible()
       expect(await radius(page, '.add-session .segmented'), ui_style).toBeGreaterThan(0)

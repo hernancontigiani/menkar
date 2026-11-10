@@ -97,3 +97,72 @@ choice below: `xvfb-run -a` already probes for a free number; each worker must t
   delivery.
 
 ## Execution log
+- **B1, delivered 2026-11-10:**
+  - `e2e/display.ts` (`ensureDisplay`, `displays`) is called by `launchApp`, `open.spec.ts`'s FIL-31
+    and `detach.spec.ts`. `files-cases.spec.ts`'s spawn uses `launched.env`, which already has it.
+  - **Deviation:** the session bus is dropped in `ensureDisplay` (the worker's environment), not in
+    `launchApp`, so every spawn loses it too. In the app it reads `disabled:` (Chromium's own
+    marking), not absent.
+  - **Test:** `e2e/display.spec.ts`. Seen red with no `ensureDisplay` call (the app was on
+    `xvfb-run`'s `:100`), and with the bus line removed.
+  - **Not written:** the plan's "two workers get different displays" test. A worker sees only its
+    own display. Uniqueness holds by construction (each slot has its own band, and a locked number
+    is skipped), and 15 full runs at 4 workers never collided.
+  - A first full run at 1 worker on the moving tree (`b1`'s plan 25 in progress) failed only
+    `b1`'s unfinished spec.
+- **B2, measured 2026-11-10** on a snapshot (`HEAD` 45ebd41 plus this plan's files), because
+  `b1`'s work in progress moved under runs on the tree:
+
+  | Workers | Wall | Result | Peak memory used |
+  |---|---|---|---|
+  | 1 | 390 s | 259 passed, 1 skipped | 6107 MB |
+  | 4 | 107 s | green | 6612 MB |
+  | 6 | 84 s | CHT-9 failed | 7825 MB |
+  | 8 | 72 s | CHT-9 and detach failed (detach's 2 s budget) | 8259 MB |
+
+  - The baseline is 4881 MB.
+  - **Chosen: 4.** That is 3.6× faster, and green.
+  - `playwright.config.ts`: `workers: MENKAR_E2E_WORKERS ?? 4`, `fullyParallel: true`.
+- **Races shown under load, each fixed by waiting for what the test means** (seen red where it can
+  be forced):
+  - **CHT-9:** it asserted no `.dialog` after closing the window, on a page that could already be
+    closed. Now a dialog is watched from before the close until the app exits.
+    - Seen red by inverting the assertion.
+    - An `expect(` rewrite, accepted by `set`.
+  - **PRF-24** "nothing running": the "relaunched" process it found was Electron with Playwright's
+    loader. It never reached Menkar's code (a probe in the snapshot only); under load it was
+    sometimes not seen within 20 s.
+    - Now a spy on `app.relaunch` records the phase, and the test expects `['will-quit']`: asked
+      for once, while the quit runs.
+    - Seen red 3/3 with the code from before bedb729 (`if (await quitApp()) app.relaunch()` gave
+      `running`).
+    - The real relaunch became the human's check, STATUS §2 2.17.
+  - **TRM-57:** read the selection right after the double click. Now an `expect.poll`; accepted by
+    `set`, already in d846252.
+  - **PRF-31:** read `settings.json` right after `toggle.check()`; the switch flips before main
+    writes. Now a poll on the file first, after check and after uncheck. Lines were added only;
+    the original asserts stay.
+  - **Retention round trip** (`settings.spec.ts`): the same race on uncheck. It now waits for the
+    text that follows the write.
+  - **Remote-live** row phone: measured the row while it was being redrawn. It now waits for the
+    svg to be visible.
+  - **LOOK-67:** read `.tab`'s radius while the strip was being redrawn (NaN). It now waits for the
+    two tabs, and the radius is an `expect.poll`; an `expect(` rewrite.
+  - **FIL-33**, observed once in 15 runs: the `menkar open` dialog did not appear within 15 s. Not
+    reproduced: 4/4 alone, and 66/66 with the file specs repeated 3× at 4 workers. Left as it is;
+    if it recurs, it goes to `e2e/FLAKY.md` with a date.
+- **B3, acceptance 2026-11-10 on the real tree** (`HEAD` d846252 plus this plan), `rm -rf out` and
+  `npm run ui-check` each time:
+  - Batches that a race broke, each fixed and then started again from run 1:
+    - 112, 115, 112 ✗ CHT-9, 111, 111 s (on the snapshot);
+    - 106, 107, 111 ✗ PRF-24, 109, 112 s (on the snapshot);
+    - 106 ✗ TRM-57, 107, 107, 108, 108 s;
+    - 106, 108, 109 ✗ PRF-31, 111, 109 s;
+    - 130 ✗ remote-live, 107, 107, 107 ✗ LOOK-67, 106 s;
+    - 109 ✗ FIL-33, 107, 107, 106, 107 ✗ LOOK-67 s.
+  - **Final batch, 5 in a row, all green** (258 passed, 1 skipped, TRM-25 quarantined): 107, 107,
+    108, 108, 107 s.
+  - **`npm run package`:** 53 s, exit 0, never installed. electron-builder downloaded Electron's zip
+    into its cache, the build tool's own fetch.
+  - **`npm run package:smoke`:** exit 0, 258 passed, 1 skipped, 107 s.
+  - **Docs:** `docs/toolchain.md` gains "Running in parallel".

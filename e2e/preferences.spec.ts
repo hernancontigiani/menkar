@@ -211,7 +211,12 @@ function processesOf(root: string): number[] {
   return found
 }
 
-test('PRF-24 Restart now with nothing running quits at once and starts the app again', async () => {
+// A real relaunch cannot be seen from here: the copy app.relaunch() starts carries Playwright's
+// loader and never reaches Menkar's code. What the app controls is checked instead: the relaunch
+// is asked for while the quit runs (on will-quit), once. Asked for only after the quit's answer
+// came back, it never happened, since the quit could finish first. The real relaunch is a hand
+// check on the desktop.
+test('PRF-24 Restart now with nothing running quits at once, asking for the relaunch once while the quit runs', async () => {
   let root = ''
   const launched = await launchApp({
     prepare: ({ root: base }) => {
@@ -220,37 +225,33 @@ test('PRF-24 Restart now with nothing running quits at once and starts the app a
       return undefined
     },
   })
-  const firstPid = launched.app.process().pid ?? -1
-  const prefs = await openSettings(launched.app, launched.window)
-  const exited = new Promise<void>((resolve) =>
-    launched.app.process().once('exit', () => resolve()),
-  )
-  await prefs.evaluate(
-    () =>
-      void (
-        window as unknown as { menkar: { preferences: { restart(): Promise<boolean> } } }
-      ).menkar.preferences.restart(),
-  )
-  await exited
-  let again: number[] = []
+  const trace = join(root, 'relaunch.txt')
   try {
-    await expect
-      .poll(
-        () => {
-          again = processesOf(root).filter((p) => p !== firstPid)
-          return again.length
-        },
-        { timeout: 20_000 },
-      )
-      .toBeGreaterThan(0)
+    await launched.app.evaluate(({ app }, file) => {
+      const fs = process.getBuiltinModule('node:fs') as typeof import('node:fs')
+      let phase = 'running'
+      app.on('will-quit', () => {
+        phase = 'will-quit'
+      })
+      app.on('quit', () => {
+        phase = 'quit'
+      })
+      app.relaunch = () => fs.appendFileSync(file, `${phase}\n`)
+    }, trace)
+    const prefs = await openSettings(launched.app, launched.window)
+    const exited = new Promise<void>((resolve) =>
+      launched.app.process().once('exit', () => resolve()),
+    )
+    await prefs.evaluate(
+      () =>
+        void (
+          window as unknown as { menkar: { preferences: { restart(): Promise<boolean> } } }
+        ).menkar.preferences.restart(),
+    )
+    await exited
+    const asked = existsSync(trace) ? readFileSync(trace, 'utf8').trim().split('\n') : []
+    expect(asked).toEqual(['will-quit'])
   } finally {
-    for (const pid of again) {
-      try {
-        process.kill(pid)
-      } catch {
-        // already gone
-      }
-    }
     await launched.close().catch(() => undefined)
   }
 })

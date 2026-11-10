@@ -78,6 +78,8 @@ test('the row’s phone follows the bridge as Claude Code reports it: connected,
       if (!b) throw new Error('not laid out')
       return b
     }
+    // The row is redrawn as the state arrives; measured once it stands.
+    await expect(rowPhone.locator('svg')).toBeVisible()
     const phoneBox = await box(rowPhone.locator('svg'))
     const nameBox = await box(row.locator('.name'))
     const textBox = await box(row.locator('.name').locator('..'))

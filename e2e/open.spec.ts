@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launchApp, savedCursorTab } from './app'
+import { ensureDisplay } from './display'
 
 const ELECTRON = resolve('node_modules/electron/dist/electron')
 const APP = resolve('.')
@@ -17,7 +18,8 @@ function menkar(args: string[], cwd: string, env: Readonly<Record<string, string
   })
 }
 
-test('FIL-31 `menkar open` with no file prints the usage and exits with 2', () => {
+test('FIL-31 `menkar open` with no file prints the usage and exits with 2', async () => {
+  await ensureDisplay()
   const root = mkdtempSync(join(tmpdir(), 'menkar-e2e-open-'))
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v

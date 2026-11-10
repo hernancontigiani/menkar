@@ -2,6 +2,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron, type ElectronApplication, type Page } from '@playwright/test'
+import { ensureDisplay } from './display'
 
 export interface LaunchedApp {
   readonly root: string
@@ -31,6 +32,7 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
       'e2e runs only through `npm run ui-check` (xvfb-run); refusing to open a window here',
     )
   }
+  await ensureDisplay()
   const root = mkdtempSync(join(tmpdir(), 'menkar-e2e-'))
   const home = join(root, 'home')
   mkdirSync(home)

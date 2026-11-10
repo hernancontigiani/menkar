@@ -6,7 +6,11 @@ export default defineConfig({
   forbidOnly: true,
   // A flake shows itself instead of being retried out of sight; e2e/FLAKY.md is where one waits.
   retries: 0,
-  workers: 1,
+  // Each worker draws on an X server of its own (e2e/display.ts), so tests run side by side;
+  // within a file too, since two files hold most of the suite. Four was measured as the fastest
+  // count that stays green: more made load-sensitive tests fail.
+  workers: Number(process.env.MENKAR_E2E_WORKERS ?? 4),
+  fullyParallel: true,
   timeout: 60_000,
   expect: { timeout: 15_000 },
   reporter: [['list']],

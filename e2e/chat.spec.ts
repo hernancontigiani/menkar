@@ -122,9 +122,18 @@ test('CHT-9, CHT-39, CHT-40, CHT-41 Continue in chat; the chat tab is not saved,
     const closed = new Promise<void>((resolve) =>
       launched.app.process().once('exit', () => resolve()),
     )
+    // Watched from before the close until the app is gone: the window may close before a check
+    // made after it could run, which under load read a closed page.
+    const asked = page
+      .locator('.dialog')
+      .waitFor({ state: 'attached', timeout: 30_000 })
+      .then(
+        () => true,
+        () => false,
+      )
     await launched.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.close())
-    await expect(page.locator('.dialog')).toHaveCount(0)
     await closed
+    expect(await asked).toBe(false)
   } finally {
     await launched.close().catch(() => undefined)
   }

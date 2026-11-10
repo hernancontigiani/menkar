@@ -164,6 +164,8 @@ test('Transcript retention (2026-11-10): the switch raises cleanupPeriodDays to 
     })
     await toggle.uncheck()
     await expect(toggle).not.toBeChecked()
+    // The text changes only once main has written the file and read it back.
+    await expect(shown).toHaveText('Claude Code deletes transcripts older than 30 days')
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ model: 'opus', cleanupPeriodDays: 30 })
     await expect(shown).toHaveText('Claude Code deletes transcripts older than 30 days')
   } finally {

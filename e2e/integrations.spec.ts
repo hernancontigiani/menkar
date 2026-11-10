@@ -69,6 +69,10 @@ test('PRF-31, CTX-31, CTX-32, CTX-33 the status line switch installs and removes
 
     await toggle.check()
     await expect(toggle).toBeChecked()
+    // The switch flips at the click; main writes the file a moment later.
+    await expect
+      .poll(() => JSON.parse(readFileSync(settings, 'utf8')).statusLine?.command ?? '')
+      .toContain('statusline.js')
     const installed = JSON.parse(readFileSync(settings, 'utf8'))
     expect(Object.keys(installed)).toEqual(['model', 'statusLine'])
     expect(installed.model).toBe('opus')
@@ -79,6 +83,9 @@ test('PRF-31, CTX-31, CTX-32, CTX-33 the status line switch installs and removes
 
     await toggle.uncheck()
     await expect(toggle).not.toBeChecked()
+    await expect
+      .poll(() => JSON.parse(readFileSync(settings, 'utf8')))
+      .toEqual(JSON.parse(original))
     expect(JSON.parse(readFileSync(settings, 'utf8'))).toEqual(JSON.parse(original))
   } finally {
     await launched.close()

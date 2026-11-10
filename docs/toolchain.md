@@ -19,7 +19,45 @@ what neither says: why each piece, and what was rejected.
 - **Vitest** for `src/core/` and main-side logic. `tests/setup.ts` points `HOME` and the XDG
   directories at a temporary directory before any test runs.
 - **Playwright's `_electron.launch`** on the built app, under `xvfb-run -a`, with `forbidOnly`, no
-  retries and a trace only on a retry. `e2e/app.ts` launches with a temporary `HOME` and XDG set.
+  retries and a trace only on a retry. `e2e/app.ts` launches with a temporary `HOME` and XDG set,
+  on its worker's own X server (below).
+
+## Running in parallel (2026-11-10)
+
+- **One Xvfb per Playwright worker** (`e2e/display.ts`, `ensureDisplay()`), so no two tests share a
+  screen. Several tests read the whole screen back or size and maximize their window.
+  - **It runs once per worker process,** before its first launch.
+  - **It picks a display** from its own band (`:100 + 10 × TEST_PARALLEL_INDEX`), skipping a number
+    with a lock or a socket, as `xvfb-run -a` does. So another session's run on the machine never
+    collides.
+  - **It starts the server** as `Xvfb :<n> -screen 0 1280x1024x24 -nolisten tcp` with an xauth
+    cookie, and waits for it on `-displayfd`.
+  - **It sets `DISPLAY` and `XAUTHORITY`** in the worker's environment. Every app a test starts
+    copies that environment: `launchApp`, the direct `menkar open` spawns, detach's pty.
+  - **It stops the server** by PID when the worker exits.
+- **The session bus is dropped** in the same place (`DBUS_SESSION_BUS_ADDRESS`), so a test's
+  desktop notification never reaches the developer's own desktop. Chromium then marks the bus
+  `disabled:`. `e2e/display.spec.ts` asserts the display and the bus.
+- **`xvfb-run -a` and `MENKAR_E2E_XVFB=1` stay around the whole run** as the backstop. A worker
+  that never reached `ensureDisplay` still lands on a virtual display, never the developer's.
+- **Workers:** `MENKAR_E2E_WORKERS`, 4 by default, with `fullyParallel: true`. `look.spec.ts` and
+  `projects.spec.ts` hold about a quarter of the tests, and per-file workers would leave each in
+  one worker.
+  - Measured on 2026-11-10 on a 16-core machine with 27 GB, full suite, 260 tests:
+
+    | Workers | Wall time | Result |
+    |---|---|---|
+    | 1 | 390 s | green |
+    | 4 | about 107 s | green |
+    | 6 | 84 s | load-sensitive tests fail |
+    | 8 | 72 s | load-sensitive tests fail |
+
+  - Memory in use peaked at 6.1 GB with 1 worker, 6.6 GB with 4, and 8.3 GB with 8.
+- **Load shows races in tests:** a read made right after an action, before the window or main has
+  caught up.
+  - The fix is to wait for what the test means: `expect.poll` on the file, or the visible state that
+    follows the write. Never a longer sleep, and never a retry (`retries: 0` stays).
+  - A test that cannot be fixed goes to `e2e/FLAKY.md` with a date.
 - **The e2e launch forces X11** (`--ozone-platform=x11`, no `WAYLAND_DISPLAY`): on a Wayland desktop
   Electron otherwise opens its window on the developer's screen, whatever `xvfb-run` sets `DISPLAY`
   to. An e2e test asserts it. Playwright passes `--no-sandbox` to Electron, so these runs are
