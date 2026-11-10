@@ -42,3 +42,15 @@
   - Appearance holds everything visual: the scheme, the style, the theme, Interface size, and the
     font of the terminals and the file editor. Terminal keeps only behaviour, the scrollback
     (decision 1.36).
+
+## The shape
+
+> Left on 2026-11-10: Restart now no longer asks, even with sessions running (the human, 2026-11-10: its question opened behind Settings).
+  calls the workspace's `quitApp()` (one question for the running sessions, the layout saved), and
+  registers `app.relaunch()` only once that quit was confirmed, so a cancelled restart never
+  relaunches later (decision 1.10).
+
+## Checks
+
+> Left on 2026-11-10: Restart now no longer asks, even with sessions running (the human, 2026-11-10: its question opened behind Settings).
+  Restart now with nothing running and with a session running),

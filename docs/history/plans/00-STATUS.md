@@ -279,3 +279,7 @@
 > human's own terminal: the colours match, and the type size is the Font setting (decision 1.35).
 > The "one-colour look" was not a defect: the human misremembered, and no look showed it. In
 > `docs/window.md`.
+
+> Left §1 and §2 on 2026-11-10: "Restart now" no longer asks (1.43; its question opened behind Settings).
+| 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to Agent Session Manager, with no link (2026-11-09); "Restart now" asks and saves like quitting | 2026-11-08 | `docs/spec/README.md` |
+| 2.17 | The human's check of Restart now (PRF-24) on the real desktop, since e2e cannot see a real relaunch (the copy carries Playwright's loader and never reaches Menkar's code): Settings → Language, pick the other language, Restart now with nothing running — Menkar closes and opens again by itself, in the new language; with a session running, Cancel keeps it open and nothing opens later | Human | Trusting Restart now |

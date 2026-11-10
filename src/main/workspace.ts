@@ -847,23 +847,9 @@ async function finishClose(windowId: string): Promise<void> {
   windows.get(windowId)?.close()
 }
 
-let quitAnswer: ((confirmed: boolean) => void) | undefined
-
-// Quitting the whole app (F27, "Restart now"): one question listing the running sessions of every
-// window, then the layout saved and every pty hung up; false when the user cancels.
-export async function quitApp(): Promise<boolean> {
-  if (quitAnswer) return false
-  const names = layout.windows.flatMap((w) => runningNames(w.id))
-  if (names.length > 0) {
-    const asking = windows.get(focusOrder[0] ?? '') ?? [...windows.values()][0]
-    if (!asking || asking.isDestroyed()) return false
-    const confirmed = await new Promise<boolean>((resolve) => {
-      quitAnswer = resolve
-      asking.webContents.send('window:confirm-close', names)
-    })
-    quitAnswer = undefined
-    if (!confirmed) return false
-  }
+// Restart now's quit: the layout saved as the last window's close saves it, every pty hung up,
+// with no question. Its question opened behind Settings, so the button seemed to do nothing.
+export async function quitApp(): Promise<void> {
   clearTimeout(saveTimer)
   saveTimer = undefined
   const saved = saveProjectsNow()
@@ -874,7 +860,6 @@ export async function quitApp(): Promise<boolean> {
     allowedToClose.add(w.id)
   }
   app.quit()
-  return true
 }
 
 const unsavedAnswered = new Set<string>()
@@ -1507,14 +1492,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       push()
       return {}
     case 'confirmClose':
-      if (quitAnswer) {
-        quitAnswer(true)
-        return {}
-      }
       await finishClose(windowId)
       return {}
     case 'cancelClose':
-      quitAnswer?.(false)
       return {}
     case 'copyText':
       clipboard.writeText(action.text)

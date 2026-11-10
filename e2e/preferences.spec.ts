@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { _electron, type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp } from './app'
-import { prepare } from './fixtures'
+import { prepare, SESSION } from './fixtures'
 
 // Preferences on the real app (docs/spec/preferences.md, PRF-1 to PRF-24), never on the human's
 // display or with their HOME. They live in the Settings window's sections (2026-11-10).
@@ -190,26 +190,6 @@ test('PRF-22, PRF-23 choosing another language shows Restart now; going back hid
   }
 })
 
-// The relaunched app is a process of its own: found by the temporary HOME in its environment and
-// stopped by its PID, never by a name pattern.
-function processesOf(root: string): number[] {
-  // The packaged build (package:smoke) runs as `menkar`, not as Electron's own binary.
-  const executable = process.env.MENKAR_E2E_EXECUTABLE ?? 'electron'
-  const found: number[] = []
-  for (const entry of readdirSync('/proc')) {
-    if (!/^\d+$/.test(entry)) continue
-    try {
-      const env = readFileSync(`/proc/${entry}/environ`, 'utf8')
-      const cmd = readFileSync(`/proc/${entry}/cmdline`, 'utf8')
-      if (env.includes(`HOME=${join(root, 'home')}\0`) && cmd.includes(executable))
-        found.push(Number(entry))
-    } catch {
-      // gone, or not ours to read
-    }
-  }
-  return found
-}
-
 // A real relaunch cannot be seen from here: the copy app.relaunch() starts carries Playwright's
 // loader and never reaches Menkar's code. What the app controls is checked instead: the relaunch
 // is asked for while the quit runs (on will-quit), once. Asked for only after the quit's answer
@@ -255,41 +235,70 @@ test('PRF-24 Restart now with nothing running quits at once, asking for the rela
   }
 })
 
-test('PRF-24 Restart now with a session running asks; Cancel keeps the app and does not relaunch', async () => {
+// Decision 2026-11-10: Restart now goes on without asking, even with sessions running; its
+// question opened behind Settings and the button seemed to do nothing. The next start stands in
+// for the relaunch, on the same directories.
+test('PRF-24 Restart now with a session running quits without asking, hangs the agent up, and the next start resumes it in its tab', async () => {
   let home = ''
-  let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
       home = dirs.home
-      root = dirs.root
       return prepare(dirs)
     },
   })
   const page = launched.window
+  const trace = join(launched.root, 'relaunch.txt')
+  let next: ElectronApplication | undefined
   try {
     await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
     await expect.poll(() => existsSync(join(home, 'claude-pid.txt'))).toBe(true)
+    const agent = Number(readFileSync(join(home, 'claude-pid.txt'), 'utf8'))
+    await launched.app.evaluate(({ app }, file) => {
+      const fs = process.getBuiltinModule('node:fs') as typeof import('node:fs')
+      app.relaunch = () => fs.appendFileSync(file, 'relaunch\n')
+    }, trace)
     const prefs = await openSettings(launched.app, page)
-    const restarting = prefs.evaluate(() =>
-      (
-        window as unknown as { menkar: { preferences: { restart(): Promise<boolean> } } }
-      ).menkar.preferences.restart(),
-    )
-    await expect(page.locator('.dialog .heading')).toHaveText('Stop 1 running session(s)?')
-    await page.locator('.dialog button', { hasText: 'Cancel' }).click()
-    expect(await restarting).toBe(false)
-    await page.waitForTimeout(1000)
-    expect(launched.app.process().exitCode).toBeNull()
-    // Electron's own exit, which would run a relaunch left registered by the cancelled restart.
     const exited = new Promise<void>((resolve) =>
       launched.app.process().once('exit', () => resolve()),
     )
-    await launched.app.evaluate(({ app }) => app.exit(0)).catch(() => undefined)
+    await prefs.evaluate(
+      () =>
+        void (
+          window as unknown as { menkar: { preferences: { restart(): Promise<boolean> } } }
+        ).menkar.preferences.restart(),
+    )
     await exited
+    expect(readFileSync(trace, 'utf8')).toBe('relaunch\n')
+    await expect.poll(() => existsSync(`/proc/${agent}`)).toBe(false)
+    const before = readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n').length
+    const executable = process.env.MENKAR_E2E_EXECUTABLE
+    next = await _electron.launch(
+      executable
+        ? { executablePath: executable, args: ['--ozone-platform=x11'], env: { ...launched.env } }
+        : { args: ['--ozone-platform=x11', '.'], env: { ...launched.env } },
+    )
+    const again = await next.firstWindow()
+    await expect(again.locator('.tab', { hasText: 'fix the login bug' })).toBeVisible()
+    await expect
+      .poll(() => readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n'))
+      .toHaveLength(before + 1)
+    const resumed = readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n').pop()
+    expect(resumed).toContain(`--resume ${SESSION}`)
   } finally {
+    if (next) {
+      for (const w of next.windows()) {
+        await w
+          .evaluate(() =>
+            (
+              globalThis as unknown as {
+                menkar: { window: { act(a: { type: string }): Promise<unknown> } }
+              }
+            ).menkar.window.act({ type: 'closeAllTabs' }),
+          )
+          .catch(() => undefined)
+      }
+      await next.close().catch(() => undefined)
+    }
     await launched.close().catch(() => undefined)
   }
-  // A cancelled restart left no relaunch behind for a later quit.
-  await new Promise((resolve) => setTimeout(resolve, 3000))
-  expect(processesOf(root)).toEqual([])
 })

@@ -258,7 +258,8 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
 - Popover menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's
   defaults.
 - About: the human's copyright, and one credit line to Agent Session Manager, with no link.
-- "Restart now" asks and saves the layout as quitting does.
+- "Restart now" saves the layout and hangs up the running sessions as quitting does, without asking
+  (2026-11-10); quitting by closing the windows still asks.
 - No main menu (decision 1.34, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
   Existing (Show hidden sessions), the header's Usage and ⚙ Settings buttons, and Settings'
   sections (MCP servers, About). Close all and Close other tabs are in a tab's menu.

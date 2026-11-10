@@ -52,9 +52,13 @@ are shaped this way.
   `settings:changed` to every window. So a theme, style, scheme, font or scrollback change reaches
   every window at once (the original reached only the window that opened its Preferences).
 - **The language** is read once at start, before any window (`src/main/index.ts`). "Restart now"
-  calls the workspace's `quitApp()` (one question for the running sessions, the layout saved), and
-  registers `app.relaunch()` only once that quit was confirmed, so a cancelled restart never
-  relaunches later (decision 1.10).
+  calls the workspace's `quitApp()`, which saves the layout as the last window's close does and
+  hangs up every pty (SIGHUP, decision 1.9), **with no question even while sessions run**
+  (2026-11-10): the question opened behind the Settings window, so the button seemed to do nothing.
+  `app.relaunch()` is registered on `will-quit` before the quit starts; asked for after the quit
+  ran to its end, it never happened. The next start reopens the saved tabs, and the shown
+  project's sessions start again with `claude --resume`; another project's wait until it is shown
+  (decision 1.32).
 - **Integrations**: the status line switch calls `installStatusline` / `removeStatusline`, and the
   transcript retention switch calls `installRetention` / `removeRetention` (`docs/context.md`). A refused change comes back with our sentence, shown for 8 s, and the switch
   shows what the files say. The classification switch and its earlier-turns dialog use the
@@ -90,7 +94,8 @@ are shaped this way.
 - e2e under `npm run ui-check`: `e2e/settings.spec.ts` (one window with no parent, the sections and
   their groups, the keys, the retention switch, screenshots in `/tmp/menkar-shots/settings-*.png`),
   `e2e/preferences.spec.ts` (the rows at their defaults, themes reaching every window, languages,
-  Restart now with nothing running and with a session running),
+  Restart now with nothing running, and with a session running: no question, the agent hung up,
+  and a next start on the same directories resuming it in its tab),
   `e2e/integrations.spec.ts` (the status line switch with its backup and refusal, the
   classification switch and the earlier-turns dialog with the stand-in `claude`, About),
   `e2e/usage-window.spec.ts` (periods, the stepper, Totals and By day; screenshots in

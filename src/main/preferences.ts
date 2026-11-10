@@ -75,16 +75,12 @@ function monospaceFonts(): Promise<string[]> {
   return fonts
 }
 
-// Restart now quits the way quitting does — one question for the running sessions, the layout
-// saved. The relaunch is registered before the quit starts, because the quit can run to its end
-// before quitApp's answer comes back and a relaunch asked for after that never happens; a cancelled
-// quit takes it back, so a cancelled restart never relaunches later.
+// Restart now saves and hangs up as quitting does, without asking. The relaunch is
+// registered before the quit starts: asked for once the quit has run to its end, it never happens.
 async function restart(): Promise<boolean> {
-  const relaunch = () => app.relaunch()
-  app.once('will-quit', relaunch)
-  const quitting = await workspace.quitApp()
-  if (!quitting) app.removeListener('will-quit', relaunch)
-  return quitting
+  app.once('will-quit', () => app.relaunch())
+  await workspace.quitApp()
+  return true
 }
 
 export function registerPreferencesIpc(): void {
