@@ -55,3 +55,15 @@ author approve their own PR, so this is set with two repository rulesets on `mai
 
 To verify when it is set up: a throwaway PR by the maintainer merges green with no review and is
 refused while red; a PR from a second account is refused until the maintainer approves.
+
+## apt's "unsandboxed" note on install (the human, 2026-11-10: must not show at 1.0)
+
+`sudo apt install ./menkar_*.deb` from the home folder prints `N: Download is performed unsandboxed
+as root as file '…deb' couldn't be accessed by user '_apt'. - pkgAcquire::Run (13: Permission
+denied)`. It is apt, not the package: apt reads local files as the `_apt` user, and Ubuntu's home
+folders are 0750, so it falls back to root and says so. It is harmless, but the human wants a clean
+install. Options to weigh: (a) an **APT repository** (signed `Release`, served e.g. from GitHub
+Pages), so users `apt install menkar` and also get updates through apt — what VS Code does with
+its own repository; (b) the install instructions say to save the `.deb` somewhere `_apt` can read
+(`/tmp`) or to use `sudo dpkg -i` then `sudo apt -f install`; (c) both. Recommendation to discuss:
+(a) for 1.0, with (b) documented as the fallback for a single downloaded file.
