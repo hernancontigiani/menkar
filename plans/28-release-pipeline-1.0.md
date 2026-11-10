@@ -38,3 +38,20 @@
 - **Contributing**: `CONTRIBUTING.md` (fork, branch from `main`, `npm run ci`, PR with a
   description), issue templates (bug, feature request) and a PR template; **DCO** sign-off
   (`Signed-off-by:`) rather than a CLA, fitting GPL-3.0-or-later.
+
+## Who may merge (the human, 2026-11-10)
+
+The human is the only maintainer. **Their own PR merges as soon as CI is green, with no reviewer**;
+**anyone else's PR needs the human's approving review** before it can merge. GitHub cannot let an
+author approve their own PR, so this is set with two repository rulesets on `main`:
+
+1. **"CI green"**: required status checks (the PR workflow's jobs), no bypass for anyone — not
+   even the maintainer merges red.
+2. **"Review"**: a pull request with 1 approving review from a code owner, with `CODEOWNERS`
+   listing the maintainer for every path (`* <maintainer's GitHub user>`); **bypass list: the
+   repository admin role**, so the maintainer's own PRs merge without a review, while every other
+   author waits for theirs. (Outside contributors open PRs from forks and have no merge right at
+   all; the ruleset also covers any collaborator added later.)
+
+To verify when it is set up: a throwaway PR by the maintainer merges green with no review and is
+refused while red; a PR from a second account is refused until the maintainer approves.
