@@ -13,10 +13,15 @@ import {
 import { join, resolve } from 'node:path'
 import { expect, test, vi } from 'vitest'
 import { CONTEXT_READ_KEYS } from '../../../src/core/context/reading'
+import { sessionStartHooks } from '../../../src/core/context/settings'
 import {
+  BASELINE_KEYS,
   CHAINED_TIMEOUT_MS,
   runStatusline,
   SESSION_KEYS,
+  SESSION_START_ARG,
+  START_KEYS,
+  START_SOURCES,
   USAGE_KEYS,
 } from '../../../src/core/context/statusline'
 import { STATUSLINE_READ_KEYS } from '../../../src/core/usage/statusline'
@@ -207,4 +212,81 @@ test('CTX-26 parity: what the app reads is what the statusline writes', () => {
   for (const key of CONTEXT_READ_KEYS) expect(SESSION_KEYS).toContain(key)
   expect(STATUSLINE_READ_KEYS.length).toBeGreaterThan(0)
   for (const key of STATUSLINE_READ_KEYS) expect(USAGE_KEYS).toContain(key)
+})
+
+// The cost since the last compaction: the SessionStart hook (the same script, its hook mode) notes
+// a new session or a compaction, and the bar shows the cost since, then the total.
+function hook(d: Dirs, payload: Record<string, unknown>) {
+  const result = spawnSync(process.execPath, [SCRIPT, SESSION_START_ARG], {
+    input: JSON.stringify({ hook_event_name: 'SessionStart', ...payload }),
+    env: d.env,
+    encoding: 'utf8',
+  })
+  return { out: result.stdout, code: result.status }
+}
+
+const turn = (d: Dirs, id: string, total: number) =>
+  run(d, JSON.stringify({ session_id: id, session_name: 'set', cost: { total_cost_usd: total } }))
+    .out
+
+test('a new session shows the same cost twice until it compacts; then the cost since, kept across a resume', () => {
+  const d = dirs()
+  expect(hook(d, { session_id: 's1', source: 'startup' })).toEqual({ out: '', code: 0 })
+  expect(turn(d, 's1', 1.2)).toBe('set · $1.20 · $1.20 total\n')
+  expect(turn(d, 's1', 3)).toBe('set · $3.00 · $3.00 total\n')
+  hook(d, { session_id: 's1', source: 'compact' })
+  expect(turn(d, 's1', 5)).toBe('set · $0.00 · $5.00 total\n')
+  expect(turn(d, 's1', 7.5)).toBe('set · $2.50 · $7.50 total\n')
+  // A resume leaves the baseline: the cost since the compaction goes on.
+  hook(d, { session_id: 's1', source: 'resume' })
+  expect(turn(d, 's1', 8)).toBe('set · $3.00 · $8.00 total\n')
+  // A second compaction starts the count again.
+  hook(d, { session_id: 's1', source: 'compact' })
+  expect(turn(d, 's1', 9)).toBe('set · $0.00 · $9.00 total\n')
+})
+
+test('a session first seen with a cost and no hook record shows its total alone until it compacts', () => {
+  const d = dirs()
+  expect(turn(d, 'old', 240)).toBe('set · $240.00\n')
+  expect(turn(d, 'old', 246.5)).toBe('set · $246.50\n')
+  hook(d, { session_id: 'old', source: 'compact' })
+  expect(turn(d, 'old', 247)).toBe('set · $0.00 · $247.00 total\n')
+})
+
+test('a session first seen below a cent, with no hook record, counts as new', () => {
+  const d = dirs()
+  expect(turn(d, 'n1', 0.004)).toBe('set · $0.00 · $0.00 total\n')
+  expect(turn(d, 'n1', 0.5)).toBe('set · $0.50 · $0.50 total\n')
+})
+
+test('the hook notes only a new session or a compaction, of a plain id, and never fails', () => {
+  const d = dirs()
+  for (const source of ['resume', 'clear', 'fork'])
+    expect(hook(d, { session_id: 'x', source })).toEqual({ out: '', code: 0 })
+  expect(hook(d, { session_id: '../x', source: 'compact' })).toEqual({ out: '', code: 0 })
+  const bad = spawnSync(process.execPath, [SCRIPT, SESSION_START_ARG], {
+    input: 'not json',
+    env: d.env,
+    encoding: 'utf8',
+  })
+  expect([bad.stdout, bad.status]).toEqual(['', 0])
+  expect(existsSync(join(d.cache, 'session-starts'))).toBe(false)
+})
+
+test("parity: the hook --settings declares is the script's hook mode, for the sources it keeps; its record and the baseline have their keys", () => {
+  const hooks = sessionStartHooks('STATUSLINE') as {
+    SessionStart: { matcher: string; hooks: { command: string }[] }[]
+  }
+  expect(hooks.SessionStart.map((h) => h.matcher)).toEqual([...START_SOURCES])
+  for (const entry of hooks.SessionStart)
+    expect(entry.hooks.map((h) => h.command)).toEqual([`STATUSLINE ${SESSION_START_ARG}`])
+  const d = dirs()
+  hook(d, { session_id: 'p1', source: 'startup' })
+  turn(d, 'p1', 1)
+  const start = JSON.parse(readFileSync(join(d.cache, 'session-starts', 'p1.json'), 'utf8'))
+  expect(Object.keys(start)).toEqual([...START_KEYS])
+  expect(start).toMatchObject({ session_id: 'p1', source: 'startup' })
+  const baseline = JSON.parse(readFileSync(join(d.cache, 'cost-baselines', 'p1.json'), 'utf8'))
+  expect(Object.keys(baseline)).toEqual([...BASELINE_KEYS])
+  expect(baseline).toEqual({ baseline_usd: 0, start_at: start.at })
 })

@@ -383,3 +383,9 @@ toast instead, as above.
 - **Where.** One ring in each session row of the project list (between the name/folder text and the
   row's ⋯ button), and one on each tab of the tab strip (after the group color swatch and the state
   dot, before the title). History rows (Add session → Existing) have none.
+
+## The statusline bar
+
+> Left on 2026-11-10: the bar shows the cost since the last compaction before the total (the human, 2026-11-10).
+**The statusline bar** is plain text in Claude Code's own UI: name, percentage and cost separated by
+` · `.

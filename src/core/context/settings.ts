@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { agentPaths } from '../paths'
 import { contextFiles } from './files'
+import { SESSION_START_ARG, START_SOURCES } from './statusline'
 
 export type JsonValue =
   | null
@@ -35,6 +36,19 @@ export function jsonEqual(a: unknown, b: unknown): boolean {
 // Menkar's statusline as Claude Code's settings declare it.
 export function statuslineObject(command: string): JsonObject {
   return { type: 'command', command }
+}
+
+// The SessionStart hook of the sessions Menkar starts: the statusline's own script notes a new
+// session and a compaction, for the bar's cost since the last compaction. Only in `--settings`,
+// never in ~/.claude/settings.json. Claude Code matches each entry against the start's `source`.
+export function sessionStartHooks(statuslineCommand: string): JsonObject {
+  const command = `${statuslineCommand} ${SESSION_START_ARG}`
+  return {
+    SessionStart: START_SOURCES.map((source) => ({
+      matcher: source,
+      hooks: [{ type: 'command', command }],
+    })),
+  }
 }
 
 async function readText(path: string): Promise<string | null> {
@@ -98,7 +112,14 @@ export async function writeSessionSettings(statuslineCommand: string): Promise<s
   const settings = contextFiles.claudeSettings()
   await writeIfChanged(
     settings,
-    `${JSON.stringify({ statusLine: statuslineObject(statuslineCommand) }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        statusLine: statuslineObject(statuslineCommand),
+        hooks: sessionStartHooks(statuslineCommand),
+      },
+      null,
+      2,
+    )}\n`,
   )
   const chained = await chainedCommand(statuslineCommand)
   await writeIfChanged(

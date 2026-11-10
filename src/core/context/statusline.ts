@@ -46,6 +46,21 @@ export const USAGE_KEYS = [
 ] as const
 
 export const sessionsDir = (): string => join(appDirs().cache, 'sessions')
+// Apart from sessionsDir, which the app watches for readings.
+export const sessionStartsDir = (): string => join(appDirs().cache, 'session-starts')
+export const costBaselinesDir = (): string => join(appDirs().cache, 'cost-baselines')
+
+// What the SessionStart hook leaves for a session: Claude Code's `source` and when.
+export const START_KEYS = ['session_id', 'source', 'at'] as const
+// The sources the hook keeps: a new session, whose cost so far all comes after no compaction, and a
+// compaction. A resume keeps its baseline; `clear` and `fork` stay unknown, since whether their
+// total starts again is not Menkar's to know.
+export const START_SOURCES = ['startup', 'compact'] as const
+// A session's baseline: its total when it last compacted (0 when new, null when not known), and
+// which hook record set it.
+export const BASELINE_KEYS = ['baseline_usd', 'start_at'] as const
+// A first sighting below this total, with no hook record, is taken for a new session.
+export const FRESH_BELOW_USD = 0.01
 export const usageLogFile = (): string => join(appDirs().cache, 'usage.jsonl')
 export const chainedStatuslineFile = (): string => join(appDirs().config, 'chained-statusline.json')
 
@@ -115,8 +130,9 @@ function fixed(value: number, digits: number): string {
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-// Menkar's own bar: the session's name, else the start of its id; its context and its cost.
-export function bar(payload: Payload): string {
+// Menkar's own bar: the session's name, else the start of its id; its context and its cost: since
+// its last compaction and in all, or only in all while the first is not known.
+export function bar(payload: Payload, sinceCompaction: number | null = null): string {
   const name = get(payload, 'session_name')
   const id = get(payload, 'session_id')
   const parts = [
@@ -129,7 +145,10 @@ export function bar(payload: Payload): string {
   const percentage = get(payload, 'context_window', 'used_percentage')
   if (isNumber(percentage)) parts.push(`${fixed(percentage, 0)}%`)
   const cost = get(payload, 'cost', 'total_cost_usd')
-  if (isNumber(cost)) parts.push(`$${fixed(cost, 2)}`)
+  if (isNumber(cost)) {
+    if (sinceCompaction !== null) parts.push(`$${fixed(sinceCompaction, 2)}`)
+    parts.push(sinceCompaction !== null ? `$${fixed(cost, 2)} total` : `$${fixed(cost, 2)}`)
+  }
   return parts.join(' · ')
 }
 
@@ -160,6 +179,61 @@ export function record(payload: Payload): void {
   mkdirSync(appDirs().cache, { recursive: true })
   // One line in one write, appended: concurrent sessions never interleave inside a line.
   appendFileSync(usageLogFile(), `${JSON.stringify(usageRecord(payload, at))}\n`)
+}
+
+const validId = (id: unknown): id is string =>
+  // A path separator in the id would escape the directory.
+  typeof id === 'string' && id !== '' && !id.includes('/') && id !== '.' && id !== '..'
+
+function readRecord(path: string): Payload | null {
+  try {
+    const value: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    return isObject(value) ? value : null
+  } catch {
+    return null // none yet, or not one Menkar wrote
+  }
+}
+
+// The SessionStart hook: a new session or a compaction is noted for the statusline's next run.
+export function recordSessionStart(payload: Payload): void {
+  const id = payload.session_id
+  const source = payload.source
+  if (!validId(id) || !START_SOURCES.includes(source as (typeof START_SOURCES)[number])) return
+  const dir = sessionStartsDir()
+  const entry: Record<(typeof START_KEYS)[number], unknown> = {
+    session_id: id,
+    source,
+    at: stamp(),
+  }
+  writeAtomically(join(dir, `${id}.json`), dir, JSON.stringify(entry))
+}
+
+function keepBaseline(id: string, baseline: number | null, startAt: unknown): void {
+  const entry: Record<(typeof BASELINE_KEYS)[number], unknown> = {
+    baseline_usd: baseline,
+    start_at: startAt,
+  }
+  const dir = costBaselinesDir()
+  writeAtomically(join(dir, `${id}.json`), dir, JSON.stringify(entry))
+}
+
+// What the session has spent since its last compaction, keeping the baseline for later runs and
+// resumes; null while that is not known (first seen with a cost, and no compaction since).
+export function costSinceCompaction(payload: Payload): number | null {
+  const id = payload.session_id
+  const total = get(payload, 'cost', 'total_cost_usd')
+  if (!validId(id) || !isNumber(total)) return null
+  const start = readRecord(join(sessionStartsDir(), `${id}.json`))
+  const kept = readRecord(join(costBaselinesDir(), `${id}.json`))
+  let baseline: number | null
+  if (start !== null && typeof start.at === 'string' && start.at !== kept?.start_at) {
+    baseline = start.source === 'compact' ? total : 0
+    keepBaseline(id, baseline, start.at)
+  } else if (kept === null) {
+    baseline = total < FRESH_BELOW_USD ? 0 : null
+    keepBaseline(id, baseline, null)
+  } else baseline = isNumber(kept.baseline_usd) ? kept.baseline_usd : null
+  return baseline === null ? null : Math.max(0, total - baseline)
 }
 
 function chainedCommand(): string | null {
@@ -202,7 +276,22 @@ export function runStatusline(stdin: string, chainedTimeoutMs = CHAINED_TIMEOUT_
   } catch {
     // A full disk or a read-only cache costs the app a reading, never the bar.
   }
-  return chainedBar(stdin, chainedTimeoutMs) ?? bar(payload)
+  let since: number | null = null
+  try {
+    since = costSinceCompaction(payload)
+  } catch {
+    // The same: the bar then shows the total alone.
+  }
+  return chainedBar(stdin, chainedTimeoutMs) ?? bar(payload, since)
+}
+
+export function runSessionStart(stdin: string): void {
+  try {
+    const payload: unknown = JSON.parse(stdin)
+    if (isObject(payload)) recordSessionStart(payload)
+  } catch {
+    // A hook that fails shows an error in the session: a bad payload or a full disk notes nothing.
+  }
 }
 
 function readStdin(): string {
@@ -213,6 +302,10 @@ function readStdin(): string {
   }
 }
 
+// The same file is Menkar's SessionStart hook when called with this argument.
+export const SESSION_START_ARG = 'session-start'
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.stdout.write(`${runStatusline(readStdin())}\n`)
+  if (process.argv[2] === SESSION_START_ARG) runSessionStart(readStdin())
+  else process.stdout.write(`${runStatusline(readStdin())}\n`)
 }
