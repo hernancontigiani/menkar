@@ -40,8 +40,16 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
   TypeScript, JSON, Python, CSS and HTML modes. It was chosen over Monaco, which ships several
   megabytes of its own; with CodeMirror, its modes and markdown-it, the whole renderer bundle
   measured 1.8 MB minified (2026-11-08). It
-  is bundled into the renderer, so it is not a module the installer carries. The editor follows
-  the app's light/dark state, not the color theme (two `EditorView.theme`s in a `Compartment`).
+  is bundled into the renderer, so it is not a module the installer carries. The editor's
+  background and text follow the app's light/dark state (two `EditorView.theme`s in a
+  `Compartment`).
+- **Syntax colours** (2026-11-10) come from the theme's roles: one `HighlightStyle` whose colours are
+  the CSS variables every theme sets, so each theme and scheme, Ubuntu's included, colours the
+  source as it colours the window. Headings are the accent, bold and not underlined; inline code and
+  code blocks the warm yellow; links and URLs green and underlined; markers and table pipes red;
+  quotes dimmed and italic; the rule `---` dim. Keywords, strings, numbers and comments get the same
+  roles in the other languages. Markdown is read as GitHub's flavour, so tables and strikethrough are
+  marked up too. Display only: the file's text is not touched.
 - **The preview** is markdown-it (`commonmark` plus tables and strikethrough, HTML off, no
   linkify, no typography), written into an `<iframe sandbox="allow-same-origin" srcdoc>`. It has no
   scripts, and its CSP is `default-src 'none'; img-src file: data:; style-src 'unsafe-inline'`.

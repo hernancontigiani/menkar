@@ -640,3 +640,43 @@ test('FIL-41 (decision 1.28) Save sits left of Preview (where Preview would be i
     await launched.close()
   }
 })
+
+// The colour of the text node holding `text` in the visible editor, as drawn.
+const colourOf = (page: Page, text: string) =>
+  visibleEditor(page).evaluate((root, wanted) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (n.textContent?.includes(wanted)) {
+        const s = getComputedStyle(n.parentElement as Element)
+        return { color: s.color, weight: s.fontWeight, line: s.textDecorationLine }
+      }
+    }
+    return null
+  }, text)
+
+test('FIL-42 (2026-11-10) Markdown source is coloured from the theme: a heading (bold, not underlined) and inline code differ from the body text, dark and light; the file stays as written', async () => {
+  for (const color_scheme of ['dark', 'light']) {
+    const { launched, page, home } = await launch((dirs) =>
+      clientWork(dirs, { settings: { color_scheme } }),
+    )
+    try {
+      const file = join(home, 'notes.md')
+      const text = '# Title here\n\nbody words and `some code` here\n\n| a | b |\n| - | - |\n'
+      writeFileSync(file, text)
+      await act(page, { type: 'openFilePath', path: file })
+      await expect(visibleEditor(page)).toContainText('Title here')
+      const body = await colourOf(page, 'body words')
+      const heading = await colourOf(page, 'Title here')
+      const code = await colourOf(page, 'some code')
+      const what = JSON.stringify({ color_scheme, body, heading, code })
+      expect(body, what).not.toBeNull()
+      expect(heading?.color, what).not.toBe(body?.color)
+      expect(code?.color, what).not.toBe(body?.color)
+      expect(heading?.weight, what).toBe('700')
+      expect(heading?.line, what).toBe('none')
+      expect(readFileSync(file, 'utf8')).toBe(text)
+    } finally {
+      await launched.close()
+    }
+  }
+})

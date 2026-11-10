@@ -3,9 +3,9 @@ import { css } from '@codemirror/lang-css'
 import { html } from '@codemirror/lang-html'
 import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
-import { markdown } from '@codemirror/lang-markdown'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { python } from '@codemirror/lang-python'
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import { Annotation, ChangeSet, Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
@@ -15,6 +15,7 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view'
+import { tags } from '@lezer/highlight'
 import type { Key } from '../core/i18n'
 import type { FileUpdate, TabView } from '../shared/workspace'
 import { act, saveFile } from './app'
@@ -47,7 +48,8 @@ export function isMarkdown(path: string): boolean {
 
 function languageOf(path: string): Extension {
   const ext = path.split('.').pop()?.toLowerCase() ?? ''
-  if (isMarkdown(path)) return markdown()
+  // GitHub's flavour: tables, strikethrough and task lists are marked up too.
+  if (isMarkdown(path)) return markdown({ base: markdownLanguage })
   if (['js', 'mjs', 'cjs', 'jsx'].includes(ext)) return javascript({ jsx: ext === 'jsx' })
   if (['ts', 'mts', 'cts', 'tsx'].includes(ext))
     return javascript({ typescript: true, jsx: ext === 'tsx' })
@@ -57,6 +59,35 @@ function languageOf(path: string): Extension {
   if (ext === 'html' || ext === 'htm') return html()
   return []
 }
+
+// The syntax colours are the theme's roles (the CSS variables every theme sets), so each theme and
+// scheme colours the source as it colours the rest of the window. Display only.
+const highlight = HighlightStyle.define([
+  { tag: tags.heading, color: 'var(--accent)', fontWeight: '700', textDecoration: 'none' },
+  { tag: tags.strong, fontWeight: '700' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.strikethrough, textDecoration: 'line-through' },
+  { tag: [tags.monospace, tags.labelName], color: 'var(--yellow)' },
+  { tag: [tags.link, tags.url], color: 'var(--green)', textDecoration: 'underline' },
+  { tag: tags.quote, color: 'var(--subtext0)', fontStyle: 'italic' },
+  { tag: [tags.processingInstruction, tags.atom], color: 'var(--red)' },
+  { tag: tags.contentSeparator, color: 'var(--overlay0)' },
+  { tag: [tags.keyword, tags.operatorKeyword, tags.modifier], color: 'var(--accent)' },
+  { tag: [tags.string, tags.special(tags.string), tags.regexp], color: 'var(--green)' },
+  { tag: [tags.number, tags.bool, tags.null], color: 'var(--yellow)' },
+  {
+    tag: [tags.comment, tags.lineComment, tags.blockComment],
+    color: 'var(--overlay0)',
+    fontStyle: 'italic',
+  },
+  { tag: [tags.propertyName, tags.attributeName], color: 'var(--red)' },
+  { tag: [tags.typeName, tags.className, tags.tagName], color: 'var(--yellow)' },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
+    color: 'var(--accent)',
+  },
+  { tag: tags.invalid, color: 'var(--destructive)' },
+])
 
 // The editor follows the app's light / dark state, not its color theme.
 function themeOf(isDark: boolean): Extension {
@@ -134,7 +165,7 @@ function makeView(e: EditorTab, text: string, readOnly: boolean, host: HTMLEleme
         highlightActiveLineGutter(),
         history(),
         highlightSelectionMatches(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(highlight),
         languageOf(e.path),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         e.theme.of(themeOf(dark)),
