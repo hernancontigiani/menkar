@@ -159,9 +159,22 @@ Menkar runs two agents today: Claude Code and Cursor's terminal agent (`cursor-a
 1.0. An agent is more than a command: Menkar needs, per agent, how to start and resume a session,
 where its transcripts live and their format (the session list, names, Usage's time and tokens, the
 classifier's input), how its running state shows in the terminal (agent-state detection), and what
-its status line or context reading offers. Adding one before those are known would put it in the
-New picker with half of Menkar not working for it. Cursor the editor is out of scope; only an
+its status line or context reading offers, and **whether it has a remote mode like Claude Code's
+Remote Control** (today only Claude Code does). Adding one before those are known would put it in
+the New picker with half of Menkar not working for it. Cursor the editor is out of scope; only an
 agent that runs in a terminal fits.
 
+- **Remote Control per agent.** New's Remote Control switch already hides when the chosen agent
+  is not Claude Code; the rule becomes "shown only for an agent that declares a remote mode", one
+  field of the agent's entry, never a check on its name.
+- **Enabled per platform.** A release may ship an agent on Linux before it is tested on Windows:
+  each agent's entry says on which platforms it is enabled, and the picker shows it (installed or
+  greyed) only there. Set in the code per release, not by the user.
+- **A reference.** The human points to the open-source *Agent Desktop*, which supports many of
+  these agents; read it for each agent's commands and transcript formats. Menkar is written from
+  scratch (decision 1.1), so it is read as documentation, not copied — and its license is checked
+  first.
+
 **Trigger:** after 1.0, the human installs one of them on Ubuntu to try it. First question, per
-agent: the four facts above, read from its docs and a real session, before any code.
+agent: the five facts above, read from its docs, Agent Desktop's code and a real session, before
+any code.
