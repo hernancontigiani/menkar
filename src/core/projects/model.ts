@@ -191,6 +191,36 @@ export function newGroup(
   return { ok: true, projects: update(state, projectId, () => after) }
 }
 
+// A row dragged in the list (2026-11-10): `session` goes right before or after `target`, a row of
+// the same group, or both in "No group". The move is relative to a row the user saw, so a hidden
+// member not shown between them keeps its place. Anything else changes nothing: a drop never
+// changes a group.
+export function moveMember(
+  state: Projects,
+  sessionId: string,
+  target: string,
+  place: 'before' | 'after',
+): Projects {
+  const project = projectOf(state, sessionId)
+  if (!project || target === sessionId || !project.members.includes(target)) return state
+  const groupOf = (id: string) => project.groups.find((g) => g.members.includes(id))
+  const group = groupOf(sessionId)
+  if (group !== groupOf(target)) return state
+  const moved = (list: readonly string[]) => {
+    const rest = list.filter((id) => id !== sessionId)
+    const at = rest.indexOf(target) + (place === 'after' ? 1 : 0)
+    return [...rest.slice(0, at), sessionId, ...rest.slice(at)]
+  }
+  return update(state, project.id, (p) =>
+    group
+      ? {
+          ...p,
+          groups: p.groups.map((g) => (g === group ? { ...g, members: moved(g.members) } : g)),
+        }
+      : { ...p, members: moved(p.members) },
+  )
+}
+
 // Hidden in its project's list (decision 1.25): only while it does not run, since a running session
 // has a tab and a tab is never without its row. A session in no project has no list to leave.
 export function hideMember(state: Projects, sessionId: string, running: boolean): Result {

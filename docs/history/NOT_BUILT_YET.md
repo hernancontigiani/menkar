@@ -24,3 +24,15 @@ agent: the four facts above, read from its docs and a real session, before any c
   greyed) only there. Set in the code per release, not by the user.
 - **A reference.** The human points to the open-source *Agent Desktop*, which supports many of
 agent: the five facts above, read from its docs, Agent Desktop's code and a real session, before
+
+## Dragging sessions and tabs
+
+> Left on 2026-11-10: session rows now reorder by dragging within their group (the human, 2026-11-10); dragging a row onto a tab stays not built.
+
+### Dragging sessions and tabs
+
+"Open beside the current tab" from a row's menu puts a session in a tab's second pane; rows and tabs
+are not reordered by dragging.
+
+**Trigger:** the human misses dragging a row onto a tab, or reordering rows. First question: is the
+order of a project's sessions worth saving, or is the group enough?

@@ -395,7 +395,8 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     children.push(el('div', { class: 'group-heading dim' }, groupDot(group.color), group.name))
     for (const id of group.members) {
       const info = byId.get(id)
-      if (info && listed(id)) children.push(row(info, showFolder, running.has(id), project))
+      if (info && listed(id))
+        children.push(row(info, showFolder, running.has(id), project, group.name))
     }
   }
   const loose = known.filter((id) => !grouped.has(id) && listed(id))
@@ -403,7 +404,7 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     children.push(el('div', { class: 'group-heading dim' }, t('sidebar.noGroup')))
   for (const id of loose) {
     const info = byId.get(id)
-    if (info) children.push(row(info, showFolder, running.has(id), project))
+    if (info) children.push(row(info, showFolder, running.has(id), project, ''))
   }
   if (hiddenHere.size > 0) {
     const foot = el(
@@ -418,6 +419,10 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     children.push(foot)
   }
   list.replaceChildren(...children)
+  if (rowDrag) {
+    list.append(rowDrag.marker)
+    list.querySelector(`.row[data-session="${rowDrag.sessionId}"]`)?.classList.add('dragging')
+  }
 }
 
 function groupLine(color: string): HTMLElement {
@@ -435,11 +440,13 @@ function groupDot(color: string): HTMLElement {
 // Per window and not saved: whether the project's hidden members are listed, dimmed.
 let showHiddenInProject = false
 
+// `section` is the row's group name, or '' in "No group".
 function row(
   info: SessionInfo,
   showFolder: boolean,
   running: boolean,
   project: ProjectInfo,
+  section: string,
 ): HTMLElement {
   const dot = stateDot(sessionState(info.id))
   const phone = phoneIcon(info.id)
@@ -454,6 +461,7 @@ function row(
     {
       class: `row${project.hidden.includes(info.id) ? ' hidden-member' : ''}`,
       'data-session': info.id,
+      'data-section': section,
     },
     dot,
     el(
@@ -477,11 +485,41 @@ function row(
     event.preventDefault()
     menu(event.clientX, event.clientY)
   })
+  dragToReorder({
+    node,
+    id: info.id,
+    container: () => $('session-list'),
+    // Only its own section's rows: a drop never changes a row's group.
+    items: () =>
+      [...$('session-list').querySelectorAll<HTMLElement>('.row')].filter(
+        (r) => r.dataset.section === section,
+      ),
+    idOf: (item) => item.dataset.session,
+    axis: 'y',
+    markerClass: 'row-marker',
+    ignore: '.more',
+    started: (drag) => {
+      rowDrag = drag ? { sessionId: info.id, marker: drag.marker } : null
+    },
+    dropped: ({ next, last }) => {
+      const target = next ?? last
+      if (target)
+        void act({
+          type: 'moveSession',
+          session: info.id,
+          target,
+          place: next ? 'before' : 'after',
+        })
+    },
+  })
   node.addEventListener('click', () => {
+    if (justDragged) return
     const tab = state?.tabs.find((tb) => tb.panes.some((p) => p.sessionId === info.id))
     if (tab) void act({ type: 'selectTab', tab: tab.id })
   })
-  node.addEventListener('dblclick', () => void act({ type: 'openSession', session: info.id }))
+  node.addEventListener('dblclick', () => {
+    if (!justDragged) void act({ type: 'openSession', session: info.id })
+  })
   return node
 }
 
@@ -608,71 +646,102 @@ function tabRing(tab: TabView): HTMLElement | null {
   return ring(fullest ?? null)
 }
 
-// Reordering by dragging a tab within its strip (decision 1.23): past a few pixels it is a drag,
-// shown by a marker in the gap it would drop into; let go outside the strip and nothing moves.
-const TAB_DRAG_THRESHOLD_PX = 5
-let tabDragged = false
-// The drag in progress, kept across renders: the strip is rebuilt on every state the window gets.
-let tabDrag: { tabId: string; marker: HTMLElement } | null = null
+// Reordering by dragging (decision 1.23 for tabs, 2026-11-10 for the session rows): past a few
+// pixels it is a drag, shown by a marker in the gap it would drop into; let go outside the
+// container and nothing moves. The drop lands before `next`, or after `last` when no item follows.
+const DRAG_THRESHOLD_PX = 5
+interface Drop {
+  readonly next: string | null
+  readonly last: string | null
+}
+interface ReorderDrag {
+  readonly node: HTMLElement
+  readonly id: string
+  readonly container: () => HTMLElement
+  // The items it can drop among, itself included, in order.
+  readonly items: () => HTMLElement[]
+  readonly idOf: (item: HTMLElement) => string | undefined
+  readonly axis: 'x' | 'y'
+  readonly markerClass: string
+  readonly ignore?: string
+  readonly started: (drag: { readonly marker: HTMLElement } | null) => void
+  readonly dropped: (drop: Drop) => void
+}
+// Set by the pointerup that ends a drag, so the click that follows is not a click.
+let justDragged = false
 
-function dragToReorder(node: HTMLElement, tabId: string): void {
+function dragToReorder(options: ReorderDrag): void {
+  const { node, id, axis } = options
   node.addEventListener('pointerdown', (down) => {
-    if (down.button !== 0 || (down.target as HTMLElement).closest('.close')) return
-    const strip = $('tab-strip')
+    if (down.button !== 0) return
+    if (options.ignore && (down.target as HTMLElement).closest(options.ignore)) return
+    const container = options.container()
     let marker: HTMLElement | null = null
-    let before: string | null = null
-    const place = (x: number) => {
-      const others = [...strip.querySelectorAll<HTMLElement>('.tab')].filter(
-        (t) => t.dataset.tab !== tabId,
-      )
-      const next = others.find((t) => {
-        const r = t.getBoundingClientRect()
-        return x < r.left + r.width / 2
+    let drop: Drop = { next: null, last: null }
+    const place = (at: number) => {
+      const others = options.items().filter((item) => options.idOf(item) !== id)
+      const next = others.find((item) => {
+        const r = item.getBoundingClientRect()
+        return axis === 'x' ? at < r.left + r.width / 2 : at < r.top + r.height / 2
       })
-      before = next?.dataset.tab ?? null
-      const anchor = next ?? others[others.length - 1]
+      const last = others[others.length - 1]
+      drop = {
+        next: next ? (options.idOf(next) ?? null) : null,
+        last: last ? (options.idOf(last) ?? null) : null,
+      }
+      const anchor = next ?? last
       if (!anchor || !marker) return
       const r = anchor.getBoundingClientRect()
-      const s = strip.getBoundingClientRect()
-      marker.style.left = `${(next ? r.left - 2 : r.right + 1) - s.left + strip.scrollLeft}px`
+      const c = container.getBoundingClientRect()
+      if (axis === 'x')
+        marker.style.left = `${(next ? r.left - 2 : r.right + 1) - c.left + container.scrollLeft}px`
+      else marker.style.top = `${(next ? r.top - 1 : r.bottom - 1) - c.top + container.scrollTop}px`
     }
     const move = (event: PointerEvent) => {
       if (!marker) {
         if (
-          Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY) <
-          TAB_DRAG_THRESHOLD_PX
+          Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY) < DRAG_THRESHOLD_PX
         )
           return
-        marker = el('span', { class: 'tab-marker' })
-        strip.append(marker)
+        // Alone in its container there is nowhere else to drop.
+        if (!options.items().some((item) => options.idOf(item) !== id)) return
+        marker = el('span', { class: options.markerClass })
+        container.append(marker)
         node.classList.add('dragging')
-        tabDrag = { tabId, marker }
+        options.started({ marker })
       }
-      place(event.clientX)
+      place(axis === 'x' ? event.clientX : event.clientY)
     }
+    // A cancelled pointer (the system took it) ends the drag with nothing moved.
     const up = (event: PointerEvent) => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
       if (!marker) return
       marker.remove()
-      tabDrag = null
-      strip.querySelector(`.tab[data-tab="${tabId}"]`)?.classList.remove('dragging')
-      tabDragged = true
+      options.started(null)
+      for (const item of options.items()) item.classList.remove('dragging')
+      justDragged = true
       setTimeout(() => {
-        tabDragged = false
+        justDragged = false
       })
-      const s = strip.getBoundingClientRect()
+      const c = container.getBoundingClientRect()
       const inside =
-        event.clientX >= s.left &&
-        event.clientX <= s.right &&
-        event.clientY >= s.top &&
-        event.clientY <= s.bottom
-      if (inside) void act({ type: 'moveTab', tab: tabId, before })
+        event.clientX >= c.left &&
+        event.clientX <= c.right &&
+        event.clientY >= c.top &&
+        event.clientY <= c.bottom
+      if (event.type === 'pointerup' && inside && (drop.next ?? drop.last)) options.dropped(drop)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
   })
 }
+
+// The drags in progress, kept across renders: the strip and the list are rebuilt on every state.
+let tabDrag: { tabId: string; marker: HTMLElement } | null = null
+let rowDrag: { sessionId: string; marker: HTMLElement } | null = null
 
 function tabButton(tab: TabView, selected: boolean): HTMLElement {
   const close = el('span', { class: 'close', role: 'button', title: t('tab.close') }, icon('close'))
@@ -689,9 +758,22 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
     event.stopPropagation()
     void closeTabAsking(tab.id)
   })
-  dragToReorder(node, tab.id)
+  dragToReorder({
+    node,
+    id: tab.id,
+    container: () => $('tab-strip'),
+    items: () => [...$('tab-strip').querySelectorAll<HTMLElement>('.tab')],
+    idOf: (item) => item.dataset.tab,
+    axis: 'x',
+    markerClass: 'tab-marker',
+    ignore: '.close',
+    started: (drag) => {
+      tabDrag = drag ? { tabId: tab.id, marker: drag.marker } : null
+    },
+    dropped: ({ next }) => void act({ type: 'moveTab', tab: tab.id, before: next }),
+  })
   node.addEventListener('click', () => {
-    if (tabDragged) tabDragged = false
+    if (justDragged) justDragged = false
     else void act({ type: 'selectTab', tab: tab.id })
   })
   node.addEventListener('auxclick', (event) => {

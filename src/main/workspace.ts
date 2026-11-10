@@ -37,6 +37,7 @@ import {
   deleteProject,
   hideMember,
   joinTarget,
+  moveMember,
   newGroup,
   type Projects,
   projectOf,
@@ -1240,6 +1241,13 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const project = projectOf(projects, action.session)
       if (!project) return {}
       projects = setGroup(projects, project.id, action.session, action.group)
+      changed({ projects: true })
+      return {}
+    }
+    case 'moveSession': {
+      const moved = moveMember(projects, action.session, action.target, action.place)
+      if (moved === projects) return {}
+      projects = moved
       changed({ projects: true })
       return {}
     }

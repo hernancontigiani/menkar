@@ -23,6 +23,23 @@ keeps how they are built and why.
   project is gone.
 - Ids are the first 12 hex characters of a random UUID.
 
+## Reordering rows (2026-11-10)
+
+- A group's rows are listed in `group.members` order, "No group"'s in `project.members` order.
+  `moveMember(state, session, target, 'before' | 'after')` rewrites that one array; it changes
+  nothing when the target is in another group (or one is grouped and the other is not), is the
+  session itself, or is not a member. **A drop never changes a group**: that stays in the row's
+  menu. Group headings are not dragged, so groups keep their order.
+- The move is relative to a row the user saw, the one after the gap, or the last one when the gap is
+  at the end. So a hidden member not shown keeps its place between the rows it sat between; shown,
+  it is dragged like the rest.
+- The window's list uses the tab strip's drag (`dragToReorder` in `src/renderer/app.ts`): the same
+  5 px threshold, the marker in the gap, nothing moved when let go outside the list. A row drops
+  only among its own section's rows: over another group the marker stays at its own section's
+  nearest end, and a row alone in its section does not start a drag. The rows are not selectable,
+  since selected text would start the browser's own drag, which cancels the pointer. The action is
+  `moveSession`, saved as every project change is.
+
 ## Hidden in a project (decision 1.25, 2026-11-09)
 
 - A project keeps a `hidden` list of its own members (`model.ts` `hideMember`, `showMember`). A

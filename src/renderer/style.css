@@ -222,10 +222,23 @@ html:not(.maximized) body::after {
 }
 
 #session-list {
+  position: relative;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 6px 0;
+}
+.row.dragging {
+  opacity: 0.6;
+}
+/* Where a dragged row would drop. */
+.row-marker {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
 }
 .group-heading {
   display: flex;
@@ -243,6 +256,8 @@ html:not(.maximized) body::after {
   margin: 0 6px 2px;
   padding: 6px 4px 6px 10px;
   border-radius: var(--radius);
+  /* A press that moves is a drag; selected text would start the browser's own drag instead. */
+  user-select: none;
 }
 .row:hover {
   background: color-mix(in srgb, var(--fg) 7%, transparent);

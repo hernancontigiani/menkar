@@ -32,13 +32,13 @@ dtach, or a daemon of Menkar's own), to install and reason about on three system
 **Trigger:** the human loses work to a quit, or wants an agent to keep working with the app closed.
 First question: does resuming lose anything the agent had not written to its transcript?
 
-### Dragging sessions and tabs
+### Dragging a row onto a tab
 
-"Open beside the current tab" from a row's menu puts a session in a tab's second pane; rows and tabs
-are not reordered by dragging.
+"Open beside the current tab" from a row's menu puts a session in a tab's second pane; a row is not
+dragged onto a tab. Rows reorder by dragging within their group (2026-11-10), and tabs within their
+strip (decision 1.23).
 
-**Trigger:** the human misses dragging a row onto a tab, or reordering rows. First question: is the
-order of a project's sessions worth saving, or is the group enough?
+**Trigger:** the human misses dragging a row onto a tab to open it beside.
 
 ### More than two panes in a tab
 

@@ -6,6 +6,7 @@ import {
   freshProjects,
   GROUP_COLORS,
   joinTarget,
+  moveMember,
   newGroup,
   newProjectId,
   projectOf,
@@ -150,5 +151,85 @@ describe('the model', () => {
 
   test('PRJ-57 the member count counts members whose transcript is gone', () => {
     expect(projects([project('a', 'A', ['known', 'deleted'])]).projects[0]?.members).toHaveLength(2)
+  })
+})
+
+describe('dragging a row (2026-11-10)', () => {
+  const state = () =>
+    projects([
+      {
+        ...project(
+          'a',
+          'Work',
+          ['s1', 'g1', 's2', 'g2', 'h', 's3', 'g3'],
+          [group('UI', ['g1', 'g2', 'g3'])],
+        ),
+        hidden: ['h'],
+      },
+    ])
+  const members = (after: ReturnType<typeof state>) => after.projects[0]?.members
+  const groupMembers = (after: ReturnType<typeof state>) => after.projects[0]?.groups[0]?.members
+
+  test("within a group: the group's order changes, the project's does not", () => {
+    const after = moveMember(state(), 'g3', 'g1', 'before')
+    expect(groupMembers(after)).toEqual(['g3', 'g1', 'g2'])
+    expect(members(after)).toEqual(members(state()))
+    expect(groupMembers(moveMember(state(), 'g1', 'g3', 'after'))).toEqual(['g2', 'g3', 'g1'])
+  })
+
+  test('within "No group": the project\'s order changes, the groups\' does not', () => {
+    const after = moveMember(state(), 's3', 's1', 'before')
+    expect(members(after)).toEqual(['s3', 's1', 'g1', 's2', 'g2', 'h', 'g3'])
+    expect(after.projects[0]?.groups).toEqual(state().projects[0]?.groups)
+  })
+
+  test('a drop onto another group, or between "No group" and a group, changes nothing', () => {
+    const before = state()
+    expect(moveMember(before, 'g1', 's1', 'before')).toBe(before)
+    expect(moveMember(before, 's1', 'g2', 'after')).toBe(before)
+    const two = projects([
+      project('a', 'Work', ['x1', 'x2', 'y1'], [group('X', ['x1', 'x2']), group('Y', ['y1'])]),
+    ])
+    expect(moveMember(two, 'x1', 'y1', 'after')).toBe(two)
+  })
+
+  test('a hidden member not shown keeps its place between the rows it sat between', () => {
+    // Shown: s1 s2 s3 (h hidden between s2 and s3). s1 dropped after s3, the last shown row.
+    expect(members(moveMember(state(), 's1', 's3', 'after'))).toEqual([
+      'g1',
+      's2',
+      'g2',
+      'h',
+      's3',
+      's1',
+      'g3',
+    ])
+    // s3 dropped before s2: h stays after s2.
+    expect(members(moveMember(state(), 's3', 's2', 'before'))).toEqual([
+      's1',
+      'g1',
+      's3',
+      's2',
+      'g2',
+      'h',
+      'g3',
+    ])
+    // Shown, it moves as the rest.
+    expect(members(moveMember(state(), 'h', 's1', 'before'))).toEqual([
+      'h',
+      's1',
+      'g1',
+      's2',
+      'g2',
+      's3',
+      'g3',
+    ])
+  })
+
+  test('a drop onto itself, a session in no project, or a target outside the project, changes nothing', () => {
+    const before = state()
+    expect(moveMember(before, 's1', 's1', 'after')).toBe(before)
+    expect(moveMember(before, 'zz', 's1', 'before')).toBe(before)
+    expect(moveMember(before, 's1', 'zz', 'before')).toBe(before)
   })
 })

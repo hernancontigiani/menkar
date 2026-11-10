@@ -212,6 +212,7 @@ session) takes the newest session of that folder modified since the tab started,
 - Tabs reorder by dragging within their strip (decision 1.23, 2026-11-09): past a few pixels a
   press becomes a drag with a marker in the gap it would drop into; let go outside the strip and
   nothing moves; no tab leaves its window. The order is the layout's, saved like the rest.
+- Session rows reorder the same way within their group (2026-11-10, `docs/projects.md`).
 - Under `xvfb-run` there is no window manager: maximize, minimize, edge resize and snapping are the
   human's check on a real desktop.
 
