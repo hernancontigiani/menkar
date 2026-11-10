@@ -22,7 +22,7 @@
     drafts (`if: github.event.pull_request.draft == false`): a **draft PR** is the "not ready yet"
     state, "Ready for review" is "ready to merge". `concurrency` with `cancel-in-progress` keeps only
     the latest run per PR. Optional: path filters for docs-only changes.
-  - What runs on a PR: `npm run ci` and the e2e suite (parallel, plan 22) on Linux.
+  - What runs on a PR: `npm run ci` and the e2e suite (parallel, one Xvfb per worker) on Linux.
 - **The release workflow** listens to `v*` tags only: the full suite, then the packages, then a
   GitHub Release with them attached.
   - **Linux** (one Ubuntu runner): `.deb`, `.rpm`, AppImage; x64 (ARM later, on demand).

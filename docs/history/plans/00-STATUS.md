@@ -243,3 +243,29 @@
 > key is absent. Found: the integrity check flags every moved selector (ten renames, read and
 > accepted by `set`); a type imported from a Node module pulled Node into the renderer's
 > typecheck. In `docs/preferences.md`, `docs/context.md`, `docs/window.md`.
+
+| 18 | `25-startup-and-project-tabs.md` (start timings, a turning star at once, each project's tabs started when shown) | Stub 2026-11-09 |
+
+> Closed 2026-11-10 — plan 25, "A fast first paint, a measured start, and each project's tabs",
+> built by `b1` (committed in d846252 with decision 1.33): the window no longer waits for the first
+> scan of the agents' folders (6.3 s → about 0.5 s to the first window over a 2 GB history), the
+> scan finds name lines by searching bytes instead of decoding every slice (about 6.1 s → 2.4 s to
+> the list), a `start timings` notice line names each phase's time at the new default `notice`
+> level, and a turning star shows while the scan runs, only after 300 ms. A project's saved tabs
+> start the first time its window shows it (1.32). Found: the human's "only the last project's
+> tabs reopen" was a misreading (PRJ-66 passed before any change); the remaining ~1.9 s of the
+> scan is JSON-parsing the lines that quote the marker, left as a proposal. Suite green: 258
+> passed, 1 skipped. In `docs/window.md`, `docs/projects.md`, `docs/sessions.md` and
+> `docs/foundations.md`.
+
+| 15 | `22-parallel-e2e.md` (e2e in parallel, one Xvfb per worker) | Stub 2026-11-09; `b2`, from 2026-11-10 |
+
+> Closed 2026-11-10 — plan 22, "parallel e2e, one virtual display per worker", built by `b2`:
+> each Playwright worker starts its own Xvfb (`e2e/display.ts`) and drops the session bus, so no
+> test notification reaches the developer's desktop. The suite runs at 4 workers with
+> `fullyParallel` (`MENKAR_E2E_WORKERS`): 390 s → about 107 s, with five full runs in a row green
+> and `package:smoke` green. Found under load: tests that read state right after an action
+> (CHT-9, PRF-24, TRM-57, PRF-31, retention, the row phone, LOOK-67), each fixed by waiting for
+> what it means. PRF-24 could never see a real relaunch (the copy carries Playwright's loader), so
+> it now checks that the relaunch is asked for during the quit, and the real one is the human's
+> check (§2 2.17). FIL-33 failed once in 15 runs and was not reproduced. In `docs/toolchain.md`.
