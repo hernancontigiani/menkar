@@ -255,6 +255,8 @@ test('TRM-22 Ctrl+Shift+C copies the selection as plain text; Ctrl+Shift+V paste
     await expect.poll(() => clipboardText(launched)).toBe('copy-me')
     await launched.app.evaluate(({ clipboard }) => clipboard.writeText('echo pasted-$((1+1))'))
     await page.keyboard.press('Control+Shift+V')
+    // The paste reads the clipboard first: an Enter pressed at once could arrive before it.
+    await expect.poll(() => terminalText(page)).toContain('echo pasted-$((1+1))')
     await page.keyboard.press('Enter')
     await expect.poll(() => terminalText(page)).toContain('pasted-2')
   } finally {
