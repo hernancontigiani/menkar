@@ -424,7 +424,9 @@ describe('cost', () => {
     })
   })
 
-  test("USG-24 the statusline's running total is the exact cost, across a /clear", () => {
+  // Every drop in the human's logs is a resumed session recomputing its total a little lower: it is
+  // the new base, and adds nothing (2026-11-10).
+  test("USG-24 the statusline's running total is the exact cost, across a resume that recomputes it lower", () => {
     const dirs = usageDirs('usg24')
     dirs.transcript('s1', [prompt('09:00:00'), response('09:00:01')])
     const log = `${dirs.root}/usage.jsonl`
@@ -435,18 +437,18 @@ describe('cost', () => {
       [
         line('10:00:00', 1),
         line('11:00:00', 1.5),
-        line('12:00:00', 0.2),
-        line('13:00:00', 0.7),
+        line('12:00:00', 1.45),
+        line('13:00:00', 1.95),
       ].join('\n'),
     )
     const all = only(measure(dirs, NOV_8, memberships(), [log]))
-    expect(all.cost).toBeCloseTo(2.2, 10)
-    expect(formatCost(all)).toBe('$2.20')
+    expect(all.cost).toBeCloseTo(2, 10)
+    expect(formatCost(all)).toBe('$2.00')
     const late = { start: NOV_8.start + 12 * 3600, end: NOV_8.start + 14 * 3600 }
     // the session has no history rows from 12:00 on, so only a period that has them is exact
     const lateDirs = usageDirs('usg24b')
     lateDirs.transcript('s1', [prompt('12:00:00'), response('12:30:00')])
-    expect(only(measure(lateDirs, late, memberships(), [log])).cost).toBeCloseTo(0.7, 10)
+    expect(only(measure(lateDirs, late, memberships(), [log])).cost).toBeCloseTo(0.5, 10)
   })
 
   test('USG-25 a project with one exact and one estimated session is an estimate', () => {

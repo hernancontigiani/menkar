@@ -51,11 +51,17 @@ export interface Increment {
 }
 
 // What each session's running total grew by in [low, high). The running total is followed through
-// every line; one that drops is a /clear starting over from zero, so what it shows is all new.
+// every line. Claude Code keeps a session's total across a resume, so a session's first line can
+// carry what it cost before the log saw it: it counts whole only when `newSession` says the line
+// falls in the session's first turn, and is the base otherwise. A total that drops is a resumed
+// session recomputing its total, a dip of a few dollars, never zero again (/clear starts another
+// session): the new value is the base, and nothing counts. Counted whole, either one added the
+// session's lifetime cost to the day.
 export function statuslineIncrements(
   paths: readonly string[],
   low: number,
   high: number,
+  newSession: (sessionId: string, at: number) => boolean,
 ): Increment[] {
   const previous = new Map<string, number>()
   const found: Increment[] = []
@@ -71,8 +77,9 @@ export function statuslineIncrements(
     ) {
       continue
     }
-    const before = previous.get(sessionId) ?? 0
-    const dollars = cost >= before ? cost - before : cost
+    const before = previous.get(sessionId)
+    const dollars =
+      before === undefined ? (newSession(sessionId, at) ? cost : 0) : Math.max(0, cost - before)
     previous.set(sessionId, cost)
     if (low <= at && at < high) found.push({ sessionId, at, dollars })
   }

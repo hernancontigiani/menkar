@@ -222,6 +222,60 @@ describe('menkar usage export', () => {
     }
   })
 
+  // A resumed session's first statusline line carries its whole lifetime (Claude Code keeps the
+  // total across a resume), and a resume recomputes it a little lower. Counted whole, either one
+  // put the session's lifetime cost into the day, as on the human's "fabric".
+  test('a resumed session costs only what its total grew by: its first line and a dip at a resume add nothing, in the report and the export alike', () => {
+    const dirs = usageDirs('export-resumed')
+    dirs.transcript('s1', [
+      prompt('09:00:00'),
+      response('09:00:10', { tokens: { output: 100 } }),
+      { ...prompt('10:00:00'), uuid: 'u-s1-2' },
+      response('10:00:10', { id: 'msg_s1_2', tokens: { output: 100 } }),
+      { ...prompt('11:00:00'), uuid: 'u-s1-3' },
+      response('11:00:10', { id: 'msg_s1_3', tokens: { output: 100 } }),
+    ])
+    mkdirSync(join(dirs.root, 'cache'), { recursive: true })
+    writeFileSync(
+      dirs.statuslineLog,
+      [
+        { at: at('10:00:05'), session_id: 's1', cost_usd: 729.55 },
+        { at: at('10:00:30'), session_id: 's1', cost_usd: 734.67 },
+        { at: at('11:00:05'), session_id: 's1', cost_usd: 733.4 },
+        { at: at('11:00:30'), session_id: 's1', cost_usd: 734 },
+      ]
+        .map((l) => JSON.stringify(l))
+        .join('\n'),
+    )
+    const found = rows(cli(dirs, ['--period', 'today']).out)
+    expect(found.map((r) => r.cost_exact)).toEqual([true, true, true])
+    const exported = found.reduce((c, r) => c + Number(r.cost_usd), 0)
+    expect(exported).toBeCloseTo(5.12 + 0.6, 10)
+    const history = new UsageHistory(dirs.history)
+    try {
+      const day = {
+        start: midnight({ year: 2026, month: 11, day: 8 }),
+        end: midnight({ year: 2026, month: 11, day: 9 }),
+      }
+      const report = buildReport(history, day, { statuslineLogs: [dirs.statuslineLog] })
+      expect(report.nodes.reduce((c, n) => c + n.cost, 0)).toBeCloseTo(exported, 10)
+    } finally {
+      history.close()
+    }
+  })
+
+  test("a new session's first report is all its cost", () => {
+    const dirs = usageDirs('export-new')
+    dirs.transcript('s1', [prompt('10:00:00'), response('10:00:10', { tokens: { output: 100 } })])
+    mkdirSync(join(dirs.root, 'cache'), { recursive: true })
+    writeFileSync(
+      dirs.statuslineLog,
+      JSON.stringify({ at: at('10:00:20'), session_id: 's1', cost_usd: 0.42 }),
+    )
+    const found = rows(cli(dirs, ['--period', 'today']).out)
+    expect(found[0]?.cost_usd).toBeCloseTo(0.42, 12)
+  })
+
   test("the documentation's table names exactly the row's keys, in order", () => {
     const doc = readFileSync('docs/usage.md', 'utf8')
     const section = doc.slice(doc.indexOf('## Exporting for analysis'))

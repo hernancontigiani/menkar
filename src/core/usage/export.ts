@@ -69,7 +69,12 @@ export function exportRows(
   const labels = history.projectLabels(options.projectNames ?? new Map())
   const exact = new Map<string, number>()
   const exactSessions = new Set<string>()
-  for (const inc of statuslineIncrements(options.statuslineLogs, bounds.start, bounds.end)) {
+  for (const inc of statuslineIncrements(
+    options.statuslineLogs,
+    bounds.start,
+    bounds.end,
+    (sessionId, at) => history.inFirstTurn(sessionId, at),
+  )) {
     const turn = history.turnAt(inc.sessionId, inc.at)
     if (turn === null) continue
     exactSessions.add(inc.sessionId)

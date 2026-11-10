@@ -109,7 +109,12 @@ export interface ReportOptions {
 export function buildReport(history: UsageHistory, bounds: Bounds, options: ReportOptions): Report {
   const categories = options.categories ?? false
   const exact = new Map<string, number>()
-  for (const inc of statuslineIncrements(options.statuslineLogs, bounds.start, bounds.end)) {
+  for (const inc of statuslineIncrements(
+    options.statuslineLogs,
+    bounds.start,
+    bounds.end,
+    (sessionId, at) => history.inFirstTurn(sessionId, at),
+  )) {
     const category = categories ? history.categoryAt(inc.sessionId, inc.at) : null
     const key = keyOf(history.projectAt(inc.sessionId, inc.at), inc.sessionId, category)
     exact.set(key, (exact.get(key) ?? 0) + inc.dollars)

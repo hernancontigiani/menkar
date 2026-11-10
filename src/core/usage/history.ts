@@ -510,6 +510,15 @@ export class UsageHistory {
     return nullableStr(row, 'uuid')
   }
 
+  // Whether `at` falls in the session's first turn: no other of its turns opened before it.
+  inFirstTurn(sessionId: string, at: number): boolean {
+    if (this.db === null) return false
+    const row = this.db.raw
+      .prepare('SELECT COUNT(*) AS n FROM turns WHERE session_id = ? AND opened <= ?')
+      .get(sessionId, at)
+    return num(row, 'n') <= 1
+  }
+
   // Every turn opened in [low, high), whole: its spans and tokens are not clipped to the range. The
   // category is the one reports show (a turn the human did not start takes its session's).
   turnsOpened(low: number, high: number): ExportedTurn[] {

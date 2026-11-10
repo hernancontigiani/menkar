@@ -191,6 +191,15 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
 | `cost_usd` | The turn's cost: the statusline's exact figure when its session reported one, else the list-price estimate |
 | `cost_exact` | Whether `cost_usd` is the statusline's figure |
 
+- **What the running total grew by** (2026-11-10, `statuslineIncrements`, shared by the window,
+  `menkar usage` and the export). Claude Code keeps a session's total across a resume, so a
+  session's first line can carry everything it cost before the log saw it: that line counts whole
+  only when it falls in the session's first turn (`inFirstTurn`), and is the base otherwise. A
+  total that drops is a resume recomputing it a little lower (every drop in the human's logs was a
+  small dip at one of Menkar's restarts, never back near zero): the new value is the base and
+  nothing counts. Both used to count whole, which added a session's lifetime cost to the day, many
+  times its turns' cost. If a `/clear` ever reset a session's total, what it cost up to its first
+  report after it would be missed.
 - **Exact cost, turn by turn.** The statusline reports a session's running total; each increase
   goes to the turn in effect when it was reported, the rule categories use. A session with any
   report in the range is exact for every turn (one with none costs 0), so the rows' `cost_usd`
