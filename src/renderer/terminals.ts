@@ -8,6 +8,7 @@ import type { Look } from '../core/theme'
 import type { PaneView } from '../shared/workspace'
 import { el, icon } from './dom'
 import { t } from './i18n'
+import { attachLinks } from './links'
 import { showMenu } from './ui'
 
 interface View {
@@ -193,6 +194,7 @@ function create(pane: PaneView, label?: string): View {
   const search = new SearchAddon()
   term.loadAddon(fit)
   term.loadAddon(search)
+  attachLinks(term)
   const host = el('div', { class: 'term' })
   const frame = el(
     'div',

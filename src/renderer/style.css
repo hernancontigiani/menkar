@@ -1242,3 +1242,9 @@ select option {
   background-color: var(--bg);
   color: var(--fg);
 }
+
+/* A terminal link shows the hand only while Ctrl is held, as Ctrl+click is what opens it. */
+.xterm:not(.ctrl-held).xterm-cursor-pointer,
+.xterm:not(.ctrl-held) .xterm-cursor-pointer {
+  cursor: text;
+}

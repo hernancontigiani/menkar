@@ -79,6 +79,26 @@ How the main window is built and why that way. The behaviour it follows is in `d
   that arrives while scrolled up keeps the view where it is and puts an accent dot on the button.
   Every other modified End goes to the agent (xterm sends it on), so only `Ctrl+Shift+End` is
   caught, for every key event type.
+- **Links open with `Ctrl+click`** (2026-11-10), as in GNOME Terminal (`src/renderer/links.ts`).
+  Two kinds:
+  - An address in the output, found by `@xterm/addon-web-links` 0.12.0, the release paired with
+    `@xterm/xterm` 6.0.0. It is bundled into the renderer, so it ships in the installer; it is the
+    xterm project's own provider, and nothing else in the app finds links in a terminal. Its
+    pattern keeps `%`, `&`, `=` and `?`, and it joins the rows a line wraps over, so a long
+    address that the terminal wrapped (Claude Code's OAuth link) opens whole. It stops at a row
+    holding a space and after 2048 characters each way.
+  - An OSC 8 hyperlink, through xterm's `linkHandler`. Without one, xterm would ask with
+    `window.confirm`. With `allowNonHttpProtocols: false`, a `file:` or other link is not a link
+    at all.
+  Both kinds are underlined on hover, and show the hand only while Ctrl is held (`ctrl-held` on
+  the terminal under the pointer, set only while a link is under it). Restyling the whole body on
+  every Ctrl press delayed the terminal's own handling enough for an Enter typed right after
+  `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends `openExternal` (http and https only, checked
+  again in main) after `webLink` (`src/core/links.ts`).
+  **Not joined:** an address the program printing it broke with its own newlines, as Claude Code
+  does inside an indented `⎿` block with a newline per row. Those rows are separate lines to the
+  terminal, so only the first row's piece is a link and would open cut. The rows after it don't
+  start with `http`, so they are not links. Nothing guesses where such an address ends.
 - Each agent pane is registered for the agent-state module (`src/main/panes.ts`): its screen
   mirror, whether its agent owns the foreground, whether it is seen, and `reveal()`.
 

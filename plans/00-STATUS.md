@@ -59,6 +59,7 @@
 | 1.44 | When a file tab has unsaved edits, "Restart now" first asks on the Settings window, with the window close's question (Cancel / Discard / Save); Cancel does not restart | 2026-11-10 | `docs/preferences.md` |
 | 1.45 | The .deb's version is the app's with a revision per build (`0.1.0-<commits>.g<hash>`, `.dirty.<UTC time>` for an uncommitted tree), so `apt install` upgrades every new build; the app's own version and the file name stay as they are | 2026-11-10 | `docs/packaging.md` |
 | 1.46 | Sidebar session rows are reordered by dragging them with the mouse, only within their own group or within "No group" (a drop never changes a group); group headings are not dragged; the order is saved | 2026-11-10 | `docs/projects.md` |
+| 1.47 | Links in a terminal (addresses printed in the output, joined across wrapped rows, and OSC 8 hyperlinks) open in the browser with Ctrl+click, http(s) only; a plain click selects; the hand shows only while Ctrl is held | 2026-11-10 | `docs/window.md` |
 
 ## 2. Open
 
