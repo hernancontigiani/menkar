@@ -1221,3 +1221,9 @@ html.classic .drawer-hide {
   display: flex;
   flex-direction: column;
 }
+
+/* A dropdown's list takes the theme's colours, whatever the native popup would draw. */
+select option {
+  background-color: var(--bg);
+  color: var(--fg);
+}

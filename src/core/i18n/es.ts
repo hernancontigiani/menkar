@@ -344,7 +344,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'settings.section.about': 'Acerca de',
   'usage.title': 'Uso',
   'prefs.font': 'Fuente',
-  'prefs.fontSubtitle': 'Se aplica a todas las pestañas de terminal',
+  'prefs.fontSubtitle': 'Terminales y editor de archivos',
   'prefs.fontReset': 'Volver a la fuente predeterminada',
   'prefs.fontDefault': 'Monoespaciada predeterminada',
   'prefs.fontSize': 'Tamaño',
@@ -357,6 +357,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'prefs.styleTui': 'Espacio de terminal',
   'prefs.styleClassic': 'Clásico (Adwaita)',
   'prefs.colorTheme': 'Tema de color',
+  'prefs.interfaceSize': 'Tamaño de la interfaz',
   'prefs.addSession': 'Agregar sesión',
   'prefs.showFolderPath': 'Mostrar la ruta de la carpeta',
   'prefs.showFolderPathSubtitle':

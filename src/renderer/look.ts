@@ -34,6 +34,9 @@ export function applyLook(settings: Settings, onChange?: (look: Look) => void): 
     '--scrim': `rgba(0, 0, 0, ${look.dark ? 0.5 : 0.14})`,
   }
   for (const [key, value] of Object.entries(vars)) root.style.setProperty(key, value)
+  // Chromium draws native parts (a dropdown's list, scrollbars) in the page's color-scheme; with
+  // none, a dark page's white option text sat on a white list.
+  root.style.colorScheme = look.dark ? 'dark' : 'light'
   return look
 }
 

@@ -15,6 +15,27 @@ are shaped this way.
     opener leaves Usage open and reloads it, now showing every project.
 - **Settings is laid out as Ubuntu's Settings** (2026-11-10): a list of sections on the left, the
   chosen section on the right under its title.
+  - Appearance holds everything visual: the scheme, the style, the theme, Interface size, and the
+    font of the terminals and the file editor. Terminal keeps only behaviour, the scrollback
+    (decision 1.36).
+- **Interface size** (decision 1.36, `ui_scale`: 90, 100, 110, 125 or 150; anything else reads as
+  100) scales Menkar's own text and controls in every window, live.
+  - **Why page zoom:** it is each window's page zoom (`src/main/zoom.ts`), not a root font size,
+    because the styles are in pixels; a root font size would grow the text and leave the boxes as
+    they were. Every window starts at the zoom (`zoomFactor`), and a change reaches every open one.
+  - **What must not scale:**
+    - The terminals' and the editor's font is divided by the zoom (`screenFont` in
+      `terminals.ts`), so it keeps the Font setting's size on the screen.
+    - The system's window buttons are sized in the window's pixels, so main scales the header
+      height the page sends by its zoom, and sends it again when the zoom changes (the page's
+      header does not change in its own pixels).
+    - Settings and Usage open at their size × the zoom and are resized with it, so their content
+      still fits.
+- **Dropdowns** (2026-11-10): every window's root carries `color-scheme` (`dark` or `light`, from
+  the resolved look), so Chromium draws a dropdown's native list and the scrollbars in that scheme.
+  Before that, a dark page's white option text sat on a white list. Options also take the theme's
+  `--bg` / `--fg`. e2e checks the options' own colours (4.5:1) and the scheme; xvfb never draws the
+  native popup, so how it looks is the human's check (STATUS §2).
   - The list's order and its group separators are one constant, `SETTINGS_LIST`
     (`src/core/preferences.ts`), and the section names are typed from it.
   - Up and Down move through the list. The page remembers the last section shown, in its own

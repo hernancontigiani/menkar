@@ -82,6 +82,7 @@ import { firstScanDone, startPhase, startShown } from './startup'
 import { appMessage, Terminal } from './terminal'
 import { sessionTokens } from './usage'
 import { openSettings, openUsage } from './windows'
+import { uiZoom } from './zoom'
 
 const LAYOUT_SAVE_DELAY_MS = 500
 const JOIN_POLL_MS = 1500
@@ -719,6 +720,25 @@ function joinSession(pane: Pane, sessionId: string): void {
 
 // ---------------------------------------------------------------- windows
 
+// Each window's last title bar, as its page sent it: the height in the page's own pixels.
+const titleBars = new Map<string, { color: string; symbolColor: string; height: number }>()
+
+// The overlay is in the window's pixels, so the page's height is scaled by its zoom. Interface size
+// changes the zoom without the header changing in the page's pixels, so the page sends nothing.
+function applyTitleBar(windowId: string): void {
+  const window = windows.get(windowId)
+  const bar = titleBars.get(windowId)
+  if (!window || window.isDestroyed() || !bar) return
+  window.setTitleBarOverlay({
+    ...bar,
+    height: Math.round(bar.height * (window.webContents.getZoomFactor() || 1)),
+  })
+}
+
+export function applyTitleBars(): void {
+  for (const windowId of titleBars.keys()) applyTitleBar(windowId)
+}
+
 function createBrowserWindow(windowId: string): BrowserWindow {
   const window = new BrowserWindow({
     width: WINDOW_WIDTH,
@@ -735,6 +755,7 @@ function createBrowserWindow(windowId: string): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      zoomFactor: uiZoom(),
     },
   })
   windows.set(windowId, window)
@@ -774,6 +795,7 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   })
   window.on('closed', () => {
     windows.delete(windowId)
+    titleBars.delete(windowId)
     lastMaximizeChange.delete(windowId)
     allowedToClose.delete(windowId)
     hangUpWindow(windowId)
@@ -1629,11 +1651,12 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     }
     case 'titleBar':
-      windows.get(windowId)?.setTitleBarOverlay({
+      titleBars.set(windowId, {
         color: action.color,
         symbolColor: action.symbolColor,
         height: action.height,
       })
+      applyTitleBar(windowId)
       return {}
     case 'openSettings':
       openSettings(action.section)

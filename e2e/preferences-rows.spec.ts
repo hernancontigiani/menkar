@@ -69,7 +69,7 @@ test('PRF-7, PRF-5, PRF-6 opening and closing writes no font; a chosen font reac
     await window.waitForTimeout(300)
     expect(readFileSync(statePath(root))).toEqual(before)
 
-    const prefs = await openPreferences(app, window, 'terminal')
+    const prefs = await openPreferences(app, window, 'appearance')
     const rows = window.locator('.xterm-rows').first()
     await prefs.locator('[data-key="font-family"]').selectOption('DejaVu Sans Mono')
     await prefs.locator('[data-key="font-size"]').fill('14')
@@ -387,7 +387,7 @@ test('PRF-5 (2026-11-10) the size alone, with the default family, reaches the op
     const rows = window.locator('.xterm-rows').first()
     const rowHeight = () => rows.evaluate((n) => (n.firstElementChild as HTMLElement).offsetHeight)
     const before = await rowHeight()
-    const prefs = await openPreferences(app, window, 'terminal')
+    const prefs = await openPreferences(app, window, 'appearance')
     await expect(prefs.locator('[data-key="font-family"]')).toHaveValue('')
     await prefs.locator('[data-key="font-size"]').fill('16')
     await prefs.locator('[data-key="font-size"]').dispatchEvent('change')
@@ -396,7 +396,7 @@ test('PRF-5 (2026-11-10) the size alone, with the default family, reaches the op
     expect(await rowHeight()).toBeGreaterThan(before)
     // The setting reads back as the default family at that size.
     await prefs.close()
-    const again = await openPreferences(app, window, 'terminal')
+    const again = await openPreferences(app, window, 'appearance')
     await expect(again.locator('[data-key="font-family"]')).toHaveValue('')
     await expect(again.locator('[data-key="font-size"]')).toHaveValue('16')
   })
@@ -411,7 +411,7 @@ test('PRF-5 (2026-11-10) a tab hidden while the size changes shows it, refitted,
     const shownRows = window.locator('.tab-body:not(.hidden) .xterm-rows')
     await expect(window.locator('.tab')).toHaveCount(2)
     await expect(shownRows).toHaveCount(1)
-    const prefs = await openPreferences(app, window, 'terminal')
+    const prefs = await openPreferences(app, window, 'appearance')
     await prefs.locator('[data-key="font-size"]').fill('16')
     await prefs.locator('[data-key="font-size"]').dispatchEvent('change')
     await expect

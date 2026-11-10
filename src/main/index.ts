@@ -28,6 +28,7 @@ import {
   startWorkspace,
   windowState,
 } from './workspace'
+import { setUiZoom } from './zoom'
 
 const LOG_FILE_MAX_BYTES = 1024 * 1024
 
@@ -76,7 +77,9 @@ async function start(): Promise<void> {
   // accelerators (reload, DevTools, close the window, quit) fired over the terminal's keys.
   Menu.setApplicationMenu(null)
   // The language setting is read once, before any window opens; a change waits for a restart.
-  const chosen = settingsOf(await loadState()).language
+  const startSettings = settingsOf(await loadState())
+  setUiZoom(startSettings.ui_scale)
+  const chosen = startSettings.language
   language = chooseLanguage(chosen || undefined, app.getPreferredSystemLanguages())
   setStartLanguage(chosen)
   setLanguage(language)

@@ -102,7 +102,7 @@ function fontOf(setting: string): { family: string; size: number } {
 export function applyTerminalLook(settings: Settings, look: Look): void {
   lastSettings = settings
   lastLook = look
-  const font = fontOf(settings.font)
+  const font = screenFont(settings)
   // The file tabs' editors read the same font through these.
   document.documentElement.style.setProperty('--term-font', font.family)
   document.documentElement.style.setProperty('--term-font-size', `${font.size}px`)
@@ -168,8 +168,15 @@ function closeFind(view: View): void {
   view.term.focus()
 }
 
+// The Font setting's size on the screen: the page is zoomed by Interface size, which must not
+// reach the terminals, so their size is divided by it.
+function screenFont(settings: Settings | undefined): { family: string; size: number } {
+  const font = fontOf(settings?.font ?? '')
+  return { family: font.family, size: font.size / ((settings?.ui_scale ?? 100) / 100) }
+}
+
 function create(pane: PaneView, label?: string): View {
-  const font = fontOf(lastSettings?.font ?? '')
+  const font = screenFont(lastSettings)
   const term = new Terminal({
     fontFamily: font.family,
     fontSize: font.size,

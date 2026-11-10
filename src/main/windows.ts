@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { BrowserWindow, type WebContents } from 'electron'
 import { t } from '../core/i18n'
 import type { SettingsSection } from '../core/preferences'
+import { uiZoom } from './zoom'
 
 // Settings and Usage are windows of their own, never children of a main window: a desktop like
 // GNOME keeps a child window attached to its parent, and the parent then takes no clicks while it
@@ -22,8 +23,9 @@ function open(
   const window = new BrowserWindow({
     ...(parent ? { parent } : {}),
     modal: options.modal,
-    width: options.width,
-    height: options.height,
+    // Sized for their content at 100 %: Interface size grows the content, so the window with it.
+    width: Math.round(options.width * uiZoom()),
+    height: Math.round(options.height * uiZoom()),
     title: options.title,
     backgroundColor: '#1e1e2e',
     show: false,
@@ -33,6 +35,7 @@ function open(
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      zoomFactor: uiZoom(),
     },
   })
   window.once('ready-to-show', () => window.show())
@@ -103,4 +106,14 @@ export function openUsage(opener: BrowserWindow): void {
     if (usageWindows.get(openerId) === window) usageWindows.delete(openerId)
     if (!opener.isDestroyed()) opener.removeListener('closed', rescope)
   })
+}
+
+// Interface size changed from one zoom to another: Settings and Usage keep fitting their content.
+export function rescaleOwnWindows(previous: number, next: number): void {
+  const own = [settingsWindow, ...usageWindows.values()]
+  for (const window of own) {
+    if (!window || window.isDestroyed()) continue
+    const [width = 0, height = 0] = window.getSize()
+    window.setSize(Math.round((width * next) / previous), Math.round((height * next) / previous))
+  }
 }

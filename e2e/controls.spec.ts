@@ -199,7 +199,8 @@ test('LOOK-67 (2026-11-09) buttons, fields and segmented groups have rounded cor
       ])
       await expect(prefs.locator('.section-item').first()).toBeVisible()
       expect(await radius(prefs, '.section-item'), ui_style).toBeGreaterThan(0)
-      await prefs.locator('.section-item[data-section="terminal"]').click()
+      // The font's reset button, in Appearance (decision 1.36).
+      await prefs.locator('.section-item[data-section="appearance"]').click()
       expect(await radius(prefs, 'main button'), ui_style).toBeGreaterThan(0)
     } finally {
       await launched.close()

@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { contrast } from '../src/core/theme'
 import { launchApp } from './app'
 
 const act = (page: Page, action: Record<string, unknown>) =>
@@ -236,4 +237,50 @@ for (const style of ['tui', 'classic'] as const) {
       }
     })
   }
+}
+
+// Native dropdown lists are drawn by Chromium, in the page's color-scheme: without one a dark
+// page's white option text sat on a white list (2026-11-10). The popup itself does not render
+// under xvfb, so its options' own colours and the scheme are what is checked; the look on the
+// screen is the human's check.
+for (const scheme of ['dark', 'light'] as const) {
+  test(`every dropdown's options read on their list, ${scheme} (4.5:1), and the page's color-scheme is ${scheme}`, async () => {
+    const launched = await launchApp({
+      prepare: ({ root }) => {
+        mkdirSync(join(root, 'config', 'menkar'), { recursive: true })
+        writeFileSync(
+          join(root, 'config', 'menkar', 'state.json'),
+          JSON.stringify({ settings: { color_scheme: scheme } }),
+        )
+        return undefined
+      },
+    })
+    try {
+      const settings = await openSettings(launched.app, launched.window)
+      const found = await settings.evaluate(() => {
+        const hex = (rgb: string) => {
+          const [r = 255, g = 255, b = 255, a = 1] = (rgb.match(/[\d.]+/g) ?? []).map(Number)
+          // A transparent list is the native popup's own white.
+          return a === 0
+            ? '#ffffff'
+            : `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`
+        }
+        return {
+          scheme: getComputedStyle(document.documentElement).colorScheme,
+          options: [...document.querySelectorAll('select option')].map((o) => {
+            const style = getComputedStyle(o)
+            return { text: hex(style.color), list: hex(style.backgroundColor) }
+          }),
+        }
+      })
+      expect(found.scheme).toBe(scheme)
+      expect(found.options.length).toBeGreaterThanOrEqual(8)
+      for (const option of found.options)
+        expect(contrast(option.text, option.list), JSON.stringify(option)).toBeGreaterThanOrEqual(
+          4.5,
+        )
+    } finally {
+      await launched.close()
+    }
+  })
 }

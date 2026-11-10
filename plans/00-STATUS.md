@@ -48,6 +48,7 @@
 | 1.33 | Replay is removed: no Open session file…, no Replay… item, no replay tab; retention option B is dropped (the retention integration covers it) | 2026-11-09 | plan 25 / `docs/sessions.md` |
 | 1.34 | Settings is one window like Ubuntu's: sections with icons in groups (Appearance, Work, Data, Integrations, System) under a "Settings" title; the header has "⚙ Settings", "+ New ▾" and "Usage"; Close all lives in the tab's right-click menu; the sidebar defaults to 250 px (minimum 180), a divider double-click resets it; transcript retention is an integration that shows the current cleanupPeriodDays and can raise it to 3650 days | 2026-11-09 | `docs/preferences.md` · `docs/window.md` |
 | 1.35 | Every pty gets `COLORTERM=truecolor`, so Claude Code paints its own 24-bit theme in every look (it fell back to 256 colours before); a theme "Ubuntu" (bg #300a24, fg #ffffff, GNOME's palette) matches the human's GNOME Terminal | 2026-11-10 | `docs/window.md` |
+| 1.36 | Settings → Appearance holds every visual setting, the terminal and editor font included (Terminal keeps behaviour); an Interface size (90–150 %, page zoom) scales Menkar's own UI and never the terminal or editor font; native dropdowns follow the window's colour scheme | 2026-11-10 | `docs/preferences.md` |
 
 ## 2. Open
 
@@ -70,6 +71,7 @@
 | 2.15 | The human's check of the live phone (1.18): in a session in a tab, `/remote-control` connect shows the phone on its row and tab within a second or two ("Remote Control connected"); disconnect removes it; a session started with the flag shows it once its bridge connects | Human | Trusting the phone icon |
 | 2.16 | The human's check of the Usage window (1.24) on the real desktop: with Usage open, clicks and keys reach the main window; Usage has its own entry in the dock and Alt+Tab and can sit beside the main window or on another monitor; closing the main window it came from leaves Usage open, showing every project | Human | Trusting Usage beside the main window |
 | 2.17 | The human's check of Restart now (PRF-24) on the real desktop, since e2e cannot see a real relaunch (the copy carries Playwright's loader and never reaches Menkar's code): Settings → Language, pick the other language, Restart now with nothing running — Menkar closes and opens again by itself, in the new language; with a session running, Cancel keeps it open and nothing opens later | Human | Trusting Restart now |
+| 2.18 | The human's check of the dropdowns' lists on the real desktop (2026-11-10), since xvfb never draws a native popup: in Settings, with the dark scheme and then the light one, open each dropdown (Color scheme, Interface size, Font) — every option is readable, not only the highlighted one | Human | Trusting the dropdowns |
 
 ## 3. Roadmap and plans in flight
 

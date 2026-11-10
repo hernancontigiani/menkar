@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { DEFAULT_SETTINGS, parseSettings, settingsOf, withSetting } from '../../src/core/settings'
+import { validSetting } from '../../src/core/preferences'
+import {
+  DEFAULT_SETTINGS,
+  parseSettings,
+  settingsOf,
+  UI_SCALES,
+  withSetting,
+} from '../../src/core/settings'
 import { parseState } from '../../src/core/state'
 
 describe('settings', () => {
@@ -71,4 +78,15 @@ test('decision 1.22: the ring edges are 60 and 90 by default, kept as a valid pa
     ring_warn: 60,
     ring_full: 90,
   })
+})
+
+test('decision 1.36: Interface size is one of its steps, 100 by default and for anything else; Settings saves only a step', () => {
+  expect(UI_SCALES).toEqual([90, 100, 110, 125, 150])
+  expect(parseSettings({}).ui_scale).toBe(100)
+  expect(parseSettings({ ui_scale: 125 }).ui_scale).toBe(125)
+  for (const bad of [133, '125', 0, null, 1.25])
+    expect(parseSettings({ ui_scale: bad }).ui_scale).toBe(100)
+  expect(validSetting('ui_scale', 150)).toBe(150)
+  expect(validSetting('ui_scale', 133)).toBeNull()
+  expect(validSetting('ui_scale', '110')).toBeNull()
 })

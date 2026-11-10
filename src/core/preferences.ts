@@ -1,6 +1,6 @@
 // What Preferences may write, and how a value from the page is made valid before it is saved. No
 // Node import: the page shares these lists.
-import type { Settings } from './settings'
+import { type Settings, UI_SCALES } from './settings'
 import { THEME_NAMES } from './theme'
 
 export const SCROLLBACK_MIN = 1000
@@ -21,6 +21,7 @@ export const PREFERENCE_KEYS = [
   'reopen_tabs',
   'ring_warn',
   'ring_full',
+  'ui_scale',
 ] as const
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[number]
 
@@ -51,6 +52,8 @@ export function validSetting(key: string, value: unknown): string | number | boo
       return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 100
         ? (value as number)
         : null
+    case 'ui_scale':
+      return (UI_SCALES as readonly unknown[]).includes(value) ? (value as number) : null
     case 'show_folder_path':
     case 'notify_idle':
     case 'notify_sound':

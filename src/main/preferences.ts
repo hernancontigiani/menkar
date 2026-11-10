@@ -18,8 +18,9 @@ import type { InvokeChannel, InvokeChannels } from '../shared/ipc'
 import { statuslineCommand } from './context'
 import { sessions } from './sessions'
 import { usageView } from './usage'
-import { usageOpener } from './windows'
+import { rescaleOwnWindows, usageOpener } from './windows'
 import * as workspace from './workspace'
+import { setUiZoom, uiZoom } from './zoom'
 
 // The only addresses About opens, and only when the user clicks: the app makes no connection of
 // its own.
@@ -49,6 +50,10 @@ async function currentSettings(): Promise<Settings> {
 // Every window takes a changed setting at once: the main windows through their state, Menkar's own
 // windows (Preferences, About, Usage) through `settings:changed`.
 function announce(settings: Settings): void {
+  const previous = uiZoom()
+  setUiZoom(settings.ui_scale)
+  if (uiZoom() !== previous) rescaleOwnWindows(previous, uiZoom())
+  workspace.applyTitleBars()
   workspace.pushWindowStates()
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) window.webContents.send('settings:changed', settings)

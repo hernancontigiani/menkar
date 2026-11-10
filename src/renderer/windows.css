@@ -314,3 +314,9 @@ button.link {
 .retention-now {
   font-weight: bold;
 }
+
+/* A dropdown's list takes the theme's colours, whatever the native popup would draw. */
+select option {
+  background-color: var(--bg);
+  color: var(--fg);
+}

@@ -27,7 +27,11 @@ export interface Settings {
   readonly ring_full: number
   // The agent of the last session started from Add session → New; '' before any.
   readonly last_agent: string
+  // Menkar's own text and controls, in percent; the terminals keep the Font setting's size.
+  readonly ui_scale: number
 }
+
+export const UI_SCALES = [90, 100, 110, 125, 150] as const
 
 export const DEFAULT_SETTINGS: Settings = {
   ui_style: 'tui',
@@ -45,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ring_warn: DEFAULT_THRESHOLDS.warn,
   ring_full: DEFAULT_THRESHOLDS.full,
   last_agent: '',
+  ui_scale: 100,
 }
 
 export const SIDEBAR_MIN_WIDTH = 180
@@ -81,6 +86,9 @@ export function parseSettings(value: unknown): Settings {
     ring_warn: ring.warn,
     ring_full: ring.full,
     last_agent: str('last_agent', DEFAULT_SETTINGS.last_agent),
+    ui_scale: (UI_SCALES as readonly unknown[]).includes(raw.ui_scale)
+      ? (raw.ui_scale as number)
+      : DEFAULT_SETTINGS.ui_scale,
   }
 }
 

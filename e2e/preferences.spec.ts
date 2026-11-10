@@ -41,8 +41,10 @@ test('PRF-1, PRF-3 Ctrl+, opens Settings on Appearance, every row at its default
   try {
     const prefs = await openSettings(launched.app, launched.window)
     await expect(prefs).toHaveTitle('Settings')
-    await section(prefs, 'terminal')
+    // The font is visual, in Appearance; Terminal keeps the behaviour (decision 1.36).
+    await section(prefs, 'appearance')
     await expect(prefs.locator('[data-key="font-family"]')).toHaveValue('')
+    await section(prefs, 'terminal')
     await expect(prefs.locator('[data-key="scrollback"]')).toHaveValue('10000')
     await section(prefs, 'appearance')
     await expect(prefs.locator('[data-key="color_scheme"]')).toHaveValue('system')

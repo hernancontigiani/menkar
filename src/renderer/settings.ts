@@ -9,7 +9,7 @@ import {
   type SettingsSection,
   shownTheme,
 } from '../core/preferences'
-import type { Settings } from '../core/settings'
+import { type Settings, UI_SCALES } from '../core/settings'
 import { PALETTES, THEME_NAMES } from '../core/theme'
 import type { PreferencesInfo } from '../shared/ipc'
 import { aboutSection } from './about'
@@ -253,6 +253,11 @@ function appearanceSection(): HTMLElement {
   }
   scheme.value = settings.color_scheme
   scheme.addEventListener('change', () => void set('color_scheme', scheme.value))
+  const uiScale = el('select', { 'data-key': 'ui_scale', 'aria-label': t('prefs.interfaceSize') })
+  for (const percent of UI_SCALES)
+    uiScale.append(el('option', { value: String(percent) }, `${percent} %`))
+  uiScale.value = String(settings.ui_scale)
+  uiScale.addEventListener('change', () => void set('ui_scale', Number(uiScale.value)))
   return group(null, [
     row(t('prefs.colorScheme'), null, scheme),
     expander(
@@ -272,6 +277,8 @@ function appearanceSection(): HTMLElement {
       shownTheme(settings),
       (value) => void set('terminal_theme', value),
     ),
+    row(t('prefs.interfaceSize'), null, uiScale),
+    fontRow(),
   ])
 }
 
@@ -302,7 +309,7 @@ function languageSection(): HTMLElement {
 // shown, the rest is built once.
 const SECTIONS: Record<SettingsSection, () => HTMLElement | Promise<HTMLElement>> = {
   appearance: appearanceSection,
-  terminal: () => group(null, [fontRow(), scrollbackRow()]),
+  terminal: () => group(null, [scrollbackRow()]),
   sessions: () =>
     el(
       'div',
