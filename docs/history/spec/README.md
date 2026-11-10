@@ -75,3 +75,10 @@ header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's
 
 > Left on 2026-11-10: F59, links in a terminal open with Ctrl+click (the human, 2026-11-10).
 58 features.
+
+## Decisions that override the area files
+
+> Left on 2026-11-10: 1.9 amended, an agent that outlives the hang-up gets SIGCONT+SIGTERM after 3 s, then SIGKILL after 2 s more (the human, 2026-11-10).
+- **Closing a running agent hangs up its pty** (SIGHUP), as closing a terminal does: close tab,
+  Stop, `Ctrl+B x`, closing a window and quitting, after their confirmations. Nothing is typed —
+  not `/exit`, and not `exit` into a leftover shell (its pty is closed the same way). (1.9)

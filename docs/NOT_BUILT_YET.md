@@ -132,6 +132,15 @@ of languages.
 **Trigger:** someone asks for a language. First question: who reviews its translation, and whether a
 partial catalog is acceptable or `check-i18n` holds it to complete like Spanish.
 
+### Ending what outlives a hang-up on macOS and Windows
+
+After a pty is hung up, its session's survivors are found through Linux's `/proc` (sid = the
+shell's pid) and get SIGCONT, SIGTERM and then SIGKILL (`src/main/reap.ts`). macOS has no `/proc`,
+and Windows has neither sessions nor these signals, so there only the hang-up itself is sent.
+
+**Trigger:** the Windows port. First question: how node-pty's ConPTY ends its child tree there,
+and whether macOS's `ps -o sess` gives the same session to follow.
+
 ### The live Remote Control phone on macOS and Windows
 
 The claude process behind a pane is found through Linux's `/proc` (its shell's children and their

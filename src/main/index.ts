@@ -14,6 +14,7 @@ import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
 import { startContextReadings } from './context'
 import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
+import { allReaped, reaping } from './reap'
 import { broadcastSessions, sessions } from './sessions'
 import { startPhase } from './startup'
 import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
@@ -165,6 +166,14 @@ else if (command[0] === 'open' && openFiles.length === 0) {
     if (openFiles.length > 0) deliverFiles(openFiles)
   })
 }
+
+// The quit waits for every hung-up pty's session to be empty (at most the reaper's two graces),
+// so an agent that outlives its hang-up is ended while the app can still end it.
+app.on('before-quit', (event) => {
+  if (!reaping()) return
+  event.preventDefault()
+  void allReaped().then(() => app.quit())
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

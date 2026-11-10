@@ -251,8 +251,11 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
 (`plans/00-STATUS.md` §1):
 
 - **Closing a running agent hangs up its pty** (SIGHUP), as closing a terminal does: close tab,
-  Stop, `Ctrl+B x`, closing a window and quitting, after their confirmations. Nothing is typed —
-  not `/exit`, and not `exit` into a leftover shell (its pty is closed the same way). (1.9)
+  Stop, `Ctrl+B x`, closing a window and quitting, after their confirmations. The hang-up goes to
+  the shell and to the agent's process group. Whatever of the pty's session is still there 3 s
+  later gets SIGCONT and SIGTERM, and whatever is left 2 s after that gets SIGKILL. Quit and
+  Restart now wait for that, at most 5 s. Nothing is typed: not `/exit`, and not `exit` into a
+  leftover shell (its pty is closed the same way). (1.9, amended 2026-11-10)
 - The agent-tablet import (F14) also takes `usage.jsonl`, so imported turns keep their exact cost.
 - The integrations record and the settings backups live in the data directory.
 - Turns with origin `unknown` show their own category in reports.

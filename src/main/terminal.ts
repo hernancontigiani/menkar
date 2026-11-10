@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { basename } from 'node:path'
 import { type IPty, spawn } from 'node-pty'
 import { log } from '../core/log'
+import { foregroundGroup, reapSession } from './reap'
 
 export interface TerminalSink {
   // `end`: where this chunk ends in the pane's whole output.
@@ -49,6 +50,7 @@ export class Terminal {
   #buffer = ''
   #end = 0
   #exited = false
+  #hungUp = false
 
   constructor(options: StartOptions, sink: TerminalSink) {
     const shell = userShell()
@@ -116,13 +118,21 @@ export class Terminal {
   }
 
   // Closing hangs up, as closing a terminal does: nothing is typed into the agent. SIGHUP, not
-  // SIGTERM, because an interactive bash ignores SIGTERM.
+  // SIGTERM, because an interactive bash ignores SIGTERM; to the agent's process group as well,
+  // which gets it then even when its shell is gone first. What outlives it is ended by the reaper.
   hangUp(): void {
-    if (this.#exited) return
-    try {
-      process.kill(this.#pty.pid, 'SIGHUP')
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+    // A shell that already exited may have its pid reused by now.
+    if (this.#exited || this.#hungUp) return
+    this.#hungUp = true
+    const shell = this.#pty.pid
+    const agent = foregroundGroup(shell)
+    for (const target of agent === null ? [shell] : [shell, -agent]) {
+      try {
+        process.kill(target, 'SIGHUP')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+      }
     }
+    void reapSession(shell)
   }
 }

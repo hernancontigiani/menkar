@@ -838,12 +838,14 @@ async function finishClose(windowId: string): Promise<void> {
     const saved = saveProjectsNow()
     closingLast = true
     await saved
+    hangUpWindow(windowId)
   } else {
+    // Before the window leaves the layout: its tabs are found there.
+    hangUpWindow(windowId)
     layout = removeWindow(layout, windowId)
     saveProjectsNow()
     push()
   }
-  hangUpWindow(windowId)
   allowedToClose.add(windowId)
   windows.get(windowId)?.close()
 }

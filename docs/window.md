@@ -66,8 +66,21 @@ How the main window is built and why that way. The behaviour it follows is in `d
   agent's command line (`src/core/command.ts`, the spec's table, shell-quoted, ending in
   ` && exit`) is typed into it. A missing agent CLI leaves a plain shell with the app's warning.
   Claude's lines always end with `--settings <sessionSettingsFile()>`; Cursor's never carry it.
-- **Closing hangs up** (decision 1.9): closing a tab, Stop, closing a window and quitting send
-  SIGHUP to the pane's shell. Nothing is typed into a running agent, neither `/exit` nor `exit`.
+- **Closing hangs up** (decision 1.9, amended 2026-11-10): closing a tab, Stop, closing a window,
+  quitting and Restart now send SIGHUP to the pane's shell and to its terminal's foreground
+  process group (the agent). Nothing is typed into a running agent, neither `/exit` nor `exit`.
+  - **Nothing is left** (`src/main/reap.ts`): 3 s after the hang-up, every process still in the
+    pty's session (sid = the shell's pid, read from `/proc`) gets SIGCONT and SIGTERM. 2 s later,
+    whatever remains gets SIGKILL. Each escalation is logged with its pid, signal and state.
+  - **Why:** on the human's machine (2026-11-10), 13 `claude` processes from earlier Menkar runs
+    were left stopped (state T) and reparented to the user's systemd, about 4 GB, still registered
+    as sessions. Claude Code ignores SIGHUP in its background backend when it does not own the
+    terminal, so it outlives its shell.
+  - **Quit and Restart now** hold `before-quit` until every hung-up session is empty, at most
+    5 s, then quit.
+  - **Closing a window that is not the last** hangs its panes up before the window leaves the
+    layout. Before that fix (2026-11-10) it hung up nothing, since its tabs were looked up after
+    the window was removed.
 - **"Running"** means the pty's foreground process is not the shell itself. node-pty reports the
   foreground process's `argv[0]`, so it is compared by base name (and `-bash` counts as `bash`).
 - Output is kept per pane (512 KiB). A window that shows a pane later (a moved tab, a reopened one)
