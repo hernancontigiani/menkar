@@ -25,6 +25,10 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
   - **Head** (`head.ts`): within the first 50 lines and 256 KiB, the first `cwd` and the preview
     (the first typed user message, not starting with `<`, whitespace collapsed, 120 characters).
     It is read again until both are found or the window is full, then never again for that file.
+    A `cwd` the head does not reach is taken from the names pass (`firstCwd`): the slices' bytes are
+    searched for `"cwd":"`, and the first line whose own top-level `cwd` it is gives it. On the
+    human's machine (2026-11-10) one transcript has its first `cwd` at byte 457 KB, after a 450 KB
+    file-history snapshot. Without it, resuming that session started `claude` in the home folder.
   - **Tail** (`badges.ts`): the last 64 KiB, re-read when the size or mtime changes, for the
     waiting / interrupted badge. A tail that starts mid-file drops its first, cut line.
 - **A session's name** (`sessionName`): Claude's name, then the app's name (`state.json` `names`),

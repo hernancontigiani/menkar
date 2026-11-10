@@ -165,6 +165,27 @@ describe('incremental reading', () => {
     expect([session?.customTitle, session?.aiTitle, session?.preview]).toEqual([null, null, 'two'])
   })
 
+  test('a cwd first written past the head (after a 450 KB file-history snapshot) is still found', async () => {
+    const snapshot = {
+      type: 'file-history-snapshot',
+      // A nested cwd inside a backed-up file is not the session's.
+      snapshot: { files: { 'a.json': { cwd: '/not/this' }, 'b.txt': 'x'.repeat(450 * 1024) } },
+    }
+    const file = join(roots.claudeProjects, '-home-demo-api', `${ID}.jsonl`)
+    await put(
+      file,
+      jsonl([
+        { type: 'summary' },
+        snapshot,
+        user('resume me', { cwd: '/home/demo/api' }),
+        user('later', { cwd: '/elsewhere' }),
+      ]),
+    )
+    expect((await stat(file)).size).toBeGreaterThan(450 * 1024)
+    const [session] = await new SessionScanner().scan(roots, both)
+    expect(session?.cwd).toBe('/home/demo/api')
+  })
+
   test('the preview and badge follow a growing file', async () => {
     const file = join(roots.claudeProjects, '-a', `${ID}.jsonl`)
     await put(file, jsonl([{ type: 'summary' }]))

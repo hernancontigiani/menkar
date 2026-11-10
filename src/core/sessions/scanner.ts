@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { type Badge, badgeOf, TAIL_BYTES } from './badges'
 import { cursorCwd } from './cursor'
 import { HEAD_BYTES, HEAD_LINES, readHead } from './head'
-import type { Agent } from './lines'
+import { type Agent, parseLine } from './lines'
 import { applyNameLines, emptyNames, type Names } from './names'
 
 export interface Roots {
@@ -73,6 +73,26 @@ export function nameLines(chunk: Buffer, complete: number): string {
   return lines.length > 0 ? `${lines.join('\n')}\n` : ''
 }
 
+const CWD_MARK = Buffer.from('"cwd":"')
+
+// The first line of `chunk[0, complete)` with a cwd of its own. A file-history snapshot can push it
+// past the head (450 KB of backed-up files before it), and a backed-up file can hold a "cwd" of
+// its own, so only a line's top-level one counts.
+export function firstCwd(chunk: Buffer, complete: number): string | null {
+  let from = 0
+  while (from < complete) {
+    const hit = chunk.indexOf(CWD_MARK, from)
+    if (hit === -1 || hit >= complete) return null
+    const start = chunk.lastIndexOf(10, hit) + 1
+    const newline = chunk.indexOf(10, hit)
+    const end = newline === -1 || newline > complete ? complete : newline
+    const cwd = parseLine(chunk.toString('utf8', start, end))?.cwd
+    if (typeof cwd === 'string') return cwd
+    from = end + 1
+  }
+  return null
+}
+
 interface Found {
   readonly agent: Agent
   readonly id: string
@@ -87,6 +107,8 @@ interface FileState {
   names: Names
   headFinal: boolean
   cwd: string | null
+  // The first cwd anywhere in the file, for one the head does not reach.
+  laterCwd: string | null
   preview: string
   badge: Badge
   tailSize: number
@@ -204,6 +226,7 @@ export class SessionScanner {
         names: emptyNames(),
         headFinal: false,
         cwd: null,
+        laterCwd: null,
         preview: '',
         badge: null,
         tailSize: -1,
@@ -225,6 +248,7 @@ export class SessionScanner {
           continue
         }
         state.names = applyNameLines(state.names, nameLines(chunk, complete))
+        state.laterCwd ??= firstCwd(chunk, complete)
         state.offset += complete
       }
     }
@@ -253,7 +277,7 @@ export class SessionScanner {
       id: item.id,
       file: item.file,
       folder: item.folder,
-      cwd: item.cwd ?? state.cwd,
+      cwd: item.cwd ?? state.cwd ?? state.laterCwd,
       preview: state.preview,
       badge: state.badge,
       customTitle: state.names.customTitle,
