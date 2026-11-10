@@ -168,13 +168,14 @@ agent that runs in a terminal fits.
   is not Claude Code; the rule becomes "shown only for an agent that declares a remote mode", one
   field of the agent's entry, never a check on its name.
 - **Enabled per platform.** A release may ship an agent on Linux before it is tested on Windows:
-  each agent's entry says on which platforms it is enabled, and the picker shows it (installed or
-  greyed) only there. Set in the code per release, not by the user.
-- **A reference.** The human points to the open-source *Agent Desktop*, which supports many of
+  each agent's entry says on which platforms it is enabled. On a platform where it is not enabled
+  the agent **does not appear at all** — not even greyed; greyed means only "supported here, but
+  not installed on this machine". Set in the code per release, not by the user.
+- **A reference.** The human points to the open-source *Agent Desk*, which supports many of
   these agents; read it for each agent's commands and transcript formats. Menkar is written from
   scratch (decision 1.1), so it is read as documentation, not copied — and its license is checked
   first.
 
 **Trigger:** after 1.0, the human installs one of them on Ubuntu to try it. First question, per
-agent: the five facts above, read from its docs, Agent Desktop's code and a real session, before
+agent: the five facts above, read from its docs, Agent Desk's code and a real session, before
 any code.
