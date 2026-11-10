@@ -65,3 +65,8 @@ header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's
 
 > Left on 2026-11-10: Restart now no longer asks, even with sessions running (the human, 2026-11-10: its question opened behind Settings).
 - "Restart now" asks and saves the layout as quitting does.
+
+## Decisions that override the area files (2026-11-08)
+
+> Left on 2026-11-10: Restart now asks about unsaved file edits first, on the Settings window (the human, 2026-11-10).
+  (2026-11-10); quitting by closing the windows still asks.

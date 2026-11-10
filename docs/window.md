@@ -151,7 +151,8 @@ session) takes the newest session of that folder modified since the tab started,
   keeps it and **waits for that save before the app quits**: a write cut short left its temporary
   file instead of the new `projects.json`.
 - Settings' Restart now quits every window at once without that question (`quitApp()`, 2026-11-10):
-  the same save and hang-up, then the relaunch.
+  the same save and hang-up, then the relaunch. Unsaved edits are asked about first, on Settings
+  (`docs/preferences.md`).
 - Projects, groups and membership are saved at once; the layout 500 ms after its last change.
 
 ## The frame (2026-11-09)

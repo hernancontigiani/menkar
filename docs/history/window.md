@@ -80,3 +80,8 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 - **`Ctrl+`` ` `` toggles it** for the selected tab (by `event.code`, so it is the key left of `1`
   on any layout); the window action is `{ type: 'toggleDrawer', pane }`, which the New menu can
   call too. The key never reaches a terminal.
+
+## Windows and quitting
+
+> Left on 2026-11-10: Restart now asks about unsaved file edits first, on the Settings window (the human, 2026-11-10).
+  the same save and hang-up, then the relaunch.

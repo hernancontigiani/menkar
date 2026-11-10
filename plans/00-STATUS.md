@@ -55,7 +55,8 @@
 | 1.38 | Ctrl+Shift+E switches between active projects (those with open tabs), most recent first, Alt+Tab style (release Ctrl to jump; no typing to filter); a project in another window focuses that window | 2026-11-10 | `docs/window.md` |
 | 1.41 | Five themes — VS Code (Dark Modern / Light Modern by the scheme, the default and the fallback), Catppuccin Mocha and Latte, Solarized Dark and Light; "Default" and the others removed; a saved unknown theme loads as VS Code | 2026-11-10 | `docs/window.md` |
 | 1.42 | Terminal colors, apart from the theme: Ubuntu terminal (#300a24, GNOME's palette; the default), Neutral (VTE) or Same as theme; the theme still paints Menkar and the editor | 2026-11-10 | `docs/window.md` |
-| 1.43 | "Restart now" saves the layout, hangs up the running sessions as quitting does and relaunches, without asking; the sessions that were running are resumed in their tabs; quitting by closing the windows still asks | 2026-11-10 | `docs/preferences.md` |
+| 1.43 | "Restart now" saves the layout, hangs up the running sessions as quitting does and relaunches, without asking about them; the sessions that were running are resumed in their tabs; quitting by closing the windows still asks | 2026-11-10 | `docs/preferences.md` |
+| 1.44 | When a file tab has unsaved edits, "Restart now" first asks on the Settings window, with the window close's question (Cancel / Discard / Save); Cancel does not restart | 2026-11-10 | `docs/preferences.md` |
 
 ## 2. Open
 

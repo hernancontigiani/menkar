@@ -264,6 +264,50 @@ details.expander > summary::-webkit-details-marker {
   flex: 1;
 }
 
+/* The question dialogs the main window also shows: a message above a row of answers. */
+.dialog[role="alertdialog"] {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.dialog .message {
+  padding: 24px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.dialog .message .heading {
+  font-weight: 700;
+  font-size: 13pt;
+}
+
+.dialog[role="alertdialog"] .responses {
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+
+.dialog[role="alertdialog"] .responses button {
+  padding: 10px 14px;
+  border-radius: 0;
+}
+
+.dialog[role="alertdialog"] .responses button + button {
+  border-left: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+}
+
+.dialog .responses .suggested-text {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.dialog .responses .destructive-text {
+  color: var(--destructive);
+  font-weight: 700;
+}
+
 .about {
   text-align: center;
 }

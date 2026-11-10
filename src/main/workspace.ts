@@ -864,6 +864,16 @@ export async function quitApp(): Promise<void> {
 
 const unsavedAnswered = new Set<string>()
 
+// The edited files of every window, each once.
+export function unsavedEverywhere(): string[] {
+  const paths = layout.windows.flatMap((w) =>
+    w.tabs.flatMap((tab) =>
+      tab.kind === 'file' && !tab.preview && isDirty(tab.path) ? [tab.path] : [],
+    ),
+  )
+  return [...new Set(paths)]
+}
+
 // The edited files whose every editor tab is in this window: a file also open elsewhere keeps its
 // edits there and is not asked about.
 function unsavedHere(windowId: string): string[] {

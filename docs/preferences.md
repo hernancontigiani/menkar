@@ -59,6 +59,11 @@ are shaped this way.
   ran to its end, it never happened. The next start reopens the saved tabs, and the shown
   project's sessions start again with `claude --resume`; another project's wait until it is shown
   (decision 1.32).
+- **Unsaved file edits stop Restart now** (2026-11-10): `app:restart` first answers with the
+  edited files of every window (`unsavedEverywhere()`), and the Settings window asks the window
+  close's question, "Save changes to …?", on itself, where the button was pressed. Cancel asks
+  for nothing more, so no relaunch is registered; Save writes the files and restarts (a refused
+  write shows "… was not saved" and stays); Discard restarts.
 - **Integrations**: the status line switch calls `installStatusline` / `removeStatusline`, and the
   transcript retention switch calls `installRetention` / `removeRetention` (`docs/context.md`). A refused change comes back with our sentence, shown for 8 s, and the switch
   shows what the files say. The classification switch and its earlier-turns dialog use the
@@ -95,7 +100,8 @@ are shaped this way.
   their groups, the keys, the retention switch, screenshots in `/tmp/menkar-shots/settings-*.png`),
   `e2e/preferences.spec.ts` (the rows at their defaults, themes reaching every window, languages,
   Restart now with nothing running, and with a session running: no question, the agent hung up,
-  and a next start on the same directories resuming it in its tab),
+  and a next start on the same directories resuming it in its tab; with an unsaved file, the
+  question on Settings, Cancel keeping the app and the edit, Save writing it and restarting),
   `e2e/integrations.spec.ts` (the status line switch with its backup and refusal, the
   classification switch and the earlier-turns dialog with the stand-in `claude`, About),
   `e2e/usage-window.spec.ts` (periods, the stepper, Totals and By day; screenshots in

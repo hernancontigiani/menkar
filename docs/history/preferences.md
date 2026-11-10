@@ -54,3 +54,8 @@
 
 > Left on 2026-11-10: Restart now no longer asks, even with sessions running (the human, 2026-11-10: its question opened behind Settings).
   Restart now with nothing running and with a session running),
+
+## Checks
+
+> Left on 2026-11-10: Restart now asks about unsaved file edits first, on the Settings window (the human, 2026-11-10).
+  and a next start on the same directories resuming it in its tab),

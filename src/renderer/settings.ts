@@ -19,6 +19,7 @@ import { retentionSection, statuslineSection, usageSection } from './integration
 import { applyLook } from './look'
 import { mcpSection } from './mcp'
 import { shortcutsSection } from './shortcuts'
+import { showError, unsavedQuestion } from './ui'
 
 // The Settings window: a list of sections on the left, grouped, and the chosen one on the right.
 // Every change is saved at once, and main re-applies it in every window.
@@ -298,13 +299,26 @@ function appearanceSection(): HTMLElement {
   ])
 }
 
+// The question goes on this window, where the button was pressed: on the main window it opened
+// behind Settings.
+async function restartAsking(): Promise<void> {
+  let answer = await api.restart('ask')
+  if (!answer.restarting && 'unsaved' in answer) {
+    const choice = await unsavedQuestion(answer.unsaved)
+    if (choice.value === 'cancel') return
+    answer = await api.restart(choice.value === 'save' ? 'save' : 'discard')
+  }
+  if (!answer.restarting && 'notSaved' in answer)
+    await showError(t('files.notSaved', { name: answer.notSaved }), answer.refusal)
+}
+
 function languageSection(): HTMLElement {
   const restart = el(
     'button',
     { class: 'suggested', hidden: '', 'data-key': 'restart' },
     t('prefs.restartNow'),
   )
-  restart.addEventListener('click', () => void api.restart())
+  restart.addEventListener('click', () => void restartAsking())
   const languages = [
     { value: '', label: t('prefs.systemDefault') },
     ...info.languages.map((l) => ({ value: l.code, label: l.name })),

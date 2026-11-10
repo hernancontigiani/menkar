@@ -302,3 +302,68 @@ test('PRF-24 Restart now with a session running quits without asking, hangs the 
     await launched.close().catch(() => undefined)
   }
 })
+
+// Decision 2026-11-10: unsaved file edits are asked about before Restart now, on the Settings
+// window where the button was pressed; running sessions still are not.
+test('PRF-24 Restart now with an unsaved file asks in Settings; Cancel keeps the app and the edit; Save writes it and restarts', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      writeFileSync(join(dirs.home, 'notes.md'), 'notes\n')
+      return prepare(dirs)
+    },
+  })
+  const page = launched.window
+  const notes = join(home, 'notes.md')
+  const trace = join(launched.root, 'relaunch.txt')
+  try {
+    await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
+    await expect.poll(() => existsSync(join(home, 'claude-pid.txt'))).toBe(true)
+    await page.evaluate(
+      (path) =>
+        (
+          globalThis as unknown as { menkar: { window: { act(x: unknown): Promise<unknown> } } }
+        ).menkar.window.act({ type: 'openFilePath', path }),
+      notes,
+    )
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('Control+End')
+    await page.keyboard.type('edited')
+    await expect(page.locator('.tab.selected .unsaved-dot')).toHaveCount(1)
+    await launched.app.evaluate(({ app }, file) => {
+      const fs = process.getBuiltinModule('node:fs') as typeof import('node:fs')
+      app.relaunch = () => fs.appendFileSync(file, 'relaunch\n')
+    }, trace)
+    const prefs = await openSettings(launched.app, page)
+    await section(prefs, 'language')
+    await prefs.locator('[data-expander="language"] summary').click()
+    await prefs.locator('[data-expander="language"] label', { hasText: 'Español' }).click()
+    const restart = prefs.locator('[data-key="restart"]')
+    await restart.click()
+    const question = prefs.locator('[role="alertdialog"]')
+    await expect(question.locator('.heading')).toHaveText('Save changes to notes.md?')
+    await expect(question.locator('button')).toHaveText(['Cancel', 'Discard', 'Save'])
+    await expect(page.locator('.dialog')).toHaveCount(0)
+    mkdirSync('/tmp/menkar-shots', { recursive: true })
+    await prefs.screenshot({ path: '/tmp/menkar-shots/restart-unsaved.png' })
+    await question.locator('button', { hasText: 'Cancel' }).click()
+    await expect(question).toHaveCount(0)
+    await page.waitForTimeout(1000)
+    expect(launched.app.process().exitCode).toBeNull()
+    expect(existsSync(trace)).toBe(false)
+    await expect(page.locator('.tab.selected .unsaved-dot')).toHaveCount(1)
+    expect(readFileSync(notes, 'utf8')).toBe('notes\n')
+
+    const exited = new Promise<void>((resolve) =>
+      launched.app.process().once('exit', () => resolve()),
+    )
+    await restart.click()
+    await question.locator('button', { hasText: 'Save' }).click()
+    await exited
+    expect(readFileSync(notes, 'utf8')).toBe('notes\nedited')
+    expect(readFileSync(trace, 'utf8')).toBe('relaunch\n')
+  } finally {
+    await launched.close().catch(() => undefined)
+  }
+})

@@ -61,7 +61,7 @@ const api: MenkarApi = {
   preferences: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (key, value) => ipcRenderer.invoke('settings:set', { key, value }),
-    restart: () => ipcRenderer.invoke('app:restart'),
+    restart: (unsaved = 'ask') => ipcRenderer.invoke('app:restart', { unsaved }),
     openLink: (link) => ipcRenderer.invoke('app:open-link', { link }),
     onSettings: (listener) => subscribe('settings:changed', listener),
     statusline: () => ipcRenderer.invoke('integrations:statusline'),

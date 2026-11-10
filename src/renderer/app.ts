@@ -31,6 +31,7 @@ import {
   showMenu,
   showPopover,
   toast,
+  unsavedQuestion,
 } from './ui'
 
 let state: WindowState | undefined
@@ -1140,21 +1141,9 @@ async function saveAsking(paths: readonly string[]): Promise<boolean> {
   return false
 }
 
-// "Save changes to {names}?": Save (default), Discard, Cancel. True when the close may go on.
-async function unsavedQuestion(
-  paths: readonly string[],
-  names: readonly string[],
-): Promise<boolean> {
-  const answer = await showDialog({
-    heading: t('files.saveChanges', { names: names.join(', ') }),
-    body: t('files.unsavedBody'),
-    buttons: [
-      { label: t('dialog.cancel'), value: 'cancel' },
-      { label: t('files.discard'), value: 'discard', style: 'destructive' },
-      { label: t('dialog.save'), value: 'save', style: 'suggested' },
-    ],
-    defaultValue: 'save',
-  })
+// True when the close may go on.
+async function askUnsaved(paths: readonly string[], names: readonly string[]): Promise<boolean> {
+  const answer = await unsavedQuestion(names)
   if (answer.value === 'cancel') return false
   if (answer.value === 'discard') {
     await act({ type: 'discardFiles', paths })
@@ -1167,12 +1156,12 @@ async function unsavedQuestion(
 export async function closeTabAsking(tab: string): Promise<void> {
   const result = await act({ type: 'closeTab', tab })
   if (!result.unsaved || typeof result.value !== 'string') return
-  if (await unsavedQuestion([result.value], result.unsaved))
+  if (await askUnsaved([result.value], result.unsaved))
     await act({ type: 'closeTab', tab, force: true })
 }
 
 window.menkar.window.onConfirmUnsaved(({ paths, names }) => {
-  void unsavedQuestion(paths, names).then((go) => {
+  void askUnsaved(paths, names).then((go) => {
     if (go) void act({ type: 'closeWindowNow' })
   })
 })

@@ -96,6 +96,20 @@ export function showDialog(options: DialogOptions): Promise<DialogResult> {
   })
 }
 
+// "Save changes to {names}?": Save (default), Discard, Cancel.
+export function unsavedQuestion(names: readonly string[]): Promise<DialogResult> {
+  return showDialog({
+    heading: t('files.saveChanges', { names: names.join(', ') }),
+    body: t('files.unsavedBody'),
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('files.discard'), value: 'discard', style: 'destructive' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+}
+
 export function showError(heading: string, refusal: Key): Promise<DialogResult> {
   return showDialog({
     heading,

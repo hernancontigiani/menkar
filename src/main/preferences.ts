@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { basename } from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import {
   IntegrationError,
@@ -14,8 +15,9 @@ import { thresholdsOf } from '../core/context/levels'
 import { log } from '../core/log'
 import { LANGUAGE_NAMES, monospaceFamilies, validSetting } from '../core/preferences'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
-import type { InvokeChannel, InvokeChannels } from '../shared/ipc'
+import type { InvokeChannel, InvokeChannels, RestartAnswer, RestartUnsaved } from '../shared/ipc'
 import { statuslineCommand } from './context'
+import { saveBuffer } from './files'
 import { sessions } from './sessions'
 import { usageView } from './usage'
 import { rescaleOwnWindows, usageOpener } from './windows'
@@ -75,12 +77,23 @@ function monospaceFonts(): Promise<string[]> {
   return fonts
 }
 
-// Restart now saves and hangs up as quitting does, without asking. The relaunch is
-// registered before the quit starts: asked for once the quit has run to its end, it never happens.
-async function restart(): Promise<boolean> {
+// Restart now saves and hangs up as quitting does, with no question for the running sessions;
+// unsaved file edits are asked about first, in Settings, and saved or discarded as answered. The
+// relaunch is registered before the quit starts: asked for once the quit has run to its end, it
+// never happens.
+async function restart(unsaved: RestartUnsaved): Promise<RestartAnswer> {
+  const paths = workspace.unsavedEverywhere()
+  if (paths.length > 0 && unsaved === 'save') {
+    for (const path of paths) {
+      const refusal = await saveBuffer(path)
+      if (refusal) return { restarting: false, notSaved: basename(path), refusal }
+    }
+  } else if (paths.length > 0 && unsaved !== 'discard') {
+    return { restarting: false, unsaved: paths.map((p) => basename(p)) }
+  }
   app.once('will-quit', () => app.relaunch())
   await workspace.quitApp()
-  return true
+  return { restarting: true }
 }
 
 export function registerPreferencesIpc(): void {
@@ -107,7 +120,7 @@ export function registerPreferencesIpc(): void {
     announce(settings)
     return settings
   })
-  handle('app:restart', () => restart())
+  handle('app:restart', ({ unsaved }) => restart(unsaved))
   // The opener window's project scopes the figures; a Usage window with no opener has none.
   ipcMain.handle(
     'usage:view',

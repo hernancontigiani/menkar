@@ -48,6 +48,13 @@ export interface ClassifierStatus {
   readonly progress: string | null
 }
 
+// Restart now with unsaved file edits: first asked, then saved or discarded by the user's answer.
+export type RestartUnsaved = 'ask' | 'save' | 'discard'
+export type RestartAnswer =
+  | { readonly restarting: true }
+  | { readonly restarting: false; readonly unsaved: readonly string[] }
+  | { readonly restarting: false; readonly notSaved: string; readonly refusal: Key }
+
 // Renderer → main, answered.
 export interface InvokeChannels {
   // Preferences (plan 12): the settings and what the page offers; one row's value; restart.
@@ -56,7 +63,7 @@ export interface InvokeChannels {
     request: { key: PreferenceKey; value: string | number | boolean }
     response: Settings
   }
-  'app:restart': { request: undefined; response: boolean }
+  'app:restart': { request: { unsaved: RestartUnsaved }; response: RestartAnswer }
   // Chat tabs (plan 14): installed agents, a chat's facts, a message, a permission's answer, Stop.
   'chat:agents': { request: undefined; response: readonly ChatAgent[] }
   'chat:info': { request: { chatId: string }; response: ChatInfo | null }
@@ -194,7 +201,7 @@ export interface MenkarApi {
   readonly preferences: {
     get(): Promise<PreferencesInfo>
     set(key: PreferenceKey, value: string | number | boolean): Promise<Settings>
-    restart(): Promise<boolean>
+    restart(unsaved?: RestartUnsaved): Promise<RestartAnswer>
     openLink(link: 'website' | 'issues'): Promise<void>
     onSettings(listener: (settings: Settings) => void): () => void
     statusline(): Promise<{ on: boolean }>
