@@ -70,8 +70,9 @@ Each one is broken by an ordinary-looking line of code.
   `app.getPath()` equivalents — never next to an agent's files. Paths are resolved through one module.
 - **A session's name is the one Claude has** (`claude -n`, `/rename`). The app never keeps a second
   name for a session that Claude already named.
-- **A session belongs to one project at most, runs if and only if it has a tab, and is in at most
-  one tab across every window; a project is open in at most one window.**
+- **A session belongs to one project at most, runs only while it has a tab, and is in at most one
+  tab across every window; a project is open in at most one window.** A saved tab of a project not
+  yet shown since start waits, unstarted, until its project is shown (decision 1.32).
 - **The app's own state is JSON** (`state.json`, `projects.json`), written whole through a temporary
   file and a rename. **The one exception is the usage history**, SQLite in the data directory: a
   file from a newer app is left untouched and an unreadable one is moved aside, never deleted.
