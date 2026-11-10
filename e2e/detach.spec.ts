@@ -1,7 +1,7 @@
 // Decision 1.27: `menkar` run in a terminal gives it back at once, the app going on in a session of
 // its own. Run under a pseudo-terminal, as a person's shell would, never by Playwright's launcher
 // (whose pipes are not a terminal, so the app stays attached for every other test).
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -21,21 +21,51 @@ const cmdline = (pid: number) => {
 }
 
 // The processes of this run, found through /proc and never by a name: those with its temporary
-// HOME, and Chromium's helpers (the crash handler) that carry its folders on their command line
-// instead.
+// HOME, Chromium's helpers (the crash handler) that carry its folders on their command line
+// instead, those holding a file under it, and the children of any of them. The environment alone
+// is not enough: Chromium writes its process title over that memory, after which the detached
+// copy's environ reads as zeros, and a scan that comes late (under load) would miss it.
 function processesOf(root: string): number[] {
-  const found: number[] = []
+  const parents = new Map<number, number>()
+  const found = new Set<number>()
   for (const entry of readdirSync('/proc')) {
     if (!/^\d+$/.test(entry)) continue
+    const pid = Number(entry)
     try {
-      const environ = readFileSync(`/proc/${entry}/environ`, 'utf8')
-      if (environ.includes(`\0HOME=${root}/`) || cmdline(Number(entry)).includes(`${root}/`))
-        found.push(Number(entry))
+      parents.set(
+        pid,
+        Number(/^PPid:\s+(\d+)$/m.exec(readFileSync(`/proc/${pid}/status`, 'utf8'))?.[1]),
+      )
+      const environ = readFileSync(`/proc/${pid}/environ`, 'utf8')
+      if (
+        environ.includes(`\0HOME=${root}/`) ||
+        cmdline(pid).includes(`${root}/`) ||
+        holdsUnder(pid, root)
+      )
+        found.add(pid)
     } catch {
       // gone, or not ours to read
     }
   }
-  return found
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const [pid, parent] of parents)
+      if (!found.has(pid) && found.has(parent)) {
+        found.add(pid)
+        grew = true
+      }
+  }
+  return [...found]
+}
+
+function holdsUnder(pid: number, root: string): boolean {
+  return readdirSync(`/proc/${pid}/fd`).some((fd) => {
+    try {
+      return readlinkSync(`/proc/${pid}/fd/${fd}`).startsWith(`${root}/`)
+    } catch {
+      return false // closed meanwhile
+    }
+  })
 }
 
 // Running or exiting, but not yet gone: a process that is exiting no longer shows its environment,
