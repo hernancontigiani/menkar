@@ -379,3 +379,61 @@ test('decision 1.22: "Red from" changes an open window\'s ring at once; a pair w
     await launched.close()
   }
 })
+
+// The size alone, with the family left at the default: the case of anyone who never picked a
+// family. It must reach the open terminal at once, its rows growing with it.
+test('PRF-5 (2026-11-10) the size alone, with the default family, reaches the open terminal at once', async () => {
+  await withTerminal({}, async ({ app, window, root }) => {
+    const rows = window.locator('.xterm-rows').first()
+    const rowHeight = () => rows.evaluate((n) => (n.firstElementChild as HTMLElement).offsetHeight)
+    const before = await rowHeight()
+    const prefs = await openPreferences(app, window, 'terminal')
+    await expect(prefs.locator('[data-key="font-family"]')).toHaveValue('')
+    await prefs.locator('[data-key="font-size"]').fill('16')
+    await prefs.locator('[data-key="font-size"]').dispatchEvent('change')
+    await expect.poll(() => saved(root).font).toMatch(/ 16$/)
+    await expect.poll(() => rows.evaluate((n) => getComputedStyle(n).fontSize)).toMatch(/^21\.33/)
+    expect(await rowHeight()).toBeGreaterThan(before)
+    // The setting reads back as the default family at that size.
+    await prefs.close()
+    const again = await openPreferences(app, window, 'terminal')
+    await expect(again.locator('[data-key="font-family"]')).toHaveValue('')
+    await expect(again.locator('[data-key="font-size"]')).toHaveValue('16')
+  })
+})
+
+test('PRF-5 (2026-11-10) a tab hidden while the size changes shows it, refitted, once it is selected', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => clientWork(dirs, { tabs: [['login'], ['api']] }),
+  })
+  const { app, window } = launched
+  try {
+    const shownRows = window.locator('.tab-body:not(.hidden) .xterm-rows')
+    await expect(window.locator('.tab')).toHaveCount(2)
+    await expect(shownRows).toHaveCount(1)
+    const prefs = await openPreferences(app, window, 'terminal')
+    await prefs.locator('[data-key="font-size"]').fill('16')
+    await prefs.locator('[data-key="font-size"]').dispatchEvent('change')
+    await expect
+      .poll(() => shownRows.evaluate((n) => getComputedStyle(n).fontSize))
+      .toMatch(/^21\.33/)
+    const shownTab = await window.locator('.tab.selected').getAttribute('data-tab')
+    const other = window.locator('.tab:not(.selected)')
+    await other.click()
+    await expect(window.locator('.tab.selected')).not.toHaveAttribute('data-tab', shownTab ?? '')
+    await expect
+      .poll(() => shownRows.evaluate((n) => getComputedStyle(n).fontSize))
+      .toMatch(/^21\.33/)
+    // Refitted to the new cells: as many rows as the new height fits in its pane, not the old count.
+    const fit = () =>
+      shownRows.evaluate((n) => {
+        const height = (n.firstElementChild as HTMLElement).offsetHeight
+        const room = (n.closest('.term') as HTMLElement).clientHeight
+        const rows = n.children.length
+        return rows * height <= room && rows * height > room - 2 * height
+      })
+    await expect.poll(fit).toBe(true)
+  } finally {
+    await launched.close()
+  }
+})

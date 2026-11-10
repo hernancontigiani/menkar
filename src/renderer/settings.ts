@@ -149,16 +149,21 @@ function swatch(theme: string): HTMLElement {
   return svg as unknown as HTMLElement
 }
 
+// The default family stored with a size is the alias the terminals fall back to; the row shows it
+// as the default again.
+const DEFAULT_FAMILY = 'monospace'
+
 function fontRow(): HTMLElement {
   const current = parseFont(settings.font)
+  const chosen = current.family === DEFAULT_FAMILY ? '' : current.family
   const family = el('select', { 'data-key': 'font-family', 'aria-label': t('prefs.font') })
   family.append(el('option', { value: '' }, t('prefs.fontDefault')))
   const families = new Set(info.fonts)
-  if (current.family) families.add(current.family)
+  if (chosen) families.add(chosen)
   for (const name of [...families].sort((a, b) => a.localeCompare(b))) {
     family.append(el('option', { value: name }, name))
   }
-  family.value = settings.font ? current.family : ''
+  family.value = chosen
   const size = el('input', {
     type: 'number',
     min: '6',
@@ -168,7 +173,14 @@ function fontRow(): HTMLElement {
     'aria-label': t('prefs.fontSize'),
   })
   size.value = String(current.size ?? 10)
-  const save = () => void set('font', family.value ? `${family.value} ${size.value || 10}` : '')
+  // A size with the default family is kept too; the default at the default size is no setting.
+  const save = () => {
+    const points = size.value || '10'
+    void set(
+      'font',
+      family.value || points !== '10' ? `${family.value || DEFAULT_FAMILY} ${points}` : '',
+    )
+  }
   family.addEventListener('change', save)
   size.addEventListener('change', save)
   const reset = el('button', { title: t('prefs.fontReset'), 'data-key': 'font-reset' }, '⌫')

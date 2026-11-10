@@ -53,7 +53,10 @@ are shaped this way.
   Usage window the size and life of its own the spec asks for.
 - **The Font row lists the installed monospace families (`fc-list`) with a size**: Electron has no
   system font chooser. The setting keeps agent-tablet's form, `"Family Size"`, which the terminals
-  already read.
+  already read. A size with the default family is stored as `monospace <size>` (2026-11-10), the alias
+  the terminals fall back to, and the row shows it as the default again. It used to store nothing,
+  so a size change with the default family was lost. The default family at 10 pt stays the empty
+  setting.
 - **The earlier-turns dialog uses the system's date picker** instead of an always-open month
   calendar. It picks the same day, today minus seven by default.
 - **The usage passes get the current projects' memberships** (`currentMemberships()`). They were

@@ -32,3 +32,6 @@
   About and Usage out of the main window's renderer, which another session builds, and gives the
 - e2e under `npm run ui-check`: `e2e/preferences.spec.ts` (the General page, themes reaching every
   window, languages, Restart now with nothing running and with a session running),
+
+> Replaced 2026-11-10: a size with the default family is now stored. It was:
+  already read.

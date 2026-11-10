@@ -75,7 +75,6 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 19 | `26-ubuntu-terminal-theme.md` (a theme matching the human's GNOME Terminal; why Claude Code's colours vanish in one look) | Stub 2026-11-09; low priority, last |
 
 ## 4. Next plan number
 

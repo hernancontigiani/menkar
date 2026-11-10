@@ -269,3 +269,13 @@
 > what it means. PRF-24 could never see a real relaunch (the copy carries Playwright's loader), so
 > it now checks that the relaunch is asked for during the quit, and the real one is the human's
 > check (§2 2.17). FIL-33 failed once in 15 runs and was not reproduced. In `docs/toolchain.md`.
+
+| 19 | `26-ubuntu-terminal-theme.md` (a theme matching the human's GNOME Terminal; why Claude Code's colours vanish in one look) | Stub 2026-11-09; low priority, last |
+
+> Closed 2026-11-10 — plan 26, "a theme matching the human's Ubuntu terminal", built by `b2`:
+> every pty now says `COLORTERM=truecolor`. A Menkar started from the desktop had none, so Claude
+> Code drew in 256 colours instead of its own RGB theme. The "Ubuntu" theme is Yaru-dark's
+> aubergine `#300a24` and white with GNOME's palette, in both styles, and was compared against the
+> human's own terminal: the colours match, and the type size is the Font setting (decision 1.35).
+> The "one-colour look" was not a defect: the human misremembered, and no look showed it. In
+> `docs/window.md`.

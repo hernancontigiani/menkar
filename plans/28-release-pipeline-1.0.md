@@ -67,3 +67,14 @@ Pages), so users `apt install menkar` and also get updates through apt — what 
 its own repository; (b) the install instructions say to save the `.deb` somewhere `_apt` can read
 (`/tmp`) or to use `sudo dpkg -i` then `sudo apt -f install`; (c) both. Recommendation to discuss:
 (a) for 1.0, with (b) documented as the fallback for a single downloaded file.
+
+### Decided (the human, 2026-11-10): an APT repository, through a hosted service
+
+At 1.0 Menkar is installed with `apt install menkar` from its own signed APT repository (and an RPM
+one), so the `_apt` note is gone and updates come with `apt upgrade`. GitHub Pages cannot host it
+(a 100 MB file limit; the `.deb` is ~102 MB), so the repository lives on a hosted package service
+with a free plan for open source — **Cloudsmith or packagecloud** (to choose when designing),
+which signs, hosts and serves both APT and RPM; the release workflow uploads each tag's `.deb` and
+`.rpm` there. The install page gives the one-time key + source setup; the single downloaded file
+(`/tmp`, or `dpkg -i` + `apt -f install`) stays documented as the fallback. A self-hosted bucket is
+the later option if independence is wanted.
