@@ -6,10 +6,13 @@ import type { Key } from './i18n'
 export type ShortcutGroup = 'window' | 'file' | 'terminal' | 'find' | 'prefix' | 'switcher' | 'chat'
 
 // One key with its modifiers. `key` is compared without case when Ctrl is held (Shift changes it),
-// exactly after the prefix (N is not n); `code` names a key by its place, whatever the layout.
+// exactly after the prefix (N is not n); `code` names a key by its place, whatever the layout;
+// `char` names the key the active layout types that character with, for a key the event does not
+// name: on Spanish the ` is a dead key right of P, and with ibus its keydown is key "Process".
 export interface Chord {
   readonly key?: string
   readonly code?: string
+  readonly char?: string
   readonly ctrl?: boolean
   readonly shift?: boolean
 }
@@ -75,6 +78,7 @@ export const SHORTCUTS = [
     chords: [
       { code: 'Backquote', ctrl: true },
       { key: '`', ctrl: true },
+      { char: '`', ctrl: true },
     ],
     description: 'shortcut.drawer',
     shown: [['Ctrl', '`']],
@@ -206,13 +210,24 @@ export interface KeyEventLike {
   readonly shiftKey: boolean
   readonly altKey: boolean
   readonly metaKey: boolean
+  // The active layout's character for `code`, unmodified (a dead key gives its own character).
+  readonly layout?: string | undefined
+}
+
+// Only a key the event leaves unnamed: the layout read may lag a layout switch, and on US the same
+// key is Ctrl+[, the terminal's Esc, which arrives named.
+const UNNAMED: ReadonlySet<string> = new Set(['Dead', 'Process'])
+function typedOnLayout(char: string, event: KeyEventLike): boolean {
+  return UNNAMED.has(event.key) && event.layout === char
 }
 
 // Ctrl held alone among the command modifiers, as the window has always read it.
 const ctrlOf = (event: KeyEventLike) => event.ctrlKey && !event.altKey && !event.metaKey
 
 function matches(group: ShortcutGroup, chord: Chord, event: KeyEventLike): boolean {
-  if (chord.code !== undefined) {
+  if (chord.char !== undefined) {
+    if (!typedOnLayout(chord.char, event)) return false
+  } else if (chord.code !== undefined) {
     if (event.code !== chord.code) return false
   } else if (chord.ctrl) {
     if (event.key.toLowerCase() !== chord.key?.toLowerCase()) return false
@@ -254,7 +269,7 @@ const NAMES: Readonly<Record<string, string>> = {
 
 // A chord as the keycaps it is pressed with; after the prefix, Ctrl+B comes first.
 export function keycaps(group: ShortcutGroup, chord: Chord): string[] {
-  const name = chord.code ?? chord.key ?? ''
+  const name = chord.code ?? chord.key ?? chord.char ?? ''
   const cap = NAMES[name] ?? (name.length === 1 ? name.toUpperCase() : name)
   const shown = group === 'prefix' && !chord.ctrl ? (NAMES[name] ?? name) : cap
   return [

@@ -18,6 +18,7 @@ import {
 import { isMarkdown } from './editor'
 import { openFileDialog } from './fileopen'
 import { loadCatalog, t } from './i18n'
+import { dropComposition, watchKeyboardLayout, withLayout } from './keyboard-layout'
 import { beginPrefix, endPrefix, prefixWaiting, setPrefixHandlers, startsPrefix } from './keys'
 import { goToAgent, projectSwitcher, quickSwitcher } from './switcher'
 import { setAppKeyFilter } from './terminals'
@@ -47,7 +48,7 @@ const WINDOW_ACTIONS: Record<ShortcutOf<'window'>, () => void> = {
 
 // Window-level keys, taken before the terminal sees them (for every event type of the key).
 function appKey(event: KeyboardEvent): (() => void) | null {
-  const id = matchShortcut('window', event)
+  const id = matchShortcut('window', withLayout(event))
   if (id) return WINDOW_ACTIONS[id]
   // The file keys act only while a file tab is selected; in a terminal they are the terminal's.
   const tab = selectedTabView()
@@ -76,6 +77,7 @@ document.addEventListener(
   true,
 )
 
+watchKeyboardLayout()
 setAppKeyFilter((event) => {
   if (swallow || prefixWaiting()) return true
   if (startsPrefix(event)) return true
@@ -102,6 +104,7 @@ document.addEventListener(
     if (!run) return
     event.preventDefault()
     event.stopPropagation()
+    dropComposition(event)
     run()
   },
   true,

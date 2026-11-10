@@ -88,8 +88,18 @@ Decision 1.29 (2026-11-09): each tab can open a shell under its panes for a mome
 the session's folder) without a terminal tab piling up.
 
 - **`Ctrl+`` ` `` toggles it** for the selected tab (by `event.code`, so it is the key left of `1`
-  on any layout); the window action is `{ type: 'toggleDrawer', pane }`, which the New menu can
-  call too. The key never reaches a terminal.
+  on any layout), and also on the key the active layout types `` ` `` with when the event leaves
+  it unnamed. On Spanish that key is a dead key right of `P`, and on the human's desktop (Wayland
+  with ibus, 2026-11-10) its keydown is key `Process`, keyCode 229, and starts a composition; key
+  `Dead` comes only on the keyup. It is found through Chromium's keyboard layout map
+  (`src/renderer/keyboard-layout.ts`), which gives `` ` `` for that key. The map is read again on
+  focus and whenever Ctrl goes down, since it follows the layout of the last key event. Only an
+  unnamed key (`Process` or `Dead`) is matched this way, so US `Ctrl+[` (the terminal's Esc,
+  arriving named `[`) stays out even when the map is stale after a layout switch. The composition
+  the shortcut's key starts is kept from the terminal and ended by taking the focus off its element
+  and back, so no `` ` `` lands there and the next vowel is not accented. The window action is
+  `{ type: 'toggleDrawer', pane }`, which the New menu can call too. The key never reaches a
+  terminal.
 - **Its folder** is chosen once, when its shell starts (`drawerFolder` in `src/core/drawers.ts`):
   the focused agent pane's folder, else another agent of the tab, else the tab's shell, else a file
   tab's folder, else `HOME`. A chat tab's drawer starts in `HOME`.

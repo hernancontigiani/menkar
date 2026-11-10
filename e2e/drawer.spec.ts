@@ -169,3 +169,63 @@ for (const style of ['tui', 'classic'] as const) {
     }
   })
 }
+
+// On a layout where ` is a dead key (Spanish, right of P) the shortcut is found through the layout
+// map, and with ibus the keydown is "Process" and starts a composition: replayed here as observed
+// on the human's desktop, the map put to Spanish's, since the test display's layout is US.
+test("Ctrl+` by the layout: Spanish's dead ` (Process, then a composition) toggles the shell and types nothing; US Ctrl+[ does not", async () => {
+  const { launched, page } = await launch()
+  try {
+    const read = await page.evaluate(async () => {
+      const keyboard = (
+        navigator as unknown as {
+          keyboard: { getLayoutMap(): Promise<{ get(code: string): string | undefined }> }
+        }
+      ).keyboard
+      const map = await keyboard.getLayoutMap()
+      return [map.get('Backquote'), map.get('BracketLeft')]
+    })
+    expect(read).toEqual(['`', '['])
+    await page.keyboard.press('Control+BracketLeft')
+    await page.waitForTimeout(300)
+    await expect(drawer(page)).toHaveCount(0)
+
+    await page.evaluate(() => {
+      Object.defineProperty(
+        (navigator as unknown as { keyboard: object }).keyboard,
+        'getLayoutMap',
+        {
+          value: async () =>
+            new Map([
+              ['BracketLeft', '`'],
+              ['Backquote', 'º'],
+            ]),
+        },
+      )
+    })
+    const cdp = await page.context().newCDPSession(page)
+    const key = (type: 'rawKeyDown' | 'keyUp', k: string, code: string, vk: number) =>
+      cdp.send('Input.dispatchKeyEvent', {
+        type,
+        key: k,
+        code,
+        windowsVirtualKeyCode: vk,
+        modifiers: 2,
+      })
+    await key('rawKeyDown', 'Control', 'ControlLeft', 17)
+    await page.waitForTimeout(100)
+    await key('rawKeyDown', 'Process', 'BracketLeft', 229)
+    await cdp.send('Input.imeSetComposition', { text: '`', selectionStart: 1, selectionEnd: 1 })
+    await key('keyUp', 'Dead', 'BracketLeft', 219)
+    await key('keyUp', 'Control', 'ControlLeft', 17)
+    await expect(drawer(page)).toBeVisible()
+    await expect.poll(() => focusIn(page)).toBe('drawer')
+    await expect.poll(() => drawerText(page)).toContain('$')
+    await page.keyboard.type('echo a')
+    await expect.poll(() => drawerText(page)).toContain('echo a')
+    expect(await drawerText(page)).not.toContain('`')
+    expect(await agentPane(page).locator('.xterm-rows').textContent()).not.toContain('`')
+  } finally {
+    await launched.close()
+  }
+})

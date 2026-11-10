@@ -73,3 +73,10 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   description and focus colours) rather than derived, and the editor takes its syntax colours
   (below).
   theme.
+
+## The drawer
+
+> Left on 2026-11-10: Ctrl+` also found on the layout's dead-key ` (Spanish, right of P), through the keyboard layout map.
+- **`Ctrl+`` ` `` toggles it** for the selected tab (by `event.code`, so it is the key left of `1`
+  on any layout); the window action is `{ type: 'toggleDrawer', pane }`, which the New menu can
+  call too. The key never reaches a terminal.

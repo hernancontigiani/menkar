@@ -44,7 +44,7 @@ export function setAppKeyFilter(filter: AppKeyFilter): void {
   isAppKey = filter
 }
 
-// Without a theme (Classic with Default) the terminal keeps colors close to VTE's defaults.
+// Without a palette (Terminal colors set to Neutral) the terminal keeps colors close to VTE's.
 function themeOf(look: Look | undefined): ITheme {
   const palette = look?.terminal
   if (!palette)

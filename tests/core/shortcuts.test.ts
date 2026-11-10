@@ -13,7 +13,19 @@ import {
   shownChords,
 } from '../../src/core/shortcuts'
 
+const ctrlOn = (key: string, code: string, layout?: string): KeyEventLike => ({
+  key,
+  code,
+  ctrlKey: true,
+  shiftKey: false,
+  altKey: false,
+  metaKey: false,
+  layout,
+})
+
 const press = (chord: Chord): KeyEventLike => {
+  if (chord.char === '`')
+    return { ...ctrlOn('Process', 'BracketLeft'), layout: '`', ctrlKey: chord.ctrl ?? false }
   const key = chord.key ?? (chord.code === 'Backquote' ? '`' : '')
   return {
     key: chord.ctrl && chord.shift && key.length === 1 ? key.toUpperCase() : key,
@@ -99,4 +111,24 @@ test('a switcher key works with Ctrl+Shift still held, as in the held project sw
   expect(matchShortcut('switcher', held('Escape'))).toBe('switcherClose')
   expect(matchShortcut('switcher', held('ArrowDown'))).toBe('switcherMove')
   expect(matchShortcut('chat', { ...held('Enter'), ctrlKey: false })).toBeNull()
+})
+
+test('Ctrl+` toggles the shell on Spanish too, where ` is a dead key right of P; Ctrl+[ on US stays the terminal Esc', () => {
+  // Spanish with ibus, as observed: keydown "Process", the layout map's "`"; without ibus, "Dead".
+  expect(matchShortcut('window', ctrlOn('Process', 'BracketLeft', '`'))).toBe('drawer')
+  expect(matchShortcut('window', ctrlOn('Dead', 'BracketLeft', '`'))).toBe('drawer')
+  // Spanish º, top left (keydown "Process" too): the key's place is US `.
+  expect(matchShortcut('window', ctrlOn('Process', 'Backquote', 'º'))).toBe('drawer')
+  // US, Ctrl+`.
+  expect(matchShortcut('window', ctrlOn('`', 'Backquote', '`'))).toBe('drawer')
+  // US Ctrl+[, also with a layout map still from Spanish after a switch.
+  expect(matchShortcut('window', ctrlOn('[', 'BracketLeft', '['))).toBeNull()
+  expect(matchShortcut('window', ctrlOn('[', 'BracketLeft', '`'))).toBeNull()
+  // Another dead key there (´) is not the shell's, nor a key with no layout read yet.
+  expect(matchShortcut('window', ctrlOn('Dead', 'BracketLeft', '´'))).toBeNull()
+  expect(matchShortcut('window', ctrlOn('Process', 'BracketLeft'))).toBeNull()
+  // Without Ctrl the dead key is typing.
+  expect(
+    matchShortcut('window', { ...ctrlOn('Process', 'BracketLeft', '`'), ctrlKey: false }),
+  ).toBeNull()
 })
