@@ -90,6 +90,22 @@ session or a fork) waits until the tab closes, then one last check. An unknown i
 session) takes the newest session of that folder modified since the tab started, and gives up after
 120 tries. It then joins the project the tab was started in (`joinTarget`).
 
+## The start (plan 25, 2026-11-10)
+
+- **The window does not wait for the first scan** of the agents' folders. The workspace starts
+  from `state.json` and `projects.json` alone. The sessions service announces no list until its
+  first scan ends, so an empty list never reads as "no sessions". When the scan ends, a saved tab
+  whose sessions are all gone is dropped, and the shown project's saved tabs start (decision 1.32).
+  Measured over a 2 GB history: the first window went from about 6.3 s to 0.5 s.
+- **While that scan runs** (`sessionsLoading` in the window's state), the content shows the logo
+  star turning, and the session list a small turning star with "Loading sessions…". Both appear
+  only after 300 ms, so a fast start never flashes them, and the star stays still with reduced
+  motion. A failed first scan ends the wait all the same.
+- **The start's timings** (`src/main/startup.ts`): each phase is an info line as it ends, and one
+  `start timings` notice line, written at the default level, lists every phase in ms when the
+  first window shows, so a slow start names its slow phase in the user's own log. A
+  `first sessions scan` notice line says when the scan ended and how many sessions it found.
+
 ## Windows and quitting
 
 - Every window is a `BrowserWindow` on the same workspace. A project is in one window at most
@@ -124,7 +140,7 @@ session) takes the newest session of that folder modified since the tab started,
 - **The header's text buttons** (decision 1.34, 2026-11-10), each an icon with its word, with a resting
   fill and a 1 px edge so text among icons reads as a button; the icon buttons stay flat:
   - "+ New ▾", the one menu for starting things (decision 1.30): New session, Terminal in this tab,
-    Open file…, Open session file…, New window, each with its key where it has one. The agent is
+    Open file…, New window, each with its key. The agent is
     picked on Add session → New, which preselects the agent last started while it is installed
     (`last_agent` in `state.json`, decision 1.31).
   - "⚙ Settings" in the sidebar header opens the Settings window (`openSettings`), with no menu.

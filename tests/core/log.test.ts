@@ -35,14 +35,15 @@ describe('log', () => {
     )
   })
 
-  test('warnings and errors are written by default; info and debug only when MENKAR_LOG asks', () => {
+  test('notices, warnings and errors are written by default; info and debug only when MENKAR_LOG asks', () => {
     vi.spyOn(process.stderr, 'write').mockReturnValue(true)
     const lines = capture()
     log.debug('d')
     log.info('i')
+    log.notice('n')
     log.warn('w')
     log.error('e')
-    expect(lines.map((l) => l.split(' ')[1])).toEqual(['WARNING', 'ERROR'])
+    expect(lines.map((l) => l.split(' ')[1])).toEqual(['NOTICE', 'WARNING', 'ERROR'])
     vi.stubEnv('MENKAR_LOG', 'debug')
     log.debug('d')
     expect(lines.at(-1)).toMatch(/ DEBUG d$/)

@@ -32,3 +32,8 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 > Replaced 2026-11-10: plan 24 was closed, and its lines name decision 1.34 instead. It was:
 - **The header's text buttons** (plan 24, 2026-11-10), each an icon with its word, with a resting
   (plan 24, 2026-11-10).
+
+## The frame (2026-11-09)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+    Open file…, Open session file…, New window, each with its key where it has one. The agent is

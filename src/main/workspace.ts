@@ -12,7 +12,6 @@ import { DrawerRegistry, drawerFolder } from '../core/drawers'
 import { checkTyped, expandInput } from '../core/files/check'
 import { type Key, t } from '../core/i18n'
 import { log } from '../core/log'
-import { agentPaths } from '../core/paths'
 import {
   closeTab as closeLayoutTab,
   holder,
@@ -52,14 +51,7 @@ import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
-import { applyNameLines, emptyNames } from '../core/sessions/names'
-import {
-  details,
-  exportMarkdown,
-  replayTurns,
-  safeFileName,
-  type Turn,
-} from '../core/sessions/transcript'
+import { details, exportMarkdown, safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
 import type {
@@ -86,6 +78,7 @@ import {
 import { notifySeen, type PaneHandle, registerAgentPane } from './panes'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
 import { sessions } from './sessions'
+import { firstScanDone, startPhase, startShown } from './startup'
 import { appMessage, Terminal } from './terminal'
 import { sessionTokens } from './usage'
 import { openSettings, openUsage } from './windows'
@@ -132,7 +125,6 @@ let settings: Settings
 const panes = new Map<string, Pane>()
 const tabPanes = new Map<string, string[]>()
 const tabLabels = new Map<string, { title: string; tooltip: string }>()
-const tabReplays = new Map<string, readonly Turn[]>()
 // Chat tabs (plan 14): tab id → chat id.
 const tabChats = new Map<string, string>()
 const lastDirty = new Map<string, boolean>()
@@ -226,7 +218,6 @@ function tabView(tab: Tab): TabView {
     panes: paneViews,
     orientation,
     groupColor,
-    ...(tabReplays.has(tab.id) ? { replay: tabReplays.get(tab.id) ?? [] } : {}),
     ...(tab.kind === 'file'
       ? {
           file: {
@@ -341,6 +332,7 @@ function stateFor(windowId: string): WindowState | undefined {
     notices: currentNotices(),
     agents: installedAgents,
     maximized: filled(windows.get(windowId)),
+    sessionsLoading: sessionsLoading(),
   }
 }
 
@@ -420,6 +412,7 @@ function filePaths(): Set<string> {
 
 function changed(options: { projects?: boolean } = {}): void {
   releaseBuffersExcept(filePaths())
+  startShownTabs()
   push()
   if (options.projects) {
     clearTimeout(saveTimer)
@@ -431,6 +424,47 @@ function changed(options: { projects?: boolean } = {}): void {
     saveTimer = undefined
     saveProjectsNow()
   }, LAYOUT_SAVE_DELAY_MS)
+}
+
+// A project's saved session tabs start the first time its window shows it, not at boot; once
+// started they keep running when the window shows another project. A session tab with no panes
+// that is not being started is such a deferred tab.
+let firstScanFailed = false
+const sessionsLoading = () => !sessions.scanned && !firstScanFailed
+
+function startShownTabs(): void {
+  if (sessionsLoading()) return
+  for (const w of layout.windows) {
+    for (const tab of w.tabs) {
+      if (tab.kind !== 'session' || tab.project !== w.shown) continue
+      if (tabPanes.has(tab.id) || startingTabs.has(tab.id)) continue
+      holdStart(tab.id)
+      void (async () => {
+        try {
+          for (const id of tab.panes) await startPane(tab.id, resumeSpec(id))
+        } finally {
+          releaseStart(tab.id)
+        }
+        changed()
+      })()
+    }
+  }
+}
+
+// Once, after the first scan: a saved tab keeps only the sessions that still exist, and goes
+// when none does. Only tabs not started yet are looked at; a started one is the user's.
+function dropUnknownSessions(): void {
+  const known = new Set(sessionList.map((s) => s.id))
+  layout = {
+    windows: layout.windows.map((w) => ({
+      ...w,
+      tabs: w.tabs.flatMap((tab): Tab[] => {
+        if (tab.kind !== 'session' || tabPanes.has(tab.id) || startingTabs.has(tab.id)) return [tab]
+        const panesKnown = tab.panes.filter((id) => known.has(id))
+        return panesKnown.length > 0 ? [{ ...tab, panes: panesKnown }] : []
+      }),
+    })),
+  }
 }
 
 // ---------------------------------------------------------------- panes
@@ -445,7 +479,26 @@ interface PaneSpec {
   readonly remote?: string
 }
 
+// Tabs whose panes are being started: a start awaits before the tab has its panes, and a change
+// in between must not take the tab for a deferred one and start it twice.
+const startingTabs = new Map<string, number>()
+const holdStart = (tabId: string) => startingTabs.set(tabId, (startingTabs.get(tabId) ?? 0) + 1)
+const releaseStart = (tabId: string) => {
+  const left = (startingTabs.get(tabId) ?? 1) - 1
+  if (left > 0) startingTabs.set(tabId, left)
+  else startingTabs.delete(tabId)
+}
+
 async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
+  holdStart(tabId)
+  try {
+    await startPaneHeld(tabId, spec)
+  } finally {
+    releaseStart(tabId)
+  }
+}
+
+async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   // Running implies shown: a hidden member started from anywhere is back in its project's list.
   if (spec.sessionId) {
     const shownAgain = showMember(projects, spec.sessionId)
@@ -597,7 +650,6 @@ export function paneBuffer(paneId: string): { buffer: string; end: number } {
 function closeTab(tabId: string): void {
   const w = windowOfTab(tabId)
   if (!w) return
-  tabReplays.delete(tabId)
   const chat = tabChats.get(tabId)
   if (chat !== undefined) {
     tabChats.delete(tabId)
@@ -686,7 +738,10 @@ function createBrowserWindow(windowId: string): BrowserWindow {
     },
   })
   windows.set(windowId, window)
-  window.once('ready-to-show', () => window.show())
+  window.once('ready-to-show', () => {
+    startShown()
+    window.show()
+  })
   window.on('maximize', () => {
     lastMaximizeChange.set(windowId, now())
     push()
@@ -963,12 +1018,29 @@ export async function startWorkspace(): Promise<void> {
   const loaded = currentProjects()
   if (!loaded) throw new Error('projects were not loaded before the workspace started')
   projects = loaded
-  sessionList = await sessions.list()
+  // The window does not wait for the first scan of the agents' folders: the list fills in when it
+  // ends, and the shown project's saved tabs start then (`startShownTabs` waits for it).
+  sessionList = sessions.listNow()
+  void sessions.start().then(
+    () => {
+      sessionList = sessions.listNow()
+      dropUnknownSessions()
+      firstScanDone(sessionList.length)
+      changed()
+    },
+    // Logged where the scan is started; the window stops waiting for it all the same.
+    () => {
+      firstScanFailed = true
+      changed()
+    },
+  )
   settings = settingsOf(await sessions.currentState())
+  startPhase('state for the workspace')
   remoteIds = new Set(remoteControlList(await sessions.currentState()))
   installedAgents = []
   if (await findOnPath(AGENT_COMMANDS.claude)) installedAgents.push('claude')
   if (await findOnPath(AGENT_COMMANDS.cursor)) installedAgents.push('cursor')
+  startPhase('agents found')
   sessions.onChange((list) => {
     sessionList = list
     void sessions.currentState().then((state) => {
@@ -977,18 +1049,7 @@ export async function startWorkspace(): Promise<void> {
       push()
     })
   })
-  const known = new Set(sessionList.map((s) => s.id))
-  const reopened = reopen(projects, { reopenTabs: settings.reopen_tabs, isFile, newId })
-  layout = {
-    windows: reopened.windows.map((w) => ({
-      ...w,
-      tabs: w.tabs.flatMap((tab): Tab[] => {
-        if (tab.kind !== 'session') return [tab]
-        const panesKnown = tab.panes.filter((id) => known.has(id))
-        return panesKnown.length > 0 ? [{ ...tab, panes: panesKnown }] : []
-      }),
-    })),
-  }
+  layout = reopen(projects, { reopenTabs: settings.reopen_tabs, isFile, newId })
   // Files are checked off the UI path first, keeping their order; one that fails is dropped.
   for (const w of layout.windows) {
     const kept: Tab[] = []
@@ -1013,12 +1074,7 @@ export async function startWorkspace(): Promise<void> {
     }
     if (markChanged) push()
   })
-  for (const w of layout.windows) {
-    createBrowserWindow(w.id)
-    for (const tab of w.tabs)
-      if (tab.kind === 'session')
-        for (const id of tab.panes) await startPane(tab.id, resumeSpec(id))
-  }
+  for (const w of layout.windows) createBrowserWindow(w.id)
   changed()
 }
 
@@ -1521,39 +1577,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       await sessions.refresh()
       return {}
     }
-    case 'replaySession': {
-      const info = sessionInfo(action.session)
-      if (!info) return {}
-      openReplay(windowId, info.name, await readFile(info.file, 'utf8'), info.agent)
-      return {}
-    }
-    case 'openSessionFile': {
-      const claudeDir = dirname(agentPaths().claudeProjects)
-      const chosen = await dialog.showOpenDialog({
-        title: t('replay.chooserTitle'),
-        ...(statSafeDir(claudeDir) ? { defaultPath: claudeDir } : {}),
-        properties: ['openFile'],
-        filters: [{ name: 'JSONL', extensions: ['jsonl'] }],
-      })
-      const path = chosen.filePaths[0]
-      if (chosen.canceled || !path) return {}
-      let text: string
-      try {
-        text = await readFile(path, 'utf8')
-      } catch (error) {
-        // Gone, or unreadable, between the chooser and the read.
-        log.warn('a chosen transcript could not be read', { path, error })
-        return { refusal: 'replay.unreadable' }
-      }
-      const title = applyNameLines(emptyNames(), text.endsWith('\n') ? text : `${text}\n`)
-      openReplay(
-        windowId,
-        title.customTitle ?? title.aiTitle ?? basename(path, '.jsonl'),
-        text,
-        agentOfFile(text, path),
-      )
-      return {}
-    }
     case 'checkFolder':
       return { value: statSafeDir(action.folder) ? action.folder : null }
     case 'pickSession': {
@@ -1662,34 +1685,6 @@ function listTabs(): TabEntry[] {
 function rank(windowId: string): number {
   const i = focusOrder.indexOf(windowId)
   return i < 0 ? focusOrder.length : i
-}
-
-// The first non-empty line decides: a top-level `type` is Claude's, a `role` Cursor's; otherwise
-// a path under .cursor is Cursor's.
-function agentOfFile(text: string, path: string): 'claude' | 'cursor' {
-  const first = text.split('\n').find((line) => line.trim())
-  try {
-    const value: unknown = first ? JSON.parse(first) : null
-    if (typeof value === 'object' && value !== null) {
-      if ('type' in value) return 'claude'
-      if ('role' in value) return 'cursor'
-    }
-  } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error
-  }
-  return path.includes('.cursor') ? 'cursor' : 'claude'
-}
-
-// A replay tab: the transcript read once, whole, as turns; never saved, never reopened.
-function openReplay(
-  windowId: string,
-  name: string,
-  text: string,
-  agent: 'claude' | 'cursor',
-): void {
-  const tab = addTransientTab(windowId, t('replay.title', { name }), name)
-  tabReplays.set(tab, replayTurns(text, agent))
-  changed()
 }
 
 function setOrientation(tabId: string, orientation: 'horizontal' | 'vertical'): void {

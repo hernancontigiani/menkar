@@ -113,6 +113,46 @@ describe('the sessions service', () => {
     }
   })
 
+  test('plan 25: state.json is ready before the first scan ends, and no list is announced until it does', async () => {
+    const root = join(process.env.MENKAR_TEST_ROOT ?? '', 'svc-slow')
+    const folder = join(root, 'claude', '-a')
+    await mkdir(folder, { recursive: true })
+    await writeFile(join(folder, `${ID}.jsonl`), jsonl([user('preview text')]))
+    await mkdir(join(statePath(), '..'), { recursive: true })
+    await writeFile(statePath(), JSON.stringify({ settings: { a: 1 } }))
+    let release: () => void = () => {}
+    const svc = new SessionsService({
+      roots: () => ({ claudeProjects: join(root, 'claude'), cursorProjects: join(root, 'cursor') }),
+      // The scan waits here until the test lets it go.
+      installed: () =>
+        new Promise((resolve) => {
+          release = () => resolve({ claude: true, cursor: false })
+        }),
+      debounceMs: 50,
+    })
+    const announced: (readonly SessionInfo[])[] = []
+    svc.onChange((list) => announced.push(list))
+    try {
+      const scan = svc.start()
+      await svc.currentState()
+      await svc.setHidden([ID], true)
+      expect(JSON.parse(await readFile(statePath(), 'utf8'))).toMatchObject({
+        settings: { a: 1 },
+        hidden: [ID],
+      })
+      expect(svc.scanned).toBe(false)
+      expect(svc.listNow()).toEqual([])
+      expect(announced).toEqual([])
+      release()
+      await scan
+      expect(svc.scanned).toBe(true)
+      expect(svc.listNow().map((x) => x.id)).toEqual([ID])
+      expect(announced.at(-1)?.map((x) => x.id)).toEqual([ID])
+    } finally {
+      svc.stop()
+    }
+  })
+
   test('a projects directory that appears after start is found without a restart', async () => {
     const root = join(process.env.MENKAR_TEST_ROOT ?? '', 'svc-late')
     await mkdir(root, { recursive: true })

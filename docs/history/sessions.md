@@ -20,3 +20,8 @@
 > Left on 2026-11-10: the phone left the tab (plan 23, decision 1.19).
     phone is the same outline in the row (after the state dot) and on the tab (before its name),
     in the dimmed text color (decision 1.19).
+
+## On screen
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- **Details, export and replay** read the whole transcript in main and use

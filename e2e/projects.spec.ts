@@ -637,12 +637,11 @@ test('PRJ-48 a saved vertical tab reopens with the first session above the secon
   }
 })
 
-test('PRJ-54 a fork tab and a replay tab open at close are not saved', async () => {
+test('PRJ-54 a fork tab open at close is not saved', async () => {
   const { launched, page, root } = await client({ tabs: [['long']] })
   try {
     await act(page, { type: 'forkSession', session: CLIENT.login })
-    await act(page, { type: 'replaySession', session: CLIENT.api })
-    await expect(page.locator('.tab')).toHaveCount(3)
+    await expect(page.locator('.tab')).toHaveCount(2)
     await page.waitForTimeout(1000)
     const saved = JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8'))
     expect(saved.windows).toEqual([

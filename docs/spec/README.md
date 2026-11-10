@@ -40,7 +40,6 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F6 | Add session → New: folder (recent folders, search, "Another folder…"), required name, agent, Remote control switch, Start session; joins the project once its transcript exists | sessions | R · S 1.16 · 1.17 |
 | F7 | Session details: messages, models, tokens, recent messages peek, MCP servers, usage | sessions | R |
 | F8 | Export a session as Markdown | sessions | R |
-| F9 | Replay a session in a tab (with "Show all") | sessions | R |
 | F10 | Copy session ID; reveal transcript in the file manager | sessions | R |
 | F11 | Hide / unhide a session; "Show hidden sessions" as a switch in Add session → Existing | sessions | R · S 1.17 |
 | F12 | Move a transcript to the trash; delete permanently — each confirmed; the only writes under `~/.claude` | sessions | R · S 1.10 |
@@ -65,7 +64,7 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F31 | Blocked count badge on the project dropdown ("Sessions waiting for you"), spanning every window | agent-state | S 1.18 · C |
 | F32 | Desktop notifications and sound for an agent not being watched; clicking one focuses the session | agent-state | R · C |
 | F33 | Quick switcher (`Ctrl+Shift+K`) over the current project | agent-state | R · S 1.17 |
-| F34 | Go to agent (`Ctrl+B g`): every tab of every window (sessions, files, chats, replays), filterable by state | agent-state | R · S 1.17 |
+| F34 | Go to agent (`Ctrl+B g`): every tab of every window (sessions, files, chats), filterable by state | agent-state | R · S 1.17 |
 | F35 | Context ring by each session and on each tab: green, yellow from 60 %, red from 80 %, exact figure on hover; estimated from the transcript when there is no statusline report | context | R · D context |
 | F36 | The app's statusline passed with `--settings` to the sessions it starts | context | D context |
 | F37 | Integrations page: the status line in every Claude session, off by default, removable, the user's own status line kept | context | R · D context · S 1.12 |
@@ -79,7 +78,6 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F45 | File tabs: open from the `+` menu, `Ctrl+Shift+O`, `open` CLI; syntax colors, line numbers, `Ctrl+S` | files | R · D files · S 1.24 |
 | F46 | Markdown rendered in a read-only second tab (`Ctrl+Shift+V`, "Preview") | files | R · D files |
 | F47 | A file changed or deleted on disk: Reload / Keep mine; one buffer shared across projects; `~/.claude/` opens read only; unsaved files asked on close | files | R · D files · C |
-| F48 | Open session file… (New ▾): a `*.jsonl` transcript chosen from disk opens as a read-only replay tab | files | C |
 | F49 | Remote Control per session: New's switch, the row's and the tab's menu, `--remote-control=<name>`, phone icon on the row | remote-control | R · S 1.26 |
 | F50 | Native streaming chat tabs with permission cards (Allow once / Always allow / Deny); Continue in chat (Cursor: ask, trusted) | chat | R · S 1.17 · S 1.30 |
 | F51 | The question card over the terminal for Claude's AskUserQuestion — **not carried over** (Menkar decision 1.7); listed in `chat.md` only | chat | C · Menkar 1.7 |
@@ -165,7 +163,6 @@ K31 (go to tab N) and K38–K39.
 
 | # | Menu | Item | Action | Area |
 |---|---|---|---|---|
-| M1 | New ▾ | Open session file… (after Open file…) | `open-session-file` | files |
 | M2 | Add session → Existing (a switch, not a menu) | Show hidden sessions | `show-hidden` | sessions |
 | M3 | Settings (a section, not a menu) | MCP servers | `mcp-servers` | chat |
 | M4 | Header (a button, not a menu) | Usage | `usage` | usage |
@@ -190,7 +187,6 @@ K31 (go to tab N) and K38–K39.
 | M25 | Session row › Group | New group… | `new-group` | projects |
 | M26 | Session row | Rename… | `rename-session` | sessions |
 | M27 | Session row | Details… | `session-details` | sessions |
-| M28 | Session row | Replay… | `replay-session` | sessions |
 | M29 | Session row | Copy session ID | `copy-session-id` | sessions |
 | M30 | Session row | Export as Markdown… | `export-session` | sessions |
 | M31 | Session row | Reveal transcript | `reveal-transcript` | sessions |
@@ -201,7 +197,6 @@ K31 (go to tab N) and K38–K39.
 | M36 | History row | Continue in chat / Continue in chat ({mode}) — one per chat variant | `resume-chat` | chat |
 | M37 | History row | Rename… | `rename-session` | sessions |
 | M38 | History row | Details… | `session-details` | sessions |
-| M39 | History row | Replay… | `replay-session` | sessions |
 | M40 | History row | Copy session ID | `copy-session-id` | sessions |
 | M41 | History row | Export as Markdown… | `export-session` | sessions |
 | M42 | History row | Reveal transcript | `reveal-transcript` | sessions |
@@ -266,6 +261,8 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
 - No main menu (decision 1.34, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
   Existing (Show hidden sessions), the header's Usage and ⚙ Settings buttons, and Settings'
   sections (MCP servers, About). Close all and Close other tabs are in a tab's menu.
+- No replay (decision 1.33, 2026-11-09): a session is not replayed in a tab (F9, M28, M39), and no
+  transcript is opened from disk (F48, M1). Details and export as Markdown stay.
 - One "New ▾" menu (1.30, 2026-11-09): New session, Terminal in this tab, Open file…, New window,
   each with its key. The advanced new session (M8), Continue last (M9) and New chat (M11) are gone;
   the agent is picked on Add session → New, where an agent that is not installed is greyed out. The

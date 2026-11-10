@@ -441,3 +441,28 @@ Measurable details:
 - **Unsaved-edits question**: a standard alert dialog; "Discard" in the destructive (red)
   appearance, "Save" suggested.
 - **Preview page**: the CSS and color table under Data contracts, in both themes.
+
+## docs/spec/files.md
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+# Files — file tabs, the editor, the Markdown preview, `open`, opening a session file
+
+## Files — file tabs, the editor, the Markdown preview, `open`, opening a session file
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+terminal with `menkar open`; and the main menu's "Open session file…", which replays a transcript
+chosen from disk. It specifies **F45**, **F46**, **F47**, **F48**, the keys **K3** (`Ctrl+Shift+O`),
+**K13** (`Ctrl+S`), **K14** (`Ctrl+Shift+V`), the menu items **M1** ("Open session file…") and
+**M10** ("Open file…"), the command `menkar open <file>…`, and the file tab's buttons "Reload",
+is saved with its project's layout and reopened is shared with `projects.md`; the replay tab itself
+is `sessions.md`'s.
+
+## `menkar open <file>…` (F45)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+### Open session file… (F48, M1)
+
+## Open session file… (F48, M1)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/files.md` describes how; `src/core/files/`, `src/main/files.ts` and `src/renderer/editor.ts`, `preview.ts`, `fileopen.ts` hold it.

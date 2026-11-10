@@ -536,7 +536,7 @@ test('SES-71 (decision 1.30) New ▾ holds its items with their keys, and each d
   try {
     await page.locator('#new-menu').click()
     const items = page.locator('.popover .menu-item')
-    await expect(items).toHaveCount(5)
+    await expect(items).toHaveCount(4)
     const read = await items.evaluateAll((ns) =>
       ns.map((n) => {
         const key = n.querySelector('.menu-shortcut')?.textContent ?? ''
@@ -547,7 +547,6 @@ test('SES-71 (decision 1.30) New ▾ holds its items with their keys, and each d
       ['New session', 'Ctrl+Shift+T'],
       ['Terminal in this tab', 'Ctrl+`'],
       ['Open file…', 'Ctrl+Shift+O'],
-      ['Open session file…', ''],
       ['New window', 'Ctrl+Shift+N'],
     ])
     for (const gone of ['advanced', 'Continue last', 'chat'])

@@ -5,7 +5,7 @@ import type { Key } from '../core/i18n'
 import type { SettingsSection } from '../core/preferences'
 import type { Notice, ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
-import type { Details, Turn } from '../core/sessions/transcript'
+import type { Details } from '../core/sessions/transcript'
 import type { Settings } from '../core/settings'
 
 export type PaneAgent = 'claude' | 'cursor' | 'shell'
@@ -27,8 +27,6 @@ export interface TabView {
   readonly orientation: 'horizontal' | 'vertical'
   // The group's color when every session in the tab is in that one group.
   readonly groupColor: string | null
-  // A replay tab's turns (read once, whole).
-  readonly replay?: readonly Turn[]
   // A file tab's resolved path, whether it is the Markdown preview, and whether an editor tab's
   // buffer has unsaved edits.
   readonly file?: { readonly path: string; readonly preview: boolean; readonly unsaved: boolean }
@@ -65,6 +63,8 @@ export interface WindowState {
   readonly ghostty: boolean
   // Maximized or full screen: the window's edge is the screen's.
   readonly maximized: boolean
+  // The first scan of the agents' folders has not ended: the list and the saved tabs are coming.
+  readonly sessionsLoading: boolean
 }
 
 export type Action =
@@ -155,8 +155,6 @@ export type Action =
   | { readonly type: 'revealTranscript'; readonly session: string }
   | { readonly type: 'trashSession'; readonly session: string }
   | { readonly type: 'deleteSession'; readonly session: string }
-  | { readonly type: 'replaySession'; readonly session: string }
-  | { readonly type: 'openSessionFile' }
   | { readonly type: 'revealTab'; readonly tab: string }
   | {
       readonly type: 'titleBar'

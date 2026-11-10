@@ -805,6 +805,45 @@ html.classic .blocked-pill {
   width: 96px;
   height: 96px;
 }
+/* While the first scan runs: the star turns, shown only once the wait passes 300 ms, so a fast
+   start never flashes it; still with reduced motion. */
+.turning {
+  opacity: 0;
+  animation: turning-appear 0s linear 300ms forwards;
+}
+.turning svg {
+  animation: turning-star 2.4s linear infinite;
+}
+@keyframes turning-appear {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes turning-star {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turning svg {
+    animation: none;
+  }
+}
+.sessions-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 0;
+}
+.sessions-loading .turning-star {
+  display: inline-flex;
+  line-height: 0;
+}
+.sessions-loading .turning-star svg {
+  width: 16px;
+  height: 16px;
+}
 #sidebar .logo {
   opacity: 1;
   color: var(--overlay0);
@@ -914,7 +953,7 @@ html.classic .drawer-hide {
   min-width: 0;
 }
 
-/* ---------------------------------------------------------------- add session, details, replay */
+/* ---------------------------------------------------------------- add session, details */
 .dialog.sheet.add-session {
   width: 560px;
   max-width: 560px;
@@ -1097,26 +1136,6 @@ html.classic .drawer-hide {
   font-weight: 700;
   margin-top: 8px;
 }
-.replay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-}
-.replay-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-}
-.replay-turns {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .bubble {
   max-width: 64ch;
   padding: 8px 12px;
@@ -1133,12 +1152,6 @@ html.classic .drawer-hide {
 .bubble.assistant {
   align-self: flex-start;
   background: color-mix(in srgb, currentColor 8%, transparent);
-}
-.bubble.tool {
-  align-self: flex-start;
-  font-size: 0.85em;
-  opacity: 0.6;
-  padding: 2px 4px;
 }
 
 /* ---------------------------------------------------------------- file tabs */

@@ -5,11 +5,12 @@ shaped so and what was rejected.
 
 ## Logging — `src/core/log.ts`
 
-- `log.debug/info/warn/error(message, fields)`. The message is a fixed sentence; identifiers (a
+- `log.debug/info/notice/warn/error(message, fields)`. The message is a fixed sentence; identifiers (a
   path, a session id, the error) go in `fields`, so records can be grepped by message and read by
   field. One line per record: local time with its offset, level, message, `key=value` pairs.
-- Level from `MENKAR_LOG` (`debug`, `info`, `warning`, `error`), read on each record; `warning` by
-  default.
+- Level from `MENKAR_LOG` (`debug`, `info`, `notice`, `warning`, `error`), read on each record;
+  `notice` by default (2026-11-10). A notice is a normal event worth keeping, as syslog's: the start's
+  phase timings are one.
 - Records go to stderr, and main adds a file sink at `<cache>/menkar.log` that rotates to
   `menkar.log.1` past a size. The sink appends through a stream, so a record never waits on the
   disk; a failure of the file sink is reported on stderr, never thrown into the caller.

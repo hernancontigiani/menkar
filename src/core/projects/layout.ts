@@ -12,7 +12,7 @@ export const MAX_PANES = 2
 
 // A tab belongs to the project its window showed when it opened. A session tab's panes are the
 // sessions that joined a project, primary first; a new session not joined yet, a fork before
-// joining, chat and replay are transient: never saved, never reopened.
+// joining and chat are transient: never saved, never reopened.
 export type Tab =
   | {
       readonly kind: 'session'

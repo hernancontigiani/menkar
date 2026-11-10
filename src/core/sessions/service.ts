@@ -149,7 +149,10 @@ export class SessionsService {
   #watchers = new Map<string, FSWatcher>()
   #discovered: DiscoveredSession[] = []
   #state: State | undefined
+  #stateLoaded: Promise<void> | undefined
   #first: Promise<void> | undefined
+  // No list is announced before the first scan ends: an empty one would read as "no sessions".
+  #scanned = false
   #stopped = false
 
   constructor(options: ServiceOptions) {
@@ -159,15 +162,32 @@ export class SessionsService {
 
   start(): Promise<void> {
     this.#first ??= (async () => {
-      this.#state = await loadState()
+      await this.#loadState()
       await this.#coalescer.now()
     })()
     return this.#first
   }
 
+  // state.json alone, without waiting for the scan of the agents' folders.
+  #loadState(): Promise<void> {
+    this.#stateLoaded ??= loadState().then((state) => {
+      this.#state = state
+    })
+    return this.#stateLoaded
+  }
+
   async list(): Promise<readonly SessionInfo[]> {
     await this.start()
     return this.#infos()
+  }
+
+  // What is known now: empty until the first scan ends (see `scanned`).
+  listNow(): readonly SessionInfo[] {
+    return this.#infos()
+  }
+
+  get scanned(): boolean {
+    return this.#scanned
   }
 
   onChange(listener: (list: readonly SessionInfo[]) => void): () => void {
@@ -187,14 +207,16 @@ export class SessionsService {
   // The one holder of state.json in memory: every writer (names, hidden, settings) goes through
   // here, so two of them never save from different copies.
   async updateState(change: (state: State) => State): Promise<void> {
-    await this.start()
+    void this.start()
+    await this.#loadState()
     this.#state = change(this.#state ?? (await loadState()))
     await saveState(this.#state)
     this.#emit()
   }
 
   async currentState(): Promise<State> {
-    await this.start()
+    void this.start()
+    await this.#loadState()
     return this.#state ?? (await loadState())
   }
 
@@ -211,6 +233,7 @@ export class SessionsService {
   }
 
   #emit(): void {
+    if (!this.#scanned) return
     const list = this.#infos()
     for (const listener of this.#listeners) listener(list)
   }
@@ -220,6 +243,7 @@ export class SessionsService {
     const roots = this.#options.roots()
     const installed = await (this.#options.installed ?? installedAgents)()
     this.#discovered = await this.#scanner.scan(roots, installed)
+    this.#scanned = true
     await this.#rewatch(roots)
     this.#emit()
   }

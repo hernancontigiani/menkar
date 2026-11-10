@@ -127,7 +127,7 @@ test('SES-36, SES-37, SES-38, TRM-1 New: the folders, Enter takes the first, an 
   }
 })
 
-test('SES-48-like details, SES-56-like replay from the history menu', async () => {
+test('SES-48-like details from the history menu', async () => {
   const launched = await launchApp({ prepare: threeSessions })
   const page = launched.window
   try {
@@ -137,12 +137,6 @@ test('SES-48-like details, SES-56-like replay from the history menu', async () =
     await page.locator('.menu-item', { hasText: 'Details…' }).click()
     await expect(page.locator('.details-body')).toContainText('1 user · 0 assistant')
     await page.locator('.details .responses button').click()
-    await page.locator('.history-row', { hasText: 'site' }).click({ button: 'right' })
-    await page.locator('.menu-item', { hasText: 'Replay…' }).click()
-    await page.keyboard.press('Escape')
-    await expect(page.locator('.tab.selected')).toHaveText(/Replay — site/)
-    await expect(page.locator('.replay .progress')).toHaveText('1 / 1')
-    await expect(page.locator('.bubble.user')).toHaveText('add auth')
   } finally {
     await launched.close()
   }

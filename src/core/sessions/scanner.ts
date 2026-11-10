@@ -53,6 +53,25 @@ const UUID_JSONL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const NEWLINE = 0x0a
 // Names are read in slices this size, so a first scan of a large transcript never holds it whole.
 const NAME_SLICE = 4 * 1024 * 1024
+const NAME_MARK = Buffer.from('-title"')
+
+// Only the lines of `chunk[0, complete)` that can be name lines, as text: decoding a whole
+// transcript to find them cost seconds on a large history, searching its bytes a fraction.
+// The same lines `applyNameLines` would look at, in the same order.
+export function nameLines(chunk: Buffer, complete: number): string {
+  const lines: string[] = []
+  let from = 0
+  while (from < complete) {
+    const hit = chunk.indexOf(NAME_MARK, from)
+    if (hit === -1 || hit >= complete) break
+    const start = chunk.lastIndexOf(10, hit) + 1
+    const newline = chunk.indexOf(10, hit)
+    const end = newline === -1 || newline > complete ? complete : newline
+    lines.push(chunk.toString('utf8', start, end))
+    from = end + 1
+  }
+  return lines.length > 0 ? `${lines.join('\n')}\n` : ''
+}
 
 interface Found {
   readonly agent: Agent
@@ -205,7 +224,7 @@ export class SessionScanner {
           state.offset = end
           continue
         }
-        state.names = applyNameLines(state.names, chunk.subarray(0, complete).toString('utf8'))
+        state.names = applyNameLines(state.names, nameLines(chunk, complete))
         state.offset += complete
       }
     }

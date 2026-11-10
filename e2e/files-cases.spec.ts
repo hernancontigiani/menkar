@@ -14,9 +14,6 @@ const act = (page: Page, action: Record<string, unknown>) =>
     action,
   ) as Promise<{ refusal?: string; value?: unknown }>
 
-const shown = (page: Page) =>
-  page.evaluate(() => (globalThis as unknown as PageGlobals).menkar.window.state())
-
 const dialog = (page: Page) => page.locator('.dialog')
 
 async function launch(
@@ -47,82 +44,6 @@ async function chooseFile(launched: LaunchedApp, path: string | null) {
 }
 const asked = (launched: LaunchedApp) =>
   launched.app.evaluate(() => (globalThis as unknown as { asked?: Record<string, unknown> }).asked)
-
-async function openSessionFile(page: Page) {
-  await page.locator('#new-menu').click()
-  await page.locator('.menu-item', { hasText: 'Open session file…' }).click()
-}
-
-test('FIL-36 Open session file: a chooser for transcripts in ~/.claude; a named transcript replays in a tab, not started, not a member, gone after a restart', async () => {
-  const LOGIN = '3f2a0000-0000-4000-8000-000000000036'
-  const { launched, page, home, root } = await launch((dirs) => clientWork(dirs))
-  try {
-    const file = join(home, 'elsewhere', `${LOGIN}.jsonl`)
-    mkdirSync(join(home, 'elsewhere'))
-    writeFileSync(
-      file,
-      `${JSON.stringify({ type: 'custom-title', customTitle: 'Login flow' })}\n${JSON.stringify({ type: 'user', message: { content: 'log me in' } })}\n`,
-    )
-    await chooseFile(launched, file)
-    await openSessionFile(page)
-    await expect(page.locator('.tab .title')).toHaveText('Replay — Login flow')
-    const options = await asked(launched)
-    expect(options?.title).toBe('Open session transcript')
-    expect(options?.defaultPath).toBe(join(home, '.claude'))
-    expect(options?.filters).toEqual([{ name: 'JSONL', extensions: ['jsonl'] }])
-    const state = await shown(page)
-    expect(state?.running).toEqual([])
-    expect(state?.projects[0]?.members).not.toContain(LOGIN)
-    expect(existsSync(join(home, 'claude-args.txt'))).toBe(false)
-    await page.waitForTimeout(800)
-    const saved = JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8'))
-    expect(saved.windows[0]?.tabs ?? {}).toEqual({})
-  } finally {
-    await launched.close()
-  }
-})
-
-test('FIL-37, FIL-38 an empty transcript replays as "Nothing to replay yet." with the controls off; one whose first line has a top-level role is read as Cursor', async () => {
-  const { launched, page, home } = await launch((dirs) => clientWork(dirs))
-  try {
-    const empty = join(home, 'empty.jsonl')
-    writeFileSync(empty, '')
-    await chooseFile(launched, empty)
-    await openSessionFile(page)
-    await expect(page.locator('.replay')).toContainText('Nothing to replay yet.')
-    await expect(dialog(page)).toHaveCount(0)
-    for (const title of ['Previous', 'Play', 'Next'])
-      await expect(page.locator(`.replay button[title="${title}"]`)).toBeDisabled()
-
-    const cursor = join(home, 'cursor-chat.jsonl')
-    writeFileSync(
-      cursor,
-      `${JSON.stringify({ role: 'user', message: { content: [{ type: 'text', text: '<user_query>hello cursor</user_query>' }] } })}\n`,
-    )
-    await chooseFile(launched, cursor)
-    await openSessionFile(page)
-    await expect(page.locator('.tab')).toHaveCount(2)
-    await expect(page.locator('.tab-body:not(.hidden) .replay')).toContainText('hello cursor')
-    await expect(page.locator('.tab-body:not(.hidden) .replay')).not.toContainText('<user_query>')
-  } finally {
-    await launched.close()
-  }
-})
-
-test('FIL-39 the chosen transcript is gone before it is read: "Could not open transcript" with Menkar’s sentence, and no tab', async () => {
-  const { launched, page, home } = await launch((dirs) => clientWork(dirs))
-  try {
-    await chooseFile(launched, join(home, 'vanished.jsonl'))
-    await openSessionFile(page)
-    await expect(dialog(page).locator('.heading')).toHaveText('Could not open transcript')
-    await expect(dialog(page).locator('.body')).toHaveText(
-      'The file couldn’t be read as a session transcript.',
-    )
-    await expect(page.locator('.tab')).toHaveCount(0)
-  } finally {
-    await launched.close()
-  }
-})
 
 const ELECTRON = resolve('node_modules/electron/dist/electron')
 function menkarOpen(args: string[], cwd: string, env: Readonly<Record<string, string>>) {

@@ -14,7 +14,6 @@ import { fileElement, forgetFilesExcept, setFileTheme } from './editor'
 import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
 import { applyLook } from './look'
-import { forgetReplaysExcept, replayElement } from './replay'
 import { infoItems } from './sessionmenus'
 import {
   applyTerminalLook,
@@ -354,6 +353,14 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   }
   const byId = sessionsById(s)
   const known = project.members.filter((id) => byId.has(id))
+  if (known.length === 0 && s.sessionsLoading) {
+    const star = el('span', { class: 'turning-star' })
+    star.innerHTML = STAR_SVG
+    list.replaceChildren(
+      el('div', { class: 'sessions-loading turning dim' }, star, t('sidebar.loading')),
+    )
+    return
+  }
   if (known.length === 0) {
     const add = el('button', { class: 'pill' }, t('sidebar.addSession'))
     add.addEventListener('click', () => openAddSession('existing'))
@@ -573,13 +580,6 @@ export function tabStateOf(paneIds: readonly string[]): DotState {
 }
 
 let showHidden = false
-// Set by the module that owns the item (replay opens a chosen transcript).
-export const mainMenuHandlers = {
-  openSessionFile: async () => {
-    const { refusal } = await act({ type: 'openSessionFile' })
-    if (refusal) await showError(t('replay.notOpened'), refusal)
-  },
-}
 export const showHiddenSessions = () => showHidden
 export function toggleShowHidden(): void {
   showHidden = !showHidden
@@ -723,6 +723,7 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
 }
 
 const tabBodies = new Map<string, HTMLElement>()
+let loadingContent: HTMLElement | undefined
 let emptyContent: HTMLElement | null = null
 
 // Only when they differ, in nodes or order.
@@ -743,7 +744,6 @@ function renderContent(s: WindowState): void {
     ]),
   )
   forgetPanesExcept(live)
-  forgetReplaysExcept(new Set(s.tabs.filter((tab) => tab.replay).map((tab) => tab.id)))
   forgetFilesExcept(new Set(s.tabs.filter((tab) => tab.file).map((tab) => tab.id)))
   forgetChatsExcept(new Set(s.tabs.filter((tab) => tab.chat !== undefined).map((tab) => tab.id)))
   // Patched in place: a node moved in the DOM loses a click in progress on it (a find bar's
@@ -760,7 +760,6 @@ function renderContent(s: WindowState): void {
     const zoomed = zoomedTabs.has(tab.id) && tab.panes.length === 2
     const focused = focusedPane.get(tab.id)
     const children: HTMLElement[] = []
-    if (tab.replay) children.push(replayElement(tab.id, tab.replay))
     if (tab.file) children.push(fileElement(tab))
     if (tab.chat !== undefined) children.push(chatElement(tab.id, tab.chat))
     for (const pane of tab.panes) {
@@ -780,7 +779,14 @@ function renderContent(s: WindowState): void {
     bodies.push(body)
   }
   for (const id of tabBodies.keys()) if (!s.tabs.some((tab) => tab.id === id)) tabBodies.delete(id)
-  if (!s.tabs.some((tab) => tab.id === s.selectedTab && tab.project === s.shown)) {
+  if (s.sessionsLoading && !s.tabs.some((tab) => tab.project === s.shown)) {
+    loadingContent ??= el(
+      'div',
+      { class: 'status-page turning', id: 'loading-content' },
+      logo('big'),
+    )
+    bodies.push(loadingContent)
+  } else if (!s.tabs.some((tab) => tab.id === s.selectedTab && tab.project === s.shown)) {
     emptyContent ??= el(
       'div',
       { class: 'status-page', id: 'empty-content' },
@@ -866,7 +872,7 @@ function drawerElement(drawer: NonNullable<TabView['drawer']>): HTMLElement {
 // The header's New ▾: what can be started, each with the key that does the same.
 function newMenuAt(anchor: { x: number; y: number }): void {
   const tab = selectedTabView()
-  const drawerOff = !tab || tab.replay !== undefined
+  const drawerOff = !tab
   showMenu(
     [
       { label: t('menu.newSession'), shortcut: 'Ctrl+Shift+T', run: () => openAddSession('new') },
@@ -877,7 +883,6 @@ function newMenuAt(anchor: { x: number; y: number }): void {
         ...(drawerOff ? { disabled: true, title: t('menu.drawerNone') } : {}),
       },
       { label: t('menu.openFile'), shortcut: 'Ctrl+Shift+O', run: () => openFileDialog() },
-      { label: t('menu.openSessionFile'), run: () => void mainMenuHandlers.openSessionFile() },
       { label: t('menu.newWindow'), shortcut: 'Ctrl+Shift+N', run: () => void newWindow() },
     ],
     anchor,
@@ -887,7 +892,7 @@ function newMenuAt(anchor: { x: number; y: number }): void {
 // Ctrl+` (and the New menu): shows or hides the selected tab's drawer.
 export function toggleDrawer(): void {
   const tab = selectedTabView()
-  if (!tab || tab.replay) return
+  if (!tab) return
   const pane = focusedPane.get(tab.id) ?? tab.panes[0]?.id
   void act({ type: 'toggleDrawer', ...(pane ? { pane } : {}) })
 }

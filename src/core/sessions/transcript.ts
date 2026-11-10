@@ -1,6 +1,6 @@
 import { type Agent, cursorUserText, type Line, messageText, parseLine, role } from './lines'
 
-// What the session menus read from a whole transcript: details, export, replay. Pure functions
+// What the session menus read from a whole transcript: details and export. Pure functions
 // over the file's text; the caller reads it off the UI path.
 
 const lines = (file: string) =>
@@ -141,82 +141,4 @@ export function exportMarkdown(name: string, id: string, file: string, agent: Ag
   }
   const bodyText = turns.length > 0 ? turns.join('\n\n') : '_No messages._'
   return `${header.join('\n')}\n\n---\n\n${bodyText}\n`
-}
-
-export interface Turn {
-  readonly kind: 'user' | 'assistant' | 'tool'
-  readonly text: string
-}
-
-const DROPPED = new Set(['No response requested.', '(no content)'])
-const basename = (path: unknown) => (typeof path === 'string' ? (path.split('/').pop() ?? '') : '')
-
-function chip(use: unknown): Turn {
-  const name = String(field(use, 'name') ?? '')
-  const input = field(use, 'input')
-  let summary = name
-  if (['Edit', 'Write', 'Read', 'NotebookEdit'].includes(name)) {
-    const file = basename(field(input, 'file_path') ?? field(input, 'notebook_path'))
-    if (file) summary = `${name} ${file}`
-  } else if (name === 'Bash' && typeof field(input, 'command') === 'string') {
-    summary = `Bash: ${String(field(input, 'command')).replace(/\s+/g, ' ').slice(0, 60)}`
-  } else if ((name === 'Grep' || name === 'Glob') && typeof field(input, 'pattern') === 'string') {
-    summary = `${name} ${String(field(input, 'pattern'))}`
-  } else if (name === 'Task' && typeof field(input, 'description') === 'string') {
-    summary = `Task: ${String(field(input, 'description'))}`
-  }
-  return { kind: 'tool', text: `🔧 ${summary}` }
-}
-
-function question(use: unknown): Turn {
-  const first = (field(field(use, 'input'), 'questions') as unknown[] | undefined)?.[0]
-  const header = field(first, 'header')
-  const options = (field(first, 'options') as unknown[] | undefined) ?? []
-  const text = [
-    `❓ ${typeof header === 'string' && header ? header : 'Question'}`,
-    String(field(first, 'question') ?? ''),
-    ...options.map((o) => `- ${String(field(o, 'label') ?? '')}`),
-  ]
-  return { kind: 'assistant', text: text.join('\n') }
-}
-
-export function replayTurns(file: string, agent: Agent): Turn[] {
-  const turns: Turn[] = []
-  for (const line of lines(file)) {
-    const userText = typed(line, agent)
-    if (userText !== null) {
-      turns.push({ kind: 'user', text: userText })
-      continue
-    }
-    if (role(line, agent) !== 'assistant') continue
-    if (agent === 'cursor') {
-      const text = messageText(line)?.trim()
-      if (text && !text.startsWith('<')) turns.push({ kind: 'assistant', text })
-      continue
-    }
-    const content = field(line.message, 'content')
-    const list =
-      typeof content === 'string'
-        ? [{ type: 'text', text: content }]
-        : Array.isArray(content)
-          ? content
-          : []
-    let bubble: string[] = []
-    const close = () => {
-      const text = bubble.join(' ').trim()
-      if (text && !DROPPED.has(text)) turns.push({ kind: 'assistant', text })
-      bubble = []
-    }
-    for (const block of list) {
-      const type = field(block, 'type')
-      if (type === 'text' && typeof field(block, 'text') === 'string')
-        bubble.push(String(field(block, 'text')))
-      else if (type === 'tool_use') {
-        close()
-        turns.push(field(block, 'name') === 'AskUserQuestion' ? question(block) : chip(block))
-      }
-    }
-    close()
-  }
-  return turns
 }

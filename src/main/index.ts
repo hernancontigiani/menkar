@@ -15,6 +15,7 @@ import { startContextReadings } from './context'
 import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
 import { broadcastSessions, sessions } from './sessions'
+import { startPhase } from './startup'
 import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
   deliverFiles,
@@ -70,6 +71,7 @@ if (process.platform === 'linux') app.setPath('userData', electronUserData())
 
 async function start(): Promise<void> {
   await app.whenReady()
+  startPhase('app ready')
   // No application menu anywhere: its bar sat between the frame and the header, and its
   // accelerators (reload, DevTools, close the window, quit) fired over the terminal's keys.
   Menu.setApplicationMenu(null)
@@ -78,6 +80,7 @@ async function start(): Promise<void> {
   language = chooseLanguage(chosen || undefined, app.getPreferredSystemLanguages())
   setStartLanguage(chosen)
   setLanguage(language)
+  startPhase('state read')
   try {
     const file = await openFileSink(logFile(), LOG_FILE_MAX_BYTES)
     addSink(file.sink)
@@ -85,7 +88,9 @@ async function start(): Promise<void> {
   } catch (error) {
     log.error('log file could not be opened; logging to stderr only', { path: logFile(), error })
   }
+  startPhase('log opened')
   await startProjects()
+  startPhase('projects read and import')
   broadcastSessions()
   void sessions
     .start()
@@ -104,8 +109,10 @@ async function start(): Promise<void> {
     stopAgentState()
     stopContext()
   })
+  startPhase('services started')
   await startWorkspace()
   openFirstWindowIfNone()
+  startPhase('windows created')
 }
 
 // From a terminal, the app runs as a copy of this process in a session of its own, with no tie to

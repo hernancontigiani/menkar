@@ -2,7 +2,8 @@ import { appendFile, chmod, mkdir, readFile, stat, writeFile } from 'node:fs/pro
 import { join } from 'node:path'
 import { beforeEach, describe, expect, test } from 'vitest'
 import { onPath } from '../../../src/core/sessions/installed'
-import { type ReadRange, SessionScanner } from '../../../src/core/sessions/scanner'
+import { applyNameLines, emptyNames } from '../../../src/core/sessions/names'
+import { nameLines, type ReadRange, SessionScanner } from '../../../src/core/sessions/scanner'
 import {
   aiTitle,
   assistant,
@@ -208,5 +209,33 @@ describe("the agents' files are read, never written", () => {
       files.map(async (f) => [await readFile(f), (await stat(f)).mtimeMs] as const),
     )
     expect(after).toEqual(before)
+  })
+})
+
+describe('name lines from bytes', () => {
+  test('searching the bytes finds the same names as decoding the whole slice, the last one winning', () => {
+    const text = jsonl([
+      user('mentions "ai-title" and "custom-title" in its text', { cwd: '/w' }),
+      customTitle('first'),
+      assistant('ok'),
+      aiTitle('an ai title'),
+      user('ünïcödé before the last name'),
+      customTitle('second'),
+      assistant('done'),
+    ])
+    const chunk = Buffer.from(text)
+    const whole = applyNameLines(emptyNames(), text)
+    expect(whole).toEqual({ customTitle: 'second', aiTitle: 'an ai title' })
+    expect(applyNameLines(emptyNames(), nameLines(chunk, chunk.length))).toEqual(whole)
+    // Only up to `complete`: a slice cut before the last name line does not see it.
+    const cut = text.indexOf('{"type":"custom-title","customTitle":"second"')
+    expect(cut).toBeGreaterThan(0)
+    expect(
+      applyNameLines(emptyNames(), nameLines(chunk, Buffer.byteLength(text.slice(0, cut)))),
+    ).toEqual({
+      customTitle: 'first',
+      aiTitle: 'an ai title',
+    })
+    expect(nameLines(Buffer.from(jsonl([user('plain'), assistant('no names')])), 30)).toBe('')
   })
 })

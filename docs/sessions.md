@@ -19,6 +19,9 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
     only the complete lines appended since, in 4 MiB slices so a first read never holds a large
     file whole. A last line without its newline waits for the next read. A file that shrank or
     was replaced (another inode) is read from the start. Lines without `-title"` are not parsed.
+    The marker is searched in each slice's bytes, and only the lines holding it are decoded
+    (2026-11-10). Decoding whole slices to split them into lines took 6.6 s of the first scan
+    over a 2 GB history; searching the bytes takes about 1 s.
   - **Head** (`head.ts`): within the first 50 lines and 256 KiB, the first `cwd` and the preview
     (the first typed user message, not starting with `<`, whitespace collapsed, 120 characters).
     It is read again until both are found or the window is full, then never again for that file.
@@ -74,7 +77,7 @@ is shown as written; none is `—`).
   across windows; a pane alone leaves a two-pane tab. New skips to the name step when the
   remembered folder still exists. A segmented picker at the top of New chooses the agent; one that
   is not on the PATH is greyed out and off, saying so, and Claude Code is chosen when installed.
-- **Details, export and replay** read the whole transcript in main and use
+- **Details and export** read the whole transcript in main and use
   `src/core/sessions/transcript.ts`. Details' Tokens row is left out until it can come from the
   usage module, as the spec asks.
 - **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only

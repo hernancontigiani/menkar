@@ -948,3 +948,134 @@ chips: font 0.85 em, opacity 0.6, padding 2 px 4 px, wrapping.
 
 **Confirmations**: an alert dialog with "Cancel" (the default) and the destructive button in the
 destructive color; error dialogs have a single "OK".
+
+## Sessions
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+project list's rows as far as the session goes, a session's details, export as Markdown, replay,
+
+## Discovery (F1)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## A session's name (F2)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Waiting and interrupted badges (F3)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## The history browser (F4)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## A history row
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## The history row menu (M33–M45)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Add session → Existing: Add, Added, Move from (F5)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Add session → New (F6, K1, K28, M7)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## The project list's rows (the session's part)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Session details (F7, M27, M38)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Export as Markdown (F8, M30, M41)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+### Replay (F9, M28, M39)
+
+## Replay (F9, M28, M39)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Copy session ID and reveal transcript (F10, M14, M29, M31, M40, M42)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Hide and show hidden (F11, M2, M43)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Move to trash and delete permanently (F12, M44, M45)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Select mode (F13)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## First start: importing agent-tablet's data (decision 1.8)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Paths
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Claude Code transcript lines
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Cursor transcript lines
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Formats shown
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Menkar's `state.json` (this area's keys)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## agent-tablet's `projects.json` (import source)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## agent-tablet's `state.json` (import source)
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Look
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.

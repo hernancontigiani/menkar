@@ -51,8 +51,8 @@ menkar` takes it all out.
 - **On the next start** the windows and their tabs come back (the `reopen_tabs` setting turns it off).
 - **Add session** (the sidebar's button) lists every session Claude Code and Cursor have on the
   machine, by folder, to add to this project or move from another; its **New** page starts a new
-  one. A session's menu also gives its details, a replay, Markdown export, and moving it to the
-  trash (asked first).
+  one. A session's menu also gives its details, Markdown export, and moving it to the trash (asked
+  first).
 - Keys: `F9` sidebar, `Ctrl+Shift+T` new session, `Ctrl+Shift+F` add a session, `Ctrl+Shift+K`
   jump to a session, `Ctrl+Shift+W` close tab, `Ctrl+Tab` / `Ctrl+PgDn` / `Ctrl+PgUp` move between
   tabs, `Ctrl+Shift+N` new window; in a terminal `Shift+Enter` a line break, `Ctrl+Shift+C` /

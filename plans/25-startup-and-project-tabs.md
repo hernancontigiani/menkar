@@ -117,3 +117,41 @@ misreading, so:
 3. Docs: `docs/projects.md` (when a project's tabs start) and the rule's new wording. The decision
    goes to `set`. Verify: `npm run ci` (nothing-lost) and a full ui-check, coordinated with `b2`'s
    plan 22 harness.
+
+## 4. Part 1 executed (`b1`, 2026-11-10)
+
+- **Measured** with `set`'s script (electron on a clean build in a `/tmp` copy, throwaway XDG
+  dirs, xvfb, warm disk, the human's real HOME, `~/.claude/projects` 2.0 GB in 74 transcripts).
+  The new `start timings` line, before:
+  `app_ready=52 state_read=6 log_opened=1 projects_read_and_import=6 services_started=4
+  session_list=5924 agents_found=1 windows_created=19 first_window_shown=75
+  sinceProcessStart=6137`. First window 6.2–6.4 s.
+- **Cause:** `startWorkspace` awaited `sessions.list()`, the first full scan. Every other phase
+  took under 80 ms.
+- **Fix 1, the window first:**
+  - The service loads `state.json` apart from the scan, and announces no list before the first
+    scan ends.
+  - The workspace starts from the state alone. The filter that drops a saved tab whose sessions
+    are gone runs once after the scan, and the deferred tab start of part 2 waits for that scan.
+  - After: `first_window_shown` at a `sinceProcessStart` of 416–469 ms; Playwright's first
+    window at 501–595 ms.
+- **The scan itself:**
+  - 74 transcripts were read whole in 4 MiB slices to find the name lines. A bench over the same
+    files: raw reads 0.67 s, a byte search for the marker 1.0 s, decoding and splitting into
+    lines 6.6 s.
+  - It is not subagent files: only top-level `<uuid>.jsonl` files are scanned.
+  - It is not the head or the tail: 256 KiB and 64 KiB per file.
+  - Sequential, but disk and CPU bound, so concurrency was not tried.
+- **Fix 2:** `nameLines()` searches each slice's bytes for `-title"` and decodes only the lines
+  holding it. A vitest shows it gives the same names as decoding the whole slice; it was seen red
+  against a `nameLines` that returns nothing. After: `first sessions scan sessions=74` at a
+  `sinceProcessStart` of 2320–2559 ms (it was about 6.1 s).
+- **What remains**, about 1.9 s: the raw read (0.67 s), the byte search, and JSON-parsing the
+  23 885 lines holding the marker (most are tool output that quotes it). Cheaper still would be
+  testing the line's `type` before a full parse, or reading files concurrently. Not done: both are
+  proposals.
+- **The loading state:** the turning star in the content and a small one with "Loading sessions…"
+  in the list, after 300 ms, still with reduced motion.
+- **The default log level is `notice`** (between info and warning, as in syslog), so the timings
+  line is written by default.
+

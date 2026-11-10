@@ -41,7 +41,7 @@ keeps how they are built and why.
 
 - A `Layout` is windows; a window shows one project and keeps the tabs of every project it holds,
   with the tab last selected in each. A tab is a session tab (1–2 joined sessions, an
-  orientation), a file tab, or a transient tab (a new session not joined yet, a fork, chat, replay)
+  orientation), a file tab, or a transient tab (a new session not joined yet, a fork, chat)
   that is never saved.
 - **The invariants are held by construction, not checked after.** `holder()` finds the one window
   that shows a project or has a tab of it. Every operation that places a session first looks for
@@ -57,6 +57,14 @@ keeps how they are built and why.
   while it is a member of that tab's project, and at most two per tab. A file tab is kept only if
   its path is still a regular file. With "Reopen tabs on start" off, or nothing usable left, the
   result is one window on `current` with no tabs.
+- **When a project's tabs start** (decision 1.32, 2026-11-09): every project's saved tabs are
+  reopened into its window, but only the shown project's sessions start at boot. Another project's
+  session tabs stay in the layout, saved, with no process, until the window first shows that
+  project; then they start, and they keep running when the window shows another project again.
+  In `src/main/workspace.ts`, a session tab with no panes that is not being started is deferred,
+  and `startShownTabs`, run on every change, starts the shown project's deferred tabs. Every way a
+  project becomes shown (switching, Go to agent, a new window, an opened session) goes through a
+  change, so none of them starts tabs itself. Closing a deferred tab only drops it.
 
 ## `projects.json` — `store.ts`
 

@@ -169,7 +169,6 @@ export async function exportSession(info: SessionInfo): Promise<void> {
 export function infoItems(info: SessionInfo) {
   return [
     { label: t('row.details'), run: () => void sessionDetails(info) },
-    { label: t('row.replay'), run: () => void act({ type: 'replaySession', session: info.id }) },
     { label: t('row.copyId'), run: () => void act({ type: 'copyText', text: info.id }) },
     { label: t('row.export'), run: () => void exportSession(info) },
     { label: t('row.reveal'), run: () => void act({ type: 'revealTranscript', session: info.id }) },

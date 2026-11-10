@@ -1,10 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import {
-  details,
-  exportMarkdown,
-  replayTurns,
-  safeFileName,
-} from '../../../src/core/sessions/transcript'
+import { details, exportMarkdown, safeFileName } from '../../../src/core/sessions/transcript'
 import {
   assistant,
   cursorAssistant,
@@ -80,54 +75,5 @@ describe('export as Markdown', () => {
     expect(exportMarkdown('x', 'abc', jsonl([toolResult()]), 'claude')).toBe(
       '# x\n\n- **Session:** `abc`\n\n---\n\n_No messages._\n',
     )
-  })
-})
-
-describe('replay', () => {
-  test('SES-56 a user message, then text, a Read chip, text', () => {
-    const file = jsonl([
-      user('look at c'),
-      assistant([text('Let me look.'), toolUse('Read', { file_path: '/a/b/c.py' }), text('Done.')]),
-    ])
-    expect(replayTurns(file, 'claude')).toEqual([
-      { kind: 'user', text: 'look at c' },
-      { kind: 'assistant', text: 'Let me look.' },
-      { kind: 'tool', text: '🔧 Read c.py' },
-      { kind: 'assistant', text: 'Done.' },
-    ])
-  })
-
-  test('SES-58 only injected lines and "(no content)" give nothing to replay', () => {
-    expect(
-      replayTurns(
-        jsonl([user('<command-name>/clear</command-name>'), assistant('(no content)')]),
-        'claude',
-      ),
-    ).toEqual([])
-  })
-
-  test('SES-59 a Bash chip shows the first 60 characters of the collapsed command', () => {
-    const command = `echo ${'x'.repeat(95)}`
-    expect(replayTurns(jsonl([assistant([toolUse('Bash', { command })])]), 'claude')).toEqual([
-      { kind: 'tool', text: `🔧 Bash: ${command.slice(0, 60)}` },
-    ])
-  })
-
-  test('an AskUserQuestion shows its first question and options', () => {
-    const ask = toolUse('AskUserQuestion', {
-      questions: [
-        { header: 'Scope', question: 'Which one?', options: [{ label: 'A' }, { label: 'B' }] },
-      ],
-    })
-    expect(replayTurns(jsonl([assistant([ask])]), 'claude')).toEqual([
-      { kind: 'assistant', text: '❓ Scope\nWhich one?\n- A\n- B' },
-    ])
-  })
-
-  test('Cursor turns strip the user query', () => {
-    expect(replayTurns(jsonl([cursorUser('do it'), cursorAssistant('ok')]), 'cursor')).toEqual([
-      { kind: 'user', text: 'do it' },
-      { kind: 'assistant', text: 'ok' },
-    ])
   })
 })

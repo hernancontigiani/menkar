@@ -41,3 +41,17 @@ header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's
 
 > Replaced 2026-11-10: plan 24 was closed, and its lines name decision 1.34 instead. It was:
 - No main menu (plan 24, 2026-11-10): its items moved to New ▾ (Open session file…), Add session →
+
+## Features
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+| F9 | Replay a session in a tab (with "Show all") | sessions | R |
+| F34 | Go to agent (`Ctrl+B g`): every tab of every window (sessions, files, chats, replays), filterable by state | agent-state | R · S 1.17 |
+| F48 | Open session file… (New ▾): a `*.jsonl` transcript chosen from disk opens as a read-only replay tab | files | C |
+
+## Menus
+
+> Left on 2026-11-10: replay removed from Menkar (decision 1.33).
+| M1 | New ▾ | Open session file… (after Open file…) | `open-session-file` | files |
+| M28 | Session row | Replay… | `replay-session` | sessions |
+| M39 | History row | Replay… | `replay-session` | sessions |

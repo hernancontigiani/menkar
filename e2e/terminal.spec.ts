@@ -558,7 +558,8 @@ test('TRM-57 (decision 1.20) a right click on a terminal: Copy (disabled with no
     const at = await word.boundingBox()
     if (!at) throw new Error('no word')
     await page.mouse.dblclick(at.x + at.width / 2, at.y + at.height / 2)
-    expect(await hasSelection(page)).toBe(true)
+    // xterm draws the selection on its next frame, which under load comes late.
+    await expect.poll(() => hasSelection(page)).toBe(true)
     await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2, { button: 'right' })
     await expect(page.locator('.popover')).toBeVisible()
     expect(await hasSelection(page)).toBe(true)

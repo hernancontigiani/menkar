@@ -3,15 +3,16 @@ import { mkdir, rename, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { localIso, now } from './clock'
 
-export type Level = 'debug' | 'info' | 'warning' | 'error'
+export type Level = 'debug' | 'info' | 'notice' | 'warning' | 'error'
 export type Fields = Readonly<Record<string, unknown>>
 export type Sink = (line: string) => void
 
-const RANK: Record<Level, number> = { debug: 10, info: 20, warning: 30, error: 40 }
+// syslog's order: a notice is a normal event worth keeping by default, below a warning.
+const RANK: Record<Level, number> = { debug: 10, info: 20, notice: 25, warning: 30, error: 40 }
 
 function threshold(): number {
   const value = process.env.MENKAR_LOG?.toLowerCase()
-  return value && value in RANK ? RANK[value as Level] : RANK.warning
+  return value && value in RANK ? RANK[value as Level] : RANK.notice
 }
 
 function stderrSink(line: string): void {
@@ -45,6 +46,7 @@ function emit(level: Level, message: string, fields: Fields): void {
 export const log = {
   debug: (message: string, fields: Fields = {}) => emit('debug', message, fields),
   info: (message: string, fields: Fields = {}) => emit('info', message, fields),
+  notice: (message: string, fields: Fields = {}) => emit('notice', message, fields),
   warn: (message: string, fields: Fields = {}) => emit('warning', message, fields),
   error: (message: string, fields: Fields = {}) => emit('error', message, fields),
 }

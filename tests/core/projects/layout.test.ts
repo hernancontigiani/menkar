@@ -285,7 +285,7 @@ describe('the saved layout', () => {
     ])
   })
 
-  test('PRJ-54 fork, chat, replay and new-session tabs are never saved; a project with no saved tab is left out', () => {
+  test('PRJ-54 fork, chat and new-session tabs are never saved; a project with no saved tab is left out', () => {
     const layout = layoutOf(
       win('w1', 'A', [
         { kind: 'transient', id: 'fork', project: 'A' },

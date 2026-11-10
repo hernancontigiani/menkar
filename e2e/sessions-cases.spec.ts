@@ -466,45 +466,6 @@ test('SES-55 Export into a folder the user cannot write: "Export failed" with Me
   }
 })
 
-test('SES-57 Replay: Play shows one more turn every 800 ms; at 4 / 4 it stops and Next and Show all are disabled', async () => {
-  const FOUR = '9c9c9c9c-0000-4000-8000-000000000009'
-  const { launched, page } = await launch((dirs) => {
-    const env = clientWork(dirs)
-    const cwd = join(dirs.home, 'work', 'web')
-    const say = (text: string) => ({
-      type: 'assistant',
-      cwd,
-      message: { content: [{ type: 'text', text }] },
-    })
-    write(dirs.home, cwd, FOUR, [
-      { type: 'custom-title', customTitle: 'four turns' },
-      { type: 'user', cwd, message: { content: 'one' } },
-      say('two'),
-      { type: 'user', cwd, message: { content: 'three' } },
-      say('four'),
-    ])
-    return env
-  })
-  try {
-    await act(page, { type: 'replaySession', session: FOUR })
-    const progress = page.locator('.replay .progress')
-    await expect(progress).toHaveText('1 / 4')
-    await page.locator('.replay button[title="Play"]').click()
-    const started = Date.now()
-    await expect(progress).toHaveText('2 / 4')
-    const first = Date.now() - started
-    expect(first).toBeGreaterThan(600)
-    expect(first).toBeLessThan(1400)
-    await expect(progress).toHaveText('4 / 4', { timeout: 3000 })
-    await expect(page.locator('.replay button[title="Next"]')).toBeDisabled()
-    await expect(page.locator('.replay button', { hasText: 'Show all' })).toBeDisabled()
-    await page.waitForTimeout(1000)
-    await expect(progress).toHaveText('4 / 4')
-  } finally {
-    await launched.close()
-  }
-})
-
 test('SES-60, SES-61 Copy session ID puts the 36-character id on the clipboard; from the tab of a new session with no transcript yet it leaves the clipboard as it was', async () => {
   const { launched, page, home } = await launch((dirs) => ({
     ...clientWork(dirs),

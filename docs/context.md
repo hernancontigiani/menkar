@@ -36,7 +36,7 @@ Integrations page are still `docs/spec/context.md` until they are built.
 - **Transcript retention** (2026-11-10) is a second piece of the same kind, the record's
   `retention` key.
   - **Why it exists:** Claude Code deletes a transcript 30 days after its last change unless
-    `cleanupPeriodDays` says otherwise, and with it go the replay, the details and the
+    `cleanupPeriodDays` says otherwise, and with it go the details, the export and the
     classifier's input.
   - **Turning it on** sets that key to `RETENTION_DAYS`, 3650. Ten years reads as "keep them" and
     stays an ordinary number; `0` does not mean "forever" there. A larger value the user already
