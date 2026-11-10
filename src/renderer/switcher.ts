@@ -1,5 +1,6 @@
 import type { Key } from '../core/i18n'
 import { filterSearch, groupByFolder } from '../core/sessions/history'
+import { matchShortcut, type ShortcutOf } from '../core/shortcuts'
 import type { TabEntry } from '../shared/workspace'
 import {
   act,
@@ -28,8 +29,24 @@ interface Entry {
 const FILTER_PAUSE_MS = 120
 let open = false
 
-// One jump dialog at a time: the quick switcher and Go to agent share it.
-function jumpDialog(title: string, placeholder: string, entries: readonly Entry[]): void {
+interface JumpOptions {
+  // The row selected at first (the project switcher starts on the previous project).
+  readonly start?: number
+  // Said, dimmed, when there is nothing to choose.
+  readonly empty?: string
+  // Pressed again while the list is open, this key moves the selection down, round.
+  readonly cycle?: ShortcutOf<'window'>
+  // Opened while Ctrl is held: letting it go chooses the selected row.
+  readonly releaseToChoose?: boolean
+}
+
+// One jump dialog at a time: the quick switcher, Go to agent and the project switcher share it.
+function jumpDialog(
+  title: string,
+  placeholder: string,
+  entries: readonly Entry[],
+  options: JumpOptions = {},
+): void {
   if (open) return
   open = true
   dialogOpened()
@@ -40,11 +57,16 @@ function jumpDialog(title: string, placeholder: string, entries: readonly Entry[
   const close = (choice?: Entry) => {
     open = false
     dialogClosed()
+    document.removeEventListener('keyup', released, true)
     scrim.remove()
     if (choice) choice.choose()
     else restoreFocus()
   }
   const draw = () => {
+    if (shown.length === 0 && options.empty) {
+      list.replaceChildren(el('div', { class: 'jump-empty dim' }, options.empty))
+      return
+    }
     list.replaceChildren(
       ...shown.map((entry, i) => {
         const row = el(
@@ -67,29 +89,45 @@ function jumpDialog(title: string, placeholder: string, entries: readonly Entry[
     )
     list.children[selected]?.scrollIntoView({ block: 'nearest' })
   }
+  let first = true
   const filter = () => {
     shown = filterSearch(entries, input.value, (e) => e.search)
-    selected = 0
+    selected = first ? Math.max(0, Math.min(options.start ?? 0, shown.length - 1)) : 0
+    first = false
     draw()
   }
+  const released = (event: KeyboardEvent) => {
+    if (event.key !== 'Control') return
+    const entry = shown[selected]
+    if (entry) close(entry)
+  }
+  if (options.releaseToChoose) document.addEventListener('keyup', released, true)
   let timer: ReturnType<typeof setTimeout> | undefined
   input.addEventListener('input', () => {
     clearTimeout(timer)
     timer = setTimeout(filter, FILTER_PAUSE_MS)
   })
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (options.cycle && matchShortcut('window', event) === options.cycle) {
+      if (shown.length > 0) selected = (selected + 1) % shown.length
+      draw()
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+    const id = matchShortcut('switcher', event)
+    if (id === 'switcherMove') {
       selected = Math.max(
         0,
         Math.min(shown.length - 1, selected + (event.key === 'ArrowDown' ? 1 : -1)),
       )
       draw()
-    } else if (event.key === 'Enter') {
+    } else if (id === 'switcherOpen') {
       clearTimeout(timer)
       if (input.value.trim() && shown === entries) filter()
       const entry = shown[selected]
       if (entry) close(entry)
-    } else if (event.key === 'Escape') close()
+    } else if (id === 'switcherClose') close()
     else return
     event.preventDefault()
     event.stopPropagation()
@@ -168,4 +206,47 @@ export async function goToAgent(): Promise<void> {
     }
   })
   jumpDialog(t('goto.title'), t('goto.placeholder'), entries)
+}
+
+let asking = false
+
+// Ctrl+Shift+E (decision 1.38): the projects in use, the most recent first, starting on the one
+// before this. Held like Alt+Tab: each E moves down, letting Ctrl go jumps there.
+export async function projectSwitcher(): Promise<void> {
+  if (open || asking) return
+  asking = true
+  // Ctrl may be let go before the list arrives; then it is an ordinary list.
+  let held = true
+  const early = (event: KeyboardEvent) => {
+    if (event.key === 'Control') held = false
+  }
+  document.addEventListener('keyup', early, true)
+  const { active } = await act({ type: 'listActiveProjects' })
+  document.removeEventListener('keyup', early, true)
+  asking = false
+  const shown = currentState()?.shown
+  const list = active ?? []
+  const others = list.filter((p) => p.id !== shown)
+  const entries =
+    others.length === 0
+      ? []
+      : list.map((p) => {
+          const tabs =
+            p.tabs === 1
+              ? t('projectSwitch.oneTab')
+              : t('projectSwitch.tabs', { count: String(p.tabs) })
+          return {
+            title: p.name,
+            subtitle: p.here ? tabs : `${tabs} · ${t('projectSwitch.otherWindow')}`,
+            dot: null,
+            search: p.name.toLowerCase(),
+            choose: () => void act({ type: 'switchProject', project: p.id }),
+          }
+        })
+  jumpDialog(t('projectSwitch.title'), t('projectSwitch.placeholder'), entries, {
+    start: 1,
+    empty: t('projectSwitch.none'),
+    cycle: 'projectSwitcher',
+    releaseToChoose: held && entries.length > 0,
+  })
 }

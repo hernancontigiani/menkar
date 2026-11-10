@@ -51,6 +51,10 @@
 | 1.36 | Settings → Appearance holds every visual setting, the terminal and editor font included (Terminal keeps behaviour); an Interface size (90–150 %, page zoom) scales Menkar's own UI and never the terminal or editor font; native dropdowns follow the window's colour scheme | 2026-11-10 | `docs/preferences.md` |
 | 1.39 | A "VS Code Dark" theme from VS Code's Dark Modern (MIT), and a theme may bring its own editor syntax colours | 2026-11-10 | `docs/window.md` · `docs/files.md` |
 | 1.40 | No "Ubuntu" theme (1.35's theme removed; a saved one loads as Default); COLORTERM=truecolor stays; no separate terminal-colours option | 2026-11-10 | `docs/window.md` |
+| 1.37 | One table of keyboard shortcuts (`src/core/shortcuts.ts`): every key handler dispatches through it, Settings → Keyboard shortcuts and the Ctrl+B ? help are generated from it | 2026-11-10 | `docs/window.md` |
+| 1.38 | Ctrl+Shift+E switches between active projects (those with open tabs), most recent first, Alt+Tab style (release Ctrl to jump; no typing to filter); a project in another window focuses that window | 2026-11-10 | `docs/window.md` |
+| 1.41 | Five themes — VS Code (Dark Modern / Light Modern by the scheme, the default and the fallback), Catppuccin Mocha and Latte, Solarized Dark and Light; "Default" and the others removed; a saved unknown theme loads as VS Code | 2026-11-10 | `docs/window.md` |
+| 1.42 | Terminal colors, apart from the theme: Ubuntu terminal (#300a24, GNOME's palette; the default), Neutral (VTE) or Same as theme; the theme still paints Menkar and the editor | 2026-11-10 | `docs/window.md` |
 
 ## 2. Open
 

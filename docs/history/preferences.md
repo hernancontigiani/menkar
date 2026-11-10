@@ -35,3 +35,10 @@
 
 > Replaced 2026-11-10: a size with the default family is now stored. It was:
   already read.
+
+## The shape
+
+> Left on 2026-11-10: Appearance gained Terminal colors (decision 1.42).
+  - Appearance holds everything visual: the scheme, the style, the theme, Interface size, and the
+    font of the terminals and the file editor. Terminal keeps only behaviour, the scrollback
+    (decision 1.36).

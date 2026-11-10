@@ -14,7 +14,8 @@ describe('settings', () => {
     expect(parseSettings(undefined)).toEqual(DEFAULT_SETTINGS)
     expect(DEFAULT_SETTINGS).toMatchObject({
       ui_style: 'tui',
-      terminal_theme: 'Default',
+      terminal_theme: 'VS Code',
+      terminal_colors: 'ubuntu',
       scrollback: 10_000,
       sidebar_width: 250,
       reopen_tabs: true,

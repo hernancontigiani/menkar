@@ -293,7 +293,12 @@ test('LOOK-50 By day: the first three projects and "Other" in their fixed colors
         )
         writeFileSync(
           join(config, 'state.json'),
-          JSON.stringify({ settings: { color_scheme: scheme } }),
+          JSON.stringify({
+            settings: {
+              color_scheme: scheme,
+              terminal_theme: scheme === 'light' ? 'Catppuccin Latte' : 'Catppuccin Mocha',
+            },
+          }),
         )
         return undefined
       },
@@ -336,7 +341,9 @@ test('LOOK-51 Totals in Mocha: the rows sit on a surface0 card with 12 px corner
       mkdirSync(config, { recursive: true })
       writeFileSync(
         join(config, 'state.json'),
-        JSON.stringify({ settings: { color_scheme: 'dark', theme: 'default', ui_style: 'tui' } }),
+        JSON.stringify({
+          settings: { color_scheme: 'dark', terminal_theme: 'Catppuccin Mocha', ui_style: 'tui' },
+        }),
       )
       return undefined
     },

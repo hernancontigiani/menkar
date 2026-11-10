@@ -3,6 +3,7 @@ import { SearchAddon } from '@xterm/addon-search'
 import { type ITheme, Terminal } from '@xterm/xterm'
 import { OutputJoin } from '../core/output'
 import type { Settings } from '../core/settings'
+import { matchShortcut, type ShortcutOf } from '../core/shortcuts'
 import type { Look } from '../core/theme'
 import type { PaneView } from '../shared/workspace'
 import { el, icon } from './dom'
@@ -147,12 +148,15 @@ function toggleFind(view: View): void {
     if (input.value) previous()
     else view.search.clearDecorations()
   })
+  const findActions: Record<ShortcutOf<'find'>, () => void> = {
+    findPrevious: previous,
+    findNext: next,
+    findClose: () => closeFind(view),
+  }
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeFind(view)
-    else if (event.key === 'Enter') previous()
-    else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'g') previous()
-    else if (event.ctrlKey && event.key.toLowerCase() === 'g') next()
-    else return
+    const id = matchShortcut('find', event)
+    if (!id) return
+    findActions[id]()
     event.preventDefault()
     event.stopPropagation()
   })
@@ -229,31 +233,20 @@ function create(pane: PaneView, label?: string): View {
     output: new OutputJoin(),
   }
   term.open(host)
+  const terminalActions: Record<ShortcutOf<'terminal'>, () => void> = {
+    newline: () => window.menkar.panes.input(pane.id, '\x1b\r'),
+    copy: () => void window.menkar.window.act({ type: 'copyText', text: term.getSelection() }),
+    paste: () => void navigator.clipboard.readText().then((text) => term.paste(text)),
+    find: () => toggleFind(view),
+    bottom: () => term.scrollToBottom(),
+  }
   term.attachCustomKeyEventHandler((event) => {
     if (isAppKey(event)) return false
-    const key = event.key
-    if (key === 'Enter' && event.shiftKey && !event.ctrlKey) {
-      if (event.type === 'keydown') window.menkar.panes.input(pane.id, '\x1b\r')
-      return false
-    }
-    // Every modified End is the agent's (xterm sends it on); this one alone is the view's.
-    if (key === 'End' && event.ctrlKey && event.shiftKey && !event.altKey) {
-      if (event.type === 'keydown') term.scrollToBottom()
-      return false
-    }
-    if (event.ctrlKey && event.shiftKey && !event.altKey) {
-      const k = key.toLowerCase()
-      if (k === 'c' || k === 'v' || k === 'g') {
-        if (event.type === 'keydown') {
-          if (k === 'c')
-            void window.menkar.window.act({ type: 'copyText', text: term.getSelection() })
-          if (k === 'v') void navigator.clipboard.readText().then((text) => term.paste(text))
-          if (k === 'g') toggleFind(view)
-        }
-        return false
-      }
-    }
-    return true
+    // Every other modified End is the agent's (xterm sends it on); only the table's is the view's.
+    const id = matchShortcut('terminal', event)
+    if (!id) return true
+    if (event.type === 'keydown') terminalActions[id]()
+    return false
   })
   // The terminal's own menu, as GNOME Terminal's: each item is the user's action, as its keys are.
   // Opened on contextmenu, after xterm handled the button press, so a selection is kept.

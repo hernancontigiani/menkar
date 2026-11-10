@@ -38,6 +38,13 @@ process.stdin.on('data', (d) => {
 })
 `
 
+// The colours these tests assert are Catppuccin's, as the old "Default" theme gave them: Mocha
+// unless the scheme is light, with the terminals in the theme's colours too. A test about the
+// first start's own theme or terminal colours writes neither.
+export function catppuccin(scheme: unknown): string {
+  return scheme === 'light' ? 'Catppuccin Latte' : 'Catppuccin Mocha'
+}
+
 export function prepare(dirs: {
   readonly root: string
   readonly home: string
@@ -65,7 +72,16 @@ export function prepare(dirs: {
       windows: [],
     }),
   )
-  writeFileSync(join(config, 'state.json'), JSON.stringify({ settings: { color_scheme: 'dark' } }))
+  writeFileSync(
+    join(config, 'state.json'),
+    JSON.stringify({
+      settings: {
+        color_scheme: 'dark',
+        terminal_theme: catppuccin('dark'),
+        terminal_colors: 'theme',
+      },
+    }),
+  )
   return { PATH: `${bin}:${process.env.PATH ?? ''}` }
 }
 
@@ -146,7 +162,14 @@ export function clientWork(
   )
   writeFileSync(
     join(config, 'state.json'),
-    JSON.stringify({ settings: { color_scheme: 'dark', ...options.settings } }),
+    JSON.stringify({
+      settings: {
+        color_scheme: 'dark',
+        terminal_theme: catppuccin(options.settings?.color_scheme),
+        terminal_colors: 'theme',
+        ...options.settings,
+      },
+    }),
   )
   return env
 }

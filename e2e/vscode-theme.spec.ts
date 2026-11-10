@@ -1,4 +1,4 @@
-// Decision 1.39: the VS Code Dark theme, VS Code's Dark Modern: a stand-in prints a Claude Code reply
+// Decisions 1.39 and 1.41: the VS Code theme, Dark Modern or Light Modern by the scheme: a stand-in prints a Claude Code reply
 // with the colours Claude Code sends in 24 bits, and a Markdown file shows VS Code's syntax colours.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -52,16 +52,21 @@ const act = (page: Page, action: Record<string, unknown>) =>
     action,
   )
 
-for (const style of ['tui', 'classic'] as const) {
-  test(`decision 1.39 VS Code Dark in ${style}: a Claude Code reply on the terminal panel's #181818, and the Markdown source in VS Code's colours`, async () => {
+for (const [style, scheme] of [
+  ['tui', 'dark'],
+  ['classic', 'dark'],
+  ['tui', 'light'],
+  ['classic', 'light'],
+] as const) {
+  test(`decision 1.41 VS Code in ${style}, ${scheme}: a Claude Code reply on the terminal panel's colour, and the Markdown source in VS Code's colours`, async () => {
     let home = ''
     const launched = await launchApp({
       prepare: (dirs) => {
         home = dirs.home
         const env = savedCursorTab(dirs, {
           ui_style: style,
-          terminal_theme: 'VS Code Dark',
-          color_scheme: 'dark',
+          terminal_theme: 'VS Code',
+          color_scheme: scheme,
         })
         writeFileSync(
           join(dirs.home, 'reply.sh'),
@@ -78,12 +83,12 @@ for (const style of ['tui', 'classic'] as const) {
       await expect.poll(() => terminalText(page)).toContain('auto mode on')
       await page.waitForTimeout(300)
       mkdirSync('/tmp/menkar-shots', { recursive: true })
-      await page.screenshot({ path: `/tmp/menkar-shots/vscode-dark-terminal-${style}.png` })
+      await page.screenshot({ path: `/tmp/menkar-shots/vscode-${scheme}-terminal-${style}.png` })
       const background = await page
         .locator('.xterm-scrollable-element')
         .first()
         .evaluate((n) => getComputedStyle(n).backgroundColor)
-      expect(background).toBe('rgb(24, 24, 24)')
+      expect(background).toBe(scheme === 'dark' ? 'rgb(24, 24, 24)' : 'rgb(248, 248, 248)')
 
       const file = join(home, 'notes.md')
       writeFileSync(file, MARKDOWN)
@@ -98,10 +103,15 @@ for (const style of ['tui', 'classic'] as const) {
               return getComputedStyle(n.parentElement as Element).color
           return null
         }, text)
-      expect(await colourOf('A heading')).toBe('rgb(86, 156, 214)')
-      expect(await colourOf('inline code')).toBe('rgb(206, 145, 120)')
+      // Dark+ (#569cd6, #ce9178) and Light+ (#800000 for both).
+      expect(await colourOf('A heading')).toBe(
+        scheme === 'dark' ? 'rgb(86, 156, 214)' : 'rgb(128, 0, 0)',
+      )
+      expect(await colourOf('inline code')).toBe(
+        scheme === 'dark' ? 'rgb(206, 145, 120)' : 'rgb(128, 0, 0)',
+      )
       await page.waitForTimeout(300)
-      await page.screenshot({ path: `/tmp/menkar-shots/vscode-dark-markdown-${style}.png` })
+      await page.screenshot({ path: `/tmp/menkar-shots/vscode-${scheme}-markdown-${style}.png` })
     } finally {
       await launched.close()
     }

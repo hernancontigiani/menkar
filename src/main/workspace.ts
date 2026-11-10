@@ -47,6 +47,7 @@ import {
   showMember,
 } from '../core/projects/model'
 import { saveProjects } from '../core/projects/store'
+import { activeProjects, touched } from '../core/projects/switching'
 import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
@@ -158,7 +159,12 @@ function windowIdOf(contents: WebContents): string | undefined {
   return undefined
 }
 
+// The projects most recently shown or come back to, first: the project switcher's order.
+let recentProjects: string[] = []
+
 function putWindow(w: LayoutWindow): void {
+  const before = layout.windows.find((x) => x.id === w.id)
+  if (before?.shown !== w.shown) recentProjects = touched(recentProjects, w.shown)
   layout = { windows: layout.windows.map((x) => (x.id === w.id ? w : x)) }
 }
 
@@ -775,6 +781,8 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   window.on('leave-full-screen', () => push())
   window.on('focus', () => {
     focusOrder = [windowId, ...focusOrder.filter((id) => id !== windowId)]
+    const shown = layout.windows.find((x) => x.id === windowId)?.shown
+    if (shown) recentProjects = touched(recentProjects, shown)
     notifySeen()
   })
   window.on('close', (event) => {
@@ -1156,6 +1164,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       if (outcome.kind === 'focus') windows.get(outcome.window)?.focus()
       if (outcome.kind === 'shown') {
         layout = outcome.layout
+        recentProjects = touched(recentProjects, action.project)
         projects = setCurrent(projects, action.project)
         changed({ projects: true })
       }
@@ -1631,6 +1640,8 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'listTabs':
       return { tabs: listTabs() }
+    case 'listActiveProjects':
+      return { active: activeProjects(layout, projects, recentProjects, windowId) }
     case 'revealTab': {
       const tw = windowOfTab(action.tab)
       const tab = tabById(action.tab)

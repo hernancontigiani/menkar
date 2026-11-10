@@ -55,3 +55,8 @@ header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's
 | M1 | New ▾ | Open session file… (after Open file…) | `open-session-file` | files |
 | M28 | Session row | Replay… | `replay-session` | sessions |
 | M39 | History row | Replay… | `replay-session` | sessions |
+
+## Features
+
+> Left on 2026-11-10: six themes kept, VS Code Dark the default (decision 1.41).
+| F55 | Themes: Catppuccin by default, Tokyo Night, Gruvbox, Nord, Dracula and more, coloring the whole window; the Classic (Adwaita) style | preferences · look | R |

@@ -3,7 +3,7 @@
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
 import type { SettingsSection } from '../core/preferences'
-import type { Notice, ProjectInfo } from '../core/projects/info'
+import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Details } from '../core/sessions/transcript'
 import type { Settings } from '../core/settings'
@@ -147,6 +147,7 @@ export type Action =
   | { readonly type: 'closePane'; readonly pane: string }
   | { readonly type: 'swapOrientation'; readonly tab: string }
   | { readonly type: 'listTabs' }
+  | { readonly type: 'listActiveProjects' }
   | { readonly type: 'pickSession'; readonly session: string }
   | { readonly type: 'checkFolder'; readonly folder: string }
   | { readonly type: 'refreshSessions' }
@@ -181,6 +182,7 @@ export interface ActionResult {
   readonly refusal?: Key
   readonly value?: string | null
   readonly tabs?: readonly TabEntry[]
+  readonly active?: readonly ActiveProject[]
   readonly details?: Details
   // The session's tokens from the usage history (deduplicated), when it holds any.
   readonly tokens?: { readonly input: number; readonly output: number; readonly cacheRead: number }

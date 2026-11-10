@@ -84,7 +84,7 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F52 | MCP servers browser (Settings → MCP servers) | chat | R |
 | F53 | Open in Ghostty, when `ghostty` is on the `PATH` | chat | R |
 | F54 | Preferences: terminal font, scrollback lines, color scheme, interface style, color theme, Add session's folder path, language (restart), notifications, sound, reopen tabs on start | preferences | R · C |
-| F55 | Themes: Catppuccin by default, Tokyo Night, Gruvbox, Nord, Dracula and more, coloring the whole window; the Classic (Adwaita) style | preferences · look | R |
+| F55 | Themes: VS Code by default (Dark or Light Modern by the scheme), Catppuccin Mocha and Latte, Solarized Dark and Light, coloring the whole window; the terminals' own colours (Ubuntu terminal by default, neutral, or the theme's); the Classic (Adwaita) style | preferences · look | R · S 1.41 · S 1.42 |
 | F56 | Languages through the i18n catalogs (`po/`) | preferences | C |
 | F57 | About dialog | preferences | C |
 | F58 | Empty states: "No session open", "<project> has no sessions", "No sessions found", "Nothing in this period." | look | C |
@@ -142,6 +142,7 @@ terminal sees them.
 | K42 | `Esc` | Close the switcher | quick switcher | agent-state |
 | K43 | `Ctrl+`` ` `` | Show or hide the tab's drawer shell (the key left of `1`) | window | terminal |
 | K44 | `Ctrl+Shift+End` | Jump to the bottom of the terminal (also the button shown while scrolled up) | terminal | terminal |
+| K45 | `Ctrl+Shift+E` | Switch project: the projects in use, most recent first; held, each `E` moves down, letting `Ctrl` go jumps (decision 1.38) | window | projects |
 
 **Count against the code:**
 

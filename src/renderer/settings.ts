@@ -18,6 +18,7 @@ import { loadCatalog, t } from './i18n'
 import { retentionSection, statuslineSection, usageSection } from './integrations'
 import { applyLook } from './look'
 import { mcpSection } from './mcp'
+import { shortcutsSection } from './shortcuts'
 
 // The Settings window: a list of sections on the left, grouped, and the chosen one on the right.
 // Every change is saved at once, and main re-applies it in every window.
@@ -258,6 +259,20 @@ function appearanceSection(): HTMLElement {
     uiScale.append(el('option', { value: String(percent) }, `${percent} %`))
   uiScale.value = String(settings.ui_scale)
   uiScale.addEventListener('change', () => void set('ui_scale', Number(uiScale.value)))
+  // Whose colours the terminals take; the theme still paints the rest (decision 1.42).
+  const terminalColors = el('select', {
+    'data-key': 'terminal_colors',
+    'aria-label': t('prefs.terminalColors'),
+  })
+  for (const [value, label] of [
+    ['ubuntu', t('prefs.terminalUbuntu')],
+    ['neutral', t('prefs.terminalNeutral')],
+    ['theme', t('prefs.terminalTheme')],
+  ] as const) {
+    terminalColors.append(el('option', { value }, label))
+  }
+  terminalColors.value = settings.terminal_colors
+  terminalColors.addEventListener('change', () => void set('terminal_colors', terminalColors.value))
   return group(null, [
     row(t('prefs.colorScheme'), null, scheme),
     expander(
@@ -277,6 +292,7 @@ function appearanceSection(): HTMLElement {
       shownTheme(settings),
       (value) => void set('terminal_theme', value),
     ),
+    row(t('prefs.terminalColors'), null, terminalColors),
     row(t('prefs.interfaceSize'), null, uiScale),
     fontRow(),
   ])
@@ -336,6 +352,7 @@ const SECTIONS: Record<SettingsSection, () => HTMLElement | Promise<HTMLElement>
   retention: retentionSection,
   mcp: mcpSection,
   language: languageSection,
+  shortcuts: shortcutsSection,
   about: () => aboutSection(info),
 }
 
@@ -360,6 +377,8 @@ const ICONS: Record<SettingsSection, string> = {
   mcp: '<path d="M5.5 2v3M10.5 2v3"/><path d="M3.5 5h9v2.5a4.5 4.5 0 0 1-9 0z"/><line x1="8" y1="12" x2="8" y2="14.5"/>',
   language:
     '<circle cx="8" cy="8" r="6.2"/><ellipse cx="8" cy="8" rx="2.6" ry="6.2"/><line x1="1.8" y1="8" x2="14.2" y2="8"/>',
+  shortcuts:
+    '<rect x="1.2" y="4" width="13.6" height="8.5" rx="1.3"/><line x1="3.6" y1="6.6" x2="4.4" y2="6.6"/><line x1="6.2" y1="6.6" x2="7" y2="6.6"/><line x1="8.9" y1="6.6" x2="9.7" y2="6.6"/><line x1="11.6" y1="6.6" x2="12.4" y2="6.6"/><line x1="5" y1="9.8" x2="11" y2="9.8"/>',
   about:
     '<circle cx="8" cy="8" r="6.2"/><line x1="8" y1="7.2" x2="8" y2="11.5"/><circle cx="8" cy="4.8" r="0.5"/>',
 }
@@ -405,6 +424,7 @@ async function main(): Promise<void> {
     retention: t('settings.section.retention'),
     mcp: t('settings.section.mcp'),
     language: t('settings.section.language'),
+    shortcuts: t('settings.section.shortcuts'),
     about: t('settings.section.about'),
   }
   const built = new Map<SettingsSection, HTMLElement>()

@@ -1,7 +1,7 @@
 // What Preferences may write, and how a value from the page is made valid before it is saved. No
 // Node import: the page shares these lists.
-import { type Settings, UI_SCALES } from './settings'
-import { THEME_NAMES } from './theme'
+import { type Settings, TERMINAL_COLORS, UI_SCALES } from './settings'
+import { knownTheme, THEME_NAMES } from './theme'
 
 export const SCROLLBACK_MIN = 1000
 export const SCROLLBACK_MAX = 1_000_000
@@ -22,6 +22,7 @@ export const PREFERENCE_KEYS = [
   'ring_warn',
   'ring_full',
   'ui_scale',
+  'terminal_colors',
 ] as const
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[number]
 
@@ -54,6 +55,8 @@ export function validSetting(key: string, value: unknown): string | number | boo
         : null
     case 'ui_scale':
       return (UI_SCALES as readonly unknown[]).includes(value) ? (value as number) : null
+    case 'terminal_colors':
+      return (TERMINAL_COLORS as readonly unknown[]).includes(value) ? (value as string) : null
     case 'show_folder_path':
     case 'notify_idle':
     case 'notify_sound':
@@ -64,11 +67,9 @@ export function validSetting(key: string, value: unknown): string | number | boo
   }
 }
 
-// A saved theme name the app does not have reads as Default.
+// A saved theme name the app does not have reads as the fallback theme.
 export function shownTheme(settings: Pick<Settings, 'terminal_theme'>): string {
-  return (THEME_NAMES as readonly string[]).includes(settings.terminal_theme)
-    ? settings.terminal_theme
-    : 'Default'
+  return knownTheme(settings.terminal_theme)
 }
 
 // fc-list's `family` lines: a family per line, aliases after commas. Emoji and symbol fonts that
@@ -106,6 +107,7 @@ export const SETTINGS_LIST = [
   'mcp',
   null,
   'language',
+  'shortcuts',
   'about',
 ] as const
 export type SettingsSection = NonNullable<(typeof SETTINGS_LIST)[number]>

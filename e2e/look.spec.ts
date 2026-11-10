@@ -94,14 +94,17 @@ test('LOOK-39 Default in light is Catppuccin Latte', async () => {
   }
 })
 
-test('LOOK-37 Nord colors the whole window, sidebar and selected tab', async () => {
-  const { launched, colors } = await look({ color_scheme: 'light', terminal_theme: 'Nord' }, 'nord')
+test('LOOK-37 Solarized Dark colors the whole window, sidebar and selected tab', async () => {
+  const { launched, colors } = await look(
+    { color_scheme: 'light', terminal_theme: 'Solarized Dark' },
+    'solarized-dark',
+  )
   try {
     expect([colors.window, colors.sidebar, colors.selectedTab, colors.selectedTabText]).toEqual([
-      '#2e3440',
-      '#282d35',
-      '#b48ead',
-      '#2e3440',
+      '#002b36',
+      '#03232a',
+      '#d33682',
+      '#002b36',
     ])
   } finally {
     await launched.close()
@@ -730,8 +733,8 @@ test('LOOK-32, LOOK-35 split right: side by side, 1 px between, halves; the focu
   }
 })
 
-test('LOOK-33, LOOK-43 Classic: no frame line, no label; with Default the terminal keeps its own colors', async () => {
-  const launched = await shellTab({ ui_style: 'classic' })
+test('LOOK-33, LOOK-43 Classic: no frame line, no label; with Neutral terminal colours (decision 1.42) the terminal keeps its own colors', async () => {
+  const launched = await shellTab({ ui_style: 'classic', terminal_colors: 'neutral' })
   const page = launched.window
   try {
     expect(await style(page, '.frame', ['border-top-width'])).toEqual({ 'border-top-width': '0px' })
@@ -765,27 +768,27 @@ test('LOOK-36, TRM-55 an empty font is the system monospace at 10 pt; "Monospace
   }
 })
 
-test('LOOK-40 Follow system: the desktop turning light changes every window to Latte, terminals included, within a second', async () => {
-  const launched = await shellTab({ color_scheme: 'system' })
+test('LOOK-40 Follow system: the desktop turning light changes every window to VS Code’s Light Modern, terminals included, within a second', async () => {
+  const launched = await shellTab({ color_scheme: 'system', terminal_theme: 'VS Code' })
   const { app, window: page } = launched
   try {
     await page.emulateMedia({ colorScheme: 'dark' })
-    await expect.poll(() => color(page, 'body', 'background-color')).toBe('#1e1e2e')
+    await expect.poll(() => color(page, 'body', 'background-color')).toBe('#181818')
     await act(page, { type: 'newWindowWithProject', name: 'Second' })
     await expect.poll(() => app.windows().length).toBe(2)
     const other = app.windows().find((w) => w !== page)
     if (!other) throw new Error('no second window')
     await other.emulateMedia({ colorScheme: 'dark' })
-    await expect.poll(() => color(other, 'body', 'background-color')).toBe('#1e1e2e')
+    await expect.poll(() => color(other, 'body', 'background-color')).toBe('#181818')
     // The desktop's switch reaches every window's media query at once.
     await Promise.all([page, other].map((w) => w.emulateMedia({ colorScheme: 'light' })))
     await expect
       .poll(() => color(page, 'body', 'background-color'), { timeout: 1000 })
-      .toBe('#eff1f5')
+      .toBe('#f8f8f8')
     await expect
       .poll(() => color(other, 'body', 'background-color'), { timeout: 1000 })
-      .toBe('#eff1f5')
-    await expect.poll(() => pixelOf(app, page, '.term', 4, -4), { timeout: 1000 }).toBe('#eff1f5')
+      .toBe('#f8f8f8')
+    await expect.poll(() => pixelOf(app, page, '.term', 4, -4), { timeout: 1000 }).toBe('#f8f8f8')
   } finally {
     await launched.close()
   }
@@ -802,37 +805,37 @@ test('LOOK-41 Solarized Light with scheme Dark is light: window #fdf6e3, sidebar
 })
 
 test('LOOK-42 switching to Classic at once: the sans UI font, no frame labels, the sidebar on the window background, the terminal keeps the theme', async () => {
-  const launched = await shellTab({ terminal_theme: 'Dracula' })
+  const launched = await shellTab({ terminal_theme: 'Solarized Dark' })
   const page = launched.window
   try {
     expect((await style(page, 'body', ['font-family']))['font-family']).toBe('monospace')
-    await expect.poll(() => pixelOf(launched.app, page, '.term', 4, -4)).toBe('#282a36')
+    await expect.poll(() => pixelOf(launched.app, page, '.term', 4, -4)).toBe('#002b36')
     await prefs(page, 'ui_style', 'classic')
     await expect
       .poll(async () => (await style(page, 'body', ['font-family']))['font-family'])
       .toBe('sans-serif')
     await expect(page.locator('.frame-label')).toBeHidden()
-    expect(await pixelOf(launched.app, page, '.term', 4, -4)).toBe('#282a36')
-    await prefs(page, 'terminal_theme', 'Default')
+    expect(await pixelOf(launched.app, page, '.term', 4, -4)).toBe('#002b36')
+    await prefs(page, 'terminal_theme', 'VS Code')
     await expect.poll(() => color(page, '#sidebar', 'background-color')).toBe('#242424')
   } finally {
     await launched.close()
   }
 })
 
-test('LOOK-44 an unknown terminal_theme starts as Default, and Settings shows Default', async () => {
+test('LOOK-44 an unknown terminal_theme starts as VS Code (decision 1.41), and Settings shows it', async () => {
   const launched = await shellTab({ terminal_theme: 'Matrix' })
   const page = launched.window
   try {
-    expect(await color(page, 'body', 'background-color')).toBe('#1e1e2e')
-    expect(await color(page, '#sidebar', 'background-color')).toBe('#181825')
+    expect(await color(page, 'body', 'background-color')).toBe('#181818')
+    expect(await color(page, '#sidebar', 'background-color')).toBe('#181818')
     const opened = launched.app.waitForEvent('window')
     await act(page, { type: 'openSettings' })
     const preferences = await opened
     await expect(preferences.locator('[data-expander="terminal_theme"] .row-subtitle')).toHaveText(
-      'Default',
+      'VS Code',
     )
-    await expect(preferences.locator('input[name="terminal_theme"][value="Default"]')).toBeChecked()
+    await expect(preferences.locator('input[name="terminal_theme"][value="VS Code"]')).toBeChecked()
   } finally {
     await launched.close()
   }

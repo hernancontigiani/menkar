@@ -1,5 +1,5 @@
-import type { Key } from '../core/i18n'
 import { type Direction, focusTarget } from '../core/panes'
+import { matchShortcut, SHORTCUTS, type ShortcutOf, shownChords } from '../core/shortcuts'
 import type { TabView } from '../shared/workspace'
 import {
   act,
@@ -149,32 +149,18 @@ function closePane(): void {
   }
 }
 
-const HELP: ReadonlyArray<[string, Key]> = [
-  ['v  %', 'help.splitRight'],
-  ['-  "', 'help.splitDown'],
-  ['h  ←', 'help.left'],
-  ['j  ↓', 'help.down'],
-  ['k  ↑', 'help.up'],
-  ['l  →', 'help.right'],
-  ['Tab', 'help.nextPane'],
-  ['z', 'help.zoom'],
-  ['x', 'help.closePane'],
-  ['c', 'help.newSession'],
-  ['n', 'help.nextTab'],
-  ['p', 'help.previousTab'],
-  ['1–9', 'help.goToTab'],
-  ['N', 'help.addSession'],
-  ['T', 'help.renameTab'],
-  ['X', 'help.closeTab'],
-  ['g', 'help.goToAgent'],
-  ['b', 'help.toggleSidebar'],
-  ['s', 'help.preferences'],
-  ['?', 'help.help'],
-  ['Ctrl+B', 'help.sendCtrlB'],
-]
-
+// The prefix's rows of the shortcuts table, as `keys  what` lines.
 export function helpLines(): string[] {
-  return HELP.map(([keys, description]) => `${keys.padEnd(8)} ${translate(description)}`)
+  return SHORTCUTS.filter((row) => row.group === 'prefix').map((row) => {
+    const keys =
+      row.id === 'sendCtrlB'
+        ? 'Ctrl+B'
+        : shownChords(row)
+            .map((caps) => caps.slice(2).join('+'))
+            .join('  ')
+    const text = translate(row.description)
+    return `${keys.padEnd(8)} ${text.charAt(0).toLowerCase()}${text.slice(1)}`
+  })
 }
 
 function showHelp(): void {
@@ -187,82 +173,38 @@ function showHelp(): void {
   })
 }
 
-function runCommand(event: KeyboardEvent): void {
-  const key = event.key
-  const tab = selectedTab()
-  if (event.ctrlKey && key.toLowerCase() === 'b') {
+const PREFIX_ACTIONS: Record<ShortcutOf<'prefix'>, (event: KeyboardEvent) => void> = {
+  splitRight: () => void split('horizontal'),
+  splitDown: () => void split('vertical'),
+  paneLeft: () => moveFocus('left'),
+  paneDown: () => moveFocus('down'),
+  paneUp: () => moveFocus('up'),
+  paneRight: () => moveFocus('right'),
+  nextPane,
+  zoom: toggleZoom,
+  closePane,
+  prefixNewSession: () => handlers?.newSession(),
+  prefixNextTab: () => void act({ type: 'stepTab', direction: 1 }),
+  prefixPreviousTab: () => void act({ type: 'stepTab', direction: -1 }),
+  nthTab: (event) => void act({ type: 'nthTab', n: Number(event.key) }),
+  prefixAddExisting: () => handlers?.addExisting(),
+  renameTab: () => handlers?.renameTab(),
+  prefixCloseTab: () => {
+    const tab = selectedTab()
+    if (tab) void closeTabAsking(tab.id)
+  },
+  goToAgent: () => handlers?.goToAgent(),
+  prefixSidebar: toggleSidebar,
+  prefixSettings: () => handlers?.preferences(),
+  help: showHelp,
+  sendCtrlB: () => {
+    const tab = selectedTab()
     const pane = tab ? focusedOf(tab) : undefined
     if (pane && tab?.kind !== 'file') window.menkar.panes.input(pane, '\x02')
-    return
-  }
-  if (/^[1-9]$/.test(key)) {
-    void act({ type: 'nthTab', n: Number(key) })
-    return
-  }
-  switch (key) {
-    case 'v':
-    case '%':
-      void split('horizontal')
-      return
-    case '-':
-    case '"':
-      void split('vertical')
-      return
-    case 'h':
-    case 'ArrowLeft':
-      moveFocus('left')
-      return
-    case 'j':
-    case 'ArrowDown':
-      moveFocus('down')
-      return
-    case 'k':
-    case 'ArrowUp':
-      moveFocus('up')
-      return
-    case 'l':
-    case 'ArrowRight':
-      moveFocus('right')
-      return
-    case 'Tab':
-      nextPane()
-      return
-    case 'z':
-      toggleZoom()
-      return
-    case 'x':
-      closePane()
-      return
-    case 'c':
-      handlers?.newSession()
-      return
-    case 'n':
-      void act({ type: 'stepTab', direction: 1 })
-      return
-    case 'p':
-      void act({ type: 'stepTab', direction: -1 })
-      return
-    case 'N':
-      handlers?.addExisting()
-      return
-    case 'T':
-      handlers?.renameTab()
-      return
-    case 'X':
-      if (tab) void closeTabAsking(tab.id)
-      return
-    case 'g':
-      handlers?.goToAgent()
-      return
-    case 'b':
-      toggleSidebar()
-      return
-    case 's':
-      handlers?.preferences()
-      return
-    case '?':
-      showHelp()
-      return
-    default:
-  }
+  },
+}
+
+function runCommand(event: KeyboardEvent): void {
+  const id = matchShortcut('prefix', event)
+  if (id) PREFIX_ACTIONS[id](event)
 }

@@ -29,13 +29,17 @@ export interface Settings {
   readonly last_agent: string
   // Menkar's own text and controls, in percent; the terminals keep the Font setting's size.
   readonly ui_scale: number
+  // Whose colours the terminals take (decision 1.42): one of TERMINAL_COLORS.
+  readonly terminal_colors: string
 }
 
 export const UI_SCALES = [90, 100, 110, 125, 150] as const
+// Ubuntu's own terminal, the neutral colours close to VTE's defaults, or the chosen theme's.
+export const TERMINAL_COLORS = ['ubuntu', 'neutral', 'theme'] as const
 
 export const DEFAULT_SETTINGS: Settings = {
   ui_style: 'tui',
-  terminal_theme: 'Default',
+  terminal_theme: 'VS Code',
   color_scheme: 'system',
   font: '',
   scrollback: 10_000,
@@ -50,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ring_full: DEFAULT_THRESHOLDS.full,
   last_agent: '',
   ui_scale: 100,
+  terminal_colors: 'ubuntu',
 }
 
 export const SIDEBAR_MIN_WIDTH = 180
@@ -89,6 +94,9 @@ export function parseSettings(value: unknown): Settings {
     ui_scale: (UI_SCALES as readonly unknown[]).includes(raw.ui_scale)
       ? (raw.ui_scale as number)
       : DEFAULT_SETTINGS.ui_scale,
+    terminal_colors: (TERMINAL_COLORS as readonly unknown[]).includes(raw.terminal_colors)
+      ? (raw.terminal_colors as string)
+      : DEFAULT_SETTINGS.terminal_colors,
   }
 }
 

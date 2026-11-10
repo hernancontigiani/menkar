@@ -51,7 +51,7 @@ test('PRF-1, PRF-3 Ctrl+, opens Settings on Appearance, every row at its default
     await expect(prefs.locator('[data-expander="ui_style"] summary')).toContainText(
       'Terminal workspace',
     )
-    await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('Default')
+    await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('VS Code')
     await section(prefs, 'language')
     await expect(prefs.locator('[data-expander="language"] summary')).toContainText(
       'System default',
@@ -118,32 +118,28 @@ test('PRF-14, PRF-16, PRF-17 a theme is saved and recolors every window at once'
     },
   })
   try {
+    // A first start (no state at all) is on VS Code (decision 1.41), following the system's scheme,
+    // which is light under xvfb: Light Modern's #f8f8f8.
+    await expect.poll(() => cssVar(launched.window, '--bg')).toBe('#f8f8f8')
     const before = await cssVar(launched.window, '--bg')
     const prefs = await openSettings(launched.app, launched.window)
     const themes = prefs.locator('[data-expander="terminal_theme"] label')
+    await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('VS Code')
     await expect(themes).toHaveText([
-      'Default',
-      'Tango Dark',
+      'VS Code',
+      'Catppuccin Mocha',
+      'Catppuccin Latte',
       'Solarized Dark',
       'Solarized Light',
-      'Dracula',
-      'Gruvbox Dark',
-      'Nord',
-      'Catppuccin Mocha',
-      'Tokyo Night',
-      'Monokai',
-      'One Dark',
-      'Catppuccin Latte',
-      'VS Code Dark',
     ])
     await prefs.locator('[data-expander="terminal_theme"] summary').click()
     await prefs
-      .locator('[data-expander="terminal_theme"] label', { hasText: 'Tokyo Night' })
+      .locator('[data-expander="terminal_theme"] label', { hasText: 'Solarized Dark' })
       .click()
     await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText(
-      'Tokyo Night',
+      'Solarized Dark',
     )
-    await expect.poll(() => savedSettings(root)?.terminal_theme).toBe('Tokyo Night')
+    await expect.poll(() => savedSettings(root)?.terminal_theme).toBe('Solarized Dark')
     await expect.poll(() => cssVar(launched.window, '--bg')).not.toBe(before)
     expect(await cssVar(prefs, '--bg')).toBe(await cssVar(launched.window, '--bg'))
   } finally {
@@ -151,7 +147,7 @@ test('PRF-14, PRF-16, PRF-17 a theme is saved and recolors every window at once'
   }
 })
 
-test('PRF-15 an unknown saved theme reads as Default', async () => {
+test('PRF-15 an unknown saved theme reads as VS Code (decision 1.41)', async () => {
   const launched = await launchApp({
     prepare: ({ root }) => {
       writeState(root, { terminal_theme: 'Solarized Pink' })
@@ -160,8 +156,8 @@ test('PRF-15 an unknown saved theme reads as Default', async () => {
   })
   try {
     const prefs = await openSettings(launched.app, launched.window)
-    await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('Default')
-    await expect(prefs.locator('input[name="terminal_theme"][value="Default"]')).toBeChecked()
+    await expect(prefs.locator('[data-expander="terminal_theme"] summary')).toContainText('VS Code')
+    await expect(prefs.locator('input[name="terminal_theme"][value="VS Code"]')).toBeChecked()
   } finally {
     await launched.close()
   }

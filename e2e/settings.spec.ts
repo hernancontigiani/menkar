@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { SHORTCUTS } from '../src/core/shortcuts'
 import { contrast } from '../src/core/theme'
 import { launchApp } from './app'
 
@@ -38,6 +39,7 @@ const SECTIONS = [
   'Transcript retention',
   'MCP servers',
   'Language',
+  'Keyboard shortcuts',
   'About',
 ]
 
@@ -98,7 +100,7 @@ test('Settings (2026-11-10) lists its sections in five groups under its title, e
       .locator('.section-list > *')
       .evaluateAll((ns) => ns.map((n) => (n.tagName === 'HR' ? '|' : (n.textContent ?? ''))))
     expect(between.join(',')).toBe(
-      'Appearance,Terminal,|,Sessions,Notifications,Context,|,Usage & classifier,|,Status line,Transcript retention,MCP servers,|,Language,About',
+      'Appearance,Terminal,|,Sessions,Notifications,Context,|,Usage & classifier,|,Status line,Transcript retention,MCP servers,|,Language,Keyboard shortcuts,About',
     )
     const rows: Record<string, string> = {
       appearance: '[data-key="color_scheme"]',
@@ -111,6 +113,7 @@ test('Settings (2026-11-10) lists its sections in five groups under its title, e
       retention: '[data-key="retention"]',
       mcp: '[data-key="none"]',
       language: '[data-expander="language"]',
+      shortcuts: '[data-key="shortcut-filter"]',
       about: '[data-key="version"]',
     }
     for (const [name, row] of Object.entries(rows)) {
@@ -250,7 +253,12 @@ for (const scheme of ['dark', 'light'] as const) {
         mkdirSync(join(root, 'config', 'menkar'), { recursive: true })
         writeFileSync(
           join(root, 'config', 'menkar', 'state.json'),
-          JSON.stringify({ settings: { color_scheme: scheme } }),
+          JSON.stringify({
+            settings: {
+              color_scheme: scheme,
+              terminal_theme: scheme === 'light' ? 'Catppuccin Latte' : 'Catppuccin Mocha',
+            },
+          }),
         )
         return undefined
       },
@@ -284,3 +292,50 @@ for (const scheme of ['dark', 'light'] as const) {
     }
   })
 }
+
+test('decision 1.37: Keyboard shortcuts lists every row of the keys table, as keycaps, and the filter narrows it', async () => {
+  const launched = await launchApp()
+  try {
+    const settings = await openSettings(launched.app, launched.window, {
+      type: 'openSettings',
+      section: 'shortcuts',
+    })
+    const listed = await settings
+      .locator('[data-shortcut]')
+      .evaluateAll((ns) => ns.map((n) => (n as HTMLElement).dataset.shortcut))
+    expect(listed).toEqual(SHORTCUTS.map((row) => row.id))
+    await expect(settings.locator('[data-shortcut="newSession"] kbd')).toHaveText([
+      'Ctrl',
+      'Shift',
+      'T',
+    ])
+    await expect(settings.locator('[data-shortcut="projectSwitcher"] kbd')).toHaveText([
+      'Ctrl',
+      'Shift',
+      'E',
+    ])
+    await expect(settings.locator('[data-shortcut="splitRight"] .chord')).toHaveCount(2)
+    await expect(settings.locator('[data-group="prefix"] .group-title')).toHaveText('After Ctrl+B')
+    const filter = settings.locator('[data-key="shortcut-filter"]')
+    await filter.fill('split')
+    await expect(settings.locator('[data-shortcut]:visible')).toHaveCount(2)
+    await expect(settings.locator('[data-group="window"]')).toBeHidden()
+    await filter.fill('zzzz')
+    await expect(settings.locator('[data-key="shortcut-none"]')).toBeVisible()
+    await filter.fill('')
+    await expect(settings.locator('[data-shortcut]:visible')).toHaveCount(SHORTCUTS.length)
+    mkdirSync('/tmp/menkar-shots', { recursive: true })
+    // The page is long: shown from its top, once the window has drawn it again.
+    await settings.evaluate(() => document.querySelector('.settings > main')?.scrollTo(0, 0))
+    await settings.bringToFront()
+    await settings.waitForTimeout(300)
+    const png = await launched.app.evaluate(async ({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find((w) => w.getTitle() === 'Settings')
+      window?.show()
+      return window ? (await window.webContents.capturePage()).toPNG().toString('base64') : ''
+    })
+    writeFileSync('/tmp/menkar-shots/shortcuts.png', Buffer.from(png, 'base64'))
+  } finally {
+    await launched.close()
+  }
+})

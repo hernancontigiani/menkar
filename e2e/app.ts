@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron, type ElectronApplication, type Page } from '@playwright/test'
 import { ensureDisplay } from './display'
+import { catppuccin } from './fixtures'
 
 export interface LaunchedApp {
   readonly root: string
@@ -140,6 +141,15 @@ export function savedCursorTab(
       ],
     }),
   )
-  writeFileSync(join(config, 'state.json'), JSON.stringify({ settings }))
+  writeFileSync(
+    join(config, 'state.json'),
+    JSON.stringify({
+      settings: {
+        terminal_theme: catppuccin(settings.color_scheme),
+        terminal_colors: 'theme',
+        ...settings,
+      },
+    }),
+  )
   return { PATH: `${bin}:${process.env.PATH ?? ''}` }
 }

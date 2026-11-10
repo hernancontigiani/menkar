@@ -450,8 +450,9 @@ test('FIL-27, FIL-28 the preview: a relative image shows, a remote one is never 
 })
 
 test('FIL-29 turning the app dark re-renders the preview on #1e1e1e with #e8e8ea text, and darkens the editor', async () => {
+  // VS Code follows the scheme (a Catppuccin theme is light or dark by itself).
   const { launched, page, home } = await launch((dirs) =>
-    clientWork(dirs, { settings: { color_scheme: 'light' } }),
+    clientWork(dirs, { settings: { color_scheme: 'light', terminal_theme: 'VS Code' } }),
   )
   try {
     const { frame } = await previewOf(page, home, '# Doc\n\ntext\n')

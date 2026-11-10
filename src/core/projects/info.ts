@@ -25,3 +25,13 @@ export interface ProjectsSnapshot {
   readonly projects: readonly ProjectInfo[]
   readonly notices: readonly Notice[]
 }
+
+// A project the project switcher lists (decision 1.38).
+export interface ActiveProject {
+  readonly id: string
+  readonly name: string
+  // The window that holds it: this one, or the one to bring forward.
+  readonly window: string
+  readonly tabs: number
+  readonly here: boolean
+}

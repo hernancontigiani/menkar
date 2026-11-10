@@ -15,9 +15,9 @@ are shaped this way.
     opener leaves Usage open and reloads it, now showing every project.
 - **Settings is laid out as Ubuntu's Settings** (2026-11-10): a list of sections on the left, the
   chosen section on the right under its title.
-  - Appearance holds everything visual: the scheme, the style, the theme, Interface size, and the
-    font of the terminals and the file editor. Terminal keeps only behaviour, the scrollback
-    (decision 1.36).
+  - Appearance holds everything visual: the scheme, the style, the theme, Terminal colors
+    (decision 1.42), Interface size, and the font of the terminals and the file editor. Terminal
+    keeps only behaviour, the scrollback (decision 1.36).
 - **Interface size** (decision 1.36, `ui_scale`: 90, 100, 110, 125 or 150; anything else reads as
   100) scales Menkar's own text and controls in every window, live.
   - **Why page zoom:** it is each window's page zoom (`src/main/zoom.ts`), not a root font size,

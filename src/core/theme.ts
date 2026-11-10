@@ -9,11 +9,6 @@ export interface Palette {
 const p = (fg: string, bg: string, ansi: string): Palette => ({ fg, bg, ansi: ansi.split(' ') })
 
 export const PALETTES: Readonly<Record<string, Palette>> = {
-  'Tango Dark': p(
-    '#d3d7cf',
-    '#2e3436',
-    '#2e3436 #cc0000 #4e9a06 #c4a000 #3465a4 #75507b #06989a #d3d7cf #555753 #ef2929 #8ae234 #fce94f #729fcf #ad7fa8 #34e2e2 #eeeeec',
-  ),
   'Solarized Dark': p(
     '#839496',
     '#002b36',
@@ -24,40 +19,10 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
     '#fdf6e3',
     '#073642 #dc322f #859900 #b58900 #268bd2 #d33682 #2aa198 #eee8d5 #002b36 #cb4b16 #586e75 #657b83 #839496 #6c71c4 #93a1a1 #fdf6e3',
   ),
-  Dracula: p(
-    '#f8f8f2',
-    '#282a36',
-    '#21222c #ff5555 #50fa7b #f1fa8c #bd93f9 #ff79c6 #8be9fd #f8f8f2 #6272a4 #ff6e6e #69ff94 #ffffa5 #d6acff #ff92df #a4ffff #ffffff',
-  ),
-  'Gruvbox Dark': p(
-    '#ebdbb2',
-    '#282828',
-    '#282828 #cc241d #98971a #d79921 #458588 #b16286 #689d6a #a89984 #928374 #fb4934 #b8bb26 #fabd2f #83a598 #d3869b #8ec07c #ebdbb2',
-  ),
-  Nord: p(
-    '#d8dee9',
-    '#2e3440',
-    '#3b4252 #bf616a #a3be8c #ebcb8b #81a1c1 #b48ead #88c0d0 #e5e9f0 #4c566a #bf616a #a3be8c #ebcb8b #81a1c1 #b48ead #8fbcbb #eceff4',
-  ),
   'Catppuccin Mocha': p(
     '#cdd6f4',
     '#1e1e2e',
     '#45475a #f38ba8 #a6e3a1 #f9e2af #89b4fa #f5c2e7 #94e2d5 #bac2de #585b70 #f38ba8 #a6e3a1 #f9e2af #89b4fa #f5c2e7 #94e2d5 #a6adc8',
-  ),
-  'Tokyo Night': p(
-    '#c0caf5',
-    '#1a1b26',
-    '#15161e #f7768e #9ece6a #e0af68 #7aa2f7 #bb9af7 #7dcfff #a9b1d6 #414868 #f7768e #9ece6a #e0af68 #7aa2f7 #bb9af7 #7dcfff #c0caf5',
-  ),
-  Monokai: p(
-    '#f8f8f2',
-    '#272822',
-    '#272822 #f92672 #a6e22e #f4bf75 #66d9ef #ae81ff #a1efe4 #f8f8f2 #75715e #f92672 #a6e22e #f4bf75 #66d9ef #ae81ff #a1efe4 #f9f8f5',
-  ),
-  'One Dark': p(
-    '#abb2bf',
-    '#282c34',
-    '#282c34 #e06c75 #98c379 #e5c07b #61afef #c678dd #56b6c2 #abb2bf #5c6370 #e06c75 #98c379 #e5c07b #61afef #c678dd #56b6c2 #ffffff',
   ),
   'Catppuccin Latte': p(
     '#4c4f69',
@@ -73,23 +38,32 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
     '#181818',
     '#000000 #cd3131 #0dbc79 #e5e510 #2472c8 #bc3fbc #11a8cd #e5e5e5 #666666 #f14c4c #23d18b #f5f543 #3b8eea #d670d6 #29b8db #e5e5e5',
   ),
+  // VS Code's default light ("Light Modern"), the same sources: light_modern.json's panel.background
+  // and terminal.foreground, and the workbench's light defaults for `terminal.ansi*`.
+  'VS Code Light': p(
+    '#3b3b3b',
+    '#f8f8f8',
+    '#000000 #cd3131 #107c10 #949800 #0451a5 #bc05bc #0598bc #555555 #666666 #cd3131 #14ce14 #b5ba00 #0451a5 #bc05bc #0598bc #a5a5a5',
+  ),
 }
 
+// The choices. "VS Code" is Dark Modern with a dark scheme and Light Modern with a light one; the
+// others are one palette each.
 export const THEME_NAMES = [
-  'Default',
-  'Tango Dark',
+  'VS Code',
+  'Catppuccin Mocha',
+  'Catppuccin Latte',
   'Solarized Dark',
   'Solarized Light',
-  'Dracula',
-  'Gruvbox Dark',
-  'Nord',
-  'Catppuccin Mocha',
-  'Tokyo Night',
-  'Monokai',
-  'One Dark',
-  'Catppuccin Latte',
-  'VS Code Dark',
 ] as const
+
+// What a first start chooses, and what a saved theme the app no longer has reads as.
+export const FALLBACK_THEME = 'VS Code'
+
+// The saved name if the app has it, else the fallback (a removed "Default" included).
+export function knownTheme(name: string): string {
+  return (THEME_NAMES as readonly string[]).includes(name) ? name : FALLBACK_THEME
+}
 
 export interface Roles {
   readonly bg: string
@@ -110,12 +84,23 @@ export interface Look {
   readonly dark: boolean
   // The chrome's colors (the stock palette in Classic).
   readonly roles: Roles
-  // The terminal's colors; null in Classic with Default, where the terminal keeps its own.
+  // The terminals' colors: Ubuntu's, the theme's, or null for the neutral ones the terminal draws
+  // itself (close to VTE's defaults, by the scheme).
   readonly terminal: Palette | null
 }
 
 // Themes whose chrome colours are their own rather than derived from the terminal palette.
 const EXACT_ROLES: Readonly<Record<string, Partial<Roles>>> = {
+  // light_modern.json: sideBar.background, widget.border, input.border,
+  // editorLineNumber.foreground, tab.inactiveForeground, focusBorder.
+  'VS Code Light': {
+    mantle: '#f8f8f8',
+    surface0: '#e5e5e5',
+    surface1: '#cecece',
+    overlay0: '#6e7681',
+    subtext0: '#868686',
+    accent: '#005fb8',
+  },
   // dark_modern.json: sideBar.background, input.background, input.border,
   // editorLineNumber.foreground, descriptionForeground, focusBorder.
   'VS Code Dark': {
@@ -205,7 +190,7 @@ function rolesOf(name: string, palette: Palette): Roles {
     surface1: exact.surface1 ?? mix(bg, fg, 0.2),
     overlay0: exact.overlay0 ?? mix(bg, fg, 0.45),
     subtext0: exact.subtext0 ?? mix(bg, fg, 0.8),
-    accent: exact.accent ?? (name === 'Dracula' ? '#bd93f9' : (ansi[5] ?? fg)),
+    accent: exact.accent ?? ansi[5] ?? fg,
     green: ansi[2] ?? fg,
     yellow: ansi[3] ?? fg,
     red: ansi[1] ?? fg,
@@ -246,6 +231,8 @@ export interface LookSettings {
   readonly ui_style: string
   readonly terminal_theme: string
   readonly color_scheme: string
+  // Absent: the theme's own terminal colours (the app always passes the saved setting).
+  readonly terminal_colors?: string
 }
 
 const isLight = (color: string) => {
@@ -267,39 +254,52 @@ export function contrast(a: string, b: string): number {
 }
 
 // Text on the accent: Classic's stock white; in Terminal workspace the theme's background or text,
-// whichever reads better (a dark accent such as Tango's purple takes the light text).
+// whichever reads better (a dark accent takes the light text).
 export function onAccent(look: Look): string {
   if (look.style === 'classic') return '#ffffff'
   const { bg, fg, accent } = look.roles
   return contrast(bg, accent) >= contrast(fg, accent) ? bg : fg
 }
 
+// GNOME Terminal on Ubuntu with the desktop's colours (Yaru-dark): its aubergine and white, and
+// GNOME's own 16-colour palette; the same in either scheme, as Ubuntu's terminal is (1.42).
+export const UBUNTU_TERMINAL: Palette = p(
+  '#ffffff',
+  '#300a24',
+  '#171421 #c01c28 #26a269 #a2734c #12488b #a347ba #2aa1b3 #d0cfcc #5e5c64 #f66151 #33da7a #e9ad0c #2a7bde #c061cb #33c7de #ffffff',
+)
+
+function terminalOf(colors: string | undefined, theme: Palette): Palette | null {
+  if (colors === 'ubuntu') return UBUNTU_TERMINAL
+  if (colors === 'neutral') return null
+  return theme
+}
+
 export function resolveLook(settings: LookSettings, systemDark: boolean): Look {
   const style = settings.ui_style === 'tui' ? 'tui' : 'classic'
   const schemeDark =
     settings.color_scheme === 'dark' || (settings.color_scheme !== 'light' && systemDark)
-  const named = PALETTES[settings.terminal_theme] ? settings.terminal_theme : 'Default'
-  const themeName =
-    named === 'Default' ? (schemeDark ? 'Catppuccin Mocha' : 'Catppuccin Latte') : named
+  const named = knownTheme(settings.terminal_theme)
+  const themeName = named === 'VS Code' ? (schemeDark ? 'VS Code Dark' : 'VS Code Light') : named
   const palette = PALETTES[themeName] as Palette
   if (style === 'classic') {
     return {
       style,
       dark: schemeDark,
       roles: CLASSIC[schemeDark ? 'dark' : 'light'],
-      terminal: named === 'Default' ? null : palette,
+      terminal: terminalOf(settings.terminal_colors, palette),
     }
   }
   return {
     style,
     dark: !isLight(palette.bg),
     roles: rolesOf(themeName, palette),
-    terminal: palette,
+    terminal: terminalOf(settings.terminal_colors, palette),
   }
 }
 
 // What the editor colours in source text. Every theme maps them to its roles; a theme with syntax
-// colours of its own sets them here, for a dark editor.
+// colours of its own sets them here, for a dark and a light editor.
 export const SYNTAX_ROLES = [
   'heading',
   'strong',
@@ -322,31 +322,54 @@ export type SyntaxRole = (typeof SYNTAX_ROLES)[number]
 
 // VS Code 1.105.1's Dark+ / Dark Modern token colours (dark_vs.json, dark_plus.json, MIT); links
 // take `textLink.foreground` and list markers `punctuation.definition.list.begin.markdown`.
-const EXACT_SYNTAX: Readonly<Record<string, Readonly<Record<SyntaxRole, string>>>> = {
-  'VS Code Dark': {
-    heading: '#569cd6',
-    strong: '#569cd6',
-    code: '#ce9178',
-    link: '#4daafc',
-    marker: '#6796e6',
-    quote: '#6a9955',
-    rule: '#6e7681',
-    keyword: '#569cd6',
-    control: '#c586c0',
-    string: '#ce9178',
-    number: '#b5cea8',
-    comment: '#6a9955',
-    property: '#9cdcfe',
-    type: '#4ec9b0',
-    function: '#dcdcaa',
-    invalid: '#f44747',
+const EXACT_SYNTAX: Readonly<
+  Record<string, Readonly<Record<'dark' | 'light', Readonly<Record<SyntaxRole, string>>>>>
+> = {
+  'VS Code': {
+    dark: {
+      heading: '#569cd6',
+      strong: '#569cd6',
+      code: '#ce9178',
+      link: '#4daafc',
+      marker: '#6796e6',
+      quote: '#6a9955',
+      rule: '#6e7681',
+      keyword: '#569cd6',
+      control: '#c586c0',
+      string: '#ce9178',
+      number: '#b5cea8',
+      comment: '#6a9955',
+      property: '#9cdcfe',
+      type: '#4ec9b0',
+      function: '#dcdcaa',
+      invalid: '#f44747',
+    },
+    // light_vs.json and light_plus.json; links take light_modern's `textLink.foreground`.
+    light: {
+      heading: '#800000',
+      strong: '#000080',
+      code: '#800000',
+      link: '#005fb8',
+      marker: '#0451a5',
+      quote: '#008000',
+      rule: '#6e7681',
+      keyword: '#0000ff',
+      control: '#af00db',
+      string: '#a31515',
+      number: '#098658',
+      comment: '#008000',
+      property: '#e50000',
+      type: '#267f99',
+      function: '#795e26',
+      invalid: '#cd3131',
+    },
   },
 }
 
 // The colour of each syntax role for this look. `inherit` keeps the text's own colour.
 export function syntaxOf(look: Look, theme: string): Readonly<Record<SyntaxRole, string>> {
-  const own = EXACT_SYNTAX[theme]
-  if (own && look.dark) return own
+  const own = EXACT_SYNTAX[theme]?.[look.dark ? 'dark' : 'light']
+  if (own) return own
   const r = look.roles
   return {
     heading: r.accent,

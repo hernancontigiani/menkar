@@ -1,3 +1,4 @@
+import { matchShortcut } from '../core/shortcuts'
 import './chat.css'
 import { renderMarkdown } from '../core/chat/markdown'
 import { ChatModel, type Item } from '../core/chat/model'
@@ -153,7 +154,7 @@ export async function mountChat(container: HTMLElement, chatId: string): Promise
     draw()
   }
   entry.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (matchShortcut('chat', event) === 'chatSend') {
       event.preventDefault()
       submit()
     }

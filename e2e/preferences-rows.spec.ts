@@ -92,60 +92,67 @@ test('PRF-7, PRF-5, PRF-6 opening and closing writes no font; a chosen font reac
   })
 })
 
-test('PRF-9 Dark on a light desktop turns the app and its terminals Mocha at once', async () => {
-  await withTerminal({}, async ({ app, window, root }) => {
+test('PRF-9 Dark on a light desktop turns the app and its terminals dark at once (VS Code, which follows the scheme)', async () => {
+  await withTerminal({ terminal_theme: 'VS Code' }, async ({ app, window, root }) => {
     await window.emulateMedia({ colorScheme: 'light' })
-    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('Catppuccin Latte'))
+    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('VS Code Light'))
     const prefs = await openPreferences(app, window)
     await prefs.locator('[data-key="color_scheme"]').selectOption('dark')
-    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('Catppuccin Mocha'))
-    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Catppuccin Mocha')))
+    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('VS Code Dark'))
+    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('VS Code Dark')))
     await expect.poll(() => saved(root).color_scheme).toBe('dark')
   })
 })
 
 test('PRF-10, PRF-11 Follow system: a desktop switch recolors every window; a named theme stays', async () => {
-  await withTerminal({ color_scheme: 'system' }, async ({ app, window }) => {
-    await window.emulateMedia({ colorScheme: 'dark' })
-    const prefs = await openPreferences(app, window)
-    await prefs.emulateMedia({ colorScheme: 'dark' })
-    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Catppuccin Mocha')))
-    for (const page of [window, prefs]) {
-      await page.emulateMedia({ colorScheme: 'light' })
-      await expect.poll(() => cssVar(page, '--bg')).toBe(bg('Catppuccin Latte'))
-    }
-    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Catppuccin Latte')))
+  await withTerminal(
+    { color_scheme: 'system', terminal_theme: 'VS Code' },
+    async ({ app, window }) => {
+      await window.emulateMedia({ colorScheme: 'dark' })
+      const prefs = await openPreferences(app, window)
+      await prefs.emulateMedia({ colorScheme: 'dark' })
+      await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('VS Code Dark')))
+      for (const page of [window, prefs]) {
+        await page.emulateMedia({ colorScheme: 'light' })
+        await expect.poll(() => cssVar(page, '--bg')).toBe(bg('VS Code Light'))
+      }
+      await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('VS Code Light')))
 
-    await window.emulateMedia({ colorScheme: 'dark' })
-    await choose(prefs, 'terminal_theme', 'Nord')
-    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Nord')))
-    await window.emulateMedia({ colorScheme: 'light' })
-    await window.waitForTimeout(300)
-    expect(await terminalBackground(window)).toBe(rgb(bg('Nord')))
-  })
+      await window.emulateMedia({ colorScheme: 'dark' })
+      await choose(prefs, 'terminal_theme', 'Solarized Dark')
+      await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Solarized Dark')))
+      await window.emulateMedia({ colorScheme: 'light' })
+      await window.waitForTimeout(300)
+      expect(await terminalBackground(window)).toBe(rgb(bg('Solarized Dark')))
+    },
+  )
 })
 
-test('PRF-12, PRF-13 Classic: a plain window, no frame labels, default or named terminal colors; back again', async () => {
-  await withTerminal({ color_scheme: 'dark' }, async ({ app, window, root }) => {
-    const label = window.locator('.frame-label').first()
-    await expect(label).toBeVisible()
-    const prefs = await openPreferences(app, window)
-    await choose(prefs, 'ui_style', 'Classic (Adwaita)')
-    await expect.poll(() => saved(root).ui_style).toBe('classic')
-    await expect(window.locator('html')).toHaveClass(/\bclassic\b/)
-    await expect(label).toBeHidden()
-    await expect.poll(() => terminalBackground(window)).toBe('rgb(30, 30, 30)')
+test('PRF-12, PRF-13 Classic: a plain window, no frame labels, neutral or the theme’s terminal colors (decision 1.42); back again', async () => {
+  await withTerminal(
+    { color_scheme: 'dark', terminal_colors: 'neutral' },
+    async ({ app, window, root }) => {
+      const label = window.locator('.frame-label').first()
+      await expect(label).toBeVisible()
+      const prefs = await openPreferences(app, window)
+      await choose(prefs, 'ui_style', 'Classic (Adwaita)')
+      await expect.poll(() => saved(root).ui_style).toBe('classic')
+      await expect(window.locator('html')).toHaveClass(/\bclassic\b/)
+      await expect(label).toBeHidden()
+      await expect.poll(() => terminalBackground(window)).toBe('rgb(30, 30, 30)')
 
-    await choose(prefs, 'terminal_theme', 'Dracula')
-    await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('Dracula')))
-    await expect(window.locator('html')).toHaveClass(/\bclassic\b/)
+      await choose(prefs, 'terminal_theme', 'VS Code')
+      await prefs.locator('select[data-key="terminal_colors"]').selectOption('theme')
+      await expect.poll(() => terminalBackground(window)).toBe(rgb(bg('VS Code Dark')))
+      await expect(window.locator('html')).toHaveClass(/\bclassic\b/)
 
-    await choose(prefs, 'ui_style', 'Terminal workspace')
-    await expect.poll(() => saved(root).ui_style).toBe('tui')
-    await expect(window.locator('html')).not.toHaveClass(/\bclassic\b/)
-    await expect(label).toBeVisible()
-    await expect.poll(() => cssVar(window, '--bg')).toBe(bg('Dracula'))
-  })
+      await choose(prefs, 'ui_style', 'Terminal workspace')
+      await expect.poll(() => saved(root).ui_style).toBe('tui')
+      await expect(window.locator('html')).not.toHaveClass(/\bclassic\b/)
+      await expect(label).toBeVisible()
+      await expect.poll(() => cssVar(window, '--bg')).toBe(bg('VS Code Dark'))
+    },
+  )
 })
 
 test('PRF-18 Show folder path: the next Add session dialog shows each row its folder', async () => {

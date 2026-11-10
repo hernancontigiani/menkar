@@ -1,6 +1,7 @@
 import '@xterm/xterm/css/xterm.css'
 import './style.css'
 import './segmented.css'
+import { matchShortcut, type ShortcutOf } from '../core/shortcuts'
 import { openAddSession } from './addsession'
 import {
   act,
@@ -18,7 +19,7 @@ import { isMarkdown } from './editor'
 import { openFileDialog } from './fileopen'
 import { loadCatalog, t } from './i18n'
 import { beginPrefix, endPrefix, prefixWaiting, setPrefixHandlers, startsPrefix } from './keys'
-import { goToAgent, quickSwitcher } from './switcher'
+import { goToAgent, projectSwitcher, quickSwitcher } from './switcher'
 import { setAppKeyFilter } from './terminals'
 import { dialogOpen, toast } from './ui'
 
@@ -26,43 +27,42 @@ await loadCatalog()
 document.title = t('window.title')
 buildFrame()
 
+const WINDOW_ACTIONS: Record<ShortcutOf<'window'>, () => void> = {
+  newSession: () => openAddSession('new'),
+  addExisting: () => openAddSession('existing'),
+  openFile: () => openFileDialog(),
+  closeTab: () => {
+    const tab = document.querySelector<HTMLElement>('.tab.selected')?.dataset.tab
+    if (tab) void closeTabAsking(tab)
+  },
+  nextTab: () => void act({ type: 'stepTab', direction: 1 }),
+  previousTab: () => void act({ type: 'stepTab', direction: -1 }),
+  settings: () => void act({ type: 'openSettings' }),
+  switcher: () => quickSwitcher(),
+  projectSwitcher: () => projectSwitcher(),
+  sidebar: toggleSidebar,
+  newWindow: () => void newWindow(),
+  drawer: toggleDrawer,
+}
+
 // Window-level keys, taken before the terminal sees them (for every event type of the key).
 function appKey(event: KeyboardEvent): (() => void) | null {
-  const key = event.key
-  const ctrl = event.ctrlKey && !event.altKey && !event.metaKey
-  if (key === 'F9' && !ctrl && !event.shiftKey) return toggleSidebar
-  if (!ctrl) return null
-  // By its position, so it is the key left of 1 on every layout.
-  if (!event.shiftKey && (event.code === 'Backquote' || key === '`')) return toggleDrawer
-  const lower = key.toLowerCase()
-  if (event.shiftKey && lower === 't') return () => openAddSession('new')
-  if (event.shiftKey && lower === 'f') return () => openAddSession('existing')
-  if (event.shiftKey && lower === 'w') {
-    return () => {
-      const tab = document.querySelector<HTMLElement>('.tab.selected')?.dataset.tab
-      if (tab) void closeTabAsking(tab)
-    }
-  }
-  if (event.shiftKey && lower === 'n') return () => void newWindow()
-  if (event.shiftKey && lower === 'k') return () => quickSwitcher()
-  if (!event.shiftKey && key === ',') return () => void act({ type: 'openSettings' })
-  if (event.shiftKey && lower === 'o') return () => openFileDialog()
+  const id = matchShortcut('window', event)
+  if (id) return WINDOW_ACTIONS[id]
   // The file keys act only while a file tab is selected; in a terminal they are the terminal's.
-  const fileTab = selectedTabView()?.file
-  if (fileTab && !event.shiftKey && lower === 's') return () => void saveSelectedFile()
-  if (fileTab && event.shiftKey && lower === 'v') {
-    const tab = selectedTabView()
-    return () =>
-      tab &&
-      fileTab &&
-      (fileTab.preview || isMarkdown(fileTab.path)) &&
-      void act({ type: 'togglePreview', tab: tab.id })
+  const tab = selectedTabView()
+  const fileTab = tab?.file
+  if (!tab || !fileTab) return null
+  switch (matchShortcut('file', event)) {
+    case 'save':
+      return () => void saveSelectedFile()
+    case 'preview':
+      return () =>
+        (fileTab.preview || isMarkdown(fileTab.path)) &&
+        void act({ type: 'togglePreview', tab: tab.id })
+    default:
+      return null
   }
-  if (key === 'Tab') return () => void act({ type: 'stepTab', direction: event.shiftKey ? -1 : 1 })
-  if (key === 'PageDown' && !event.shiftKey)
-    return () => void act({ type: 'stepTab', direction: 1 })
-  if (key === 'PageUp' && !event.shiftKey) return () => void act({ type: 'stepTab', direction: -1 })
-  return null
 }
 
 // The key that ended the prefix also arrives as a keypress after its keydown; it is swallowed too,

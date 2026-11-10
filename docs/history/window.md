@@ -44,3 +44,32 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 - **Ubuntu** (2026-11-10) is the human's GNOME Terminal on Ubuntu with the desktop's colours:
   Yaru-dark's aubergine `#300a24` and white, with GNOME's own 16-colour palette. It works in both
   styles, and its chrome roles are derived like the others'.
+
+## Look
+
+> Left on 2026-11-10: six themes kept, VS Code Dark the default (decision 1.41).
+  the two Catppuccin themes, derived from `bg`/`fg` for the rest (mantle is HSL lightness and
+  saturation × 0.85; the surfaces are mixes toward `fg`). It also gives the terminal's palette.
+  Classic keeps libadwaita's stock chrome. A test holds all eleven themes against the spec's table
+  to ±1 per channel.
+- **No "Ubuntu" theme** (decision 1.40, 2026-11-10, amending 1.35): it was removed, and a saved
+  `terminal_theme` of "Ubuntu" loads as Default, as any unknown name does. Every pty still says
+  `COLORTERM=truecolor` (below).
+
+## The frame (2026-11-09)
+
+> Left on 2026-11-10: six themes kept, VS Code Dark the default (decision 1.41).
+  dark accent such as Tango's purple takes the light text).
+
+## Look
+
+> Left on 2026-11-10: one VS Code theme by the scheme, no Default (1.41 as amended), and a Terminal colors setting (1.42).
+- Classic with Default leaves the terminal without a theme: Menkar uses black on white in light
+  and white on `#1e1e1e` in dark, close to VTE's defaults (decision 1.10).
+- **VS Code Dark** (decision 1.39, 2026-11-10) is VS Code 1.105.1's default dark, Dark Modern,
+  taken from its MIT theme files. The terminal gets `#181818`, the panel's background, since the
+  terminal has none of its own, `#cccccc` text, and the workbench's 16 dark ANSI defaults. In
+  Terminal workspace its chrome roles are its own (sidebar, input, border, line-number,
+  description and focus colours) rather than derived, and the editor takes its syntax colours
+  (below).
+  theme.

@@ -22,31 +22,42 @@ How the main window is built and why that way. The behaviour it follows is in `d
 
 - `src/core/theme.ts` resolves the look from `ui_style`, `terminal_theme` and `color_scheme` plus
   the system's dark preference. In Terminal workspace it gives the eight chrome roles: exact for
-  the two Catppuccin themes, derived from `bg`/`fg` for the rest (mantle is HSL lightness and
-  saturation × 0.85; the surfaces are mixes toward `fg`). It also gives the terminal's palette.
-  Classic keeps libadwaita's stock chrome. A test holds all eleven themes against the spec's table
-  to ±1 per channel.
+  the two Catppuccin themes and VS Code's two palettes, derived from `bg`/`fg` for the Solarized
+  pair (mantle is HSL lightness and saturation × 0.85; the surfaces are mixes toward `fg`). It also
+  gives the terminals' palette (below). Classic keeps libadwaita's stock chrome. A test holds the
+  four spec themes against the spec's table to ±1 per channel.
+- **Five themes, VS Code by default** (decision 1.41 as amended, 2026-11-10): VS Code, Catppuccin
+  Mocha, Catppuccin Latte, Solarized Dark and Solarized Light. "VS Code" follows the scheme, Dark
+  Modern when it resolves dark and Light Modern when light; the others are one palette each. A
+  first start chooses VS Code, and a saved theme the app no longer has ("Default", "VS Code Dark",
+  the seven removed, "Ubuntu", anything unknown) reads as VS Code (`knownTheme`).
+- **Terminal colors** (decision 1.42, 2026-11-10), an Appearance dropdown saved as
+  `terminal_colors`: whose colours every terminal takes (agents, shells, the drawer), in both
+  styles, live; the theme still paints the rest of the window and the editor.
+  - **Ubuntu terminal**, the default: GNOME Terminal on Ubuntu with Yaru-dark's colours, `#300a24`,
+    white and GNOME's 16-colour palette, the same in either scheme (`UBUNTU_TERMINAL`).
+  - **Neutral (VTE)**: no palette (`look.terminal` null); the terminal draws black on white in
+    light and white on `#1e1e1e` in dark, close to VTE's defaults (decision 1.10).
+  - **Same as theme**: the chosen theme's terminal palette.
+  - A saved value that is not one of the three reads as Ubuntu terminal.
 - `src/renderer/look.ts` writes the roles as CSS custom properties on `<html>`, with a `tui` or
   `classic` class. `style.css` uses only those variables, so a theme or scheme change (including
   the desktop flipping light/dark) re-colors the open window at once.
-- Classic with Default leaves the terminal without a theme: Menkar uses black on white in light
-  and white on `#1e1e1e` in dark, close to VTE's defaults (decision 1.10).
 - The empty states show Menkar's star (decision 1.12), inlined with `fill="currentColor"`.
-- **No "Ubuntu" theme** (decision 1.40, 2026-11-10, amending 1.35): it was removed, and a saved
-  `terminal_theme` of "Ubuntu" loads as Default, as any unknown name does. Every pty still says
-  `COLORTERM=truecolor` (below).
-- **VS Code Dark** (decision 1.39, 2026-11-10) is VS Code 1.105.1's default dark, Dark Modern,
-  taken from its MIT theme files. The terminal gets `#181818`, the panel's background, since the
-  terminal has none of its own, `#cccccc` text, and the workbench's 16 dark ANSI defaults. In
-  Terminal workspace its chrome roles are its own (sidebar, input, border, line-number,
-  description and focus colours) rather than derived, and the editor takes its syntax colours
-  (below).
+- **No "Ubuntu" theme** (decision 1.40, 2026-11-10, amending 1.35): it was removed; a saved one
+  reads as the fallback theme (above). Every pty still says `COLORTERM=truecolor` (below).
+- **VS Code** (decisions 1.39 and 1.41, 2026-11-10) is VS Code 1.105.1's default themes, Dark
+  Modern and Light Modern, taken from its MIT theme files. Its terminal palettes are the panel's
+  background (`#181818`, `#f8f8f8`), since the terminal has none of its own, its text colour, and
+  the workbench's 16 dark or light ANSI defaults. In Terminal workspace its chrome roles are its own
+  (sidebar, border, input border, line-number, inactive text and focus colours) rather than
+  derived, and the editor takes its syntax colours in both schemes (below).
 - **Every pty says `COLORTERM=truecolor`** (2026-11-10). xterm.js draws 24-bit colour, but a
   Menkar started from the desktop has no `COLORTERM` of its own to pass on. Without it Claude
   Code drops to 256 colours (Node's colour depth reads `TERM=xterm-256color` as 8 bits) instead
   of painting its own RGB theme. That theme is what a reply's colours are: white text, `#b1b9f9`
   inline code, `#999999` greys. Only the background and the 16-colour palette come from Menkar's
-  theme.
+  terminal colours.
 
 ## Panes and terminals
 
@@ -171,7 +182,7 @@ session) takes the newest session of that folder modified since the tab started,
   one style (2026-11-09): a bordered group with a line between segments; the unchosen segments a
   translucent step off the page with dimmed text, the chosen one in the accent, bold. Text on the
   accent is the theme's background or its text, whichever has more contrast with the accent (a
-  dark accent such as Tango's purple takes the light text).
+  dark accent takes the light text).
 - Buttons, text fields and segmented groups round their corners even in Terminal workspace
   (`--control-radius`, 4 px there, Classic's own 6 px; 2026-11-09); a group rounds only its
   outline. Tabs, rows, the terminal frame and the dialog's response row keep the style's corners.
@@ -204,6 +215,24 @@ session) takes the newest session of that folder modified since the tab started,
     one.
 
 ## Keys, panes and jumping
+
+- **One table of keys** (decision 1.37, `src/core/shortcuts.ts`): every key Menkar handles is a
+  row, with its group (window, file tab, terminal, find bar, after `Ctrl+B`, switchers, chat), its
+  chords and its description.
+  - The handlers (`main.ts`, `keys.ts`, `terminals.ts`, `switcher.ts`, `chat.ts`) find their
+    command with `matchShortcut` and run it from a record typed by the table, so a row without an
+    action does not compile.
+  - Settings' Keyboard shortcuts and the `Ctrl+B ?` help are drawn from the table.
+  - A test that reads the source refuses any other key literal in those handlers. The three left
+    each name why: the prefix's own `Ctrl+B`, a held switcher's release, and switcherMove's
+    direction.
+- **The project switcher** (`Ctrl+Shift+E`, decision 1.38) lists the projects in use: the one this
+  window shows, then those with a tab open in any window, the most recently shown or focused first
+  (`activeProjects`, `src/core/projects/switching.ts`). Main keeps the recent order.
+  - It opens on the previous project. As with Alt+Tab, letting `Ctrl` go jumps, so a quick press
+    goes straight back; held, each `E` moves down, round. `↑`, `↓`, `Enter` and `Esc` work as in
+    the other switchers, with any modifier held.
+  - Jumping is `switchProject`: a project another window holds brings that window forward.
 
 - **The `Ctrl+B` prefix** (`src/renderer/keys.ts`) is caught on the document in the capture phase,
   so the terminal never sees it or the key that follows. It is not taken while the focus is in a

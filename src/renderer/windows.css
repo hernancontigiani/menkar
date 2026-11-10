@@ -320,3 +320,43 @@ select option {
   background-color: var(--bg);
   color: var(--fg);
 }
+
+/* Keyboard shortcuts: each chord as keycaps. */
+.shortcut-filter input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 12px 0 4px;
+}
+
+.chords {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.chord {
+  display: inline-flex;
+  gap: 3px;
+}
+
+kbd {
+  font: inherit;
+  font-size: 0.85em;
+  min-width: 1.4em;
+  text-align: center;
+  padding: 1px 6px;
+  border-radius: var(--control-radius);
+  border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent);
+  border-bottom-width: 2px;
+  background: color-mix(in srgb, var(--fg) 6%, var(--bg));
+}
+
+.shortcut-filter input {
+  font: inherit;
+  color: var(--fg);
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
