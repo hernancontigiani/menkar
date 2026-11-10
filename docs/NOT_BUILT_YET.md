@@ -151,3 +151,17 @@ consent, not a side effect.
 
 **Trigger:** the export proves too coarse for a real analysis, or the human asks for it. First
 question: which questions the export could not answer, so the tools are shaped by them.
+
+### More coding agents: Codex, OpenCode, Pi
+
+Menkar runs two agents today: Claude Code and Cursor's terminal agent (`cursor-agent`), listed in
+`src/core/agents.ts`. The human wants OpenAI's Codex CLI, OpenCode and Pi too (2026-11-10), after
+1.0. An agent is more than a command: Menkar needs, per agent, how to start and resume a session,
+where its transcripts live and their format (the session list, names, Usage's time and tokens, the
+classifier's input), how its running state shows in the terminal (agent-state detection), and what
+its status line or context reading offers. Adding one before those are known would put it in the
+New picker with half of Menkar not working for it. Cursor the editor is out of scope; only an
+agent that runs in a terminal fits.
+
+**Trigger:** after 1.0, the human installs one of them on Ubuntu to try it. First question, per
+agent: the four facts above, read from its docs and a real session, before any code.
