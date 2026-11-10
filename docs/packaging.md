@@ -16,6 +16,14 @@ category is Development.
 - **The post-install** (electron-builder's own template) links `/usr/bin/menkar` through
   `update-alternatives` and sets `chrome-sandbox` to `0755`. When the system's AppArmor understands
   `abi/4.0` it also copies `resources/apparmor-profile` to `/etc/apparmor.d/menkar` and loads it.
+- **The package's version is the app's with a revision of its build** (decided 2026-11-10):
+  `0.1.0-<commits>.g<hash>`, and `.dirty.<UTC time>` when the tree has changes not committed.
+  `scripts/package.mjs` computes it from git (`debianRevision`) and hands it to electron-builder as
+  `buildNumber`, which becomes fpm's `--iteration`. Every build sorts after the one before it for
+  dpkg, with no state kept, so `apt install` of a newer build is an upgrade, not "0 upgraded". The
+  app itself stays `0.1.0` (About, `package.json`), and so does the file name,
+  `release/menkar_0.1.0_amd64.deb`, so the install command never changes. Read a build's version
+  with `dpkg-deb -f release/menkar_0.1.0_amd64.deb Version`.
 - **`publish: null`**: no update feed and no `app-update.yml` in the package. Nothing leaves the
   machine.
 - `build/icons/512x512.png` is **provisional**, drawn for Menkar (a prompt and a star) until the
@@ -76,6 +84,7 @@ as any start does, single-instance hand-off included. The decision is `shouldDet
   link, its `0755` and its profile install and load, or the profile's `userns`. An update feed in
   the package also fails it. Vitest runs the same check on the post-install, profile and launcher
   recorded from a real build (`tests/data/package/`), so an upstream template change shows as a red.
+  It also fails a Version that is not the app's plus a build revision.
 - **`npm run package:smoke`** runs the e2e suite against `release/linux-unpacked/menkar`, under
   `xvfb-run` with Playwright's `--no-sandbox`. It proves the packaged app starts, loads node-pty
   from the asar and keeps Chromium's data out of the config directory. It cannot prove the sandbox.

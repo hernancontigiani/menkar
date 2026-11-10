@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { checkPackage, type Package } from '../../scripts/check-package.mjs'
+import { debianRevision } from '../../scripts/package.mjs'
 
 // The post-install, profile and launcher recorded from a real `npm run package`
 // (electron-builder 26.18.0), so a template change upstream shows here as a red, not as a broken
@@ -9,7 +11,8 @@ import { checkPackage, type Package } from '../../scripts/check-package.mjs'
 const data = (name: string) => readFileSync(join(__dirname, '..', 'data', 'package', name), 'utf8')
 
 const good = (): Package => ({
-  control: ' Package: menkar\n Version: 0.0.0\n Architecture: amd64\n',
+  version: '0.1.0',
+  control: ' Package: menkar\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n',
   files: [
     '/opt/Menkar/menkar',
     '/opt/Menkar/chrome-sandbox',
@@ -75,7 +78,63 @@ describe('package:check', () => {
         ),
       }),
     ],
+    [
+      'its build revision (apt would see a rebuild as the same version)',
+      (p: Package) => ({ ...p, control: p.control.replace('0.1.0-12.gabcdef12', '0.1.0') }),
+    ],
+    [
+      "the app's version",
+      (p: Package) => ({ ...p, control: p.control.replace('0.1.0-', '0.2.0-') }),
+    ],
   ])('a package that lost %s fails', (_what, mutate) => {
     expect(checkPackage(mutate(good()))).toHaveLength(1)
   })
+})
+
+describe('the Debian revision of a build', () => {
+  const at = new Date('2026-11-10T23:59:07Z')
+  const clean = (count: number, hash: string) =>
+    debianRevision({ count, hash, dirty: false, now: at })
+
+  test('a clean tree is <commits>.g<hash>; one with changes adds dirty and the UTC time', () => {
+    expect(clean(412, '0d1bd1a2')).toBe('412.g0d1bd1a2')
+    expect(debianRevision({ count: 412, hash: '0d1bd1a2', dirty: true, now: at })).toBe(
+      '412.g0d1bd1a2.dirty.20261110235907',
+    )
+    const dirty = { ...good(), control: ' Version: 0.1.0-412.g0d1bd1a2.dirty.20261110235907\n' }
+    expect(
+      checkPackage({
+        ...good(),
+        control: good().control.replace('12.gabcdef12', clean(412, '0d1bd1a2')),
+      }),
+    ).toEqual([])
+    expect(checkPackage(dirty).filter((p) => p.includes('Version'))).toEqual([])
+  })
+
+  // dpkg is the judge of the order apt upgrades in; a machine without it has no apt either.
+  test.skipIf(!existsSync('/usr/bin/dpkg'))(
+    'each build sorts after the one before it, as dpkg orders them, and after the plain 0.1.0',
+    () => {
+      const builds = [
+        '0.1.0',
+        `0.1.0-${clean(9, 'ffffffff')}`,
+        `0.1.0-${debianRevision({ count: 9, hash: 'ffffffff', dirty: true, now: at })}`,
+        `0.1.0-${debianRevision({ count: 9, hash: 'ffffffff', dirty: true, now: new Date('2026-11-11T00:00:01Z') })}`,
+        `0.1.0-${clean(10, '00000000')}`,
+        `0.1.0-${clean(100, '11111111')}`,
+      ]
+      expect(builds).toHaveLength(6)
+      for (let i = 1; i < builds.length; i++)
+        expect(
+          () =>
+            execFileSync('dpkg', [
+              '--compare-versions',
+              builds[i - 1] ?? '',
+              'lt',
+              builds[i] ?? '',
+            ]),
+          `${builds[i - 1]} < ${builds[i]}`,
+        ).not.toThrow()
+    },
+  )
 })

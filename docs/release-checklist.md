@@ -6,6 +6,8 @@ later check assumes the earlier ones passed. A check that fails stops the releas
 and what you saw.
 
 Version under check: **0.1.0**, `release/menkar_0.1.0_amd64.deb`, Ubuntu 24.04 amd64.
+The build's own version, `0.1.0-<commits>.g<hash>`, is what
+`dpkg-deb -f release/menkar_0.1.0_amd64.deb Version` prints; note it with the result.
 
 ## 1. Install
 

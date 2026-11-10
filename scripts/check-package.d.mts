@@ -1,4 +1,5 @@
 export interface Package {
+  version: string
   control: string
   files: string[]
   postinst: string

@@ -10,7 +10,8 @@ const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const APP = '/opt/Menkar'
 
 /**
- * @typedef {{ control: string, files: string[], postinst: string, profile: string, desktop: string }} Package
+ * @typedef {{ version: string, control: string, files: string[], postinst: string, profile: string, desktop: string }} Package
+ * `version` is the app's (package.json); the package's own is it with a revision of its build.
  * @param {Package} pkg `files` are absolute paths inside the package, `/opt/...`
  * @returns {string[]} what is wrong, empty when the package is right
  */
@@ -22,6 +23,13 @@ export function checkPackage(pkg) {
   if (field('Package') !== 'menkar')
     problems.push(`control: Package is ${field('Package')}, not menkar`)
   if (field('Architecture') !== 'amd64') problems.push('control: Architecture is not amd64')
+  const revision = new RegExp(
+    `^${pkg.version.replaceAll('.', '\\.')}-\\d+\\.g[0-9a-f]{7,}(\\.dirty\\.\\d{14})?$`,
+  )
+  if (!revision.test(field('Version') ?? ''))
+    problems.push(
+      `control: Version is ${field('Version')}, not ${pkg.version}-<commits>.g<hash>[.dirty.<time>]`,
+    )
 
   const files = new Set(pkg.files)
   for (const path of [
@@ -95,6 +103,7 @@ function main() {
       encoding: 'utf8',
     })
   const pkg = {
+    version,
     control: run('dpkg-deb', '-I', deb),
     files: run('dpkg-deb', '-c', deb)
       .split('\n')
@@ -108,7 +117,7 @@ function main() {
   for (const problem of problems) console.error(`✗ package:check: ${problem}`)
   if (problems.length) process.exit(1)
   console.log(
-    `package:check: release/${name} — ${pkg.files.length} entries, launcher, command and sandbox profile in place`,
+    `package:check: release/${name} — version ${/^\s*Version: (.*)$/m.exec(pkg.control)?.[1]}, ${pkg.files.length} entries, launcher, command and sandbox profile in place`,
   )
 }
 
