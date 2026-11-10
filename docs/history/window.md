@@ -37,3 +37,10 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
     Open file…, Open session file…, New window, each with its key where it has one. The agent is
+
+## Look
+
+> Left on 2026-11-10: the Ubuntu theme was removed (decision 1.40, amending 1.35).
+- **Ubuntu** (2026-11-10) is the human's GNOME Terminal on Ubuntu with the desktop's colours:
+  Yaru-dark's aubergine `#300a24` and white, with GNOME's own 16-colour palette. It works in both
+  styles, and its chrome roles are derived like the others'.

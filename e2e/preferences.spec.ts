@@ -134,7 +134,7 @@ test('PRF-14, PRF-16, PRF-17 a theme is saved and recolors every window at once'
       'Monokai',
       'One Dark',
       'Catppuccin Latte',
-      'Ubuntu',
+      'VS Code Dark',
     ])
     await prefs.locator('[data-expander="terminal_theme"] summary').click()
     await prefs

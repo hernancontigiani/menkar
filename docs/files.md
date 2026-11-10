@@ -44,7 +44,7 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
   background and text follow the app's light/dark state (two `EditorView.theme`s in a
   `Compartment`).
 - **Syntax colours** (2026-11-10) come from the theme's roles: one `HighlightStyle` whose colours are
-  the CSS variables every theme sets, so each theme and scheme, Ubuntu's included, colours the
+  the CSS variables every theme sets, so each theme and scheme colours the
   source as it colours the window. Headings are the accent, bold and not underlined; inline code and
   code blocks the warm yellow; links and URLs green and underlined; markers and table pipes red;
   quotes dimmed and italic; the rule `---` dim. Keywords, strings, numbers and comments get the same

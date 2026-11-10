@@ -64,13 +64,6 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
     '#eff1f5',
     '#5c5f77 #d20f39 #40a02b #df8e1d #1e66f5 #ea76cb #179299 #acb0be #6c6f85 #d20f39 #40a02b #df8e1d #1e66f5 #ea76cb #179299 #bcc0cc',
   ),
-  // GNOME Terminal on Ubuntu with the desktop's colours (Yaru-dark): its aubergine and white,
-  // and GNOME's own 16-colour palette.
-  Ubuntu: p(
-    '#ffffff',
-    '#300a24',
-    '#171421 #c01c28 #26a269 #a2734c #12488b #a347ba #2aa1b3 #d0cfcc #5e5c64 #f66151 #33da7a #e9ad0c #2a7bde #c061cb #33c7de #ffffff',
-  ),
   // VS Code's default dark ("Dark Modern"), VS Code 1.105.1, MIT: the terminal panel's background
   // (`panel.background`, the terminal having none of its own) and `terminal.foreground` from
   // extensions/theme-defaults/themes/dark_modern.json; the 16 colours are the workbench's dark
@@ -95,7 +88,6 @@ export const THEME_NAMES = [
   'Monokai',
   'One Dark',
   'Catppuccin Latte',
-  'Ubuntu',
   'VS Code Dark',
 ] as const
 

@@ -186,7 +186,6 @@ describe('themes', () => {
       'Monokai',
       'One Dark',
       'Catppuccin Latte',
-      'Ubuntu',
       'VS Code Dark',
     ])
   })
@@ -264,33 +263,17 @@ describe('themes', () => {
     expect(syntaxOf(light, 'VS Code Dark').heading).toBe(light.roles.accent)
   })
 
-  test('Ubuntu is the human’s GNOME Terminal: Yaru-dark’s aubergine and white, GNOME’s palette, in both styles', () => {
-    const gnome =
-      '#171421 #c01c28 #26a269 #a2734c #12488b #a347ba #2aa1b3 #d0cfcc #5e5c64 #f66151 #33da7a #e9ad0c #2a7bde #c061cb #33c7de #ffffff'.split(
-        ' ',
-      )
+  test('decision 1.40 a saved "Ubuntu" theme, removed, loads as Default in both styles and schemes', () => {
     for (const ui_style of ['tui', 'classic']) {
-      for (const [scheme, systemDark] of [
-        ['dark', false],
-        ['light', true],
-      ] as const) {
-        const look = resolveLook(
-          { ui_style, terminal_theme: 'Ubuntu', color_scheme: scheme },
-          systemDark,
-        )
-        expect(look.terminal, `${ui_style} ${scheme}`).toEqual({
-          bg: '#300a24',
-          fg: '#ffffff',
-          ansi: gnome,
-        })
-        // Classic keeps the desktop's own chrome; only the terminal takes the theme.
-        if (ui_style === 'tui') expect(look.dark, scheme).toBe(true)
+      for (const color_scheme of ['dark', 'light']) {
+        const dark = color_scheme === 'dark'
+        expect(
+          resolveLook({ ui_style, terminal_theme: 'Ubuntu', color_scheme }, dark),
+          `${ui_style} ${color_scheme}`,
+        ).toEqual(resolveLook({ ui_style, terminal_theme: 'Default', color_scheme }, dark))
       }
     }
-    expect(
-      resolveLook({ ui_style: 'tui', terminal_theme: 'Ubuntu', color_scheme: 'dark' }, true).roles
-        .bg,
-    ).toBe('#300a24')
+    expect(THEME_NAMES).not.toContain('Ubuntu')
   })
 
   test.each(Object.entries(RESOLVED))(

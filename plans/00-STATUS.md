@@ -49,6 +49,8 @@
 | 1.34 | Settings is one window like Ubuntu's: sections with icons in groups (Appearance, Work, Data, Integrations, System) under a "Settings" title; the header has "⚙ Settings", "+ New ▾" and "Usage"; Close all lives in the tab's right-click menu; the sidebar defaults to 250 px (minimum 180), a divider double-click resets it; transcript retention is an integration that shows the current cleanupPeriodDays and can raise it to 3650 days | 2026-11-09 | `docs/preferences.md` · `docs/window.md` |
 | 1.35 | Every pty gets `COLORTERM=truecolor`, so Claude Code paints its own 24-bit theme in every look (it fell back to 256 colours before); a theme "Ubuntu" (bg #300a24, fg #ffffff, GNOME's palette) matches the human's GNOME Terminal | 2026-11-10 | `docs/window.md` |
 | 1.36 | Settings → Appearance holds every visual setting, the terminal and editor font included (Terminal keeps behaviour); an Interface size (90–150 %, page zoom) scales Menkar's own UI and never the terminal or editor font; native dropdowns follow the window's colour scheme | 2026-11-10 | `docs/preferences.md` |
+| 1.39 | A "VS Code Dark" theme from VS Code's Dark Modern (MIT), and a theme may bring its own editor syntax colours | 2026-11-10 | `docs/window.md` · `docs/files.md` |
+| 1.40 | No "Ubuntu" theme (1.35's theme removed; a saved one loads as Default); COLORTERM=truecolor stays; no separate terminal-colours option | 2026-11-10 | `docs/window.md` |
 
 ## 2. Open
 
