@@ -73,16 +73,28 @@ test('the row’s phone follows the bridge as Claude Code reports it: connected,
     await expect(tabPhone).toHaveCount(0)
     await outline(rowPhone)
     // Where the emoji was: after the state dot, left of the name, centered on name and folder.
-    const box = async (l: Locator) => {
-      const b = await l.boundingBox()
-      if (!b) throw new Error('not laid out')
-      return b
-    }
-    // The row is redrawn as the state arrives; measured once it stands.
+    // The rows are redrawn on every state the app pushes: the three boxes are read together, in
+    // one go inside the page, from a row that is drawn, so none comes from a row being replaced.
     await expect(rowPhone.locator('svg')).toBeVisible()
-    const phoneBox = await box(rowPhone.locator('svg'))
-    const nameBox = await box(row.locator('.name'))
-    const textBox = await box(row.locator('.name').locator('..'))
+    const measure = () =>
+      page.evaluate(() => {
+        const row = [...document.querySelectorAll('#session-list .row')].find((r) =>
+          r.textContent?.includes('fix the login bug'),
+        )
+        const svg = row?.querySelector('.phone svg')
+        const name = row?.querySelector('.name')
+        const text = name?.parentElement
+        if (!svg || !name || !text) return null
+        const box = (e: Element) => {
+          const r = e.getBoundingClientRect()
+          return { x: r.x, y: r.y, width: r.width, height: r.height }
+        }
+        return { phone: box(svg), name: box(name), text: box(text) }
+      })
+    await expect.poll(measure).not.toBeNull()
+    const boxes = await measure()
+    if (!boxes) throw new Error('not laid out')
+    const { phone: phoneBox, name: nameBox, text: textBox } = boxes
     expect(phoneBox.x + phoneBox.width).toBeLessThanOrEqual(nameBox.x)
     expect(
       Math.abs(phoneBox.y + phoneBox.height / 2 - (textBox.y + textBox.height / 2)),
