@@ -35,6 +35,12 @@ How the main window is built and why that way. The behaviour it follows is in `d
 - **Ubuntu** (2026-11-10) is the human's GNOME Terminal on Ubuntu with the desktop's colours:
   Yaru-dark's aubergine `#300a24` and white, with GNOME's own 16-colour palette. It works in both
   styles, and its chrome roles are derived like the others'.
+- **VS Code Dark** (decision 1.39, 2026-11-10) is VS Code 1.105.1's default dark, Dark Modern,
+  taken from its MIT theme files. The terminal gets `#181818`, the panel's background, since the
+  terminal has none of its own, `#cccccc` text, and the workbench's 16 dark ANSI defaults. In
+  Terminal workspace its chrome roles are its own (sidebar, input, border, line-number,
+  description and focus colours) rather than derived, and the editor takes its syntax colours
+  (below).
 - **Every pty says `COLORTERM=truecolor`** (2026-11-10). xterm.js draws 24-bit colour, but a
   Menkar started from the desktop has no `COLORTERM` of its own to pass on. Without it Claude
   Code drops to 256 colours (Node's colour depth reads `TERM=xterm-256color` as 8 bits) instead

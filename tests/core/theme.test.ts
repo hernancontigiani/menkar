@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { contrast, onAccent, resolveLook, THEME_NAMES } from '../../src/core/theme'
+import {
+  contrast,
+  onAccent,
+  resolveLook,
+  SYNTAX_ROLES,
+  syntaxOf,
+  THEME_NAMES,
+} from '../../src/core/theme'
 
 // The resolved chrome roles of look.md, per theme: bg, fg, mantle, surface0, surface1, overlay0,
 // subtext0, accent, green, yellow, red.
@@ -180,7 +187,81 @@ describe('themes', () => {
       'One Dark',
       'Catppuccin Latte',
       'Ubuntu',
+      'VS Code Dark',
     ])
+  })
+
+  test('decision 1.39 VS Code Dark is VS Code 1.105.1’s Dark Modern: its terminal panel and 16 colours in both styles, its own chrome in Terminal workspace', () => {
+    const ansi =
+      '#000000 #cd3131 #0dbc79 #e5e510 #2472c8 #bc3fbc #11a8cd #e5e5e5 #666666 #f14c4c #23d18b #f5f543 #3b8eea #d670d6 #29b8db #e5e5e5'.split(
+        ' ',
+      )
+    for (const ui_style of ['tui', 'classic']) {
+      for (const [scheme, systemDark] of [
+        ['dark', false],
+        ['light', true],
+      ] as const) {
+        const look = resolveLook(
+          { ui_style, terminal_theme: 'VS Code Dark', color_scheme: scheme },
+          systemDark,
+        )
+        expect(look.terminal, `${ui_style} ${scheme}`).toEqual({
+          bg: '#181818',
+          fg: '#cccccc',
+          ansi,
+        })
+        if (ui_style === 'tui') expect(look.dark, scheme).toBe(true)
+      }
+    }
+    const tui = resolveLook(
+      { ui_style: 'tui', terminal_theme: 'VS Code Dark', color_scheme: 'dark' },
+      true,
+    )
+    expect(tui.roles).toMatchObject({
+      bg: '#181818',
+      fg: '#cccccc',
+      mantle: '#181818',
+      surface0: '#313131',
+      surface1: '#3c3c3c',
+      overlay0: '#6e7681',
+      subtext0: '#9d9d9d',
+      accent: '#0078d4',
+    })
+  })
+
+  test('decision 1.39 the editor takes VS Code Dark’s own syntax colours; every other theme maps the syntax to its roles', () => {
+    const vscode = resolveLook(
+      { ui_style: 'tui', terminal_theme: 'VS Code Dark', color_scheme: 'dark' },
+      true,
+    )
+    expect(syntaxOf(vscode, 'VS Code Dark')).toMatchObject({
+      heading: '#569cd6',
+      code: '#ce9178',
+      keyword: '#569cd6',
+      string: '#ce9178',
+      number: '#b5cea8',
+      comment: '#6a9955',
+      link: '#4daafc',
+    })
+    const mocha = resolveLook(
+      { ui_style: 'tui', terminal_theme: 'Catppuccin Mocha', color_scheme: 'dark' },
+      true,
+    )
+    const roles = syntaxOf(mocha, 'Catppuccin Mocha')
+    expect(roles).toMatchObject({
+      heading: mocha.roles.accent,
+      code: mocha.roles.yellow,
+      string: mocha.roles.green,
+      comment: mocha.roles.overlay0,
+      strong: 'inherit',
+    })
+    expect(Object.keys(roles).sort()).toEqual([...SYNTAX_ROLES].sort())
+    // A light editor (Classic, light scheme) keeps the role colours, made for its background.
+    const light = resolveLook(
+      { ui_style: 'classic', terminal_theme: 'VS Code Dark', color_scheme: 'light' },
+      false,
+    )
+    expect(syntaxOf(light, 'VS Code Dark').heading).toBe(light.roles.accent)
   })
 
   test('Ubuntu is the human’s GNOME Terminal: Yaru-dark’s aubergine and white, GNOME’s palette, in both styles', () => {

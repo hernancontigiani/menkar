@@ -1,5 +1,5 @@
 import type { Settings } from '../core/settings'
-import { type Look, onAccent, resolveLook } from '../core/theme'
+import { type Look, onAccent, resolveLook, SYNTAX_ROLES, syntaxOf } from '../core/theme'
 
 const dark = window.matchMedia('(prefers-color-scheme: dark)')
 let current: Settings | undefined
@@ -33,6 +33,8 @@ export function applyLook(settings: Settings, onChange?: (look: Look) => void): 
       look.style === 'tui' ? r.red : CLASSIC_DESTRUCTIVE[look.dark ? 'dark' : 'light'],
     '--scrim': `rgba(0, 0, 0, ${look.dark ? 0.5 : 0.14})`,
   }
+  const syntax = syntaxOf(look, settings.terminal_theme)
+  for (const role of SYNTAX_ROLES) vars[`--syntax-${role}`] = syntax[role]
   for (const [key, value] of Object.entries(vars)) root.style.setProperty(key, value)
   // Chromium draws native parts (a dropdown's list, scrollbars) in the page's color-scheme; with
   // none, a dark page's white option text sat on a white list.

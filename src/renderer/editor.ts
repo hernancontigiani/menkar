@@ -17,6 +17,7 @@ import {
 } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
 import type { Key } from '../core/i18n'
+import type { SyntaxRole } from '../core/theme'
 import type { FileUpdate, TabView } from '../shared/workspace'
 import { act, saveFile } from './app'
 import { el } from './dom'
@@ -60,33 +61,35 @@ function languageOf(path: string): Extension {
   return []
 }
 
-// The syntax colours are the theme's roles (the CSS variables every theme sets), so each theme and
-// scheme colours the source as it colours the rest of the window. Display only.
+// The syntax colours are CSS variables the look sets for every theme: its roles, or the theme's own
+// syntax colours where it has them. Display only.
+const syntax = (role: SyntaxRole) => `var(--syntax-${role})`
 const highlight = HighlightStyle.define([
-  { tag: tags.heading, color: 'var(--accent)', fontWeight: '700', textDecoration: 'none' },
-  { tag: tags.strong, fontWeight: '700' },
+  { tag: tags.heading, color: syntax('heading'), fontWeight: '700', textDecoration: 'none' },
+  { tag: tags.strong, color: syntax('strong'), fontWeight: '700' },
   { tag: tags.emphasis, fontStyle: 'italic' },
   { tag: tags.strikethrough, textDecoration: 'line-through' },
-  { tag: [tags.monospace, tags.labelName], color: 'var(--yellow)' },
-  { tag: [tags.link, tags.url], color: 'var(--green)', textDecoration: 'underline' },
-  { tag: tags.quote, color: 'var(--subtext0)', fontStyle: 'italic' },
-  { tag: [tags.processingInstruction, tags.atom], color: 'var(--red)' },
-  { tag: tags.contentSeparator, color: 'var(--overlay0)' },
-  { tag: [tags.keyword, tags.operatorKeyword, tags.modifier], color: 'var(--accent)' },
-  { tag: [tags.string, tags.special(tags.string), tags.regexp], color: 'var(--green)' },
-  { tag: [tags.number, tags.bool, tags.null], color: 'var(--yellow)' },
+  { tag: [tags.monospace, tags.labelName], color: syntax('code') },
+  { tag: [tags.link, tags.url], color: syntax('link'), textDecoration: 'underline' },
+  { tag: tags.quote, color: syntax('quote'), fontStyle: 'italic' },
+  { tag: [tags.processingInstruction, tags.atom], color: syntax('marker') },
+  { tag: tags.contentSeparator, color: syntax('rule') },
+  { tag: [tags.keyword, tags.operatorKeyword, tags.modifier], color: syntax('keyword') },
+  { tag: tags.controlKeyword, color: syntax('control') },
+  { tag: [tags.string, tags.special(tags.string), tags.regexp], color: syntax('string') },
+  { tag: [tags.number, tags.bool, tags.null], color: syntax('number') },
   {
     tag: [tags.comment, tags.lineComment, tags.blockComment],
-    color: 'var(--overlay0)',
+    color: syntax('comment'),
     fontStyle: 'italic',
   },
-  { tag: [tags.propertyName, tags.attributeName], color: 'var(--red)' },
-  { tag: [tags.typeName, tags.className, tags.tagName], color: 'var(--yellow)' },
+  { tag: [tags.propertyName, tags.attributeName], color: syntax('property') },
+  { tag: [tags.typeName, tags.className, tags.tagName], color: syntax('type') },
   {
     tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
-    color: 'var(--accent)',
+    color: syntax('function'),
   },
-  { tag: tags.invalid, color: 'var(--destructive)' },
+  { tag: tags.invalid, color: syntax('invalid') },
 ])
 
 // The editor follows the app's light / dark state, not its color theme.

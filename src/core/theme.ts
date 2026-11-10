@@ -71,6 +71,15 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
     '#300a24',
     '#171421 #c01c28 #26a269 #a2734c #12488b #a347ba #2aa1b3 #d0cfcc #5e5c64 #f66151 #33da7a #e9ad0c #2a7bde #c061cb #33c7de #ffffff',
   ),
+  // VS Code's default dark ("Dark Modern"), VS Code 1.105.1, MIT: the terminal panel's background
+  // (`panel.background`, the terminal having none of its own) and `terminal.foreground` from
+  // extensions/theme-defaults/themes/dark_modern.json; the 16 colours are the workbench's dark
+  // defaults for `terminal.ansi*` (vs/workbench/contrib/terminal, terminalColorRegistry).
+  'VS Code Dark': p(
+    '#cccccc',
+    '#181818',
+    '#000000 #cd3131 #0dbc79 #e5e510 #2472c8 #bc3fbc #11a8cd #e5e5e5 #666666 #f14c4c #23d18b #f5f543 #3b8eea #d670d6 #29b8db #e5e5e5',
+  ),
 }
 
 export const THEME_NAMES = [
@@ -87,6 +96,7 @@ export const THEME_NAMES = [
   'One Dark',
   'Catppuccin Latte',
   'Ubuntu',
+  'VS Code Dark',
 ] as const
 
 export interface Roles {
@@ -112,7 +122,18 @@ export interface Look {
   readonly terminal: Palette | null
 }
 
-const CATPPUCCIN: Readonly<Record<string, Partial<Roles>>> = {
+// Themes whose chrome colours are their own rather than derived from the terminal palette.
+const EXACT_ROLES: Readonly<Record<string, Partial<Roles>>> = {
+  // dark_modern.json: sideBar.background, input.background, input.border,
+  // editorLineNumber.foreground, descriptionForeground, focusBorder.
+  'VS Code Dark': {
+    mantle: '#181818',
+    surface0: '#313131',
+    surface1: '#3c3c3c',
+    overlay0: '#6e7681',
+    subtext0: '#9d9d9d',
+    accent: '#0078d4',
+  },
   'Catppuccin Mocha': {
     mantle: '#181825',
     surface0: '#313244',
@@ -182,7 +203,7 @@ export function shade(color: string, factor: number): string {
 }
 
 function rolesOf(name: string, palette: Palette): Roles {
-  const exact = CATPPUCCIN[name] ?? {}
+  const exact = EXACT_ROLES[name] ?? {}
   const { bg, fg, ansi } = palette
   return {
     bg,
@@ -282,5 +303,75 @@ export function resolveLook(settings: LookSettings, systemDark: boolean): Look {
     dark: !isLight(palette.bg),
     roles: rolesOf(themeName, palette),
     terminal: palette,
+  }
+}
+
+// What the editor colours in source text. Every theme maps them to its roles; a theme with syntax
+// colours of its own sets them here, for a dark editor.
+export const SYNTAX_ROLES = [
+  'heading',
+  'strong',
+  'code',
+  'link',
+  'marker',
+  'quote',
+  'rule',
+  'keyword',
+  'control',
+  'string',
+  'number',
+  'comment',
+  'property',
+  'type',
+  'function',
+  'invalid',
+] as const
+export type SyntaxRole = (typeof SYNTAX_ROLES)[number]
+
+// VS Code 1.105.1's Dark+ / Dark Modern token colours (dark_vs.json, dark_plus.json, MIT); links
+// take `textLink.foreground` and list markers `punctuation.definition.list.begin.markdown`.
+const EXACT_SYNTAX: Readonly<Record<string, Readonly<Record<SyntaxRole, string>>>> = {
+  'VS Code Dark': {
+    heading: '#569cd6',
+    strong: '#569cd6',
+    code: '#ce9178',
+    link: '#4daafc',
+    marker: '#6796e6',
+    quote: '#6a9955',
+    rule: '#6e7681',
+    keyword: '#569cd6',
+    control: '#c586c0',
+    string: '#ce9178',
+    number: '#b5cea8',
+    comment: '#6a9955',
+    property: '#9cdcfe',
+    type: '#4ec9b0',
+    function: '#dcdcaa',
+    invalid: '#f44747',
+  },
+}
+
+// The colour of each syntax role for this look. `inherit` keeps the text's own colour.
+export function syntaxOf(look: Look, theme: string): Readonly<Record<SyntaxRole, string>> {
+  const own = EXACT_SYNTAX[theme]
+  if (own && look.dark) return own
+  const r = look.roles
+  return {
+    heading: r.accent,
+    strong: 'inherit',
+    code: r.yellow,
+    link: r.green,
+    marker: r.red,
+    quote: r.subtext0,
+    rule: r.overlay0,
+    keyword: r.accent,
+    control: r.accent,
+    string: r.green,
+    number: r.yellow,
+    comment: r.overlay0,
+    property: r.red,
+    type: r.yellow,
+    function: r.accent,
+    invalid: r.red,
   }
 }

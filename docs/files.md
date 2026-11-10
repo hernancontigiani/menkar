@@ -50,6 +50,10 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
   quotes dimmed and italic; the rule `---` dim. Keywords, strings, numbers and comments get the same
   roles in the other languages. Markdown is read as GitHub's flavour, so tables and strikethrough are
   marked up too. Display only: the file's text is not touched.
+- **A theme may bring its own syntax colours** (decision 1.39): `syntaxOf` in `src/core/theme.ts`
+  maps each syntax role to the theme's roles, unless the theme lists its own, used for a dark
+  editor only. VS Code Dark lists VS Code's Dark+ token colours. The look sets them as
+  `--syntax-<role>` variables, which the `HighlightStyle` reads.
 - **The preview** is markdown-it (`commonmark` plus tables and strikethrough, HTML off, no
   linkify, no typography), written into an `<iframe sandbox="allow-same-origin" srcdoc>`. It has no
   scripts, and its CSP is `default-src 'none'; img-src file: data:; style-src 'unsafe-inline'`.
