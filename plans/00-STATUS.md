@@ -43,6 +43,7 @@
 | 1.66 | A sidebar row's `⋯` menu has "Move to Trash…" and "Delete…", the same confirmed actions as Add session's menu, only for a session with no open tab; when the session has earlier conversations (1.63), the confirmation offers to take them too, checked by default; Move to Trash is the first and recommended of the two | 2026-11-11 | `docs/sessions.md` |
 | 1.67 | Picking, in one window, a project another window holds (it shows it or has its tabs) asks: "Bring it to this window" or "Go to the other window". Bringing it moves its tabs with their running sessions, without restarting them; the other window keeps showing what it showed (or another project when it showed that one). A project is still open in one window at most | 2026-11-11 | `docs/window.md` (when delivered) |
 | 1.68 | Settles 2.13 (the human, 2026-11-11, with 0.1.0's checklist passed): the first-start import of agent-tablet's data (1.8) and the release checklist's comparisons with agent-tablet go; the credit line to Agent Session Manager stays (it names the idea's origin, not agent-tablet); then every other mention of agent-tablet in code, docs and tests goes, as 1.17 planned | 2026-11-11 | this row (until its plan is delivered) |
+| 1.69 | An in-tab `/resume` of a session another tab already runs is not followed (one tab per session holds); Menkar writes a visible line in that pane, "[Menkar] This session is already open in another tab; this tab still shows <previous name>", on the screen only, never typed into the agent. Not built yet (the human, 2026-11-11: decided, to be built later) | 2026-11-11 | this row (until built) |
 | 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to Agent Session Manager, with no link (2026-11-09) | 2026-11-08 | `docs/spec/README.md` |
 | 1.11 | The interface is in English and Spanish, both kept complete: `check-i18n` fails on a key Spanish lacks, so a new string is translated in the same change. agent-tablet's German, French and Hungarian are not carried over | 2026-11-08 | `docs/foundations.md` · `docs/NOT_BUILT_YET.md` |
 | 1.12 | Menkar's logo is an eight-pointed star (four long points, four short), one color, near white (`build/icons/menkar.svg`); the launcher icon sets it on a dark rounded tile; the empty window shows the same star instead of agent-tablet's folder illustration | 2026-11-08 | `build/icons/` |
@@ -87,7 +88,6 @@
 | # | Question | Owner | Blocks |
 |---|---|---|---|
 | 2.1 | The shell of Menkar's terminals on Windows: Git Bash (recommended), PowerShell as fallback, or WSL | Human | Windows |
-| 2.10 | The human's check of FIL-34: with Menkar closed and two windows saved, `menkar open x.md` reopens both windows, then asks "Open in which window?" | Human | Trusting `menkar open` from a terminal |
 
 ## 3. Roadmap and plans in flight
 

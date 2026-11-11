@@ -337,3 +337,6 @@
 
 > Left §2 on 2026-11-11: decided as 1.68.
 | 2.13 | After 0.1.0 is accepted: which of the three agent-tablet mentions 0.1.0 keeps also go — the first-start import (1.8), the credit in the README and About (1.10), the checklist's comparisons — then a plan removes the rest (1.17) | Human | Removing agent-tablet |
+
+> Left §2 on 2026-11-11: the human checked it on build 0.1.0-120.
+| 2.10 | The human's check of FIL-34: with Menkar closed and two windows saved, `menkar open x.md` reopens both windows, then asks "Open in which window?" | Human | Trusting `menkar open` from a terminal |
