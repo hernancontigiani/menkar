@@ -310,3 +310,6 @@
 
 > Left §3 on 2026-11-11: plan 30 delivered (1e5869c) — a files folder per project; executed by b1, with moves made exclusive (link or exclusive copy) on the way. Open from it: the human's hand checks (a real drag out, Nautilus opening, the chooser in Downloads), in §2.
 | 1 | `30-files-folder.md` — 1.51, a files folder per project | Written 2026-11-11, ready to execute |
+
+> Left §1 on 2026-11-11: 1.63 delivered (9347fe9).
+| 1.63 | Amends 1.56 and 1.57 (the human, 2026-11-11): the session a tab leaves through `/clear` or an in-tab `/resume` becomes an **earlier conversation** of the session that replaced it — still a member of the project (Usage counts it there), but in neither the list nor the "N hidden" foot; the row's menu lists its earlier conversations ("Earlier conversations ▸", newest first, by date and time) and opening one makes it an ordinary session of the list again; Add session finds them when searched | 2026-11-11 | this row (until its task is delivered) |
