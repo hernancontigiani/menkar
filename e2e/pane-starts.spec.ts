@@ -57,7 +57,12 @@ function twoProjects(dirs: { readonly root: string; readonly home: string }) {
 }
 
 interface Saved {
-  projects: { id: string; members: string[]; groups: { members: string[]; leader?: string }[] }[]
+  projects: {
+    id: string
+    members: string[]
+    groups: { members: string[]; leader?: string }[]
+    earlier?: Record<string, string[]>
+  }[]
   windows: { tabs: Record<string, { panes?: string[] }[]> }[]
 }
 
@@ -86,7 +91,7 @@ async function openAndType(word: string) {
 
 const dot = (page: Page, session: string) => page.locator(`.row[data-session="${session}"] .dot`)
 
-test('after /clear the tab runs the new id, which takes the old one’s place in its project and group, leader mark and Remote Control too; the old one is a stopped row', async () => {
+test('after /clear the tab runs the new id, which takes the old one’s place in its project and group, leader mark and Remote Control too; the old one is its earlier conversation, opened again from its menu', async () => {
   const { launched, page, saved, remote } = await openAndType('CLEAR')
   try {
     await expect(page.locator('.xterm-rows')).toContainText('stand-in cleared')
@@ -95,22 +100,35 @@ test('after /clear the tab runs the new id, which takes the old one’s place in
       { name: 'pair', color: '#5ec4b6', members: [CLEARED_SESSION], leader: CLEARED_SESSION },
     ])
     expect(saved().windows[0]?.tabs[CLIENT_WORK]?.map((t) => t.panes)).toEqual([[CLEARED_SESSION]])
-    await expect(dot(page, SESSION)).toHaveClass(/stopped/)
+    expect(saved().projects[0]?.earlier).toEqual({ [CLEARED_SESSION]: [SESSION] })
+    // Decision 1.63: no row for the session left, and it is not one of the hidden either.
     await expect(dot(page, CLEARED_SESSION)).not.toHaveClass(/stopped/)
+    await expect(page.locator(`.row[data-session="${SESSION}"]`)).toHaveCount(0)
+    await expect(page.locator('.hidden-foot')).toHaveCount(0)
     await expect.poll(remote).toEqual([CLEARED_SESSION])
+    await page.locator(`.row[data-session="${CLEARED_SESSION}"] .more`).click()
+    await page.locator('.menu-item', { hasText: 'Earlier conversations' }).click()
+    const earlier = page.locator('.menu-item', { hasText: 'fix the login bug' })
+    await expect(earlier).toHaveText(/fix the login bug · \d{4}-\d{2}-\d{2} \d{2}:\d{2}/)
+    await earlier.click()
+    // Opened in a tab of its own, and a row of the list again.
+    await expect(dot(page, SESSION)).not.toHaveClass(/stopped/)
+    await expect(page.locator('.tab')).toHaveCount(2)
+    await expect.poll(() => saved().projects[0]?.earlier).toBeUndefined()
   } finally {
     await launched.close()
   }
 })
 
-test('after an in-session /resume the tab runs the resumed session, which leaves its project and group for the tab’s; the session left is a stopped row', async () => {
+test('after an in-session /resume the tab runs the resumed session, which leaves its project and group for the tab’s, in the left one’s place; the session left is its earlier conversation', async () => {
   const { launched, page, saved } = await openAndType('RESUME')
   try {
     await expect(page.locator('.xterm-rows')).toContainText('stand-in resumed')
-    await expect.poll(() => saved().projects[0]?.members).toEqual([SESSION, ELSEWHERE])
+    await expect.poll(() => saved().projects[0]?.members).toEqual([ELSEWHERE, SESSION])
     expect(saved().projects[1]).toMatchObject({ id: SIDE, members: [], groups: [] })
     expect(saved().windows[0]?.tabs[CLIENT_WORK]?.map((t) => t.panes)).toEqual([[ELSEWHERE]])
-    await expect(dot(page, SESSION)).toHaveClass(/stopped/)
+    expect(saved().projects[0]?.earlier).toEqual({ [ELSEWHERE]: [SESSION] })
+    await expect(page.locator(`.row[data-session="${SESSION}"]`)).toHaveCount(0)
     await expect(dot(page, ELSEWHERE)).not.toHaveClass(/stopped/)
   } finally {
     await launched.close()

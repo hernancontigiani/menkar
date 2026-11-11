@@ -4,7 +4,7 @@ import { followNewId, followNewIdInLayout, followResume } from '../../../src/cor
 import { group, project, projects } from '../../factories/projects'
 
 describe('a cleared session’s new id takes the old one’s place', () => {
-  test('in the project’s members, its group and its leader mark; the old id stays, ungrouped, right after it', () => {
+  test('in the project’s members, its group and its leader mark; the old id stays, ungrouped, right after it, as an earlier conversation', () => {
     const state = projects([
       project(
         'p1',
@@ -15,14 +15,15 @@ describe('a cleared session’s new id takes the old one’s place', () => {
       project('p2', 'Other', ['c']),
     ])
     const followed = followNewId(state, 'old', 'new')
-    expect(followed.projects[0]).toEqual(
-      project(
+    expect(followed.projects[0]).toEqual({
+      ...project(
         'p1',
         'Work',
         ['a', 'new', 'old', 'b'],
         [{ ...group('auth', ['new', 'a']), leader: 'new' }, group('ui', ['b'])],
       ),
-    )
+      earlier: { new: ['old'] },
+    })
     expect(followed.projects[1]).toBe(state.projects[1])
   })
 
@@ -78,8 +79,8 @@ describe('a cleared session’s new id takes the old one’s place', () => {
   })
 })
 
-describe('a session resumed inside a tab joins the tab’s project', () => {
-  test('out of another project and its group there (its leader mark dropped), shown; the session left stays', () => {
+describe('a session resumed inside a tab joins the tab’s project, in the left one’s place', () => {
+  test('out of another project and its group there (its leader mark dropped), shown; the session left is its earlier conversation', () => {
     const state = projects([
       project('p1', 'Work', ['left']),
       {
@@ -92,19 +93,63 @@ describe('a session resumed inside a tab joins the tab’s project', () => {
         hidden: ['picked'],
       },
     ])
-    const followed = followResume(state, 'p1', 'picked')
-    expect(followed.projects[0]).toEqual(project('p1', 'Work', ['left', 'picked']))
+    const followed = followResume(state, 'left', 'picked', 'p1')
+    expect(followed.projects[0]).toEqual({
+      ...project('p1', 'Work', ['picked', 'left']),
+      earlier: { picked: ['left'] },
+    })
     expect(followed.projects[1]).toEqual({
       ...project('p2', 'Other', ['x'], [group('g', ['x'])]),
       hidden: [],
     })
   })
 
-  test('a session already in the tab’s project stays where it is, shown', () => {
-    const state = projects([{ ...project('p1', 'Work', ['picked', 'left']), hidden: ['picked'] }])
-    expect(followResume(state, 'p1', 'picked').projects[0]).toEqual({
-      ...project('p1', 'Work', ['picked', 'left']),
+  test('a session already in the tab’s project moves to the left one’s place, shown', () => {
+    const state = projects([
+      { ...project('p1', 'Work', ['picked', 'x', 'left']), hidden: ['picked'] },
+    ])
+    expect(followResume(state, 'left', 'picked', 'p1').projects[0]).toEqual({
+      ...project('p1', 'Work', ['x', 'picked', 'left']),
       hidden: [],
+      earlier: { picked: ['left'] },
+    })
+  })
+
+  test('resuming one of its own earlier conversations swaps them: the one left is earlier now', () => {
+    const state = projects([
+      {
+        ...project('p1', 'Work', ['now', 'before', 'oldest']),
+        earlier: { now: ['before', 'oldest'] },
+      },
+    ])
+    expect(followResume(state, 'now', 'before', 'p1').projects[0]).toEqual({
+      ...project('p1', 'Work', ['before', 'now', 'oldest']),
+      earlier: { before: ['now', 'oldest'] },
+    })
+  })
+
+  test('a resumed session brings its earlier conversations from its project into the tab’s', () => {
+    const state = projects([
+      project('p1', 'Work', ['left']),
+      { ...project('p2', 'Other', ['picked', 'its-old', 'y']), earlier: { picked: ['its-old'] } },
+    ])
+    const followed = followResume(state, 'left', 'picked', 'p1')
+    expect(followed.projects[0]).toEqual({
+      ...project('p1', 'Work', ['picked', 'left', 'its-old']),
+      earlier: { picked: ['left', 'its-old'] },
+    })
+    expect(followed.projects[1]).toEqual(project('p2', 'Other', ['y']))
+  })
+})
+
+describe('a chain of clears', () => {
+  test('a session cleared again passes its earlier conversations on: the newest lists them all', () => {
+    let state = projects([project('p1', 'Work', ['first'])])
+    state = followNewId(state, 'first', 'second')
+    state = followNewId(state, 'second', 'third')
+    expect(state.projects[0]).toEqual({
+      ...project('p1', 'Work', ['third', 'second', 'first']),
+      earlier: { third: ['second', 'first'] },
     })
   })
 })

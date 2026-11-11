@@ -91,6 +91,20 @@ keeps how they are built and why.
   that are not members are dropped, and a malformed list reads as none; a member leaving the
   project leaves the list too.
 
+## Earlier conversations (decision 1.63, 2026-11-11)
+
+- A project keeps `earlier`, a map from a session to the sessions its tab left through `/clear`
+  or an in-session `/resume` (`src/core/projects/earlier.ts`; how a tab follows is in
+  `docs/sessions.md`). They stay members, so usage counts them under the project; the list, the
+  hidden count, the quick switcher and the project's count leave them out.
+- **What always holds** (`keptEarlier`), whatever changed the members since: a key and every id in
+  a list are members, an id is in one list at most and is never a key, and no list is empty.
+  Anything else is dropped, so a session whose key left the project shows as an ordinary row
+  again. The renderer receives the map already kept so.
+- In `projects.json` it sits on the project after the files keys, only when not empty. It is read
+  leniently, as `hidden` is: ids that are not members and values that are not lists of strings are
+  dropped, and a malformed map reads as none.
+
 ## The layout — `layout.ts`
 
 - A `Layout` is windows; a window shows one project and keeps the tabs of every project it holds,

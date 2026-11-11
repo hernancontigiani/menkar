@@ -1,4 +1,5 @@
 import { log } from '../core/log'
+import { keptEarlier } from '../core/projects/earlier'
 import { firstStartImport } from '../core/projects/import'
 import type { Notice, ProjectsSnapshot } from '../core/projects/info'
 import type { Projects } from '../core/projects/model'
@@ -43,12 +44,13 @@ export function projectsSnapshot(): ProjectsSnapshot {
   if (!state) return { current: '', projects: [], notices }
   return {
     current: state.current,
-    projects: state.projects.map(({ id, name, members, groups, hidden }) => ({
-      id,
-      name,
-      members,
-      hidden: hidden ?? [],
-      groups,
+    projects: state.projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      members: p.members,
+      hidden: p.hidden ?? [],
+      groups: p.groups,
+      earlier: keptEarlier(p),
     })),
     notices,
   }

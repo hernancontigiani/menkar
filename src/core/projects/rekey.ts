@@ -1,10 +1,20 @@
+import { becomeEarlier, keptEarlier, releaseEarlier, tidyEarlier } from './earlier'
 import type { Layout } from './layout'
-import { addMember, type Group, type Project, type Projects, projectOf, showMember } from './model'
+import {
+  addMember,
+  type Group,
+  type Project,
+  type Projects,
+  projectOf,
+  removeMember,
+  showMember,
+} from './model'
 
-// Claude Code gives a running session a new id when the user clears it (`/clear`, decision 1.56). The new id
-// takes the old one's place: its spot among the project's members, its group and the group's
-// leader mark, and its hidden flag. The old id stays a member, right after it and outside any
-// group, as a stopped session of the same project.
+// Claude Code gives a running session a new id when the user clears it (`/clear`, decision 1.56),
+// and another when the user resumes a session inside it (1.57). The id the tab moves to takes the
+// old one's place: its spot among the project's members, its group and the group's leader mark,
+// and its hidden flag. The old id stays a member, right after it and outside any group, as one of
+// the new session's earlier conversations (1.63): in no list, in that session's menu.
 
 const swap = (ids: readonly string[], from: string, to: string) =>
   ids.map((id) => (id === from ? to : id))
@@ -33,15 +43,45 @@ export function followNewId(state: Projects, from: string, to: string): Projects
   if (from === to || !project || projectOf(state, to)) return state
   return {
     ...state,
-    projects: state.projects.map((p) => (p.id === project.id ? followInProject(p, from, to) : p)),
+    projects: state.projects.map((p) =>
+      p.id === project.id ? becomeEarlier(followInProject(p, from, to), from, to) : p,
+    ),
   }
 }
 
-// An in-session resume (decision 1.57) picks another session: it joins the tab's project, out of
-// any other one and its group there, and shows, since it runs. The session it left stays where it
-// was, stopped.
-export function followResume(state: Projects, projectId: string, to: string): Projects {
-  return showMember(addMember(state, projectId, to), to)
+// An in-session resume picks a session that may be anywhere: in another project (and a group
+// there), in this one, or an earlier conversation itself. It leaves wherever it was and takes the
+// old one's place in the tab's project, bringing its own earlier conversations along, since a
+// session is in one project at most.
+export function followResume(
+  state: Projects,
+  from: string,
+  to: string,
+  projectId: string,
+): Projects {
+  if (from === to) return state
+  const released = releaseEarlier(state, to)
+  const owner = projectOf(released, to)
+  const carried = owner ? (keptEarlier(owner)[to] ?? []) : []
+  const removed = [to, ...carried].reduce(removeMember, released)
+  const out = { ...removed, projects: removed.projects.map(tidyEarlier) }
+  const project = projectOf(out, from)
+  if (!project) return showMember(addMember(state, projectId, to), to)
+  return {
+    ...out,
+    projects: out.projects.map((p) => {
+      if (p.id !== project.id) return p
+      const placed = followInProject(p, from, to)
+      const at = placed.members.indexOf(from) + 1
+      const members = [...placed.members.slice(0, at), ...carried, ...placed.members.slice(at)]
+      const withCarried: Project = {
+        ...placed,
+        members,
+        earlier: { ...keptEarlier(placed), ...(carried.length > 0 ? { [to]: carried } : {}) },
+      }
+      return becomeEarlier(withCarried, from, to)
+    }),
+  }
 }
 
 // The tab that ran the old id runs the new one, in the same pane.

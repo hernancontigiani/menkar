@@ -14,6 +14,8 @@ export interface ProjectInfo {
     readonly collapsed?: true
     readonly leader?: string
   }[]
+  // Each session's earlier conversations: members kept out of the list and the hidden count.
+  readonly earlier: Readonly<Record<string, readonly string[]>>
 }
 
 // A message for the user, shown until dismissed: a key of `t()` and its placeholders.

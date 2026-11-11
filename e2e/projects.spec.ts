@@ -64,8 +64,16 @@ test("the first start imports agent-tablet's projects and settings, and leaves i
           members: ['s1', 's2'],
           hidden: [],
           groups: [{ name: 'api pair', color: '#c17be0', members: ['s1'] }],
+          earlier: {},
         },
-        { id: 'b2b2b2b2b2b2', name: 'Research', members: ['s3'], hidden: [], groups: [] },
+        {
+          id: 'b2b2b2b2b2b2',
+          name: 'Research',
+          members: ['s3'],
+          hidden: [],
+          groups: [],
+          earlier: {},
+        },
       ],
       notices: [],
     })

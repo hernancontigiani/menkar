@@ -14,6 +14,7 @@ import { checkTyped, expandInput } from '../core/files/check'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
+import { keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
   closeTab as closeLayoutTab,
   holder,
@@ -347,12 +348,13 @@ function stateFor(windowId: string): WindowState | undefined {
     windowId,
     settings,
     shown: w.shown,
-    projects: projects.projects.map(({ id, name, members, groups, hidden }) => ({
-      id,
-      name,
-      members,
-      hidden: hidden ?? [],
-      groups,
+    projects: projects.projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      members: p.members,
+      hidden: p.hidden ?? [],
+      groups: p.groups,
+      earlier: keptEarlier(p),
     })),
     heldElsewhere,
     tabs: w.tabs.map(tabView),
@@ -543,7 +545,8 @@ async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
 async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   // Running implies shown: a hidden member started from anywhere is back in its project's list.
   if (spec.sessionId) {
-    const shownAgain = showMember(projects, spec.sessionId)
+    // Nor is it an earlier conversation any more: it is a row of the list again.
+    const shownAgain = releaseEarlier(showMember(projects, spec.sessionId), spec.sessionId)
     if (shownAgain !== projects) {
       projects = shownAgain
       changed({ projects: true })
@@ -839,7 +842,7 @@ export function followPaneStart(
   const next =
     source === 'clear'
       ? followNewId(projects, from, sessionId)
-      : followResume(projects, tab.project, sessionId)
+      : followResume(projects, from, sessionId, tab.project)
   if (next === projects && source === 'clear') {
     log.warn('a cleared session was not followed: its old id is in no project, or its new one is', {
       from,
@@ -1827,7 +1830,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       if (!moved.ok) return { refusal: moved.refusal }
       layout = moved.layout
       // Picking a hidden member of this project shows it again rather than adding it twice.
-      projects = showMember(moved.projects, action.session)
+      projects = releaseEarlier(showMember(moved.projects, action.session), action.session)
       // A pane taken alone out of a two-pane tab now lives in a new tab of this window.
       if (before && fromTab) {
         const target = layout.windows

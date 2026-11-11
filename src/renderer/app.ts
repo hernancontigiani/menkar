@@ -2,6 +2,7 @@ import type { AgentStates } from '../core/agentstate/shown'
 import { faceBadge, groupState, rollup, type ShownState } from '../core/agentstate/shown'
 import { now } from '../core/clock'
 import type { Reading } from '../core/context/types'
+import { formatTime } from '../core/format'
 import type { Key } from '../core/i18n'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
@@ -357,7 +358,9 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     return
   }
   const byId = sessionsById(s)
-  const known = project.members.filter((id) => byId.has(id))
+  // Earlier conversations (decision 1.63) are members, listed only in their session's menu.
+  const earlierHere = new Set(Object.values(project.earlier).flat())
+  const known = project.members.filter((id) => byId.has(id) && !earlierHere.has(id))
   if (known.length === 0 && s.sessionsLoading) {
     const star = el('span', { class: 'turning-star' })
     star.innerHTML = STAR_SVG
@@ -382,8 +385,9 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     return
   }
   // Hidden in this project (decision 1.25): out of the list unless this window shows them, dimmed.
-  const hiddenHere = new Set(project.hidden.filter((id) => byId.has(id)))
-  const listed = (id: string) => !hiddenHere.has(id) || showHiddenInProject
+  const hiddenHere = new Set(project.hidden.filter((id) => byId.has(id) && !earlierHere.has(id)))
+  const listed = (id: string) =>
+    !earlierHere.has(id) && (!hiddenHere.has(id) || showHiddenInProject)
   const folders = new Set(
     known.map((id) => {
       const info = byId.get(id)
@@ -736,6 +740,8 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
     },
     { label: t('row.openFolder'), run: () => void openSessionFolder(info.id) },
   ]
+  const earlier = earlierMenu(info.id, project)
+  if (earlier) entries.push(earlier)
   // Stop applies to a session with a tab, whatever its agent is doing right now.
   if (running || state?.open.includes(info.id))
     entries.push({
@@ -788,6 +794,26 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
   }
   entries.push({ label: t('row.remove'), run: () => void removeFromProject(info, running) })
   return entries
+}
+
+// The sessions this one's tab left (decision 1.63), newest first by their last activity; opening
+// one makes it a row of the list again.
+function earlierMenu(session: string, project: ProjectInfo): MenuEntry | null {
+  const byId = state ? sessionsById(state) : new Map<string, SessionInfo>()
+  const earlier = (project.earlier[session] ?? [])
+    .flatMap((id) => {
+      const info = byId.get(id)
+      return info ? [info] : []
+    })
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+  if (earlier.length === 0) return null
+  return {
+    label: t('row.earlier'),
+    submenu: earlier.map((info) => ({
+      label: `${info.name} · ${formatTime(info.mtimeMs)}`,
+      run: () => void act({ type: 'openSession', session: info.id }),
+    })),
+  }
 }
 
 async function openBeside(session: string): Promise<void> {
@@ -1222,7 +1248,11 @@ function openProjectPopover(anchor: HTMLElement): void {
       el('span', { class: 'name' }, p.name),
       blockedPill(agentStates?.blocked[p.id] ?? 0),
       s.heldElsewhere[p.id] ? el('span', { class: 'dim' }, t('projects.openElsewhere')) : null,
-      el('span', { class: 'dim', title: t('projects.memberCount') }, String(p.members.length)),
+      el(
+        'span',
+        { class: 'dim', title: t('projects.memberCount') },
+        String(p.members.length - Object.values(p.earlier).flat().length),
+      ),
       rename,
       remove,
     )

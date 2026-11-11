@@ -159,7 +159,9 @@ export function quickSwitcher(): void {
   const s = currentState()
   if (!s) return
   const project = s.projects.find((p) => p.id === s.shown)
-  const members = new Set(project?.members ?? [])
+  // Earlier conversations (decision 1.63) are reached from their session's menu only.
+  const earlier = new Set(Object.values(project?.earlier ?? {}).flat())
+  const members = new Set((project?.members ?? []).filter((id) => !earlier.has(id)))
   const hiddenHere = new Set(project?.hidden ?? [])
   const known = s.sessions.filter((x) => members.has(x.id) && (showHiddenSessions() || !x.hidden))
   const ordered = groupByFolder(known).flatMap((g) =>

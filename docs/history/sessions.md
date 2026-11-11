@@ -25,3 +25,14 @@
 
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
 - **Details, export and replay** read the whole transcript in main and use
+
+## A session that changes id in its tab
+
+> Left on 2026-11-11: the session a tab leaves is an earlier conversation of the one that replaced it, not a stopped row (decision 1.63, amending 1.56 and 1.57).
+- **After a clear** (`followNewId`, `src/core/projects/rekey.ts`) the new id takes the old one's
+  place: its spot in the project's members, its group, the group's leader mark and its hidden flag.
+  The old id stays a member right after it, outside any group, as a stopped row. Nothing changes
+  when the new id already is in a project.
+- **After a resume** (`followResume`) the resumed session joins the tab's project through
+  `addMember`, leaving any other project and its group there, and is shown. The session left stays
+  where it was, stopped.

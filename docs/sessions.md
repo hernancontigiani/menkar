@@ -70,11 +70,21 @@ the new id, and so does the saved tab.
   another id. A start Menkar made with `--resume` names the pane's own id, so nothing moves.
 - **After a clear** (`followNewId`, `src/core/projects/rekey.ts`) the new id takes the old one's
   place: its spot in the project's members, its group, the group's leader mark and its hidden flag.
-  The old id stays a member right after it, outside any group, as a stopped row. Nothing changes
-  when the new id already is in a project.
-- **After a resume** (`followResume`) the resumed session joins the tab's project through
-  `addMember`, leaving any other project and its group there, and is shown. The session left stays
-  where it was, stopped.
+  Nothing changes when the new id already is in a project.
+- **After a resume** (`followResume`), the same, for the resumed session: it leaves wherever it
+  was (another project and its group there, this project's list, or an earlier conversation), takes
+  the left one's place, and is shown. It brings its own earlier conversations along, since a
+  session is in one project at most.
+- **The session left is an earlier conversation** (decision 1.63, 2026-11-11) of the one that
+  replaced it (`src/core/projects/earlier.ts`). It stays a member, so Usage counts it under the
+  project, right after the new one and outside any group. It is in neither the list, the "N hidden"
+  foot, the quick switcher nor the project's count. The new session's row menu has "Earlier
+  conversations ▸", newest first by the transcript's last activity, with its date and time.
+  - **Opening one** (from that menu, or anywhere a session starts) or picking it in Add session,
+    where it can be found and picked like any session, makes it an ordinary row again
+    (`releaseEarlier`).
+  - **A chain**: a session cleared again passes its own earlier conversations on, and the newest
+    lists them all.
 - **Not followed:** a session that another tab already holds, since a session is in one tab at
   most. The pane then runs a session that the tab does not name. A pane whose new session has not
   joined a project yet has no id to replace.

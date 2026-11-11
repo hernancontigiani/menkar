@@ -1,6 +1,7 @@
 import { basename, join } from 'node:path'
 import { readJsonReport, UnreadableShape, writeJson } from '../jsonstate'
 import { appDirs } from '../paths'
+import { keptEarlier } from './earlier'
 import {
   DEFAULT_GROUP_COLOR,
   freshProjects,
@@ -29,6 +30,15 @@ function strings(value: unknown, what: string): string[] {
   return value
 }
 
+// A session id → earlier ids map, read as far as it is one.
+function earlierLists(value: unknown): Record<string, string[]> {
+  if (!isObject(value)) return {}
+  const lists: Record<string, string[]> = {}
+  for (const [key, ids] of Object.entries(value))
+    if (Array.isArray(ids)) lists[key] = ids.filter((id): id is string => typeof id === 'string')
+  return lists
+}
+
 // Version 1, read strictly: a shape it cannot hold makes the whole file unreadable (moved aside),
 // while what can be repaired is repaired (a session kept in its first project, group members that
 // are not the project's dropped, a missing color).
@@ -40,7 +50,17 @@ export function parseProjects(value: unknown): Projects {
   const seen = new Set<string>()
   const parsed: Project[] = projects.map((raw) => {
     if (!isObject(raw)) unreadable('a project is not an object')
-    const { id, name, members, groups, hidden, files_folder, files_collapsed, ...projectRest } = raw
+    const {
+      id,
+      name,
+      members,
+      groups,
+      hidden,
+      files_folder,
+      files_collapsed,
+      earlier,
+      ...projectRest
+    } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
     if (typeof name !== 'string') unreadable('a project name is not a string')
     const own = (members === undefined ? [] : strings(members, 'members')).filter(
@@ -76,7 +96,7 @@ export function parseProjects(value: unknown): Projects {
     const keptHidden = Array.isArray(hidden)
       ? [...new Set(hidden.filter((h): h is string => typeof h === 'string' && memberSet.has(h)))]
       : []
-    return {
+    const read: Project = {
       id,
       name,
       members: unique,
@@ -88,6 +108,9 @@ export function parseProjects(value: unknown): Projects {
       ...(files_collapsed === true ? { filesCollapsed: true as const } : {}),
       rest: projectRest,
     }
+    // Lenient too: a list this version cannot read only lists those sessions again.
+    const earlierKept = keptEarlier({ ...read, earlier: earlierLists(earlier) })
+    return Object.keys(earlierKept).length > 0 ? { ...read, earlier: earlierKept } : read
   })
   const first = parsed[0]
   if (!first) unreadable('no projects')
@@ -102,7 +125,7 @@ export function parseProjects(value: unknown): Projects {
 }
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
-// keys, then id, name, members, groups, and hidden when any. A group writes name, color, members,
+// keys, then id, name, members, groups, and hidden, the files keys and earlier when any. A group writes name, color, members,
 // then collapsed and leader only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
@@ -127,6 +150,7 @@ export function serializeProjects(
       ...(p.hidden && p.hidden.length > 0 ? { hidden: p.hidden } : {}),
       ...(p.filesFolder ? { files_folder: p.filesFolder } : {}),
       ...(p.filesCollapsed ? { files_collapsed: true } : {}),
+      ...(Object.keys(keptEarlier(p)).length > 0 ? { earlier: keptEarlier(p) } : {}),
     })),
     windows,
   }

@@ -27,6 +27,10 @@ export interface Project {
   readonly filesFolder?: string
   // Its Files section in the sidebar shows the heading alone.
   readonly filesCollapsed?: true
+  // A session's earlier conversations (decision 1.63): the sessions its tab left through `/clear` or
+  // an in-session `/resume`, by the id that replaced them. Still members, so still counted; listed
+  // only in that session's menu.
+  readonly earlier?: Readonly<Record<string, readonly string[]>>
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }

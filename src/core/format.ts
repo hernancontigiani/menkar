@@ -23,6 +23,11 @@ export function formatTimestamp(value: string | undefined): string {
   if (value === undefined) return '—'
   const ms = Date.parse(value)
   if (Number.isNaN(ms)) return value
+  return formatTime(ms)
+}
+
+// Local `YYYY-MM-DD HH:MM` of a moment in milliseconds.
+export function formatTime(ms: number): string {
   const d = new Date(ms)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }

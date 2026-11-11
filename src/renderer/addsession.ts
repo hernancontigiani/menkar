@@ -158,11 +158,21 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
     state.sessions.filter((x) => showHiddenSessions() || !x.hidden)
   const groups = () => groupByFolder(visibleSessions(currentState() ?? s))
 
+  // An earlier conversation (decision 1.63) is not in the list, so it can be picked into it.
+  const listedHere = (info: SessionInfo, state: WindowState) => {
+    const owner = state.projects.find((p) => p.members.includes(info.id))
+    return (
+      owner?.id === state.shown &&
+      !Object.values(owner.earlier).some((ids) => ids.includes(info.id))
+    )
+  }
+
   function pickButton(info: SessionInfo, state: WindowState): HTMLElement {
     const owner = state.projects.find((p) => p.members.includes(info.id))
-    if (owner?.id === state.shown)
+    if (listedHere(info, state))
       return el('button', { class: 'pick flat', disabled: '' }, t('add.added'))
-    const label = owner ? t('add.moveFrom', { name: owner.name }) : t('add.add')
+    const label =
+      owner && owner.id !== state.shown ? t('add.moveFrom', { name: owner.name }) : t('add.add')
     const button = el('button', { class: 'pick suggested' }, label)
     button.addEventListener('click', (event) => {
       event.stopPropagation()
@@ -224,8 +234,7 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
         drawExisting(false)
         return
       }
-      const owner = state.projects.find((p) => p.members.includes(info.id))
-      if (owner?.id !== state.shown) void pick(info)
+      if (!listedHere(info, state)) void pick(info)
     })
     node.addEventListener('contextmenu', (event) => {
       event.preventDefault()

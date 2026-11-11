@@ -106,6 +106,7 @@ export const en = {
   'files.broughtMany': '{n} files → {project}',
   'files.undo': 'Undo',
   'row.openFolder': 'Open folder',
+  'row.earlier': 'Earlier conversations',
   'files.add': 'Add',
   'files.more': '{n} more…',
   'files.folderGone': 'That folder no longer exists.',
