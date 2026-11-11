@@ -99,3 +99,14 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   does inside an indented `⎿` block with a newline per row. Those rows are separate lines to the
   terminal, so only the first row's piece is a link and would open cut. The rows after it don't
   start with `http`, so they are not links. Nothing guesses where such an address ends.
+
+## Panes and terminals (links, schemes)
+
+> Left on 2026-11-11: Ctrl+click hands a link of any scheme to the system, a file: one opening with its default app (decision 1.59, amending 1.47).
+- **Links open with `Ctrl+click`** (2026-11-10), as in GNOME Terminal (`src/renderer/links.ts`).
+  Two kinds:
+  - An OSC 8 hyperlink, through xterm's `linkHandler`. Without one, xterm would ask with
+    `window.confirm`. With `allowNonHttpProtocols: false`, a `file:` or other link is not a link
+    at all.
+  `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends `openExternal` (http and https only, checked
+  again in main) after `webLink` (`src/core/links.ts`).

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { readFile, unlink, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { AGENT_COMMANDS } from '../core/agents'
@@ -12,6 +12,7 @@ import type { Reading } from '../core/context/types'
 import { DrawerRegistry, drawerFolder } from '../core/drawers'
 import { checkTyped, expandInput } from '../core/files/check'
 import { type Key, t } from '../core/i18n'
+import { linkTarget } from '../core/links'
 import { log } from '../core/log'
 import {
   closeTab as closeLayoutTab,
@@ -735,6 +736,26 @@ function joinSession(pane: Pane, sessionId: string): void {
     )
   }
   changed({ projects: true })
+}
+
+// ---------------------------------------------------------------- a terminal link
+
+// Ctrl+click on a terminal link (decision 1.59): a file opens with its default app, a folder in
+// the file manager, anything else through the system's handler for its scheme. The renderer's
+// check is made again here, since main is what hands it on.
+async function openLink(uri: string): Promise<void> {
+  const target = linkTarget(uri, hostname())
+  if (!target) return
+  if (target.kind === 'url') {
+    await shell
+      .openExternal(target.url)
+      .catch((error: unknown) =>
+        log.warn('a terminal link could not be opened', { url: target.url, error }),
+      )
+    return
+  }
+  const error = await shell.openPath(target.path)
+  if (error) log.warn('a terminal file link could not be opened', { path: target.path, error })
 }
 
 // ---------------------------------------------------------------- a pane's session changing id
@@ -1465,7 +1486,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       togglePreview(windowId, action.tab)
       return {}
     case 'openExternal':
-      if (/^https?:\/\//.test(action.url)) await shell.openExternal(action.url)
+      await openLink(action.url)
       return {}
     case 'closeAllTabs':
       for (const tab of w.tabs) closeTab(tab.id)

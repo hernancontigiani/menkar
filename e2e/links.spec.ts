@@ -1,9 +1,10 @@
-// Links in a terminal open in the browser with Ctrl+click, as in GNOME Terminal: an address in
-// the output, whole across the rows it wraps over, and an OSC 8 hyperlink. A plain click selects
-// and opens nothing; the hand shows only while Ctrl is held. The browser is never opened: main's
-// shell.openExternal is replaced by a recorder.
-import { writeFileSync } from 'node:fs'
+// Links in a terminal open with Ctrl+click, as in GNOME Terminal: an address in the output, whole
+// across the rows it wraps over, and an OSC 8 hyperlink of any scheme, a file: one with the file's
+// default app. A plain click selects and opens nothing; the hand shows only while Ctrl is held.
+// Nothing is ever opened: main's shell.openExternal and shell.openPath are replaced by recorders.
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app'
 
@@ -23,13 +24,19 @@ const ROWS_PLAIN = PIECES.map((piece) => `${piece}\n`).join('')
 const STAND_IN =
   'if [ -n "$FORCE_HYPERLINK" ] && [ "$FORCE_HYPERLINK" != 0 ]; then cat rows-osc8.txt; else cat rows-plain.txt; fi\n'
 
+// A file Claude Code links to as file://, its name with a space: it opens as its decoded path.
+let filePath = ''
+
 async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
   const launched = await launchApp({
     prepare: (dirs) => {
       writeFileSync(join(dirs.home, 'url.txt'), `${OAUTH}\n`)
+      mkdirSync(join(dirs.home, 'generated docs'))
+      filePath = join(dirs.home, 'generated docs', 'report.pdf')
+      writeFileSync(filePath, '%PDF-1.4\n')
       writeFileSync(
         join(dirs.home, 'osc.txt'),
-        `\x1b]8;;${OSC8}\x1b\\the docs\x1b]8;;\x1b\\ and \x1b]8;;file:///etc/passwd\x1b\\a file\x1b]8;;\x1b\\\n`,
+        `\x1b]8;;${OSC8}\x1b\\the docs\x1b]8;;\x1b\\ and \x1b]8;;${pathToFileURL(filePath).href}\x1b\\a file\x1b]8;;\x1b\\\n`,
       )
       writeFileSync(join(dirs.home, 'rows-osc8.txt'), ROWS_OSC8)
       writeFileSync(join(dirs.home, 'rows-plain.txt'), ROWS_PLAIN)
@@ -39,10 +46,15 @@ async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
     },
   })
   await launched.app.evaluate(({ shell }) => {
-    const g = globalThis as unknown as { opened: string[] }
+    const g = globalThis as unknown as { opened: string[]; paths: string[] }
     g.opened = []
+    g.paths = []
     shell.openExternal = (async (url: string) => {
       g.opened.push(url)
+    }) as never
+    shell.openPath = (async (path: string) => {
+      g.paths.push(path)
+      return ''
     }) as never
   })
   const page = launched.window
@@ -53,6 +65,8 @@ async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
 
 const opened = (launched: LaunchedApp) =>
   launched.app.evaluate(() => (globalThis as unknown as { opened: string[] }).opened)
+const openedPaths = (launched: LaunchedApp) =>
+  launched.app.evaluate(() => (globalThis as unknown as { paths: string[] }).paths)
 
 const row = (page: Page, text: string | RegExp) =>
   page.locator('.xterm-rows > div').filter({ hasText: text }).last()
@@ -104,7 +118,7 @@ test('Ctrl+click on an address wrapped over several rows opens it whole; a plain
   }
 })
 
-test('Ctrl+click on an OSC 8 hyperlink opens its address; a plain click and a file: link open nothing', async () => {
+test('Ctrl+click on an OSC 8 hyperlink opens its address, and on a file: link the file; a plain click opens nothing', async () => {
   const { launched, page } = await launch()
   try {
     await page.keyboard.type('cat osc.txt')
@@ -146,15 +160,20 @@ test('Ctrl+click on an OSC 8 hyperlink opens its address; a plain click and a fi
     await page.keyboard.down('Control')
     await page.mouse.down()
     await page.mouse.up()
-    // A file: link is not a link here at all: no underline, no hand, nothing opens.
+    // The text between the links is no link: no hand, nothing opens.
     const lineBox = await line.boundingBox()
     if (!lineBox) throw new Error('row not laid out')
-    await page.mouse.move(lineBox.x + (await at('a file')), lineBox.y + lineBox.height / 2)
+    await page.mouse.move(lineBox.x + (await at(' and ')), lineBox.y + lineBox.height / 2)
     await page.waitForTimeout(300)
     await expect(pointer(page)).toHaveCount(0)
     await page.mouse.down()
     await page.mouse.up()
+    // A file: link opens with the file's default app: its path, decoded, goes to the system.
+    await hoverLink(page, line, await at('a file'))
+    await page.mouse.down()
+    await page.mouse.up()
     await page.keyboard.up('Control')
+    await expect.poll(() => openedPaths(launched)).toEqual([filePath])
     await expect.poll(() => opened(launched)).toEqual([OSC8])
     await page.waitForTimeout(300)
     expect(await opened(launched)).toEqual([OSC8])

@@ -88,7 +88,7 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F56 | Languages through the i18n catalogs (`po/`) | preferences | C |
 | F57 | About dialog | preferences | C |
 | F58 | Empty states: "No session open", "<project> has no sessions", "No sessions found", "Nothing in this period." | look | C |
-| F59 | Links in a terminal open in the browser with `Ctrl+click`, as in GNOME Terminal: an address in the output (whole across the rows it wraps over) and an OSC 8 hyperlink, http(s) only; a plain click selects | terminal | Menkar 2026-11-10 |
+| F59 | Links in a terminal open with `Ctrl+click`, as in GNOME Terminal: an address in the output (whole across the rows it wraps over) and an OSC 8 hyperlink of any scheme, handed to the system (a `file:` one opens with the file's default app, decision 1.59); a plain click selects | terminal | Menkar 2026-11-10 |
 
 59 features.
 

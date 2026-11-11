@@ -92,8 +92,8 @@ How the main window is built and why that way. The behaviour it follows is in `d
   that arrives while scrolled up keeps the view where it is and puts an accent dot on the button.
   Every other modified End goes to the agent (xterm sends it on), so only `Ctrl+Shift+End` is
   caught, for every key event type.
-- **Links open with `Ctrl+click`** (2026-11-10), as in GNOME Terminal (`src/renderer/links.ts`).
-  Two kinds:
+- **Links open with `Ctrl+click`** (2026-11-10; any scheme since decision 1.59, 2026-11-11), as
+  in GNOME Terminal (`src/renderer/links.ts`). Two kinds:
   - An address in the output, found by `@xterm/addon-web-links` 0.12.0, the release paired with
     `@xterm/xterm` 6.0.0. It is bundled into the renderer, so it ships in the installer; it is the
     xterm project's own provider, and nothing else in the app finds links in a terminal. Its
@@ -101,13 +101,21 @@ How the main window is built and why that way. The behaviour it follows is in `d
     address that the terminal wrapped (Claude Code's OAuth link) opens whole. It stops at a row
     holding a space and after 2048 characters each way.
   - An OSC 8 hyperlink, through xterm's `linkHandler`. Without one, xterm would ask with
-    `window.confirm`. With `allowNonHttpProtocols: false`, a `file:` or other link is not a link
-    at all.
+    `window.confirm`. With `allowNonHttpProtocols: true`, every scheme is a link. Claude Code
+    sends a file it names (`[file] generated-docs/….pdf`) as a `file://` link.
   Both kinds are underlined on hover, and show the hand only while Ctrl is held (`ctrl-held` on
   the terminal under the pointer, set only while a link is under it). Restyling the whole body on
   every Ctrl press delayed the terminal's own handling enough for an Enter typed right after
-  `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends `openExternal` (http and https only, checked
-  again in main) after `webLink` (`src/core/links.ts`).
+  `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends
+  `openExternal` when the link parses as a URL (`linkUrl`, `src/core/links.ts`); a bare string is
+  no link. Main checks it again and hands it to the system, as GNOME Terminal does (`linkTarget`):
+  - **A `file:` link** opens with `shell.openPath` on its decoded path: the file's default app, a
+    folder in the file manager. It must name this machine: an empty host, `localhost` or this
+    host's name. An escaped `/` or NUL is not a path. The error string `openPath` returns is
+    logged. On Linux both `openPath` and `openExternal` go through `xdg-open`; `openPath` was
+    chosen because it takes a path and returns that error string.
+  - **Any other scheme** goes as it was written through `shell.openExternal`, to the system's
+    handler for it. One that has none fails there, and is logged.
   **One link across the rows Claude Code breaks** (decision 1.53, 2026-11-11). Claude Code breaks
   a long address with its own newlines, a row each (also inside an indented `⎿` block), so to the
   terminal the rows are separate lines. Every pty gets `FORCE_HYPERLINK=1` beside `COLORTERM`: a

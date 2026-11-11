@@ -82,3 +82,8 @@ header's sidebar toggle and "Close all tabs" (two tabs or more); the tab strip's
 - **Closing a running agent hangs up its pty** (SIGHUP), as closing a terminal does: close tab,
   Stop, `Ctrl+B x`, closing a window and quitting, after their confirmations. Nothing is typed —
   not `/exit`, and not `exit` into a leftover shell (its pty is closed the same way). (1.9)
+
+## The features index (F59)
+
+> Left on 2026-11-11: F59 no longer http(s) only; Ctrl+click hands any scheme to the system (decision 1.59).
+| F59 | Links in a terminal open in the browser with `Ctrl+click`, as in GNOME Terminal: an address in the output (whole across the rows it wraps over) and an OSC 8 hyperlink, http(s) only; a plain click selects | terminal | Menkar 2026-11-10 |
