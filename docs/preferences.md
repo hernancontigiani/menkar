@@ -51,6 +51,12 @@ are shaped this way.
   holder of `state.json`), then pushes every main window's state (`pushWindowStates()`) and sends
   `settings:changed` to every window. So a theme, style, scheme, font or scrollback change reaches
   every window at once (the original reached only the window that opened its Preferences).
+- **Files** (2026-11-11, after Usage in the Data group): the Menkar folder and where shared files
+  arrive, each a path with "Choose…" (`settings:choose-folder`, the system's folder chooser from
+  the Settings window; `''` shows and means the default, `PreferencesInfo.filesDefaults`); what ⬇
+  shows (`files_bring`); and the days before the trash (`files_trash_days`, 0–365). Changing the
+  Menkar folder moves nothing: a line under the row says where the old one stays
+  (`docs/project-files.md`).
 - **The language** is read once at start, before any window (`src/main/index.ts`). "Restart now"
   calls the workspace's `quitApp()`, which saves the layout as the last window's close does and
   hangs up every pty (SIGHUP, decision 1.9), **with no question even while sessions run**

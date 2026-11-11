@@ -61,4 +61,34 @@ describe('command lines', () => {
       `${CLI} --resume r1 && exit\n`,
     )
   })
+
+  describe('the project files folder (decision 1.51)', () => {
+    const dirs = { ...opts, addDirs: ['/h/Menkar/p/files'] }
+    test.each<[string, Parameters<typeof buildCommand>[1], string]>([
+      ['new', { kind: 'new', id: 'n1' }, '--session-id n1'],
+      ['resume', { kind: 'resume', id: 'r1' }, '--resume r1'],
+      [
+        'fork',
+        { kind: 'fork', source: 's', id: 'f1' },
+        '--resume s --fork-session --session-id f1',
+      ],
+    ])('a %s Claude session gets --add-dir before --settings', (_, start, identity) => {
+      expect(buildCommand('claude', start, dirs)).toBe(
+        `${CLI} ${identity} --add-dir /h/Menkar/p/files --settings ${SETTINGS} && exit\n`,
+      )
+    })
+
+    test('a path with a space is quoted; Cursor gets no --add-dir', () => {
+      expect(
+        buildCommand(
+          'claude',
+          { kind: 'resume', id: 'r1' },
+          { cli: CLI, addDirs: ['/h/My Files'] },
+        ),
+      ).toBe(`${CLI} --resume r1 --add-dir '/h/My Files' && exit\n`)
+      expect(buildCommand('cursor', { kind: 'resume', id: 'r1' }, { ...dirs, cli: '/bin/c' })).toBe(
+        '/bin/c --resume r1 && exit\n',
+      )
+    })
+  })
 })

@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { basename } from 'node:path'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import {
   IntegrationError,
   installRetention,
@@ -13,7 +13,13 @@ import {
 } from '../core/context/integrations'
 import { thresholdsOf } from '../core/context/levels'
 import { log } from '../core/log'
-import { LANGUAGE_NAMES, monospaceFamilies, validSetting } from '../core/preferences'
+import { filesRoot } from '../core/paths'
+import {
+  LANGUAGE_NAMES,
+  monospaceFamilies,
+  type PreferenceKey,
+  validSetting,
+} from '../core/preferences'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import type { InvokeChannel, InvokeChannels, RestartAnswer, RestartUnsaved } from '../shared/ipc'
 import { statuslineCommand } from './context'
@@ -96,6 +102,13 @@ async function restart(unsaved: RestartUnsaved): Promise<RestartAnswer> {
   return { restarting: true }
 }
 
+async function save(key: PreferenceKey, valid: string | number | boolean): Promise<Settings> {
+  await sessions.updateState((state) => withSetting(state, key, valid))
+  const settings = await currentSettings()
+  announce(settings)
+  return settings
+}
+
 export function registerPreferencesIpc(): void {
   handle('settings:get', async () => ({
     settings: await currentSettings(),
@@ -103,6 +116,7 @@ export function registerPreferencesIpc(): void {
     languages: Object.entries(LANGUAGE_NAMES).map(([code, name]) => ({ code, name })),
     fonts: await monospaceFonts(),
     version: app.getVersion(),
+    filesDefaults: { root: filesRoot(''), incoming: app.getPath('downloads') },
   }))
   handle('settings:set', async ({ key, value }) => {
     const valid = validSetting(key, value)
@@ -115,11 +129,25 @@ export function registerPreferencesIpc(): void {
       const kept = thresholdsOf(warn, full)
       if (kept.warn !== warn || kept.full !== full) return now
     }
-    await sessions.updateState((state) => withSetting(state, key, valid))
-    const settings = await currentSettings()
-    announce(settings)
-    return settings
+    return save(key, valid)
   })
+  ipcMain.handle(
+    'settings:choose-folder',
+    async (event, { key }: InvokeChannels['settings:choose-folder']['request']) => {
+      const now = await currentSettings()
+      const window = BrowserWindow.fromWebContents(event.sender)
+      const options = {
+        defaultPath: now[key] || (key === 'files_root' ? filesRoot('') : app.getPath('downloads')),
+        properties: ['openDirectory', 'createDirectory'] as ('openDirectory' | 'createDirectory')[],
+      }
+      const chosen = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      const path = chosen.canceled ? undefined : chosen.filePaths[0]
+      const valid = path === undefined ? null : validSetting(key, path)
+      return valid === null ? now : save(key, valid)
+    },
+  )
   handle('app:restart', ({ unsaved }) => restart(unsaved))
   // The opener window's project scopes the figures; a Usage window with no opener has none.
   ipcMain.handle(

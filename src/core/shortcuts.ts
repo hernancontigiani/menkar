@@ -170,6 +170,18 @@ export const SHORTCUTS = [
   { id: 'renameTab', group: 'prefix', chords: after('T'), description: 'shortcut.renameTab' },
   { id: 'prefixCloseTab', group: 'prefix', chords: after('X'), description: 'shortcut.closeTab' },
   { id: 'goToAgent', group: 'prefix', chords: after('g'), description: 'shortcut.goToAgent' },
+  {
+    id: 'openFilesFolder',
+    group: 'prefix',
+    chords: after('f'),
+    description: 'shortcut.openFilesFolder',
+  },
+  {
+    id: 'openPaneFolder',
+    group: 'prefix',
+    chords: after('o'),
+    description: 'shortcut.openPaneFolder',
+  },
   { id: 'prefixSidebar', group: 'prefix', chords: after('b'), description: 'shortcut.sidebar' },
   { id: 'prefixSettings', group: 'prefix', chords: after('s'), description: 'shortcut.settings' },
   { id: 'help', group: 'prefix', chords: after('?'), description: 'shortcut.help' },

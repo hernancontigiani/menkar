@@ -40,7 +40,7 @@ export function parseProjects(value: unknown): Projects {
   const seen = new Set<string>()
   const parsed: Project[] = projects.map((raw) => {
     if (!isObject(raw)) unreadable('a project is not an object')
-    const { id, name, members, groups, hidden, ...projectRest } = raw
+    const { id, name, members, groups, hidden, files_folder, files_collapsed, ...projectRest } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
     if (typeof name !== 'string') unreadable('a project name is not a string')
     const own = (members === undefined ? [] : strings(members, 'members')).filter(
@@ -82,6 +82,10 @@ export function parseProjects(value: unknown): Projects {
       members: unique,
       groups: parsedGroups,
       ...(keptHidden.length > 0 ? { hidden: keptHidden } : {}),
+      ...(typeof files_folder === 'string' && files_folder !== ''
+        ? { filesFolder: files_folder }
+        : {}),
+      ...(files_collapsed === true ? { filesCollapsed: true as const } : {}),
       rest: projectRest,
     }
   })
@@ -121,6 +125,8 @@ export function serializeProjects(
         ...(g.leader ? { leader: g.leader } : {}),
       })),
       ...(p.hidden && p.hidden.length > 0 ? { hidden: p.hidden } : {}),
+      ...(p.filesFolder ? { files_folder: p.filesFolder } : {}),
+      ...(p.filesCollapsed ? { files_collapsed: true } : {}),
     })),
     windows,
   }

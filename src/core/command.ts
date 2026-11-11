@@ -21,6 +21,8 @@ export interface CommandOptions {
   // The app's settings file for Claude Code (`--settings`), when the integration provides one.
   readonly settings?: string
   readonly remoteControl?: string
+  // Folders the agent may read and write besides its own (`--add-dir`, Claude Code only).
+  readonly addDirs?: readonly string[]
 }
 
 // The agent's command line, as typed into the user's shell: options, identity, then the app's
@@ -44,6 +46,7 @@ export function buildCommand(agent: Agent, start: Start, options: CommandOptions
       args.push('--resume', start.source, '--fork-session', '--session-id', start.id)
       break
   }
+  if (claude) for (const dir of options.addDirs ?? []) args.push('--add-dir', dir)
   if (claude && options.settings) args.push('--settings', options.settings)
   return `${args.map(shellQuote).join(' ')} && exit\n`
 }

@@ -1,12 +1,14 @@
 import type { AgentStates } from '../core/agentstate/shown'
 import { faceBadge, groupState, rollup, type ShownState } from '../core/agentstate/shown'
+import { now } from '../core/clock'
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
+import { relativeTime } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
 import { DEFAULT_SETTINGS, SIDEBAR_MIN_WIDTH } from '../core/settings'
-import type { Action, TabView, WindowState } from '../shared/workspace'
+import type { Action, ActionResult, TabView, WindowState } from '../shared/workspace'
 import { openAddSession } from './addsession'
 import { mountChat } from './chat'
 import { el, icon } from './dom'
@@ -193,6 +195,7 @@ export function buildFrame(): void {
       { id: 'sidebar' },
       el('div', { class: 'sidebar-header' }, projectButton, settings),
       el('div', { id: 'session-list' }),
+      el('div', { id: 'files-section' }),
       addSession,
     ),
     divider,
@@ -348,6 +351,7 @@ const folderOf = (info: SessionInfo) =>
 
 function renderSessionList(s: WindowState, project: ProjectInfo | undefined): void {
   const list = $('session-list')
+  $('files-section').replaceChildren(...(project ? filesSection(s, project) : []))
   if (!project) {
     list.replaceChildren()
     return
@@ -507,6 +511,107 @@ function groupDot(color: string): HTMLElement {
   return dot
 }
 
+// The project's files folder at the foot of the list (decision 1.51): its heading collapses it,
+// ⬇ brings a shared file in, 📂 opens the folder; a row opens on double click and drags out.
+function filesSection(s: WindowState, project: ProjectInfo): HTMLElement[] {
+  const collapsed = s.files.collapsed
+  const toggle = el(
+    'button',
+    {
+      class: `files-toggle dim${collapsed ? ' collapsed' : ''}`,
+      'aria-expanded': String(!collapsed),
+      'aria-label': collapsed ? t('files.expand') : t('files.collapse'),
+    },
+    t('files.heading', { n: s.files.items.length }),
+  )
+  toggle.addEventListener('click', () => void act({ type: 'collapseFiles', collapsed: !collapsed }))
+  const bring = el(
+    'button',
+    { class: 'files-button', 'data-key': 'files-bring', title: t('files.bring') },
+    '⬇',
+  )
+  bring.addEventListener('click', () => void bringFiles(bring, project.name))
+  const open = el(
+    'button',
+    { class: 'files-button', 'data-key': 'files-open', title: t('files.openFolder') },
+    '📂',
+  )
+  open.addEventListener('click', () => void act({ type: 'openFilesFolder' }))
+  const head = el(
+    'div',
+    { class: `files-heading${collapsed ? ' collapsed' : ''}` },
+    toggle,
+    bring,
+    open,
+  )
+  if (collapsed) return [head]
+  return [head, ...s.files.items.map(fileRow)]
+}
+
+function fileAge(mtimeMs: number): string {
+  const r = relativeTime(mtimeMs, now())
+  return 'date' in r ? r.date : translate(r.key, r.params)
+}
+
+function fileRow(file: { readonly name: string; readonly mtimeMs: number }): HTMLElement {
+  const node = el(
+    'div',
+    { class: 'file-row', draggable: 'true', 'data-file': file.name, title: file.name },
+    el('span', { class: 'file-name' }, file.name),
+    el('span', { class: 'file-age dim' }, fileAge(file.mtimeMs)),
+  )
+  node.addEventListener('dblclick', () => void act({ type: 'openProjectFile', name: file.name }))
+  // Main starts the drag with the file it resolves itself; the page only names it.
+  node.addEventListener('dragstart', (event) => {
+    event.preventDefault()
+    void act({ type: 'dragProjectFile', name: file.name })
+  })
+  return node
+}
+
+async function bringFiles(anchor: HTMLElement, projectName: string): Promise<void> {
+  if (state?.settings.files_bring !== 'newest')
+    return brought(await act({ type: 'bringFiles' }), projectName)
+  const { incoming } = await act({ type: 'newestIncoming' })
+  const r = anchor.getBoundingClientRect()
+  const entries: MenuEntry[] =
+    incoming && incoming.length > 0
+      ? incoming.map((f) => ({
+          label: `${f.name} · ${fileAge(f.mtimeMs)}`,
+          run: () =>
+            void act({ type: 'bringFiles', paths: [f.path] }).then((result) =>
+              brought(result, projectName),
+            ),
+        }))
+      : [{ label: t('files.noneIncoming'), disabled: true, run: () => undefined }]
+  showMenu(entries, { x: r.left, y: r.bottom + 4 })
+}
+
+const UNDO_MS = 8000
+
+function brought(result: ActionResult, projectName: string): void {
+  const done = result.brought
+  if (!done) return
+  const text =
+    done.names.length === 1
+      ? t('files.brought', { name: done.names[0] ?? '', project: projectName })
+      : t('files.broughtMany', { n: done.names.length, project: projectName })
+  toast(text, {
+    ms: UNDO_MS,
+    action: { label: t('files.undo'), run: () => void act({ type: 'undoBring', undo: done.undo }) },
+  })
+}
+
+export async function openPaneFolder(tab: string, pane: string | null): Promise<void> {
+  const { refusal } = await act({ type: 'openPaneFolder', tab, pane })
+  if (refusal) toast(translate(refusal))
+}
+
+async function openSessionFolder(session: string): Promise<void> {
+  const { refusal } = await act({ type: 'openSessionFolder', session })
+  if (refusal) toast(translate(refusal))
+}
+
 // Per window and not saved: whether the project's hidden members are listed, dimmed.
 let showHiddenInProject = false
 
@@ -613,6 +718,7 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       label: t('row.openBeside'),
       run: () => void openBeside(info.id),
     },
+    { label: t('row.openFolder'), run: () => void openSessionFolder(info.id) },
   ]
   // Stop applies to a session with a tab, whatever its agent is doing right now.
   if (running || state?.open.includes(info.id))
@@ -877,6 +983,10 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
           run: () => first && void act({ type: 'copyText', text: first }),
         },
         { label: t('tab.menuSwap'), run: () => void act({ type: 'swapOrientation', tab: tab.id }) },
+        {
+          label: t('row.openFolder'),
+          run: () => void openPaneFolder(tab.id, focusedPane.get(tab.id) ?? null),
+        },
         { label: t('tab.menuClose'), run: () => void closeTabAsking(tab.id) },
         {
           label: t('tab.menuCloseOthers'),

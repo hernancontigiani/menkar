@@ -38,6 +38,8 @@ export interface PreferencesInfo {
   readonly languages: readonly { readonly code: string; readonly name: string }[]
   readonly fonts: readonly string[]
   readonly version: string
+  // What '' means for the two folder settings on this system.
+  readonly filesDefaults: { readonly root: string; readonly incoming: string }
 }
 
 // The classification's state for the Integrations page: the switch, the line under it, and the
@@ -64,6 +66,11 @@ export interface InvokeChannels {
     response: Settings
   }
   'app:restart': { request: { unsaved: RestartUnsaved }; response: RestartAnswer }
+  // A folder setting chosen with the system's folder chooser; the settings as they are after.
+  'settings:choose-folder': {
+    request: { key: 'files_root' | 'files_incoming' }
+    response: Settings
+  }
   // Chat tabs (plan 14): installed agents, a chat's facts, a message, a permission's answer, Stop.
   'chat:agents': { request: undefined; response: readonly ChatAgent[] }
   'chat:info': { request: { chatId: string }; response: ChatInfo | null }
@@ -201,6 +208,7 @@ export interface MenkarApi {
   readonly preferences: {
     get(): Promise<PreferencesInfo>
     set(key: PreferenceKey, value: string | number | boolean): Promise<Settings>
+    chooseFolder(key: 'files_root' | 'files_incoming'): Promise<Settings>
     restart(unsaved?: RestartUnsaved): Promise<RestartAnswer>
     openLink(link: 'website' | 'issues'): Promise<void>
     onSettings(listener: (settings: Settings) => void): () => void

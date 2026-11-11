@@ -1,6 +1,6 @@
 // What Preferences may write, and how a value from the page is made valid before it is saved. No
 // Node import: the page shares these lists.
-import { type Settings, TERMINAL_COLORS, UI_SCALES } from './settings'
+import { FILES_BRING, type Settings, TERMINAL_COLORS, UI_SCALES, validTrashDays } from './settings'
 import { knownTheme, THEME_NAMES } from './theme'
 
 export const SCROLLBACK_MIN = 1000
@@ -23,6 +23,10 @@ export const PREFERENCE_KEYS = [
   'ring_full',
   'ui_scale',
   'terminal_colors',
+  'files_root',
+  'files_incoming',
+  'files_bring',
+  'files_trash_days',
 ] as const
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[number]
 
@@ -57,6 +61,17 @@ export function validSetting(key: string, value: unknown): string | number | boo
       return (UI_SCALES as readonly unknown[]).includes(value) ? (value as number) : null
     case 'terminal_colors':
       return (TERMINAL_COLORS as readonly unknown[]).includes(value) ? (value as string) : null
+    case 'files_root':
+    case 'files_incoming': {
+      if (typeof value !== 'string') return null
+      const path = value.trim()
+      // '' is the default; anything else an absolute path, POSIX or Windows.
+      return path === '' || /^(\/|[A-Za-z]:[\\/]|\\\\)/.test(path) ? path : null
+    }
+    case 'files_bring':
+      return (FILES_BRING as readonly unknown[]).includes(value) ? (value as string) : null
+    case 'files_trash_days':
+      return validTrashDays(value)
     case 'show_folder_path':
     case 'notify_idle':
     case 'notify_sound':
@@ -101,6 +116,7 @@ export const SETTINGS_LIST = [
   'context',
   null,
   'usage',
+  'files',
   null,
   'statusline',
   'retention',

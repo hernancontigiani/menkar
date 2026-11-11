@@ -563,6 +563,7 @@ test('PRJ-41, PRJ-43 a middle click closes a tab; a right click shows its menu; 
         'Rename…',
         'Copy session ID',
         "Swap the split's orientation",
+        'Open folder',
         'Close',
         'Close other tabs',
         'Close all tabs',

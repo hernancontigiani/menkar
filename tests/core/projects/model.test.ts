@@ -301,3 +301,14 @@ describe('a group leader and a collapsed group (1.54)', () => {
     expect(g(setCollapsed(collapsed, 'p', 'g', false))).not.toHaveProperty('collapsed')
   })
 })
+
+describe("a project's files folder (decision 1.51)", () => {
+  const named = projects([{ ...project('a', 'Work'), filesFolder: 'Work' }])
+
+  test('a rename keeps the saved folder name unless told the folder moved', () => {
+    expect(ok(renameProject(named, 'a', 'Job')).projects.projects[0]?.filesFolder).toBe('Work')
+    expect(ok(renameProject(named, 'a', 'Job', 'Job')).projects.projects[0]?.filesFolder).toBe(
+      'Job',
+    )
+  })
+})

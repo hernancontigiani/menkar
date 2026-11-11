@@ -9,7 +9,7 @@ import {
   type SettingsSection,
   shownTheme,
 } from '../core/preferences'
-import { type Settings, UI_SCALES } from '../core/settings'
+import { FILES_TRASH_DAYS_MAX, type Settings, UI_SCALES } from '../core/settings'
 import { PALETTES, THEME_NAMES } from '../core/theme'
 import type { PreferencesInfo } from '../shared/ipc'
 import { aboutSection } from './about'
@@ -244,6 +244,62 @@ function scrollbackRow(): HTMLElement {
   return row(t('prefs.scrollback'), null, input)
 }
 
+// A folder setting: the path in use ('' shows the default's), and Choose…. Changing the Menkar
+// folder moves nothing, so the line under it says where the old one stays.
+function folderRow(key: 'files_root' | 'files_incoming', title: string): HTMLElement {
+  const shown = () =>
+    settings[key] || info.filesDefaults[key === 'files_root' ? 'root' : 'incoming']
+  const path = el('div', { class: 'row-subtitle', 'data-path': key }, shown())
+  const note = el('div', { class: 'row-subtitle', 'data-note': key })
+  note.hidden = true
+  const choose = el('button', { 'data-key': key }, t('prefs.filesChoose'))
+  choose.addEventListener('click', async () => {
+    const before = shown()
+    settings = await api.chooseFolder(key)
+    path.textContent = shown()
+    if (key === 'files_root' && shown() !== before) {
+      note.textContent = t('prefs.filesRootMoved', { path: before })
+      note.hidden = false
+    }
+  })
+  return el(
+    'div',
+    { class: 'row' },
+    el('div', { class: 'row-text' }, el('div', { class: 'row-title' }, title), path, note),
+    choose,
+  )
+}
+
+function filesSection(): HTMLElement {
+  const days = el('input', {
+    type: 'number',
+    min: '0',
+    max: String(FILES_TRASH_DAYS_MAX),
+    step: '1',
+    'data-key': 'files_trash_days',
+  })
+  days.value = String(settings.files_trash_days)
+  days.addEventListener('change', async () => {
+    await set('files_trash_days', Number(days.value))
+    days.value = String(settings.files_trash_days)
+  })
+  return group(null, [
+    folderRow('files_root', t('prefs.filesRoot')),
+    folderRow('files_incoming', t('prefs.filesIncoming')),
+    expander(
+      'files_bring',
+      t('prefs.filesBring'),
+      [
+        { value: 'chooser', label: t('prefs.filesBringChooser') },
+        { value: 'newest', label: t('prefs.filesBringNewest') },
+      ],
+      settings.files_bring,
+      (value) => void set('files_bring', value),
+    ),
+    row(t('prefs.filesTrash'), t('prefs.filesTrashSubtitle'), days),
+  ])
+}
+
 function appearanceSection(): HTMLElement {
   const scheme = el('select', { 'data-key': 'color_scheme', 'aria-label': t('prefs.colorScheme') })
   for (const [value, label] of [
@@ -362,6 +418,7 @@ const SECTIONS: Record<SettingsSection, () => HTMLElement | Promise<HTMLElement>
     ]),
   context: ringGroup,
   usage: usageSection,
+  files: filesSection,
   statusline: statuslineSection,
   retention: retentionSection,
   mcp: mcpSection,
@@ -384,6 +441,8 @@ const ICONS: Record<SettingsSection, string> = {
     '<circle cx="8" cy="8" r="5.8"/><path d="M8 2.2a5.8 5.8 0 0 1 5.6 7.3"/><circle cx="8" cy="8" r="1.2"/>',
   usage:
     '<line x1="2.5" y1="13.5" x2="13.5" y2="13.5"/><rect x="3.5" y="8" width="2.4" height="5"/><rect x="6.8" y="4" width="2.4" height="9"/><rect x="10.1" y="6.5" width="2.4" height="6.5"/>',
+  files:
+    '<path d="M1.5 4a1 1 0 0 1 1-1h3.5l1.5 1.8h6a1 1 0 0 1 1 1V12.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/><line x1="8" y1="7" x2="8" y2="11"/><polyline points="6.2,9.4 8,11.2 9.8,9.4"/>',
   statusline:
     '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><line x1="1.5" y1="10.5" x2="14.5" y2="10.5"/><line x1="3.5" y1="12" x2="6.5" y2="12"/><line x1="9" y1="12" x2="12.5" y2="12"/>',
   retention:
@@ -434,6 +493,7 @@ async function main(): Promise<void> {
     notifications: t('settings.section.notifications'),
     context: t('settings.section.context'),
     usage: t('settings.section.usage'),
+    files: t('settings.section.files'),
     statusline: t('settings.section.statusline'),
     retention: t('settings.section.retention'),
     mcp: t('settings.section.mcp'),

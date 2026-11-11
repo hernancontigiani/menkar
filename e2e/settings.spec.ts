@@ -35,6 +35,7 @@ const SECTIONS = [
   'Notifications',
   'Context',
   'Usage & classifier',
+  'Files',
   'Status line',
   'Transcript retention',
   'MCP servers',
@@ -100,7 +101,7 @@ test('Settings (2026-11-10) lists its sections in five groups under its title, e
       .locator('.section-list > *')
       .evaluateAll((ns) => ns.map((n) => (n.tagName === 'HR' ? '|' : (n.textContent ?? ''))))
     expect(between.join(',')).toBe(
-      'Appearance,Terminal,|,Sessions,Notifications,Context,|,Usage & classifier,|,Status line,Transcript retention,MCP servers,|,Language,Keyboard shortcuts,About',
+      'Appearance,Terminal,|,Sessions,Notifications,Context,|,Usage & classifier,Files,|,Status line,Transcript retention,MCP servers,|,Language,Keyboard shortcuts,About',
     )
     const rows: Record<string, string> = {
       appearance: '[data-key="color_scheme"]',
@@ -109,6 +110,7 @@ test('Settings (2026-11-10) lists its sections in five groups under its title, e
       notifications: '[data-key="notify_idle"]',
       context: '[data-key="ring_warn"]',
       usage: '[data-key="classify"]',
+      files: '[data-key="files_root"]',
       statusline: '[data-key="statusline"]',
       retention: '[data-key="retention"]',
       mcp: '[data-key="none"]',
@@ -335,6 +337,53 @@ test('decision 1.37: Keyboard shortcuts lists every row of the keys table, as ke
       return window ? (await window.webContents.capturePage()).toPNG().toString('base64') : ''
     })
     writeFileSync('/tmp/menkar-shots/shortcuts.png', Buffer.from(png, 'base64'))
+  } finally {
+    await launched.close()
+  }
+})
+
+test('Files (decision 1.60): the Menkar folder and the incoming folder show their defaults; Choose… saves a folder and says nothing was moved; Bring in and the trash days are saved, an out-of-range day count is not', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return {}
+    },
+  })
+  const { app, window: page } = launched
+  try {
+    const chosen = join(root, 'chosen-root')
+    mkdirSync(chosen, { recursive: true })
+    await app.evaluate(({ dialog }, path) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as never
+    }, chosen)
+    const settings = await openSettings(app, page, { type: 'openSettings', section: 'files' })
+    const home = await app.evaluate(({ app: a }) => a.getPath('home'))
+    await expect(settings.locator('[data-path="files_root"]')).toHaveText(join(home, 'Menkar'))
+    await expect(settings.locator('[data-path="files_incoming"]')).toHaveText(
+      await app.evaluate(({ app: a }) => a.getPath('downloads')),
+    )
+    await settings.locator('button[data-key="files_root"]').click()
+    await expect(settings.locator('[data-path="files_root"]')).toHaveText(chosen)
+    await expect(settings.locator('[data-note="files_root"]')).toHaveText(
+      `Nothing was moved: the old folder stays at ${join(home, 'Menkar')}.`,
+    )
+    await settings.locator('[data-expander="files_bring"] summary').click()
+    await settings.locator('input[name="files_bring"][value="newest"]').check()
+    const days = settings.locator('input[data-key="files_trash_days"]')
+    await days.fill('400')
+    await days.press('Enter')
+    await expect(days).toHaveValue('30')
+    await days.fill('7')
+    await days.press('Enter')
+    const saved = () =>
+      JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).settings
+    await expect
+      .poll(() => {
+        const s = saved()
+        return [s.files_root, s.files_bring, s.files_trash_days]
+      })
+      .toEqual([chosen, 'newest', 7])
   } finally {
     await launched.close()
   }

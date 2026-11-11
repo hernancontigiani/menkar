@@ -1,7 +1,13 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { agentPaths, appDirs, electronUserData } from '../../src/core/paths'
+import {
+  agentPaths,
+  appDirs,
+  electronUserData,
+  filesRoot,
+  projectFilesFolder,
+} from '../../src/core/paths'
 
 describe('paths', () => {
   test("tests never resolve the app's directories under the developer's home", () => {
@@ -57,4 +63,10 @@ describe('paths', () => {
     expect(paths.claudeProjects).toBe(join(root, 'home', '.claude', 'projects'))
     expect(paths.agentTabletData).toBe(join(root, 'data', 'agent-tablet'))
   })
+})
+
+test("decision 1.58: the Menkar folder is ~/Menkar under the test's HOME unless set; a project's files are <root>/<name>/files", () => {
+  expect(filesRoot('')).toBe(join(homedir(), 'Menkar'))
+  expect(filesRoot('/srv/shared')).toBe('/srv/shared')
+  expect(projectFilesFolder('/h/Menkar', 'Guardian AI')).toBe('/h/Menkar/Guardian AI/files')
 })

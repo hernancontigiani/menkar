@@ -59,7 +59,7 @@ test('TRM-28 a key with no command ends the prefix and reaches nothing', async (
   }
 })
 
-test('TRM-31 Ctrl+B ? shows the 21 help lines in order, and OK', async () => {
+test('TRM-31 Ctrl+B ? shows the 23 help lines in order, and OK', async () => {
   const launched = await launchApp({ prepare: (dirs) => savedCursorTab(dirs, {}) })
   const page = launched.window
   try {
@@ -68,9 +68,9 @@ test('TRM-31 Ctrl+B ? shows the 21 help lines in order, and OK', async () => {
     await page.keyboard.press('Shift+?')
     await expect(page.locator('.dialog .heading')).toHaveText('Ctrl+B, then…')
     const lines = (await page.locator('.dialog .mono-block').innerText()).split('\n')
-    expect(lines).toHaveLength(21)
+    expect(lines).toHaveLength(23)
     expect(lines[0]).toBe('v  %     split right (a shell)')
-    expect(lines[20]).toBe('Ctrl+B   send Ctrl+B to the terminal')
+    expect(lines[22]).toBe('Ctrl+B   send Ctrl+B to the terminal')
     await page.locator('.dialog button', { hasText: 'OK' }).click()
   } finally {
     await launched.close()

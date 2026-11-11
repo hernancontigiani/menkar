@@ -91,3 +91,37 @@ test('decision 1.36: Interface size is one of its steps, 100 by default and for 
   expect(validSetting('ui_scale', 133)).toBeNull()
   expect(validSetting('ui_scale', '110')).toBeNull()
 })
+
+test('decision 1.60: the files settings read as their defaults when absent or invalid; Settings saves only a valid one', () => {
+  const defaults = settingsOf(parseState({}))
+  expect([
+    defaults.files_root,
+    defaults.files_incoming,
+    defaults.files_bring,
+    defaults.files_trash_days,
+  ]).toEqual(['', '', 'chooser', 30])
+  const wrong = settingsOf(
+    parseState({
+      settings: {
+        files_root: 3,
+        files_incoming: null,
+        files_bring: 'other',
+        files_trash_days: 400,
+      },
+    }),
+  )
+  expect([
+    wrong.files_root,
+    wrong.files_incoming,
+    wrong.files_bring,
+    wrong.files_trash_days,
+  ]).toEqual(['', '', 'chooser', 30])
+  for (const days of [400, -1, 'x', 1.5]) expect(validSetting('files_trash_days', days)).toBeNull()
+  expect(validSetting('files_trash_days', 0)).toBe(0)
+  expect(validSetting('files_trash_days', 365)).toBe(365)
+  expect(validSetting('files_bring', 'other')).toBeNull()
+  expect(validSetting('files_bring', 'newest')).toBe('newest')
+  expect(validSetting('files_root', 'relative/dir')).toBeNull()
+  expect(validSetting('files_root', '/home/ana/Shared')).toBe('/home/ana/Shared')
+  expect(validSetting('files_incoming', '')).toBe('')
+})

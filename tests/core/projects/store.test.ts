@@ -215,6 +215,31 @@ describe('projects.json', () => {
     })
   })
 
+  test("a project's files folder name round-trips after hidden; one that is not a string is dropped", () => {
+    const file = valid({
+      projects: [
+        {
+          id: 'a',
+          name: 'A',
+          members: [],
+          groups: [],
+          files_folder: 'A (2)',
+          files_collapsed: true,
+        },
+      ],
+    })
+    const parsed = parseProjects(file)
+    expect(parsed.projects[0]?.filesFolder).toBe('A (2)')
+    expect(JSON.stringify(serializeProjects(parsed).projects)).toBe(JSON.stringify(file.projects))
+    const bad = parseProjects(
+      valid({ projects: [{ id: 'a', name: 'A', members: [], groups: [], files_folder: 7 }] }),
+    )
+    expect(bad.projects[0]).not.toHaveProperty('filesFolder')
+    expect(serializeProjects(bad).projects).toEqual([
+      { id: 'a', name: 'A', members: [], groups: [] },
+    ])
+  })
+
   test('PRJ-55 the written form: 2 spaces, non-ASCII as is, unknown keys first, then version, current, projects, windows', async () => {
     const parsed = parseProjects({
       zeta: 1,

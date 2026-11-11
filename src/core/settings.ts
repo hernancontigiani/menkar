@@ -31,11 +31,21 @@ export interface Settings {
   readonly ui_scale: number
   // Whose colours the terminals take (decision 1.42): one of TERMINAL_COLORS.
   readonly terminal_colors: string
+  // The per-project files folders (decisions 1.51, 1.58, 1.60). A path, '' = the default: ~/Menkar
+  // for the root, the system's Downloads for where shared files arrive.
+  readonly files_root: string
+  readonly files_incoming: string
+  readonly files_bring: string
+  // 0 = never.
+  readonly files_trash_days: number
 }
 
 export const UI_SCALES = [90, 100, 110, 125, 150] as const
 // Ubuntu's own terminal, the neutral colours close to VTE's defaults, or the chosen theme's.
 export const TERMINAL_COLORS = ['ubuntu', 'neutral', 'theme'] as const
+// What ⬇ shows: the system's file chooser in the incoming folder, or a menu of its newest files.
+export const FILES_BRING = ['chooser', 'newest'] as const
+export const FILES_TRASH_DAYS_MAX = 365
 
 export const DEFAULT_SETTINGS: Settings = {
   ui_style: 'tui',
@@ -55,6 +65,10 @@ export const DEFAULT_SETTINGS: Settings = {
   last_agent: '',
   ui_scale: 100,
   terminal_colors: 'ubuntu',
+  files_root: '',
+  files_incoming: '',
+  files_bring: 'chooser',
+  files_trash_days: 30,
 }
 
 export const SIDEBAR_MIN_WIDTH = 180
@@ -97,7 +111,21 @@ export function parseSettings(value: unknown): Settings {
     terminal_colors: (TERMINAL_COLORS as readonly unknown[]).includes(raw.terminal_colors)
       ? (raw.terminal_colors as string)
       : DEFAULT_SETTINGS.terminal_colors,
+    files_root: str('files_root', DEFAULT_SETTINGS.files_root),
+    files_incoming: str('files_incoming', DEFAULT_SETTINGS.files_incoming),
+    files_bring: (FILES_BRING as readonly unknown[]).includes(raw.files_bring)
+      ? (raw.files_bring as string)
+      : DEFAULT_SETTINGS.files_bring,
+    files_trash_days: validTrashDays(raw.files_trash_days) ?? DEFAULT_SETTINGS.files_trash_days,
   }
+}
+
+export function validTrashDays(value: unknown): number | null {
+  return Number.isInteger(value) &&
+    (value as number) >= 0 &&
+    (value as number) <= FILES_TRASH_DAYS_MAX
+    ? (value as number)
+    : null
 }
 
 export function settingsOf(state: WithRest): Settings {

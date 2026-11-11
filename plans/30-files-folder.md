@@ -173,60 +173,102 @@ trash.
 
 ### Block 1 — core: paths, names, moves, trash selection, the command
 
-- [ ] Write the core tests above (folders, trash, command, preferences); see them fail.
-- [ ] `filesRoot()` in `src/core/paths.ts` (setting or `~/Menkar`, resolved when called).
-- [ ] `src/core/files/folders.ts`: `safeFolderName`, `uniqueFolderName`, `clashFree`,
+- [x] Write the core tests above (folders, trash, command, preferences); see them fail.
+- [x] `filesRoot()` in `src/core/paths.ts` (setting or `~/Menkar`, resolved when called).
+- [x] `src/core/files/folders.ts`: `safeFolderName`, `uniqueFolderName`, `clashFree`,
       `insideFolder` (the drag guard); `src/core/files/trash.ts`: `filesToTrash(listing, now,
       days, open)` as a pure function over a listing.
-- [ ] `CommandOptions.addDirs` in `buildCommand`, Claude only.
-- [ ] The four settings in `validSetting` and their defaults; `files_folder` on a project in the
+- [x] `CommandOptions.addDirs` in `buildCommand`, Claude only.
+- [x] The four settings in `validSetting` and their defaults; `files_folder` on a project in the
       store (kept as a known key, written only when set).
 - **Verify:** `npm run ci`.
 
 ### Block 2 — main: folders, moves, the timer, the agents
 
-- [ ] A main module `src/main/project-files.ts`: make the folder (10), list it (11) with async
+- [x] A main module `src/main/project-files.ts`: make the folder (10), list it (11) with async
       I/O, watch it while shown, move in with clash names and cross-device fallback (12), Undo,
       open the folder (`shell.openPath`), open a file, `startDrag` (15), the trash timer (5, 13)
       at start and every 24 h through the clock, skipping open file tabs.
-- [ ] Rename and delete of a project (9) in `src/main/workspace.ts` beside `renameProject`.
-- [ ] `--add-dir` and `MENKAR_FILES` where the agent command and the pane env are built
+- [x] Rename and delete of a project (9) in `src/main/workspace.ts` beside `renameProject`.
+- [x] `--add-dir` and `MENKAR_FILES` where the agent command and the pane env are built
       (`startPaneHeld`), making the folder first.
-- [ ] Typed IPC for the section (list, bring in: chooser or newest, undo, open, drag) in the one
+- [x] Typed IPC for the section (list, bring in: chooser or newest, undo, open, drag) in the one
       IPC module, and the project's files pushed to the window when they change.
 - **Verify:** `npm run ci`.
 
 ### Block 3 — Settings: the Files section
 
-- [ ] `files` after `usage` in `SETTINGS_LIST`, its icon, the four rows (14), "Choose…" through
+- [x] `files` after `usage` in `SETTINGS_LIST`, its icon, the four rows (14), "Choose…" through
       `dialog.showOpenDialog({ properties: ['openDirectory'] })`; changing the root says where
       the old one is (a line under the row).
-- [ ] Strings in English and Spanish.
+- [x] Strings in English and Spanish.
 - **Verify:** `npm run ci`; `npm run ui-check` on the settings specs; a screenshot of the
   section, dark and light.
 
 ### Block 4 — the sidebar's Files section and `Ctrl+B f`
 
-- [ ] Write `e2e/project-files.spec.ts` (table above); see it fail.
-- [ ] The section in `renderList` after the hidden foot: the collapsing heading styled as a group
+- [x] Write `e2e/project-files.spec.ts` (table above); see it fail.
+- [x] The section in `renderList` after the hidden foot: the collapsing heading styled as a group
       heading, ⬇ and 📂, the rows, double-click, `dragstart` → IPC, the newest-5 menu, the Undo
       toast; collapsed state saved per project (`files_collapsed` on the project).
-- [ ] `openFilesFolder` (`after('f')`) and `openPaneFolder` (`after('o')`) in
+- [x] `openFilesFolder` (`after('f')`) and `openPaneFolder` (`after('o')`) in
       `src/core/shortcuts.ts`, dispatched like the others; Settings → Keyboard shortcuts and the
       `Ctrl+B ?` help pick them up from the table. "Open folder" in the row's menu (after Open
       beside) and in the tab's right-click menu; the pane's cwd as the drawer finds it
       (`drawerFolder`).
-- [ ] Strings in English and Spanish.
+- [x] Strings in English and Spanish.
 - **Verify:** `npm run ci`; `npm run ui-check` (full); screenshots of the section expanded with
   files, collapsed, and the newest-5 menu, dark and light, looked at before reporting.
 
 ### Block 5 — docs
 
-- [ ] `docs/project-files.md` (new), its row in `CLAUDE.md`'s table; `docs/preferences.md`;
+- [x] `docs/project-files.md` (new), its row in `CLAUDE.md`'s table; `docs/preferences.md`;
       `docs/window.md`'s one line.
-- [ ] Execution log below.
+- [x] Execution log below.
 - **Verify:** `npm run ci`.
 
 ## Execution log
 
-_Written by the executing session._
+_Written by `b1`, 2026-11-11._
+
+- **`''` means the default for both folder settings.** Core cannot know the system's Downloads
+  (`app.getPath('downloads')`), so `files_root` and `files_incoming` store `''` until chosen; main
+  resolves them, and Settings shows the default's path (`PreferencesInfo.filesDefaults`).
+- **The section's IPC goes through the typed `Action` union** (`src/shared/workspace.ts`, imported
+  by the one IPC module): `bringFiles`, `newestIncoming`, `undoBring`, `openFilesFolder`,
+  `openProjectFile`, `dragProjectFile`, `collapseFiles`, `openPaneFolder`, `openSessionFolder`;
+  the listing reaches the window in `WindowState.files`. One new invoke channel,
+  `settings:choose-folder`, for the Settings window's "Choose…".
+- **A move is a hard link then the source's removal** (`moveExclusive`, asked by `set` after the
+  report): `rename()` silently replaced a file that appeared at the target after `clashFree` chose
+  its name, and the copy path's cleanup deleted that file on `EEXIST`. Where no link can be made
+  (`EXDEV`, `EPERM`, `ENOTSUP`), an exclusive copy; the partial copy is removed only when the error
+  is not `EEXIST`; a name taken meanwhile retries with the next ` (n)`. Seen red first against the
+  old logic (both cases).
+- **Undo is a token, not the paths**: main keeps the moves under an id (a minute), so the page
+  never hands main a path to move. The newest menu's paths are accepted only from the incoming
+  folder itself.
+- **The first trash run is 5 s after the start**, not at it: off the start's path, and the e2e can
+  only replace `shell.trashItem` once the app runs.
+- **The folder is made for a Cursor pane too** (decision 10 named a Claude session): every agent
+  pane gets `MENKAR_FILES`, and a path that does not exist would be worse than a folder made.
+- **The Files section is its own container, `#files-section`**, between the session list and Add
+  session, drawn by `renderSessionList` (also for an empty project). Inside `#session-list` it broke
+  every spec that reads the list's children or counts `.group-heading`, and it scrolled away with
+  long lists. Its toggle shares plan 29's heading rules by selector (`.files-toggle` added to them),
+  not by the `group-heading` class.
+- **Expectations changed in other specs** (decisions 6, 7, 7b; `set` agreed): `--add-dir` in the
+  command lines of `e2e/remote.spec.ts` (RC-1, RC-5, RC-6, RC-21) and `e2e/window.spec.ts` (TRM-1,
+  TRM-2); RC-6's row menu gains "Open folder"; `e2e/panes.spec.ts` TRM-31 has 23 help lines;
+  `e2e/projects.spec.ts` PRJ-41's tab menu gains "Open folder". Four of them edit an `expect(` line,
+  which `check-test-integrity` reports until the commit moves its baseline.
+- **`filesCollapsed` was added in block 2** (the window state needs it), with its store case.
+- **The e2e's env case uses a stand-in `claude` of its own** in `e2e/project-files.spec.ts` that
+  prints `MENKAR_FILES` and its arguments: the shared stand-in records neither, and
+  `e2e/fixtures.ts` is left as it was. The env and the trash cases passed before the sidebar
+  existed (block 2 had built them); the env case was seen red by renaming the variable, the trash
+  selection by letting the incoming folder and the root through `filesToTrash`.
+- **`e2e/settings.spec.ts`**: Files added to the section list it asserts, and one test for the
+  section's rows (seen red by inverting an assertion).
+- **Two numbers stay out of `docs/project-files.md`** (the 200 ms debounce, the 5 s delay): no test
+  asserts them.

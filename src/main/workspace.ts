@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { readFile, unlink, writeFile } from 'node:fs/promises'
+import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
@@ -48,6 +48,8 @@ import {
   renameProject,
   setCollapsed,
   setCurrent,
+  setFilesCollapsed,
+  setFilesFolder,
   setGroup,
   setLeader,
   showMember,
@@ -89,6 +91,22 @@ import {
   saveBuffer,
 } from './files'
 import { notifySeen, type PaneHandle, registerAgentPane } from './panes'
+import {
+  bringIn,
+  chooseIncoming,
+  dragProjectFile,
+  ensureFolder,
+  filesOf,
+  incomingFolder,
+  newestIncoming,
+  openFolder,
+  openProjectFile,
+  openProjectFolder,
+  renameFolder,
+  startProjectFiles,
+  syncShown,
+  undoBring,
+} from './project-files'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
 import { sessions } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
@@ -352,6 +370,10 @@ function stateFor(windowId: string): WindowState | undefined {
     agents: installedAgents,
     maximized: filled(windows.get(windowId)),
     sessionsLoading: sessionsLoading(),
+    files: {
+      items: filesOf(w.shown),
+      collapsed: projects.projects.find((p) => p.id === w.shown)?.filesCollapsed === true,
+    },
   }
 }
 
@@ -432,6 +454,7 @@ function filePaths(): Set<string> {
 function changed(options: { projects?: boolean } = {}): void {
   releaseBuffersExcept(filePaths())
   startShownTabs()
+  syncShown(new Set(layout.windows.map((lw) => lw.shown)))
   push()
   if (options.projects) {
     clearTimeout(saveTimer)
@@ -530,6 +553,15 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   const tag = t('terminal.tag')
   const messages: string[] = []
   let command: string | undefined
+  // The tab's project files folder (decision 1.51), made first so --add-dir names one that exists.
+  const projectId = tabById(tabId)?.project
+  const filesFolder =
+    spec.agent === 'shell' || !projectId
+      ? null
+      : await ensureFolder(projectId).catch((error: unknown) => {
+          log.warn('a project files folder could not be made', { project: projectId, error })
+          return null
+        })
   if (spec.agent !== 'shell' && spec.start) {
     const cliName = AGENT_COMMANDS[spec.agent]
     const cli = await findOnPath(cliName)
@@ -540,6 +572,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         cli,
         ...(settingsFile ? { settings: settingsFile } : {}),
         ...(spec.agent === 'claude' && spec.remote ? { remoteControl: spec.remote } : {}),
+        ...(filesFolder ? { addDirs: [filesFolder] } : {}),
       })
     }
   }
@@ -553,7 +586,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       folderGone: (cwd) => appMessage(tag, t('terminal.folderGone', { cwd })),
       ...(command ? { command } : {}),
       // The SessionStart hook names the pane, so a clear can be followed (followClear).
-      env: { [PANE_ENV]: id },
+      env: { [PANE_ENV]: id, ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}) },
     },
     {
       data: (data, end) => {
@@ -756,6 +789,22 @@ async function openLink(uri: string): Promise<void> {
   }
   const error = await shell.openPath(target.path)
   if (error) log.warn('a terminal file link could not be opened', { path: target.path, error })
+}
+
+// A folder that is gone says so instead of the file manager showing an error of its own.
+async function openExistingFolder(folder: string | null): Promise<ActionResult> {
+  if (!folder || !(await isFolder(folder))) return { refusal: 'files.folderGone' }
+  await openFolder(folder)
+  return {}
+}
+
+async function isFolder(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
 }
 
 // ---------------------------------------------------------------- a pane's session changing id
@@ -1195,6 +1244,16 @@ export async function startWorkspace(): Promise<void> {
     }
     if (markChanged) push()
   })
+  startProjectFiles({
+    projects: () => projects.projects,
+    settings: () => settings,
+    named: (projectId, folderName) => {
+      projects = setFilesFolder(projects, projectId, folderName)
+      changed({ projects: true })
+    },
+    openFiles: filePaths,
+    listed: push,
+  })
   for (const w of layout.windows) createBrowserWindow(w.id)
   changed()
 }
@@ -1272,7 +1331,12 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'renameProject': {
       const result = renameProject(projects, action.project, action.name)
       if (!result.ok) return { refusal: result.refusal }
-      projects = result.projects
+      const folder = await renameFolder(action.project, action.name).catch((error: unknown) => {
+        log.warn('a project files folder was not renamed', { project: action.project, error })
+        return undefined
+      })
+      const renamed = folder ? renameProject(projects, action.project, action.name, folder) : result
+      projects = renamed.ok ? renamed.projects : result.projects
       changed({ projects: true })
       return {}
     }
@@ -1351,6 +1415,47 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed({ projects: true })
       return {}
     }
+    case 'bringFiles': {
+      const incoming = incomingFolder()
+      const paths = action.paths ?? (await chooseIncoming(contents))
+      // From the newest menu, only files of the incoming folder itself.
+      if (action.paths && action.paths.some((p) => dirname(p) !== incoming)) return {}
+      const brought = await bringIn(w.shown, paths)
+      return brought ? { brought } : {}
+    }
+    case 'newestIncoming':
+      return { incoming: await newestIncoming() }
+    case 'undoBring':
+      await undoBring(action.undo)
+      return {}
+    case 'openFilesFolder':
+      await openProjectFolder(w.shown)
+      return {}
+    case 'openProjectFile':
+      await openProjectFile(w.shown, action.name)
+      return {}
+    case 'dragProjectFile':
+      await dragProjectFile(contents, w.shown, action.name)
+      return {}
+    case 'collapseFiles':
+      projects = setFilesCollapsed(projects, w.shown, action.collapsed)
+      changed({ projects: true })
+      return {}
+    case 'openPaneFolder': {
+      const tab = tabById(action.tab)
+      const list = (tabPanes.get(action.tab) ?? []).flatMap((id) => {
+        const pane = panes.get(id)
+        return pane ? [{ id, agent: pane.agent !== 'shell', cwd: pane.cwd }] : []
+      })
+      const folder = drawerFolder(
+        list,
+        action.pane,
+        tab?.kind === 'file' ? dirname(tab.path) : null,
+      )
+      return openExistingFolder(folder)
+    }
+    case 'openSessionFolder':
+      return openExistingFolder(sessionInfo(action.session)?.cwd ?? null)
     case 'moveSession': {
       const moved = moveMember(projects, action.session, action.target, action.place)
       if (moved === projects) return {}

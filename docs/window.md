@@ -244,6 +244,7 @@ session) takes the newest session of that folder modified since the tab started,
   (decision 1.34, 2026-11-10).
 - **The sidebar** starts at 250 px and stops at 180 px; a double click on the divider puts it back
   at 250 and saves that. A width saved before is kept (2026-11-10).
+- **The sidebar's foot** holds the shown project's Files section (`docs/project-files.md`).
 - Every segmented control (Add session's Existing / New, Usage's rows) shares
   one style (2026-11-09): a bordered group with a line between segments; the unchosen segments a
   translucent step off the page with dimmed text, the chosen one in the accent, bold. Text on the

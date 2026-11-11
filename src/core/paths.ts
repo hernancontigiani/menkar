@@ -43,6 +43,17 @@ export function electronUserData(): string {
   return join(appDirs().cache, 'electron')
 }
 
+// The Menkar folder (decision 1.58): the user's own files, one folder per project, outside every
+// repository. Not the app's state, which stays in appDirs(). `setting` is files_root, '' = default.
+export function filesRoot(setting: string): string {
+  return setting === '' ? join(homedir(), 'Menkar') : setting
+}
+
+// The folder a project's files live in, given the name it took under the root.
+export function projectFilesFolder(root: string, folderName: string): string {
+  return join(root, folderName, 'files')
+}
+
 function xdgBase(variable: string, fallback: string): string {
   const value = process.env[variable]
   return value?.startsWith('/') ? value : join(homedir(), fallback)

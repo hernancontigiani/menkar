@@ -6,6 +6,7 @@ import {
   closeTabAsking,
   currentState,
   focusedPane,
+  openPaneFolder,
   render,
   setPrefixPill,
   toggleSidebar,
@@ -194,6 +195,11 @@ const PREFIX_ACTIONS: Record<ShortcutOf<'prefix'>, (event: KeyboardEvent) => voi
     if (tab) void closeTabAsking(tab.id)
   },
   goToAgent: () => handlers?.goToAgent(),
+  openFilesFolder: () => void act({ type: 'openFilesFolder' }),
+  openPaneFolder: () => {
+    const tab = selectedTab()
+    if (tab) void openPaneFolder(tab.id, focusedOf(tab) ?? null)
+  },
   prefixSidebar: toggleSidebar,
   prefixSettings: () => handlers?.preferences(),
   help: showHelp,

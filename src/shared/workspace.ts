@@ -37,6 +37,16 @@ export interface TabView {
   readonly drawer?: { readonly id: string; readonly shown: boolean; readonly label: string }
 }
 
+// A file in a project's files folder (decision 1.51), newest first.
+export interface ProjectFile {
+  readonly name: string
+  readonly mtimeMs: number
+}
+
+export interface IncomingFile extends ProjectFile {
+  readonly path: string
+}
+
 export interface WindowState {
   readonly windowId: string
   // The user's home folder, for paths shown as ~/…
@@ -65,6 +75,8 @@ export interface WindowState {
   readonly maximized: boolean
   // The first scan of the agents' folders has not ended: the list and the saved tabs are coming.
   readonly sessionsLoading: boolean
+  // The shown project's files folder: its files, and whether the section is collapsed.
+  readonly files: { readonly items: readonly ProjectFile[]; readonly collapsed: boolean }
 }
 
 export type Action =
@@ -82,6 +94,18 @@ export type Action =
     }
   | { readonly type: 'newGroup'; readonly session: string; readonly name: string }
   | { readonly type: 'setLeader'; readonly session: string; readonly leader: boolean }
+  // The shown project's files folder (decision 1.51). Without paths, bringing in opens the
+  // system's file chooser; with them (from newestIncoming), each must be where shared files arrive.
+  | { readonly type: 'bringFiles'; readonly paths?: readonly string[] }
+  | { readonly type: 'newestIncoming' }
+  | { readonly type: 'undoBring'; readonly undo: string }
+  | { readonly type: 'openFilesFolder' }
+  | { readonly type: 'openProjectFile'; readonly name: string }
+  | { readonly type: 'dragProjectFile'; readonly name: string }
+  | { readonly type: 'collapseFiles'; readonly collapsed: boolean }
+  // The focused pane's working folder (the drawer's), or a session's, in the file manager.
+  | { readonly type: 'openPaneFolder'; readonly tab: string; readonly pane: string | null }
+  | { readonly type: 'openSessionFolder'; readonly session: string }
   | {
       readonly type: 'collapseGroup'
       readonly project: string
@@ -193,6 +217,8 @@ export interface TabEntry {
 
 export interface ActionResult {
   readonly refusal?: Key
+  readonly brought?: { readonly undo: string; readonly names: readonly string[] }
+  readonly incoming?: readonly IncomingFile[]
   readonly value?: string | null
   readonly tabs?: readonly TabEntry[]
   readonly active?: readonly ActiveProject[]

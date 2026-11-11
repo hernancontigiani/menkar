@@ -56,7 +56,11 @@ test('TRM-2, PRJ-27, TRM-53 opening a member resumes it once; opening it again s
     await expect(page.locator('.tab.selected')).toHaveText(/fix the login bug/)
     await expect
       .poll(() => args(home))
-      .toMatch(new RegExp(`^--resume ${SESSION} --settings \\S+claude-settings\\.json\\n$`))
+      .toMatch(
+        new RegExp(
+          `^--resume ${SESSION} --add-dir \\S+/Menkar/Client work/files --settings \\S+claude-settings\\.json\\n$`,
+        ),
+      )
     await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
     await expect(page.locator('.tab')).toHaveCount(1)
     await page.waitForTimeout(500)
@@ -89,7 +93,9 @@ test('TRM-1, 1.16 a new session starts with its id and name, and joins the proje
     await expect(page.locator('.tab.selected')).toHaveText(/checkout flow/)
     await expect
       .poll(() => args(home))
-      .toMatch(/^--session-id [0-9a-f-]{36} -n checkout flow --settings \S+\n$/)
+      .toMatch(
+        /^--session-id [0-9a-f-]{36} -n checkout flow --add-dir \S+\/Menkar\/Client work\/files --settings \S+\n$/,
+      )
     await expect
       .poll(async () => (await snapshot(page)).projects[0]?.members.length, { timeout: 15_000 })
       .toBe(2)

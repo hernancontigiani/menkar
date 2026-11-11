@@ -22,6 +22,11 @@ export interface Project {
   readonly groups: readonly Group[]
   // Members kept out of the project's list (decision 1.25): still members, so still counted.
   readonly hidden?: readonly string[]
+  // The name its files folder took under the Menkar folder, once made (decision 1.51): saved so it
+  // never changes behind the user's back.
+  readonly filesFolder?: string
+  // Its Files section in the sidebar shows the heading alone.
+  readonly filesCollapsed?: true
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }
@@ -117,10 +122,23 @@ export function createProject(state: Projects, name: string, id: string = newPro
   return { ok: true, projects: { ...state, current: id, projects: [...state.projects, created] } }
 }
 
-export function renameProject(state: Projects, id: string, name: string): Result {
+// `filesFolder` when its files folder was renamed with it.
+export function renameProject(
+  state: Projects,
+  id: string,
+  name: string,
+  filesFolder?: string,
+): Result {
   const refusal = nameRefusal(state, name, id)
   if (refusal) return { ok: false, refusal }
-  return { ok: true, projects: update(state, id, (p) => ({ ...p, name: name.trim() })) }
+  return {
+    ok: true,
+    projects: update(state, id, (p) => ({
+      ...p,
+      name: name.trim(),
+      ...(filesFolder === undefined ? {} : { filesFolder }),
+    })),
+  }
 }
 
 // Its members are released (in no project); which windows switch is the layout's business.
@@ -280,6 +298,21 @@ export function setCollapsed(
       return collapsed ? { ...rest, collapsed: true } : rest
     }),
   }))
+}
+
+export function setFilesFolder(state: Projects, projectId: string, folderName: string): Projects {
+  return update(state, projectId, (p) => ({ ...p, filesFolder: folderName }))
+}
+
+export function setFilesCollapsed(
+  state: Projects,
+  projectId: string,
+  collapsed: boolean,
+): Projects {
+  return update(state, projectId, (p) => {
+    const { filesCollapsed: _, ...rest } = p
+    return collapsed ? { ...rest, filesCollapsed: true } : rest
+  })
 }
 
 // Hidden in its project's list (decision 1.25): only while it does not run, since a running session
