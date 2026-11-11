@@ -313,3 +313,6 @@
 
 > Left §1 on 2026-11-11: 1.63 delivered (9347fe9).
 | 1.63 | Amends 1.56 and 1.57 (the human, 2026-11-11): the session a tab leaves through `/clear` or an in-tab `/resume` becomes an **earlier conversation** of the session that replaced it — still a member of the project (Usage counts it there), but in neither the list nor the "N hidden" foot; the row's menu lists its earlier conversations ("Earlier conversations ▸", newest first, by date and time) and opening one makes it an ordinary session of the list again; Add session finds them when searched | 2026-11-11 | this row (until its task is delivered) |
+
+> Left §1 on 2026-11-11: 1.59 delivered (b33c78a).
+| 1.59 | Amends 1.47 (the human, 2026-11-11: the http(s)-only limit was never theirs): Ctrl+click hands any terminal link to the system, as GNOME Terminal does — `file://` opens with the file's default app (a folder in the file manager), other schemes with the app the system has for them; a plain click still selects | 2026-11-11 | `docs/window.md` (when delivered) |

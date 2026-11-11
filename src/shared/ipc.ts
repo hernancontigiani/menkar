@@ -112,6 +112,8 @@ export interface InvokeChannels {
   'window:state': { request: undefined; response: WindowState | null }
   'window:action': { request: Action; response: ActionResult }
   'pty:attach': { request: { pane: string }; response: { buffer: string; end: number } }
+  // Which of the paths a terminal row prints are on disk, in order: only those are links.
+  'terminal:paths-exist': { request: { paths: readonly string[] }; response: readonly boolean[] }
   'i18n:catalog': { request: undefined; response: Catalog }
   'sessions:list': { request: undefined; response: readonly SessionInfo[] }
   'projects:get': { request: undefined; response: ProjectsSnapshot }
@@ -196,6 +198,7 @@ export interface MenkarApi {
     input(pane: string, data: string): void
     resize(pane: string, cols: number, rows: number): void
     reveal(paneId: string): void
+    pathsExist(paths: readonly string[]): Promise<readonly boolean[]>
     onData(listener: (event: EventChannels['pty:data']) => void): () => void
   }
   readonly agentState: {

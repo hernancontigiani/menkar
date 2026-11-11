@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process'
+import { homedir } from 'node:os'
 import { resolve as resolvePath } from 'node:path'
 import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain, Menu } from 'electron'
+import { terminalPathExists } from '../core/files/exists'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
 import { cliArguments, DETACHED, shouldDetach } from '../core/launch'
 import { addSink, log, openFileSink } from '../core/log'
@@ -34,6 +36,8 @@ import {
 import { setUiZoom } from './zoom'
 
 const LOG_FILE_MAX_BYTES = 1024 * 1024
+// A terminal row is at most a few hundred columns: more paths than this in one ask is not a row.
+const MAX_PATHS_ASKED = 64
 
 function handle<C extends InvokeChannel>(
   channel: C,
@@ -55,6 +59,14 @@ function on<C extends SendChannel>(
 handle('window:state', (event) => windowState(event.sender) ?? null)
 handle('window:action', (event, action) => runAction(event.sender, action))
 handle('pty:attach', (_event, { pane }) => paneBuffer(pane))
+handle('terminal:paths-exist', (_event, { paths }) => {
+  const home = homedir()
+  return Promise.all(
+    paths
+      .slice(0, MAX_PATHS_ASKED)
+      .map(async (path) => (await terminalPathExists(path, home)) !== null),
+  )
+})
 on('pty:input', (_event, { pane, data }) => paneInput(pane, data))
 on('pty:resize', (_event, { pane, cols, rows }) => paneResize(pane, cols, rows))
 on('panes:reveal', (_event, { paneId }) => revealPane(paneId))

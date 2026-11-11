@@ -175,6 +175,8 @@ export type Action =
     }
   | { readonly type: 'openInGhostty'; readonly session: string }
   | { readonly type: 'openExternal'; readonly url: string }
+  // A plain path a terminal printed, as printed (`~/…` included).
+  | { readonly type: 'openTerminalPath'; readonly path: string }
   | { readonly type: 'copyText'; readonly text: string }
   | {
       readonly type: 'splitPane'

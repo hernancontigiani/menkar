@@ -49,6 +49,7 @@ const api: MenkarApi = {
     input: (pane, data) => send('pty:input', { pane, data }),
     resize: (pane, cols, rows) => send('pty:resize', { pane, cols, rows }),
     reveal: (paneId) => send('panes:reveal', { paneId }),
+    pathsExist: (paths) => ipcRenderer.invoke('terminal:paths-exist', { paths }),
     onData: (listener) => subscribe('pty:data', listener),
   },
   agentState: {

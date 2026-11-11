@@ -1,6 +1,6 @@
 // Links in a terminal open with Ctrl+click, as in GNOME Terminal: an address in the output, whole
-// across the rows it wraps over, and an OSC 8 hyperlink of any scheme, a file: one with the file's
-// default app. A plain click selects and opens nothing; the hand shows only while Ctrl is held.
+// across the rows it wraps over, an OSC 8 hyperlink of any scheme, a file: one with the file's
+// default app, and a plain path that is on disk. A plain click selects and opens nothing; the hand shows only while Ctrl is held.
 // Nothing is ever opened: main's shell.openExternal and shell.openPath are replaced by recorders.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,6 +26,9 @@ const STAND_IN =
 
 // A file Claude Code links to as file://, its name with a space: it opens as its decoded path.
 let filePath = ''
+// A path Claude printed as plain text, with a place in the file, and one that is not on disk.
+let picked = ''
+let pickedFolder = ''
 
 async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
   const launched = await launchApp({
@@ -41,6 +44,14 @@ async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
       writeFileSync(join(dirs.home, 'rows-osc8.txt'), ROWS_OSC8)
       writeFileSync(join(dirs.home, 'rows-plain.txt'), ROWS_PLAIN)
       writeFileSync(join(dirs.home, 'link.sh'), STAND_IN)
+      pickedFolder = join(dirs.home, 'vis')
+      mkdirSync(pickedFolder)
+      picked = join(pickedFolder, 'pick-1-default.png')
+      writeFileSync(picked, '')
+      writeFileSync(
+        join(dirs.home, 'paths.txt'),
+        `Saved ${picked}:12:3, not ${join(pickedFolder, 'missing.png')}\nin \`~/vis\`.\n`,
+      )
       // The pty's own FORCE_HYPERLINK is the one under test, not one from the shell running this.
       return { ...savedCursorTab(dirs), FORCE_HYPERLINK: '' }
     },
@@ -80,6 +91,33 @@ async function hoverLink(page: Page, target: Locator, x?: number): Promise<void>
   if (!box) throw new Error('row not laid out')
   await page.mouse.move(box.x + (x ?? box.width / 2), box.y + box.height / 2)
   await expect(pointer(page)).toHaveCount(1)
+}
+
+// Where a word of a row sits, from the row's left edge: the middle of its second character.
+async function wordX(line: Locator, word: string): Promise<number> {
+  const x = await line.evaluate((element, w) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+    let all = ''
+    const nodes: Text[] = []
+    while (walker.nextNode()) {
+      nodes.push(walker.currentNode as Text)
+      all += (walker.currentNode as Text).data.replace(/\s/g, ' ')
+    }
+    let index = all.indexOf(w) + 1
+    for (const node of nodes) {
+      if (index < node.data.length) {
+        const range = document.createRange()
+        range.setStart(node, index)
+        range.setEnd(node, index + 1)
+        const r = range.getBoundingClientRect()
+        return r.x + r.width / 2 - element.getBoundingClientRect().x
+      }
+      index -= node.data.length
+    }
+    return -1
+  }, word)
+  expect(x).toBeGreaterThan(0)
+  return x
 }
 
 const cursorOver = (page: Page) =>
@@ -217,6 +255,55 @@ test('an address Claude Code breaks over rows with its own newlines is one OSC 8
     await page.mouse.up()
     await page.keyboard.up('Control')
     await expect.poll(() => opened(launched)).toEqual([OAUTH, OAUTH])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('a plain path on disk is a link: Ctrl+click opens it, ~/ under the home folder; a missing one is no link; a plain click opens nothing', async () => {
+  const { launched, page } = await launch()
+  try {
+    await page.keyboard.type('cat paths.txt')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toContain('in `~/vis`.')
+    const saved = row(page, /^Saved /)
+    const savedBox = await saved.boundingBox()
+    if (!savedBox) throw new Error('row not laid out')
+    const middle = savedBox.y + savedBox.height / 2
+
+    // The path that is not on disk: no link, no hand, nothing opens.
+    await page.mouse.move(savedBox.x + (await wordX(saved, 'missing.png')), middle)
+    await page.waitForTimeout(300)
+    await expect(pointer(page)).toHaveCount(0)
+    await page.keyboard.down('Control')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+
+    await hoverLink(page, saved, await wordX(saved, 'pick-1'))
+    expect(await cursorOver(page)).toBe('text')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+    expect(await openedPaths(launched)).toEqual([])
+
+    await hoverLink(page, saved, await wordX(saved, 'pick-1'))
+    await page.keyboard.down('Control')
+    await expect.poll(() => cursorOver(page)).toBe('pointer')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    await expect.poll(() => openedPaths(launched)).toEqual([picked])
+
+    const home = row(page, /^in `~\/vis`/)
+    await hoverLink(page, home, await wordX(home, '~/vis'))
+    await page.keyboard.down('Control')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    await expect.poll(() => openedPaths(launched)).toEqual([picked, pickedFolder])
+    await page.waitForTimeout(300)
+    expect(await opened(launched)).toEqual([])
   } finally {
     await launched.close()
   }

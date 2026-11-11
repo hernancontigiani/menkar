@@ -110,3 +110,10 @@ Cursor) takes the newest session of that folder modified since the tab started, 
     at all.
   `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends `openExternal` (http and https only, checked
   again in main) after `webLink` (`src/core/links.ts`).
+
+## Panes and terminals (links, plain paths)
+
+> Left on 2026-11-11: a plain absolute path printed in a terminal that exists on disk is a link, opened as a file: link (decision 1.64).
+- **Links open with `Ctrl+click`** (2026-11-10; any scheme since decision 1.59, 2026-11-11), as
+  in GNOME Terminal (`src/renderer/links.ts`). Two kinds:
+  Both kinds are underlined on hover, and show the hand only while Ctrl is held (`ctrl-held` on

@@ -11,6 +11,7 @@ import { PANE_ENV } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { DrawerRegistry, drawerFolder } from '../core/drawers'
 import { checkTyped, expandInput } from '../core/files/check'
+import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
@@ -792,6 +793,15 @@ async function openLink(uri: string): Promise<void> {
   }
   const error = await shell.openPath(target.path)
   if (error) log.warn('a terminal file link could not be opened', { path: target.path, error })
+}
+
+// Ctrl+click on a plain path a terminal printed (decision 1.64), opened as a file: link is. It was
+// on disk when the renderer asked; it is asked again, since main is what hands it on.
+async function openTerminalPath(text: string): Promise<void> {
+  const path = await terminalPathExists(text, homedir())
+  if (!path) return
+  const error = await shell.openPath(path)
+  if (error) log.warn('a terminal path could not be opened', { path, error })
 }
 
 // A folder that is gone says so instead of the file manager showing an error of its own.
@@ -1595,6 +1605,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'openExternal':
       await openLink(action.url)
+      return {}
+    case 'openTerminalPath':
+      await openTerminalPath(action.path)
       return {}
     case 'closeAllTabs':
       for (const tab of w.tabs) closeTab(tab.id)

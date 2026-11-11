@@ -92,8 +92,9 @@ How the main window is built and why that way. The behaviour it follows is in `d
   that arrives while scrolled up keeps the view where it is and puts an accent dot on the button.
   Every other modified End goes to the agent (xterm sends it on), so only `Ctrl+Shift+End` is
   caught, for every key event type.
-- **Links open with `Ctrl+click`** (2026-11-10; any scheme since decision 1.59, 2026-11-11), as
-  in GNOME Terminal (`src/renderer/links.ts`). Two kinds:
+- **Links open with `Ctrl+click`** (2026-11-10; any scheme since decision 1.59, 2026-11-11; plain
+  paths since decision 1.64, 2026-11-11), as in GNOME Terminal (`src/renderer/links.ts`). Three
+  kinds:
   - An address in the output, found by `@xterm/addon-web-links` 0.12.0, the release paired with
     `@xterm/xterm` 6.0.0. It is bundled into the renderer, so it ships in the installer; it is the
     xterm project's own provider, and nothing else in the app finds links in a terminal. Its
@@ -103,7 +104,22 @@ How the main window is built and why that way. The behaviour it follows is in `d
   - An OSC 8 hyperlink, through xterm's `linkHandler`. Without one, xterm would ask with
     `window.confirm`. With `allowNonHttpProtocols: true`, every scheme is a link. Claude Code
     sends a file it names (`[file] generated-docs/….pdf`) as a `file://` link.
-  Both kinds are underlined on hover, and show the hand only while Ctrl is held (`ctrl-held` on
+  - **A plain path that is on disk** (decision 1.64), as in VS Code's terminal: Claude printed
+    `/tmp/claude-1000/…/scratchpad/vis/pick-1-default.png` as plain text. A provider of our own,
+    registered after the addon, so where an OSC 8 or http(s) link covers the same cells that link
+    wins: xterm takes the first provider's. `findPaths` (`src/core/links.ts`) finds it in one row:
+    it starts at `/` or `~/` after the row's start, whitespace or an opening quote, backtick,
+    parenthesis or bracket (so `a/b`, `./a`, `x=/a` and a URL's own slashes are not paths), and
+    runs to whitespace, or to the closing quote or backtick, so only a quoted path holds spaces.
+    Trailing `.,:;'"` and a `)`, `]` or `}` without its opening one are the sentence's. A
+    `:line[:col]` suffix stays in the underline and is dropped from the path: the file opens, the
+    line is not. A path broken over rows is not joined, wrapped by the terminal or by Claude.
+    Whether it exists is asked of main with `terminal:paths-exist`, a row's paths in one call
+    (`stat`, async); the renderer keeps each answer a few seconds, since xterm asks again each time
+    the pointer enters a row. Only a path on disk is a link. `Ctrl+click` sends `openTerminalPath`
+    with the path as printed; main expands `~/` to the home folder, checks it again and hands it to
+    `shell.openPath`, as a `file:` link: the file's default app, a folder in the file manager.
+  All three are underlined on hover, and show the hand only while Ctrl is held (`ctrl-held` on
   the terminal under the pointer, set only while a link is under it). Restyling the whole body on
   every Ctrl press delayed the terminal's own handling enough for an Enter typed right after
   `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends
