@@ -46,7 +46,16 @@ other way (a blocking MCP tool call, a `Stop` hook that returns `decision: block
    the agent, how the answer is delivered, and how an orchestrator reads the others' status.
 4. **Claude Code skills or plugins** for an orchestrator pattern (one session coordinating
    others), and how they keep shared state.
-5. **Patterns worth copying**, with the project they come from: data model of a status/question
+5. **Backlog.md** (https://github.com/MrLesk/Backlog.md) in depth, as the likely store: the full
+   task frontmatter (is there priority, assignee, labels, a custom status like "needs human"?), the
+   MCP server's tools with their arguments, the `--json` schema and `--watch` behaviour, how two
+   agents writing at once are handled, whether the folder can live outside the repository, and
+   whether a status can be "waiting on another task/agent". Could an orchestrator keep "topics to
+   discuss with the human" there, and could a desktop app draw a side panel from `--watch`?
+6. **Keeping an orchestrator's chat clean**: how others stop worker messages from flooding the
+   coordinator's conversation (queues, digests, hooks that inject a one-line summary, a "focus"
+   mode), so the human can discuss one topic at a time in the chat itself (with voice).
+7. **Patterns worth copying**, with the project they come from: data model of a status/question
    item, priority scales, how "waiting on another agent" is represented, how notifications are
    throttled, how the UI lists pending items.
 

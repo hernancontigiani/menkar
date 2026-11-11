@@ -118,6 +118,36 @@ status and posts questions, and the orchestrator reads it instead of asking each
 one, dismiss one, or **open it with the orchestrator** (discuss it in the orchestrator's tab,
 which reads the same board and can answer on the human's behalf when told to).
 
+**2d′. Topics to discuss — the human's refinement (2026-11-11).** The human does **not** want to
+answer in a separate form: the discussion stays **in the orchestrator's own chat**, where Claude
+Code's features work (voice above all). What is wrong today is around the chat, not the chat:
+
+- The topics live only in the scrollback: to discuss one, the human scrolls back to find it and
+  its details.
+- While they talk, messages from other sessions arrive in the orchestrator's chat with new things,
+  and the conversation gets mixed with them.
+
+So the change is:
+
+1. **The orchestrator keeps its topics outside the chat**, in a list it writes (the board, or a
+   file): id, title, one-paragraph context, links (files, plans, the session it came from),
+   priority, status (`open` → `discussing` → `decided`), and the decision once taken.
+2. **Menkar shows that list beside the orchestrator's tab** (a side panel, sorted by priority).
+   The human picks one and says, by voice or typing, "let's do topic 7"; the orchestrator reads
+   its details from the list, not from memory or scrollback. Menkar types nothing: at most a
+   "copy reference" button.
+3. **Other sessions stop writing into the orchestrator's chat.** They post to the board; the
+   orchestrator reads it when it chooses (between topics, or when asked). At most one line arrives
+   in the chat ("3 new items on the board"), through a hook, and **none while a topic is being
+   discussed** (a focus mode).
+4. When a topic is decided, the orchestrator writes the decision on the item and, where it
+   belongs, to its home (`plans/00-STATUS.md`, a doc), and closes it.
+
+This can be tried **before Menkar builds anything**: change how the orchestrator works (its role
+file or skill) so it keeps the topics in a file or in Backlog.md (below) and workers post there
+instead of messaging it. What the trial shows decides which fields and states the Menkar panel
+needs.
+
 **2e. Priorities.** On a session (the human sets it, e.g. high / normal / low) and on an item (the
 agent proposes, the human may change it). The inbox sorts by them; notifications may be limited to
 high ones. Priorities are the app's own data, never in a session's name.
@@ -168,6 +198,9 @@ allowed is **the human's decision**, since it bends the "nothing typed" rule.
 
 ### Questions for the human
 
+0. The board's storage: Menkar's own (data directory, across every project), or Backlog.md's
+   files in the repository (per repository, versioned, already has a CLI, MCP server and board)?
+   Proposal: try Backlog.md first for the orchestrator's topics, with no Menkar code; decide after.
 1. Overview as a tab, a window (like Usage), or a panel above the session list?
 2. Is "an orchestration" a **group** (orchestrator + workers), a project, or a new thing? Proposal:
    a group with one member marked orchestrator — it ties Idea 1 and Idea 2 together.
@@ -177,6 +210,9 @@ allowed is **the human's decision**, since it bends the "nothing typed" rule.
 
 ### Suggested order
 
+0. The trial of 2d′ without code: the orchestrator keeps its topics in Backlog.md (or a file), the
+   workers post there instead of writing in its chat. A change to the orchestrator's role, not to
+   Menkar.
 1. Idea 1, collapsible groups (one plan).
 2. 2a, the overview over the states already known (one plan).
 3. 2b + 2c + 2f with hooks only (option A): "needs the human" and the notifications.
@@ -189,6 +225,16 @@ allowed is **the human's decision**, since it bends the "nothing typed" rule.
 From a web search only; the repositories were not opened. `plans/ideas/research-prompt.md` asks a
 session to check them properly.
 
+- **Backlog.md** (MrLesk, MIT, ~7.4k stars, very active; brought by the human): tasks as Markdown
+  files in a `backlog/` folder of the repository, with IDs (`TASK-1`), status, dependencies,
+  acceptance criteria and milestones; a CLI (`backlog task create/edit/list`, `--json`,
+  `task list --json --watch` streams changes), a **local MCP server** (`backlog mcp start`, set up
+  per client, Claude Code included), a terminal kanban and a web board bound to 127.0.0.1.
+  **Closest fit for the board**: local, files, an MCP server the agents already know how to use, a
+  watchable JSON feed Menkar could read to draw its panel. Against: it lives in the repository
+  (commits, one board per repository, not across projects), and its fields for priority and
+  assignee were not confirmed from the README.
+  ([repository](https://github.com/MrLesk/Backlog.md))
 - **Claude Code's own Agent View** (`claude agents`, May 2026): one CLI dashboard of background
   sessions, which ones wait on input, reply or attach. Overlaps 2a; must be looked at first.
   ([guide](https://www.buildfastwithai.com/blogs/claude-code-agent-view-guide))
