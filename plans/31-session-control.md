@@ -1,4 +1,4 @@
-# Plan 31: sessions that renew themselves, start others, and wake their parent (1.70, 1.72)
+# Plan 31: sessions that renew themselves, start others, and wake their parent (1.70, 1.72, 1.73)
 
 > **Status:** written 2026-11-11 by `set` with the human (1.70, 1.72) and three measured studies
 > (`prompts/reports/b2-session-control-research.md`, `b2-wake-probes.md`,
@@ -88,6 +88,10 @@ human waits for the orchestrator instead of polling.
    remote_control?, group? }`, and `list_sessions {}` (the caller's project: name, id, shown
    state, context %, parent, whether it has a tab) — the published snapshot of decision 4 is what
    it reads, and an orchestrator without it would have to ask each worker.
+6b. **A fourth tool, `last_reply { session }`** (1.73): the last reply of a session of the
+    caller's project, read from its transcript in main (read only, from the file's end, never the
+    whole file of tens of MB; at most 20,000 characters, cut with a note). A worker's report is its
+    last message, written once; the orchestrator reads it here instead of a report file.
 7. **The server process** is a new built entry, `src/core/control/server.ts` (like the statusline:
    no Electron, no DOM), run as `ELECTRON_RUN_AS_NODE=1 <execPath> <script>`; a hand-written
    newline-delimited JSON-RPC loop, no `@modelcontextprotocol/sdk` (18 runtime dependencies for
@@ -165,7 +169,7 @@ human waits for the orchestrator instead of polling.
 
 | Decision | Test | Case → expected |
 |---|---|---|
-| 7 protocol | `tests/core/control/server.test.ts` | `server/discover` → -32601; `initialize` echoes the protocol version, `capabilities.tools`; `tools/list` names exactly `renew`, `start_session`, `list_sessions`; no `MENKAR_PANE` → every call `isError` with our sentence |
+| 7 protocol | `tests/core/control/server.test.ts` | `server/discover` → -32601; `initialize` echoes the protocol version, `capabilities.tools`; `tools/list` names exactly `renew`, `start_session`, `list_sessions`, `last_reply`; no `MENKAR_PANE` → every call `isError` with our sentence |
 | 8 files | same | a call writes a request by rename (never a partial file), waits for its response, deletes it; no `alive.json` → "Menkar is not running" at once; a response after 10 s → timeout sentence |
 | 8 main side | `tests/core/control/requests.test.ts` | a request is handled once even when seen by the event and the 1 s pass; a 61 s old request is dropped; a malformed one gets a refusal response |
 | 11 prompt | `tests/core/command.test.ts` | `promptFile: "/c/p 1.md"` → `"$(cat '/c/p 1.md')"` before `--settings`; Cursor → none; `tests/core/control/prompt.test.ts`: a relative path, a folder, 100 KiB + 1, NUL bytes → refused |
@@ -176,6 +180,7 @@ human waits for the orchestrator instead of polling.
 | 2, 10 renew | `e2e/session-control.spec.ts` (new) | the stand-in claude, told `RENEW`, writes a request as the server would, then its Stop record: the pane's shell gets a new command with a new `--session-id` and the same `-n`; the old id is an earlier conversation; one row; Remote Control followed |
 | 3, 16 start | same | a `start_session` request from tab A → a tab right after A, A still selected, the command has `-n`, `--session-id`, the `"$(cat …)"` prompt; the new session is a member (and in the named group); an unknown group or a taken name → a refusal response, no tab |
 | 6 list | same | `list_sessions` (via the request files) lists the project's sessions with their shown state and parent |
+| 6b last reply | `tests/core/control/lastreply.test.ts` | a transcript whose last assistant entries are text, a tool call, then text → the last text; 30,000 characters → 20,000 and the note; a session of another project → refused; the file's bytes and mtime unchanged |
 | 13, 14 wake | same | with a temp HOME whose `sessions/<pid>.json` points at a test socket: a child started by A turns blocked → the socket receives one frame naming it |
 
 ## Out of scope
@@ -215,8 +220,8 @@ human waits for the orchestrator instead of polling.
 - [ ] `--settings`: `permissions.allow`, the `Stop` hook (`turn-end` in the statusline script
       writing `turn-ends/<pane>.json`), `crossSessionInbound`.
 - [ ] `--mcp-config` inline for every Claude pane (the server entry, `ELECTRON_RUN_AS_NODE`).
-- [ ] `src/main/control.ts`: `alive.json`, the request watcher (`fs.watch` + 1 s), the three
-      handlers, the snapshot writer, the turn-end watcher; renew and start through `workspace.ts`
+- [ ] `src/main/control.ts`: `alive.json`, the request watcher (`fs.watch` + 1 s), the four
+      handlers (`last_reply` reads the transcript from its end through `src/core/sessions/`), the snapshot writer, the turn-end watcher; renew and start through `workspace.ts`
       (re-key first, then start; the tab after the caller's, selection unchanged).
 - **Verify:** `npm run ci`; `npm run ui-check` on the new spec's renew, start and list cases.
 
