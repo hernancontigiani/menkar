@@ -72,3 +72,14 @@ into an agent.
 - **Launching sessions from the CLI or a tool** (`launch -t -m --parent`) is what would take the
   human out of copying `claude -n … "$(cat prompts/…)"` commands: see the next topic of discussion
   (2026-11-11) on a Menkar CLI / MCP to start, renew and clear sessions.
+
+## Backlog.md, for comparison (README read 2026-11-11)
+
+Source: https://github.com/MrLesk/Backlog.md. It ships **no skill and no role names** ("AI agents"
+only). Its instructions are served, not installed: `backlog instructions overview` on the CLI, and
+MCP resources `backlog://workflow/overview`, `…/task-creation`, `…/task-execution`,
+`…/task-finalization`; `backlog init` only adds a short line to `CLAUDE.md` / `AGENTS.md` telling
+agents to read them. For Menkar (1.71's open question): Menkar's own skills never need editing by
+the user's agents, so they could be **served by Menkar's MCP** the same way — nothing installed,
+always the version of the running app — while the user's specialist skills stay files in their
+repository, linked.
