@@ -237,3 +237,6 @@ skills marketplace that Claude Code installs from (e.g. a `menkar-…` plugin), 
 them from there; or **installed from Menkar**, where the user picks the scope (this repository, or
 their user-level skills). Either way Menkar shows the skill and the user chooses; nothing is
 installed by itself (as the integrations rule already says for `~/.claude/settings.json`).
+
+
+What agent-deck does about skills and orchestration, and what Menkar could take: `plans/ideas/agent-deck.md`.
