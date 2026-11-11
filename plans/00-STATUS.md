@@ -7,7 +7,7 @@
 > **A live index, 300 lines at most.** Written as **current state with a date**; what stops being
 > current leaves for `docs/history/plans/00-STATUS.md` in the same change, verbatim.
 >
-> Last updated: 2026-11-08.
+> Last updated: 2026-11-11.
 
 ## 1. Decided
 
@@ -28,6 +28,8 @@
 | 1.51 | A per-project folder for the files that come in and go out (from Downloads, to Slack or mail), outside the repositories, under one generic Menkar folder in the home directory meant to hold more than files later; bring the latest download in, drag a file from a Menkar tab out to another app, open the folder in the file manager, old files go to the trash | 2026-11-11 | `plans/ideas/groups-and-orchestration.md` (until its plan) |
 | 1.52 | Orchestration is tried first without code: the orchestrator keeps the topics for the human in a list file and the workers report to files with a one-line message; a Menkar panel or board is designed only after the trial | 2026-11-11 | `plans/ROLE-ORCHESTRATOR.md` |
 | 1.53 | Every pty gets `FORCE_HYPERLINK=1` beside `COLORTERM`, so Claude Code sends its addresses as OSC 8 hyperlinks (one link across the rows it breaks with its own newlines, as in GNOME Terminal, where `VTE_VERSION` turns them on); Ctrl+click as in 1.47; no hover tooltip with the URL | 2026-11-11 | `docs/window.md` |
+| 1.54 | 1.50's look and behaviour (the human, 2026-11-11): a click on the group's heading collapses or expands it (no jump from the collapsed row); the collapsed state is saved in `projects.json`, on the group; the leader is set from the row's menu, shown with ★ and listed first in its group, hidden with the rest when collapsed, its name on the collapsed row; a group never expands by itself | 2026-11-11 | `plans/29-collapsible-groups.md` (until delivered) |
+| 1.55 | Amends 1.5 (the human, 2026-11-11): `set` runs from Menkar's own repository and decides which plan or task each worker takes; the workers stay two, `b1` and `b2` — a third was weighed before and rejected, since the sessions' work overlapped too much | 2026-11-11 | `CLAUDE.md` · `plans/ROLE-ORCHESTRATOR.md` |
 | 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to Agent Session Manager, with no link (2026-11-09) | 2026-11-08 | `docs/spec/README.md` |
 | 1.11 | The interface is in English and Spanish, both kept complete: `check-i18n` fails on a key Spanish lacks, so a new string is translated in the same change. agent-tablet's German, French and Hungarian are not carried over | 2026-11-08 | `docs/foundations.md` · `docs/NOT_BUILT_YET.md` |
 | 1.12 | Menkar's logo is an eight-pointed star (four long points, four short), one color, near white (`build/icons/menkar.svg`); the launcher icon sets it on a dark rounded tile; the empty window shows the same star instead of agent-tablet's folder illustration | 2026-11-08 | `build/icons/` |
@@ -95,6 +97,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 1 | `29-collapsible-groups.md` — 1.50, collapsible groups with an optional leader | Written 2026-11-11, ready to execute; no shared runtime resource beyond each session's own e2e app data |
 
 ## 4. Next plan number
 

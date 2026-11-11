@@ -26,6 +26,16 @@ Read, in this order, and **touch nothing until you are done**:
   and what is blocked by what. The parallelism test is in `plans/README.md`: a shared **file or
   runtime resource** (the app's state file, the installed launcher, the statusline entry), not a
   conceptual dependency.
+- **Deciding who executes what** (1.55): you assign each plan or task to `b1` or `b2`; the human
+  does not. Two workers, no third: a third was weighed and rejected, since the sessions' work
+  overlapped too much. Give a worker work near what it already knows when that helps, but never
+  two workers on one file at once.
+- **Deciding when a worker's context is reset.** A worker cannot clear or compact itself, and the
+  human runs the command in its tab, so you say when and which. Between tasks, once its work is
+  committed and nothing is owed to it, the default is `/clear`: the plan and the tree hold
+  everything the next task needs. `/compact` (with `/compact-safe` first, so the worker writes its
+  handoff) only when a long task fills it mid-way. Ask for it as a topic in one line, naming the
+  worker, never in the middle of the worker's block.
 - **Writing the execution session's `prompts/PROMPT-<topic>.md`** (gitignored and one-shot, so what
   is deleted there does not come back). **The invariant procedure does not go in it** — it lives in
   `/execute-plan`, which the session loads itself; repeating it per prompt is the copy that goes

@@ -286,3 +286,6 @@
 
 > Left §1 on 2026-11-10: unsaved file edits now stop "Restart now" (1.44).
 | 1.43 | "Restart now" saves the layout, hangs up the running sessions as quitting does and relaunches, without asking; the sessions that were running are resumed in their tabs; quitting by closing the windows still asks | 2026-11-10 | `docs/preferences.md` |
+
+> Left the header on 2026-11-11: the index was updated again.
+> Last updated: 2026-11-08.

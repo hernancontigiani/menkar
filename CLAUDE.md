@@ -142,9 +142,9 @@ is loaded with a skill:
 | `/review-branch` | Reviewing changes for regressions before they are committed |
 | `/compact-safe` | Before a context compaction, and right after one |
 
-- **Roles:** the `set` session (in `~/git/agent-tablet`) designs the plans, writes their launch
+- **Roles:** the `set` session (at this repository's root) designs the plans, writes their launch
   prompts in `prompts/`, reviews what is built and commits it; the sessions `b1` and `b2` execute the
-  plans they are given. Who executes what is the human's call.
+  plans they are given. **`set` decides who executes what** (1.55); two workers, no third.
 - **Decisions belong to the human.** When a choice is theirs, ask with concrete options and **one
   recommendation**, with the case in view (a screenshot, the real volume), then record it with its
   date in the file that owns it. Where something goes in the UI is a decision, not a deduction.
