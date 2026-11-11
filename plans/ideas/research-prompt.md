@@ -46,12 +46,16 @@ other way (a blocking MCP tool call, a `Stop` hook that returns `decision: block
    the agent, how the answer is delivered, and how an orchestrator reads the others' status.
 4. **Claude Code skills or plugins** for an orchestrator pattern (one session coordinating
    others), and how they keep shared state.
-5. **Backlog.md** (https://github.com/MrLesk/Backlog.md) in depth, as the likely store: the full
+5. **Backlog.md** (https://github.com/MrLesk/Backlog.md) in depth. Menkar will build its own board
+   natively and absorb what Backlog.md does well, so read it as a reference to learn from, not
+   as a dependency: the full
    task frontmatter (is there priority, assignee, labels, a custom status like "needs human"?), the
    MCP server's tools with their arguments, the `--json` schema and `--watch` behaviour, how two
    agents writing at once are handled, whether the folder can live outside the repository, and
    whether a status can be "waiting on another task/agent". Could an orchestrator keep "topics to
-   discuss with the human" there, and could a desktop app draw a side panel from `--watch`?
+   discuss with the human" there? List what is worth copying (data model, MCP tool shapes, the
+   watch feed, the workflow) and what is not, given a board kept in the app's own data directory
+   rather than in the repository.
 6. **Keeping an orchestrator's chat clean**: how others stop worker messages from flooding the
    coordinator's conversation (queues, digests, hooks that inject a one-line summary, a "focus"
    mode), so the human can discuss one topic at a time in the chat itself (with voice).

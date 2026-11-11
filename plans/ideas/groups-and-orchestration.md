@@ -144,9 +144,8 @@ So the change is:
    belongs, to its home (`plans/00-STATUS.md`, a doc), and closes it.
 
 This can be tried **before Menkar builds anything**: change how the orchestrator works (its role
-file or skill) so it keeps the topics in a file or in Backlog.md (below) and workers post there
-instead of messaging it. What the trial shows decides which fields and states the Menkar panel
-needs.
+file or skill) so it keeps the topics in a plain file and workers post there instead of messaging
+it. The trial is throwaway; what it shows decides which fields and states the Menkar panel needs.
 
 **2e. Priorities.** On a session (the human sets it, e.g. high / normal / low) and on an item (the
 agent proposes, the human may change it). The inbox sorts by them; notifications may be limited to
@@ -198,9 +197,15 @@ allowed is **the human's decision**, since it bends the "nothing typed" rule.
 
 ### Questions for the human
 
-0. The board's storage: Menkar's own (data directory, across every project), or Backlog.md's
-   files in the repository (per repository, versioned, already has a CLI, MCP server and board)?
-   Proposal: try Backlog.md first for the orchestrator's topics, with no Menkar code; decide after.
+0. ~~Menkar's own board or Backlog.md?~~ **The human's direction (2026-11-11): everything native
+   in Menkar**; whatever Backlog.md does well is copied or absorbed. Still open within that:
+   - **Ideas or code?** Backlog.md is MIT, which GPL-3.0-or-later may include with its notice
+     kept; but Menkar is written from scratch and carries no code so far. Proposal: ideas and
+     formats only (its task fields, its MCP tools' shape, its `--watch` feed), no code.
+   - **Where the board lives**: Menkar's data directory (one board across every project, never in
+     the repository), or a folder in the repository like Backlog.md (versioned, but commits and one
+     board per repository). Proposal: the data directory, as the rule on the app's own state says;
+     a "export to the repository" can come later if wanted.
 1. Overview as a tab, a window (like Usage), or a panel above the session list?
 2. Is "an orchestration" a **group** (orchestrator + workers), a project, or a new thing? Proposal:
    a group with one member marked orchestrator — it ties Idea 1 and Idea 2 together.
@@ -210,9 +215,9 @@ allowed is **the human's decision**, since it bends the "nothing typed" rule.
 
 ### Suggested order
 
-0. The trial of 2d′ without code: the orchestrator keeps its topics in Backlog.md (or a file), the
-   workers post there instead of writing in its chat. A change to the orchestrator's role, not to
-   Menkar.
+0. Optional, throwaway: the trial of 2d′ without code (the orchestrator keeps its topics in a
+   plain file, the workers post there instead of writing in its chat), to learn the fields before
+   designing the native board.
 1. Idea 1, collapsible groups (one plan).
 2. 2a, the overview over the states already known (one plan).
 3. 2b + 2c + 2f with hooks only (option A): "needs the human" and the notifications.
@@ -230,10 +235,11 @@ session to check them properly.
   acceptance criteria and milestones; a CLI (`backlog task create/edit/list`, `--json`,
   `task list --json --watch` streams changes), a **local MCP server** (`backlog mcp start`, set up
   per client, Claude Code included), a terminal kanban and a web board bound to 127.0.0.1.
-  **Closest fit for the board**: local, files, an MCP server the agents already know how to use, a
-  watchable JSON feed Menkar could read to draw its panel. Against: it lives in the repository
-  (commits, one board per repository, not across projects), and its fields for priority and
-  assignee were not confirmed from the README.
+  **The reference for Menkar's native board** (not a dependency: the human chose native,
+  2026-11-11). Worth absorbing: Markdown/plain-file items with stable IDs, a CLI and an MCP server
+  over the same core, a `--watch` JSON feed, the review checkpoints. Not taken: living in the
+  repository (commits, one board per repository). Its priority and assignee fields were not
+  confirmed from the README.
   ([repository](https://github.com/MrLesk/Backlog.md))
 - **Claude Code's own Agent View** (`claude agents`, May 2026): one CLI dashboard of background
   sessions, which ones wait on input, reply or attach. Overlaps 2a; must be looked at first.
