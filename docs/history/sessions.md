@@ -36,3 +36,8 @@
 - **After a resume** (`followResume`) the resumed session joins the tab's project through
   `addMember`, leaving any other project and its group there, and is shown. The session left stays
   where it was, stopped.
+
+## On screen (trash and delete)
+
+> Left on 2026-11-11: a sidebar row's menu trashes or deletes a session with no tab, its earlier conversations too if wanted, and projects.json forgets it (decision 1.66).
+  keeps its bytes and mtime.

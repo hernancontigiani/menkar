@@ -122,7 +122,18 @@ is shown as written; none is `—`).
   usage module, as the spec asks.
 - **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only
   the `.jsonl` goes; its sibling directory stays. An e2e asserts every other file under `~/.claude`
-  keeps its bytes and mtime.
+  keeps its bytes and mtime. Both are in Add session's history menu and, since decision 1.66
+  (2026-11-11), in a sidebar row's `⋯` menu, Move to Trash first, for a session with no tab only:
+  a running agent is never removed from under it.
+  - **Its earlier conversations** (1.63) are offered in the confirmation, a box checked by
+    default with their count. Checked, each goes the same way after the session, one after the
+    other; failures are listed together, as for a selection trashed from Add session. Cleared,
+    they become ordinary rows of the list.
+  - **`projects.json` forgets it** (`forgetSession`, `src/core/projects/earlier.ts`): out of its
+    project's members, its group (and the leader mark), the hidden list, and every `earlier` list,
+    as key or entry. Until 1.66 a removed session stayed a member. Usage loses nothing: a turn
+    already in the history keeps its project, and a gone transcript brings no new ones.
+    `state.json` keeps whatever it held for the id (a name, Remote Control).
 
 ## Remote Control, and the details' tokens
 

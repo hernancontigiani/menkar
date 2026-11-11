@@ -278,6 +278,8 @@ export const en = {
   'sessions.deleteFailedHeading': 'Could not delete transcript',
   'sessions.trashManyHeading': 'Move {n} transcript(s) to trash?',
   'sessions.someFailed': 'Some transcripts could not be trashed',
+  'sessions.someDeleteFailed': 'Some transcripts could not be deleted',
+  'sessions.withEarlier': 'And its {n} earlier conversation(s)',
   'row.details': 'Details…',
   'row.export': 'Export as Markdown…',
   'row.reveal': 'Reveal transcript',

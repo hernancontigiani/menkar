@@ -837,6 +837,12 @@ html.classic .dialog {
   color: var(--destructive);
   font-weight: 700;
 }
+.dialog .check-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
 .dialog .field {
   display: flex;
   gap: 6px;

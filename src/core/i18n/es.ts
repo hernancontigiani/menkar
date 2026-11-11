@@ -280,6 +280,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'sessions.deleteFailedHeading': 'No se pudo borrar el transcript',
   'sessions.trashManyHeading': '¿Mover {n} transcript(s) a la papelera?',
   'sessions.someFailed': 'Algunos transcripts no se pudieron mover a la papelera',
+  'sessions.someDeleteFailed': 'Algunos transcripts no se pudieron borrar',
+  'sessions.withEarlier': 'Y sus {n} conversación(es) anterior(es)',
   'row.details': 'Detalles…',
   'row.export': 'Exportar como Markdown…',
   'row.reveal': 'Mostrar el transcript',

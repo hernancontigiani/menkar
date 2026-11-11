@@ -98,13 +98,31 @@ export async function sessionDetails(info: SessionInfo): Promise<void> {
   content.replaceChildren(...rows)
 }
 
-async function confirmRemove(info: SessionInfo, kind: 'trash' | 'delete'): Promise<void> {
+// Move to Trash or Delete, confirmed. A session's earlier conversations (decision 1.66) go the same
+// way after it unless the box is cleared, each on its own, failures listed together.
+export async function confirmRemove(
+  info: SessionInfo,
+  kind: 'trash' | 'delete',
+  earlier: readonly string[] = [],
+): Promise<void> {
   const trash = kind === 'trash'
+  const box = el('input', { type: 'checkbox', 'data-key': 'with-earlier' })
+  box.checked = true
   const answer = await showDialog({
     heading: trash ? t('sessions.trashHeading') : t('sessions.deleteHeading'),
     body: trash
       ? `${t('sessions.trashBody', { name: info.name })}\n${t('sessions.trashBody2')}`
       : t('sessions.deleteBody', { name: info.name }),
+    ...(earlier.length > 0
+      ? {
+          extra: el(
+            'label',
+            { class: 'check-row' },
+            box,
+            t('sessions.withEarlier', { n: earlier.length }),
+          ),
+        }
+      : {}),
     buttons: [
       { label: t('dialog.cancel'), value: 'cancel' },
       {
@@ -116,15 +134,40 @@ async function confirmRemove(info: SessionInfo, kind: 'trash' | 'delete'): Promi
     defaultValue: 'cancel',
   })
   if (answer.value !== 'go') return
-  const { refusal } = await act({
-    type: trash ? 'trashSession' : 'deleteSession',
-    session: info.id,
-  })
-  if (refusal)
-    await showError(
-      trash ? t('sessions.trashFailedHeading') : t('sessions.deleteFailedHeading'),
-      refusal,
-    )
+  const ids = [info.id, ...(box.checked ? earlier : [])]
+  if (ids.length === 1) {
+    const { refusal } = await act({
+      type: trash ? 'trashSession' : 'deleteSession',
+      session: info.id,
+    })
+    if (refusal)
+      await showError(
+        trash ? t('sessions.trashFailedHeading') : t('sessions.deleteFailedHeading'),
+        refusal,
+      )
+    return
+  }
+  await removeEach(ids, kind)
+}
+
+async function removeEach(ids: readonly string[], kind: 'trash' | 'delete'): Promise<void> {
+  const failures: string[] = []
+  for (const id of ids) {
+    const name = currentState()?.sessions.find((s) => s.id === id)?.name ?? id
+    const { refusal } = await act({
+      type: kind === 'trash' ? 'trashSession' : 'deleteSession',
+      session: id,
+    })
+    if (refusal) failures.push(`${name}: ${translate(refusal)}`)
+  }
+  if (failures.length > 0) {
+    await showDialog({
+      heading: kind === 'trash' ? t('sessions.someFailed') : t('sessions.someDeleteFailed'),
+      body: failures.join('\n'),
+      buttons: [{ label: t('dialog.ok'), value: 'ok' }],
+      defaultValue: 'ok',
+    })
+  }
 }
 
 export async function trashSelected(ids: readonly string[]): Promise<void> {
@@ -137,21 +180,7 @@ export async function trashSelected(ids: readonly string[]): Promise<void> {
     ],
     defaultValue: 'cancel',
   })
-  if (answer.value !== 'go') return
-  const failures: string[] = []
-  for (const id of ids) {
-    const { refusal } = await act({ type: 'trashSession', session: id })
-    const name = currentState()?.sessions.find((s) => s.id === id)?.name ?? id
-    if (refusal) failures.push(`${name}: ${translate(refusal)}`)
-  }
-  if (failures.length > 0) {
-    await showDialog({
-      heading: t('sessions.someFailed'),
-      body: failures.join('\n'),
-      buttons: [{ label: t('dialog.ok'), value: 'ok' }],
-      defaultValue: 'ok',
-    })
-  }
+  if (answer.value === 'go') await removeEach(ids, 'trash')
 }
 
 export async function exportSession(info: SessionInfo): Promise<void> {

@@ -1,4 +1,4 @@
-import type { Project, Projects } from './model'
+import { type Project, type Projects, removeMember } from './model'
 
 export type Earlier = Readonly<Record<string, readonly string[]>>
 
@@ -58,4 +58,12 @@ export function becomeEarlier(p: Project, from: string, to: string): Project {
   )
   const { [from]: _from, [to]: _to, ...others } = kept
   return withEarlier(p, { ...others, [to]: moved })
+}
+
+// A session whose transcript went to the trash or was deleted (decision 1.66): out of its project,
+// its group and hidden list, and out of every earlier-conversations list, as key or entry. A
+// session it held as earlier conversations is an ordinary row again.
+export function forgetSession(state: Projects, sessionId: string): Projects {
+  const removed = removeMember(state, sessionId)
+  return { ...removed, projects: removed.projects.map(tidyEarlier) }
 }

@@ -17,7 +17,7 @@ import { fileElement, forgetFilesExcept, setFileTheme } from './editor'
 import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
 import { applyLook } from './look'
-import { infoItems } from './sessionmenus'
+import { confirmRemove, infoItems } from './sessionmenus'
 import {
   applyTerminalLook,
   focusPane,
@@ -820,19 +820,31 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
     })
   }
   entries.push({ label: t('row.remove'), run: () => void removeFromProject(info, running) })
+  // Never a session with a tab: a running agent is not removed under it.
+  if (!running && !state?.open.includes(info.id)) {
+    const earlier = earlierOf(info.id, project).map((e) => e.id)
+    entries.push(
+      { label: t('row.trash'), run: () => void confirmRemove(info, 'trash', earlier) },
+      { label: t('row.delete'), run: () => void confirmRemove(info, 'delete', earlier) },
+    )
+  }
   return entries
 }
 
-// The sessions this one's tab left (decision 1.63), newest first by their last activity; opening
-// one makes it a row of the list again.
-function earlierMenu(session: string, project: ProjectInfo): MenuEntry | null {
+// The sessions this one's tab left (decision 1.63), newest first by their last activity.
+function earlierOf(session: string, project: ProjectInfo): SessionInfo[] {
   const byId = state ? sessionsById(state) : new Map<string, SessionInfo>()
-  const earlier = (project.earlier[session] ?? [])
+  return (project.earlier[session] ?? [])
     .flatMap((id) => {
       const info = byId.get(id)
       return info ? [info] : []
     })
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
+}
+
+// Opening an earlier conversation makes it a row of the list again.
+function earlierMenu(session: string, project: ProjectInfo): MenuEntry | null {
+  const earlier = earlierOf(session, project)
   if (earlier.length === 0) return null
   return {
     label: t('row.earlier'),

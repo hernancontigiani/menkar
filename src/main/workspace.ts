@@ -15,7 +15,7 @@ import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
-import { keptEarlier, releaseEarlier } from '../core/projects/earlier'
+import { forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
   closeTab as closeLayoutTab,
   holder,
@@ -1846,6 +1846,8 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       }
       const pane = paneOfSession(action.session)
       if (pane) await runAction(contents, { type: 'stopSession', session: action.session })
+      projects = forgetSession(projects, action.session)
+      changed({ projects: true })
       await sessions.refresh()
       return {}
     }

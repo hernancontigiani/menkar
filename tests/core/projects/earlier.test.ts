@@ -1,9 +1,38 @@
 import { describe, expect, test } from 'vitest'
-import { earlierIds, keptEarlier, releaseEarlier } from '../../../src/core/projects/earlier'
+import {
+  earlierIds,
+  forgetSession,
+  keptEarlier,
+  releaseEarlier,
+} from '../../../src/core/projects/earlier'
 import { parseProjects, serializeProjects } from '../../../src/core/projects/store'
-import { project, projects } from '../../factories/projects'
+import { group, project, projects } from '../../factories/projects'
 
 describe('earlier conversations', () => {
+  // Decision 1.66: a transcript moved to the trash or deleted leaves projects.json whole.
+  test('a removed session leaves its project, group, leader mark, hidden list and earlier conversations', () => {
+    const leads = { ...group('pair', ['now', 'x']), leader: 'now' }
+    const state = projects([
+      {
+        ...project('p1', 'Work', ['now', 'a', 'b', 'x'], [leads]),
+        hidden: ['now'],
+        earlier: { now: ['a', 'b'] },
+      },
+      project('p2', 'Other', ['c']),
+    ])
+    // Removed alone, its earlier conversations become ordinary sessions of the list.
+    expect(forgetSession(state, 'now').projects).toEqual([
+      { ...project('p1', 'Work', ['a', 'b', 'x'], [group('pair', ['x'])]), hidden: [] },
+      project('p2', 'Other', ['c']),
+    ])
+    // An earlier conversation removed alone leaves its session's list, which goes when empty.
+    const once = forgetSession(state, 'a')
+    expect(once.projects[0]?.members).toEqual(['now', 'b', 'x'])
+    expect(once.projects[0]?.earlier).toEqual({ now: ['b'] })
+    expect(forgetSession(once, 'b').projects[0]?.earlier).toBeUndefined()
+    expect(forgetSession(state, 'stranger')).toEqual(state)
+  })
+
   test('opening one makes it an ordinary session again; the list goes when it empties', () => {
     const state = projects([
       { ...project('p1', 'Work', ['now', 'a', 'b']), earlier: { now: ['a', 'b'] } },

@@ -172,7 +172,7 @@ test('SES-65 Delete permanently, confirmed, removes only that .jsonl; nothing el
     const removed = [...before.keys()].filter((path) => !after.has(path))
     expect(removed.map((p) => p.split('/').pop())).toEqual([`${SITE}.jsonl`])
     for (const [path, value] of after) expect(before.get(path), path).toBe(value)
-    expect(await membersOf(page, 'Research')).toEqual([SITE])
+    expect(await membersOf(page, 'Research')).toEqual([])
   } finally {
     await launched.close()
   }
