@@ -106,6 +106,8 @@ export const en = {
   'files.broughtMany': '{n} files → {project}',
   'files.undo': 'Undo',
   'row.openFolder': 'Open folder',
+  'files.add': 'Add',
+  'files.more': '{n} more…',
   'files.folderGone': 'That folder no longer exists.',
   'groups.collapse': 'Collapse group',
   'groups.expand': 'Expand group',

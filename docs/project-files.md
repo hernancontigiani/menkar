@@ -28,11 +28,14 @@ the renderer draws the section and names files, never paths.
 
 ## The Files section
 
-- At the foot of the session list, under the sessions and the "N hidden" foot, also on an empty
-  project: a heading `▾ Files · N` (plan 29's group heading button, its chevron and hover) with ⬇
-  (bring in) and 📂 (open the folder in the file manager), then the folder's regular files, not
-  subfolders and not dotfiles, newest first by modification time, with a relative age. Collapsed
-  (saved per project, `files_collapsed`), it is the heading alone.
+- At the foot of the sidebar, its own container (`#files-section`) between the session list and
+  Add session, also on an empty project: a heading `▾ Files · N` (plan 29's group heading rules,
+  its chevron and hover) with **Add** (a tray-with-arrow icon and the word, styled as the header's
+  buttons, to bring a file in) and 📂 (open the folder in the file manager), then the folder's
+  regular files, not subfolders and not dotfiles, newest first by modification time, with a
+  relative age. Collapsed (saved per project, `files_collapsed`), it is the heading alone.
+- **At most the 5 newest files** (decision 1.62, 2026-11-11); when there are more, a last row
+  "N more…" opens the folder in the file manager, as 📂 does. The heading's count is the total.
 - Main lists the folder with async I/O and watches it while its project is shown in some window,
   re-reading shortly after the last change (`syncShown`, called on every workspace change). The
   listing reaches the window in its state (`files`).
@@ -43,7 +46,7 @@ the renderer draws the section and names files, never paths.
 
 ## Bringing a file in
 
-- ⬇ shows, as Settings says (`files_bring`), the system's file chooser in the incoming folder
+- **Add** shows, as Settings says (`files_bring`), the system's file chooser in the incoming folder
   (several files may be chosen), or a menu of that folder's 5 newest files. The incoming folder is
   `files_incoming`, or the system's Downloads (`app.getPath('downloads')`) while it is empty: core
   cannot know Downloads, so `''` means the default for both folder settings.

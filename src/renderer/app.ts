@@ -511,6 +511,9 @@ function groupDot(color: string): HTMLElement {
   return dot
 }
 
+// Decision 1.62: the newest few, then "N more…".
+const FILES_SHOWN = 5
+
 // The project's files folder at the foot of the list (decision 1.51): its heading collapses it,
 // ⬇ brings a shared file in, 📂 opens the folder; a row opens on double click and drags out.
 function filesSection(s: WindowState, project: ProjectInfo): HTMLElement[] {
@@ -527,8 +530,9 @@ function filesSection(s: WindowState, project: ProjectInfo): HTMLElement[] {
   toggle.addEventListener('click', () => void act({ type: 'collapseFiles', collapsed: !collapsed }))
   const bring = el(
     'button',
-    { class: 'files-button', 'data-key': 'files-bring', title: t('files.bring') },
-    '⬇',
+    { class: 'header-text files-add', 'data-key': 'files-bring', title: t('files.bring') },
+    icon('trayIn'),
+    t('files.add'),
   )
   bring.addEventListener('click', () => void bringFiles(bring, project.name))
   const open = el(
@@ -545,7 +549,19 @@ function filesSection(s: WindowState, project: ProjectInfo): HTMLElement[] {
     open,
   )
   if (collapsed) return [head]
-  return [head, ...s.files.items.map(fileRow)]
+  const items = s.files.items
+  const rows = [head, ...items.slice(0, FILES_SHOWN).map(fileRow)]
+  if (items.length > FILES_SHOWN) {
+    // The rest are in the folder: the file manager lists them better than a long sidebar.
+    const more = el(
+      'button',
+      { class: 'file-more dim', 'data-key': 'files-more' },
+      t('files.more', { n: items.length - FILES_SHOWN }),
+    )
+    more.addEventListener('click', () => void act({ type: 'openFilesFolder' }))
+    rows.push(more)
+  }
+  return rows
 }
 
 function fileAge(mtimeMs: number): string {

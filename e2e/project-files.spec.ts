@@ -266,3 +266,44 @@ test('Ctrl+B f and 📂 open the project’s folder, made first; Ctrl+B o opens 
     await launched.close()
   }
 })
+
+test('decision 1.62: with 7 files the section shows the 5 newest and "2 more…", which opens the folder; the heading counts all 7; the bring-in button reads "Add"', async () => {
+  let d: Dirs | undefined
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const set = setUp(dirs)
+      d = set.d
+      mkdirSync(set.d.folder, { recursive: true })
+      for (let i = 1; i <= 7; i++) {
+        const path = join(set.d.folder, `f${i}.txt`)
+        writeFileSync(path, String(i))
+        const when = new Date(2026, 10, i)
+        utimesSync(path, when, when)
+      }
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const json = JSON.parse(readFileSync(file, 'utf8'))
+      json.projects[0].files_folder = PROJECT
+      writeFileSync(file, JSON.stringify(json))
+      return set.env
+    },
+  })
+  if (!d) throw new Error('no dirs')
+  const dirs = d
+  try {
+    const { app, window: page } = launched
+    await expect
+      .poll(() => fileRows(page))
+      .toEqual(['f7.txt', 'f6.txt', 'f5.txt', 'f4.txt', 'f3.txt'])
+    await expect(page.locator('#files-section .files-heading')).toContainText('Files · 7')
+    await expect(
+      page.locator('#files-section').getByRole('button', { name: 'Add', exact: true }),
+    ).toHaveAttribute('title', 'Bring a shared file into this project')
+    await record(app)
+    const more = page.locator('#files-section [data-key="files-more"]')
+    await expect(more).toHaveText('2 more…')
+    await more.click()
+    await expect.poll(() => recorded(app, 'opened')).toEqual([dirs.folder])
+  } finally {
+    await launched.close()
+  }
+})

@@ -320,6 +320,21 @@ button.group-heading.contains-selected {
 .files-button:hover {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
 }
+.files-add {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+.file-more {
+  margin: 0 6px 2px;
+  padding: 4px 4px 4px 18px;
+  font-size: 9pt;
+  text-align: left;
+}
+.file-more:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
 .file-row {
   display: flex;
   align-items: baseline;
@@ -426,17 +441,20 @@ html.classic .content-header {
 /* Text among icons (New ▾, Close all): a resting fill and edge so it reads as a button, as tall
    as the icon buttons beside it. */
 .sidebar-header .header-text,
-.content-header .header-text {
+.content-header .header-text,
+.files-heading .header-text {
   min-height: 26px;
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
 }
 .sidebar-header .header-text:hover,
-.content-header .header-text:hover {
+.content-header .header-text:hover,
+.files-heading .header-text:hover {
   background: color-mix(in srgb, var(--fg) 14%, transparent);
 }
 .sidebar-header .header-text:active,
-.content-header .header-text:active {
+.content-header .header-text:active,
+.files-heading .header-text:active {
   background: color-mix(in srgb, var(--fg) 20%, transparent);
 }
 /* As wide as its star and text only: the header's drag region holds it, and a box spanning the

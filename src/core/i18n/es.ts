@@ -108,6 +108,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'files.broughtMany': '{n} archivos → {project}',
   'files.undo': 'Deshacer',
   'row.openFolder': 'Abrir la carpeta',
+  'files.add': 'Agregar',
+  'files.more': '{n} más…',
   'files.folderGone': 'Esa carpeta ya no existe.',
   'groups.collapse': 'Contraer el grupo',
   'groups.expand': 'Expandir el grupo',
