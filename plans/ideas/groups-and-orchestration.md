@@ -258,3 +258,10 @@ What agent-deck does about skills and orchestration, and what Menkar could take:
     (the queue of topics in priority order, which workers wait on whom) and where: a button beside
     Usage, a panel beside the orchestrator's tab, or the sidebar itself changing in orchestration
     mode.
+
+**Before designing the orchestration mode** (the human, 2026-11-11): the design starts from the
+research already done, kept in this folder so it outlives the one-shot reports —
+`plans/ideas/agent-deck.md` (agent-deck and Backlog.md), `plans/ideas/research/` (how an
+orchestrator's tools reach the app, how to wake an idle orchestrator, Dorothy and claude-flow, and
+the probes measured on Claude Code 2.1.322), and `plans/ideas/research-prompt.md` (a wider survey
+still to run). Their ideas enter the plan's design and its "Rejected" section.
