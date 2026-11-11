@@ -97,7 +97,7 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 1 | `31-session-control.md` — 1.70, Menkar's MCP/CLI to renew and start sessions | Stub, being designed by `set` with the human, 2026-11-11 |
+| 1 | `31-session-control.md` — 1.70, Menkar's MCP/CLI to renew and start sessions | Written 2026-11-11, ready to execute |
 
 ## 4. Next plan number
 
