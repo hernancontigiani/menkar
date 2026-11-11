@@ -6,7 +6,7 @@
 > Ready to execute.
 >
 > **Exit, when executed:**
-> - `docs/session-control.md` (new): the MCP server, the files it shares with main, the three
+> - `docs/session-control.md` (new): the MCP server, the files it shares with main, the four
 >   tools, renewing, starting, parents and waking, with "Rejected" below and the measured facts
 >   the design rests on. Its row enters `CLAUDE.md`'s subsystem table ("Open it when: Menkar's MCP
 >   server, renewing or starting a session from an agent, parents, or waking a session").
@@ -95,7 +95,7 @@ human waits for the orchestrator instead of polling.
 7. **The server process** is a new built entry, `src/core/control/server.ts` (like the statusline:
    no Electron, no DOM), run as `ELECTRON_RUN_AS_NODE=1 <execPath> <script>`; a hand-written
    newline-delimited JSON-RPC loop, no `@modelcontextprotocol/sdk` (18 runtime dependencies for
-   three tools). Errors come back as `{ content: [{type:"text", text}], isError: true }` with our
+   four tools). Errors come back as `{ content: [{type:"text", text}], isError: true }` with our
    own English sentence. It reads its pane from `MENKAR_PANE` and refuses every call without one.
 8. **The files**, under `<cache>/control/` (resolved through the paths module):
    - `alive.json` — main's pid and start time, written at start and removed at quit; the server
@@ -162,7 +162,7 @@ human waits for the orchestrator instead of polling.
   messages queue behind it, and after 2 minutes Claude Code backgrounds the call.
 - **A plugin monitor** as the wake (measured to work): a running monitor makes the session report
   `shell` / `busy` while idle, hiding the very state Menkar reads, and outlives a killed agent.
-- **`@modelcontextprotocol/sdk`**: 18 runtime dependencies for three tools.
+- **`@modelcontextprotocol/sdk`**: 18 runtime dependencies for four tools.
 - **`--strict-mcp-config`**: would drop the user's own MCP servers from Menkar's sessions.
 
 ## Tests that hold the decisions (written before the code, in the block that names them)
@@ -208,7 +208,7 @@ human waits for the orchestrator instead of polling.
 ### Block 1 — core: protocol, files, prompt, parents, events, frame
 
 - [ ] Write the core tests above; see them fail.
-- [ ] `src/core/control/`: the JSON-RPC loop and the three tools over the request files (`server.ts`
+- [ ] `src/core/control/`: the JSON-RPC loop and the four tools over the request files (`server.ts`
       as a built entry beside the statusline's), the request/response/alive/snapshot file helpers,
       the prompt check, the event debouncer, the frame builder.
 - [ ] `promptFile` in `buildCommand`; `parents` in the projects store and in `followNewId`;
