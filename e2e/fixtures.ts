@@ -2,10 +2,14 @@ import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const SESSION = '5c1e7a2b-0f3d-4e6a-8b9c-1d2e3f4a5b6c'
+export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 
 // A stand-in `claude` (never the real one): it records its arguments, writes the transcript a
 // new session or a fork would get, with one typed message, and stays in the foreground until
-// it reads EXIT0 or EXIT1; ASK makes it print a permission question.
+// it reads EXIT0 or EXIT1; ASK makes it print a permission question. CLEAR acts as `/clear` does
+// in Claude Code: a new session id (CLEARED_SESSION) with a transcript of its own, and the
+// SessionStart hook its --settings declares for "clear" run with that id, in its environment;
+// RESUME runs the "resume" hook for the session FAKE_CLAUDE_RESUME names, as `/resume` does.
 const FAKE_CLAUDE = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path')
 const args = process.argv.slice(2)
@@ -23,6 +27,15 @@ if (at >= 0 && !process.env.FAKE_CLAUDE_QUIET) {
   fs.writeFileSync(path.join(folder, id + '.jsonl'), lines.map((l) => JSON.stringify(l)).join('\\n') + '\\n')
 }
 process.stdout.write('stand-in claude ready\\r\\n')
+const folder = path.join(process.env.HOME, '.claude', 'projects', process.cwd().replace(/[^A-Za-z0-9]/g, '-'))
+// The SessionStart hook its --settings declares for this source, run as Claude Code runs it.
+function sessionStart(source, id, transcript) {
+  const settings = JSON.parse(fs.readFileSync(args[args.indexOf('--settings') + 1], 'utf8'))
+  const entry = settings.hooks.SessionStart.find((h) => h.matcher === source)
+  require('node:child_process').execFileSync('/bin/sh', ['-c', entry.hooks[0].command], {
+    input: JSON.stringify({ session_id: id, transcript_path: transcript, cwd: process.cwd(), hook_event_name: 'SessionStart', source }),
+  })
+}
 // Raw, so the bytes each key sends arrive as they are; recorded as hex, one read per line.
 if (process.stdin.isTTY) process.stdin.setRawMode(true)
 let typed = ''
@@ -31,6 +44,19 @@ process.stdin.on('data', (d) => {
   typed += d.toString()
   if (typed.includes('EXIT0')) process.exit(0)
   if (typed.endsWith('ASK')) process.stdout.write('Do you want to proceed?\\r\\n')
+  if (typed.endsWith('CLEAR')) {
+    typed = ''
+    const transcript = path.join(folder, '${CLEARED_SESSION}.jsonl')
+    fs.mkdirSync(folder, { recursive: true })
+    fs.writeFileSync(transcript, JSON.stringify({ type: 'user', cwd: process.cwd(), message: { content: 'after the clear' } }) + '\\n')
+    sessionStart('clear', '${CLEARED_SESSION}', transcript)
+    process.stdout.write('stand-in cleared\\r\\n')
+  }
+  if (typed.endsWith('RESUME')) {
+    typed = ''
+    sessionStart('resume', process.env.FAKE_CLAUDE_RESUME, path.join(folder, process.env.FAKE_CLAUDE_RESUME + '.jsonl'))
+    process.stdout.write('stand-in resumed\\r\\n')
+  }
   if (typed.includes('EXIT1')) {
     process.stderr.write('stand-in failed to start\\r\\n')
     process.exit(1)

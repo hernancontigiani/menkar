@@ -33,7 +33,7 @@ test("CTX-27 the path to pass is the config directory's claude-settings.json", a
 test('CTX-28 the settings file is created, left alone when identical, replaced when different', async () => {
   const path = await writeSessionSettings(COMMAND)
   const text = readFileSync(path, 'utf8')
-  // The statusline, and the SessionStart hook for a new session and a compaction: the same
+  // The statusline, and the SessionStart hook for a start, a resume, a clear and a compaction: the same
   // script, in its hook mode.
   const hook = { type: 'command', command: `${COMMAND} session-start` }
   const expected = {
@@ -41,6 +41,8 @@ test('CTX-28 the settings file is created, left alone when identical, replaced w
     hooks: {
       SessionStart: [
         { matcher: 'startup', hooks: [hook] },
+        { matcher: 'resume', hooks: [hook] },
+        { matcher: 'clear', hooks: [hook] },
         { matcher: 'compact', hooks: [hook] },
       ],
     },

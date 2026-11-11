@@ -42,6 +42,8 @@ export interface StartOptions {
   // App messages shown before the shell's output.
   readonly messages?: readonly string[]
   readonly folderGone?: (cwd: string) => string
+  // Added to the environment the shell starts with.
+  readonly env?: Readonly<Record<string, string>>
 }
 
 export class Terminal {
@@ -77,7 +79,7 @@ export class Terminal {
       // The same for hyperlinks: without FORCE_HYPERLINK it prints an address it breaks over rows
       // as plain text, and only the first row's piece is a link; with it, every row is an OSC 8
       // link to the whole address.
-      env: { ...process.env, COLORTERM: 'truecolor', FORCE_HYPERLINK: '1' },
+      env: { ...process.env, COLORTERM: 'truecolor', FORCE_HYPERLINK: '1', ...options.env },
     })
     this.#pty.onData(emit)
     this.#pty.onExit(({ exitCode }) => {

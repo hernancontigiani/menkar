@@ -50,12 +50,15 @@ export const sessionsDir = (): string => join(appDirs().cache, 'sessions')
 export const sessionStartsDir = (): string => join(appDirs().cache, 'session-starts')
 export const costBaselinesDir = (): string => join(appDirs().cache, 'cost-baselines')
 
-// What the SessionStart hook leaves for a session: Claude Code's `source` and when.
-export const START_KEYS = ['session_id', 'source', 'at'] as const
-// The sources the hook keeps: a new session, whose cost so far all comes after no compaction, and a
-// compaction. A resume keeps its baseline; `clear` and `fork` stay unknown, since whether their
-// total starts again is not Menkar's to know.
-export const START_SOURCES = ['startup', 'compact'] as const
+// What the SessionStart hook leaves for a session: Claude Code's `source`, when, and the Menkar pane
+// it runs in (null outside one), which is how the app learns that a pane's session changed id.
+export const START_KEYS = ['session_id', 'source', 'at', 'pane'] as const
+// The sources the hook keeps: a new session and a cleared one, whose totals start at nothing, a
+// compaction, and a resume, which the app follows but which keeps the session's baseline. `fork`
+// stays unknown, since whether its total starts again is not Menkar's to know.
+export const START_SOURCES = ['startup', 'resume', 'clear', 'compact'] as const
+// Set by the app in every pty it starts, and inherited by the hook through Claude Code.
+export const PANE_ENV = 'MENKAR_PANE'
 // A session's baseline: its total when it last compacted (0 when new, null when not known), and
 // which hook record set it.
 export const BASELINE_KEYS = ['baseline_usd', 'start_at'] as const
@@ -194,8 +197,11 @@ function readRecord(path: string): Payload | null {
   }
 }
 
-// The SessionStart hook: a new session or a compaction is noted for the statusline's next run.
-export function recordSessionStart(payload: Payload): void {
+// The SessionStart hook: a start is noted for the statusline's next run, and for the app.
+export function recordSessionStart(
+  payload: Payload,
+  pane: string | undefined = process.env[PANE_ENV],
+): void {
   const id = payload.session_id
   const source = payload.source
   if (!validId(id) || !START_SOURCES.includes(source as (typeof START_SOURCES)[number])) return
@@ -204,8 +210,28 @@ export function recordSessionStart(payload: Payload): void {
     session_id: id,
     source,
     at: stamp(),
+    pane: pane || null,
   }
   writeAtomically(join(dir, `${id}.json`), dir, JSON.stringify(entry))
+}
+
+// A hook record telling that the session in a Menkar pane now runs under another id: a clear's new
+// one, or the one an in-session resume picked.
+export function paneStart(
+  text: string,
+): { pane: string; sessionId: string; source: 'clear' | 'resume' } | null {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return null // a record cut short, or not one the hook wrote
+  }
+  if (!isObject(value)) return null
+  const { pane, session_id: sessionId, source } = value
+  if (source !== 'clear' && source !== 'resume') return null
+  return typeof pane === 'string' && pane !== '' && validId(sessionId)
+    ? { pane, sessionId, source }
+    : null
 }
 
 function keepBaseline(id: string, baseline: number | null, startAt: unknown): void {
@@ -226,7 +252,12 @@ export function costSinceCompaction(payload: Payload): number | null {
   const start = readRecord(join(sessionStartsDir(), `${id}.json`))
   const kept = readRecord(join(costBaselinesDir(), `${id}.json`))
   let baseline: number | null
-  if (start !== null && typeof start.at === 'string' && start.at !== kept?.start_at) {
+  if (
+    start !== null &&
+    start.source !== 'resume' &&
+    typeof start.at === 'string' &&
+    start.at !== kept?.start_at
+  ) {
     baseline = start.source === 'compact' ? total : 0
     keepBaseline(id, baseline, start.at)
   } else if (kept === null) {

@@ -7,6 +7,7 @@ import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from '
 import { AGENT_COMMANDS } from '../core/agents'
 import { now } from '../core/clock'
 import { buildCommand, type Start } from '../core/command'
+import { PANE_ENV } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { DrawerRegistry, drawerFolder } from '../core/drawers'
 import { checkTyped, expandInput } from '../core/files/check'
@@ -50,9 +51,15 @@ import {
   setLeader,
   showMember,
 } from '../core/projects/model'
+import { followNewId, followNewIdInLayout, followResume } from '../core/projects/rekey'
 import { saveProjects } from '../core/projects/store'
 import { activeProjects, touched } from '../core/projects/switching'
-import { remoteControlList, remoteName, setRemoteControl } from '../core/remote'
+import {
+  followRemoteControl,
+  remoteControlList,
+  remoteName,
+  setRemoteControl,
+} from '../core/remote'
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
@@ -544,6 +551,8 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       messages,
       folderGone: (cwd) => appMessage(tag, t('terminal.folderGone', { cwd })),
       ...(command ? { command } : {}),
+      // The SessionStart hook names the pane, so a clear can be followed (followClear).
+      env: { [PANE_ENV]: id },
     },
     {
       data: (data, end) => {
@@ -724,6 +733,66 @@ function joinSession(pane: Pane, sessionId: string): void {
           }
         : tab,
     )
+  }
+  changed({ projects: true })
+}
+
+// ---------------------------------------------------------------- a pane's session changing id
+
+const inSomeTab = (sessionId: string) =>
+  layout.windows.some((w) =>
+    w.tabs.some((t) => t.kind === 'session' && t.panes.includes(sessionId)),
+  )
+
+// `/clear` (decision 1.56) and an in-session `/resume` (1.57) give the session in a pane another
+// id, and the tab follows it. After a clear the new session takes the old one's place in its
+// project; a resumed one joins the tab's project. The session left stays a stopped row.
+export function followPaneStart(
+  paneId: string,
+  sessionId: string,
+  source: 'clear' | 'resume',
+): void {
+  const pane = panes.get(paneId)
+  const from = pane?.sessionId
+  const tab = pane ? tabById(pane.tabId) : undefined
+  if (!pane || pane.agent !== 'claude' || !from || from === sessionId || tab?.kind !== 'session')
+    return
+  // A session is in one tab at most: a resume of one another tab holds leaves this tab as it was.
+  if (inSomeTab(sessionId)) {
+    log.warn('a pane’s new session is open in another tab; the pane is not followed', {
+      from,
+      to: sessionId,
+      source,
+    })
+    return
+  }
+  const next =
+    source === 'clear'
+      ? followNewId(projects, from, sessionId)
+      : followResume(projects, tab.project, sessionId)
+  if (next === projects && source === 'clear') {
+    log.warn('a cleared session was not followed: its old id is in no project, or its new one is', {
+      from,
+      to: sessionId,
+    })
+    return
+  }
+  projects = next
+  layout = followNewIdInLayout(layout, from, sessionId)
+  pane.sessionId = sessionId
+  tabLabels.delete(pane.tabId)
+  if (source === 'clear' && remoteIds.has(from)) {
+    remoteIds.delete(from)
+    remoteIds.add(sessionId)
+    sessions
+      .updateState((state) => followRemoteControl(state, from, sessionId))
+      .catch((error: unknown) =>
+        log.error('Remote Control did not follow a cleared session', {
+          from,
+          to: sessionId,
+          error,
+        }),
+      )
   }
   changed({ projects: true })
 }

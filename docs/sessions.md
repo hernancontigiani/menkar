@@ -57,6 +57,32 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
 - **One service for every window**: main pushes the whole list to every window after each scan and
   after each change to the hidden set.
 
+## A session that changes id in its tab
+
+Decisions 1.56 and 1.57 (2026-11-11). Inside a running Claude Code, `/clear` starts a new session
+id with the same name, and `/resume` switches to another session. The tab follows: its pane runs
+the new id, and so does the saved tab.
+
+- **How the app learns it.** Every agent pane's pty carries `MENKAR_PANE` (the pane's id).
+  Claude Code passes it to the SessionStart hook, whose record names the pane (`docs/context.md`,
+  "The record"). Main watches the records (`src/main/pane-starts.ts`), and `followPaneStart` in
+  `workspace.ts` acts on a `clear` or `resume` record of a live Claude pane whose session is
+  another id. A start Menkar made with `--resume` names the pane's own id, so nothing moves.
+- **After a clear** (`followNewId`, `src/core/projects/rekey.ts`) the new id takes the old one's
+  place: its spot in the project's members, its group, the group's leader mark and its hidden flag.
+  The old id stays a member right after it, outside any group, as a stopped row. Nothing changes
+  when the new id already is in a project.
+- **After a resume** (`followResume`) the resumed session joins the tab's project through
+  `addMember`, leaving any other project and its group there, and is shown. The session left stays
+  where it was, stopped.
+- **Not followed:** a session that another tab already holds, since a session is in one tab at
+  most. The pane then runs a session that the tab does not name. A pane whose new session has not
+  joined a project yet has no id to replace.
+- **Remote Control follows a clear** (`followRemoteControl`, `src/core/remote.ts`): when the old
+  id is in `remote_control` in `state.json`, the new id takes its place there, so the new one's
+  next start carries `--remote-control` and the old one's does not. A resume moves no flag: each
+  session keeps its own.
+
 ## Menkar's `state.json`
 
 `src/core/state.ts` reads and writes the sessions' keys, `names` (id → name; a cleared name

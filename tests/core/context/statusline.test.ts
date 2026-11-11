@@ -17,6 +17,8 @@ import { sessionStartHooks } from '../../../src/core/context/settings'
 import {
   BASELINE_KEYS,
   CHAINED_TIMEOUT_MS,
+  PANE_ENV,
+  paneStart,
   runStatusline,
   SESSION_KEYS,
   SESSION_START_ARG,
@@ -216,10 +218,10 @@ test('CTX-26 parity: what the app reads is what the statusline writes', () => {
 
 // The cost since the last compaction: the SessionStart hook (the same script, its hook mode) notes
 // a new session or a compaction, and the bar shows the cost since, then the total.
-function hook(d: Dirs, payload: Record<string, unknown>) {
+function hook(d: Dirs, payload: Record<string, unknown>, env: Record<string, string> = {}) {
   const result = spawnSync(process.execPath, [SCRIPT, SESSION_START_ARG], {
     input: JSON.stringify({ hook_event_name: 'SessionStart', ...payload }),
-    env: d.env,
+    env: { ...d.env, ...env },
     encoding: 'utf8',
   })
   return { out: result.stdout, code: result.status }
@@ -245,6 +247,39 @@ test('a new session shows the same cost twice until it compacts; then the cost s
   expect(turn(d, 's1', 9)).toBe('set · $0.00 · $9.00 total\n')
 })
 
+// Measured with Claude Code 2.1.322: after `/clear` the new id's total starts again at 0, and the
+// hook runs with the pty's environment, so the record names the pane.
+test('a clear starts the new id’s count at nothing, and its record names the Menkar pane it ran in', () => {
+  const d = dirs()
+  hook(d, { session_id: 'before', source: 'startup' })
+  turn(d, 'before', 3)
+  expect(hook(d, { session_id: 'after', source: 'clear' }, { [PANE_ENV]: 'pane7' })).toEqual({
+    out: '',
+    code: 0,
+  })
+  expect(turn(d, 'after', 0.42)).toBe('set · $0.42 · $0.42 total\n')
+  const start = JSON.parse(readFileSync(join(d.cache, 'session-starts', 'after.json'), 'utf8'))
+  expect(start).toMatchObject({ session_id: 'after', source: 'clear', pane: 'pane7' })
+  const outside = JSON.parse(readFileSync(join(d.cache, 'session-starts', 'before.json'), 'utf8'))
+  expect(outside.pane).toBeNull()
+})
+
+test('the app reads a clear or a resume record as its pane, new id and source, and nothing else as one', () => {
+  const d = dirs()
+  hook(d, { session_id: 'after', source: 'clear' }, { [PANE_ENV]: 'pane7' })
+  hook(d, { session_id: 'picked', source: 'resume' }, { [PANE_ENV]: 'pane7' })
+  hook(d, { session_id: 'plain', source: 'clear' })
+  hook(d, { session_id: 'started', source: 'startup' }, { [PANE_ENV]: 'pane8' })
+  const read = (id: string) =>
+    paneStart(readFileSync(join(d.cache, 'session-starts', `${id}.json`), 'utf8'))
+  expect(read('after')).toEqual({ pane: 'pane7', sessionId: 'after', source: 'clear' })
+  expect(read('picked')).toEqual({ pane: 'pane7', sessionId: 'picked', source: 'resume' })
+  expect(read('plain')).toBeNull()
+  expect(read('started')).toBeNull()
+  expect(paneStart('{"source":"clear","pane":"p","session_id":"../x"}')).toBeNull()
+  expect(paneStart('{"source":"cle')).toBeNull()
+})
+
 test('a session first seen with a cost and no hook record shows its total alone until it compacts', () => {
   const d = dirs()
   expect(turn(d, 'old', 240)).toBe('set · $240.00\n')
@@ -259,9 +294,9 @@ test('a session first seen below a cent, with no hook record, counts as new', ()
   expect(turn(d, 'n1', 0.5)).toBe('set · $0.50 · $0.50 total\n')
 })
 
-test('the hook notes only a new session or a compaction, of a plain id, and never fails', () => {
+test('the hook notes no fork and no id with a path in it, and never fails', () => {
   const d = dirs()
-  for (const source of ['resume', 'clear', 'fork'])
+  for (const source of ['fork'])
     expect(hook(d, { session_id: 'x', source })).toEqual({ out: '', code: 0 })
   expect(hook(d, { session_id: '../x', source: 'compact' })).toEqual({ out: '', code: 0 })
   const bad = spawnSync(process.execPath, [SCRIPT, SESSION_START_ARG], {

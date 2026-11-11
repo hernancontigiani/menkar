@@ -12,6 +12,7 @@ import { startAgentState } from './agentstate'
 import { closeAllChats, registerChatIpc } from './chat'
 import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
 import { startContextReadings } from './context'
+import { watchPaneStarts } from './pane-starts'
 import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
 import { allReaped, reaping } from './reap'
@@ -20,6 +21,7 @@ import { startPhase } from './startup'
 import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
   deliverFiles,
+  followPaneStart,
   openFirstWindowIfNone,
   paneBuffer,
   paneInput,
@@ -109,9 +111,11 @@ async function start(): Promise<void> {
   // Agent state and context (plan 09): the panes' states and the statusline's readings.
   const stopAgentState = startAgentState()
   const stopContext = startContextReadings()
+  const stopPaneStarts = watchPaneStarts(followPaneStart)
   app.on('will-quit', () => {
     stopAgentState()
     stopContext()
+    stopPaneStarts()
   })
   startPhase('services started')
   await startWorkspace()

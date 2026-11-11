@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import { buildCommand } from '../../src/core/command'
-import { remoteControlList, remoteName, setRemoteControl } from '../../src/core/remote'
+import {
+  followRemoteControl,
+  remoteControlList,
+  remoteName,
+  setRemoteControl,
+} from '../../src/core/remote'
 import { parseState } from '../../src/core/state'
 
 describe('Remote Control', () => {
@@ -35,5 +40,12 @@ describe('Remote Control', () => {
     state = setRemoteControl(state, 'a', true)
     expect(state.rest).toEqual({ remote_control: ['a', 'b'], settings: { x: 1 } })
     expect(remoteControlList(setRemoteControl(state, 'a', false))).toEqual(['b'])
+  })
+
+  test('after a clear the new id has Remote Control in the old one’s place; an id without it gives none', () => {
+    const state = parseState({ remote_control: ['old', 'z'], settings: { x: 1 } })
+    const followed = followRemoteControl(state, 'old', 'new')
+    expect(followed.rest).toEqual({ remote_control: ['new', 'z'], settings: { x: 1 } })
+    expect(followRemoteControl(state, 'plain', 'other')).toBe(state)
   })
 })

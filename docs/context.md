@@ -19,21 +19,28 @@ Integrations page are still `docs/spec/context.md` until they are built.
 - **The cost since the last compaction** (2026-11-10): the bar shows it before the total
   (`set · 22% · $12.40 · $246.50 total`). The total is Claude Code's `cost.total_cost_usd`, which
   counts on across resumes. The cost since is the total minus a baseline, with no transcript read.
-  - **The hook.** The `--settings` file also declares a SessionStart hook, two entries, matchers
-    `startup` and `compact`. Its command is the statusline's own, with the argument
-    `session-start` (`sessionStartHooks` in `settings.ts`). Checked in Claude Code 2.1.322's
-    binary: the hook's stdin carries `session_id` and `source` (one of `startup`, `resume`,
-    `clear`, `compact` or `fork`), and the matcher is compared with `source`.
+  - **The hook** (2026-11-11). The `--settings` file also declares a SessionStart hook, four
+    entries, matchers `startup`, `resume`, `clear` and `compact`. Its command is the statusline's
+    own, with the argument `session-start` (`sessionStartHooks` in `settings.ts`). Checked in
+    Claude Code 2.1.322's binary: the hook's stdin carries `session_id` and `source` (one of
+    `startup`, `resume`, `clear`, `compact` or `fork`), and the matcher is compared with `source`.
+    After a `/clear`, `session_id` is the new id and nothing names the old one.
   - **The record.** The hook writes `<cache>/session-starts/<id>.json` (`session_id`, `source`,
-    `at`). It is not under `sessions/`, which main watches for readings.
+    `at`, `pane`). It is not under `sessions/`, which main watches for readings. `pane` is
+    `MENKAR_PANE`, which every agent pane's pty carries and the hook inherits through Claude Code
+    (measured, 2.1.322); null outside Menkar. Main watches the folder for `clear` and `resume`
+    records naming a live pane, so the tab follows the pane's new session (`docs/sessions.md`).
   - **The baseline.** On its next run the statusline sees a record it has not used and keeps a
     baseline in `<cache>/cost-baselines/<id>.json` (`baseline_usd`, `start_at`): 0 after
-    `startup`, the current total after `compact`. A resume leaves it, so the count goes on from the
-    last compaction.
-  - **Unknown.** `clear` and `fork` are not kept: whether their total starts again is not
-    Menkar's to know. A session first seen with no record is taken as new when its total is below a
-    cent, and otherwise as unknown, so its bar shows the total alone until it compacts. That covers
-    sessions started outside Menkar, and those whose last compaction came before this.
+    `startup` and after `clear`, the current total after `compact`. A resume leaves it, so the
+    count goes on from the last compaction.
+  - **After a clear the total starts again.** Measured 2026-11-11 with Claude Code 2.1.322 run
+    against a local stand-in for the API, in a throwaway home: the new id's first statusline run
+    showed `total_cost_usd` 0, and after its first turn the cost of that turn alone.
+  - **Unknown.** `fork` is not kept: whether its total starts again is not Menkar's to know. A
+    session first seen with no record is taken as new when its total is below a cent, and otherwise
+    as unknown, so its bar shows the total alone until it compacts. That covers sessions started
+    outside Menkar, and those whose last compaction came before this.
   - **What it misses.** The baseline is the total at the first statusline run after the
     compaction, so the cost of that first turn falls before it.
   - **"total"** is the bar's only word. The bar is not translated: the statusline runs inside
