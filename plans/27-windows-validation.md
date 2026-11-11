@@ -38,3 +38,20 @@ Validation serves that, before each Windows release, not every change.
 3. **Before a Windows release**: the installer built, installed on a Windows machine or VM, and a
    smoke run there (Playwright drives Electron natively, no xvfb) plus a hand checklist: install,
    the launcher, a Claude session in a terminal, Remote Control, notifications, uninstall.
+
+## Carried over from the predecessor's validation (2026-11-08, Claude Code 2.1.319, Ubuntu only)
+
+Kept here because the predecessor's repository is being deleted. On Linux an Electron spike showed
+that xterm.js and `@xterm/headless` read the agent's working / blocked / idle states unchanged, that
+Shift+Enter, Ctrl+C, Esc, a 5,000-character bracketed paste, scrollback, `/exit` and resizing
+behave, and that Playwright's `_electron.launch` drives the real app reliably. **Nothing was checked
+on Windows or macOS.** What it left for them:
+- Windows terminals run on ConPTY through node-pty: the same `Terminal` class, a different backend
+  to verify (signals: there is no SIGHUP, so 1.9 / 1.48's hang-up needs its Windows equivalent).
+- The shell is decision 2.1 (Git Bash recommended, since Claude Code on Windows already needs Git
+  for Windows; PowerShell the fallback; WSL the other way).
+- Nothing on the agents' side may assume `python3`: the statusline and the hooks must run with what
+  Menkar ships (Node or its own binary).
+- WebKit is never the engine: Electron's Chromium on every platform, so the UI checks done on Linux
+  hold, but the native pieces (dialogs, the trash, `openPath`, drag out, the frameless window's
+  snapping) are checked by hand on each platform.
