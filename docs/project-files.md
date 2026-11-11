@@ -39,10 +39,18 @@ the renderer draws the section and names files, never paths.
 - Main lists the folder with async I/O and watches it while its project is shown in some window,
   re-reading shortly after the last change (`syncShown`, called on every workspace change). The
   listing reaches the window in its state (`files`).
-- **Double click** opens the file with its app (`shell.openPath`). **Dragging a row out** hands the
-  file to another app: the page's `dragstart` names the file (`dragProjectFile`), and main resolves
-  the path itself and refuses one that is not a plain name of that folder — `..`, an absolute path,
-  a dotfile, a name with a separator (`insideFolder`) — then calls `webContents.startDrag`.
+- **Double click** opens the file in a Menkar file tab when the editor can show it — the same file
+  check as `Ctrl+O` (`checkFile`, in `docs/files.md`), Markdown with its preview button — and
+  anything the check refuses (PDF, image, archive, Office) with the system's
+  app (`shell.openPath`), with no toast (decision 1.65, 2026-11-11). Main runs the check, async,
+  then decides (`openProjectFile`); the renderer only names the file.
+- **Right click** shows "Open in Menkar", disabled with the check's reason as its tooltip when the
+  file can't be shown (`checkProjectFile`), and "Open with the system's app". Ctrl+click on a
+  terminal link or path still opens with the system's app.
+- **Dragging a row out** hands the file to another app: the page's `dragstart` names the file
+  (`dragProjectFile`), and main resolves the path itself and refuses one that is not a plain name of
+  that folder — `..`, an absolute path, a dotfile, a name with a separator (`insideFolder`) — then
+  calls `webContents.startDrag`.
 
 ## Bringing a file in
 

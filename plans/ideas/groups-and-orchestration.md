@@ -221,3 +221,19 @@ session to check them properly.
   [awesome-claude-code orchestrators](https://www.mintlify.com/hesreallyhim/awesome-claude-code/tooling/orchestrators))
 
 Licenses matter: Menkar is GPL-3.0-or-later and carries no code over; these are for ideas only.
+
+---
+
+## Menkar ships the orchestration skills (the human, 2026-11-11)
+
+If Menkar offers orchestration as an optional advanced mode, it ships at least the base skills
+(the orchestrator's role, a worker's, distill-then-clear) as defaults the user can edit, rather
+than leaving each user to write them. Open when the mode is designed: where the defaults live
+(installed with the app, copied into a project on first use), how a user's edits survive an update,
+and how they reach a session (`--settings`, a plugin, or files in the repository).
+
+How the user gets them (the human, 2026-11-11, two options, not decided): **published** in a
+skills marketplace that Claude Code installs from (e.g. a `menkar-…` plugin), so the user installs
+them from there; or **installed from Menkar**, where the user picks the scope (this repository, or
+their user-level skills). Either way Menkar shows the skill and the user chooses; nothing is
+installed by itself (as the integrations rule already says for `~/.claude/settings.json`).

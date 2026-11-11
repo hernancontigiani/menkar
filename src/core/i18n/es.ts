@@ -110,6 +110,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'row.openFolder': 'Abrir la carpeta',
   'row.earlier': 'Conversaciones anteriores',
   'files.add': 'Agregar',
+  'files.openInMenkar': 'Abrir en Menkar',
+  'files.openWithSystem': 'Abrir con la aplicación del sistema',
   'files.more': '{n} más…',
   'files.folderGone': 'Esa carpeta ya no existe.',
   'groups.collapse': 'Contraer el grupo',

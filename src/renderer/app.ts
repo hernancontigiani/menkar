@@ -581,12 +581,39 @@ function fileRow(file: { readonly name: string; readonly mtimeMs: number }): HTM
     el('span', { class: 'file-age dim' }, fileAge(file.mtimeMs)),
   )
   node.addEventListener('dblclick', () => void act({ type: 'openProjectFile', name: file.name }))
+  node.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    void fileMenu(file.name, { x: event.clientX, y: event.clientY })
+  })
   // Main starts the drag with the file it resolves itself; the page only names it.
   node.addEventListener('dragstart', (event) => {
     event.preventDefault()
     void act({ type: 'dragProjectFile', name: file.name })
   })
   return node
+}
+
+async function fileMenu(name: string, at: { x: number; y: number }): Promise<void> {
+  const { refusal } = await act({ type: 'checkProjectFile', name })
+  showMenu(
+    [
+      {
+        label: t('files.openInMenkar'),
+        ...(refusal ? { disabled: true, title: translate(refusal) } : {}),
+        run: () => void openInMenkar(name),
+      },
+      {
+        label: t('files.openWithSystem'),
+        run: () => void act({ type: 'openProjectFile', name, with: 'system' }),
+      },
+    ],
+    at,
+  )
+}
+
+async function openInMenkar(name: string): Promise<void> {
+  const { refusal } = await act({ type: 'openProjectFile', name, with: 'menkar' })
+  if (refusal) toast(translate(refusal))
 }
 
 async function bringFiles(anchor: HTMLElement, projectName: string): Promise<void> {

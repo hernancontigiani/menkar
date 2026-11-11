@@ -100,7 +100,14 @@ export type Action =
   | { readonly type: 'newestIncoming' }
   | { readonly type: 'undoBring'; readonly undo: string }
   | { readonly type: 'openFilesFolder' }
-  | { readonly type: 'openProjectFile'; readonly name: string }
+  // `menkar`: a file tab, or the refusal; `system`: the system's app; neither: a tab when the file
+  // check allows one, else the system's app.
+  | {
+      readonly type: 'openProjectFile'
+      readonly name: string
+      readonly with?: 'menkar' | 'system'
+    }
+  | { readonly type: 'checkProjectFile'; readonly name: string }
   | { readonly type: 'dragProjectFile'; readonly name: string }
   | { readonly type: 'collapseFiles'; readonly collapsed: boolean }
   // The focused pane's working folder (the drawer's), or a session's, in the file manager.

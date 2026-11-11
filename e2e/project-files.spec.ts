@@ -307,3 +307,73 @@ test('decision 1.62: with 7 files the section shows the 5 newest and "2 more…"
     await launched.close()
   }
 })
+
+test('decision 1.65: a double-click opens a Markdown file in a Menkar file tab and a PDF with the system’s app; the right-click menu offers both, "Open in Menkar" disabled on the PDF with the check’s reason', async () => {
+  let d: Dirs | undefined
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const set = setUp(dirs)
+      d = set.d
+      mkdirSync(set.d.folder, { recursive: true })
+      writeFileSync(join(set.d.folder, 'notes.md'), '# Notes\n')
+      // A PDF's second line holds bytes above 0x7f, as real ones do: not UTF-8.
+      writeFileSync(
+        join(set.d.folder, 'report.pdf'),
+        Buffer.concat([Buffer.from('%PDF-1.4\n%'), Buffer.from([0xe2, 0xe3, 0xcf, 0xd3, 0x0a])]),
+      )
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const json = JSON.parse(readFileSync(file, 'utf8'))
+      json.projects[0].files_folder = PROJECT
+      writeFileSync(file, JSON.stringify(json))
+      return set.env
+    },
+  })
+  if (!d) throw new Error('no dirs')
+  const dirs = d
+  try {
+    const { app, window: page } = launched
+    await expect.poll(() => fileRows(page)).toHaveLength(2)
+    await record(app)
+    const row = (name: string) => page.locator(`#files-section .file-row[data-file="${name}"]`)
+
+    await row('notes.md').dblclick()
+    await expect(page.locator('.tab.selected')).toHaveText(/notes\.md/)
+    await expect(page.locator('.tab.selected')).toHaveAttribute(
+      'title',
+      join(dirs.folder, 'notes.md'),
+    )
+    await expect(page.locator('.preview-row button:not(.save)')).toBeVisible()
+    expect(await recorded(app, 'opened')).toEqual([])
+
+    const tabs = await page.locator('.tab').count()
+    await row('report.pdf').dblclick()
+    await expect.poll(() => recorded(app, 'opened')).toEqual([join(dirs.folder, 'report.pdf')])
+    expect(await page.locator('.tab').count()).toBe(tabs)
+    await expect(page.locator('.toast')).toHaveCount(0)
+
+    await row('report.pdf').click({ button: 'right' })
+    const inMenkar = page.locator('.menu-item', { hasText: 'Open in Menkar' })
+    await expect(page.locator('.menu-item')).toHaveText([
+      'Open in Menkar',
+      'Open with the system’s app',
+    ])
+    await expect(inMenkar).toBeDisabled()
+    await expect(inMenkar).toHaveAttribute('title', 'The file is not UTF-8 text.')
+    await page.locator('.menu-item', { hasText: 'Open with the system’s app' }).click()
+    await expect
+      .poll(() => recorded(app, 'opened'))
+      .toEqual([join(dirs.folder, 'report.pdf'), join(dirs.folder, 'report.pdf')])
+
+    await row('notes.md').click({ button: 'right' })
+    await expect(inMenkar).toBeEnabled()
+    await page.locator('.menu-item', { hasText: 'Open with the system’s app' }).click()
+    await expect.poll(() => recorded(app, 'opened')).toHaveLength(3)
+    expect((await recorded(app, 'opened'))[2]).toBe(join(dirs.folder, 'notes.md'))
+    await row('notes.md').click({ button: 'right' })
+    await page.locator('.menu-item', { hasText: 'Open in Menkar' }).click()
+    await expect(page.locator('.tab', { hasText: 'notes.md' })).toHaveCount(1)
+    await expect(page.locator('.tab.selected')).toHaveText(/notes\.md/)
+  } finally {
+    await launched.close()
+  }
+})

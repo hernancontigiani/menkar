@@ -314,11 +314,15 @@ export async function openProjectFolder(projectId: string): Promise<void> {
   if (folder) await openFolder(folder)
 }
 
-export async function openProjectFile(projectId: string, name: string): Promise<void> {
+// Main resolves the path itself: the renderer only names the file.
+export function projectFilePath(projectId: string, name: string): string | null {
   const folder = folderOf(projectId)
   const path = folder ? insideFolder(folder, name) : null
-  if (!path)
-    return log.warn('a file outside its project folder was refused', { project: projectId, name })
+  if (!path) log.warn('a file outside its project folder was refused', { project: projectId, name })
+  return path
+}
+
+export async function openWithSystem(path: string): Promise<void> {
   const error = await shell.openPath(path)
   if (error) log.warn('a project file could not be opened', { path, error })
 }

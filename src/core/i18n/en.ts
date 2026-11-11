@@ -108,6 +108,8 @@ export const en = {
   'row.openFolder': 'Open folder',
   'row.earlier': 'Earlier conversations',
   'files.add': 'Add',
+  'files.openInMenkar': 'Open in Menkar',
+  'files.openWithSystem': 'Open with the system’s app',
   'files.more': '{n} more…',
   'files.folderGone': 'That folder no longer exists.',
   'groups.collapse': 'Collapse group',

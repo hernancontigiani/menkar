@@ -10,7 +10,7 @@ import { buildCommand, type Start } from '../core/command'
 import { PANE_ENV } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { DrawerRegistry, drawerFolder } from '../core/drawers'
-import { checkTyped, expandInput } from '../core/files/check'
+import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
@@ -102,8 +102,9 @@ import {
   incomingFolder,
   newestIncoming,
   openFolder,
-  openProjectFile,
   openProjectFolder,
+  openWithSystem,
+  projectFilePath,
   renameFolder,
   startProjectFiles,
   syncShown,
@@ -1444,9 +1445,23 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'openFilesFolder':
       await openProjectFolder(w.shown)
       return {}
-    case 'openProjectFile':
-      await openProjectFile(w.shown, action.name)
+    case 'openProjectFile': {
+      const path = projectFilePath(w.shown, action.name)
+      if (!path) return {}
+      if (action.with !== 'system') {
+        const refusal = await openFileTab(windowId, path)
+        if (!refusal) return {}
+        if (action.with === 'menkar') return { refusal }
+      }
+      await openWithSystem(path)
       return {}
+    }
+    case 'checkProjectFile': {
+      const path = projectFilePath(w.shown, action.name)
+      if (!path) return { refusal: 'files.unreadable' }
+      const checked = await checkFile(path, homedir())
+      return 'refusal' in checked ? { refusal: checked.refusal } : {}
+    }
     case 'dragProjectFile':
       await dragProjectFile(contents, w.shown, action.name)
       return {}
