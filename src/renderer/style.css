@@ -248,6 +248,59 @@ html:not(.maximized) body::after {
   font-size: 9pt;
   font-weight: 700;
 }
+button.group-heading {
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 10px 4px 4px 4px;
+  border-radius: var(--radius);
+  text-align: left;
+}
+button.group-heading::before {
+  content: "▾";
+  width: 10px;
+  flex: none;
+}
+button.group-heading.collapsed::before {
+  content: "▸";
+}
+/* One row standing for the group's rows: their height, dot and ring in the rows' columns. */
+button.group-heading.collapsed {
+  min-height: 36px;
+  margin-bottom: 2px;
+  padding: 6px 44px 6px 4px;
+}
+button.group-heading:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+button.group-heading.contains-selected {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.group-heading .group-name,
+.group-heading .group-leader {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.group-heading .group-name {
+  flex: none;
+  max-width: 60%;
+}
+.group-heading .group-fill {
+  flex: 1;
+}
+.row .name:has(.leader-star) {
+  display: flex;
+  gap: 4px;
+}
+.row .name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leader-star {
+  flex: none;
+  color: var(--yellow);
+}
 .row {
   display: flex;
   align-items: center;

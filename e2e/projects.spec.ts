@@ -137,8 +137,16 @@ async function client(options: Parameters<typeof clientWork>[1] = {}) {
 
 async function rowMenu(page: Page, session: string, ...path: string[]) {
   await page.locator(`.row[data-session="${session}"] .more`).click()
-  for (const item of path) await page.locator('.menu-item', { hasText: item }).last().click()
+  for (const item of path)
+    await page
+      .locator('.menu-item', { hasText: exactly(item) })
+      .last()
+      .click()
 }
+
+// The whole label, or "Group" would also match "Make group leader".
+const exactly = (label: string) =>
+  new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( ▸)?$`)
 
 const dialog = (page: Page) => page.locator('.dialog')
 

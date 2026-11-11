@@ -46,6 +46,11 @@ export function rollup(states: readonly ShownState[]): ShownState {
   return 'idle'
 }
 
+// A collapsed group's state, over its running members' states; null when none runs (stopped).
+export function groupState(states: readonly ShownState[]): ShownState | null {
+  return states.length > 0 ? rollup(states) : null
+}
+
 // Blocked sessions per project; only members count.
 export function blockedCounts(
   panes: readonly PaneState[],

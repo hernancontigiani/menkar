@@ -156,23 +156,23 @@ can mark one of its members as its leader. A project that uses neither loses not
 
 ### Block 1 — the group state in core
 
-- [ ] Write the `groupState` cases in `tests/core/agentstate/shown.test.ts` (table above); see them
+- [x] Write the `groupState` cases in `tests/core/agentstate/shown.test.ts` (table above); see them
       fail.
-- [ ] `groupState(states: readonly ShownState[]): ShownState | null` in
+- [x] `groupState(states: readonly ShownState[]): ShownState | null` in
       `src/core/agentstate/shown.ts`, calling `rollup` when not empty.
 - **Verify:** `npm run ci`.
 
 ### Block 2 — the model and the file
 
-- [ ] Write the store and model cases (table above); see them fail.
-- [ ] `Group` gains `readonly collapsed?: true` and `readonly leader?: string`.
-- [ ] `store.ts`: read both (decision 7), write each only when set, after `members`.
-- [ ] `model.ts`: `setLeader(state, sessionId)`, `clearLeader(state, sessionId)`,
+- [x] Write the store and model cases (table above); see them fail.
+- [x] `Group` gains `readonly collapsed?: true` and `readonly leader?: string`.
+- [x] `store.ts`: read both (decision 7), write each only when set, after `members`.
+- [x] `model.ts`: `setLeader(state, sessionId)`, `clearLeader(state, sessionId)`,
       `setCollapsed(state, projectId, groupName, collapsed)`; `moveMember` keeps the leader first
       (8); every path that takes a session out of a group drops its `leader` (9) — check
       `setGroup`, `removeMember`, joining another project (`model.ts:132`) and any other caller
       that filters `members`.
-- [ ] Actions in `src/shared/workspace.ts`: `{ type: 'setLeader', session, leader: boolean }`,
+- [x] Actions in `src/shared/workspace.ts`: `{ type: 'setLeader', session, leader: boolean }`,
       `{ type: 'collapseGroup', project, group, collapsed: boolean }`; handled in
       `src/main/workspace.ts` beside `setGroup`, saved at once like the rest. `groups` reach the
       renderer with the two keys.
@@ -180,20 +180,20 @@ can mark one of its members as its leader. A project that uses neither loses not
 
 ### Block 3 — the sidebar
 
-- [ ] Write `e2e/groups.spec.ts` (table above; reuse the fixtures of `e2e/projects.spec.ts`,
+- [x] Write `e2e/groups.spec.ts` (table above; reuse the fixtures of `e2e/projects.spec.ts`,
       `e2e/row-drag.spec.ts` and the agent-state specs for a blocked member and readings); see it
       fail.
-- [ ] `renderList`: a group's heading is a `button.group-heading` with the chevron; collapsed, it
+- [x] `renderList`: a group's heading is a `button.group-heading` with the chevron; collapsed, it
       carries `collapsed`, the count, `★ <leader>`, the `groupState` dot, the fullest running ring
       and `contains-selected`, and its rows are not rendered. "No group" stays a `div`.
-- [ ] `row()`: the leader's name gets `★` (`class="leader-star"`, `title` = the translated
+- [x] `row()`: the leader's name gets `★` (`class="leader-star"`, `title` = the translated
       "Group leader").
-- [ ] `rowMenu`: in a group, "Make group leader" / "Not the group's leader" right after the Group
+- [x] `rowMenu`: in a group, "Make group leader" / "Not the group's leader" right after the Group
       submenu.
-- [ ] Strings through `t()`, English and Spanish both (`check-i18n`): the two menu entries, the
+- [x] Strings through `t()`, English and Spanish both (`check-i18n`): the two menu entries, the
       star's title, the heading's accessible label ("Collapse group" / "Expand group"), the count
       if it needs a template.
-- [ ] CSS in `src/renderer/style.css` next to `.group-heading`: the button reset, the chevron, the
+- [x] CSS in `src/renderer/style.css` next to `.group-heading`: the button reset, the chevron, the
       collapsed row aligned with a session row (dot, ring and `⋯` columns), `contains-selected`.
 - **Verify:** `npm run ci`; `npm run ui-check` (the new spec and the full suite); screenshots of
   the list expanded, collapsed with a blocked member and a ring, and with a leader, in a dark and a
@@ -201,13 +201,39 @@ can mark one of its members as its leader. A project that uses neither loses not
 
 ### Block 4 — docs and close
 
-- [ ] `docs/projects.md`: the two keys, the leader rules (7–10), the collapsed row (3), the
+- [x] `docs/projects.md`: the two keys, the leader rules (7–10), the collapsed row (3), the
       rejected list; the old "a group keeps only its three keys" line verbatim to
       `docs/history/projects.md`.
-- [ ] `docs/NOT_BUILT_YET.md`: the out-of-scope leader entry with its trigger.
-- [ ] Execution log below.
+- [x] `docs/NOT_BUILT_YET.md`: the out-of-scope leader entry with its trigger.
+- [x] Execution log below.
 - **Verify:** `npm run ci` (the history check).
 
 ## Execution log
 
-_Written by the executing session._
+_Written by `b1`, 2026-11-11._
+
+- **The leader is dropped in `leaveGroups`, not `leave`.** The launch prompt named `leave()`, but
+  `setGroup` and `newGroup` call `leaveGroups` directly, and `leave` calls it too: that is the one
+  place every way out of a group passes. The model test covers all five paths (No group, another
+  group, a new group, removed, another project), each seen red with the drop removed.
+- **The read also puts the leader first** when a file has it elsewhere (hand-edited). Not in the
+  plan's table; `moveMember` relies on the leader being at index 0, so a repair on read keeps that
+  invariant instead of trusting the file. One store test asserts it.
+- **The chevron is a CSS `::before`**, not a span, so the heading's text and its first span (the
+  group's dot) are unchanged and `look.spec.ts` LOOK-14 holds as written.
+- **The collapsed row's state dot sits before the ring at the right**, as the plan's sketch draws
+  it, not at the left like a session row's dot; the ring is aligned with the rows' ring column
+  (right padding 44 px, checked on screenshots in dark and light).
+- **`e2e/projects.spec.ts`'s `rowMenu` helper now matches a menu label whole.** Playwright's
+  `hasText` is a case-insensitive substring, so "Group" picked "Make group leader" (`.last()`) on a
+  grouped row and PRJ-22/23/24 timed out in the full `ui-check`.
+- **Picking a session's own group in its Group submenu is a no-op in `setGroup`** (asked by `set`
+  after the report): before, it left and rejoined, moving the session last and, with this plan,
+  dropping its lead. One model test, seen red first.
+- **The marked collapsed row** uses an inset 3 px accent shadow on the left.
+- **Spanish:** "Contraer el grupo" / "Expandir el grupo", "Hacer líder del grupo", "Quitar como líder
+  del grupo", "Líder del grupo".
+- **Left to `set`'s close**: `plans/00-STATUS.md` (row out of §3, closing note to its history, 1.50
+  and 1.54 pointing to `docs/projects.md`; the file had someone else's uncommitted change) and Idea
+  1 out of `plans/ideas/groups-and-orchestration.md`. This plan is not deleted: its log has to be
+  committed first.

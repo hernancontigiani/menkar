@@ -58,10 +58,17 @@ export function parseProjects(value: unknown): Projects {
           g.color === undefined || g.color === null || g.color === ''
             ? DEFAULT_GROUP_COLOR
             : String(g.color)
+        const groupMembers = strings(g.members, 'group members').filter((m) => memberSet.has(m))
+        // Repaired, not unreadable: a leader that is not one of the group's is dropped, and the
+        // leader is put back first.
+        const leader =
+          typeof g.leader === 'string' && groupMembers.includes(g.leader) ? g.leader : undefined
         return {
           name: g.name,
           color,
-          members: strings(g.members, 'group members').filter((m) => memberSet.has(m)),
+          members: leader ? [leader, ...groupMembers.filter((m) => m !== leader)] : groupMembers,
+          ...(g.collapsed === true ? { collapsed: true as const } : {}),
+          ...(leader ? { leader } : {}),
         }
       })
       .filter((g) => g.members.length > 0)
@@ -91,7 +98,8 @@ export function parseProjects(value: unknown): Projects {
 }
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
-// keys, then id, name, members, groups, and hidden when any. A group keeps only its three keys.
+// keys, then id, name, members, groups, and hidden when any. A group writes name, color, members,
+// then collapsed and leader only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
   windows: readonly SavedWindow[] = [],
@@ -105,7 +113,13 @@ export function serializeProjects(
       id: p.id,
       name: p.name,
       members: p.members,
-      groups: p.groups.map((g) => ({ name: g.name, color: g.color, members: g.members })),
+      groups: p.groups.map((g) => ({
+        name: g.name,
+        color: g.color,
+        members: g.members,
+        ...(g.collapsed ? { collapsed: true } : {}),
+        ...(g.leader ? { leader: g.leader } : {}),
+      })),
       ...(p.hidden && p.hidden.length > 0 ? { hidden: p.hidden } : {}),
     })),
     windows,

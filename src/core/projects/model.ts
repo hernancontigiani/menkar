@@ -9,6 +9,10 @@ export interface Group {
   readonly name: string
   readonly color: string
   readonly members: readonly string[]
+  // Shown as one row in the list, in every window, until expanded.
+  readonly collapsed?: true
+  // One of `members`, always the first of them.
+  readonly leader?: string
 }
 
 export interface Project {
@@ -79,11 +83,21 @@ function update(state: Projects, id: string, change: (p: Project) => Project): P
 
 const dropEmpty = (groups: readonly Group[]) => groups.filter((g) => g.members.length > 0)
 
+function withoutLeader(g: Group): Group {
+  const { leader: _, ...rest } = g
+  return rest
+}
+
+// Every way out of a group goes through here, so a leader never outlives its membership.
 function leaveGroups(p: Project, sessionId: string): Project {
   return {
     ...p,
     groups: dropEmpty(
-      p.groups.map((g) => ({ ...g, members: g.members.filter((m) => m !== sessionId) })),
+      p.groups.map((g) => {
+        if (!g.members.includes(sessionId)) return g
+        const left = { ...g, members: g.members.filter((m) => m !== sessionId) }
+        return g.leader === sessionId ? withoutLeader(left) : left
+      }),
     ),
   }
 }
@@ -157,6 +171,11 @@ export function setGroup(
   sessionId: string,
   group: { readonly name: string; readonly color: string } | null,
 ): Projects {
+  const current = state.projects
+    .find((p) => p.id === projectId)
+    ?.groups.find((g) => g.members.includes(sessionId))
+  // Its own group again: leaving and rejoining would move it last and take its lead.
+  if (group && current?.name === group.name) return state
   return update(state, projectId, (p) => {
     const left = leaveGroups(p, sessionId)
     if (!group) return left
@@ -206,9 +225,12 @@ export function moveMember(
   const groupOf = (id: string) => project.groups.find((g) => g.members.includes(id))
   const group = groupOf(sessionId)
   if (group !== groupOf(target)) return state
+  // The leader stays first: it does not move, and nothing lands before it.
+  const leader = group?.leader
+  if (leader === sessionId) return state
   const moved = (list: readonly string[]) => {
     const rest = list.filter((id) => id !== sessionId)
-    const at = rest.indexOf(target) + (place === 'after' ? 1 : 0)
+    const at = Math.max(rest.indexOf(target) + (place === 'after' ? 1 : 0), leader ? 1 : 0)
     return [...rest.slice(0, at), sessionId, ...rest.slice(at)]
   }
   return update(state, project.id, (p) =>
@@ -219,6 +241,45 @@ export function moveMember(
         }
       : { ...p, members: moved(p.members) },
   )
+}
+
+function updateGroupOf(state: Projects, sessionId: string, change: (g: Group) => Group): Projects {
+  const project = projectOf(state, sessionId)
+  const group = project?.groups.find((g) => g.members.includes(sessionId))
+  if (!project || !group) return state
+  return update(state, project.id, (p) => ({
+    ...p,
+    groups: p.groups.map((g) => (g === group ? change(g) : g)),
+  }))
+}
+
+// One leader per group, first among its members; a session in "No group" has no group to lead.
+export function setLeader(state: Projects, sessionId: string): Projects {
+  return updateGroupOf(state, sessionId, (g) => ({
+    ...g,
+    members: [sessionId, ...g.members.filter((m) => m !== sessionId)],
+    leader: sessionId,
+  }))
+}
+
+export function clearLeader(state: Projects, sessionId: string): Projects {
+  return updateGroupOf(state, sessionId, (g) => (g.leader === sessionId ? withoutLeader(g) : g))
+}
+
+export function setCollapsed(
+  state: Projects,
+  projectId: string,
+  groupName: string,
+  collapsed: boolean,
+): Projects {
+  return update(state, projectId, (p) => ({
+    ...p,
+    groups: p.groups.map((g) => {
+      if (g.name !== groupName) return g
+      const { collapsed: _, ...rest } = g
+      return collapsed ? { ...rest, collapsed: true } : rest
+    }),
+  }))
 }
 
 // Hidden in its project's list (decision 1.25): only while it does not run, since a running session

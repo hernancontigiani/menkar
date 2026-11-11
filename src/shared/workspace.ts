@@ -81,6 +81,13 @@ export type Action =
       readonly group: { readonly name: string; readonly color: string } | null
     }
   | { readonly type: 'newGroup'; readonly session: string; readonly name: string }
+  | { readonly type: 'setLeader'; readonly session: string; readonly leader: boolean }
+  | {
+      readonly type: 'collapseGroup'
+      readonly project: string
+      readonly group: string
+      readonly collapsed: boolean
+    }
   | {
       readonly type: 'moveSession'
       readonly session: string

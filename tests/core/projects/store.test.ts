@@ -171,6 +171,50 @@ describe('projects.json', () => {
     })
   })
 
+  describe('a collapsed group and its leader (1.54)', () => {
+    const file = (g: Record<string, unknown>) =>
+      valid({ projects: [{ id: 'a', name: 'A', members: ['a1', 'b'], groups: [g] }] })
+    const written = (g: Record<string, unknown>) =>
+      (serializeProjects(parseProjects(file(g))).projects as { groups: unknown[] }[])[0]?.groups[0]
+
+    test('collapsed and a leader that is a member round-trip, after the members', () => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['b', 'a1'], collapsed: true, leader: 'b' }
+      expect(parseProjects(file(g)).projects[0]?.groups[0]).toEqual(g)
+      expect(JSON.stringify(written(g))).toBe(JSON.stringify(g))
+    })
+
+    test('a leader written anywhere but first is read back first', () => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['a1', 'b'], leader: 'b' }
+      expect(parseProjects(file(g)).projects[0]?.groups[0]?.members).toEqual(['b', 'a1'])
+    })
+
+    test.each([false, 'yes'])('collapsed: %j reads as expanded and is not written', (collapsed) => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['a1'], collapsed }
+      expect(parseProjects(file(g)).projects[0]?.groups[0]).not.toHaveProperty('collapsed')
+      expect(written(g)).toEqual({ name: 'g', color: '#5ec4b6', members: ['a1'] })
+    })
+
+    test('a leader that is not a member of the group is dropped; the file is still read', () => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['a1'], leader: 'zz' }
+      expect(parseProjects(file(g)).projects[0]?.groups[0]).toEqual({
+        name: 'g',
+        color: '#5ec4b6',
+        members: ['a1'],
+      })
+      expect(written({ ...g, leader: 'b' })).toEqual({
+        name: 'g',
+        color: '#5ec4b6',
+        members: ['a1'],
+      })
+    })
+
+    // The guard against rewriting every projects.json on the first save after this change.
+    test('a group with neither key is written with exactly name, color and members', () => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['a1', 'b'] }
+      expect(JSON.stringify(written(g))).toBe(JSON.stringify(g))
+    })
+  })
+
   test('PRJ-55 the written form: 2 spaces, non-ASCII as is, unknown keys first, then version, current, projects, windows', async () => {
     const parsed = parseProjects({
       zeta: 1,

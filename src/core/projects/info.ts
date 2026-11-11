@@ -11,6 +11,8 @@ export interface ProjectInfo {
     readonly name: string
     readonly color: string
     readonly members: readonly string[]
+    readonly collapsed?: true
+    readonly leader?: string
   }[]
 }
 

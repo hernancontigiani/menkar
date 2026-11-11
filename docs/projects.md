@@ -17,6 +17,8 @@ keeps how they are built and why.
 - `setGroup` takes the group the menu showed (name and color), so a group dropped since the menu was
   built comes back with this session alone. `newGroup` colors by `GROUP_COLORS[n mod 5]`, where n
   counts the groups left after the session's old group was dropped.
+- Picking a session's own group again changes nothing (2026-11-11): leaving and rejoining would
+  move it last and take its lead.
 - Names are unique ignoring case and surrounding spaces, stored trimmed. A rename may change only the
   case of its own name.
 - `joinTarget`: a new session joins the project its tab was started in, or `current` when that
@@ -39,6 +41,41 @@ keeps how they are built and why.
   nearest end, and a row alone in its section does not start a drag. The rows are not selectable,
   since selected text would start the browser's own drag, which cancels the pointer. The action is
   `moveSession`, saved as every project change is.
+
+## Collapsed groups and the group's leader (decisions 1.50 and 1.54, 2026-11-11)
+
+- A group may carry `collapsed: true` and `leader: <session id>`, both optional. **Collapsed is the
+  group's data, not the window's**: saved in `projects.json` and shown so in every window
+  (`setCollapsed`, the action `collapseGroup`). A session joining a collapsed group keeps it
+  collapsed, and nothing expands it but a click on its heading: not a member turning blocked, not
+  its tab being selected, not Go to agent or a notification. "No group" never collapses.
+- **The leader is one of the group's members, always the first** (`setLeader` moves it to the
+  front and replaces any other; `clearLeader` keeps the order; the action `setLeader`). A dragged
+  leader does not move, and a row dropped before it lands right after it. **It leaves with its
+  membership**: every way out of a group goes through `leaveGroups` (`setGroup`, `newGroup`,
+  `removeMember`, joining another project), which drops the leader there once. A session in "No
+  group" cannot lead.
+- Read leniently: a `collapsed` that is not `true` is expanded, a `leader` that is not one of the
+  group's (repaired) members is dropped, and a leader written anywhere but first is read back
+  first. An older Menkar drops both keys on its next save; the groups survive, so no version bump.
+- **The sidebar** (`renderSessionList` in `src/renderer/app.ts`): a group's heading is a button
+  with a chevron (`▾`/`▸`, drawn by CSS so the heading's text is unchanged); "No group"'s stays a
+  plain heading. Collapsed, the heading is the group's one row, in a session row's height: the name
+  in the group's color with the count of the rows it would list expanded (the hidden members only
+  while the "N hidden" toggle shows them), `★ <leader's name>`, then the state dot and the ring in
+  the rows' columns. The dot is `groupState` (`src/core/agentstate/shown.ts`, `rollup` over the
+  **running** members, so blocked wins and a collapsed group never hides what needs the human),
+  stopped when none runs; the ring is the fullest reading among the running members, none when
+  none runs. It carries `contains-selected` (the accent's left bar) while the window's selected
+  tab holds a member, since that row is not visible. Expanded, the heading shows only the chevron,
+  the dot and the name. The leader's row has a `★` after its name; the row menu's entry after
+  Group is "Make group leader" or, on the leader, "Not the group's leader".
+- **Rejected**: a double click on the collapsed row jumping to the member most in need (Go to agent
+  already does it across windows); collapsed per window and not saved; the leader's row staying
+  visible while collapsed (one row would become two); expanding on blocked (it moves the list under
+  the pointer; the red dot already says it); a tooltip naming which member gives the state and the
+  ring (not asked for); a schema version 2 (the keys are optional and an older reader survives
+  them); a leader in "No group" (a leader leads a group).
 
 ## Hidden in a project (decision 1.25, 2026-11-09)
 
@@ -92,7 +129,9 @@ keeps how they are built and why.
   missing color is `#5ec4b6`, an unknown `current` is the first project, and `windows` that is not
   a list is empty.
 - **Unknown keys** at the top level and in a project are written back as they came, before the
-  known ones; a group keeps only its three keys. Written whole, indented 2 spaces, non-ASCII as is.
+  known ones. A group writes `name`, `color`, `members`, then `collapsed` and `leader` only when
+  set, so a file using neither is written as before; a group's unknown keys are not kept. Written
+  whole, indented 2 spaces, non-ASCII as is.
 - A missing file is a fresh Default; nothing is written until the first save.
 
 ## The first-start import — `import.ts`

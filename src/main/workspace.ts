@@ -33,6 +33,7 @@ import {
 } from '../core/projects/layout'
 import {
   addMember,
+  clearLeader,
   createProject,
   deleteProject,
   hideMember,
@@ -43,8 +44,10 @@ import {
   projectOf,
   removeMember,
   renameProject,
+  setCollapsed,
   setCurrent,
   setGroup,
+  setLeader,
   showMember,
 } from '../core/projects/model'
 import { saveProjects } from '../core/projects/store'
@@ -1243,6 +1246,18 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const project = projectOf(projects, action.session)
       if (!project) return {}
       projects = setGroup(projects, project.id, action.session, action.group)
+      changed({ projects: true })
+      return {}
+    }
+    case 'setLeader': {
+      const led = (action.leader ? setLeader : clearLeader)(projects, action.session)
+      if (led === projects) return {}
+      projects = led
+      changed({ projects: true })
+      return {}
+    }
+    case 'collapseGroup': {
+      projects = setCollapsed(projects, action.project, action.group, action.collapsed)
       changed({ projects: true })
       return {}
     }

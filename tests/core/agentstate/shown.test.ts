@@ -7,6 +7,7 @@ import {
   afterSeen,
   blockedCounts,
   faceBadge,
+  groupState,
   nextShown,
   notifies,
   type PaneState,
@@ -249,5 +250,19 @@ describe('roll-up and counts', () => {
     const quiet = panes.map((p) => ({ ...p, state: 'idle' as const }))
     expect(blockedCounts(quiet, (id) => member[id])).toEqual({})
     expect(faceBadge({}, 'A')).toBe(0)
+  })
+})
+
+describe('a collapsed group', () => {
+  // Its one row shows the most urgent state of its running members, so a collapsed group never
+  // hides one that needs the human; none running is stopped (null).
+  test.each<[ShownState[], ShownState | null]>([
+    [[], null],
+    [['idle'], 'idle'],
+    [['idle', 'done'], 'done'],
+    [['done', 'working'], 'working'],
+    [['working', 'blocked', 'idle'], 'blocked'],
+  ])('AST-32 the running members %j show as %s', (states, expected) => {
+    expect(groupState(states)).toBe(expected)
   })
 })
