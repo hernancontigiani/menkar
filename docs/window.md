@@ -108,10 +108,22 @@ How the main window is built and why that way. The behaviour it follows is in `d
   every Ctrl press delayed the terminal's own handling enough for an Enter typed right after
   `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends `openExternal` (http and https only, checked
   again in main) after `webLink` (`src/core/links.ts`).
-  **Not joined:** an address the program printing it broke with its own newlines, as Claude Code
-  does inside an indented `⎿` block with a newline per row. Those rows are separate lines to the
-  terminal, so only the first row's piece is a link and would open cut. The rows after it don't
-  start with `http`, so they are not links. Nothing guesses where such an address ends.
+  **One link across the rows Claude Code breaks** (decision 1.53, 2026-11-11). Claude Code breaks
+  a long address with its own newlines, a row each (also inside an indented `⎿` block), so to the
+  terminal the rows are separate lines. Every pty gets `FORCE_HYPERLINK=1` beside `COLORTERM`: a
+  Menkar started from the desktop has neither, and GNOME Terminal gets the same from its
+  `VTE_VERSION`. Claude Code then sends each row as an OSC 8 link to the whole address, every row
+  with the same `id` (its 2.1.322 bytes for the login link). `Ctrl+click` on any row opens the
+  whole address. xterm 6.0 underlines only the hovered row's piece, since its OSC 8 provider looks
+  at one line at a time. The first row's text is also an address, cut at the row's end; the OSC 8
+  link wins there, because xterm asks its own provider first.
+  - **What it costs:** the variable reaches every program the pty runs, the commands an agent runs
+    among them. The `supports-hyperlinks` check bundled in Claude Code honours it before it asks
+    whether the output is a terminal, so a program using it writes OSC 8 escapes into a pipe or a
+    file too. `VTE_VERSION` is read only on a terminal.
+  - **Still not joined:** an address that a program sending no OSC 8 broke with its own newlines.
+    Its rows after the first don't start with `http`, so only the first row's piece is a link, and
+    it would open cut. Nothing guesses where such an address ends.
 - Each agent pane is registered for the agent-state module (`src/main/panes.ts`): its screen
   mirror, whether its agent owns the foreground, whether it is seen, and `reveal()`.
 

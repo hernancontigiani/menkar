@@ -11,6 +11,17 @@ import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app
 const OAUTH =
   'https://accounts.google.com/o/oauth2/v2/auth?client_id=123456789012-abcdefghijklmnopqrstuvwxyz012345.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A54545%2Fcallback&response_type=code&scope=openid%20email%20profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=xyzzy-42'
 const OSC8 = 'https://example.com/docs?a=1&b=%20two'
+// Claude Code breaks a long address with its own newlines, a row each. With FORCE_HYPERLINK it
+// sends each row as an OSC 8 link to the whole address, with one id, the bytes 2.1.322 sent for
+// its login link: ESC]8;id=…;URL BEL, the row's piece in its grey, ESC]8;; BEL, a newline. Without
+// it, the rows are plain text. The stand-in decides as Claude Code does.
+const PIECES = OAUTH.match(/.{1,40}/g) ?? []
+const ROWS_OSC8 = PIECES.map(
+  (piece) => `\x1b]8;id=umwctg;${OAUTH}\x07\x1b[38;2;153;153;153m${piece}\x1b[39m\x1b]8;;\x07\n`,
+).join('')
+const ROWS_PLAIN = PIECES.map((piece) => `${piece}\n`).join('')
+const STAND_IN =
+  'if [ -n "$FORCE_HYPERLINK" ] && [ "$FORCE_HYPERLINK" != 0 ]; then cat rows-osc8.txt; else cat rows-plain.txt; fi\n'
 
 async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
   const launched = await launchApp({
@@ -20,7 +31,11 @@ async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
         join(dirs.home, 'osc.txt'),
         `\x1b]8;;${OSC8}\x1b\\the docs\x1b]8;;\x1b\\ and \x1b]8;;file:///etc/passwd\x1b\\a file\x1b]8;;\x1b\\\n`,
       )
-      return savedCursorTab(dirs)
+      writeFileSync(join(dirs.home, 'rows-osc8.txt'), ROWS_OSC8)
+      writeFileSync(join(dirs.home, 'rows-plain.txt'), ROWS_PLAIN)
+      writeFileSync(join(dirs.home, 'link.sh'), STAND_IN)
+      // The pty's own FORCE_HYPERLINK is the one under test, not one from the shell running this.
+      return { ...savedCursorTab(dirs), FORCE_HYPERLINK: '' }
     },
   })
   await launched.app.evaluate(({ shell }) => {
@@ -143,6 +158,46 @@ test('Ctrl+click on an OSC 8 hyperlink opens its address; a plain click and a fi
     await expect.poll(() => opened(launched)).toEqual([OSC8])
     await page.waitForTimeout(300)
     expect(await opened(launched)).toEqual([OSC8])
+  } finally {
+    await launched.close()
+  }
+})
+
+const underlined = (page: Page) =>
+  page
+    .locator('.xterm-rows > div')
+    .evaluateAll(
+      (rows) =>
+        rows.filter((r) =>
+          [...r.querySelectorAll('span')].some((c) => c.style.textDecoration === 'underline'),
+        ).length,
+    )
+
+test('an address Claude Code breaks over rows with its own newlines is one OSC 8 link: Ctrl+click on any row opens it whole', async () => {
+  const { launched, page } = await launch()
+  try {
+    await page.keyboard.type('sh link.sh')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toContain(PIECES.at(-1) ?? '')
+    // Neither the first row nor the last: on its own it does not start with http.
+    // The rows are 40 characters, short of the pane: the pointer goes into the text.
+    const middle = row(page, PIECES[5] ?? '')
+    await hoverLink(page, middle, 80)
+    // xterm 6.0 underlines the hovered row's piece only, not the link's other rows.
+    expect(await underlined(page)).toBe(1)
+    await page.keyboard.down('Control')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    await expect.poll(() => opened(launched)).toEqual([OAUTH])
+
+    // The first row is also an address in the text, cut at the row's end: the OSC 8 link wins.
+    await hoverLink(page, row(page, PIECES[0] ?? ''), 80)
+    await page.keyboard.down('Control')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    await expect.poll(() => opened(launched)).toEqual([OAUTH, OAUTH])
   } finally {
     await launched.close()
   }

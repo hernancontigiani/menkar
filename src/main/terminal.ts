@@ -74,7 +74,10 @@ export class Terminal {
       cwd,
       // xterm.js draws 24-bit colour, but a Menkar started from the desktop has no COLORTERM of
       // its own, and without it Claude Code falls back to 256 colours instead of its own palette.
-      env: { ...process.env, COLORTERM: 'truecolor' },
+      // The same for hyperlinks: without FORCE_HYPERLINK it prints an address it breaks over rows
+      // as plain text, and only the first row's piece is a link; with it, every row is an OSC 8
+      // link to the whole address.
+      env: { ...process.env, COLORTERM: 'truecolor', FORCE_HYPERLINK: '1' },
     })
     this.#pty.onData(emit)
     this.#pty.onExit(({ exitCode }) => {

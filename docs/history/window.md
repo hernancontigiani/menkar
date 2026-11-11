@@ -91,3 +91,11 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 > Left on 2026-11-10: 1.9 amended, the hang-up also goes to the agent's process group and what outlives it is ended (the human, 2026-11-10).
 - **Closing hangs up** (decision 1.9): closing a tab, Stop, closing a window and quitting send
   SIGHUP to the pane's shell. Nothing is typed into a running agent, neither `/exit` nor `exit`.
+
+## Panes and terminals (links)
+
+> Left on 2026-11-11: an address Claude Code breaks over rows becomes one OSC 8 link, every pty given FORCE_HYPERLINK=1 (decision 1.53).
+  **Not joined:** an address the program printing it broke with its own newlines, as Claude Code
+  does inside an indented `⎿` block with a newline per row. Those rows are separate lines to the
+  terminal, so only the first row's piece is a link and would open cut. The rows after it don't
+  start with `http`, so they are not links. Nothing guesses where such an address ends.

@@ -13,6 +13,9 @@
 - `src/core/launch.ts` / `src/main/index.ts`: detaching uses `setsid` semantics; closing agents
   relies on SIGHUP (decision 1.9).
 - Terminals start `bash` (§2 2.1: Git Bash, PowerShell or WSL).
+- Terminal links (1.53): Claude Code turns OSC 8 hyperlinks on from the environment; Menkar sets
+  `FORCE_HYPERLINK=1`. Check on Windows what Claude Code reads there (it also knows `WT_SESSION`)
+  and that links still span the rows it breaks, in the shell 2.1 picks. Not investigated yet.
 - Packaging: a `.deb` with an AppArmor profile; Windows needs an installer (NSIS/MSI), macOS a
   signed `.dmg`.
 - e2e: runs under `xvfb` (`MENKAR_E2E_XVFB`), absent on Windows/macOS.

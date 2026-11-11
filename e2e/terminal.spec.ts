@@ -669,20 +669,24 @@ test('a state with no layout change moves nothing in the tab content: a pane und
 
 // Claude Code paints its own colours in 24 bits only when COLORTERM says the terminal can; Menkar
 // started from the desktop has no COLORTERM of its own to pass on, so every pty is given it.
-test('every pty says truecolor (COLORTERM), the pane and the drawer alike, even when Menkar started without it', async () => {
+// The same for OSC 8 hyperlinks, which Claude Code sends only when FORCE_HYPERLINK (or a terminal
+// it knows by name) says the terminal draws them.
+test('every pty says truecolor (COLORTERM) and FORCE_HYPERLINK=1, the pane and the drawer alike, even when Menkar started without them', async () => {
   const launched = await launchApp({
-    prepare: (dirs) => ({ ...savedCursorTab(dirs), COLORTERM: '' }),
+    prepare: (dirs) => ({ ...savedCursorTab(dirs), COLORTERM: '', FORCE_HYPERLINK: '' }),
   })
   const page = launched.window
   try {
     await expect.poll(() => terminalText(page)).toMatch(/\$\s*$/m)
     await page.locator('.xterm').click()
-    await run(page, 'echo "pane=[$COLORTERM]"', 'pane=[truecolor]')
+    await run(page, 'echo "pane=[$COLORTERM][$FORCE_HYPERLINK]"', 'pane=[truecolor][1]')
     await page.keyboard.press('Control+Backquote')
     const drawer = page.locator('.tab-body:not(.hidden) .pane.drawer .xterm-rows')
     await expect(drawer).toContainText('$', { timeout: 10_000 })
     await page.keyboard.type('echo "drawer=[$COLORTERM]"\n')
     await expect(drawer).toContainText('drawer=[truecolor]')
+    await page.keyboard.type('echo "drawer-links=[$FORCE_HYPERLINK]"\n')
+    await expect(drawer).toContainText('drawer-links=[1]')
   } finally {
     await launched.close()
   }
