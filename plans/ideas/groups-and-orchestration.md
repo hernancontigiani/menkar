@@ -1,0 +1,215 @@
+# Ideas — collapsible groups, and an orchestration overview
+
+> **Status: ideas, not a plan.** Written 2026-11-11 from a conversation with the human, to be
+> continued in another session. Nothing here is decided; every "Proposal" is a recommendation
+> waiting for the human. When an idea is accepted it becomes a row in `plans/00-STATUS.md` §1 and a
+> numbered plan (`/design-plan`); this file is then deleted.
+>
+> Companion: `plans/ideas/research-prompt.md`, a prompt to paste into a session with web access to
+> survey what already exists.
+
+What the code does today, checked against the tree (2026-11-11):
+
+- Shown states are `working`, `blocked`, `idle`, `done` (`src/core/agentstate/shown.ts`). A session
+  with no running agent has no shown state ("stopped").
+- The dots (`src/renderer/style.css`, "states, rings, logo"): **idle** = green outline, **done** =
+  green filled (finished while nobody looked), **working** = yellow filled, **blocked** = red filled
+  with a halo.
+- `rollup()` already merges several panes into one state, most urgent first:
+  `blocked > working > done > idle`.
+- The context ring is shown only for running sessions (decision 1.21); yellow from 60 %, red from
+  90 % by default (1.22).
+- Groups live inside a project in `projects.json`; a group keeps only `name`, `color`, `members`
+  (`docs/projects.md`). Nothing collapses today.
+
+---
+
+## Idea 1 — Collapse a group into one row
+
+**Goal:** save vertical space. A collapsed group reads as one session row.
+
+### What the collapsed row shows
+
+| Part | Proposal |
+|---|---|
+| Name | The group's name, in the group's color |
+| State dot | The group's roll-up (below) |
+| Context ring | The **worst** (highest %) of its **running** members, with the usual thresholds; no ring when none is running (1.21) |
+| Count | The number of members, e.g. `API · 4`, so it is not mistaken for a session |
+| Tooltip | Which member gives the state and which gives the ring ("blocked: b2 · context 87 %: set") |
+
+### The group's state — the human's rule, completed
+
+The human's rule: all stopped → stopped (grey); all idle → idle (green); at least one working →
+working (yellow). That leaves three cases open:
+
+1. **Blocked.** A member waiting on an approval or a question. If working wins over blocked, a
+   collapsed group **hides the one thing that needs the human**. Proposal: blocked wins over
+   everything (red), as `rollup()` already does for a tab.
+2. **Done** (finished while unseen, green filled). Proposal: above idle, below working, as today.
+3. **Some idle, some stopped.** Proposal: stopped members are ignored while any member runs; the
+   group is stopped only when all are.
+
+So: **`rollup()` over the running members; stopped when none runs.** The rule already exists and
+is tested; the group reuses it instead of a second definition.
+
+### Questions for the human
+
+- **Is the collapsed state saved?** Proposal: yes, per group, in `projects.json` (a `collapsed`
+  key on the group). Today a group keeps only three keys, so this is a schema change of that file.
+  Alternative: per window and not saved, like the "N hidden" toggle.
+- **What does a click on the collapsed row do?** Proposal: a chevron (or a click on the name)
+  expands; a double-click or Enter goes to the member that most needs attention (blocked, then
+  done, then working) — the same order as the dot.
+- **Can "No group" collapse too?** Proposal: no; it has no name to show.
+- **A member with a tab is selected while its group is collapsed** — does the group expand?
+  Proposal: no; the row shows the group highlighted, the tab strip already says which session it is.
+- Unchanged: tabs, the project's blocked count, notifications, the quick switcher and Go to agent
+  all still see each member.
+
+Size: small, self-contained, one plan. Good first step, and Idea 2 builds on it (a group can be an
+orchestration).
+
+---
+
+## Idea 2 — An orchestration overview and an inbox for the human
+
+### The problem
+
+The human works with an **orchestrator** session that hands work to other sessions (this
+repository's own `set` / `b1` / `b2`). Today:
+
+- The orchestrator leaves things for the human to decide **inside its chat**, and reminds them now
+  and then. The pending items are scattered in scrollback; there is no list to answer one by one.
+- The orchestrator learns where each session is **by asking it**, or by waiting to be told.
+- The human has to **poll**: look at every session to know whether something needs them.
+
+Goal: **pay attention when something happens, not all the time**; see the pending decisions as a
+list; answer them in priority order.
+
+Note: this repository already does a static version of it. `plans/00-STATUS.md` §2 is a list of
+things waiting on the human, and the orchestrator role says "all state is in files". The idea is
+the live version of that, for any project.
+
+### Pieces, cheapest first
+
+**2a. Overview (dashboard) — no new data.** A view (a tab or a window, like Usage) with the counts
+the app already knows, for a project or a group: working, blocked, done (unseen), idle, stopped.
+Each count opens its list; each row jumps to the session (Go to agent already does the jump).
+
+**2b. States the terminal cannot show.** Two states the human asked for cannot be read from the
+screen:
+
+- **Waiting on another session** ("b1 waits for set's review").
+- **Waiting on the human, but not blocked at a prompt** (a question left in prose at the end of a
+  turn: the agent looks idle).
+
+They have to be **reported by the session itself** to a common place: the **board**.
+
+**2c. The board.** A store owned by Menkar, in its data directory, where each session reports its
+status and posts questions, and the orchestrator reads it instead of asking each one.
+
+- Per session: status line ("writing the migration"), state (`working` / `waiting-on:<session>` /
+  `needs-human` / `done`), updated time.
+- Per item (a question for the human): session, text, options if any, priority, blocking or not,
+  created, answered (with the answer and who answered).
+
+**2d. The inbox.** The human's view of the board's open items: sorted by priority then age; answer
+one, dismiss one, or **open it with the orchestrator** (discuss it in the orchestrator's tab,
+which reads the same board and can answer on the human's behalf when told to).
+
+**2e. Priorities.** On a session (the human sets it, e.g. high / normal / low) and on an item (the
+agent proposes, the human may change it). The inbox sorts by them; notifications may be limited to
+high ones. Priorities are the app's own data, never in a session's name.
+
+**2f. Notifications instead of polling.** A new item, or a session entering `needs-human`, notifies
+as `blocked` does today (sound, toast, desktop notice, the count on the dropdown). The dock count
+could become the number of open items.
+
+### How a session reaches the board — options
+
+| Option | How | For | Against |
+|---|---|---|---|
+| **A. Claude Code hooks** | Menkar passes hooks with `--settings` to the sessions it starts (`Notification`, `Stop`, `SessionStart`, `UserPromptSubmit`); each runs a small `menkar board …` command | Automatic, no cooperation from the agent; reliable start/stop/needs-permission events | Says *that* something happened, not *why* or *on whom* it waits; Claude Code only (Cursor has its own hooks) |
+| **B. A Menkar MCP server** | Local stdio server given to the sessions with `--settings`/`--mcp-config`; tools such as `report_status`, `ask_human`, `get_answers`, `list_board`, `answer` (the orchestrator's) | The agent says what it waits on and asks structured questions; the orchestrator reads the whole board | Needs the agent (or a skill / CLAUDE.md line) to call it; a new running piece; decision 1.16 said "no MCP server for now" (for usage) |
+| **C. A CLI** | The agent runs `menkar board ask "…" --priority high` through Bash | No protocol, works with any agent | Permission prompts for Bash; free-form |
+
+**Proposal:** A for the automatic part (states and "needs the human"), B for questions and
+"waiting on", C as the implementation both share (the hook and the server call the same core).
+
+### The hard part — getting the answer back to the agent
+
+A product rule: **nothing is typed into a running agent's terminal on the human's behalf**. So an
+answer in the inbox cannot be typed into the agent. Options:
+
+1. **A blocking tool call.** `ask_human(question, blocking: true)` does not return until answered;
+   the agent waits inside the call and continues with the answer as the tool's result. Clean, but
+   the agent is busy while it waits (it would show as working: needs its own state), and long
+   waits need a timeout.
+2. **Delivered at the end of a turn.** A `Stop` hook that finds answered items returns
+   `decision: block` with the answers as the reason, so Claude continues with them. Only works
+   while the agent is mid-work; an agent already idle is not woken.
+3. **Picked up on the next prompt.** A `UserPromptSubmit` hook adds the answers as context the
+   next time the human writes anything to that session.
+4. **Through the orchestrator.** The answer goes to the board; the orchestrator relays it to the
+   worker the way it hands out work today.
+
+Proposal: 1 for blocking questions, 2 and 3 for the rest. Whether waking an idle agent is ever
+allowed is **the human's decision**, since it bends the "nothing typed" rule.
+
+### Rules this touches (from `CLAUDE.md`)
+
+- Board data in Menkar's own directories, JSON (or the SQLite exception, which would need a
+  decision); written whole through a rename.
+- Hooks and the MCP server go in with `--settings` for the sessions Menkar starts, **never** into
+  `~/.claude/settings.json`; sessions started outside Menkar would need the integrations menu.
+- Nothing leaves the machine: a local stdio server or a local socket only.
+- `src/core/` holds the board's model; main serves it; the renderer only draws it.
+
+### Questions for the human
+
+1. Overview as a tab, a window (like Usage), or a panel above the session list?
+2. Is "an orchestration" a **group** (orchestrator + workers), a project, or a new thing? Proposal:
+   a group with one member marked orchestrator — it ties Idea 1 and Idea 2 together.
+3. Which delivery of answers (1–4 above), and may an idle agent ever be woken?
+4. Priority scale: three levels, or P0–P3?
+5. Claude Code only at first, or Cursor too from the start?
+
+### Suggested order
+
+1. Idea 1, collapsible groups (one plan).
+2. 2a, the overview over the states already known (one plan).
+3. 2b + 2c + 2f with hooks only (option A): "needs the human" and the notifications.
+4. 2c with the MCP server (option B) + 2d inbox + 2e priorities.
+
+---
+
+## What already exists (first search, 2026-11-11, not verified in depth)
+
+From a web search only; the repositories were not opened. `plans/ideas/research-prompt.md` asks a
+session to check them properly.
+
+- **Claude Code's own Agent View** (`claude agents`, May 2026): one CLI dashboard of background
+  sessions, which ones wait on input, reply or attach. Overlaps 2a; must be looked at first.
+  ([guide](https://www.buildfastwithai.com/blogs/claude-code-agent-view-guide))
+- **Claude Command Center / Octogent / Mission Control / CrewDeck / Dorothy** — local dashboards for
+  many agents; Mission Control has a task board whose first column is an inbox; Dorothy has a
+  "super agent" coordinating others through MCP tools and a kanban.
+  ([Octogent](https://magicshot.ai/news/octogent-claude-code-multi-agent-dashboard/),
+  [Mission Control](https://www.mintlify.com/builderz-labs/mission-control/introduction),
+  [CrewDeck](https://github.com/ThomasMeb/crewdeck),
+  [Dorothy](https://backiee.wasmer.app/https_github_com/Charlie85270/Dorothy),
+  [Executive](https://hn.jakechampion.name/reader/https://github.com/ncr5012/executive))
+- **MCP servers for coordination and human questions**: agents pause with an attached question and
+  resume when it is answered (Moo Tasks); shared boards (StateLode, Tasklix — hosted, so not for
+  Menkar); task queues with leases and an inbox checked by hooks (agent-collab-hub).
+  ([agent-collab-hub](https://glama.ai/mcp/servers/Nathan-Z01/agent-collab-hub),
+  [StateLode](https://mcpservers.org/servers/statelode-dev),
+  [Tasklix](https://mcpservers.org/servers/tasklix-dev-docs),
+  [coordination tag on mcp.so](https://mcp.so/tags/coordination))
+- **Parallel-agent managers**: Claude Squad (tmux, AGPL), Vibe Kanban (kanban, reportedly sunset),
+  Crystal (reportedly deprecated), Conductor (macOS, commercial).
+  ([comparison](https://www.augmentcode.com/tools/open-source-agent-orchestrators),
+  [awesome-claude-code orchestrators](https://www.mintlify.com/hesreallyhim/awesome-claude-code/tooling/orchestrators))
+
+Licenses matter: Menkar is GPL-3.0-or-later and carries no code over; these are for ideas only.
