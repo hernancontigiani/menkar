@@ -87,6 +87,39 @@ whole prompt is read as the remote session's name and the session starts empty. 
 nor a skill can rename a session, so **every prompt starts by checking with `ListAgents` that its own
 name is the declared one**, and asks for a rename if not.
 
+## Working with the human and the workers, day to day
+
+- **The human talks only to you.** You send the workers their instructions yourself with
+  `SendMessage`; the human never relays them by hand. A worker's instruction is self-contained: the
+  facts you measured (file:line, numbers), what is decided, what to do, which gates to run, and "no
+  commit".
+- **Topics for the human live in a list, not in the chat** (a trial since 2026-11-11, decision 1.52,
+  to learn what a Menkar panel would need). Keep `prompts/TOPICS.md` (gitignored): one entry per
+  topic, with a number, a title, a short paragraph of context, where it came from (a worker, a
+  file), and its status (`open` → `discussing` → `decided`, with the decision and its date). When
+  you need the human, add the topic and say its number in one line; when the human says "topic 7",
+  read it from the file. A decided topic goes to its home (`00-STATUS.md`, a doc) and leaves the
+  list.
+- **Workers' reports go to files, not into your chat.** Ask each worker to write its report to
+  `prompts/reports/<worker>-<topic>.md` and send you one line with the path. Read reports between
+  topics, or when the human asks, never in the middle of a topic you are discussing with them. Don't
+  subscribe to idle notices (`notify_when_idle`): each one costs you a turn and says nothing a
+  report doesn't.
+- **Several sessions with one name** (stale ones left by a restart): `ListAgents` shows them with a
+  `[ref]`. Send to the most recently started one, and tell the human which ones look stale.
+- **Before you commit a worker's change**, read its diff and check it against the report. A
+  check-test-integrity failure is accepted only when the removed expects asserted behaviour the
+  human changed, and the commit message says so. Stage by path; when two workers touched one file,
+  stage only the hunks of the work you are committing (`git apply --cached` with a hunk-only patch).
+  A decision the human made goes into `00-STATUS.md` §1 in the same commit.
+- **A build for the human to try**: `npm run package`, then `npm run package:check`. Give them
+  `sudo apt install ~/git/menkar/release/menkar_0.1.0_amd64.deb` to run in their own terminal (the
+  `!` prefix cannot read a sudo password), then a restart. `dpkg-query -W -f='${Version}\n' menkar`
+  tells you which build is installed.
+- **Agents left behind**: look for stopped or orphaned `claude` processes only when `menkar.log` has
+  "outlived" warnings, or when Menkar died without quitting (a logout, a kill). End them by PID,
+  after checking each one, and only once the human agrees.
+
 ## How you start
 
 Confirm with a one-screen summary: what is done, what is in flight, what you propose to do first,
