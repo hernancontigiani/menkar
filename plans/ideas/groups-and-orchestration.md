@@ -240,3 +240,21 @@ installed by itself (as the integrations rule already says for `~/.claude/settin
 
 
 What agent-deck does about skills and orchestration, and what Menkar could take: `plans/ideas/agent-deck.md`.
+
+## The human's refinement of priorities and the board (2026-11-11, for after plan 31)
+
+- **Priority is a flag, not levels** (replaces 2e's scale question): the human marks one or two
+  sessions or leaders as *priority*; anything that comes from them — a question, a blocked prompt,
+  a finished task, a topic — is queued above everything else for the human. Mostly a matter of
+  what the human sees first (e.g. a deployment in progress: everything it raises comes first).
+- **Open, to discuss when the orchestration mode is designed:**
+  - Who is managed by the orchestrator: every session a leader unless marked otherwise, or
+    sessions added to the orchestration explicitly? (Plan 31 already records the parent of a
+    session started by `start_session`.)
+  - How a leader is marked (1.50's leader mark exists, per group) and how the priority flag is set
+    (a row's menu, a star-like mark?).
+  - Where the board lives and whether it is needed at all: the human keeps talking to the
+    orchestrator in its terminal, so the question is what the board shows that the chat cannot
+    (the queue of topics in priority order, which workers wait on whom) and where: a button beside
+    Usage, a panel beside the orchestrator's tab, or the sidebar itself changing in orchestration
+    mode.
