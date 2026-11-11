@@ -34,6 +34,8 @@
 | 1.57 | An in-tab `/resume` is followed as 1.56 follows `/clear` (SessionStart `source: "resume"`): the tab takes the resumed session's id, the resumed session joins the tab's project (moving out of another project if it was in one, and out of its group there), and the session left stays a stopped row | 2026-11-11 | `docs/sessions.md` |
 | 1.58 | The generic Menkar folder of 1.51 is `~/Menkar` (`%USERPROFILE%\Menkar` on Windows), one folder per project inside; its place can be changed in Settings → Data, and a change moves nothing already there (Menkar says where the old one is) | 2026-11-11 | this row (until the files-folder plan) |
 | 1.59 | Amends 1.47 (the human, 2026-11-11: the http(s)-only limit was never theirs): Ctrl+click hands any terminal link to the system, as GNOME Terminal does — `file://` opens with the file's default app (a folder in the file manager), other schemes with the app the system has for them; a plain click still selects | 2026-11-11 | `docs/window.md` (when delivered) |
+| 1.60 | 1.51's look and behaviour (the human, 2026-11-11): a collapsible "Files" section at the foot of the sidebar lists the project's files newest first, dragged out or opened; Settings names the folder where shared files arrive (Downloads by default), and bringing a file in opens the system's chooser there or lists its 5 newest (a setting), then moves the chosen ones with an Undo toast; files untouched for 30 days (configurable, 0 = off) go to the trash by themselves; the sessions Menkar starts get `--add-dir` for the folder and `MENKAR_FILES`; one folder for what comes in and what goes out; `Ctrl+B f` opens it in the file manager | 2026-11-11 | `plans/30-files-folder.md` (until delivered) |
+| 1.61 | `Ctrl+B o` opens the focused pane's working folder in the file manager (Nautilus, Explorer), as `Ctrl+\`` opens a shell there; "Open folder" in the session row's menu and the tab's right-click menu | 2026-11-11 | `plans/30-files-folder.md` (until delivered) |
 | 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to Agent Session Manager, with no link (2026-11-09) | 2026-11-08 | `docs/spec/README.md` |
 | 1.11 | The interface is in English and Spanish, both kept complete: `check-i18n` fails on a key Spanish lacks, so a new string is translated in the same change. agent-tablet's German, French and Hungarian are not carried over | 2026-11-08 | `docs/foundations.md` · `docs/NOT_BUILT_YET.md` |
 | 1.12 | Menkar's logo is an eight-pointed star (four long points, four short), one color, near white (`build/icons/menkar.svg`); the launcher icon sets it on a dark rounded tile; the empty window shows the same star instead of agent-tablet's folder illustration | 2026-11-08 | `build/icons/` |
@@ -100,6 +102,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 1 | `30-files-folder.md` — 1.51, a files folder per project | Written 2026-11-11, ready to execute |
 
 ## 4. Next plan number
 
