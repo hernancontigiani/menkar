@@ -289,3 +289,15 @@
 
 > Left the header on 2026-11-11: the index was updated again.
 > Last updated: 2026-11-08.
+
+> Left §2 on 2026-11-11: the folder's name was decided (1.58).
+| 2.19 | The name of the generic Menkar folder in the home directory (1.51); it has to work on Windows too | Human | The files-folder plan |
+
+> Left §1 on 2026-11-11: 1.50 and 1.54 delivered by plan 29 (now in `docs/projects.md`), 1.56 and 1.57 delivered (now in `docs/sessions.md`).
+| 1.50 | A group in the sidebar can collapse into one row (its name and color, its member count, the roll-up state of its running members, the worst context ring); a group can optionally mark one member as its leader (for an orchestration: the orchestrator talks to the leaders); a project with no leader or no orchestration loses nothing | 2026-11-11 | `plans/ideas/groups-and-orchestration.md` (until its plan) |
+| 1.54 | 1.50's look and behaviour (the human, 2026-11-11): a click on the group's heading collapses or expands it (no jump from the collapsed row); the collapsed state is saved in `projects.json`, on the group; the leader is set from the row's menu, shown with ★ and listed first in its group, hidden with the rest when collapsed, its name on the collapsed row; a group never expands by itself | 2026-11-11 | `plans/29-collapsible-groups.md` (until delivered) |
+| 1.56 | When a session in a tab gets a new id (`/clear`, told by the SessionStart hook's `source: "clear"` with the new id), the tab follows the new id; the new session takes the old one's place in its project and its group (its leader mark too); the old one stays a stopped row in the same project | 2026-11-11 | this row (until its task is delivered) |
+| 1.57 | An in-tab `/resume` is followed as 1.56 follows `/clear` (SessionStart `source: "resume"`): the tab takes the resumed session's id, the resumed session joins the tab's project (moving out of another project if it was in one, and out of its group there), and the session left stays a stopped row | 2026-11-11 | this row (until its task is delivered) |
+
+> Left §3 on 2026-11-11: plan 29 delivered (ea1a35a) — a group collapses into one row and can have a leader; executed by b1, with picking a session's own group made a no-op on the way. Open from it: nothing; who leads a group, read outside the sidebar, is in `docs/NOT_BUILT_YET.md`.
+| 1 | `29-collapsible-groups.md` — 1.50, collapsible groups with an optional leader | Written 2026-11-11, ready to execute; no shared runtime resource beyond each session's own e2e app data |

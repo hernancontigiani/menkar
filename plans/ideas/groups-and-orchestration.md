@@ -24,51 +24,7 @@ What the code does today, checked against the tree (2026-11-11):
 
 ---
 
-## Idea 1 — Collapse a group into one row
-
-**Goal:** save vertical space. A collapsed group reads as one session row.
-
-### What the collapsed row shows
-
-| Part | Proposal |
-|---|---|
-| Name | The group's name, in the group's color |
-| State dot | The group's roll-up (below) |
-| Context ring | The **worst** (highest %) of its **running** members, with the usual thresholds; no ring when none is running (1.21) |
-| Count | The number of members, e.g. `API · 4`, so it is not mistaken for a session |
-| Tooltip | Which member gives the state and which gives the ring ("blocked: b2 · context 87 %: set") |
-
-### The group's state — the human's rule, completed
-
-The human's rule: all stopped → stopped (grey); all idle → idle (green); at least one working →
-working (yellow). That leaves three cases open:
-
-1. **Blocked.** A member waiting on an approval or a question. If working wins over blocked, a
-   collapsed group **hides the one thing that needs the human**. Proposal: blocked wins over
-   everything (red), as `rollup()` already does for a tab.
-2. **Done** (finished while unseen, green filled). Proposal: above idle, below working, as today.
-3. **Some idle, some stopped.** Proposal: stopped members are ignored while any member runs; the
-   group is stopped only when all are.
-
-So: **`rollup()` over the running members; stopped when none runs.** The rule already exists and
-is tested; the group reuses it instead of a second definition.
-
-### Questions for the human
-
-- **Is the collapsed state saved?** Proposal: yes, per group, in `projects.json` (a `collapsed`
-  key on the group). Today a group keeps only three keys, so this is a schema change of that file.
-  Alternative: per window and not saved, like the "N hidden" toggle.
-- **What does a click on the collapsed row do?** Proposal: a chevron (or a click on the name)
-  expands; a double-click or Enter goes to the member that most needs attention (blocked, then
-  done, then working) — the same order as the dot.
-- **Can "No group" collapse too?** Proposal: no; it has no name to show.
-- **A member with a tab is selected while its group is collapsed** — does the group expand?
-  Proposal: no; the row shows the group highlighted, the tab strip already says which session it is.
-- Unchanged: tabs, the project's blocked count, notifications, the quick switcher and Go to agent
-  all still see each member.
-
-Size: small, self-contained, one plan. Good first step, and Idea 2 builds on it (a group can be an
-orchestration).
+Idea 1 (collapsible groups) was built on 2026-11-11 (decisions 1.50, 1.54; `docs/projects.md`).
 
 ---
 
