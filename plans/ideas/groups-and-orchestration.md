@@ -317,3 +317,26 @@ From fewest sessions and most expert orchestrator to most sessions and least exp
 
 What changes between them is how much the orchestrator knows, and so how much the **experts outside
 it** carry: designing, planning, consulting, reviewing. The mode must cover all three.
+
+## Undefined things, inventing, and when an expert appears (the human, 2026-11-12)
+
+- **Where experts come from:** plans and workers lean on the repository's documentation
+  (`CLAUDE.md`, docs). Trouble starts where something is not documented: the session must ask
+  someone — or invents, the worst outcome.
+- **The orchestrator's biggest risk:** a worker asks the orchestrator, and the orchestrator, taking
+  itself for the expert of the whole project, **decides what is not defined**, without the human.
+  The `menkar-orchestrator` skill must prevent it: answer only from what is written (cited by
+  file), and say "not defined" otherwise — then route the question to the expert who owns it, or to
+  the human.
+- **A question that keeps coming back is the signal.** When the human is asked the same kind of
+  thing again and again, something must change, one of:
+  1. **The repository's documentation** is missing it: improve the docs.
+  2. **A skill or an expert is missing** for that area: write the skill, or create an expert session
+     with it, available when that kind of doubt comes up.
+  3. **The knowledge lives in another repository or system** (an integration): add a session of
+     that repository to the project as its **consultant**; when the team owns that repository and
+     changes are needed there, the consultant leads them too, or a new session does. Example
+     (ccai): the session `fabric` is the consultant of the external Fabric repository and now and
+     then makes its CI/CD changes there, which the human leads.
+- So the orchestrator (or a session it asks) should keep track of the questions that reached the
+  human, to notice the repeated ones and propose which of the three fixes applies.
