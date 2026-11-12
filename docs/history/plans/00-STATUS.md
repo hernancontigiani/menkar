@@ -376,3 +376,6 @@
 
 > Left §1 on 2026-11-12: the plugin namespaces the names.
 | 1.71 | Menkar ships its own skills for orchestration — `menkar-orchestrator`, `menkar-worker`, `menkar-distill` — written for any project and aware of Menkar's MCP (1.70); this repository's orchestrator uses them, keeping in `plans/ROLE-ORCHESTRATOR.md` only what is Menkar's own. Written after plan 31, so they name tools that exist; how they reach a session (installed files, a plugin, or served by Menkar's MCP) is open | 2026-11-11 | this row |
+
+> Left §3 on 2026-11-12: the mode's design became plan 34.
+| 2 | The orchestration mode's design (roles, roster, entering and leaving, the panel) | To design after plan 33, from `plans/ideas/` |
