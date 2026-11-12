@@ -165,7 +165,7 @@ is loaded with a skill:
 Several sessions work on this tree at once.
 
 - **Execution sessions do not commit, branch, tag or push**; `set` commits after reviewing, when the
-  human has asked it to. Stage **by path**, never `git add -A` or `.`.
+  human has asked it to, and pushes (1.85). Stage **by path**, never `git add -A` or `.`.
 - **No command that moves someone else's tree**: no `stash`, `checkout`, `reset`, `clean`.
 - **Stop a process by PID, never by pattern** — the human's own instances run too. Format and lint-fix
   your own paths, never the tree.

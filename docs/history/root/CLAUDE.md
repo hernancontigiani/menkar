@@ -27,3 +27,7 @@ human likes; the features are all of agent-tablet's.
 
 > Replaced 2026-11-12: the row also names the skills plugin (plan 33).
 | `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, or waking a session |
+
+> Replaced 2026-11-12 by decision 1.85: set also pushes.
+- **Execution sessions do not commit, branch, tag or push**; `set` commits after reviewing, when the
+  human has asked it to. Stage **by path**, never `git add -A` or `.`.
