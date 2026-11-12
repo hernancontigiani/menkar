@@ -340,3 +340,14 @@ it** carry: designing, planning, consulting, reviewing. The mode must cover all 
      then makes its CI/CD changes there, which the human leads.
 - So the orchestrator (or a session it asks) should keep track of the questions that reached the
   human, to notice the repeated ones and propose which of the three fixes applies.
+
+## For the mode's design: the shell drawer from the orchestrator's tab (the human, 2026-11-12)
+
+The human uses `Ctrl+\`` a lot (a shell in the agent's folder) for the git commands they run
+themselves. In ccai, a multi-repository project, they pick the session of the right repository so
+the shell opens in the right folder. In the orchestration mode they will sit in the orchestrator's
+tab most of the time, whose folder is one repository only, so the shortcut would open in the wrong
+place. Idea (not decided): when `Ctrl+\`` is pressed in a tab Menkar knows as the orchestrator's,
+it asks in which folder — the folders of the project's active sessions, deduplicated — as a quick
+list moved with the arrows and chosen with Enter, the last choice preselected. A single-repository
+project never asks. This feature must not get worse in the mode.
