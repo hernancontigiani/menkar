@@ -9,8 +9,8 @@ closed — the graceful `/exit` and its fallback. Index rows: **F15, F16, F17, F
 panes; the tab model they live in is `projects.md`), keys **K15–K27, K38, K39**, menu items
 **M15, M20, M35**. Remote Control's flag is built here but specified in `remote-control.md`
 (F49, M17, M21). Agent-state detection from the terminal is `agent-state.md`; the terminal's font,
-colors and the TUI/Classic style are `preferences.md` and `look.md`; the question card that
-agent-tablet overlays on the terminal is not carried over (Menkar decision 1.7, `chat.md`).
+colors and the TUI/Classic style are `preferences.md` and `look.md`; a question card overlaid on the
+terminal is not built (decision 1.7, `chat.md`).
 
 ## Behaviour
 
@@ -52,7 +52,7 @@ agent-tablet overlays on the terminal is not carried over (Menkar decision 1.7, 
 
 - Built and tested: `docs/window.md` describes how; `src/main/terminal.ts`, `src/main/workspace.ts`, `src/core/command.ts` and `src/renderer/keys.ts` hold it.
 
-### The CLI's checked behaviour (Claude Code 2.1.319, agent-tablet `docs/projects.md`, 2026-11-06)
+### The CLI's checked behaviour (Claude Code 2.1.319, 2026-11-06)
 
 - Built and tested: `docs/window.md` describes how; `src/main/terminal.ts`, `src/main/workspace.ts`, `src/core/command.ts` and `src/renderer/keys.ts` hold it.
 

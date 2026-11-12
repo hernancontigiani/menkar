@@ -3,16 +3,15 @@
 What the app opens on and where each session runs: projects (a name and the sessions the user put
 in it, from any folder), groups inside a project, the tabs of the project a window shows (each of
 one or two panes, or one file), several windows, the layout saved in `projects.json` and reopened on
-start, and quitting. It holds agent-tablet's decisions 1.13, 1.15–1.19. Index rows: **F5** (the
-cross-window move; the dialog itself is in `sessions.md`), **F20** (what a tab's panes mean for a
+start, and quitting. Index rows: **F5** (the cross-window move; the dialog itself is in `sessions.md`), **F20** (what a tab's panes mean for a
 project and the saved orientation; the panes themselves are in `terminal.md`), **F21–F28**, **F29**
 (the sidebar width; its look is in `look.md`); keys **K4–K8, K12, K29–K31, K33, K34**; menu items
 **M12, M13, M16, M18, M19, M22–M25, M32**.
 
 The invariants every case below holds (Menkar `CLAUDE.md`, product rules): **a session belongs to
 one project at most, runs if and only if it has a tab, and is in at most one tab across every
-window; a project is open in at most one window.** Where agent-tablet's code breaks one of them,
-the case says so and gives the behaviour that keeps it.
+window; a project is open in at most one window.** A case that could break one of them says so and
+gives the behaviour that keeps it.
 
 ## Behaviour
 

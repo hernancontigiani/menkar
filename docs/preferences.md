@@ -88,8 +88,7 @@ are shaped this way.
   and Usage out of the main window's renderer, which another session builds, and gives the
   Usage window the size and life of its own the spec asks for.
 - **The Font row lists the installed monospace families (`fc-list`) with a size**: Electron has no
-  system font chooser. The setting keeps agent-tablet's form, `"Family Size"`, which the terminals
-  already read. A size with the default family is stored as `monospace <size>` (2026-11-10), the alias
+  system font chooser. The setting's form is `"Family Size"`, which the terminals read. A size with the default family is stored as `monospace <size>` (2026-11-10), the alias
   the terminals fall back to, and the row shows it as the default again. It used to store nothing,
   so a size change with the default family was lost. The default family at 10 pt stays the empty
   setting.

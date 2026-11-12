@@ -466,3 +466,9 @@ is `sessions.md`'s.
 
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
 - Built and tested: `docs/files.md` describes how; `src/core/files/`, `src/main/files.ts` and `src/renderer/editor.ts`, `preview.ts`, `fileopen.ts` hold it.
+
+## Files — file tabs, the editor, the Markdown preview, `open`
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+"Keep mine" and "Preview". Source decision: agent-tablet's `plans/00-STATUS.md` 1.24. How a file tab
+is saved with its project's layout and reopened is shared with `projects.md`.

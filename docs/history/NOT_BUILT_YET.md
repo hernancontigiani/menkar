@@ -36,3 +36,14 @@ are not reordered by dragging.
 
 **Trigger:** the human misses dragging a row onto a tab, or reordering rows. First question: is the
 order of a project's sessions worth saving, or is the group enough?
+
+## Deliberately not built yet
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+In agent-tablet's evaluation no local model came close to Haiku's agreement with the human's labels
+The history keeps every turn forever: in agent-tablet two months of the human's use took a few
+megabytes, so years fit without a limit, and a limit would drop exactly what the history exists to
+Menkar speaks English and Spanish, both complete (`plans/00-STATUS.md` §1 1.11). agent-tablet also had
+German, French and Hungarian from Agent Session Manager, each covering about 230 of its 370 strings;
+every new string would need three translations nobody here can check, and a stale catalog shows a mix
+of languages.

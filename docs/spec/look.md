@@ -10,9 +10,8 @@ Classic style, shared with `preferences.md`, which owns the settings' rows), **F
 **K11** (`F9`) and **K36** (`Ctrl+B b`). Every other area file names its widgets' behaviour; this
 file is where their measurements and colors live.
 
-Where a number comes from agent-tablet's own stylesheet or code it is stated as such. Where a widget
-takes its look from libadwaita 1.5 (the toolkit agent-tablet uses; GTK 4.14) the libadwaita value is
-given, since Menkar has no libadwaita and must write it itself. Colors read from the reference
+Where a widget takes its look from libadwaita 1.5 (GTK 4.14) the libadwaita value is given, since
+Menkar has no libadwaita and must write it itself. Colors read from the reference
 screenshots (pixel samples at 1× scale) are marked "measured".
 
 ## Behaviour

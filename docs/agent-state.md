@@ -8,8 +8,8 @@ built.
 ## The shape
 
 - **`src/core/agentstate/`** is pure and runs in tests on plain Node:
-  - `detect.ts` holds Claude Code's and Cursor's rules over (agent, title, screen), agent-tablet's
-    port of herdr's.
+  - `detect.ts` holds Claude Code's and Cursor's rules over (agent, title, screen), ported from
+    herdr's.
   - `mirror.ts`, the `ScreenMirror`: an `@xterm/headless` terminal fed the same bytes as the pane.
   - `watch.ts` checks each burst of changes once, after a delay.
   - `shown.ts` turns raw states into shown ones (done and seen), and holds the roll-up and the
@@ -33,7 +33,7 @@ built.
   readable too, and the main process has no DOM. Reading the renderer's xterm would also put the
   rules on the UI path. The screen is read as VTE read it (one terminal height ending at the
   cursor row, wrapped rows joined without a newline), so herdr's line counts (14 for Claude Code,
-  10 and 6 for Cursor) mean the same lines they meant in agent-tablet.
+  10 and 6 for Cursor) mean the same lines they mean on a VTE screen.
 - **Rules in core, timers in main.** The rules and the debounce are tested with a fake pane and
   fake timers. Main only connects them to Electron.
 - **Line breaks as Python's `splitlines()` counts them**, since that is what the counts were tuned

@@ -59,3 +59,9 @@
 
 > Left on 2026-11-10: Restart now asks about unsaved file edits first, on the Settings window (the human, 2026-11-10).
   and a next start on the same directories resuming it in its tab),
+
+## Why
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+  system font chooser. The setting keeps agent-tablet's form, `"Family Size"`, which the terminals
+  already read. A size with the default family is stored as `monospace <size>` (2026-11-10), the alias

@@ -652,3 +652,11 @@ style — `look.md` has the palette tokens; Catppuccin Mocha / Latte values give
 | Toasts | 4 s for refusals ("A tab holds two panes at most" …); the projects-file toast stays until dismissed | same |
 
 Status dots on rows and tabs: `agent-state.md`, Look.
+
+## Projects, tabs and windows
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+start, and quitting. It holds agent-tablet's decisions 1.13, 1.15–1.19. Index rows: **F5** (the
+cross-window move; the dialog itself is in `sessions.md`), **F20** (what a tab's panes mean for a
+window; a project is open in at most one window.** Where agent-tablet's code breaks one of them,
+the case says so and gives the behaviour that keeps it.

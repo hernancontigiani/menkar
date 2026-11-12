@@ -7,8 +7,7 @@ inheritance for turns the human did not start, the "Classify earlier turns" run 
 estimate, progress, Stop) and the offline evaluation of a prompt or model change. It specifies
 **F42**, **F43**, **F44** and the Preferences buttons "Classify earlier turns…" and "Stop". Where
 the categories show (the Usage window, `usage --json`) is `usage.md`'s; the parts that depend on
-classification are repeated here briefly so the contract is in one place. Source decisions:
-agent-tablet's `plans/00-STATUS.md` 1.20, 1.21, 1.23, 1.25.
+classification are repeated here briefly so the contract is in one place.
 
 ## Behaviour
 

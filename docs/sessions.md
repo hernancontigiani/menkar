@@ -49,8 +49,8 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
   A projects directory that does not exist when a scan runs is not watched until a later scan
   finds it (the refresh, or an event elsewhere).
 - **Debounce and coalescing** (`Coalescer`): an event starts a 2000 ms quiet period; a request
-  while a scan runs schedules exactly one more scan after it. agent-tablet dropped that request and
-  could miss a change until the next event.
+  while a scan runs schedules exactly one more scan after it, so a change made during a scan is not
+  missed until the next event.
 - **Off the UI path**: all I/O is async. Measured 2026-11-08 on a generated tree of 400 transcripts,
   2 GB (never the human's files): a first scan took 1.7 s; the longest event-loop stall was about
   8 ms. A rescan with nothing changed took 11 ms. No worker thread is needed.

@@ -583,3 +583,12 @@ Measurable details:
 fork, continue last, the advanced new session; `--settings`, `-n`, `--session-id`, `&& exit`), how a
 panes; the tab model they live in is `projects.md`), keys **K15–K27, K38, K39**, menu items **M8,
 M9, M15, M20, M35**. Remote Control's flag is built here but specified in `remote-control.md`
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+colors and the TUI/Classic style are `preferences.md` and `look.md`; the question card that
+agent-tablet overlays on the terminal is not carried over (Menkar decision 1.7, `chat.md`).
+
+## Data contracts
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+### The CLI's checked behaviour (Claude Code 2.1.319, agent-tablet `docs/projects.md`, 2026-11-06)

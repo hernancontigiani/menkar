@@ -5,8 +5,8 @@ file also shown rendered in a second, read-only tab; files handed to the running
 terminal with `menkar open`. It specifies **F45**, **F46**, **F47**, the keys **K3**
 (`Ctrl+Shift+O`), **K13** (`Ctrl+S`), **K14** (`Ctrl+Shift+V`), the menu item **M10** ("Open
 file…"), the command `menkar open <file>…`, and the file tab's buttons "Reload",
-"Keep mine" and "Preview". Source decision: agent-tablet's `plans/00-STATUS.md` 1.24. How a file tab
-is saved with its project's layout and reopened is shared with `projects.md`.
+"Keep mine" and "Preview". How a file tab is saved with its project's layout and reopened is shared
+with `projects.md`.
 
 ## Behaviour
 

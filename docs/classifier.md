@@ -9,7 +9,7 @@ they are built.
 ## The shape
 
 - **`src/core/classifier/`**, plain Node, tested without `claude`:
-  - `prompt.ts`: the system prompt, kept word for word as agent-tablet measured it, and the
+  - `prompt.ts`: the system prompt, kept word for word as the evaluation measured it, and the
     constants.
   - `input.ts`: the batch's text (an index per turn, never an id or a name, the previous prompt,
     the shaped prompt, the tools line), the command and environment, and reading the reply.
@@ -38,7 +38,7 @@ they are built.
 
 ## Why
 
-- **Haiku through the user's own login, not a local model**: on agent-tablet's 141 hand-labelled
+- **Haiku through the user's own login, not a local model**: on 141 hand-labelled
   turns, Haiku agreed 62–74% against 44–52% for the best local model, which also needed a download
   of hundreds of megabytes to gigabytes.
 - **The prompt and the input's exact bytes as measured.** Rewording a line, or sending the batch's
@@ -50,7 +50,7 @@ they are built.
   after three tries. A `claude` that fails or times out is no fault of the turn, so the run stops
   and records the failure.
 - **Ready means its tools are known**: a later turn in the session, or an hour of quiet.
-- **Earlier turns are counted by file size, not read.** Reading thousands of turns made
-  agent-tablet's dialog wait.
+- **Earlier turns are counted by file size, not read.** Reading thousands of turns makes the
+  dialog wait.
 - **A fake `claude`** (`tests/data/classifier/claude`) answers the invocation tests from reply
   files written by hand in the documented shape. The real one is never run in a test.

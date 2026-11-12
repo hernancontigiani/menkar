@@ -79,7 +79,7 @@ turn keeps its category when its transcript is classified again.
 ### A local classifier model
 
 Classification goes through Haiku with the user's login: it needs the network and the user's quota.
-In agent-tablet's evaluation no local model came close to Haiku's agreement with the human's labels
+In the classifier's evaluation no local model came close to Haiku's agreement with the human's labels
 (`docs/spec/classifier.md`), and each needed a download of hundreds of megabytes to gigabytes that an
 installer would have to ship or fetch.
 
@@ -89,8 +89,7 @@ runs inside the app or as a separate download the user accepts.
 
 ### Pruning the usage history
 
-The history keeps every turn forever: in agent-tablet two months of the human's use took a few
-megabytes, so years fit without a limit, and a limit would drop exactly what the history exists to
+The history keeps every turn forever: two months of the human's use took a few megabytes, so years fit without a limit, and a limit would drop exactly what the history exists to
 keep.
 
 **Trigger:** the history file passes 200 MB on the human's machine. First question: whether old
@@ -124,10 +123,9 @@ the default application, opened outside the app.
 
 ### More interface languages
 
-Menkar speaks English and Spanish, both complete (`plans/00-STATUS.md` §1 1.11). agent-tablet also had
-German, French and Hungarian from Agent Session Manager, each covering about 230 of its 370 strings;
-every new string would need three translations nobody here can check, and a stale catalog shows a mix
-of languages.
+Menkar speaks English and Spanish, both complete (`plans/00-STATUS.md` §1 1.11). Agent Session
+Manager's German, French and Hungarian catalogs were left out: every new string would need three
+translations nobody here can check, and a stale catalog shows a mix of languages.
 
 **Trigger:** someone asks for a language. First question: who reviews its translation, and whether a
 partial catalog is acceptable or `check-i18n` holds it to complete like Spanish.

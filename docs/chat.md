@@ -46,6 +46,6 @@ The code says what each part does. This file keeps why it is shaped this way.
   test.
 - **Errors are our sentences**: a missing or failing CLI says so through `t()`, not with an
   exception's text.
-- **`Enter` still sends while a turn runs**, as agent-tablet's did: Claude queues the message after
+- **`Enter` still sends while a turn runs**: Claude queues the message after
   the current turn, and Cursor starts a second process beside the first. Only the Send button is
   disabled.

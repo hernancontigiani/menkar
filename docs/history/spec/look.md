@@ -711,3 +711,10 @@ is the human's call.
   dark and `#8a8986` in light, whatever the theme.
 - **LOOK-51** Usage, Totals, Mocha: the table rows sit on a card of surface0 `#313244` with 12 px
   rounded corners; rows are square-cornered.
+
+## Look — the whole window, both styles, every theme
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+Where a number comes from agent-tablet's own stylesheet or code it is stated as such. Where a widget
+takes its look from libadwaita 1.5 (the toolkit agent-tablet uses; GTK 4.14) the libadwaita value is
+given, since Menkar has no libadwaita and must write it itself. Colors read from the reference

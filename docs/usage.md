@@ -39,18 +39,9 @@ user sees in the Usage window is still `docs/spec/usage.md` until the window is 
   (no file, an unreadable one, or one from a newer agent-tablet), Menkar starts empty and does not
   try again.
 
-## Checked against agent-tablet
-
-On 2026-11-08, 60 synthetic sessions were generated (118 transcripts over three months). They mixed
-legacy prompts, every origin, duplicate and sidechain copies, subagents, decided tools,
-`AskUserQuestion`, two-hour gaps, unknown and synthetic models, Haiku 5.5 and bad lines. Both apps'
-`usage --period all --by month` printed identical text, and their `--json` matched to 1e-9.
-After a third of the transcripts were deleted, Menkar's first start imported agent-tablet's history
-and its statusline log and printed the same report as agent-tablet, exact cost and limits included.
-
 ## Rejected, and why
 
-These were inherited from agent-tablet, where each was measured or decided by the human:
+Each was measured or decided by the human:
 
 - **Rereading the transcripts on every report**: 3.6 s for 2 GB on the human's machine, and growing.
 - **Making the cache permanent** instead of a history beside it: one row per response and per gap,
@@ -93,8 +84,7 @@ For Menkar (2026-11-08):
 - When Claude Code deletes one of a session's files while another file of the same session survives,
   a turn the next pass rewrites loses the deleted file's tokens: the history copies a turn from what
   the cache has.
-- Figures are rounded half to even (`2.5m` prints as `2m`), as agent-tablet printed them, so the two
-  apps print the same report.
+- Figures are rounded half to even (`2.5m` prints as `2m`).
 
 ## The Usage window
 

@@ -41,3 +41,9 @@
 
 > Left on 2026-11-11: a sidebar row's menu trashes or deletes a session with no tab, its earlier conversations too if wanted, and projects.json forgets it (decision 1.66).
   keeps its bytes and mtime.
+
+## Keeping it current
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+  while a scan runs schedules exactly one more scan after it. agent-tablet dropped that request and
+  could miss a change until the next event.

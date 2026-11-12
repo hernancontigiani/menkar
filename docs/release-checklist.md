@@ -18,21 +18,18 @@ sudo apt install ./release/menkar_0.1.0_amd64.deb
 **Passes when** apt finishes without an error; the **Menkar** launcher with its icon is in the
 applications grid; `menkar` runs from a terminal; `/etc/apparmor.d/menkar` exists.
 
-## 2. First start, with the agent-tablet import
+## 2. First start
 
-Close agent-tablet first. Start Menkar from the launcher (not from a terminal).
+Start Menkar from the launcher (not from a terminal).
 
 **Passes when**:
 
 - a window opens and a session tab shows a working terminal: the sandbox is on (`ps -ef | grep
-  /opt/Menkar/menkar` shows no `--no-sandbox`);
-- your agent-tablet projects, groups and settings (theme, font, language) are there;
-- the Usage window (the header's Usage button, period "All") shows days from before Menkar's first start;
-- agent-tablet's own files are unchanged (it still starts and shows the same projects).
+  /opt/Menkar/menkar` shows no `--no-sandbox`).
 
 ## 3. A day of work
 
-Use Menkar instead of agent-tablet for a working day: open your projects, start and resume
+Use Menkar for a working day: open your projects, start and resume
 sessions, split panes, open a second window, close and reopen the app.
 
 **Passes when** nothing is lost across a restart (windows, tabs, projects, names), closing a window
@@ -78,15 +75,11 @@ Open a Markdown file with headings, a code block, a table and a local image; `Ct
 **Passes when** it renders readably at your screen's scale in both a light and a dark theme, and
 nothing is fetched from the network (a remote image is not loaded).
 
-## 9. Retake the squeezed screenshots
+## 9. (none)
 
-Some reference screenshots in `docs/spec/img/` came out wrong under the headless capture: the
-Preferences and Integrations pages were drawn too narrow (titles wrap letter by letter), and the
-Markdown preview could not start at all. Retake them from agent-tablet on a real display:
-`preferences-{dark,light}.png`, `integrations-{dark,light}.png`, `file-preview-{dark,light}.png`.
-
-**Passes when** each row's title is on one line and the preview shows rendered Markdown. Compare
-them with Menkar's same pages; a difference you do not like is a defect to report.
+No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in
+`docs/spec/img/` (`preferences-*`, `integrations-*`, `file-preview-*`) can no longer be retaken and
+stay as they are.
 
 ## 10. Remove
 

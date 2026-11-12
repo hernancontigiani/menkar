@@ -52,7 +52,7 @@ stays (`README.md`, About).
 
 ### Block 1 — docs only (now)
 
-- [ ] `CLAUDE.md`, `docs/spec/*`, `docs/release-checklist.md`, and the nine subsystem docs except
+- [x] `CLAUDE.md`, `docs/spec/*`, `docs/release-checklist.md`, and the nine subsystem docs except
       the import rows of `docs/projects.md` and `docs/usage.md` (block 2): rewritten as above;
       removed lines verbatim to their history files.
 - **Verify:** `npm run ci` (history check: 0 lines lost).
@@ -67,3 +67,18 @@ stays (`README.md`, About).
 ## Execution log
 
 _Written by the executing session._
+
+**Block 1 (b1, 2026-11-11).** Done except `CLAUDE.md`, which b1 did not edit: a session does not edit
+`CLAUDE.md` because another session asked. The human or `set` makes those edits: now, the intro (lines
+8–11), the spec row (40) and the rule (90); with block 2, the usage row's "agent-tablet import" (49).
+- Deviation: **every import line stays for block 2**, in `docs/spec/` too (`README.md` F14 row and its
+  two bullets, `sessions.md` §First start and the two import-source sections, `usage.md` §First
+  start, `remote-control.md`'s import sentence), and `docs/sessions.md` 103 and `docs/context.md` 58,
+  which describe the import's effect. Until the code goes they describe what the app does.
+- `docs/spec/README.md`: the Features table lost its Source column (R/D/S/C were where each row was
+  read from); the command line names `menkar`; "Decided against agent-tablet" became "Decided
+  against".
+- `docs/usage.md`: the section "Checked against agent-tablet" went whole (a comparison).
+- `docs/release-checklist.md`: §2 is a plain first start; §9 is kept as "(none)" so §10 keeps its
+  number; the squeezed screenshots in `docs/spec/img/` can no longer be retaken.
+- New histories: `docs/history/agent-state.md`, `docs/history/classifier.md`.

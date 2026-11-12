@@ -5,10 +5,8 @@ session list on the left, the real agent running in an embedded terminal on the 
 projects, tabs, split panes, several windows, usage tracking and file tabs. It runs the real
 `claude` CLI; it does not reimplement the agent. **Linux first (Ubuntu), then Windows and macOS.**
 
-It is the multiplatform successor of agent-tablet (`~/git/agent-tablet`, a GTK app in Python),
-**written from scratch** in Electron and TypeScript from agent-tablet's documents and observed
-behaviour — `docs/spec/` — not by translating its files. The look follows agent-tablet's, which the
-human likes; the features are all of agent-tablet's.
+It was **written from scratch** in Electron and TypeScript from a written specification —
+`docs/spec/` — not by translating any other program's files.
 
 **Design decisions that constrain code are recorded here, as rules.** If a decision is not written
 in this file, in `docs/` or in `plans/00-STATUS.md`, it is not decided anywhere a session can
@@ -37,7 +35,7 @@ what matters from being lost when a plan is deleted.
 
 | Doc | Open it when |
 |---|---|
-| `docs/spec/README.md` | Building any feature: the index of what agent-tablet does and how it looks |
+| `docs/spec/README.md` | Building any feature: the index of what Menkar must do and how it looks |
 | `docs/toolchain.md` | Changing the build, the checks in `npm run ci` or `npm run ui-check`, or adding a dev dependency |
 | `docs/foundations.md` | Logging, writing the app's JSON state, adding a user-visible string, or opening a SQLite database |
 | `docs/packaging.md` | Changing the .deb, its post-install, the sandbox profile, or anything installed outside `/opt/Menkar` |
@@ -87,7 +85,7 @@ Each one is broken by an ordinary-looking line of code.
 - **Nothing is typed into a running agent's terminal on the user's behalf**: at a permission prompt
   an Enter approves the highlighted choice, and a half-written message would be sent.
 - **License: GPL-3.0-or-later.** Credit to Agent Session Manager is one line in `README.md` and
-  About, with no link; no code is carried over from it, and new text never names agent-tablet.
+  About, with no link; no code is carried over from it, and nothing names agent-tablet.
 
 ## TypeScript and Electron
 
