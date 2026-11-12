@@ -43,3 +43,4 @@
 
 > 2026-11-12: decision 1.83 amends point 2: apart from the orchestrator mark, a session's role is a free label ("Fabric expert"), not a fixed list.
 > 2026-11-12: decision 1.84 — once the orchestrator is marked, `start_session` refuses a caller that is not the project's orchestrator.
+> 2026-11-12: when topics move to `topic_*` (1.78), `menkar:orchestrator`'s paragraph on the topics file changes with them; the plugin's parity test catches tool names, not an old paragraph.
