@@ -99,6 +99,7 @@
 | Order | Plan | State |
 |---|---|---|
 | 1 | `31-session-control.md` — 1.70, Menkar's MCP/CLI to renew and start sessions | Written 2026-11-11, ready to execute |
+| 2 | `32-remove-agent-tablet.md` — 1.68, agent-tablet leaves Menkar | Written 2026-11-11; block 1 (docs) now, block 2 after plan 31 |
 
 ## 4. Next plan number
 
