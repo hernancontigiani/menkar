@@ -40,3 +40,5 @@
 - What the panel's team list shows per session, and what a click on it does.
 - How "with you" is known (the human selecting the tab and typing in it? a toggle?).
 - Whether a topic can be answered from the panel, or only in the chat.
+
+> 2026-11-12: decision 1.83 amends point 2: apart from the orchestrator mark, a session's role is a free label ("Fabric expert"), not a fixed list.
