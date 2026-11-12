@@ -574,3 +574,6 @@ module, or a defect injected and removed).
 > Left on 2026-11-12: 1.98 built by `b2`.
 | 1.98 | Menkar remembers whether the last window closed was maximized, and opens the next start's window maximized or not to match (the human, 2026-11-12). Not built yet | 2026-11-12 | this row (until built) |
 | 1 | 1.98 (remember a maximized window) | For `b2`, restarted by `set` with `start_session` (which also tries 1.92 on the real desktop) |
+
+> Left §3 on 2026-11-12: plan 35 written.
+| 1 | `35-orchestration-notifications.md` — notifications through the orchestrator, and states reported by the sessions | Stub, being designed by `set` with the human, 2026-11-12 |

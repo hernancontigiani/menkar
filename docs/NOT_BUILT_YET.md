@@ -230,6 +230,32 @@ of its own.
 **Trigger:** the documentation site exists ("A documentation site" above). First question: whether
 the card links to it, and whether that link counts as the app opening a URL of its own.
 
+### Notifications for a new topic
+
+A new topic shows in the sidebar's Topics section only: no toast, sound, desktop notice or count on
+the dock, as `blocked` has. Left out of the orchestration mode on 2026-11-12 because nobody had
+decided which of them, or for which topics (all, blocking ones, a priority session's).
+
+**Trigger:** the human misses a topic that waited for them. First question: which topics notify,
+and whether through the same settings as a blocked session.
+
+### A session reporting what it waits on
+
+Menkar reads a session's state from its screen, so a session that ended its turn waiting on another
+session, or on a question it left in prose, shows as free. A survey of other tools
+(`plans/ideas/research/reported-states.md`) found none that reads it from the screen; the reliable
+route is the session reporting it, through a **non-blocking** MCP tool such as
+`set_waiting {on: <session>, question}` (a blocking one keeps the screen at "working"), cleared by
+Menkar when the session works again, the human types in its tab, or it stops. Not built
+(2026-11-12, the human): in the orchestration mode a worker waits only on the orchestrator, who
+already learns it from the wake and the report, and what the human must answer goes as a topic; in
+the ordinary mode nothing would tell a session to call the tool (it loads no Menkar skill), so it
+would need another signal, such as Claude Code's hooks for a prompt left unanswered.
+
+**Trigger:** the human often finds a session that looked free waiting on someone, in either mode,
+or two workers start waiting on each other. First question: for the ordinary mode, which signal
+replaces a call the session is never told to make.
+
 ### "With you" known by itself
 
 A session is marked "with you" by hand, from its menu, and cleared by hand (decision 1.86). Menkar
