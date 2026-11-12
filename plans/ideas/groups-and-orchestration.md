@@ -290,3 +290,30 @@ still to run). Their ideas enter the plan's design and its "Rejected" section.
   whether Menkar could host an agent team (teammates in tabs) rather than build its own.
 - Before designing: a survey of ways of working with teams of agents
   (`plans/ideas/research/ways-of-working.md`, requested 2026-11-12).
+
+## Three real profiles of an orchestration (the human, 2026-11-12)
+
+From fewest sessions and most expert orchestrator to most sessions and least expert one:
+
+1. **Menkar — the orchestrator is engineering manager and the expert.** The human talks only to it;
+   it designs the plans, hands them to generalist workers and reviews. Workers are not experts in
+   anything; talking to one of them directly is rare. In practice it works like subagents.
+2. **LaburoMenos — the orchestrator is a PM with expertise.** Workers are ephemeral: created for a
+   plan, gone after it. Slowly one or two **expert sessions** appear and stay open; the human talks
+   to one of them directly for an hour on a topic, and when an idea closes, the expert tells the
+   orchestrator ("we have this design" or "I wrote this plan"); the orchestrator decides who takes
+   the plan and when, by priority. With 5–6 sessions in parallel it also decides **who may work
+   at the same time, by the resources they touch** (conflicts, frontend vs backend). One product
+   with interconnected verticals in one ecosystem, so a session understands context more easily.
+3. **ccai — the orchestrator is a PM with almost no expertise**, like someone running a Jira board
+   who doesn't know what each ticket means in depth. Many experts: some only design or plan, some
+   review or consult (other human developers commit code that did not go through this machine,
+   and an expert evaluates it for regressions). The orchestrator starts the worker sessions and
+   organises them by resources, but almost never can answer a worker's question about its task: it
+   tells the worker which expert session to ask. **With no expert for a topic, the orchestrator asks
+   the human**, until a topic comes up often enough that an expert is created for it. Three products
+   linked by a bridge but largely independent (own engines, repositories, rules), more human
+   developers, more need for review and consultation.
+
+What changes between them is how much the orchestrator knows, and so how much the **experts outside
+it** carry: designing, planning, consulting, reviewing. The mode must cover all three.
