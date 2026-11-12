@@ -42,3 +42,4 @@
 - Whether a topic can be answered from the panel, or only in the chat.
 
 > 2026-11-12: decision 1.83 amends point 2: apart from the orchestrator mark, a session's role is a free label ("Fabric expert"), not a fixed list.
+> 2026-11-12: decision 1.84 — once the orchestrator is marked, `start_session` refuses a caller that is not the project's orchestrator.
