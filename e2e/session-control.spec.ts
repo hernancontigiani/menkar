@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launchApp, terminalText } from './app'
+import { launchApp, savedState, terminalText } from './app'
 import { prepare, SESSION } from './fixtures'
 
 const CLIENT_WORK = 'aaaaaaaaaaaa'
@@ -91,8 +91,7 @@ async function open() {
     existsSync(join(home, 'claude-args.txt'))
       ? readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n')
       : []
-  const remote = (): unknown =>
-    JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).remote_control
+  const remote = (): unknown => savedState(root).remote_control
   return { launched, page, saved, argLines, remote, root }
 }
 

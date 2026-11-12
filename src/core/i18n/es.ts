@@ -19,10 +19,6 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'projects.bringHere': 'Traerlo a esta ventana',
   'layout.nothingElse': 'La otra ventana no tiene otro proyecto para mostrar',
   'layout.sharesTab': 'Comparte una pestaña con otra sesión allá',
-  'import.projectsUnreadable':
-    'No se pudieron leer los proyectos de Agent Tablet, así que no se importaron.',
-  'import.stateUnreadable':
-    'No se pudo leer la configuración de Agent Tablet, así que no se importaron nombres, sesiones ocultas ni preferencias.',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
   'terminal.tag': '[menkar]',

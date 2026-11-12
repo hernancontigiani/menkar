@@ -10,8 +10,7 @@ user sees in the Usage window is still `docs/spec/usage.md` until the window is 
 - **Two files.** The **cache** (`<cache>/usage.sqlite`, `cache.ts`) is derived data, rebuilt from
   the transcripts whenever its layout version changes. The **history** (`<data>/history.sqlite`,
   `history.ts`) is the only file reports read, one row per turn, never pruned: it keeps what Claude
-  Code deletes with its transcripts. Its tables and columns are agent-tablet's version 2, so
-  importing agent-tablet's history is a copy.
+  Code deletes with its transcripts.
 - **A pass** (`pass.ts`): the cache reads what each transcript gained since the last pass. Then every
   turn the pass may have changed is copied whole into the history, together with the turn before it
   in its session, because a turn read later takes responses from it. A turn the cache no longer has
@@ -30,14 +29,10 @@ user sees in the Usage window is still `docs/spec/usage.md` until the window is 
   Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
   it and exits before `ready`, so no window opens and no display is needed. Checked on 2026-11-08
   under `env -i`, with no `DISPLAY`.
-- **The import** (`importer.ts`): the first time Menkar opens its history and finds no file at its
-  path, it copies agent-tablet's `history.sqlite` (versions 1 and 2, opened read only) into a
-  temporary file. The file is renamed into place once committed. agent-tablet's `usage.jsonl` is
-  copied too, to `<data>/agent-tablet-usage.jsonl`, which sits in the data directory because it
-  cannot be rebuilt. Reports read it before Menkar's own `usage.jsonl`. A copy that fails leaves no
-  history, and the opening throws, so the next start tries again. When there is nothing to import
-  (no file, an unreadable one, or one from a newer agent-tablet), Menkar starts empty and does not
-  try again.
+- **Turns imported at an earlier first start** stay in the history like any other (decision 1.68,
+  2026-11-11: there is no import any more). Their statusline log, copied into the data directory
+  then (`importedStatuslineLogPath`), keeps its fixed name and is read before Menkar's own
+  `usage.jsonl`, so those turns keep their exact cost; a machine without it reads nothing there.
 
 ## Rejected, and why
 
@@ -79,8 +74,8 @@ For Menkar (2026-11-08):
   the model key `claude-haiku-5-5@long` and priced at the long row; a sum of requests is never
   sized. The window, the report and its JSON sum both keys into one model, Haiku 5.5. Turns written
   before 1.26 were re-derived once from the cache's requests; a turn with no transcript left (one
-  imported from agent-tablet, or deleted before the cache read it), or whose transcript changed
-  since, keeps the old pricing of its summed rows.
+  imported at an earlier first start, or deleted before the cache read it), or whose transcript
+  changed since, keeps the old pricing of its summed rows.
 - When Claude Code deletes one of a session's files while another file of the same session survives,
   a turn the next pass rewrites loses the deleted file's tokens: the history copies a turn from what
   the cache has.

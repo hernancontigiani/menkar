@@ -631,7 +631,7 @@ test.each([
   [210, '4m'],
   [3599, '60m'],
   [9720, '2.7h'],
-])('a duration of %i s prints as %s, halves to even as agent-tablet did', (seconds, text) => {
+])('a duration of %i s prints as %s, halves to even', (seconds, text) => {
   expect(formatDuration(seconds)).toBe(text)
 })
 

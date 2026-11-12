@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launchApp } from './app'
+import { launchApp, savedState } from './app'
 import { CLEARED_SESSION, prepare, SESSION } from './fixtures'
 
 // A session of another project, in a group there, that the tab's session resumes into.
@@ -84,8 +84,7 @@ async function openAndType(word: string) {
   await page.keyboard.type(word)
   const saved = (): Saved =>
     JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8'))
-  const remote = (): unknown =>
-    JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).remote_control
+  const remote = (): unknown => savedState(root).remote_control
   return { launched, page, saved, remote }
 }
 

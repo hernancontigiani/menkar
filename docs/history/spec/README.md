@@ -69,6 +69,9 @@ Each feature once, with its area. Source: **R** README, **D** a doc (`docs/<name
 | F58 | Empty states: "No session open", "<project> has no sessions", "No sessions found", "Nothing in this period." | look | C |
 | F59 | Links in a terminal open with `Ctrl+click`, as in GNOME Terminal: an address in the output (whole across the rows it wraps over) and an OSC 8 hyperlink of any scheme, handed to the system (a `file:` one opens with the file's default app, decision 1.59); a plain click selects | terminal | Menkar 2026-11-10 |
 
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+| F14 | First start imports agent-tablet's own data, read only: `projects.json`, `state.json`, the usage history (Menkar decision 1.8; agent-tablet's own import of Agent Session Manager is not carried over) | sessions · usage |
+
 ## Menus
 
 > Left on 2026-11-09: one New ▾ menu; the advanced new session, Continue last and New chat removed (decision 1.30).
@@ -89,6 +92,9 @@ Where an area file describes agent-tablet's behaviour and one of these says othe
 (`plans/00-STATUS.md` §1):
   the agent is picked on Add session → New, where an agent that is not installed is greyed out. The
   menu counts above are agent-tablet's.
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+- The agent-tablet import (F14) also takes `usage.jsonl`, so imported turns keep their exact cost.
 
 ## Features
 
@@ -184,3 +190,10 @@ plan moves what it built into `docs/<subsystem>.md` and trims the area file.
 
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
 ## Decided against agent-tablet
+
+## Decided against
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+- **F14 imports agent-tablet's data, not Agent Session Manager's** (1.8, 2026-11-08): on its first
+  start Menkar reads agent-tablet's `projects.json`, `state.json` and `history.sqlite`, never
+  writing them.

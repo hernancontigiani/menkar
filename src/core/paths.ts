@@ -54,12 +54,7 @@ export function projectFilesFolder(root: string, folderName: string): string {
   return join(root, folderName, 'files')
 }
 
-function xdgBase(variable: string, fallback: string): string {
-  const value = process.env[variable]
-  return value?.startsWith('/') ? value : join(homedir(), fallback)
-}
-
-// What the agents and agent-tablet own: read only, never written by Menkar except where a user
+// What the agents own: read only, never written by Menkar except where a user
 // action confirms it.
 export interface AgentPaths {
   readonly claudeProjects: string
@@ -69,9 +64,6 @@ export interface AgentPaths {
   // Claude Code's user settings: written only by an integration the user turns on or off.
   readonly claudeSettings: string
   readonly cursorProjects: string
-  readonly agentTabletConfig: string
-  readonly agentTabletData: string
-  readonly agentTabletCache: string
 }
 
 export function agentPaths(): AgentPaths {
@@ -82,8 +74,5 @@ export function agentPaths(): AgentPaths {
     claudeSessions: join(home, '.claude', 'sessions'),
     claudeSettings: join(home, '.claude', 'settings.json'),
     cursorProjects: join(home, '.cursor', 'projects'),
-    agentTabletConfig: join(xdgBase('XDG_CONFIG_HOME', '.config'), 'agent-tablet'),
-    agentTabletData: join(xdgBase('XDG_DATA_HOME', '.local/share'), 'agent-tablet'),
-    agentTabletCache: join(xdgBase('XDG_CACHE_HOME', '.cache'), 'agent-tablet'),
   }
 }

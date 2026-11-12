@@ -69,8 +69,7 @@ Integrations page are still `docs/spec/context.md` until they are built.
   settings `ring_warn` and `ring_full` (defaults 60 and 90), kept only as a pair (whole numbers
   1–100, yellow below red) when `state.json` is read and when Settings saves one; anything else
   is both defaults. The window redraws its rings from the settings it is pushed, so a change in
-  Settings shows at once. The agent-tablet import has no such settings, so they start at the
-  defaults.
+  Settings shows at once.
 - **The integrations** (`integrations.ts`): turning the statusline on or off in
   `~/.claude/settings.json` keeps a byte copy of the file first and records what was installed and
   what it replaced in `<data>/integrations.json`. It refuses to remove a statusline the user changed

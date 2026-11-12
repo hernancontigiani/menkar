@@ -93,7 +93,7 @@ export async function lastAssistantUsage(
   return null
 }
 
-// Rounded half to even, as agent-tablet's figures were.
+// Half to even, as every figure Menkar prints.
 function round(value: number, digits: number): number {
   const scaled = value * 10 ** digits
   const floor = Math.floor(scaled)

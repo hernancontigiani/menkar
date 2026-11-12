@@ -9,7 +9,8 @@ export function statuslineLogPath(): string {
   return usageLogFile()
 }
 
-// agent-tablet's log, copied at the first start: kept with the history, as it is not rebuildable.
+// A statusline log copied in at an earlier first start: kept with the history, as it is not
+// rebuildable, and read before Menkar's own so those turns keep their exact cost.
 export function importedStatuslineLogPath(): string {
   return join(appDirs().data, 'agent-tablet-usage.jsonl')
 }

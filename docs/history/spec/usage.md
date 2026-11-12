@@ -830,3 +830,17 @@ and Totals is the table.
 
 **Status pages**: "Reading the transcripts…" with a loading icon (`content-loading-symbolic`); the
 too-new page with a warning icon (`dialog-warning-symbolic`, a triangle with an exclamation mark).
+
+## Usage — turns, time, tokens, cost, the history, the Usage window, `menkar usage`
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+**appear** in usage while classification is on (the classification itself is `classifier.md`'s),
+and, for **F14** (Menkar decision 1.8), how Menkar's first start imports agent-tablet's usage
+history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-history part of
+**F14**. No keyboard shortcut belongs to this area.
+
+## Behaviour
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+### First start: importing agent-tablet's usage history (F14, Menkar decision 1.8)
+- Built: `docs/usage.md` describes how; `src/core/usage/` holds it.

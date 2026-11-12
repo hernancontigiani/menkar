@@ -10,7 +10,7 @@ import {
 } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launchApp } from './app'
+import { launchApp, savedState } from './app'
 
 // Settings' Integrations, Usage & classifier and About sections on the real app (docs/spec/preferences.md PRF-31 to PRF-36,
 // context.md's switch, classifier.md CLS-25 to CLS-32). The real `claude` is never run.
@@ -160,7 +160,7 @@ test('CLS-25, CLS-26, CLS-27 the switch shows the earlier-turns row; its dialog 
       'Turns from before you turned it on, from a date you choose.',
     )
     await expect(prefs.locator('[data-key="earlier-button"]')).toHaveText('Classify earlier turns…')
-    const state = JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8'))
+    const state = savedState(root)
     expect(typeof state.settings.classify_since).toBe('number')
 
     await prefs.locator('[data-key="earlier-button"]').click()
@@ -224,7 +224,6 @@ test('PRF-32 to PRF-36 About shows the star, the name, the developer and the ver
     await expect(about.locator('[data-section="credits"]')).toContainText(
       'Menkar grew out of Agent Session Manager by Máté Molnár. It was written from scratch, but the idea started there.',
     )
-    await expect(about.locator('[data-section="credits"]')).not.toContainText('agent-tablet')
     // No credit points anywhere: nothing in About names or links the original's repository.
     expect(await about.locator('body').innerHTML()).not.toContain('github.com/r4nd3l')
     await about.locator('[data-section="legal"] summary').click()
@@ -287,7 +286,7 @@ test('CLS-1 a fresh install: the switch off, no earlier-turns row, no claude -p,
     await expect(usage.locator('[data-key="hint"]')).toBeVisible()
     await expect(usage.locator('[data-toggles="stack"]')).toHaveCount(0)
     await expect(usage.locator('.usage-row.category')).toHaveCount(0)
-    const state = JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8'))
+    const state = savedState(root)
     expect(state.settings?.classify_since ?? state.classify_since).toBeUndefined()
     expect(readdirSync(join(root, 'fake-log'))).toEqual([])
   } finally {

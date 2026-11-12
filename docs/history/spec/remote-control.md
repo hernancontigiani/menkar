@@ -221,3 +221,7 @@ Measurable details:
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
 (tab menu) and **M21** (session row menu). Decision source: agent-tablet 1.26 (2026-11-07); Menkar
 1.8 imports agent-tablet's Remote Control list on first start. How the command line is built and
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+(tab menu) and **M21** (session row menu). Menkar 1.8 imports agent-tablet's Remote Control list on
+first start. How the command line is built and

@@ -9,8 +9,8 @@ export interface TurnText {
   readonly tools: readonly Record<string, unknown>[]
 }
 
-// Lengths and cuts in characters as agent-tablet counted them (code points), so the text measured is
-// the text sent.
+// Lengths and cuts in code points, as the evaluation counted them, so the text measured is the text
+// sent.
 const chars = (text: string): string[] => Array.from(text)
 const head = (text: string, n: number) => chars(text).slice(0, n).join('')
 const tail = (text: string, n: number) => chars(text).slice(-n).join('')

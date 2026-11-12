@@ -1,7 +1,7 @@
 import { t } from '../i18n'
 import type { Estimate, RunResult } from './run'
 
-// Rounded half to even, as agent-tablet's figures were.
+// Half to even, as every figure Menkar prints.
 function roundEven(value: number, digits = 0): number {
   const scaled = value * 10 ** digits
   const floor = Math.floor(scaled)

@@ -1,10 +1,9 @@
-# Projects — the model, the layout, `projects.json`, the first-start import
+# Projects — the model, the layout, `projects.json`
 
 `src/core/projects/` holds projects with their groups and members, the layout of windows and tabs,
-`projects.json`, and the one-time import of agent-tablet's data. None of it imports Electron;
-`src/main/projects.ts` runs the import, loads the projects and answers `projects:get`. The rules
-come from `docs/spec/projects.md` and the first-start section of `docs/spec/sessions.md`; this file
-keeps how they are built and why.
+and `projects.json`. None of it imports Electron; `src/main/projects.ts` loads the projects and
+answers `projects:get`. The rules come from `docs/spec/projects.md`; this file keeps how they are
+built and why.
 
 ## The model — `model.ts`
 
@@ -164,25 +163,7 @@ keeps how they are built and why.
   set, so a file using neither is written as before; a group's unknown keys are not kept. Written
   whole, indented 2 spaces, non-ASCII as is.
 - A missing file is a fresh Default; nothing is written until the first save.
-
-## The first-start import — `import.ts`
-
-- **A first start** is one where neither `state.json` nor `projects.json` exists in Menkar's config
-  directory. Main runs the import before the first window and before the sessions' first scan
-  (which reads `state.json`), so no later write can make a first start look like a second one.
-- agent-tablet's `projects.json` and `state.json` are read with `readFile` only, on Linux only, and
-  never renamed or moved aside, even when unreadable. A test asserts their bytes and mtimes, and
-  that nothing appears in their folder.
-- **Read leniently**, unlike Menkar's own file: each good entry is kept, the rest dropped and
-  counted in one warning. An unreadable file (not JSON, not an object, or a projects file that is
-  not version 1 or has no list) gives a notice key (`import.projectsUnreadable`,
-  `import.stateUnreadable`); a missing one is silent. The saved windows and unknown keys are not
-  imported. Settings keep their names and meaning when their type is right.
-- **Both of Menkar's files are written**, even when nothing was imported. `state.json` goes first;
-  if `projects.json` then fails, `state.json` is removed, so a failed write leaves the next start a
-  first start again.
-- The notices, and an unreadable `projects.json` of Menkar's own, reach the renderer in
-  `projects:get` until the window plan shows them.
+- The notice of a file moved aside reaches the renderer in `projects:get`.
 
 ## Watching an agent's folder that appears later
 

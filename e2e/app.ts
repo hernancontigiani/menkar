@@ -1,4 +1,12 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron, type ElectronApplication, type Page } from '@playwright/test'
@@ -152,4 +160,10 @@ export function savedCursorTab(
     }),
   )
   return { PATH: `${bin}:${process.env.PATH ?? ''}` }
+}
+
+// What the app saved in its state.json: nothing until something is saved, so a fresh start has none.
+export function savedState(root: string) {
+  const file = join(root, 'config', 'menkar', 'state.json')
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}
 }

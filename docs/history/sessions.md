@@ -47,3 +47,9 @@
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
   while a scan runs schedules exactly one more scan after it. agent-tablet dropped that request and
   could miss a change until the next event.
+
+## Menkar's `state.json`
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+**Only a user action writes it** (hiding a session). Reading never creates it, because a start
+without `state.json` and `projects.json` is the first start that imports agent-tablet's data.

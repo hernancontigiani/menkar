@@ -7,8 +7,7 @@ import {
   findClaude,
 } from '../core/classifier/run'
 import { cachePath, UsageCache } from '../core/usage/cache'
-import { historyPath } from '../core/usage/history'
-import { openHistory } from '../core/usage/importer'
+import { historyPath, UsageHistory } from '../core/usage/history'
 
 // One classification job on a thread of its own: its SQLite reads and its calls to `claude` are
 // synchronous. `flags` is shared with main: [stop requested, sent, total].
@@ -20,7 +19,7 @@ interface Job {
 }
 
 const job = workerData as Job
-const history = openHistory(historyPath())
+const history = new UsageHistory(historyPath())
 const cache = new UsageCache(cachePath())
 try {
   if (job.kind === 'estimate') {

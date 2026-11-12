@@ -4,8 +4,7 @@ import { now } from '../clock'
 import { t } from '../i18n'
 import { appDirs } from '../paths'
 import { exportCsv, exportJsonl, exportRows } from './export'
-import { type Memberships, NO_MEMBERSHIPS, type UsageHistory } from './history'
-import { openHistory } from './importer'
+import { type Memberships, NO_MEMBERSHIPS, UsageHistory } from './history'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
 import {
   allBounds,
@@ -321,7 +320,7 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
   }
   let history: UsageHistory
   try {
-    history = openHistory(passPaths.history)
+    history = new UsageHistory(passPaths.history)
   } catch {
     output.err(t('usage.cli.cannotOpen'))
     return 1
@@ -392,7 +391,7 @@ export function runUsageCli(argv: readonly string[], output: Output, deps: CliDe
   }
   let history: UsageHistory
   try {
-    history = openHistory(passPaths.history)
+    history = new UsageHistory(passPaths.history)
   } catch {
     output.err(t('usage.cli.cannotOpen'))
     return 1

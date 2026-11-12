@@ -101,8 +101,7 @@ the new id, and so does the saved tab.
 removes the key) and `hidden` (sorted, unique). Every other key is carried through untouched, so a
 later area's settings survive a save. It is written whole through `jsonstate`.
 
-**Only a user action writes it** (hiding a session). Reading never creates it, because a start
-without `state.json` and `projects.json` is the first start that imports agent-tablet's data.
+**Only a user action writes it** (hiding a session); reading never creates it.
 
 ## Formats
 

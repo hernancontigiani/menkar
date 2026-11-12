@@ -82,3 +82,34 @@ _Written by the executing session._
 - `docs/release-checklist.md`: §2 is a plain first start; §9 is kept as "(none)" so §10 keeps its
   number; the squeezed screenshots in `docs/spec/img/` can no longer be retaken.
 - New histories: `docs/history/agent-state.md`, `docs/history/classifier.md`.
+
+**Block 2 (b1, 2026-11-11).**
+- The import was removed: `src/core/projects/import.ts`, `src/core/usage/importer.ts`, its call in
+  `src/main/projects.ts`, the three agent-tablet paths and `xdgBase` in `src/core/paths.ts`, the
+  `import.*` strings (en, es), `tests/core/projects/import.test.ts`,
+  `tests/core/usage/import.test.ts`, and the e2e import test. The usage history now opens with
+  `new UsageHistory(path)` in `pass.ts`, `cli.ts` and `classifier-worker.ts`.
+- **USG-68 was kept**: it moved to `tests/core/usage/history.test.ts`, now with a turn already in
+  the history (a project and a category) that a pass rewrites. It was seen red with its category
+  inverted. USG-69 duplicated USG-34 and went.
+- **The one allowed string** (set, 2026-11-11, option A): `src/core/usage/statusline.ts` keeps
+  reading `<data>/agent-tablet-usage.jsonl` by that fixed name, the statusline log copied at an
+  earlier first start, so imported turns keep their exact cost. Its comment names no program. The
+  closing grep allows exactly that string. Past costs don't change.
+- A first start is now just `loadProjects`: a missing `projects.json` is a fresh Default, written at
+  the first save. PRJ-1's "Decided against" note was removed from `docs/spec/projects.md`, since
+  the original behaviour holds again.
+- `e2e/integrations.spec.ts`: the assertion that About does not contain the name went with it.
+- `npm run ci` fails only at **test integrity**: 22 tests gone, all from the import, deleted on
+  purpose. The script has no override, so the person committing reads the diff. Every other step
+  passes.
+- Left for set: in `CLAUDE.md`, the usage row's "or the agent-tablet import" (47) and the projects
+  row's "or the first-start import" (45). Line 89 is the rule itself. Also the STATUS rows (1.1,
+  1.7, 1.8, 1.10, 1.17, 1.68) and closing this plan.
+- Found by the full ui-check, not by the plan: CLS-1 (`e2e/integrations.spec.ts`) and PRF-29
+  (`e2e/preferences-rows.spec.ts`) read `state.json` right after a fresh start. The import used to
+  write it; now nothing does until something is saved, as `docs/sessions.md` says. The rerun
+  then caught PRF-14 the same way. Every e2e that read `state.json` now goes through one helper,
+  `savedState(root)` in `e2e/app.ts`, which reads a missing file as `{}`. That covers
+  `e2e/{preferences,preferences-rows,integrations,ui-size,settings,remote,pane-starts,
+  session-control,projects}.spec.ts`.

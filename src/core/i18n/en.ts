@@ -17,10 +17,6 @@ export const en = {
   'projects.bringHere': 'Bring it to this window',
   'layout.nothingElse': 'The other window has no other project to show',
   'layout.sharesTab': 'It shares a tab with another session there',
-  'import.projectsUnreadable':
-    "Agent Tablet's projects could not be read, so they were not imported.",
-  'import.stateUnreadable':
-    "Agent Tablet's settings could not be read, so names, hidden sessions and settings were not imported.",
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
   'terminal.tag': '[menkar]',

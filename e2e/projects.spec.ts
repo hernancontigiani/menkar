@@ -5,94 +5,15 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import type { MenkarApi, ProjectsSnapshot } from '../src/shared/ipc'
-import { launchApp } from './app'
+import type { MenkarApi } from '../src/shared/ipc'
+import { launchApp, savedState } from './app'
 import { CLIENT, CLIENT_NAMES, clientWork } from './fixtures'
 
 type PageGlobals = { menkar: MenkarApi }
-
-test("the first start imports agent-tablet's projects and settings, and leaves its files as they were", async () => {
-  let source = ''
-  let menkar = ''
-  const agentProjects = {
-    version: 1,
-    current: 'b2b2b2b2b2b2',
-    projects: [
-      {
-        id: 'a1a1a1a1a1a1',
-        name: 'Client work',
-        members: ['s1', 's2'],
-        groups: [{ name: 'api pair', color: '#c17be0', members: ['s1'] }],
-      },
-      { id: 'b2b2b2b2b2b2', name: 'Research', members: ['s3'] },
-    ],
-    windows: [
-      {
-        current: 'a1a1a1a1a1a1',
-        tabs: { a1a1a1a1a1a1: [{ panes: ['s1'], orientation: 'horizontal' }] },
-      },
-    ],
-  }
-  const agentState = { names: { s2: 'Docs' }, hidden: ['s3'], settings: { ui_style: 'classic' } }
-  const launched = await launchApp({
-    prepare: ({ root }) => {
-      source = join(root, 'config', 'agent-tablet')
-      menkar = join(root, 'config', 'menkar')
-      mkdirSync(source, { recursive: true })
-      writeFileSync(join(source, 'projects.json'), JSON.stringify(agentProjects, null, 2))
-      writeFileSync(join(source, 'state.json'), JSON.stringify(agentState, null, 2))
-      return undefined
-    },
-  })
-  const files = ['projects.json', 'state.json'].map((name) => join(source, name))
-  const before = files.map((f) => [readFileSync(f, 'utf8'), statSync(f).mtimeMs])
-  try {
-    const snapshot: ProjectsSnapshot = await launched.window.evaluate(() =>
-      (globalThis as unknown as PageGlobals).menkar.projects.get(),
-    )
-    expect(snapshot).toEqual({
-      current: 'b2b2b2b2b2b2',
-      projects: [
-        {
-          id: 'a1a1a1a1a1a1',
-          name: 'Client work',
-          members: ['s1', 's2'],
-          hidden: [],
-          groups: [{ name: 'api pair', color: '#c17be0', members: ['s1'] }],
-          earlier: {},
-        },
-        {
-          id: 'b2b2b2b2b2b2',
-          name: 'Research',
-          members: ['s3'],
-          hidden: [],
-          groups: [],
-          earlier: {},
-        },
-      ],
-      notices: [],
-    })
-    const written = JSON.parse(readFileSync(join(menkar, 'projects.json'), 'utf8'))
-    expect(written.projects.map((p: { name: string }) => p.name)).toEqual([
-      'Client work',
-      'Research',
-    ])
-    expect(written.windows).toEqual([])
-    expect(JSON.parse(readFileSync(join(menkar, 'state.json'), 'utf8'))).toEqual({
-      names: { s2: 'Docs' },
-      hidden: ['s3'],
-      settings: { ui_style: 'classic' },
-    })
-    expect(files.map((f) => [readFileSync(f, 'utf8'), statSync(f).mtimeMs])).toEqual(before)
-  } finally {
-    await launched.close()
-  }
-})
 
 // ---------------------------------------------------------------- the acceptance cases
 
@@ -158,8 +79,6 @@ const exactly = (label: string) =>
 
 const dialog = (page: Page) => page.locator('.dialog')
 
-// The file is written at once by the first start's import (both of Menkar's files, so the next
-// start is not a first start), not after the first change.
 test('PRJ-1 no projects.json: "Default" with its empty list', async () => {
   const launched = await launchApp()
   const page = launched.window
@@ -939,9 +858,7 @@ test('PRJ-56 the sidebar width is saved 600 ms after a drag and a new window tak
     await page.mouse.down()
     await page.mouse.move(360, d.y + 200, { steps: 6 })
     await page.mouse.up()
-    const width = () =>
-      JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).settings
-        ?.sidebar_width
+    const width = () => savedState(root).settings?.sidebar_width
     expect(width()).not.toBe(360)
     await expect.poll(width, { timeout: 2000 }).toBe(360)
     const other = await secondWindow(launched, page)

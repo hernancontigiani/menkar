@@ -20,3 +20,7 @@ behaviour — `docs/spec/` — not by translating its files. The look follows ag
 human likes; the features are all of agent-tablet's.
 | `docs/spec/README.md` | Building any feature: the index of what agent-tablet does and how it looks |
   About, with no link; no code is carried over from it, and new text never names agent-tablet.
+
+> Replaced 2026-11-11 by decision 1.68: the first-start import is gone.
+| `docs/projects.md` | Projects, groups, membership, windows and tabs as data, `projects.json`, or the first-start import |
+| `docs/usage.md` | Measuring time, tokens or cost, reading or writing the usage history, `menkar usage`, or the agent-tablet import |

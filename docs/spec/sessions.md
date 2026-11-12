@@ -3,9 +3,8 @@
 Finding every session the installed agents have on disk (Claude Code's and Cursor's), the name a
 session shows, the history browser and its rows (the **Existing** page of Add session), the
 project list's rows as far as the session goes, a session's details, export as Markdown,
-copy ID and reveal, hide / unhide, move to trash, delete permanently, select mode, the **New** page
-of Add session, and the one-time import of agent-tablet's own data on Menkar's first start.
-Index rows: **F1–F14** (F5 shared with `projects.md`; F14 replaced, see "First start"), **K1, K2,
+copy ID and reveal, hide / unhide, move to trash, delete permanently, select mode, and the **New**
+page of Add session. Index rows: **F1–F13** (F5 shared with `projects.md`), **K1, K2,
 K28, K32**, **M2, M7, M14, M26–M31, M33, M37–M45**. What a tab runs (commands, flags) is in
 `terminal.md`; the agent states and the dot colors of a running session in `agent-state.md`; the
 context ring in `context.md`; Remote Control in `remote-control.md`; projects, groups and windows
@@ -74,10 +73,6 @@ in `projects.md`; the Ghostty, fork and chat items of the history menu (M34–M3
 
 - Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
 
-### First start: importing agent-tablet's data (decision 1.8)
-
-- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
-
 ## Data contracts
 
 ### Paths
@@ -97,14 +92,6 @@ in `projects.md`; the Ghostty, fork and chat items of the history menu (M34–M3
 - Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
 
 ### Menkar's `state.json` (this area's keys)
-
-- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
-
-### agent-tablet's `projects.json` (import source)
-
-- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
-
-### agent-tablet's `state.json` (import source)
 
 - Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
 

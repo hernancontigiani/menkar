@@ -98,7 +98,7 @@ export function totalExecution(node: Pick<Node, 'execution'>): number {
   return sum
 }
 
-// Rounds half to even, as the figures agent-tablet printed did, so the two apps print the same.
+// Half to even, as every figure Menkar prints: `2.5m` prints as `2m`.
 function fixed(value: number, digits: number): string {
   const scale = 10 ** digits
   const scaled = value * scale

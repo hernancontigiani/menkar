@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { en } from '../src/core/i18n/en'
 import { PALETTES } from '../src/core/theme'
-import { launchApp, savedCursorTab } from './app'
+import { launchApp, savedCursorTab, savedState } from './app'
 import { clientWork, prepare } from './fixtures'
 
 // The Settings window's rows applied to the real app (docs/spec/preferences.md PRF-5 to PRF-30),
@@ -26,7 +26,7 @@ async function openPreferences(
 }
 
 const statePath = (root: string) => join(root, 'config', 'menkar', 'state.json')
-const saved = (root: string) => JSON.parse(readFileSync(statePath(root), 'utf8')).settings ?? {}
+const saved = (root: string) => savedState(root).settings ?? {}
 
 const cssVar = (page: Page, name: string) =>
   page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)

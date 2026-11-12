@@ -9,6 +9,10 @@
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
     `cleanupPeriodDays` says otherwise, and with it go the replay, the details and the
 
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+  Settings shows at once. The agent-tablet import has no such settings, so they start at the
+  defaults.
+
 ## The shape (the cost since the last compaction)
 
 > Left on 2026-11-11: the hook also kept for `resume` and `clear`, its record naming the pane, so a tab follows a cleared or resumed session (decisions 1.56, 1.57).

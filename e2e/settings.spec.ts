@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { SHORTCUTS } from '../src/core/shortcuts'
 import { contrast } from '../src/core/theme'
-import { launchApp } from './app'
+import { launchApp, savedState } from './app'
 
 const act = (page: Page, action: Record<string, unknown>) =>
   page.evaluate(
@@ -376,8 +376,7 @@ test('Files (decision 1.60): the Menkar folder and the incoming folder show thei
     await expect(days).toHaveValue('30')
     await days.fill('7')
     await days.press('Enter')
-    const saved = () =>
-      JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).settings
+    const saved = () => savedState(root).settings
     await expect
       .poll(() => {
         const s = saved()

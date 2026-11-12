@@ -954,6 +954,11 @@ destructive color; error dialogs have a single "OK".
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
 project list's rows as far as the session goes, a session's details, export as Markdown, replay,
 
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+copy ID and reveal, hide / unhide, move to trash, delete permanently, select mode, the **New** page
+of Add session, and the one-time import of agent-tablet's own data on Menkar's first start.
+Index rows: **F1–F14** (F5 shared with `projects.md`; F14 replaced, see "First start"), **K1, K2,
+
 ## Discovery (F1)
 
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
@@ -1079,3 +1084,17 @@ project list's rows as far as the session goes, a session's details, export as M
 
 > Left on 2026-11-10: replay removed from Menkar (decision 1.33).
 - Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts`, `replay.ts` hold it.
+
+## Behaviour
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+### First start: importing agent-tablet's data (decision 1.8)
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
+
+## Data contracts
+
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+### agent-tablet's `projects.json` (import source)
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.
+### agent-tablet's `state.json` (import source)
+- Built and tested: `docs/sessions.md` describes how; `src/core/sessions/` and `src/renderer/addsession.ts`, `sessionmenus.ts` hold it.

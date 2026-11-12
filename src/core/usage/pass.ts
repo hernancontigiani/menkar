@@ -1,7 +1,6 @@
 import { agentPaths } from '../paths'
 import { cachePath, UsageCache } from './cache'
-import { historyPath, type Memberships, type UsageHistory } from './history'
-import { openHistory } from './importer'
+import { historyPath, type Memberships, UsageHistory } from './history'
 
 export interface PassPaths {
   readonly claudeProjects: string
@@ -19,7 +18,7 @@ export function runPass(memberships: Memberships, paths: PassPaths = defaultPass
   const cache = new UsageCache(paths.cache)
   try {
     cache.ingest(paths.claudeProjects)
-    const history: UsageHistory = openHistory(paths.history)
+    const history: UsageHistory = new UsageHistory(paths.history)
     try {
       history.write(cache, memberships)
       history.rederive(cache)

@@ -55,13 +55,12 @@ describe('paths', () => {
     expect(electronUserData().startsWith(`${config}/`)).toBe(false)
   })
 
-  test("the agents' and agent-tablet's paths resolve under the test's HOME and XDG dirs", () => {
+  test("the agents' paths resolve under the test's HOME", () => {
     const root = process.env.MENKAR_TEST_ROOT ?? ''
     const paths = agentPaths()
-    expect(Object.keys(paths).length).toBeGreaterThanOrEqual(6)
+    expect(Object.keys(paths).length).toBeGreaterThanOrEqual(5)
     for (const path of Object.values(paths)) expect(path.startsWith(`${root}/`)).toBe(true)
     expect(paths.claudeProjects).toBe(join(root, 'home', '.claude', 'projects'))
-    expect(paths.agentTabletData).toBe(join(root, 'data', 'agent-tablet'))
   })
 })
 

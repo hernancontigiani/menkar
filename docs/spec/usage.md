@@ -5,10 +5,8 @@ How long Claude worked and how many tokens it used, per session and per project:
 cost** (and the exact cost when the statusline reported it), the permanent **usage history**
 (SQLite) with its newer-version and unreadable-file handling, the **hourly pass**, the **Usage
 window** (main menu → Usage, **M4**) and the **`menkar usage`** command. Also how categories
-**appear** in usage while classification is on (the classification itself is `classifier.md`'s),
-and, for **F14** (Menkar decision 1.8), how Menkar's first start imports agent-tablet's usage
-history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-history part of
-**F14**. No keyboard shortcut belongs to this area.
+**appear** in usage while classification is on (the classification itself is `classifier.md`'s).
+Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut belongs to this area.
 
 ## Behaviour
 
@@ -61,10 +59,6 @@ history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-h
 - Built: `docs/preferences.md` describes how; plan 12 built it.
 
 ### `menkar usage` (F41)
-
-- Built: `docs/usage.md` describes how; `src/core/usage/` holds it.
-
-### First start: importing agent-tablet's usage history (F14, Menkar decision 1.8)
 
 - Built: `docs/usage.md` describes how; `src/core/usage/` holds it.
 

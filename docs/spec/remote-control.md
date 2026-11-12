@@ -6,8 +6,7 @@ switch on Add session → New's name step, and a "Remote control" check in the s
 its tab menu; the choice is kept in `state.json` and passed as `--remote-control=<name>` every time
 the app starts or resumes that session. A phone icon on the session's row shows it. Nothing is ever
 typed into a running session to connect or disconnect it. Index rows: **F49**, menu items **M17**
-(tab menu) and **M21** (session row menu). Menkar 1.8 imports agent-tablet's Remote Control list on
-first start. How the command line is built and
+(tab menu) and **M21** (session row menu). How the command line is built and
 typed is `terminal.md`; the New page around the switch is `sessions.md`.
 
 ## Behaviour

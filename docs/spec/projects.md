@@ -74,9 +74,6 @@ gives the behaviour that keeps it.
 Every case is built and tested; `e2e/projects.spec.ts`, `e2e/window.spec.ts` and
 `tests/core/projects/` carry the ids.
 
-Decided against: PRJ-1's "no file exists until the first change" — the first start's import writes
-both of Menkar's files at once, so that the next start is not a first start (`docs/projects.md`).
-
 ## Look
 
 - Built and tested: `docs/projects.md` describes how; `src/core/projects/` and `src/main/workspace.ts` hold it.

@@ -109,6 +109,10 @@ and the window closes.
 The cases built in `core` (PRJ-3–10, 49–53, 55) left for the history; the Vitest tests in
 `tests/core/projects/` carry their ids.
 
+> Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
+Decided against: PRJ-1's "no file exists until the first change" — the first start's import writes
+both of Menkar's files at once, so that the next start is not a first start (`docs/projects.md`).
+
 ## The model
 
 > Left on 2026-11-08: built and tested by plan 15, described in `docs/projects.md`.

@@ -1,4 +1,4 @@
-// The usage history file's rules and the passes (docs/spec/usage.md, USG-31 to USG-38).
+// The usage history file's rules and the passes (docs/spec/usage.md, USG-31 to USG-38, USG-68).
 process.env.TZ = 'America/Argentina/Buenos_Aires'
 
 import { createHash } from 'node:crypto'
@@ -390,7 +390,7 @@ describe('re-deriving the history per request (decision 1.26)', () => {
       const old = openDb(dirs.history)
       // as if one of its files had been deleted since: what the cache has no longer adds up
       old.raw.prepare("UPDATE tokens SET input = input + 1 WHERE uuid = 'u-12:00:00'").run()
-      // a turn no transcript has, as agent-tablet's imported ones
+      // a turn no transcript has, as one imported at an earlier first start
       const hour = NOV_8.start + 11 * 3600
       old.raw
         .prepare("INSERT INTO turns VALUES ('u-11:00:00', 'gone', 'human', ?, NULL, NULL, NULL, 0)")
@@ -462,4 +462,34 @@ describe('re-deriving the history per request (decision 1.26)', () => {
     ).toEqual({ category: 'debug', category_tries: 1 })
     db.close()
   })
+})
+
+test('USG-68 a turn already in the history with a project keeps it and its category when a pass rewrites it', () => {
+  const dirs = usageDirs('usg68')
+  new UsageHistory(dirs.history).close()
+  const opened = new Date(2026, 9, 15, 10).getTime() / 1000
+  const db = openDb(dirs.history)
+  try {
+    db.raw
+      .prepare("INSERT INTO turns VALUES ('u-10:00:00', 's1', 'human', ?, 'x', 'X', 'design', 0)")
+      .run(opened)
+  } finally {
+    db.close()
+  }
+  dirs.transcript('s1', [prompt('10:00:00'), response('10:00:30')])
+  runPass(memberships(), {
+    claudeProjects: dirs.claudeProjects,
+    cache: dirs.cache,
+    history: dirs.history,
+  })
+  const read = openDb(dirs.history)
+  try {
+    const turns = read.raw.prepare('SELECT * FROM turns').all()
+    expect(turns).toHaveLength(1)
+    expect(turns[0]).toMatchObject({ project_id: 'x', project_name: 'X', category: 'design' })
+    // the pass rewrote it from the transcript: its time is the transcript's now
+    expect((turns[0] as { opened: number }).opened).not.toBe(opened)
+  } finally {
+    read.close()
+  }
 })

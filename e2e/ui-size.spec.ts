@@ -1,10 +1,10 @@
 // Interface size (decision 1.36, 2026-11-10): Menkar's own text and controls grow or shrink in
 // every window, live, while the terminals keep their font. Sizes are read in screen pixels (CSS
 // pixels × devicePixelRatio), since the scale is the page's zoom.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launchApp, savedCursorTab } from './app'
+import { launchApp, savedCursorTab, savedState } from './app'
 
 const onScreen = (page: Page, selector: string) =>
   page
@@ -49,13 +49,7 @@ test('decision 1.36: Interface size grows the header and the Settings window at 
     const item = await onScreen(settings, '.section-item')
     await expect(settings.locator('[data-key="ui_scale"]')).toHaveValue('100')
     await choose(settings, '125')
-    await expect
-      .poll(
-        () =>
-          JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).settings
-            .ui_scale,
-      )
-      .toBe(125)
+    await expect.poll(() => savedState(root).settings?.ui_scale).toBe(125)
     await expect.poll(() => page.evaluate(() => window.devicePixelRatio)).toBeCloseTo(1.25, 2)
     await expect.poll(() => onScreen(page, '.content-header .title')).toBeGreaterThan(header * 1.15)
     await expect.poll(() => onScreen(settings, '.section-item')).toBeGreaterThan(item * 1.15)

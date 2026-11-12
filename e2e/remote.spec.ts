@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launchApp } from './app'
+import { launchApp, savedState } from './app'
 import { CLIENT, clientWork, prepare, SESSION } from './fixtures'
 
 let home = ''
@@ -24,8 +24,7 @@ const args = () =>
   existsSync(join(home, 'claude-args.txt'))
     ? readFileSync(join(home, 'claude-args.txt'), 'utf8')
     : ''
-const stateFile = () =>
-  JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8'))
+const stateFile = () => savedState(root)
 
 async function newPage(page: Page): Promise<void> {
   await page.locator('#strip-plus').click()

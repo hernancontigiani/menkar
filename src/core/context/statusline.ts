@@ -119,7 +119,7 @@ export function usageRecord(
   }
 }
 
-// Rounded half to even, as agent-tablet's bar printed.
+// Half to even, as every figure Menkar prints.
 function fixed(value: number, digits: number): string {
   const scaled = value * 10 ** digits
   const floor = Math.floor(scaled)
@@ -157,7 +157,8 @@ export function bar(payload: Payload, sinceCompaction: number | null = null): st
   return parts.join(' · ')
 }
 
-// UTC with its offset and microseconds, as agent-tablet wrote it: 2026-11-08T14:03:21.512000+00:00.
+// UTC with its offset and microseconds, as every line of the log has it:
+// 2026-11-08T14:03:21.512000+00:00.
 function stamp(): string {
   return new Date(now()).toISOString().replace('Z', '000+00:00')
 }

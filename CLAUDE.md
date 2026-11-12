@@ -40,11 +40,11 @@ what matters from being lost when a plan is deleted.
 | `docs/foundations.md` | Logging, writing the app's JSON state, adding a user-visible string, or opening a SQLite database |
 | `docs/packaging.md` | Changing the .deb, its post-install, the sandbox profile, or anything installed outside `/opt/Menkar` |
 | `docs/sessions.md` | Finding, reading or naming sessions, watching the agents' folders, or the sessions' keys of `state.json` |
-| `docs/projects.md` | Projects, groups, membership, windows and tabs as data, `projects.json`, or the first-start import |
+| `docs/projects.md` | Projects, groups, membership, windows and tabs as data, or `projects.json` |
 | `docs/window.md` | The window, its look and themes, tabs and panes, starting or closing an agent, several windows, quitting |
 | `docs/files.md` | File tabs, the editor, the Markdown preview, `menkar open`, or what is read only |
 | `docs/project-files.md` | The per-project files folder, the sidebar's Files section, bringing a file in, or `--add-dir` |
-| `docs/usage.md` | Measuring time, tokens or cost, reading or writing the usage history, `menkar usage`, or the agent-tablet import |
+| `docs/usage.md` | Measuring time, tokens or cost, reading or writing the usage history, or `menkar usage` |
 | `docs/agent-state.md` | Reading what an agent is doing from its terminal, the shown states, counts and notifications |
 | `docs/context.md` | The statusline, `--settings`, the context reading, or anything written to `~/.claude/settings.json` |
 | `docs/classifier.md` | Classifying turns: what is sent to Haiku and how, the hourly and earlier-turns runs, the evaluation |

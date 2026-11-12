@@ -18,7 +18,7 @@ export function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-// Equal as JSON values: key order does not matter, as for the dictionaries agent-tablet compared.
+// Equal as JSON values: key order does not matter.
 export function jsonEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (Array.isArray(a) && Array.isArray(b)) {

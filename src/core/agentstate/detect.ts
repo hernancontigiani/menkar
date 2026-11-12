@@ -1,6 +1,5 @@
 // What an agent in a terminal is doing, from the title it set and the text on its screen: a
-// simplified port of herdr's agent-detection rules (https://herdr.dev, Apache-2.0), as agent-tablet
-// reads them.
+// simplified port of herdr's agent-detection rules (https://herdr.dev, Apache-2.0).
 
 export const RAW_STATES = ['working', 'blocked', 'idle'] as const
 export type RawState = (typeof RAW_STATES)[number]
@@ -12,7 +11,7 @@ const CURSOR_SPINNER = /^\s*[⠀-⣿]+\s+[\p{L}\p{N}_]+ing(?![\p{L}\p{N}_])/mu
 const CURSOR_ALLOW = /^\s*(?:\S\s*)?(?:allow|run) .*\(y\)/mu
 const BACKGROUND_TASKS = /(?<![\p{L}\p{N}_])[1-9][0-9]*\s+background\s+tasks?(?![\p{L}\p{N}_])/u
 
-// The line breaks Python's splitlines() honours, so the counts of lines match agent-tablet's.
+// The line breaks Python's splitlines() honours: the rules' line counts were tuned counting them.
 const LINE_BREAK = new RegExp(
   `\r\n|[\n\r\v\f\x1c-\x1e${String.fromCodePoint(0x85, 0x2028, 0x2029)}]`,
   'u',

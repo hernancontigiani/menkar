@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { _electron, type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launchApp } from './app'
+import { launchApp, savedState } from './app'
 import { prepare, SESSION } from './fixtures'
 
 // Preferences on the real app (docs/spec/preferences.md, PRF-1 to PRF-24), never on the human's
@@ -30,8 +30,7 @@ function writeState(root: string, settings: Record<string, unknown>): void {
   writeFileSync(join(dir, 'state.json'), JSON.stringify({ settings }))
 }
 
-const savedSettings = (root: string) =>
-  JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).settings
+const savedSettings = (root: string) => savedState(root).settings
 
 const cssVar = (page: Page, name: string) =>
   page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)

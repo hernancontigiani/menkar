@@ -361,3 +361,9 @@
 
 > Left §3 on 2026-11-11: plan 32 block 1 delivered (56e1593).
 | 2 | `32-remove-agent-tablet.md` — 1.68, agent-tablet leaves Menkar | Written 2026-11-11; block 1 (docs) now, block 2 after plan 31 |
+
+> Left §1 and §3 on 2026-11-11: plan 32 delivered — agent-tablet leaves Menkar (1.68 settles 1.8 and 1.17; the record is git log). Executed by b1. One string stays, as data: the file name of the usage log copied at an earlier first start.
+| 1.8 | On its first start Menkar imports agent-tablet's own data, read only: `projects.json` (projects, groups, members), `state.json` (settings, hidden sessions, the Remote control list) and the usage history (`history.sqlite`); agent-tablet's files are never written | 2026-11-08 | `docs/spec/` |
+| 1.17 | agent-tablet is deprecated and may be deleted: Menkar stops depending on it or naming it. 0.1.0 keeps what the switch needs (the first-start import, the release checklist's comparisons, the credit line); after 0.1.0 is accepted, every other mention goes — code comments, docs, the spec's references, tests' wording — and new text never names it | 2026-11-09 | this row |
+| 1.68 | Settles 2.13 (the human, 2026-11-11, with 0.1.0's checklist passed): the first-start import of agent-tablet's data (1.8) and the release checklist's comparisons with agent-tablet go; the credit line to Agent Session Manager stays (it names the idea's origin, not agent-tablet); then every other mention of agent-tablet in code, docs and tests goes, as 1.17 planned | 2026-11-11 | this row (until its plan is delivered) |
+| 1 | `32-remove-agent-tablet.md` — 1.68, agent-tablet leaves Menkar | Block 1 (docs) delivered 2026-11-11; block 2 (the import and the code) ready |

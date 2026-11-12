@@ -40,7 +40,6 @@ Each feature once, with its area.
 | F11 | Hide / unhide a session; "Show hidden sessions" as a switch in Add session → Existing | sessions |
 | F12 | Move a transcript to the trash; delete permanently — each confirmed; the only writes under `~/.claude` | sessions |
 | F13 | Select mode: All, None, open selected in tabs, hide selected, trash selected | sessions |
-| F14 | First start imports agent-tablet's own data, read only: `projects.json`, `state.json`, the usage history (Menkar decision 1.8; agent-tablet's own import of Agent Session Manager is not carried over) | sessions · usage |
 | F15 | A tab runs the agent in an embedded terminal: `$SHELL` with the agent's command in the session's folder | terminal |
 | F16 | Start, resume, fork (per provider; the agent is picked on Add session → New) | terminal |
 | F17 | Graceful close: closing a tab sends Claude Code's `/exit` first; Cursor is force-closed | terminal |
@@ -237,9 +236,7 @@ switches, previous / next month and All; Preferences' Restart now, Classify earl
 - **F51, the question card, is not carried over** (Menkar `plans/00-STATUS.md` 1.7, 2026-11-08):
   it typed the chosen answer into the agent's terminal; Menkar answers questions in the terminal
   itself.
-- **F14 imports agent-tablet's data, not Agent Session Manager's** (1.8, 2026-11-08): on its first
-  start Menkar reads agent-tablet's `projects.json`, `state.json` and `history.sqlite`, never
-  writing them.
+- **F14, a first-start import of another app's data, is not built** (1.68, 2026-11-11).
 
 ## Decisions that override the area files (2026-11-08)
 
@@ -251,7 +248,6 @@ Where an area file and one of these say otherwise, this wins (`plans/00-STATUS.m
   later gets SIGCONT and SIGTERM, and whatever is left 2 s after that gets SIGKILL. Quit and
   Restart now wait for that, at most 5 s. Nothing is typed: not `/exit`, and not `exit` into a
   leftover shell (its pty is closed the same way). (1.9, amended 2026-11-10)
-- The agent-tablet import (F14) also takes `usage.jsonl`, so imported turns keep their exact cost.
 - The integrations record and the settings backups live in the data directory.
 - Turns with origin `unknown` show their own category in reports.
 - Popover menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's
