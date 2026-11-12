@@ -265,3 +265,20 @@ research already done, kept in this folder so it outlives the one-shot reports �
 orchestrator's tools reach the app, how to wake an idle orchestrator, Dorothy and claude-flow, and
 the probes measured on Claude Code 2.1.322), and `plans/ideas/research-prompt.md` (a wider survey
 still to run). Their ideas enter the plan's design and its "Rejected" section.
+
+## Roles instead of leaders, and a flexible mode (the human, 2026-11-12)
+
+- **No leader per group** (1.76): groups are only visual. What the orchestration mode needs is
+  **roles per session**, declared as part of setting the mode up: experts who always implement a
+  given area, consultants who don't implement but advise, troubleshooters, documentation, and so on.
+- **Not everything goes through the orchestrator.** Sessions that know the others' profiles can talk
+  to each other; when the orchestrator hands out a task it can say "for doubts about X ask ‹expert›,
+  if you hit a problem talk to ‹troubleshooter›".
+- **A range of shapes to cover**: from Menkar's own (one orchestrator who is also the expert, two
+  generalist workers it delegates to — a small multidisciplinary team) to ccai's (multi-repo, two
+  levels: consultant sessions, specialists with role skills, sessions always used for the same
+  thing).
+- **The mode can be entered and left.** The human may skip the orchestrator and talk in detail to
+  one session; that session can later bring the orchestrator up to date on what was discussed.
+- Before designing: a survey of ways of working with teams of agents
+  (`plans/ideas/research/ways-of-working.md`, requested 2026-11-12).
