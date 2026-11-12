@@ -24,3 +24,6 @@ human likes; the features are all of agent-tablet's.
 > Replaced 2026-11-11 by decision 1.68: the first-start import is gone.
 | `docs/projects.md` | Projects, groups, membership, windows and tabs as data, `projects.json`, or the first-start import |
 | `docs/usage.md` | Measuring time, tokens or cost, reading or writing the usage history, `menkar usage`, or the agent-tablet import |
+
+> Replaced 2026-11-12: the row also names the skills plugin (plan 33).
+| `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, or waking a session |

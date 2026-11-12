@@ -50,7 +50,7 @@ what matters from being lost when a plan is deleted.
 | `docs/classifier.md` | Classifying turns: what is sent to Haiku and how, the hourly and earlier-turns runs, the evaluation |
 | `docs/preferences.md` | Preferences, About or the Usage window: a setting's row, applying it to every window, restarting, the integrations' page |
 | `docs/chat.md` | Chat tabs and their processes, the permission card, the MCP servers browser, Open in Ghostty |
-| `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, or waking a session |
+| `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, waking a session, or the skills plugin |
 | `docs/release-checklist.md` | Cutting a release: what the human checks on a real desktop before a build is called a version |
 
 ## Product rules the code must hold
