@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { basename } from 'node:path'
 import { type IPty, spawn } from 'node-pty'
 import { log } from '../core/log'
+import { withoutSessionEnv } from '../core/sessionenv'
 import { foregroundGroup, reapSession } from './reap'
 
 export interface TerminalSink {
@@ -79,7 +80,13 @@ export class Terminal {
       // The same for hyperlinks: without FORCE_HYPERLINK it prints an address it breaks over rows
       // as plain text, and only the first row's piece is a link; with it, every row is an OSC 8
       // link to the whole address.
-      env: { ...process.env, COLORTERM: 'truecolor', FORCE_HYPERLINK: '1', ...options.env },
+      // Never a Claude Code session's own variables, should Menkar have been started inside one.
+      env: {
+        ...withoutSessionEnv(process.env),
+        COLORTERM: 'truecolor',
+        FORCE_HYPERLINK: '1',
+        ...options.env,
+      },
     })
     this.#pty.onData(emit)
     this.#pty.onExit(({ exitCode }) => {

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileS
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { type LaunchedApp, launchApp, savedCursorTab, terminalText } from './app'
-import { CLIENT, clientWork } from './fixtures'
+import { CLIENT, clientWork, prepare } from './fixtures'
 
 function isAlive(pid: number): boolean {
   try {
@@ -687,6 +687,35 @@ test('every pty says truecolor (COLORTERM) and FORCE_HYPERLINK=1, the pane and t
     await expect(drawer).toContainText('drawer=[truecolor]')
     await page.keyboard.type('echo "drawer-links=[$FORCE_HYPERLINK]"\n')
     await expect(drawer).toContainText('drawer-links=[1]')
+  } finally {
+    await launched.close()
+  }
+})
+
+// A Menkar started from a terminal inside Claude Code: its agents get none of that session's own
+// variables (one of them stops Claude Code registering the agent, so it could not be woken), and
+// keep the user's configuration.
+test('an agent never inherits the variables of a Claude Code session Menkar was started from; the user’s configuration stays', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return {
+        ...prepare(dirs),
+        CLAUDECODE: '1',
+        CLAUDE_CODE_CHILD_SESSION: 'x',
+        CLAUDE_CONFIG_DIR: join(dirs.home, '.claude-work'),
+      }
+    },
+  })
+  const page = launched.window
+  try {
+    await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
+    await expect.poll(() => existsSync(join(home, 'claude-env.json'))).toBe(true)
+    const env = JSON.parse(readFileSync(join(home, 'claude-env.json'), 'utf8'))
+    expect(env.CLAUDECODE).toBeUndefined()
+    expect(env.CLAUDE_CODE_CHILD_SESSION).toBeUndefined()
+    expect(env.CLAUDE_CONFIG_DIR).toBe(join(home, '.claude-work'))
   } finally {
     await launched.close()
   }

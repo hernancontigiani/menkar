@@ -4,7 +4,7 @@ import { join } from 'node:path'
 export const SESSION = '5c1e7a2b-0f3d-4e6a-8b9c-1d2e3f4a5b6c'
 export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 
-// A stand-in `claude` (never the real one): it records its arguments, writes the transcript a
+// A stand-in `claude` (never the real one): it records its arguments and its environment, writes the transcript a
 // new session or a fork would get, with one typed message, and stays in the foreground until
 // it reads EXIT0 or EXIT1; ASK makes it print a permission question. CLEAR acts as `/clear` does
 // in Claude Code: a new session id (CLEARED_SESSION) with a transcript of its own, and the
@@ -20,6 +20,7 @@ const fs = require('node:fs'), path = require('node:path')
 const args = process.argv.slice(2)
 fs.appendFileSync(path.join(process.env.HOME, 'claude-args.txt'), args.join(' ') + '\\n')
 fs.writeFileSync(path.join(process.env.HOME, 'claude-pid.txt'), String(process.pid))
+fs.writeFileSync(path.join(process.env.HOME, 'claude-env.json'), JSON.stringify(process.env))
 const at = args.indexOf('--session-id')
 if (at >= 0 && !process.env.FAKE_CLAUDE_QUIET) {
   const id = args[at + 1]

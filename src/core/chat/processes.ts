@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
 import { t } from '../i18n'
 import { log } from '../log'
+import { withoutSessionEnv } from '../sessionenv'
 import { ghosttyArgs } from './ghostty'
 import {
   type ChatEvent,
@@ -102,6 +103,7 @@ function startClaude(chat: Chat): void {
   }
   const child = spawn(cli, claudeArgs(chat.continuing ? chat.sessionId : null), {
     cwd: chat.cwd,
+    env: withoutSessionEnv(process.env),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   chat.process = child
@@ -127,6 +129,7 @@ export function cursorTurn(chat: Chat, text: string): void {
   }
   const child = spawn(cli, cursorArgs(chat.variant, chat.sessionId, text), {
     cwd: chat.cwd,
+    env: withoutSessionEnv(process.env),
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   chat.process = child
@@ -208,6 +211,7 @@ export function openInGhostty(agent: ChatAgent, sessionId: string, folder: strin
   if (ghostty === null || findOnPath(AGENT_CLIS[agent]) === null) return false
   const cwd = folder && existsSync(folder) ? folder : homedir()
   const child = spawn(ghostty, ghosttyArgs(cwd, AGENT_CLIS[agent], sessionId), {
+    env: withoutSessionEnv(process.env),
     detached: true,
     stdio: 'ignore',
   })

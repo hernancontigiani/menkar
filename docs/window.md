@@ -66,6 +66,17 @@ How the main window is built and why that way. The behaviour it follows is in `d
   agent's command line (`src/core/command.ts`, the spec's table, shell-quoted, ending in
   ` && exit`) is typed into it. A missing agent CLI leaves a plain shell with the app's warning.
   Claude's lines always end with `--settings <sessionSettingsFile()>`; Cursor's never carry it.
+- **What a pane's environment leaves out** (decision 1.75, 2026-11-12): every pty, every chat
+  process and Open in Ghostty start from Menkar's environment without the variables that describe a
+  running Claude Code session (`withoutSessionEnv`, `src/core/sessionenv.ts`). A Menkar started from
+  a terminal inside Claude Code would otherwise hand them to every agent. Measured on 2.1.322: a
+  claude that inherits `CLAUDE_CODE_CHILD_SESSION` writes no `~/.claude/sessions/<pid>.json`, so it
+  cannot be woken. The list is explicit, grouped by what each name says (the parent's identity,
+  its inbox, its context, an IDE's port), and taken from what Claude Code sets for the processes it
+  starts. Everything else is the user's configuration and stays: `CLAUDE_CONFIG_DIR`, `ANTHROPIC_*`
+  and Claude Code's own settings such as `CLAUDE_CODE_USE_BEDROCK`. The classifier's `claude -p`
+  keeps its own, stricter rule: no `CLAUDECODE` and no `CLAUDE_CODE_*` at all (`environment` in
+  `src/core/classifier/input.ts`).
 - **Closing hangs up** (decision 1.9, amended 2026-11-10): closing a tab, Stop, closing a window,
   quitting and Restart now send SIGHUP to the pane's shell and to its terminal's foreground
   process group (the agent). Nothing is typed into a running agent, neither `/exit` nor `exit`.
