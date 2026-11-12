@@ -346,3 +346,6 @@
 
 > Left §3 on 2026-11-11: plan 31 was written.
 | 1 | `31-session-control.md` — 1.70, Menkar's MCP/CLI to renew and start sessions | Stub, being designed by `set` with the human, 2026-11-11 |
+
+> Left §1 on 2026-11-11: 1.67 delivered; its two edge cases settled by set.
+| 1.67 | Picking, in one window, a project another window holds (it shows it or has its tabs) asks: "Bring it to this window" or "Go to the other window". Bringing it moves its tabs with their running sessions, without restarting them; the other window keeps showing what it showed (or another project when it showed that one). A project is still open in one window at most | 2026-11-11 | `docs/window.md` (when delivered) |

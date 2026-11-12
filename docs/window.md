@@ -215,6 +215,19 @@ session) takes the newest session of that folder modified since the tab started,
 
 - Every window is a `BrowserWindow` on the same workspace. A project is in one window at most
   (the layout's `holder`).
+- **Picking, in the project dropdown, a project another window holds** (it shows it or has a tab of
+  it) asks "Bring it to this window" (the default), "Go to the other window" or Cancel (decision
+  1.67, 2026-11-11; `switchProject` with `ask` answers `held`).
+  - **Bring** (`bringProject`, `src/core/projects/layout.ts`) moves its tabs, in their order and
+    with the one selected, into this window, which shows it. No pty restarts: panes and drawers
+    live in main, which sends a pane's output to whichever window has its tab; the new window's
+    terminals attach to the panes' buffers, and the old window drops the views it no longer has.
+  - When the other window showed it, it shows its most recent other project that no other window
+    holds (its own tabs' projects count as its own), then one never used; with none, Bring is
+    refused (`layout.nothingElse`) and nothing moves.
+  - A chat tab moves too, but its view starts empty there: chat events are not replayed.
+  - **Go** brings that window forward, as before. The project switcher (`Ctrl+Shift+E`) and Go to
+    agent do not ask: they bring the holding window forward.
 - Closing a window asks first when any pane runs something (`window:confirm-close` → the renderer's
   dialog → `confirmClose`). A window that is not the last leaves the saved layout. The last one
   keeps it and **waits for that save before the app quits**: a write cut short left its temporary

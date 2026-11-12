@@ -1208,3 +1208,69 @@ test('PRJ-64 (decision 1.25) Usage still counts a hidden member under its projec
     await launched.close()
   }
 })
+
+test('decision 1.67: picking a project another window holds asks; Bring moves its running tab here with the same pane, pty and output; Go brings that window forward and moves nothing', async () => {
+  const { launched, page, other, home } = await withTwoWindows([['login']])
+  try {
+    await expect.poll(async () => (await shown(page)).running).toEqual([CLIENT.login])
+    await expect(page.locator('.xterm-rows')).toContainText('stand-in claude ready')
+    await expect.poll(() => existsSync(join(home, 'claude-pid.txt'))).toBe(true)
+    const pid = readFileSync(join(home, 'claude-pid.txt'), 'utf8')
+    const starts = () =>
+      readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n').length
+    const before = starts()
+    const pane = (await shown(page)).tabs[0]?.panes[0]?.id
+    expect(pane).toBeTruthy()
+
+    const pick = async (p: Page, id: string) => {
+      await p.locator('#project-button').click()
+      await p.locator(`.project-row[data-project="${id}"]`).click()
+    }
+    await pick(other, 'cccccccccccc')
+    const dialog = other.locator('[role="alertdialog"]')
+    await expect(dialog.locator('.heading')).toHaveText('Client work is open in another window')
+    await expect(dialog.locator('.responses button')).toHaveText([
+      'Cancel',
+      'Go to the other window',
+      'Bring it to this window',
+    ])
+    await dialog.locator('button[data-value="bring"]').click()
+
+    await expect(other.locator('#project-button .project-name')).toHaveText('Client work')
+    await expect(other.locator('.tab')).toHaveCount(1)
+    await expect(other.locator('.tab.selected')).toHaveText(/login/)
+    await expect(other.locator('.xterm-rows')).toContainText('stand-in claude ready')
+    const moved = await shown(other)
+    expect(moved.tabs[0]?.panes[0]?.id).toBe(pane)
+    expect(moved.running).toEqual([CLIENT.login])
+    expect(starts()).toBe(before)
+    expect(readFileSync(join(home, 'claude-pid.txt'), 'utf8')).toBe(pid)
+    expect(() => process.kill(Number(pid), 0)).not.toThrow()
+    // Window 1 showed it: it now shows the project window 2 left, with no tab.
+    await expect(page.locator('#project-button .project-name')).toHaveText('Research')
+    await expect(page.locator('.tab')).toHaveCount(0)
+    await expect(page.locator('.xterm-rows')).toHaveCount(0)
+
+    await launched.app.evaluate(({ BrowserWindow }) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        const focus = win.focus.bind(win)
+        win.focus = () => {
+          void win.webContents.executeJavaScript('globalThis.broughtForward = true')
+          focus()
+        }
+      }
+    })
+    const forward = (p: Page) =>
+      p.evaluate(
+        () => (globalThis as unknown as { broughtForward?: boolean }).broughtForward ?? false,
+      )
+    await pick(other, RESEARCH.id)
+    await other.locator('[role="alertdialog"] button[data-value="go"]').click()
+    await expect.poll(() => forward(page)).toBe(true)
+    await expect(other.locator('#project-button .project-name')).toHaveText('Client work')
+    await expect(page.locator('#project-button .project-name')).toHaveText('Research')
+    await expect(other.locator('.tab')).toHaveCount(1)
+  } finally {
+    await launched.close()
+  }
+})

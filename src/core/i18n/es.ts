@@ -13,6 +13,11 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'layout.twoPanesMax': 'Una pestaña tiene como máximo dos paneles',
   'layout.otherProject': 'Pertenece a otro proyecto; agregala acá primero',
   'layout.alreadyBeside': 'Ya está al lado de otra sesión',
+  'projects.heldHeading': '{name} está abierto en otra ventana',
+  'projects.heldBody': 'Traerlo aquí con sus pestañas; sus sesiones siguen corriendo.',
+  'projects.goThere': 'Ir a la otra ventana',
+  'projects.bringHere': 'Traerlo a esta ventana',
+  'layout.nothingElse': 'La otra ventana no tiene otro proyecto para mostrar',
   'layout.sharesTab': 'Comparte una pestaña con otra sesión allá',
   'import.projectsUnreadable':
     'No se pudieron leer los proyectos de Agent Tablet, así que no se importaron.',

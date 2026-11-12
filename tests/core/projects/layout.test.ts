@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  bringProject,
   closeTab,
   holder,
   type Layout,
@@ -65,6 +66,75 @@ describe('switching project', () => {
     if (back.kind !== 'shown') throw new Error('expected shown')
     expect(shownTab(back.layout.windows[0] as LayoutWindow)).toBe('t2')
     expect(switchProject(back.layout, 'w1', 'A')).toEqual({ kind: 'same' })
+  })
+})
+
+describe('bringing a project another window holds (decision 1.67)', () => {
+  const file = (id: string, projectId: string): Tab => ({
+    kind: 'file',
+    id,
+    project: projectId,
+    path: `/x/${id}`,
+    preview: false,
+  })
+
+  test('its tabs move in their order with the selected one; the other window keeps showing what it showed and its other tabs', () => {
+    const layout = layoutOf(
+      win('w1', 'M', [session('m1', 'M', ['s0']), session('c1', 'C', ['s1']), file('c2', 'C')], {
+        M: 'm1',
+        C: 'c2',
+      }),
+      win('w2', 'B', [session('b1', 'B', ['s9'])], { B: 'b1' }),
+    )
+    const out = bringProject(layout, 'w2', 'C', [], ['M', 'C', 'B'])
+    expect(out).toEqual({
+      kind: 'brought',
+      from: 'w1',
+      layout: layoutOf(
+        win('w1', 'M', [session('m1', 'M', ['s0'])], { M: 'm1' }),
+        win('w2', 'C', [session('b1', 'B', ['s9']), session('c1', 'C', ['s1']), file('c2', 'C')], {
+          B: 'b1',
+          C: 'c2',
+        }),
+      ),
+    })
+    if (out.kind === 'brought') expect(holder(out.layout, 'C')).toBe('w2')
+  })
+
+  test('a window that showed it shows its most recent other project no other window holds', () => {
+    const layout = layoutOf(
+      win('w1', 'C', [session('c1', 'C', ['s1']), session('d1', 'D', ['s2'])], { C: 'c1' }),
+      win('w2', 'B', [session('b1', 'B', ['s9'])]),
+      win('w3', 'E', []),
+    )
+    // B is w2's, E is w3's: D (its own tab) beats F, never used.
+    const out = bringProject(layout, 'w2', 'C', ['B', 'E', 'D', 'C'], ['B', 'C', 'D', 'E', 'F'])
+    if (out.kind !== 'brought') throw new Error('expected brought')
+    expect(out.layout.windows[0]).toEqual(win('w1', 'D', [session('d1', 'D', ['s2'])], {}))
+    const none = bringProject(layout, 'w2', 'C', [], ['B', 'C', 'E', 'F'])
+    if (none.kind !== 'brought') throw new Error('expected brought')
+    expect(none.layout.windows[0]?.shown).toBe('F')
+  })
+
+  test('the project this window leaves goes to the other one when it is free; with nothing free, it is refused', () => {
+    const swap = layoutOf(win('w1', 'C', []), win('w2', 'B', []))
+    const out = bringProject(swap, 'w2', 'C', [], ['B', 'C'])
+    if (out.kind !== 'brought') throw new Error('expected brought')
+    expect(out.layout).toEqual(layoutOf(win('w1', 'B', []), win('w2', 'C', [])))
+    const stuck = layoutOf(win('w1', 'C', []), win('w2', 'B', [session('b1', 'B', ['s9'])]))
+    expect(bringProject(stuck, 'w2', 'C', [], ['B', 'C'])).toEqual({
+      kind: 'refused',
+      refusal: 'layout.nothingElse',
+    })
+  })
+
+  test('a project no other window holds is simply shown', () => {
+    const layout = layoutOf(win('w1', 'A', []), win('w2', 'B', []))
+    expect(bringProject(layout, 'w2', 'C', [], ['A', 'B', 'C'])).toEqual({
+      kind: 'brought',
+      from: null,
+      layout: layoutOf(win('w1', 'A', []), win('w2', 'C', [])),
+    })
   })
 })
 

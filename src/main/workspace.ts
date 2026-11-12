@@ -17,6 +17,7 @@ import { linkTarget } from '../core/links'
 import { log } from '../core/log'
 import { forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
+  bringProject,
   closeTab as closeLayoutTab,
   holder,
   type Layout,
@@ -1325,6 +1326,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
   switch (action.type) {
     case 'switchProject': {
       const outcome = switchProject(layout, windowId, action.project)
+      if (outcome.kind === 'focus' && action.ask) return { value: 'held' }
       if (outcome.kind === 'focus') windows.get(outcome.window)?.focus()
       if (outcome.kind === 'shown') {
         layout = outcome.layout
@@ -1332,6 +1334,17 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         projects = setCurrent(projects, action.project)
         changed({ projects: true })
       }
+      return {}
+    }
+    case 'bringProject': {
+      const ids = projects.projects.map((p) => p.id)
+      const outcome = bringProject(layout, windowId, action.project, recentProjects, ids)
+      if (outcome.kind === 'refused') return { refusal: outcome.refusal }
+      layout = outcome.layout
+      recentProjects = touched(recentProjects, action.project)
+      projects = setCurrent(projects, action.project)
+      notifySeen()
+      changed({ projects: true })
       return {}
     }
     case 'createProject': {

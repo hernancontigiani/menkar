@@ -80,7 +80,9 @@ export interface WindowState {
 }
 
 export type Action =
-  | { readonly type: 'switchProject'; readonly project: string }
+  // With `ask`, a project another window holds is not brought forward: the answer is 'held'.
+  | { readonly type: 'switchProject'; readonly project: string; readonly ask?: boolean }
+  | { readonly type: 'bringProject'; readonly project: string }
   | { readonly type: 'createProject'; readonly name: string }
   | { readonly type: 'renameProject'; readonly project: string; readonly name: string }
   | { readonly type: 'deleteProject'; readonly project: string }

@@ -11,6 +11,11 @@ export const en = {
   'layout.twoPanesMax': 'A tab holds two panes at most',
   'layout.otherProject': 'It belongs to another project; add it here first',
   'layout.alreadyBeside': 'It is already beside another session',
+  'projects.heldHeading': '{name} is open in another window',
+  'projects.heldBody': 'Bring it here with its tabs; its sessions keep running.',
+  'projects.goThere': 'Go to the other window',
+  'projects.bringHere': 'Bring it to this window',
+  'layout.nothingElse': 'The other window has no other project to show',
   'layout.sharesTab': 'It shares a tab with another session there',
   'import.projectsUnreadable':
     "Agent Tablet's projects could not be read, so they were not imported.",

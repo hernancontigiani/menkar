@@ -115,6 +115,50 @@ export function switchProject(layout: Layout, windowId: string, projectId: strin
   return { kind: 'shown', layout: put(layout, { ...w, shown: projectId }) }
 }
 
+export type BringOutcome =
+  | { readonly kind: 'brought'; readonly layout: Layout; readonly from: string | null }
+  | { readonly kind: 'refused'; readonly refusal: Key }
+
+// Moves a project's tabs, in their order and with the one selected, from the window that holds it
+// to this one, which shows it. When that window showed it, it shows its most recent other project
+// that no other window holds, then one never used, in the projects' order.
+export function bringProject(
+  layout: Layout,
+  windowId: string,
+  projectId: string,
+  recent: readonly string[],
+  projectIds: readonly string[],
+): BringOutcome {
+  const here = windowOf(layout, windowId)
+  const fromId = holder(layout, projectId)
+  if (fromId === undefined || fromId === windowId)
+    return { kind: 'brought', layout: put(layout, { ...here, shown: projectId }), from: null }
+  const from = windowOf(layout, fromId)
+  const moved = from.tabs.filter((t) => t.project === projectId)
+  const chosen = from.selected[projectId]
+  const { [projectId]: _left, ...fromSelected } = from.selected
+  let next = put(layout, {
+    ...here,
+    shown: projectId,
+    tabs: [...here.tabs, ...moved],
+    selected: chosen === undefined ? here.selected : { ...here.selected, [projectId]: chosen },
+  })
+  let left: LayoutWindow = {
+    ...from,
+    tabs: from.tabs.filter((t) => t.project !== projectId),
+    selected: fromSelected,
+  }
+  if (from.shown === projectId) {
+    next = put(next, left)
+    const free = (id: string) => id !== projectId && [undefined, fromId].includes(holder(next, id))
+    const order = [...recent.filter((id) => projectIds.includes(id)), ...projectIds]
+    const shown = order.find(free)
+    if (shown === undefined) return { kind: 'refused', refusal: 'layout.nothingElse' }
+    left = { ...left, shown }
+  }
+  return { kind: 'brought', layout: put(next, left), from: fromId }
+}
+
 export interface Opened {
   readonly layout: Layout
   readonly projects: Projects

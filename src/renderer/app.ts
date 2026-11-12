@@ -1297,7 +1297,7 @@ function openProjectPopover(anchor: HTMLElement): void {
     )
     node.addEventListener('click', () => {
       closePopover()
-      void act({ type: 'switchProject', project: p.id })
+      void pickProject(p)
     })
     rename.addEventListener('click', (event) => {
       event.stopPropagation()
@@ -1335,6 +1335,27 @@ function openProjectPopover(anchor: HTMLElement): void {
   const r = anchor.getBoundingClientRect()
   showPopover(content, { x: r.left, y: r.bottom + 4 }, 'projects')
   entry.focus()
+}
+
+// A project another window holds: brought here with its tabs and running sessions, or that window
+// brought forward.
+async function pickProject(p: ProjectInfo): Promise<void> {
+  const { value } = await act({ type: 'switchProject', project: p.id, ask: true })
+  if (value !== 'held') return
+  const answer = await showDialog({
+    heading: t('projects.heldHeading', { name: p.name }),
+    body: t('projects.heldBody'),
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('projects.goThere'), value: 'go' },
+      { label: t('projects.bringHere'), value: 'bring', style: 'suggested' },
+    ],
+    defaultValue: 'bring',
+  })
+  if (answer.value === 'go') await act({ type: 'switchProject', project: p.id })
+  if (answer.value !== 'bring') return
+  const { refusal } = await act({ type: 'bringProject', project: p.id })
+  if (refusal) toast(translate(refusal))
 }
 
 async function renameProjectDialog(p: ProjectInfo): Promise<void> {
