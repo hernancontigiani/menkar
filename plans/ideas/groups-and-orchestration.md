@@ -278,7 +278,15 @@ still to run). Their ideas enter the plan's design and its "Rejected" section.
   generalist workers it delegates to — a small multidisciplinary team) to ccai's (multi-repo, two
   levels: consultant sessions, specialists with role skills, sessions always used for the same
   thing).
-- **The mode can be entered and left.** The human may skip the orchestrator and talk in detail to
-  one session; that session can later bring the orchestrator up to date on what was discussed.
+- **Entering and leaving the mode** (the human's clarification, 2026-11-12) is about the app: if the
+  orchestration mode changes Menkar (a panel, the roster, the topics), the human switches it on and
+  off and gets the ordinary Menkar back.
+- **Inside the mode, talking to one session directly** is a less common path that must exist: to see
+  a session in detail or discuss a point with its expert; that session can later bring the
+  orchestrator up to date. Claude Code's agent teams allow exactly this.
+- **Closest model: Claude Code's agent teams** (lead, teammates, shared task list, a mailbox per
+  agent, messages by name, the human may message any teammate, idle notices to the lead). Subagents
+  and the agentic loop are hub-only: workers never talk to each other. To study before designing:
+  whether Menkar could host an agent team (teammates in tabs) rather than build its own.
 - Before designing: a survey of ways of working with teams of agents
   (`plans/ideas/research/ways-of-working.md`, requested 2026-11-12).
