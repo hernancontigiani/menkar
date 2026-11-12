@@ -70,7 +70,7 @@
 | 1.95 | Any Markdown file tab (the guide included) has an "Ask an agent" button: it starts a new Claude session beside it, in the shown project, whose first prompt asks it to read that file by its absolute path and answer the user's questions about it; nothing is sent to a session already running (the human, 2026-11-12: "documentation must be accessible to agents") | 2026-11-12 | `docs/files.md` |
 | 1.96 | A double-click on a topic in the sidebar's Topics section sets it to "discussing", selects the orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N" through the same cross-session messaging as the wakes (1.72); nothing is typed into its terminal (the human, 2026-11-12). Not built yet | 2026-11-12 | this row (until built) |
 | 1.97 | Amends 1.88 (the human, 2026-11-12): "Move to Trash" on a file open in a Menkar file tab trashes it and closes its tab; a tab with unsaved edits asks first with the tab's own close question, and Cancel cancels the trash | 2026-11-12 | this row (until built) |
-| 1.98 | Menkar remembers whether the last window closed was maximized, and opens the next start's window maximized or not to match (the human, 2026-11-12). Not built yet | 2026-11-12 | this row (until built) |
+| 1.98 | Menkar remembers whether the last window closed was maximized, and opens the next start's window maximized or not to match (the human, 2026-11-12); not yet seen on a real desktop (Xvfb has no window manager) | 2026-11-12 | `docs/window.md` |
 | 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to Agent Session Manager, with no link (2026-11-09) | 2026-11-08 | `docs/spec/README.md` |
 | 1.11 | The interface is in English and Spanish, both kept complete: `check-i18n` fails on a key Spanish lacks, so a new string is translated in the same change. agent-tablet's German, French and Hungarian are not carried over | 2026-11-08 | `docs/foundations.md` · `docs/NOT_BUILT_YET.md` |
 | 1.12 | Menkar's logo is an eight-pointed star (four long points, four short), one color, near white (`build/icons/menkar.svg`); the launcher icon sets it on a dark rounded tile; the empty window shows the same star instead of agent-tablet's folder illustration | 2026-11-08 | `build/icons/` |
@@ -120,7 +120,6 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 1 | 1.98 (remember a maximized window) | For `b2`, restarted by `set` with `start_session` (which also tries 1.92 on the real desktop) |
 
 ## 4. Next plan number
 

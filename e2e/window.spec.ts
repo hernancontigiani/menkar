@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi, ProjectsSnapshot } from '../src/shared/ipc'
@@ -150,9 +150,58 @@ test('TRM-49, PRJ-45 closing a window with a running session asks; Stop and clos
       {
         current: 'aaaaaaaaaaaa',
         tabs: { aaaaaaaaaaaa: [{ panes: [SESSION], orientation: 'horizontal' }] },
+        maximized: false,
       },
     ])
   } finally {
     await launched.close()
+  }
+})
+
+test('decision 1.98: the last window closed maximized is saved so, and the next start maximizes its window once shown', async () => {
+  let root = ''
+  const first = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return prepare(dirs)
+    },
+  })
+  const savedWindows = () =>
+    JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8')).windows
+  try {
+    // No window manager under xvfb: the window is told it is maximized, as one would tell it.
+    await first.app.evaluate(({ app, BrowserWindow }) => {
+      app.removeAllListeners('window-all-closed')
+      const w = BrowserWindow.getAllWindows()[0]
+      if (!w) return
+      w.isMaximized = () => true
+      w.emit('maximize')
+      w.close()
+    })
+    await expect.poll(() => first.app.windows().length).toBe(0)
+    expect(savedWindows()).toEqual([{ current: 'aaaaaaaaaaaa', tabs: {}, maximized: true }])
+  } finally {
+    await first.close()
+  }
+
+  // Nor will maximize() take there: main's log says what it asked of the window, and when.
+  let log = ''
+  const second = await launchApp({
+    prepare: (dirs) => {
+      log = join(dirs.root, 'cache', 'menkar', 'menkar.log')
+      const env = prepare(dirs)
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const saved = JSON.parse(readFileSync(file, 'utf8'))
+      saved.windows = [{ current: 'aaaaaaaaaaaa', tabs: {}, maximized: true }]
+      writeFileSync(file, JSON.stringify(saved))
+      return { ...env, MENKAR_LOG: 'info' }
+    },
+  })
+  try {
+    await expect
+      .poll(() => (existsSync(log) ? readFileSync(log, 'utf8') : ''))
+      .toContain('window maximized as it was saved')
+  } finally {
+    await second.close()
   }
 })

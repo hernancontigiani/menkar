@@ -147,13 +147,18 @@ built and why.
   F5) return what changed, or a refusal key (`layout.twoPanesMax`, `layout.otherProject`,
   `layout.alreadyBeside`, `layout.sharesTab`) for the toast. Moving between tabs (`stepTab`,
   `nthTab`) only counts the shown project's tabs.
-- **What is saved** (`toSaved`): per window, the shown project and its session tabs (joined panes)
-  and file tabs, grouped by project, leaving out projects with none.
+- **What is saved** (`toSaved`): per window, the shown project (`current`), its session tabs
+  (joined panes) and file tabs (`tabs`), grouped by project, leaving out projects with none, and
+  `maximized` (decision 1.98, 2026-11-12): whether the window manager has it maximized, full screen
+  aside. Main sets it (`setMaximized`) when the window maximizes, restores, leaves full screen or
+  closes; full screen leaves it as it was.
 - **What reopens** (`reopen`): the saved windows as the file had them, each entry checked on its
   own. A project already taken by an earlier window is skipped. A session is placed once, only
   while it is a member of that tab's project, and at most two per tab. A file tab is kept only if
-  its path is still a regular file. With "Reopen tabs on start" off, or nothing usable left, the
-  result is one window on `current` with no tabs.
+  its path is still a regular file. A window is maximized only when its entry's `maximized` is
+  `true`; anything else, or a file from before the key, reads as not. With "Reopen tabs on start"
+  off, or nothing usable left, the result is one window on `current` with no tabs, maximized as the
+  first saved window was.
 - **When a project's tabs start** (decision 1.32, 2026-11-09): every project's saved tabs are
   reopened into its window, but only the shown project's sessions start at boot. Another project's
   session tabs stay in the layout, saved, with no process, until the window first shows that

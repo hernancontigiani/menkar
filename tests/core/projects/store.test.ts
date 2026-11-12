@@ -264,7 +264,7 @@ describe('projects.json', () => {
       current: 'a',
       projects: [{ id: 'a', name: 'Café', members: [] }],
     })
-    await saveProjects(parsed, [{ current: 'a', tabs: {} }])
+    await saveProjects(parsed, [{ current: 'a', tabs: {}, maximized: true }])
     const text = await readFile(projectsPath(), 'utf8')
     expect(text).toBe(
       [
@@ -283,7 +283,8 @@ describe('projects.json', () => {
         '  "windows": [',
         '    {',
         '      "current": "a",',
-        '      "tabs": {}',
+        '      "tabs": {},',
+        '      "maximized": true',
         '    }',
         '  ]',
         '}',

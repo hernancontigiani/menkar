@@ -124,3 +124,6 @@ Cursor) takes the newest session of that folder modified since the tab started, 
   plain `Terminal` with no command, never in the layout, `projects.json`, Usage or agent state. Its
   id travels on the panes' `pty:*` channels, which fall back to the drawers when no pane has the id.
   `TabView.drawer` carries its id, whether it is shown, and its label, `shell · <folder>`.
+
+> Left on 2026-11-12: an e2e asserts a maximize main asked for through its log (decision 1.98).
+  human's check on a real desktop.

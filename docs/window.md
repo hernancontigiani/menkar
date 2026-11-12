@@ -253,6 +253,12 @@ session) takes the newest session of that folder modified since the tab started,
   the same save and hang-up, then the relaunch. Unsaved edits are asked about first, on Settings
   (`docs/preferences.md`).
 - Projects, groups and membership are saved at once; the layout 500 ms after its last change.
+- **Maximized is remembered** (decision 1.98, 2026-11-12): the window manager's maximize, not full
+  screen. Each window's flag is in the layout (`maximized`, `docs/projects.md`), so the last window
+  closed, or every window at Restart now, saves it. A window the start restores maximizes once it
+  is shown, when its flag says so, and logs it (`window maximized as it was saved`, at info). A New
+  window opens at the default size. The size and position of a window that is not
+  maximized are not kept.
 
 ## The frame (2026-11-09)
 
@@ -314,7 +320,9 @@ session) takes the newest session of that folder modified since the tab started,
   nothing moves; no tab leaves its window. The order is the layout's, saved like the rest.
 - Session rows reorder the same way within their group (2026-11-10, `docs/projects.md`).
 - Under `xvfb-run` there is no window manager: maximize, minimize, edge resize and snapping are the
-  human's check on a real desktop.
+  human's check on a real desktop. `maximize()` does not take there either, and Playwright drops
+  `NODE_OPTIONS`, so a spy cannot be loaded into main before the first window: an e2e asserts what
+  main asked for through its log (`MENKAR_LOG=info`, `cache/menkar/menkar.log`).
 
 ## Checks
 

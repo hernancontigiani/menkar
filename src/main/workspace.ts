@@ -51,6 +51,7 @@ import {
   openSession,
   removeWindow,
   reopen,
+  setMaximized,
   shownTab,
   stepTab,
   switchProject,
@@ -575,10 +576,24 @@ function changed(options: { projects?: boolean } = {}): void {
     saveProjectsNow()
     return
   }
+  saveLayoutSoon()
+}
+
+function saveLayoutSoon(): void {
   saveTimer ??= setTimeout(() => {
     saveTimer = undefined
     saveProjectsNow()
   }, LAYOUT_SAVE_DELAY_MS)
+}
+
+// Full screen hides the maximize underneath it, so the flag keeps what it was before.
+function recordMaximized(windowId: string): void {
+  const window = windows.get(windowId)
+  if (!window || window.isDestroyed() || window.isFullScreen()) return
+  const maximized = window.isMaximized()
+  if (layout.windows.find((w) => w.id === windowId)?.maximized === maximized) return
+  layout = setMaximized(layout, windowId, maximized)
+  saveLayoutSoon()
 }
 
 // A project's saved session tabs start the first time its window shows it, not at boot; once
@@ -1428,17 +1443,26 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   window.once('ready-to-show', () => {
     startShown()
     window.show()
+    if (layout.windows.find((w) => w.id === windowId)?.maximized) {
+      window.maximize()
+      log.info('window maximized as it was saved', { window: windowId })
+    }
   })
   window.on('maximize', () => {
     lastMaximizeChange.set(windowId, now())
+    recordMaximized(windowId)
     push()
   })
   window.on('unmaximize', () => {
     lastMaximizeChange.set(windowId, now())
+    recordMaximized(windowId)
     push()
   })
   window.on('enter-full-screen', () => push())
-  window.on('leave-full-screen', () => push())
+  window.on('leave-full-screen', () => {
+    recordMaximized(windowId)
+    push()
+  })
   window.on('focus', () => {
     focusOrder = [windowId, ...focusOrder.filter((id) => id !== windowId)]
     const shown = layout.windows.find((x) => x.id === windowId)?.shown
@@ -1491,6 +1515,7 @@ function hangUpWindow(windowId: string): void {
 // leave its temporary file instead of the new projects.json.
 async function finishClose(windowId: string): Promise<void> {
   const last = windows.size <= 1
+  recordMaximized(windowId)
   clearTimeout(saveTimer)
   saveTimer = undefined
   if (last) {
@@ -1512,6 +1537,7 @@ async function finishClose(windowId: string): Promise<void> {
 // Restart now's quit: the layout saved as the last window's close saves it, every pty hung up,
 // with no question. Its question opened behind Settings, so the button seemed to do nothing.
 export async function quitApp(): Promise<void> {
+  for (const windowId of windows.keys()) recordMaximized(windowId)
   clearTimeout(saveTimer)
   saveTimer = undefined
   const saved = saveProjectsNow()

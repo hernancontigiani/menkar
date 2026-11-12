@@ -570,3 +570,7 @@ module, or a defect injected and removed).
 
 > Left §3 on 2026-11-12: the small tasks were built by `b1` and tried by the human.
 | 1 | Small tasks, not urgent: 1.87 (statusline without the total), 1.88 (Move to Trash in Files), 1.92 (a reused name makes the stopped session an earlier conversation), 1.96 (double-click a topic to discuss it), `last_reply` preferring the session with a tab when two share a name (seen 2026-11-12: it read the stopped `b1`) | Next, for `b1` after plan 34 is committed: they touch `src/main/workspace.ts` and the renderer |
+
+> Left on 2026-11-12: 1.98 built by `b2`.
+| 1.98 | Menkar remembers whether the last window closed was maximized, and opens the next start's window maximized or not to match (the human, 2026-11-12). Not built yet | 2026-11-12 | this row (until built) |
+| 1 | 1.98 (remember a maximized window) | For `b2`, restarted by `set` with `start_session` (which also tries 1.92 on the real desktop) |

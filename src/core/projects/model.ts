@@ -63,6 +63,7 @@ export type SavedTab =
 export interface SavedWindow {
   readonly current: string
   readonly tabs: Readonly<Record<string, readonly SavedTab[]>>
+  readonly maximized: boolean
 }
 
 export interface Projects {

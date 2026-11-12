@@ -14,6 +14,7 @@ import {
   openSession,
   removeWindow,
   reopen,
+  setMaximized,
   shownTab,
   stepTab,
   switchProject,
@@ -352,6 +353,7 @@ describe('the saved layout', () => {
             { panes: ['s2'], orientation: 'horizontal' },
           ],
         },
+        maximized: false,
       },
     ])
   })
@@ -365,7 +367,17 @@ describe('the saved layout', () => {
       ]),
     )
     expect(toSaved(layout)).toEqual([
-      { current: 'A', tabs: { A: [{ file: '/n.md', preview: true }] } },
+      { current: 'A', tabs: { A: [{ file: '/n.md', preview: true }] }, maximized: false },
+    ])
+  })
+
+  test('decision 1.98: a window maximized, then restored or not, is saved as it last was', () => {
+    const layout = layoutOf(win('w1', 'A', []), win('w2', 'B', []))
+    const maximized = setMaximized(layout, 'w2', true)
+    expect(toSaved(maximized).map((w) => w.maximized)).toEqual([false, true])
+    expect(toSaved(setMaximized(maximized, 'w2', false)).map((w) => w.maximized)).toEqual([
+      false,
+      false,
     ])
   })
 })
@@ -443,6 +455,26 @@ describe('reopening on start', () => {
       reopenTabs: false,
     })
     expect(layout.windows.map((w) => [w.shown, w.tabs.length])).toEqual([['A', 0]])
+  })
+
+  test('decision 1.98: a window saved maximized reopens maximized; anything but true reads as not', () => {
+    const layout = reopenWith([
+      { current: 'A', tabs: {}, maximized: true },
+      { current: 'B', tabs: {}, maximized: 'yes' },
+    ])
+    expect(layout.windows.map((w) => [w.shown, w.maximized])).toEqual([
+      ['A', true],
+      ['B', false],
+    ])
+    expect(reopenWith([{ current: 'A', tabs: {} }]).windows[0]?.maximized).toBe(false)
+  })
+
+  test('decision 1.98: with reopening off, the one window opens maximized as the first saved window was', () => {
+    const off = { reopenTabs: false }
+    expect(reopenWith([{ current: 'B', tabs: {}, maximized: true }], off).windows).toMatchObject([
+      { shown: 'A', tabs: [], maximized: true },
+    ])
+    expect(reopenWith([], off).windows[0]?.maximized).toBe(false)
   })
 
   test('a window whose saved project is gone shows the first project it has tabs of; nothing usable → one window on current', () => {

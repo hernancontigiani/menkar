@@ -38,6 +38,8 @@ export interface LayoutWindow {
   readonly tabs: readonly Tab[]
   // The tab last selected in each project this window holds.
   readonly selected: Readonly<Record<string, string>>
+  // The window manager's maximize, not full screen; a window the start restores maximizes when set.
+  readonly maximized?: boolean
 }
 
 export interface Layout {
@@ -360,6 +362,12 @@ export function removeWindow(layout: Layout, windowId: string): Layout {
   return { windows: layout.windows.filter((w) => w.id !== windowId) }
 }
 
+export function setMaximized(layout: Layout, windowId: string, maximized: boolean): Layout {
+  return {
+    windows: layout.windows.map((w) => (w.id === windowId ? { ...w, maximized } : w)),
+  }
+}
+
 export function toSaved(layout: Layout): SavedWindow[] {
   return layout.windows.map((w) => {
     const tabs: Record<string, SavedTab[]> = {}
@@ -374,7 +382,7 @@ export function toSaved(layout: Layout): SavedWindow[] {
         tabs[tab.project] = list
       }
     }
-    return { current: w.shown, tabs }
+    return { current: w.shown, tabs, maximized: w.maximized === true }
   })
 }
 
@@ -386,8 +394,18 @@ export interface ReopenOptions {
 
 // What reopens on start, from the saved windows as the file had them.
 export function reopen(projects: Projects, options: ReopenOptions): Layout {
+  // Without tabs to reopen, the one window still opens as the first saved one was.
+  const first = projects.windows.find(isObject)
   const single = (): Layout => ({
-    windows: [{ id: options.newId(), shown: projects.current, tabs: [], selected: {} }],
+    windows: [
+      {
+        id: options.newId(),
+        shown: projects.current,
+        tabs: [],
+        selected: {},
+        maximized: first?.maximized === true,
+      },
+    ],
   })
   if (!options.reopenTabs) return single()
   const exists = new Set(projects.projects.map((p) => p.id))
@@ -435,7 +453,13 @@ export function reopen(projects: Projects, options: ReopenOptions): Layout {
     if (shown === undefined) continue
     taken.add(shown)
     for (const tab of tabs) taken.add(tab.project)
-    windows.push({ id: options.newId(), shown, tabs, selected: {} })
+    windows.push({
+      id: options.newId(),
+      shown,
+      tabs,
+      selected: {},
+      maximized: raw.maximized === true,
+    })
   }
   return windows.length > 0 ? { windows } : single()
 }

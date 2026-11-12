@@ -73,3 +73,9 @@ keeps how they are built and why.
   them); a leader in "No group" (a leader leads a group).
   known ones. A group writes `name`, `color`, `members`, then `collapsed` and `leader` only when
   set, so a file using neither is written as before; a group's unknown keys are not kept. Written
+
+> Left on 2026-11-12: each saved window keeps whether it is maximized (decision 1.98).
+- **What is saved** (`toSaved`): per window, the shown project and its session tabs (joined panes)
+  and file tabs, grouped by project, leaving out projects with none.
+  its path is still a regular file. With "Reopen tabs on start" off, or nothing usable left, the
+  result is one window on `current` with no tabs.

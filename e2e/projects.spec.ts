@@ -584,6 +584,7 @@ test('PRJ-54 a fork tab open at close is not saved', async () => {
       {
         current: 'cccccccccccc',
         tabs: { cccccccccccc: [{ panes: [CLIENT.long], orientation: 'horizontal' }] },
+        maximized: false,
       },
     ])
   } finally {
@@ -831,6 +832,7 @@ test('PRJ-47 closing window 2 then window 1 saves one window, A with its tabs; t
               { panes: [CLIENT.api], orientation: 'horizontal' },
             ],
           },
+          maximized: false,
         },
       ])
     await launched.app.close()
