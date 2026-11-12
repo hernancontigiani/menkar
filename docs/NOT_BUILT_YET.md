@@ -182,6 +182,19 @@ agent that runs in a terminal fits.
   these agents; read it for each agent's commands and transcript formats. Menkar is written from
   scratch (decision 1.1), so it is read as documentation, not copied — and its license is checked
   first.
+- **Menkar's own skills** (`menkar:orchestrator`, `menkar:worker`, `menkar:distill`) reach Claude
+  Code through a plugin passed with `--plugin-dir`. Codex and Gemini have **no per-session flag**
+  for skills: both read `.agents/skills` inside the project (measured 2026-11-12,
+  `plans/ideas/research/skills-delivery.md`), so for them the skills would be copied or linked
+  into the repository, which is the user's. Decide how before shipping skills to them.
+- **What the orchestration mode needs from an agent** (measured or read 2026-11-11/12,
+  `plans/ideas/research/wake-orchestrator.md`): MCP support (all four have it, but each takes its
+  servers its own way, not `--mcp-config`); hooks for the turn's end and a permission request
+  (Codex: `Stop`, `PermissionRequest`; Gemini: `AfterAgent`, `Notification`); resuming with a
+  first prompt (`codex resume <id> "<prompt>"`, `gemini -r <id> "<prompt>"`; Cursor's
+  `--resume [chatId]` with a prompt is not confirmed); and how to wake it (the entry below).
+- **The variables a running agent sets for its children** must not reach the agents Menkar starts
+  (`src/core/sessionenv.ts` holds Claude Code's, 1.75): find each new agent's.
 
 **Trigger:** after 1.0, the human installs one of them on Ubuntu to try it. First question, per
 agent: the five facts above, read from its docs, Agent Desk's code and a real session, before
