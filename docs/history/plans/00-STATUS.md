@@ -373,3 +373,6 @@
 
 > Left §1 on 2026-11-12: 1.76's removal delivered.
 | 1.76 | Amends 1.50 and 1.54 (the human, 2026-11-12): a group is only a visual way to gather sessions; **the leader mark per group goes** (the ★, its menu entries, `leader` in `projects.json`, read leniently and dropped). Roles belong to the orchestration mode, per session, not to groups: experts in an area, consultants, troubleshooting, documentation — to be designed with that mode | 2026-11-12 | this row (until the removal is delivered) |
+
+> Left §1 on 2026-11-12: the plugin namespaces the names.
+| 1.71 | Menkar ships its own skills for orchestration — `menkar-orchestrator`, `menkar-worker`, `menkar-distill` — written for any project and aware of Menkar's MCP (1.70); this repository's orchestrator uses them, keeping in `plans/ROLE-ORCHESTRATOR.md` only what is Menkar's own. Written after plan 31, so they name tools that exist; how they reach a session (installed files, a plugin, or served by Menkar's MCP) is open | 2026-11-11 | this row |
