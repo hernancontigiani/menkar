@@ -31,6 +31,9 @@ export interface Project {
   // an in-session `/resume`, by the id that replaced them. Still members, so still counted; listed
   // only in that session's menu.
   readonly earlier?: Readonly<Record<string, readonly string[]>>
+  // Who started a session through Menkar, by child id: the session woken when the child
+  // waits at a prompt or ends its turn.
+  readonly parents?: Readonly<Record<string, string>>
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }

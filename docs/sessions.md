@@ -71,6 +71,8 @@ the new id, and so does the saved tab.
 - **After a clear** (`followNewId`, `src/core/projects/rekey.ts`) the new id takes the old one's
   place: its spot in the project's members, its group, the group's leader mark and its hidden flag.
   Nothing changes when the new id already is in a project.
+- **A renew** (`docs/session-control.md`) follows the same way as a clear: `followClear` in
+  `workspace.ts` is shared by both. It also moves the session's parents (`docs/projects.md`).
 - **After a resume** (`followResume`), the same, for the resumed session: it leaves wherever it
   was (another project and its group there, this project's list, or an earlier conversation), takes
   the left one's place, and is shown. It brings its own earlier conversations along, since a

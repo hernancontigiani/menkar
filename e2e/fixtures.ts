@@ -10,6 +10,11 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // in Claude Code: a new session id (CLEARED_SESSION) with a transcript of its own, and the
 // SessionStart hook its --settings declares for "clear" run with that id, in its environment;
 // RESUME runs the "resume" hook for the session FAKE_CLAUDE_RESUME names, as `/resume` does.
+// Menkar's MCP tools are called through the real server its --mcp-config names, started
+// as Claude Code starts it: RENEW calls renew, then ends the turn (the Stop hook its --settings
+// declares); SPAWN1 starts "worker" in the group "pair" with a prompt; SPAWN2 asks for "worker"
+// again; SPAWN3 names a group that does not exist; LISTS lists the project; REPLY asks for
+// worker's last reply. Each answer is printed as "TOOL <name>: <text>".
 const FAKE_CLAUDE = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path')
 const args = process.argv.slice(2)
@@ -36,6 +41,36 @@ function sessionStart(source, id, transcript) {
     input: JSON.stringify({ session_id: id, transcript_path: transcript, cwd: process.cwd(), hook_event_name: 'SessionStart', source }),
   })
 }
+const ownId = at >= 0 ? args[at + 1] : args.includes('--resume') ? args[args.indexOf('--resume') + 1] : null
+function callTool(name, toolArgs, endsTurn) {
+  const server = JSON.parse(args[args.indexOf('--mcp-config') + 1]).mcpServers.menkar
+  const child = require('node:child_process').spawn(server.command, server.args, {
+    env: { ...process.env, ...server.env },
+    stdio: ['pipe', 'pipe', 'inherit'],
+  })
+  let out = ''
+  child.stdout.on('data', (d) => {
+    out += d
+    const lines = out.split('\\n')
+    out = lines.pop()
+    for (const line of lines) {
+      const reply = JSON.parse(line)
+      if (reply.id !== 2) continue
+      process.stdout.write('TOOL ' + name + ': ' + reply.result.content[0].text.replace(/\\s+/g, ' ') + '\\r\\n')
+      child.kill()
+      if (endsTurn) stopHook()
+    }
+  })
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }) + '\\n')
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: toolArgs } }) + '\\n')
+}
+// The turn ends: the Stop hook its --settings declares, run as Claude Code runs it.
+function stopHook() {
+  const settings = JSON.parse(fs.readFileSync(args[args.indexOf('--settings') + 1], 'utf8'))
+  require('node:child_process').execFileSync('/bin/sh', ['-c', settings.hooks.Stop[0].hooks[0].command], {
+    input: JSON.stringify({ session_id: ownId, hook_event_name: 'Stop', stop_hook_active: false }),
+  })
+}
 // Raw, so the bytes each key sends arrive as they are; recorded as hex, one read per line.
 if (process.stdin.isTTY) process.stdin.setRawMode(true)
 let typed = ''
@@ -56,6 +91,19 @@ process.stdin.on('data', (d) => {
     typed = ''
     sessionStart('resume', process.env.FAKE_CLAUDE_RESUME, path.join(folder, process.env.FAKE_CLAUDE_RESUME + '.jsonl'))
     process.stdout.write('stand-in resumed\\r\\n')
+  }
+  const calls = {
+    RENEW: ['renew', { prompt: 'carry on from the notes' }, true],
+    SPAWN1: ['start_session', { name: 'worker', prompt: 'build the thing', group: 'pair' }],
+    SPAWN2: ['start_session', { name: 'worker' }],
+    SPAWN3: ['start_session', { name: 'other', group: 'no such group' }],
+    LISTS: ['list_sessions', {}],
+    REPLY: ['last_reply', { name: 'worker' }],
+  }
+  for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
+    if (!typed.endsWith(word)) continue
+    typed = ''
+    callTool(tool, toolArgs, endsTurn)
   }
   if (typed.includes('EXIT1')) {
     process.stderr.write('stand-in failed to start\\r\\n')

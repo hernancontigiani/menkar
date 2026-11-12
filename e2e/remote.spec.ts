@@ -45,7 +45,7 @@ test('RC-1, RC-2 the switch on New: the id joins the list at once, the flag carr
     await expect
       .poll(args)
       .toMatch(
-        /--session-id ([0-9a-f-]{36}) -n JWT auth --remote-control=JWT auth --add-dir \S+\/Menkar\/Client work\/files --settings /,
+        /--session-id ([0-9a-f-]{36}) -n JWT auth --remote-control=JWT auth --add-dir \S+\/Menkar\/Client work\/files --mcp-config \{.+\} --settings /,
       )
     const id = /--session-id ([0-9a-f-]{36})/.exec(args())?.[1]
     expect(stateFile().remote_control).toEqual([id])
@@ -66,7 +66,7 @@ test('RC-5 a session in the list resumes with its name as the flag', async () =>
       .poll(args)
       .toMatch(
         new RegExp(
-          `^--resume ${SESSION} --remote-control=fix the login bug --add-dir \\S+/Menkar/Client work/files --settings `,
+          `^--resume ${SESSION} --remote-control=fix the login bug --add-dir \\S+/Menkar/Client work/files --mcp-config \\{.+\\} --settings `,
         ),
       )
     await expect(page.locator('.row .phone')).toHaveAttribute(
@@ -87,7 +87,9 @@ test('RC-6, RC-13, RC-15, RC-16 not in the list: no flag; checking it while runn
     await expect
       .poll(args)
       .toMatch(
-        new RegExp(`^--resume ${SESSION} --add-dir \\S+/Menkar/Client work/files --settings `),
+        new RegExp(
+          `^--resume ${SESSION} --add-dir \\S+/Menkar/Client work/files --mcp-config \\{.+\\} --settings `,
+        ),
       )
     await page.locator('.row', { hasText: 'fix the login bug' }).click({ button: 'right' })
     const items = await page.locator('.menu-item').allTextContents()
@@ -333,7 +335,7 @@ test('RC-21 renamed in the app while running: the next start carries the new nam
     await page.locator('.row', { hasText: 'api v2' }).dblclick()
     await expect.poll(() => args().trim().split('\n').length).toBe(2)
     expect(args().trim().split('\n')[1]).toMatch(
-      /--remote-control=api v2 --add-dir \S+\/Menkar\/Client work\/files --settings/,
+      /--remote-control=api v2 --add-dir \S+\/Menkar\/Client work\/files --mcp-config \{.+\} --settings/,
     )
   } finally {
     await launched.close()

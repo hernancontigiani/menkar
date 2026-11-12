@@ -10,6 +10,7 @@ import {
   type Projects,
   type SavedWindow,
 } from './model'
+import { keptParents } from './parents'
 
 export const PROJECTS_VERSION = 1
 
@@ -39,6 +40,15 @@ function earlierLists(value: unknown): Record<string, string[]> {
   return lists
 }
 
+// A child id → parent id map, read as far as it is one.
+function parentMap(value: unknown): Record<string, string> {
+  if (!isObject(value)) return {}
+  const map: Record<string, string> = {}
+  for (const [child, parent] of Object.entries(value))
+    if (typeof parent === 'string') map[child] = parent
+  return map
+}
+
 // Version 1, read strictly: a shape it cannot hold makes the whole file unreadable (moved aside),
 // while what can be repaired is repaired (a session kept in its first project, group members that
 // are not the project's dropped, a missing color).
@@ -59,6 +69,7 @@ export function parseProjects(value: unknown): Projects {
       files_folder,
       files_collapsed,
       earlier,
+      parents,
       ...projectRest
     } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
@@ -110,7 +121,12 @@ export function parseProjects(value: unknown): Projects {
     }
     // Lenient too: a list this version cannot read only lists those sessions again.
     const earlierKept = keptEarlier({ ...read, earlier: earlierLists(earlier) })
-    return Object.keys(earlierKept).length > 0 ? { ...read, earlier: earlierKept } : read
+    const withEarlier =
+      Object.keys(earlierKept).length > 0 ? { ...read, earlier: earlierKept } : read
+    const parentsKept = keptParents({ ...read, parents: parentMap(parents) })
+    return Object.keys(parentsKept).length > 0
+      ? { ...withEarlier, parents: parentsKept }
+      : withEarlier
   })
   const first = parsed[0]
   if (!first) unreadable('no projects')
@@ -125,7 +141,7 @@ export function parseProjects(value: unknown): Projects {
 }
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
-// keys, then id, name, members, groups, and hidden, the files keys and earlier when any. A group writes name, color, members,
+// keys, then id, name, members, groups, and hidden, the files keys, earlier and parents when any. A group writes name, color, members,
 // then collapsed and leader only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
@@ -151,6 +167,7 @@ export function serializeProjects(
       ...(p.filesFolder ? { files_folder: p.filesFolder } : {}),
       ...(p.filesCollapsed ? { files_collapsed: true } : {}),
       ...(Object.keys(keptEarlier(p)).length > 0 ? { earlier: keptEarlier(p) } : {}),
+      ...(Object.keys(keptParents(p)).length > 0 ? { parents: keptParents(p) } : {}),
     })),
     windows,
   }

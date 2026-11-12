@@ -49,6 +49,8 @@ export const sessionsDir = (): string => join(appDirs().cache, 'sessions')
 // Apart from sessionsDir, which the app watches for readings.
 export const sessionStartsDir = (): string => join(appDirs().cache, 'session-starts')
 export const costBaselinesDir = (): string => join(appDirs().cache, 'cost-baselines')
+// Where the Stop hook tells Menkar a pane's turn ended; the control files' folder.
+export const turnEndsDir = (): string => join(appDirs().cache, 'control', 'turn-ends')
 
 // What the SessionStart hook leaves for a session: Claude Code's `source`, when, and the Menkar pane
 // it runs in (null outside one), which is how the app learns that a pane's session changed id.
@@ -325,6 +327,26 @@ export function runSessionStart(stdin: string): void {
   }
 }
 
+// The Stop hook: the turn in this pane is over. A pane id names the file, so it is a plain word.
+export function recordTurnEnd(
+  payload: Payload,
+  pane: string | undefined = process.env[PANE_ENV],
+): void {
+  const id = payload.session_id
+  if (!validId(id) || !pane || !/^[A-Za-z0-9_-]{1,100}$/.test(pane)) return
+  const dir = turnEndsDir()
+  writeAtomically(join(dir, `${pane}.json`), dir, JSON.stringify({ session_id: id, at: stamp() }))
+}
+
+export function runTurnEnd(stdin: string): void {
+  try {
+    const payload: unknown = JSON.parse(stdin)
+    if (isObject(payload)) recordTurnEnd(payload)
+  } catch {
+    // The same as the SessionStart hook: a failed hook shows in the session, so it fails quietly.
+  }
+}
+
 function readStdin(): string {
   try {
     return readFileSync(0, 'utf8')
@@ -335,8 +357,11 @@ function readStdin(): string {
 
 // The same file is Menkar's SessionStart hook when called with this argument.
 export const SESSION_START_ARG = 'session-start'
+// And Menkar's Stop hook with this one.
+export const TURN_END_ARG = 'turn-end'
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv[2] === SESSION_START_ARG) runSessionStart(readStdin())
+  else if (process.argv[2] === TURN_END_ARG) runTurnEnd(readStdin())
   else process.stdout.write(`${runStatusline(readStdin())}\n`)
 }

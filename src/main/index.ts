@@ -14,6 +14,7 @@ import { startAgentState } from './agentstate'
 import { closeAllChats, registerChatIpc } from './chat'
 import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
 import { startContextReadings } from './context'
+import { startControl, stopControl } from './control'
 import { watchPaneStarts } from './pane-starts'
 import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
@@ -22,6 +23,7 @@ import { broadcastSessions, sessions } from './sessions'
 import { startPhase } from './startup'
 import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
+  controlHandlers,
   deliverFiles,
   followPaneStart,
   openFirstWindowIfNone,
@@ -131,6 +133,11 @@ async function start(): Promise<void> {
   })
   startPhase('services started')
   await startWorkspace()
+  // Menkar's MCP server talks to this process through files once the window state exists.
+  await startControl(controlHandlers).catch((error: unknown) =>
+    log.error('Menkar’s MCP tools could not start', { error }),
+  )
+  app.on('will-quit', () => void stopControl())
   openFirstWindowIfNone()
   startPhase('windows created')
 }

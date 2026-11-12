@@ -6,20 +6,27 @@ import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { AGENT_COMMANDS } from '../core/agents'
 import { now } from '../core/clock'
-import { buildCommand, type Start } from '../core/command'
+import { buildCommand, mcpConfig, type Start } from '../core/command'
 import { PANE_ENV } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
+import { WakeBatcher } from '../core/control/events'
+import type { ControlAnswer, ControlRequest, Snapshot } from '../core/control/files'
+import { replyText, sessionOfProject } from '../core/control/lastreply'
+import { postToSession } from '../core/control/post'
+import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
 import { DrawerRegistry, drawerFolder } from '../core/drawers'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
-import { forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
+import { agentPaths } from '../core/paths'
+import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
   bringProject,
   closeTab as closeLayoutTab,
   holder,
+  insertTabAfter,
   type Layout,
   type LayoutWindow,
   moveSessionHere,
@@ -57,6 +64,7 @@ import {
   setLeader,
   showMember,
 } from '../core/projects/model'
+import { keptParents, setParent } from '../core/projects/parents'
 import { followNewId, followNewIdInLayout, followResume } from '../core/projects/rekey'
 import { saveProjects } from '../core/projects/store'
 import { activeProjects, touched } from '../core/projects/switching'
@@ -69,6 +77,7 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
+import { lastReply } from '../core/sessions/lastreply'
 import { details, exportMarkdown, safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
@@ -80,8 +89,15 @@ import type {
   TabView,
   WindowState,
 } from '../shared/workspace'
+import { agentStates, onShownChange } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
 import { contextReading, sessionSettingsFile, trackContext } from './context'
+import {
+  type ControlHandlers,
+  mcpServerScript,
+  publishSnapshot,
+  setSnapshotSource,
+} from './control'
 import {
   applyEdit,
   bufferState,
@@ -176,7 +192,9 @@ let joinTimer: ReturnType<typeof setInterval> | undefined
 // ---------------------------------------------------------------- lookups
 
 const sessionInfo = (id: string) => sessionList.find((s) => s.id === id)
-const sessionName = (id: string) => sessionInfo(id)?.name ?? id.slice(0, 8)
+// The name a session another one started has until its transcript gives Claude's.
+const startedNames = new Map<string, string>()
+const sessionName = (id: string) => sessionInfo(id)?.name ?? startedNames.get(id) ?? id.slice(0, 8)
 const agentName = (agent: PaneAgent) => (agent === 'cursor' ? t('agent.cursor') : t('agent.claude'))
 
 function windowOfTab(tabId: string): LayoutWindow | undefined {
@@ -461,6 +479,7 @@ function changed(options: { projects?: boolean } = {}): void {
   startShownTabs()
   syncShown(new Set(layout.windows.map((lw) => lw.shown)))
   push()
+  publishSnapshots()
   if (options.projects) {
     clearTimeout(saveTimer)
     saveTimer = undefined
@@ -524,6 +543,8 @@ interface PaneSpec {
   readonly pending?: Pending
   // The name to start with `--remote-control=<name>` (Claude Code only).
   readonly remote?: string
+  // A file holding the first prompt, read by the shell.
+  readonly promptFile?: string
 }
 
 // Tabs whose panes are being started: a start awaits before the tab has its panes, and a change
@@ -579,6 +600,10 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         ...(settingsFile ? { settings: settingsFile } : {}),
         ...(spec.agent === 'claude' && spec.remote ? { remoteControl: spec.remote } : {}),
         ...(filesFolder ? { addDirs: [filesFolder] } : {}),
+        ...(spec.agent === 'claude'
+          ? { mcpConfig: mcpConfig(process.execPath, mcpServerScript()) }
+          : {}),
+        ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
       })
     }
   }
@@ -656,6 +681,20 @@ function onPaneExit(paneId: string): void {
   if (!pane) return
   panes.delete(paneId)
   pane.handle?.close()
+  // A pane hung up to renew its session: its tab stays, already re-keyed, for the new one.
+  const renewed = renewing.get(paneId)
+  if (renewed) {
+    renewing.delete(paneId)
+    tabPanes.set(
+      pane.tabId,
+      (tabPanes.get(pane.tabId) ?? []).filter((id) => id !== paneId),
+    )
+    renewed()
+    return
+  }
+  const pendingRenew = renewRequests.get(paneId)
+  if (pendingRenew) clearTimeout(pendingRenew.timer)
+  renewRequests.delete(paneId)
   const ids = (tabPanes.get(pane.tabId) ?? []).filter((id) => id !== paneId)
   if (pane.pending) void checkPending([pane])
   if (ids.length === 0) {
@@ -822,6 +861,298 @@ async function isFolder(path: string): Promise<boolean> {
   }
 }
 
+// ---------------------------------------------------------------- Menkar's MCP tools
+
+// A renew waits for the Stop hook's record of the turn's end; ten minutes without one, the pane's
+// shown state turning idle or done is taken instead.
+const RENEW_FALLBACK_MS = 10 * 60 * 1000
+const RENEW_CHECK_MS = 2000
+
+interface RenewRequest {
+  readonly sessionId: string
+  readonly promptFile?: string
+  timer: ReturnType<typeof setTimeout>
+}
+// By pane: a session asked to be renewed once its turn ends.
+const renewRequests = new Map<string, RenewRequest>()
+// By pane: hung up to renew; called when it is gone, so the new session starts in its tab.
+const renewing = new Map<string, () => void>()
+
+// The tools' sentences go to the agent that called, in English.
+const refuse = (text: string): ControlAnswer => ({ ok: false, text })
+const NOT_KNOWN = "Menkar does not know this tab's session yet; try again in a moment."
+
+const prompted = async (id: string, prompt: unknown): Promise<string | ControlAnswer | null> => {
+  if (prompt === undefined || prompt === null || prompt === '') return null
+  if (typeof prompt !== 'string') return refuse('The prompt must be text.')
+  const checked = promptText(Buffer.from(prompt, 'utf8'))
+  return 'refusal' in checked ? refuse(checked.refusal) : savePrompt(id, checked.text)
+}
+
+async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
+  const pane = panes.get(request.pane)
+  const sessionId = pane?.sessionId
+  const project = sessionId ? projectOf(projects, sessionId) : undefined
+  if (!pane || pane.agent !== 'claude' || !sessionId || !project) return refuse(NOT_KNOWN)
+  switch (request.tool) {
+    case 'renew':
+      return requestRenew(pane, sessionId, request)
+    case 'start_session':
+      return startForAgent(pane, sessionId, project.id, request)
+    case 'list_sessions':
+      return { ok: true, text: listText(project.id) }
+    case 'last_reply':
+      return lastReplyFor(project.id, request.args.name)
+  }
+}
+
+async function requestRenew(
+  pane: Pane,
+  sessionId: string,
+  request: ControlRequest,
+): Promise<ControlAnswer> {
+  const promptFile = await prompted(request.id, request.args.prompt)
+  if (promptFile !== null && typeof promptFile !== 'string') return promptFile
+  const before = renewRequests.get(pane.id)
+  if (before) clearTimeout(before.timer)
+  renewRequests.set(pane.id, {
+    sessionId,
+    ...(promptFile ? { promptFile } : {}),
+    timer: setTimeout(() => renewWhenIdle(pane.id), RENEW_FALLBACK_MS),
+  })
+  return {
+    ok: true,
+    text: 'This session will be renewed in its tab once this turn ends. End your turn now.',
+  }
+}
+
+// The Stop hook's record: the turn in this pane ended, under this session id.
+function turnEnded(paneId: string, sessionId: string): void {
+  const request = renewRequests.get(paneId)
+  if (request && panes.get(paneId)?.sessionId === sessionId && request.sessionId === sessionId)
+    void renew(paneId)
+}
+
+function renewWhenIdle(paneId: string): void {
+  const request = renewRequests.get(paneId)
+  if (!request) return
+  const state = agentStates().panes.find((p) => p.paneId === paneId)?.state
+  if (state === 'idle' || state === 'done') void renew(paneId)
+  else request.timer = setTimeout(() => renewWhenIdle(paneId), RENEW_CHECK_MS)
+}
+
+// A `/clear` nobody types: the tab is re-keyed to a new id first, as a followed
+// clear does, then the old agent is hung up as closing a tab does, then the new session starts in
+// the same tab with the same name. Starting first would race its own SessionStart record.
+async function renew(paneId: string): Promise<void> {
+  const request = renewRequests.get(paneId)
+  const pane = panes.get(paneId)
+  renewRequests.delete(paneId)
+  if (request) clearTimeout(request.timer)
+  if (!request || !pane || pane.sessionId !== request.sessionId) return
+  const from = request.sessionId
+  const info = sessionInfo(from)
+  const to = randomUUID()
+  if (!followClear(pane, from, to)) {
+    log.warn('a session was not renewed: it is in no project', { session: from })
+    return
+  }
+  const name = info?.claudeNamed ? info.name : startedNames.get(from)
+  if (name) startedNames.set(to, name)
+  const tabId = pane.tabId
+  holdStart(tabId)
+  try {
+    await new Promise<void>((resolve) => {
+      renewing.set(paneId, resolve)
+      pane.terminal.hangUp()
+    })
+    if (!tabById(tabId)) return
+    const remote = remoteIds.has(to) ? remoteName(name ?? '', pane.cwd, to) : undefined
+    await startPane(tabId, {
+      agent: 'claude',
+      start: { kind: 'new', id: to, ...(name ? { name } : {}) },
+      cwd: pane.cwd,
+      sessionId: to,
+      ...(remote ? { remote } : {}),
+      ...(request.promptFile ? { promptFile: request.promptFile } : {}),
+    })
+  } finally {
+    releaseStart(tabId)
+  }
+  log.info('a session renewed itself', { from, to })
+  changed()
+}
+
+// A project's sessions as the tools see them: its members, without the earlier conversations.
+function projectSessions(projectId: string): string[] {
+  const p = projects.projects.find((x) => x.id === projectId)
+  if (!p) return []
+  const earlier = earlierIds(p)
+  return p.members.filter((id) => !earlier.has(id))
+}
+
+// Names with a tab in the project: a name is how the agents address a session.
+function namesWithTab(projectId: string): Set<string> {
+  return new Set(
+    layout.windows.flatMap((w) =>
+      w.tabs.flatMap((t) =>
+        t.kind === 'session' && t.project === projectId ? t.panes.map(sessionName) : [],
+      ),
+    ),
+  )
+}
+
+async function startForAgent(
+  caller: Pane,
+  callerId: string,
+  projectId: string,
+  request: ControlRequest,
+): Promise<ControlAnswer> {
+  const args = request.args
+  const name = typeof args.name === 'string' ? args.name.trim() : ''
+  if (!name) return refuse('A name is needed to start a session.')
+  if (namesWithTab(projectId).has(name))
+    return refuse(`A session called "${name}" already has a tab in this project.`)
+  const groupName = typeof args.group === 'string' ? args.group.trim() : ''
+  const project = projects.projects.find((p) => p.id === projectId)
+  const group = groupName ? project?.groups.find((g) => g.name === groupName) : undefined
+  if (groupName && !group) return refuse(`The project has no group called "${groupName}".`)
+  const hasPrompt = typeof args.prompt === 'string' && args.prompt !== ''
+  if (hasPrompt && args.prompt_file !== undefined)
+    return refuse('Give either prompt or prompt_file, not both.')
+  let promptFile: string | null = null
+  if (args.prompt_file !== undefined) {
+    if (typeof args.prompt_file !== 'string') return refuse('The prompt_file must be a path.')
+    const read = await readPromptFile(args.prompt_file)
+    if ('refusal' in read) return refuse(read.refusal)
+    promptFile = await savePrompt(request.id, read.text)
+  } else {
+    const saved = await prompted(request.id, args.prompt)
+    if (saved !== null && typeof saved !== 'string') return saved
+    promptFile = saved
+  }
+  if (!tabById(caller.tabId)) return refuse(NOT_KNOWN)
+  const id = randomUUID()
+  startedNames.set(id, name)
+  projects = setParent(addMember(projects, projectId, id), id, callerId)
+  if (group) projects = setGroup(projects, projectId, id, { name: group.name, color: group.color })
+  const remote = args.remote_control === true
+  if (remote) {
+    remoteIds.add(id)
+    await sessions.updateState((state) => setRemoteControl(state, id, true))
+  }
+  const tab: Tab = {
+    kind: 'session',
+    id: newId(),
+    project: projectId,
+    panes: [id],
+    orientation: 'horizontal',
+  }
+  layout = insertTabAfter(layout, caller.tabId, tab)
+  await startPane(tab.id, {
+    agent: 'claude',
+    start: { kind: 'new', id, name },
+    cwd: caller.cwd,
+    sessionId: id,
+    ...(remote ? { remote: remoteName(name, caller.cwd, id) } : {}),
+    ...(promptFile ? { promptFile } : {}),
+  })
+  changed({ projects: true })
+  return {
+    ok: true,
+    text: `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
+  }
+}
+
+async function lastReplyFor(projectId: string, named: unknown): Promise<ControlAnswer> {
+  if (typeof named !== 'string' || !named.trim())
+    return refuse('Name the session whose last reply you want.')
+  const list = projectSessions(projectId).map((id) => ({ id, name: sessionName(id) }))
+  const found = sessionOfProject(named.trim(), list)
+  if ('refusal' in found) return refuse(found.refusal)
+  const info = sessionInfo(found.id)
+  if (!info || info.agent !== 'claude') return refuse(`"${named.trim()}" has not replied yet.`)
+  let reply: string | null
+  try {
+    reply = await lastReply(info.file)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    reply = null
+  }
+  return reply === null
+    ? refuse(`"${named.trim()}" has not replied yet.`)
+    : { ok: true, text: replyText(reply) }
+}
+
+function snapshotOf(projectId: string): Snapshot {
+  const p = projects.projects.find((x) => x.id === projectId)
+  const states = new Map(
+    agentStates().panes.flatMap((s) => (s.sessionId ? [[s.sessionId, s.state] as const] : [])),
+  )
+  const parents = p ? keptParents(p) : {}
+  return {
+    project: { id: projectId, name: p?.name ?? '' },
+    sessions: projectSessions(projectId).map((id) => {
+      const parent = parents[id]
+      return {
+        name: sessionName(id),
+        id,
+        state: states.get(id) ?? null,
+        context: contextReading(id)?.percentage ?? null,
+        parent: parent ? sessionName(parent) : null,
+        tab: inSomeTab(id),
+        pane: paneOfSession(id)?.id ?? null,
+      }
+    }),
+  }
+}
+
+function listText(projectId: string): string {
+  const { project, sessions: list } = snapshotOf(projectId)
+  return JSON.stringify(
+    { project: project.name, sessions: list.map(({ pane: _, ...session }) => session) },
+    null,
+    2,
+  )
+}
+
+function publishSnapshots(): void {
+  for (const p of projects.projects) publishSnapshot(p.id, () => snapshotOf(p.id))
+}
+
+export const controlHandlers: ControlHandlers = { handle: handleControl, turnEnded }
+setSnapshotSource(publishSnapshots)
+
+// Waking a parent: a session another started waits at a prompt or ends its
+// turn, and its parent hears of it through Claude Code's messaging, a few seconds later and
+// together with its other children's news. Never typed into the parent's terminal.
+const wakes = new WakeBatcher((parent, text) => void wakeSession(parent, text), {
+  set: (fn, ms) => setTimeout(fn, ms),
+  clear: (handle) => clearTimeout(handle as NodeJS.Timeout),
+})
+
+onShownChange((paneId, sessionId, previous, next) => {
+  if (!sessionId || panes.get(paneId)?.agent !== 'claude') return
+  const project = projectOf(projects, sessionId)
+  const parent = project ? keptParents(project)[sessionId] : undefined
+  wakes.note(parent ?? null, sessionId, sessionName(sessionId), previous, next)
+})
+
+async function wakeSession(parent: string, text: string): Promise<void> {
+  const pane = paneOfSession(parent)
+  if (pane?.agent !== 'claude') {
+    log.info('a parent with no Claude tab was not woken', { parent })
+    return
+  }
+  try {
+    const outcome = await postToSession(agentPaths().claudeSessions, parent, text, randomUUID())
+    if (outcome === 'posted') log.info('a parent session was woken', { parent })
+    else log.warn('a parent session could not be woken', { parent, outcome })
+  } catch (error) {
+    log.warn('a parent session could not be woken', { parent, error })
+  }
+}
+
 // ---------------------------------------------------------------- a pane's session changing id
 
 const inSomeTab = (sessionId: string) =>
@@ -851,35 +1182,43 @@ export function followPaneStart(
     })
     return
   }
-  const next =
-    source === 'clear'
-      ? followNewId(projects, from, sessionId)
-      : followResume(projects, from, sessionId, tab.project)
-  if (next === projects && source === 'clear') {
-    log.warn('a cleared session was not followed: its old id is in no project, or its new one is', {
-      from,
-      to: sessionId,
-    })
+  if (source === 'clear') {
+    if (!followClear(pane, from, sessionId))
+      log.warn(
+        'a cleared session was not followed: its old id is in no project, or its new one is',
+        { from, to: sessionId },
+      )
     return
   }
-  projects = next
+  projects = followResume(projects, from, sessionId, tab.project)
   layout = followNewIdInLayout(layout, from, sessionId)
   pane.sessionId = sessionId
   tabLabels.delete(pane.tabId)
-  if (source === 'clear' && remoteIds.has(from)) {
+  changed({ projects: true })
+}
+
+// The session in a pane took a new id the way a `/clear` gives one: the new id takes the old one's
+// place in its project, group, leader mark, hidden flag, parents and Remote Control, and the old
+// one becomes its earlier conversation. Used by a followed clear and by a renew. False
+// when the old id is in no project, or the new one already is in one: then nothing changes.
+function followClear(pane: Pane, from: string, to: string): boolean {
+  const next = followNewId(projects, from, to)
+  if (next === projects) return false
+  projects = next
+  layout = followNewIdInLayout(layout, from, to)
+  pane.sessionId = to
+  tabLabels.delete(pane.tabId)
+  if (remoteIds.has(from)) {
     remoteIds.delete(from)
-    remoteIds.add(sessionId)
+    remoteIds.add(to)
     sessions
-      .updateState((state) => followRemoteControl(state, from, sessionId))
+      .updateState((state) => followRemoteControl(state, from, to))
       .catch((error: unknown) =>
-        log.error('Remote Control did not follow a cleared session', {
-          from,
-          to: sessionId,
-          error,
-        }),
+        log.error('Remote Control did not follow a session’s new id', { from, to, error }),
       )
   }
   changed({ projects: true })
+  return true
 }
 
 // ---------------------------------------------------------------- windows

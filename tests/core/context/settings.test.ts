@@ -36,6 +36,8 @@ test('CTX-28 the settings file is created, left alone when identical, replaced w
   // The statusline, and the SessionStart hook for a start, a resume, a clear and a compaction: the same
   // script, in its hook mode.
   const hook = { type: 'command', command: `${COMMAND} session-start` }
+  // Plan 31: Menkar's own MCP tools need no prompt (decision 1), the Stop hook tells Menkar a turn
+  // ended (decision 9), and Menkar's posts to a session it started are delivered (decision 15).
   const expected = {
     statusLine: { type: 'command', command: COMMAND },
     hooks: {
@@ -45,7 +47,10 @@ test('CTX-28 the settings file is created, left alone when identical, replaced w
         { matcher: 'clear', hooks: [hook] },
         { matcher: 'compact', hooks: [hook] },
       ],
+      Stop: [{ hooks: [{ type: 'command', command: `${COMMAND} turn-end` }] }],
     },
+    permissions: { allow: ['mcp__menkar'] },
+    crossSessionInbound: 'accept',
   }
   expect(JSON.parse(text)).toEqual(expected)
   expect(text).toBe(`${JSON.stringify(expected, null, 2)}\n`)

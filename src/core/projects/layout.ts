@@ -300,6 +300,16 @@ export function moveSessionHere(
   return { ok: true, layout: put(layout, { ...here, tabs }), projects: state }
 }
 
+// A tab opened for another tab's sake (a session one started): right after it, in its
+// window, with the window's selection left as it was.
+export function insertTabAfter(layout: Layout, afterTabId: string, tab: Tab): Layout {
+  const w = layout.windows.find((x) => x.tabs.some((t) => t.id === afterTabId))
+  if (!w) return layout
+  const at = w.tabs.findIndex((t) => t.id === afterTabId) + 1
+  const tabs = [...w.tabs.slice(0, at), tab, ...w.tabs.slice(at)]
+  return { windows: layout.windows.map((x) => (x === w ? { ...w, tabs } : x)) }
+}
+
 export function closeTab(layout: Layout, windowId: string, tabId: string): Layout {
   return put(layout, withoutTab(windowOf(layout, windowId), tabId))
 }

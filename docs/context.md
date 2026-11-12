@@ -16,6 +16,20 @@ Integrations page are still `docs/spec/context.md` until they are built.
   app rewrites `<config>/claude-settings.json` (Menkar's statusline) and
   `<config>/chained-statusline.json` (the user's own command, or null), each only when its content
   changed. Nothing is written under `~/.claude` for this.
+- **What the `--settings` file holds for Menkar's MCP server** (2026-11-11; the server, the
+  files and why are in `docs/session-control.md`). Three keys besides the statusline and the
+  SessionStart hooks (`writeSessionSettings`, `turnEndHooks` in `settings.ts`):
+  - **A Stop hook**, the statusline's command with the argument `turn-end`. At each turn's end it
+    writes `<cache>/control/turn-ends/<pane>.json` (`session_id`, `at`) for the pane it runs in,
+    and nothing outside a Menkar pane. `turnEndsDir()` repeats the folder because the statusline
+    runs under plain Node in its tests and cannot import the control module; a test holds the two
+    equal.
+  - **`permissions.allow: ["mcp__menkar"]`**: Menkar's own tools run without a prompt in every mode
+    (measured, 2.1.322). They act only on Menkar's tabs.
+  - **`crossSessionInbound: "accept"`**: Menkar's wake messages are delivered. Without it, a session
+    that bypasses permission prompts holds each one behind a card. The cost: in that mode, a message
+    any local process of the user posts is delivered without the card. Only the user's own processes
+    can reach the socket, and a message can never answer a permission prompt.
 - **The cost since the last compaction** (2026-11-10): the bar shows it before the total
   (`set · 22% · $12.40 · $246.50 total`). The total is Claude Code's `cost.total_cost_usd`, which
   counts on across resumes. The cost since is the total minus a baseline, with no transcript read.

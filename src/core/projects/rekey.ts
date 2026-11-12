@@ -9,6 +9,7 @@ import {
   removeMember,
   showMember,
 } from './model'
+import { followParents } from './parents'
 
 // Claude Code gives a running session a new id when the user clears it (`/clear`, decision 1.56),
 // and another when the user resumes a session inside it (1.57). The id the tab moves to takes the
@@ -44,7 +45,9 @@ export function followNewId(state: Projects, from: string, to: string): Projects
   return {
     ...state,
     projects: state.projects.map((p) =>
-      p.id === project.id ? becomeEarlier(followInProject(p, from, to), from, to) : p,
+      p.id === project.id
+        ? followParents(becomeEarlier(followInProject(p, from, to), from, to), from, to)
+        : p,
     ),
   }
 }

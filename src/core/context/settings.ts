@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { agentPaths } from '../paths'
 import { contextFiles } from './files'
-import { SESSION_START_ARG, START_SOURCES } from './statusline'
+import { SESSION_START_ARG, START_SOURCES, TURN_END_ARG } from './statusline'
 
 export type JsonValue =
   | null
@@ -48,6 +48,13 @@ export function sessionStartHooks(statuslineCommand: string): JsonObject {
       matcher: source,
       hooks: [{ type: 'command', command }],
     })),
+  }
+}
+
+// The Stop hook: the same script tells Menkar each turn's end in its pane.
+export function turnEndHooks(statuslineCommand: string): JsonObject {
+  return {
+    Stop: [{ hooks: [{ type: 'command', command: `${statuslineCommand} ${TURN_END_ARG}` }] }],
   }
 }
 
@@ -105,7 +112,7 @@ export async function chainedCommand(ownCommand: string): Promise<string | null>
 }
 
 // Writes the two files a Claude session Menkar starts needs — its `--settings` file holding
-// Menkar's statusline, and the command that statusline chains to — each only when it changed, and
+// Menkar's statusline, its hooks and its MCP rules, and the command that statusline chains to — each only when it changed, and
 // returns the path to pass as `--settings <path>`. Called before each Claude command line runs, so
 // a statusline that moved, or a changed own statusline, heals on the next command.
 export async function writeSessionSettings(statuslineCommand: string): Promise<string> {
@@ -115,7 +122,12 @@ export async function writeSessionSettings(statuslineCommand: string): Promise<s
     `${JSON.stringify(
       {
         statusLine: statuslineObject(statuslineCommand),
-        hooks: sessionStartHooks(statuslineCommand),
+        hooks: { ...sessionStartHooks(statuslineCommand), ...turnEndHooks(statuslineCommand) },
+        // Menkar's own MCP tools run without a prompt: they only act on Menkar's tabs.
+        permissions: { allow: ['mcp__menkar'] },
+        // Menkar wakes a session it started through Claude Code's messaging; without this a
+        // session that bypasses prompts would hold each message behind a card.
+        crossSessionInbound: 'accept',
       },
       null,
       2,

@@ -105,6 +105,23 @@ keeps how they are built and why.
   leniently, as `hidden` is: ids that are not members and values that are not lists of strings are
   dropped, and a malformed map reads as none.
 
+## Parents (decisions 1.70 and 1.74, 2026-11-11)
+
+- A project keeps `parents`, a map from a session another one started through Menkar's
+  `start_session` to its starter (`src/core/projects/parents.ts`). It says whom Menkar wakes
+  (`docs/session-control.md`).
+- **What always holds** (`keptParents`): child and parent are both members of the project and
+  differ. An entry that stops holding is dropped. `forgetSession` (a transcript trashed or deleted)
+  tidies it like `earlier`.
+- **It follows new ids:** `followNewId` (a `/clear` and a renew) moves an id both as a child and as
+  a parent, so a wake reaches a parent that renewed. Ids are what is kept; the agents address
+  sessions by name.
+- In `projects.json` it sits after `earlier`, only when not empty, and is read leniently: entries
+  that are not strings or do not hold are dropped.
+- **A session started for another agent's sake** opens in a tab inserted right after the caller's
+  (`insertTabAfter` in `layout.ts`), in the window that holds the project, with that window's
+  selected tab left as it was.
+
 ## The layout — `layout.ts`
 
 - A `Layout` is windows; a window shows one project and keeps the tabs of every project it holds,

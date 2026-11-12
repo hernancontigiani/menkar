@@ -24,8 +24,11 @@ import {
   SESSION_START_ARG,
   START_KEYS,
   START_SOURCES,
+  TURN_END_ARG,
+  turnEndsDir,
   USAGE_KEYS,
 } from '../../../src/core/context/statusline'
+import { controlPaths } from '../../../src/core/control/files'
 import { STATUSLINE_READ_KEYS } from '../../../src/core/usage/statusline'
 
 const SCRIPT = resolve('src/core/context/statusline.ts')
@@ -324,4 +327,28 @@ test("parity: the hook --settings declares is the script's hook mode, for the so
   const baseline = JSON.parse(readFileSync(join(d.cache, 'cost-baselines', 'p1.json'), 'utf8'))
   expect(Object.keys(baseline)).toEqual([...BASELINE_KEYS])
   expect(baseline).toEqual({ baseline_usd: 0, start_at: start.at })
+})
+
+// Plan 31, decision 9: the same script is Menkar's Stop hook. At each turn's end it leaves the
+// session id for the pane it runs in, which is how Menkar renews a session only once its turn is over.
+test('the Stop hook records the turn end for its pane, and nothing outside a Menkar pane', () => {
+  const d = dirs()
+  const stop = (env: Record<string, string>) =>
+    spawnSync(process.execPath, [SCRIPT, TURN_END_ARG], {
+      input: JSON.stringify({ hook_event_name: 'Stop', session_id: 's7', stop_hook_active: false }),
+      env: { ...d.env, ...env },
+      encoding: 'utf8',
+    })
+  expect(stop({ MENKAR_PANE: 'pane-4' })).toMatchObject({ status: 0, stdout: '' })
+  const record = JSON.parse(
+    readFileSync(join(d.cache, 'control', 'turn-ends', 'pane-4.json'), 'utf8'),
+  )
+  expect(record).toMatchObject({ session_id: 's7' })
+  expect(typeof record.at).toBe('string')
+  expect(stop({})).toMatchObject({ status: 0, stdout: '' })
+  expect(readdirSync(join(d.cache, 'control', 'turn-ends'))).toEqual(['pane-4.json'])
+})
+
+test('the turn-ends folder the hook writes is the one Menkar watches', () => {
+  expect(turnEndsDir()).toBe(controlPaths().turnEnds)
 })

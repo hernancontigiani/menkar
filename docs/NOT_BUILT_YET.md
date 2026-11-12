@@ -195,3 +195,24 @@ designing one without a reader would guess its shape.
 
 **Trigger:** a session or a tool needs to know who leads a group (the orchestration board is the
 likely first). First question: whether it reads `projects.json` or asks the running app.
+
+### Waking an agent other than Claude Code
+
+Menkar wakes a parent session through Claude Code's documented cross-session messaging
+(`docs/session-control.md`). Codex, Gemini and Cursor have no such channel. Waking them means ending
+the session and resuming it with the event as its first prompt, or typing into its terminal, which
+would amend the rule that nothing is typed into a running agent.
+
+**Trigger:** a second agent takes part in the orchestration mode (STATUS 2.21). First question:
+whether ending and resuming is enough, or whether typing comes with its conditions (idle, an empty
+input box, never at a prompt).
+
+### `menkar session …`, the CLI form of the MCP tools
+
+Decision 1.70 named a CLI over the same core (`menkar session renew`, `menkar session start`). The
+MCP tools are what the agents use, so a CLI would have no caller yet. The request files make it a
+thin writer: it would write a request and wait for its response as the server does.
+
+**Trigger:** a session without MCP, or the human from a terminal, needs to renew or start a session.
+First question: how the CLI names its pane or project without `MENKAR_PANE`.
+

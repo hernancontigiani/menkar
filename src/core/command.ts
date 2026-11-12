@@ -23,6 +23,25 @@ export interface CommandOptions {
   readonly remoteControl?: string
   // Folders the agent may read and write besides its own (`--add-dir`, Claude Code only).
   readonly addDirs?: readonly string[]
+  // A file holding the session's first prompt, read by the shell (Claude Code only).
+  readonly promptFile?: string
+  // Menkar's MCP server as `--mcp-config` JSON (Claude Code only).
+  readonly mcpConfig?: string
+}
+
+// Menkar's MCP server for Claude Code: Electron's own binary runs the script as plain Node, as it
+// runs the statusline. Claude Code adds the pane's environment, MENKAR_PANE with it.
+export function mcpConfig(execPath: string, script: string): string {
+  return JSON.stringify({
+    mcpServers: {
+      menkar: {
+        type: 'stdio',
+        command: execPath,
+        args: [script],
+        env: { ELECTRON_RUN_AS_NODE: '1' },
+      },
+    },
+  })
 }
 
 // The agent's command line, as typed into the user's shell: options, identity, then the app's
@@ -46,7 +65,13 @@ export function buildCommand(agent: Agent, start: Start, options: CommandOptions
       args.push('--resume', start.source, '--fork-session', '--session-id', start.id)
       break
   }
-  if (claude) for (const dir of options.addDirs ?? []) args.push('--add-dir', dir)
-  if (claude && options.settings) args.push('--settings', options.settings)
-  return `${args.map(shellQuote).join(' ')} && exit\n`
+  const words = args.map(shellQuote)
+  // Before --add-dir, which takes every word up to the next option: after it the prompt would be
+  // read as one more folder. Double quotes keep it one argument whatever it holds.
+  if (claude && options.promptFile)
+    words.push(`"$(cat '${options.promptFile.replaceAll("'", `'"'"'`)}')"`)
+  if (claude) for (const dir of options.addDirs ?? []) words.push('--add-dir', shellQuote(dir))
+  if (claude && options.mcpConfig) words.push('--mcp-config', shellQuote(options.mcpConfig))
+  if (claude && options.settings) words.push('--settings', shellQuote(options.settings))
+  return `${words.join(' ')} && exit\n`
 }

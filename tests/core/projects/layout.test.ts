@@ -3,6 +3,7 @@ import {
   bringProject,
   closeTab,
   holder,
+  insertTabAfter,
   type Layout,
   type LayoutWindow,
   moveSessionHere,
@@ -477,5 +478,25 @@ describe('reordering tabs (decision 1.23)', () => {
     expect(moveTab(layout, 'w', 'A2', 'A2')).toBe(layout)
     expect(moveTab(layout, 'w', 'A2', 'B1')).toBe(layout)
     expect(moveTab(layout, 'w', 'nope', 'A1')).toBe(layout)
+  })
+})
+
+// Plan 31, decision 16: a session another one starts opens right after the caller's tab, in the
+// window that holds the project, and the window keeps the tab it had selected.
+describe('a tab started by another session', () => {
+  test('goes right after the caller’s tab; the selection does not change', () => {
+    const before = layoutOf(
+      win('w1', 'p1', [session('a', 'p1', ['s1']), session('b', 'p1', ['s2'])], { p1: 'b' }),
+      win('w2', 'p2', [session('c', 'p2', ['s3'])], { p2: 'c' }),
+    )
+    const after = insertTabAfter(before, 'a', session('new', 'p1', ['s9']))
+    expect(tabsOf(after, 'w1').map((t) => t.id)).toEqual(['a', 'new', 'b'])
+    expect(after.windows[0]?.selected).toEqual({ p1: 'b' })
+    expect(after.windows[1]).toBe(before.windows[1])
+  })
+
+  test('a caller’s tab that is gone changes nothing', () => {
+    const before = layoutOf(win('w1', 'p1', [session('a', 'p1', ['s1'])], { p1: 'a' }))
+    expect(insertTabAfter(before, 'gone', session('new', 'p1', ['s9']))).toBe(before)
   })
 })

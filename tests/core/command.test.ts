@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { buildCommand, shellQuote } from '../../src/core/command'
+import { buildCommand, mcpConfig, shellQuote } from '../../src/core/command'
 
 const CLI = '/usr/local/bin/claude'
 const SETTINGS = '/home/ana/.config/menkar/claude-settings.json'
@@ -89,6 +89,63 @@ describe('command lines', () => {
       expect(buildCommand('cursor', { kind: 'resume', id: 'r1' }, { ...dirs, cli: '/bin/c' })).toBe(
         '/bin/c --resume r1 && exit\n',
       )
+    })
+  })
+
+  // a prompt Menkar starts a session with is read from a file by the shell,
+  // never interpolated into the line, so nothing in it needs quoting.
+  describe('a first prompt from a file', () => {
+    // --add-dir and --mcp-config take every word up to the next option (measured on 2.1.322: a
+    // prompt after --add-dir never reached the session), so the prompt comes right after the identity.
+    test('it goes as "$(cat \'<file>\')" right after the identity, before --add-dir and --settings', () => {
+      expect(
+        buildCommand(
+          'claude',
+          { kind: 'new', id: 'n1', name: 'w' },
+          { ...opts, addDirs: ['/h/f'], promptFile: '/c/p 1.md' },
+        ),
+      ).toBe(
+        `${CLI} --session-id n1 -n w "$(cat '/c/p 1.md')" --add-dir /h/f --settings ${SETTINGS} && exit\n`,
+      )
+      expect(
+        buildCommand('claude', { kind: 'new', id: 'n1' }, { ...opts, promptFile: "/c/it's.md" }),
+      ).toBe(`${CLI} --session-id n1 "$(cat '/c/it'"'"'s.md')" --settings ${SETTINGS} && exit\n`)
+    })
+
+    test('Cursor gets no prompt file', () => {
+      expect(
+        buildCommand('cursor', { kind: 'new' }, { cli: '/bin/c', promptFile: '/c/p.md' }),
+      ).toBe('/bin/c && exit\n')
+    })
+  })
+
+  // Plan 31, decision 1: Menkar's MCP server reaches every Claude session it starts as inline JSON,
+  // beside the user's own servers (no --strict-mcp-config).
+  describe("Menkar's MCP server", () => {
+    test('--mcp-config takes the JSON as one word, after --add-dir, before --settings', () => {
+      const json = mcpConfig('/opt/Menkar/menkar', '/opt/Menkar/resources/mcp-server.js')
+      expect(JSON.parse(json)).toEqual({
+        mcpServers: {
+          menkar: {
+            type: 'stdio',
+            command: '/opt/Menkar/menkar',
+            args: ['/opt/Menkar/resources/mcp-server.js'],
+            env: { ELECTRON_RUN_AS_NODE: '1' },
+          },
+        },
+      })
+      expect(
+        buildCommand(
+          'claude',
+          { kind: 'resume', id: 'r1' },
+          { ...opts, addDirs: ['/h/f'], mcpConfig: '{"a":1}' },
+        ),
+      ).toBe(
+        `${CLI} --resume r1 --add-dir /h/f --mcp-config '{"a":1}' --settings ${SETTINGS} && exit\n`,
+      )
+      expect(
+        buildCommand('cursor', { kind: 'resume', id: 'r1' }, { cli: '/bin/c', mcpConfig: '{}' }),
+      ).toBe('/bin/c --resume r1 && exit\n')
     })
   })
 })

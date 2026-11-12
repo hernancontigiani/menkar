@@ -253,4 +253,58 @@ human waits for the orchestrator instead of polling.
 
 ## Execution log
 
-_Written by the executing session._
+Executed by `b2`, 2026-11-11, all four blocks. Every new test was seen red, either before its code
+existed or against an injected defect. Gates after the last block: `npm run ci` passes every step
+(913 Vitest tests); `npm run ui-check` after block 3 passed 315.
+
+**Deviations:**
+
+- **The prompt goes right after the identity, not just before `--settings`.** `--add-dir` and
+  `--mcp-config` take every word up to the next option. Measured on 2.1.322: a prompt after
+  `--add-dir` reached the session as one more folder, and the session started with no prompt. Only
+  the new words moved: `buildCommand`'s old lines and their tests are unchanged.
+- **The server runs with `env: {"ELECTRON_RUN_AS_NODE": "1"}`** in the MCP config, not as a shell
+  command. The config is not run through a shell. Measured: with an `env` key the server still
+  inherits the pty's environment (`MENKAR_PANE`, `PATH`).
+- **Waking waits for quiet:** per parent, the delay restarts with each event, and a child keeps
+  only its latest event.
+- **A server call that runs out of time takes its request back**, so main never acts after the
+  agent was told it failed.
+- **The renew's fallback** checks the shown state once `RENEW_FALLBACK_MS` has passed, then every
+  few seconds until it is idle or done.
+- **The `/clear` follow was moved, not copied.** `followPaneStart`'s clear branch became
+  `followClear`, which a renew calls too. The 1.56 and 1.57 e2e cases pass unchanged.
+- **`start_session` makes the new session a member at once**, with its parent and group, without
+  waiting for the transcript as New does. So `list_sessions` and the wake see it from its first
+  turn.
+- **The Stop hook's folder is written down twice.** The statusline runs under plain Node in its
+  tests and cannot import the control module; a parity test holds the two equal.
+- **Six e2e regexes that pin the Claude command line** (`window.spec.ts`, `remote.spec.ts`) gained
+  `--mcp-config {…}`. No `expect(` line was removed.
+
+**What the plan did not anticipate:**
+
+- **A claude started from inside a Claude Code session writes no registry entry.** It inherits
+  `CLAUDE_CODE_CHILD_SESSION` and the rest of that session's variables, and then writes no
+  `~/.claude/sessions/<pid>.json`, so Menkar cannot wake it ("no session" in the log). A Menkar
+  started from the desktop does not carry these variables. One started from a terminal inside
+  Claude Code would pass them to every pane. Not handled here; it is a decision whether Menkar
+  strips `CLAUDE*` variables from its panes' environment.
+- **The renewed session's row is missing for a few seconds**, until Claude writes its transcript.
+  A followed `/clear` already has the same gap.
+
+**Block 4, the real check:** Menkar under `xvfb-run`, the real `claude` 2.1.322, a throwaway HOME
+(manual mode), `XDG_RUNTIME_DIR` a private folder of the test, and a stand-in API. The `CLAUDE*`
+variables of the session running the check were removed first. Seen:
+
+1. The parent called `start_session`. A `child` tab opened after it, not selected, and the child's
+   Bash command stopped at its permission card (no command ran).
+2. The idle parent was woken with "[Menkar] child is waiting at a permission prompt", once
+   `WAKE_DELAY_MS` had passed.
+3. The parent called `renew`. The fresh session's first request carried "FRESH-START hello" as its
+   first prompt.
+4. `projects.json` held the fresh id with the old one as its earlier conversation, and the child's
+   parent re-keyed to the fresh id. The fresh session's row appeared once its transcript existed.
+
+Every process was stopped and nothing was left running. The human's `~/.claude` and sockets were
+never touched.

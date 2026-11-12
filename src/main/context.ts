@@ -6,6 +6,7 @@ import { shellQuote, writeSessionSettings } from '../core/context/settings'
 import { sessionsDir } from '../core/context/statusline'
 import { ReadingTracker } from '../core/context/tracker'
 import { log } from '../core/log'
+import { snapshotsChanged } from './control'
 
 // The statusline is a script Claude Code runs after each assistant message, outside Menkar's
 // window. Electron's own binary runs it as plain Node, so no system Node is needed.
@@ -40,6 +41,7 @@ export function startContextReadings(): () => void {
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.webContents.send('context:reading', { sessionId, reading })
     }
+    snapshotsChanged()
   })
   let watcher: FSWatcher | null = null
   try {

@@ -17,6 +17,7 @@ import { log } from '../core/log'
 import { projectOf } from '../core/projects/model'
 import { loadState } from '../core/state'
 import type { EventChannel, EventChannels } from '../shared/ipc'
+import { snapshotsChanged } from './control'
 import { type AgentPane, agentPanes, onAgentPane } from './panes'
 import { currentProjects } from './projects'
 import { remoteLive, remoteLiveSoon, startRemoteLive } from './remote-live'
@@ -64,6 +65,7 @@ export function agentStates(): AgentStates {
 // Every window learns of any change: the blocked count spans them all.
 export function refreshAgentStates(): void {
   broadcast('agentState:changed', agentStates())
+  snapshotsChanged()
 }
 
 function playSound(file: string): void {
@@ -102,9 +104,26 @@ async function notify(pane: AgentPane, state: 'blocked' | 'done'): Promise<void>
   notification.show()
 }
 
+type ShownChange = (
+  paneId: string,
+  sessionId: string | null,
+  previous: ShownState,
+  next: ShownState,
+) => void
+const shownChanges = new Set<ShownChange>()
+
+// A pane's shown state changed: what wakes a parent session listens here.
+export function onShownChange(listener: ShownChange): () => void {
+  shownChanges.add(listener)
+  return () => shownChanges.delete(listener)
+}
+
 function setState(entry: Tracked, next: ShownState): void {
   if (next === entry.state) return
+  const previous = entry.state
   entry.state = next
+  for (const listener of shownChanges)
+    listener(entry.pane.id, entry.pane.sessionId(), previous, next)
   refreshAgentStates()
 }
 
