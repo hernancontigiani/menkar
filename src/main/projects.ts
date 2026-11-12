@@ -1,6 +1,8 @@
 import { keptEarlier } from '../core/projects/earlier'
 import type { Notice, ProjectsSnapshot } from '../core/projects/info'
 import type { Projects } from '../core/projects/model'
+import { orchestrationInfo } from '../core/projects/orchestration'
+import { keptParents } from '../core/projects/parents'
 import { loadProjects } from '../core/projects/store'
 
 let projects: Projects | undefined
@@ -19,6 +21,10 @@ export function currentProjects(): Projects | undefined {
 
 export function setProjects(next: Projects): void {
   projects = next
+}
+
+export function addNotice(notice: Notice): void {
+  notices.push(notice)
 }
 
 export function currentNotices(): Notice[] {
@@ -41,6 +47,9 @@ export function projectsSnapshot(): ProjectsSnapshot {
       hidden: p.hidden ?? [],
       groups: p.groups,
       earlier: keptEarlier(p),
+      parents: keptParents(p),
+      orchestration: orchestrationInfo(p),
+      topicsCollapsed: p.topicsCollapsed === true,
     })),
     notices,
   }

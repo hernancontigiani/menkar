@@ -9,7 +9,16 @@ import { appDirs } from '../paths'
 // A request is written whole under a temporary name and renamed into `requests/`, so main never
 // reads half of one; main answers it in `responses/` the same way.
 
-export const TOOL_NAMES = ['renew', 'start_session', 'list_sessions', 'last_reply'] as const
+export const TOOL_NAMES = [
+  'renew',
+  'start_session',
+  'list_sessions',
+  'last_reply',
+  'topic_add',
+  'topic_update',
+  'topic_close',
+  'topic_list',
+] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 
 export interface ControlRequest {
@@ -148,11 +157,41 @@ export interface SnapshotSession {
   readonly parent: string | null
   readonly tab: boolean
   readonly pane: string | null
+  // The orchestration mode's marks; a snapshot an older Menkar wrote has none.
+  readonly role?: string | null
+  readonly orchestrator?: boolean
+  readonly priority?: boolean
+  readonly withYou?: boolean
 }
 
 export interface Snapshot {
   readonly project: { readonly id: string; readonly name: string }
+  readonly orchestration?: boolean
   readonly sessions: readonly SnapshotSession[]
+}
+
+// list_sessions' answer: the snapshot without the panes, its keys as the agents read them.
+export function sessionsAnswer(snapshot: Snapshot): string {
+  return JSON.stringify(
+    {
+      project: snapshot.project.name,
+      orchestration: snapshot.orchestration === true,
+      sessions: snapshot.sessions.map((s) => ({
+        name: s.name,
+        id: s.id,
+        state: s.state,
+        context: s.context,
+        parent: s.parent,
+        tab: s.tab,
+        role: s.role ?? null,
+        orchestrator: s.orchestrator === true,
+        priority: s.priority === true,
+        with_you: s.withYou === true,
+      })),
+    },
+    null,
+    2,
+  )
 }
 
 // The snapshot of the project whose sessions include this pane's, or null.

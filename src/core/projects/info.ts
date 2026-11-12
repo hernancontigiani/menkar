@@ -15,6 +15,17 @@ export interface ProjectInfo {
   }[]
   // Each session's earlier conversations: members kept out of the list and the hidden count.
   readonly earlier: Readonly<Record<string, readonly string[]>>
+  // Who started a session through Menkar, by child id.
+  readonly parents: Readonly<Record<string, string>>
+  // The orchestration mode's marks, all empty when none was ever set.
+  readonly orchestration: {
+    readonly on: boolean
+    readonly orchestrator: string | null
+    readonly roles: Readonly<Record<string, string>>
+    readonly priority: readonly string[]
+    readonly withYou: readonly string[]
+  }
+  readonly topicsCollapsed: boolean
 }
 
 // A message for the user, shown until dismissed: a key of `t()` and its placeholders.

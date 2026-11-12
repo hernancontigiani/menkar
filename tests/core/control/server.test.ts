@@ -1,4 +1,4 @@
-// Menkar's MCP server, a newline-delimited JSON-RPC loop with four tools; it
+// Menkar's MCP server, a newline-delimited JSON-RPC loop with eight tools; it
 // talks to main through files (decision 8) and refuses every call outside a Menkar pane.
 import {
   mkdirSync,
@@ -14,6 +14,15 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { callMenkar, controlPaths, writeAtomic } from '../../../src/core/control/files'
 import { answer, TOOL_NAMES } from '../../../src/core/control/protocol'
 import { serverContext } from '../../../src/core/control/server'
+import {
+  sessionMarks,
+  setMode,
+  setOrchestrator,
+  setPriority,
+  setRole,
+  setWithYou,
+} from '../../../src/core/projects/orchestration'
+import { project, projects } from '../../factories/projects'
 
 const ctx = (pane: string | null, calls: unknown[] = []) => ({
   pane,
@@ -51,7 +60,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions and last_reply', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply and the four topic tools', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -60,8 +69,12 @@ describe('the protocol', () => {
       'start_session',
       'list_sessions',
       'last_reply',
+      'topic_add',
+      'topic_update',
+      'topic_close',
+      'topic_list',
     ])
-    expect(TOOL_NAMES).toEqual(['renew', 'start_session', 'list_sessions', 'last_reply'])
+    expect(TOOL_NAMES).toEqual(reply.result.tools.map((t) => t.name))
   })
 
   test('a call goes to Menkar with its arguments, and its answer comes back as text', async () => {
@@ -185,13 +198,104 @@ describe('list_sessions', () => {
     })
     const answer = await serverContext('p2').call('list_sessions', {})
     expect(answer.ok).toBe(true)
+    const off = { role: null, orchestrator: false, priority: false, with_you: false }
     expect(JSON.parse(answer.text)).toEqual({
       project: 'Work',
+      orchestration: false,
       sessions: [
-        { name: 'orch', id: 'o1', state: 'idle', context: 41, parent: null, tab: true },
-        { name: 'api', id: 'a1', state: 'blocked', context: 7, parent: 'o1', tab: true },
+        { name: 'orch', id: 'o1', state: 'idle', context: 41, parent: null, tab: true, ...off },
+        { name: 'api', id: 'a1', state: 'blocked', context: 7, parent: 'o1', tab: true, ...off },
       ],
     })
     expect((await serverContext('p404').call('list_sessions', {})).ok).toBe(false)
+  })
+
+  test('in the orchestration mode each session carries its role, orchestrator, ★ and with you', async () => {
+    aliveNow()
+    let state = projects([project('work', 'Work', ['o1', 'e1', 'w1'])])
+    state = setOrchestrator(setMode(state, 'work', true), 'work', 'o1')
+    state = setPriority(setRole(state, 'work', 'e1', 'Fabric expert'), 'work', 'e1', true)
+    state = setWithYou(state, 'work', 'w1', true)
+    const session = (id: string, pane: string, p = state.projects[0]) => ({
+      name: id,
+      id,
+      state: 'idle',
+      context: null,
+      parent: null,
+      tab: true,
+      pane,
+      ...(p ? sessionMarks(p, id) : {}),
+    })
+    const on = state.projects[0]
+    if (!on) throw new Error('no project')
+    await writeAtomic(controlPaths().snapshots, 'work.json', {
+      project: { id: 'work', name: 'Work' },
+      orchestration: true,
+      sessions: [session('o1', 'p1'), session('e1', 'p2'), session('w1', 'p3')],
+    })
+    const plain = { state: 'idle', context: null, parent: null, tab: true }
+    expect(JSON.parse((await serverContext('p1').call('list_sessions', {})).text)).toEqual({
+      project: 'Work',
+      orchestration: true,
+      sessions: [
+        {
+          name: 'o1',
+          id: 'o1',
+          ...plain,
+          role: null,
+          orchestrator: true,
+          priority: false,
+          with_you: false,
+        },
+        {
+          name: 'e1',
+          id: 'e1',
+          ...plain,
+          role: 'Fabric expert',
+          orchestrator: false,
+          priority: true,
+          with_you: false,
+        },
+        {
+          name: 'w1',
+          id: 'w1',
+          ...plain,
+          role: null,
+          orchestrator: false,
+          priority: false,
+          with_you: true,
+        },
+      ],
+    })
+    const off = setMode(state, 'work', false).projects[0]
+    if (!off) throw new Error('no project')
+    expect(sessionMarks(off, 'e1')).toEqual({
+      role: null,
+      orchestrator: false,
+      priority: false,
+      withYou: false,
+    })
+    // A snapshot an older Menkar wrote, without the fields: the mode reads as off.
+    await writeAtomic(controlPaths().snapshots, 'work.json', {
+      project: { id: 'work', name: 'Work' },
+      sessions: [
+        { name: 'o1', id: 'o1', state: 'idle', context: null, parent: null, tab: true, pane: 'p1' },
+      ],
+    })
+    expect(JSON.parse((await serverContext('p1').call('list_sessions', {})).text)).toEqual({
+      project: 'Work',
+      orchestration: false,
+      sessions: [
+        {
+          name: 'o1',
+          id: 'o1',
+          ...plain,
+          role: null,
+          orchestrator: false,
+          priority: false,
+          with_you: false,
+        },
+      ],
+    })
   })
 })

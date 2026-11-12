@@ -82,6 +82,36 @@ describe('the drawers of the tabs', () => {
     expect(drawers.ofTab('tab-1')).toBe(fresh.id)
   })
 
+  // Decision 1.93: in the orchestrator's tab each folder picked keeps its own shell.
+  test('one shell per folder picked: pick /b, hide, pick /a → two live, /a current; pick /b → the same /b shell; closing the tab hangs up both', () => {
+    const drawers = registry()
+    const b = drawers.open('tab-1', () => new Shell(), '/b')
+    const a = drawers.open('tab-1', () => new Shell(), '/a')
+    expect(a.id).not.toBe(b.id)
+    expect(a.fresh).toBe(true)
+    expect(drawers.ofTab('tab-1')).toBe(a.id)
+    expect(drawers.byId(b.id)).toBe(b.shell)
+    const again = drawers.open('tab-1', () => new Shell(), '/b')
+    expect([again.id, again.shell, again.fresh]).toEqual([b.id, b.shell, false])
+    expect(drawers.ofTab('tab-1')).toBe(b.id)
+    // Without a folder, the tab's current drawer, as an ordinary toggle shows it.
+    expect(drawers.open('tab-1', () => new Shell()).id).toBe(b.id)
+    expect(drawers.idsOf('tab-1')).toEqual([b.id, a.id])
+    drawers.closeTab('tab-1')
+    expect([a.shell.hungUp, b.shell.hungUp]).toEqual([1, 1])
+    expect(drawers.ofTab('tab-1')).toBeUndefined()
+  })
+
+  test('a hidden folder shell that exits leaves the current drawer alone', () => {
+    const drawers = registry()
+    const b = drawers.open('tab-1', () => new Shell(), '/b')
+    const a = drawers.open('tab-1', () => new Shell(), '/a')
+    expect(drawers.exited(b.id)).toBeUndefined()
+    expect(drawers.ofTab('tab-1')).toBe(a.id)
+    expect(drawers.exited(a.id)).toBe('tab-1')
+    expect(drawers.ofTab('tab-1')).toBeUndefined()
+  })
+
   test('closing a tab hangs up its drawer only; quitting hangs up every one, once', () => {
     const drawers = registry()
     const a = drawers.open('tab-1', () => new Shell())

@@ -56,6 +56,60 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
       required: ['name'],
     },
   },
+  {
+    name: 'topic_add',
+    description:
+      "Adds a topic for the human to your Menkar project's open topics, shown in Menkar's sidebar; you are recorded as who raised it, and its number is returned.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'A short title.' },
+        context: { type: 'string', description: 'What the human needs to know to decide.' },
+        blocking: { type: 'boolean', description: 'Work waits on it.' },
+      },
+      required: ['title', 'context'],
+    },
+  },
+  {
+    name: 'topic_update',
+    description:
+      'Changes an open topic of your Menkar project by its number: its title, context, whether it blocks, or its status (open or discussing).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The topic's number." },
+        title: { type: 'string' },
+        context: { type: 'string' },
+        blocking: { type: 'boolean' },
+        status: { type: 'string', enum: ['open', 'discussing'] },
+      },
+      required: ['number'],
+    },
+  },
+  {
+    name: 'topic_close',
+    description:
+      'Closes a topic of your Menkar project by its number, keeping the decision taken so it can be looked up later.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The topic's number." },
+        decision: { type: 'string', description: 'What was decided.' },
+      },
+      required: ['number', 'decision'],
+    },
+  },
+  {
+    name: 'topic_list',
+    description:
+      "Lists your Menkar project's open topics, those raised by priority sessions first: number, title, who raised it, whether it blocks, status and context; with all, the closed ones too, with their decision.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        all: { type: 'boolean', description: 'Include closed topics and their decisions.' },
+      },
+    },
+  },
 ]
 
 export interface ServerContext {

@@ -49,6 +49,13 @@ menkar` takes it all out.
 - **Remote Control** (phone and claude.ai) is turned on per session: the switch on New, or
   "Remote control" in a session's menu; it applies from the session's next start.
 - **On the next start** the windows and their tabs come back (the `reopen_tabs` setting turns it off).
+- **The orchestration mode** (the "Orchestration" switch beside Usage, or a project's team icon in
+  the dropdown) is for a project where several sessions work together: you talk to one session,
+  the orchestrator, which hands the work out; the sidebar shows the team by role, with the topics
+  waiting for your decision at its top. A session's menu sets the orchestrator, a role, a priority ★
+  and "with you". The first time, Menkar asks who orchestrates and offers its guide, which ships
+  with the app (`/opt/Menkar/resources/plugin/guide/orchestration-mode.md` on Ubuntu) so any
+  session can read it.
 - **Add session** (the sidebar's button) lists every session Claude Code and Cursor have on the
   machine, by folder, to add to this project or move from another; its **New** page starts a new
   one. A session's menu also gives its details, Markdown export, and moving it to the trash (asked

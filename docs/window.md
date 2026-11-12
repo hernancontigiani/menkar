@@ -184,9 +184,11 @@ the session's folder) without a terminal tab piling up.
   the focused agent pane's folder, else another agent of the tab, else the tab's shell, else a file
   tab's folder, else `HOME`. A chat tab's drawer starts in `HOME`.
 - **Main keeps one per tab** (`DrawerRegistry`, `src/core/drawers.ts`), apart from the panes: a
-  plain `Terminal` with no command, never in the layout, `projects.json`, Usage or agent state. Its
-  id travels on the panes' `pty:*` channels, which fall back to the drawers when no pane has the id.
-  `TabView.drawer` carries its id, whether it is shown, and its label, `shell · <folder>`.
+  plain `Terminal` with no command, never in the layout, `projects.json`, Usage or agent state. The
+  orchestrator's tab is the exception, one per folder picked (decision 1.93, `docs/orchestration.md`).
+  Its id travels on the panes' `pty:*` channels, which fall back to the drawers when no pane has the
+  id. `TabView.drawer` carries the shown one's id, whether it is shown, and its label,
+  `shell · <folder>`.
 - **Hiding keeps it running**, scrollback and cwd included. `exit` closes it for real, and the next
   toggle starts a fresh shell. Closing the tab, its window or the app hangs it up with SIGHUP, as a
   pane's shell; it never adds a "running" question.

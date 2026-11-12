@@ -29,46 +29,69 @@ export interface HangsUp {
   hangUp(): void
 }
 
-// One drawer per tab, by tab id, each with an id of its own that the terminal channels carry.
+// One drawer per tab, by tab id, each with an id of its own that the terminal channels carry. In
+// the orchestrator's tab each folder picked keeps a shell of its own (decision 1.93): the tab
+// shows one at a time, its current one, and the others stay alive, hidden.
+interface Drawer<S> {
+  readonly id: string
+  readonly shell: S
+}
+
 export class DrawerRegistry<S extends HangsUp> {
-  readonly #byTab = new Map<string, { id: string; shell: S }>()
+  readonly #byTab = new Map<string, { current: string; byFolder: Map<string, Drawer<S>> }>()
 
   constructor(private readonly newId: () => string) {}
 
-  // The tab's drawer, started when it has none; `fresh` says whether it was just started.
-  open(tabId: string, start: () => S): { id: string; shell: S; fresh: boolean } {
-    const found = this.#byTab.get(tabId)
+  // The tab's drawer for `folder`, started when it has none, made the tab's current one; without
+  // a folder, the tab's current drawer. `fresh` says whether it was just started.
+  open(tabId: string, start: () => S, folder?: string): { id: string; shell: S; fresh: boolean } {
+    const tab = this.#byTab.get(tabId) ?? { current: '', byFolder: new Map<string, Drawer<S>>() }
+    this.#byTab.set(tabId, tab)
+    const key = folder ?? (tab.byFolder.has(tab.current) ? tab.current : '')
+    tab.current = key
+    const found = tab.byFolder.get(key)
     if (found) return { ...found, fresh: false }
     const drawer = { id: this.newId(), shell: start() }
-    this.#byTab.set(tabId, drawer)
+    tab.byFolder.set(key, drawer)
     return { ...drawer, fresh: true }
   }
 
+  // The tab's current drawer.
   ofTab(tabId: string): string | undefined {
-    return this.#byTab.get(tabId)?.id
+    const tab = this.#byTab.get(tabId)
+    return tab?.byFolder.get(tab.current)?.id
+  }
+
+  // Every drawer of the tab, the hidden folder shells too.
+  idsOf(tabId: string): string[] {
+    return [...(this.#byTab.get(tabId)?.byFolder.values() ?? [])].map((d) => d.id)
   }
 
   byId(id: string): S | undefined {
-    for (const drawer of this.#byTab.values()) if (drawer.id === id) return drawer.shell
+    for (const tab of this.#byTab.values())
+      for (const drawer of tab.byFolder.values()) if (drawer.id === id) return drawer.shell
     return undefined
   }
 
-  // Its shell ended: the drawer closes for real. The tab it belonged to, if it still was its own.
+  // Its shell ended: the drawer closes for real. The tab it belonged to, when it was that tab's
+  // current drawer.
   exited(id: string): string | undefined {
-    for (const [tabId, drawer] of this.#byTab) {
-      if (drawer.id !== id) continue
-      this.#byTab.delete(tabId)
-      return tabId
-    }
+    for (const [tabId, tab] of this.#byTab)
+      for (const [key, drawer] of tab.byFolder) {
+        if (drawer.id !== id) continue
+        tab.byFolder.delete(key)
+        if (tab.byFolder.size === 0) this.#byTab.delete(tabId)
+        return key === tab.current ? tabId : undefined
+      }
     return undefined
   }
 
-  // The tab closed: its shell is hung up, as closing a terminal does.
+  // The tab closed: its shells are hung up, as closing a terminal does.
   closeTab(tabId: string): void {
-    const drawer = this.#byTab.get(tabId)
-    if (!drawer) return
+    const tab = this.#byTab.get(tabId)
+    if (!tab) return
     this.#byTab.delete(tabId)
-    drawer.shell.hangUp()
+    for (const drawer of tab.byFolder.values()) drawer.shell.hangUp()
   }
 
   closeAll(): void {

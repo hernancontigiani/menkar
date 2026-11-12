@@ -21,6 +21,7 @@ import { projectsSnapshot, startProjects } from './projects'
 import { allReaped, reaping } from './reap'
 import { broadcastSessions, sessions } from './sessions'
 import { startPhase } from './startup'
+import { startTopics } from './topics'
 import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
   controlHandlers,
@@ -110,6 +111,7 @@ async function start(): Promise<void> {
   }
   startPhase('log opened')
   await startProjects()
+  await startTopics()
   startPhase('projects read and import')
   broadcastSessions()
   void sessions

@@ -15,6 +15,8 @@ export interface PaneView {
   readonly agent: PaneAgent
   readonly sessionId: string | null
   readonly remote?: boolean
+  // The folder the pane's process started in, when known.
+  readonly cwd?: string | null
 }
 
 export interface TabView {
@@ -47,6 +49,19 @@ export interface IncomingFile extends ProjectFile {
   readonly path: string
 }
 
+// An open topic of the shown project, in the order the Topics section shows it.
+export interface TopicView {
+  readonly number: number
+  readonly title: string
+  readonly context: string
+  // The name of the session that raised it.
+  readonly from: string
+  readonly blocking: boolean
+  readonly status: 'open' | 'discussing'
+  // Raised by a session with the ★.
+  readonly priority: boolean
+}
+
 export interface WindowState {
   readonly windowId: string
   // The user's home folder, for paths shown as ~/…
@@ -77,6 +92,9 @@ export interface WindowState {
   readonly sessionsLoading: boolean
   // The shown project's files folder: its files, and whether the section is collapsed.
   readonly files: { readonly items: readonly ProjectFile[]; readonly collapsed: boolean }
+  readonly topics: readonly TopicView[]
+  // The orchestration mode's guide, shipped with Menkar (decision 1.90).
+  readonly guidePath: string
 }
 
 export type Action =
@@ -111,6 +129,14 @@ export type Action =
   | { readonly type: 'checkProjectFile'; readonly name: string }
   | { readonly type: 'dragProjectFile'; readonly name: string }
   | { readonly type: 'collapseFiles'; readonly collapsed: boolean }
+  // The orchestration mode (decisions 1.77, 1.89): its switch per project, a session's marks, and
+  // the shown project's Topics section.
+  | { readonly type: 'setOrchestrationMode'; readonly project: string; readonly on: boolean }
+  | { readonly type: 'setOrchestrator'; readonly session: string; readonly on: boolean }
+  | { readonly type: 'setRole'; readonly session: string; readonly label: string }
+  | { readonly type: 'setPriority'; readonly session: string; readonly on: boolean }
+  | { readonly type: 'setWithYou'; readonly session: string; readonly on: boolean }
+  | { readonly type: 'setTopicsCollapsed'; readonly collapsed: boolean }
   // The focused pane's working folder (the drawer's), or a session's, in the file manager.
   | { readonly type: 'openPaneFolder'; readonly tab: string; readonly pane: string | null }
   | { readonly type: 'openSessionFolder'; readonly session: string }
@@ -138,7 +164,8 @@ export type Action =
   | { readonly type: 'closeOtherTabs'; readonly tab: string }
   // Shows or hides the selected tab's drawer, starting its shell in the folder of `pane` (the
   // focused one) when it has none.
-  | { readonly type: 'toggleDrawer'; readonly pane?: string }
+  // With `folder` (the orchestrator's tab, decision 1.78), a drawer started now starts there.
+  | { readonly type: 'toggleDrawer'; readonly pane?: string; readonly folder?: string }
   | { readonly type: 'stepTab'; readonly direction: 1 | -1 }
   | { readonly type: 'nthTab'; readonly n: number }
   | { readonly type: 'newWindow' }
@@ -150,7 +177,14 @@ export type Action =
       readonly folder: string
       readonly name: string
       readonly remoteControl?: boolean
+      // Its first prompt, as start_session passes one; Claude only.
+      readonly prompt?: string
+      // Marked as the shown project's orchestrator as it starts (the first-time card); Claude only.
+      readonly orchestrator?: boolean
     }
+  // "Ask an agent" on a Markdown file tab (decision 1.95); `pane` is the project's focused agent
+  // pane, whose folder the session starts in.
+  | { readonly type: 'askAboutFile'; readonly tab: string; readonly pane?: string }
   | { readonly type: 'forkSession'; readonly session: string }
   | { readonly type: 'pickFolder' }
   | { readonly type: 'dismissNotice'; readonly index: number }

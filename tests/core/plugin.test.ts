@@ -82,6 +82,17 @@ describe("Menkar's skills plugin", () => {
     expect(toolsNamed(skill('distill').body)).toContain('renew')
   })
 
+  // Decision 1.90: the orchestration mode's guide ships in the plugin, readable by any session.
+  test('the guide names the four topic tools, only tools the server lists, and no project of this repository', () => {
+    const guide = readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8')
+    const named = toolsNamed(guide)
+    for (const tool of ['topic_add', 'topic_update', 'topic_close', 'topic_list', 'start_session'])
+      expect(named).toContain(tool)
+    for (const tool of named) expect(TOOL_NAMES).toContain(tool)
+    for (const word of [/\bccai\b/i, /\blaburomenos\b/i, /\bagent-tablet\b/i])
+      expect(guide).not.toMatch(word)
+  })
+
   test.each(SKILLS)('%s names only tools the MCP server lists', (name) => {
     for (const tool of toolsNamed(skill(name).body)) expect(TOOL_NAMES).toContain(tool)
   })

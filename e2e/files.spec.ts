@@ -1,7 +1,8 @@
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { launchApp, savedCursorTab } from './app'
+import { prepare } from './fixtures'
 
 let home = ''
 let root = ''
@@ -173,6 +174,56 @@ test('PRF-5 the chosen font reaches the file tabs: one opened next uses it, an o
         size: getComputedStyle(n).fontSize,
       })),
     ).toEqual({ family: '"DejaVu Sans Mono", monospace', size: '18.6667px' })
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.95: a Markdown tab's "Ask an agent" starts a new Claude session beside it, told to read
+// the file by its absolute path; its folder is the focused agent's, and nothing is sent to a session
+// already running.
+test('"Ask an agent" on a Markdown tab starts a session beside it, named after the file, told to read it (screenshot)', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const claude = prepare(dirs)
+      const env = withFiles(dirs)
+      mkdirSync(join(dirs.home, 'docs'), { recursive: true })
+      writeFileSync(join(dirs.home, 'docs', 'design.md'), '# Design\n')
+      return { ...claude, ...env }
+    },
+  })
+  const page = launched.window
+  const argsFile = () => join(home, 'claude-args.txt')
+  const args = () => (existsSync(argsFile()) ? readFileSync(argsFile(), 'utf8') : '')
+  try {
+    await openTyped(page, join(home, 'docs', 'design.md'))
+    const ask = page.locator('.file-tab:visible .ask-agent')
+    await expect(ask).toHaveText('Ask an agent')
+    await page.screenshot({ path: '/tmp/menkar-shots/ask-agent.png' })
+    const fileTab = await page.locator('.tab.selected').getAttribute('data-tab')
+    await ask.click()
+    await expect(page.locator('.tab')).toHaveCount(3)
+    const tabs = page.locator('.tab')
+    const at = await tabs.evaluateAll(
+      (ns, id) => ns.findIndex((n) => n.getAttribute('data-tab') === id),
+      fileTab,
+    )
+    await expect(tabs.nth(at + 1)).toHaveText(/about design\.md/)
+    await expect
+      .poll(args)
+      .toContain(
+        `-n about design.md Read ${join(home, 'docs', 'design.md')} and answer my questions about it.`,
+      )
+    expect(readFileSync(join(home, 'claude-pid.txt'), 'utf8')).not.toBe('')
+    // Started in the focused agent's folder (the Cursor tab's, the home folder), not the file's.
+    const env = JSON.parse(readFileSync(join(home, 'claude-env.json'), 'utf8'))
+    expect(env.PWD ?? '').toBe(home)
+
+    // Again: another session, the name made unique.
+    await page.locator('.tab', { hasText: 'design.md' }).first().click()
+    await page.locator('.file-tab:visible .ask-agent').click()
+    await expect(page.locator('.tab')).toHaveCount(4)
+    await expect.poll(args).toContain('-n about design.md 2 Read')
   } finally {
     await launched.close()
   }

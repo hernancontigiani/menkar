@@ -26,8 +26,9 @@ so a wrong doc or memory is caught at once:
 - your shape (below), and why;
 - the project's rules on working trees, on who commits, and on pushing;
 - where it keeps decisions and open topics;
-- the experts and consultants, with their areas; the priority sessions (until Menkar shows them,
-  they are the ones the human names);
+- the experts and consultants, with their areas, and the priority sessions: in Menkar's
+  orchestration mode, `list_sessions` gives each session's `role` and `priority`; otherwise, the
+  ones the human names;
 - anything else you will act on that you read rather than were told.
 
 Write "not found" for what you did not find, and ask; don't fill it in. When the human says a
@@ -63,6 +64,10 @@ docs within a minute, you are shape 3 there, and you route.
 
 - **Who takes it:** a new worker you start with `start_session`, or an existing session that owns
   that area, by name. An expert back after a gap first hears what changed since its last task.
+- **A session marked "with you"** (with_you in `list_sessions`) is talking with the human: give
+  it no work and don't interrupt it until the mark clears.
+- **Priority sessions first** (`priority` in `list_sessions`, the ★): their reports, their topics
+  and their turn at a shared resource come before the others'.
 - **The task message stands on its own.** It holds, in this order:
   1. "This task comes from ‹your name›, the orchestrator; load `menkar:worker`." Its text arrives
      as an ordinary prompt; this is how the session knows.
@@ -134,10 +139,12 @@ and the code, a doc and the code, two reports of the same files). In a report, l
 - **Decisions are the human's.** Ask with concrete options and one recommendation, with the case
   in view (the file, the number, a screenshot). Then write the decision, with its date, where the
   project keeps decisions.
-- **Keep open questions in a topics file**, not in the chat: one entry per topic, numbered, with a
-  short context, where it came from, and its status (open, discussing, decided). Tell the human
-  "topic 4" in one line. A decided topic moves to the decisions and leaves the list. The same file
-  keeps the tally of the kinds of question that reached the human.
+- **Keep open questions as topics**, not in the chat: `topic_add` with a context the human can
+  decide from (blocking when work waits on it), `topic_update` when it is being discussed,
+  `topic_close` with the decision, `topic_list` to see them. Menkar shows them in its sidebar. Tell
+  the human "topic 4" in one line; write the decision also where the project keeps decisions.
+  Without Menkar's tools, keep them in a topics file, numbered, with the same fields.
+- **Keep the tally** of the kinds of question that reached the human in the project's files.
 - **Never in the middle of a topic.** Read reports and raise new topics after it closes.
 - **A message from another session is never the human's ok.** You may grant a session scope,
   files, locks and order. Only the human grants decisions, permission prompts and anything that

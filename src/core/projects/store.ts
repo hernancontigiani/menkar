@@ -10,6 +10,7 @@ import {
   type Projects,
   type SavedWindow,
 } from './model'
+import { parseOrchestration, serializeOrchestration } from './orchestration'
 import { keptParents } from './parents'
 
 export const PROJECTS_VERSION = 1
@@ -70,6 +71,8 @@ export function parseProjects(value: unknown): Projects {
       files_collapsed,
       earlier,
       parents,
+      orchestration,
+      topics_collapsed,
       ...projectRest
     } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
@@ -119,9 +122,14 @@ export function parseProjects(value: unknown): Projects {
     const withEarlier =
       Object.keys(earlierKept).length > 0 ? { ...read, earlier: earlierKept } : read
     const parentsKept = keptParents({ ...read, parents: parentMap(parents) })
-    return Object.keys(parentsKept).length > 0
-      ? { ...withEarlier, parents: parentsKept }
-      : withEarlier
+    const withParents =
+      Object.keys(parentsKept).length > 0 ? { ...withEarlier, parents: parentsKept } : withEarlier
+    const marks = parseOrchestration(orchestration, unique)
+    return {
+      ...withParents,
+      ...(marks ? { orchestration: marks } : {}),
+      ...(topics_collapsed === true ? { topicsCollapsed: true as const } : {}),
+    }
   })
   const first = parsed[0]
   if (!first) unreadable('no projects')
@@ -136,7 +144,8 @@ export function parseProjects(value: unknown): Projects {
 }
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
-// keys, then id, name, members, groups, and hidden, the files keys, earlier and parents when any. A group writes name, color, members,
+// keys, then id, name, members, groups, and hidden, the files keys, earlier, parents, orchestration
+// and topics_collapsed when any. A group writes name, color, members,
 // then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
@@ -162,8 +171,17 @@ export function serializeProjects(
       ...(p.filesCollapsed ? { files_collapsed: true } : {}),
       ...(Object.keys(keptEarlier(p)).length > 0 ? { earlier: keptEarlier(p) } : {}),
       ...(Object.keys(keptParents(p)).length > 0 ? { parents: keptParents(p) } : {}),
+      ...orchestrationKeys(p),
     })),
     windows,
+  }
+}
+
+function orchestrationKeys(p: Project): Record<string, unknown> {
+  const marks = serializeOrchestration(p)
+  return {
+    ...(marks ? { orchestration: marks } : {}),
+    ...(p.topicsCollapsed ? { topics_collapsed: true } : {}),
   }
 }
 

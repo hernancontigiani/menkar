@@ -94,9 +94,10 @@ name is the declared one**, and asks for a rename if not.
 
 - **Workers here don't commit**: every task says "no commit"; you commit after reviewing, when the
   human has asked you to.
-- **The topics file is `prompts/TOPICS.md`** (gitignored; a trial since 2026-11-11, decision 1.52,
-  to learn what a Menkar panel would need). A decided topic goes to `00-STATUS.md` or the doc that
-  owns it.
+- **Topics go through Menkar's tools** (`topic_add`, `topic_update`, `topic_close`, `topic_list`;
+  `docs/orchestration.md`), shown in the sidebar's Topics section once this project's orchestration
+  mode is on. A decided topic is closed with its decision and also goes to `00-STATUS.md` or the
+  doc that owns it.
 - **Workers' reports go to files as well**: `prompts/reports/<worker>-<topic>.md`, with one line to
   you, by name, giving the path. Don't subscribe to idle notices (`notify_when_idle`): each one
   costs you a turn and says nothing a report doesn't.

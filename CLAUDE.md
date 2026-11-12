@@ -51,6 +51,7 @@ what matters from being lost when a plan is deleted.
 | `docs/preferences.md` | Preferences, About or the Usage window: a setting's row, applying it to every window, restarting, the integrations' page |
 | `docs/chat.md` | Chat tabs and their processes, the permission card, the MCP servers browser, Open in Ghostty |
 | `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, waking a session, or the skills plugin |
+| `docs/orchestration.md` | The orchestration mode: its marks and topics, the sidebar in the mode, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
 | `docs/release-checklist.md` | Cutting a release: what the human checks on a real desktop before a build is called a version |
 
 ## Product rules the code must hold

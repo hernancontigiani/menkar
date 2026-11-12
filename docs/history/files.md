@@ -18,3 +18,8 @@
   maps each syntax role to the theme's roles, unless the theme lists its own, used for a dark
   editor only. VS Code Dark lists VS Code's Dark+ token colours. The look sets them as
   `--syntax-<role>` variables, which the `HighlightStyle` reads.
+
+## The file check and read only
+
+> Left on 2026-11-12: files under Menkar's plugin folder open read only too (decision 1.91, plan 34).
+  read only as well. The editor is not editable then, and `saveBuffer` refuses the agents' data

@@ -53,7 +53,12 @@ export type CheckedFile =
   | { readonly path: string; readonly text: string; readonly readOnly: Key | null }
   | { readonly refusal: Key }
 
-export async function checkFile(path: string, home: string): Promise<CheckedFile> {
+// `menkarFolder`: Menkar's own shipped files (its plugin folder), opened read only.
+export async function checkFile(
+  path: string,
+  home: string,
+  menkarFolder?: string,
+): Promise<CheckedFile> {
   let target: string
   let size: number
   try {
@@ -86,6 +91,11 @@ export async function checkFile(path: string, home: string): Promise<CheckedFile
   }
   if (await isClaudeData(target, home))
     return { path: target, text, readOnly: 'files.readOnlyClaude' }
+  if (menkarFolder) {
+    const own = await resolved(menkarFolder)
+    if (target.startsWith(`${own}/`))
+      return { path: target, text, readOnly: 'files.readOnlyMenkar' }
+  }
   const writable = await access(target, constants.W_OK).then(
     () => true,
     (error: NodeJS.ErrnoException) => {

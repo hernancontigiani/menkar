@@ -1,6 +1,7 @@
 import type { Key } from '../core/i18n'
 import { filterSearch, groupByFolder } from '../core/sessions/history'
 import { matchShortcut, type ShortcutOf } from '../core/shortcuts'
+import { tilde } from '../core/tilde'
 import type { TabEntry } from '../shared/workspace'
 import {
   act,
@@ -251,4 +252,22 @@ export async function projectSwitcher(): Promise<void> {
     cycle: 'projectSwitcher',
     releaseToChoose: held && entries.length > 0,
   })
+}
+
+// Ctrl+` in the orchestrator's tab (decision 1.78): which of the team's folders the drawer opens
+// in, by the folder's last name with its path as the caption; `start` is preselected.
+export function folderPicker(
+  folders: readonly string[],
+  start: number,
+  home: string,
+  choose: (folder: string) => void,
+): void {
+  const entries = folders.map((folder) => ({
+    title: folder.split('/').filter(Boolean).pop() ?? folder,
+    subtitle: tilde(folder, home),
+    dot: null,
+    search: folder.toLowerCase(),
+    choose: () => choose(folder),
+  }))
+  jumpDialog(t('drawer.pickTitle'), t('drawer.pickPlaceholder'), entries, { start })
 }

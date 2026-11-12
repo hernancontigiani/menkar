@@ -61,6 +61,22 @@ describe('the file check', () => {
     })
   })
 
+  // Decision 1.91: Menkar's own guide opens in a file tab, read only, wherever the plugin is.
+  test('a file under the plugin folder opens read only with its own reason, also through a link', async () => {
+    const plugin = join(home, 'opt', 'plugin')
+    await mkdir(join(plugin, 'guide'), { recursive: true })
+    await writeFile(join(plugin, 'guide', 'orchestration-mode.md'), '# guide')
+    await symlink(join(plugin, 'guide', 'orchestration-mode.md'), join(home, 'guide.md'))
+    for (const path of [join(plugin, 'guide', 'orchestration-mode.md'), join(home, 'guide.md')])
+      expect(await checkFile(path, home, plugin)).toMatchObject({
+        readOnly: 'files.readOnlyMenkar',
+      })
+    await writeFile(join(home, 'opt', 'plugin-notes.md'), 'x')
+    expect(await checkFile(join(home, 'opt', 'plugin-notes.md'), home, plugin)).toMatchObject({
+      readOnly: null,
+    })
+  })
+
   test('FIL-12 the agents’ data is read only, also through a link', async () => {
     await mkdir(join(home, '.claude'), { recursive: true })
     await writeFile(join(home, '.claude', 'settings.json'), '{}')

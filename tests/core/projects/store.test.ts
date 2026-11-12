@@ -234,6 +234,29 @@ describe('projects.json', () => {
     ])
   })
 
+  test('orchestration is read leniently: a wrong type drops that key, ids that are not members are dropped', () => {
+    const read = (orchestration: unknown, extra: Record<string, unknown> = {}) =>
+      parseProjects(
+        valid({
+          projects: [
+            { id: 'a', name: 'A', members: ['O', 'X'], groups: [], orchestration, ...extra },
+          ],
+        }),
+      ).projects[0]
+    expect(read({ on: 'yes', roles: { X: 3 } })?.orchestration).toBeUndefined()
+    expect(
+      read({
+        on: true,
+        orchestrator: 'gone',
+        roles: { X: 'Docs', stranger: 'Fabric' },
+        priority: ['X', 'gone', 4],
+        with_you: 'X',
+      })?.orchestration,
+    ).toEqual({ on: true, roles: { X: 'Docs' }, priority: ['X'] })
+    expect(read('on')?.orchestration).toBeUndefined()
+    expect(read({ on: true }, { topics_collapsed: 'yes' })).not.toHaveProperty('topicsCollapsed')
+  })
+
   test('PRJ-55 the written form: 2 spaces, non-ASCII as is, unknown keys first, then version, current, projects, windows', async () => {
     const parsed = parseProjects({
       zeta: 1,

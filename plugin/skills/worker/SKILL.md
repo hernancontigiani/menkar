@@ -105,6 +105,12 @@ started you. Write it once, complete:
 If the task asks for the report in a file as well, write the file and say its path in the last
 message.
 
+## When the human talks to you directly
+
+When the human, talking to you, says a topic is closed (an idea settled, a design or a plan
+written), send the orchestrator a short summary by name: what was decided, and the plan's path if
+there is one. Menkar types nothing for you.
+
 ## After the report
 
 Wait. The session that handed you the task may answer, ask for more, or tell you the task is

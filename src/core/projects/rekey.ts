@@ -9,11 +9,13 @@ import {
   removeMember,
   showMember,
 } from './model'
+import { followOrchestration } from './orchestration'
 import { followParents } from './parents'
 
 // Claude Code gives a running session a new id when the user clears it (`/clear`, decision 1.56),
 // and another when the user resumes a session inside it (1.57). The id the tab moves to takes the
-// old one's place: its spot among the project's members, its group and its hidden flag. The old id stays a member, right after it and outside any group, as one of
+// old one's place: its spot among the project's members, its group, its hidden flag and its
+// orchestration marks. The old id stays a member, right after it and outside any group, as one of
 // the new session's earlier conversations (1.63): in no list, in that session's menu.
 
 const swap = (ids: readonly string[], from: string, to: string) =>
@@ -43,7 +45,11 @@ export function followNewId(state: Projects, from: string, to: string): Projects
     ...state,
     projects: state.projects.map((p) =>
       p.id === project.id
-        ? followParents(becomeEarlier(followInProject(p, from, to), from, to), from, to)
+        ? followOrchestration(
+            followParents(becomeEarlier(followInProject(p, from, to), from, to), from, to),
+            from,
+            to,
+          )
         : p,
     ),
   }
@@ -79,7 +85,7 @@ export function followResume(
         members,
         earlier: { ...keptEarlier(placed), ...(carried.length > 0 ? { [to]: carried } : {}) },
       }
-      return becomeEarlier(withCarried, from, to)
+      return followOrchestration(becomeEarlier(withCarried, from, to), from, to)
     }),
   }
 }

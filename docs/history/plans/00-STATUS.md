@@ -401,3 +401,166 @@
 
 > Left §3 on 2026-11-12: plan 34 written.
 | 1 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Stub, being designed by `set` with the human, 2026-11-12; to be executed by a `b1` that `set` starts with `start_session` (2.22) |
+
+> Left §3 on 2026-11-12: 1.92 added to the small tasks.
+| 2 | Small tasks, not urgent: 1.87 (statusline without the total), 1.88 (Move to Trash in Files) | To assign after plan 34, or beside it if they share no file |
+
+## 2026-11-12 — plan 34 closed: the orchestration mode built by `b1` (started by `set` with `start_session`)
+
+| 1.77 | The orchestration mode (the human, 2026-11-12): **per project**, switched on and off from the project's menu; **roles are Menkar's data** set from a row's menu (Orchestrator — one per project —, Expert, Consultant, Reviewer, Worker; plus a free-text area and skill), read by agents through `list_sessions`; **a panel beside the orchestrator's tab** with the open topics (priority sessions' first, blocking marked) and the team's states; **the sidebar ordered by role** in the mode, workers nested under the session that started them | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.78 | The orchestration mode, continued (the human, 2026-11-12): topics through Menkar's MCP tools (`topic_add`, `topic_update`, `topic_close`, `topic_list`), kept as Menkar's data per project; a session's **priority flag** from its row's menu, shown as a yellow ★, its topics first; `Ctrl+\`` in the orchestrator's tab asks which of the active sessions' folders; talking to a session directly marks it "with you" and the session briefs the orchestrator by name when the human asks it, Menkar typing nothing | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.86 | Plan 34's three open details (the human, 2026-11-12): the panel's team list shows one row per session — state dot, priority ★, name, role label, context ring, "with you" — a click selects its tab, a right-click opens the row's menu; **"with you" is a toggle the human sets and clears by hand** (row menu and panel), read by agents through `list_sessions`; topics are answered **only in the orchestrator's chat**, the panel is read only (a click unfolds a topic's context) | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.89 | Plan 34's look (the human, 2026-11-12, from mock-ups A–D): **no panel** — the topics are a collapsible "Topics" section at the top of the sidebar, seen from any tab, and the team is the sidebar itself, ordered by role (amends 1.77 point 3; 1.86's row click and menu apply to the sidebar rows); in the row menu, "Orchestrator", "Role…", "Priority" and "With you" sit loose in their own block, only while the mode is on; a session's children with a tab are nested and indented under it, those without a tab gathered in one "N earlier" row that unfolds on a click; the mode is switched from an icon per project in the project popover, lit when on, **and from a toggle beside Usage in the header**, so it can be discovered | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.90 | The first time a project enters the orchestration mode (no orchestrator marked), Menkar guides the user: a card says what the mode is for, explains in a line what an orchestrator is, and asks which existing session will be it or offers to start a new one; it points to a **guide written to be read by agents** too, shipped inside Menkar so any session can read it from disk, with a way to hand it to another session to ask it questions; the same guide published online later (the human, 2026-11-12: "documentation must be accessible to agents") | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.91 | 1.89 and 1.90 settled (the human, 2026-11-12, mock-ups E and F): the header toggle is a switch with the word "Orchestration" beside Usage; the first-time guide is a card over the window — what the mode is, "Who orchestrates?" with the project's sessions or a new one, "Open the guide" (a read-only Menkar file tab) and "Copy a prompt for another session"; "Not now" leaves the mode off; no external link until the guide is published with plan 28's site | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.93 | `Ctrl+\`` in the orchestrator's tab keeps **one shell per folder**: picking a folder shows that folder's drawer (started the first time), and the others stay alive and hidden; nothing is hung up by a pick. Closing the tab hangs them all up as today (the human, 2026-11-12, b1's question in plan 34 block 7) | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Written 2026-11-12, ready; executed by a `b1` that `set` starts with `start_session` (2.22) |
+| 2 | Small tasks, not urgent: 1.87 (statusline without the total), 1.88 (Move to Trash in Files), 1.92 (a reused name makes the stopped session an earlier conversation) | After plan 34: they touch `src/main/workspace.ts` and the renderer, which plan 34 is changing |
+| 2.22 | The human's check of plan 31 on the real desktop: in a real tab an agent calls `start_session` — the new tab appears after it without taking the focus; when that child stops at a permission prompt, its idle parent wakes with a [Menkar] message; `renew` restarts the tab with the same name and the old conversation under "Earlier conversations" | Human | Trusting session control |
+
+### Plan 34's execution log, verbatim
+
+
+Executed by `b1`, 2026-11-12, blocks 1–8 in order. Every new test was seen red first (a missing
+module, or a defect injected and removed).
+
+**Decisions taken on the way, by the human through `set`:**
+- **1.93, one shell per folder** (block 7): §2.6 did not say what a pick does while the tab's
+  hidden drawer lives in another folder. The human decided that each folder picked in the
+  orchestrator's tab keeps its own drawer. `DrawerRegistry` keeps a current drawer and one per
+  folder for each tab; every other tab keeps one.
+- **The orchestrator's row is labelled "Orchestrator"** where the role goes when it has no label of
+  its own (`set`, from mock C1, after checking the screenshots of blocks 1–5).
+- **check-test-integrity:** adding the topic tools removes the line
+  `expect(TOOL_NAMES).toEqual([... four names])`. `set` accepted it, to be noted at commit; its
+  replacement is as strict (an exact eight-name list on `tools/list`, and `TOOL_NAMES` equal to
+  it). Until that commit `npm run ci` stops at that step; the steps after it (flaky quarantine,
+  history) were run by hand each time and passed.
+- **plans/00-STATUS.md** rows 1.77, 1.78, 1.86, 1.89–1.91 and 1.93 and their history are left to
+  `set`, who was editing both files; `set` repoints them when it closes the plan.
+
+**Deviations, and files touched beyond the ones named:**
+- `src/main/projects.ts`: it maps `ProjectInfo` too, so it had to carry the new fields; it also got
+  `addNotice` for the topics file's moved-aside notice.
+- `ProjectInfo` also gained `parents`, which `modeRows` needs to nest children.
+- `PaneView` gained an optional `cwd`, which the renderer needs to gather the team's folders for
+  `Ctrl+\`` and for the card's folder list.
+- New modules beyond the plan's names: `src/renderer/orchestration.ts` (switch, popover icon, row
+  menu block, Topics section, card), `src/main/topics.ts` (the store main keeps), and
+  `folderPicker` in `src/renderer/switcher.ts` (a list over `jumpDialog`).
+- `WindowState` gained `topics` and `guidePath`.
+- The topic tools' logic is a pure `topicTool` in `src/core/orchestration/topics.ts`, tested on its
+  own, so `handleControl`'s cases stay one call.
+- The read-only key for the guide is `files.readOnlyMenkar`: `checkFile` takes an optional folder
+  of Menkar's own (the plugin folder), checked through links.
+- `scripts/check-package.mjs` and its test now require `resources/plugin/guide/orchestration-mode.md`
+  in the .deb, so "package:check lists it" is asserted, not just looked at.
+- `tests/core/plugin.test.ts` gained a guard for the guide: it names the topic tools, names only
+  tools the server lists, and no project of this repository.
+- `docs/window.md` and `docs/files.md` were made false by blocks 7 and 6 (one drawer per tab; what
+  opens read only), so both were corrected, with their history.
+
+**My choices, labelled:**
+- "Open the guide" closes the card and leaves the mode off. "Copy a prompt" keeps the card open and
+  shows a toast. Escape is "Not now".
+- In a row in the mode, the role and the folder share the line under the name (`Role · folder`)
+  when both show; the ★ goes before the name and "with you" after it.
+- The "N earlier" row's wording is the plan's, in Spanish "N anteriores".
+- `followNewId`/`followResume`: the old id's marks replace the new id's own where both have one
+  (a role, the orchestrator mark); a mark only the new id has stays (as `followParents` does).
+- Reopening a topic with `topic_update { status }` drops a decision it had, which can only happen
+  to a topic closed by `topic_close`, since only open and discussing can be set.
+- The card's folder list is the project's running sessions' folders (the `Ctrl+\`` list), else the
+  recent folders. Its sessions are the listed ones: not hidden, not an earlier conversation.
+
+- The popover's team icon sits after rename and delete. First placed before them, it took the
+  first button's place, which `e2e/window.spec.ts` clicks to rename (caught by the full ui-check).
+
+**What the plan did not anticipate:**
+- The mock-ups were not on disk. The look follows §2's text, and `set` checked the screenshots
+  against the mock-ups.
+- `Ctrl+\`` with a hidden drawer in another folder (decision 1.93 above).
+- A test cannot copy into `$MENKAR_FILES` (another user's run would write there), so the specs
+  write to `/tmp/menkar-shots/` and the `b1-` copies were made by hand.
+
+> Left §3 on 2026-11-12: 1.96 added to the small tasks.
+| 1 | Small tasks, not urgent: 1.87 (statusline without the total), 1.88 (Move to Trash in Files), 1.92 (a reused name makes the stopped session an earlier conversation), `last_reply` preferring the session with a tab when two share a name (seen 2026-11-12: it read the stopped `b1`) | Next, for one worker: they touch `src/main/workspace.ts` and the renderer |
+
+### Plan 34's execution log, final (after 1.94 and 1.95), verbatim
+
+
+Executed by `b1`, 2026-11-12, blocks 1–8 in order. Every new test was seen red first (a missing
+module, or a defect injected and removed).
+
+**Decisions taken on the way, by the human through `set`:**
+- **1.93, one shell per folder** (block 7): §2.6 did not say what a pick does while the tab's
+  hidden drawer lives in another folder. The human decided that each folder picked in the
+  orchestrator's tab keeps its own drawer. `DrawerRegistry` keeps a current drawer and one per
+  folder for each tab; every other tab keeps one.
+- **The orchestrator's row is labelled "Orchestrator"** where the role goes when it has no label of
+  its own (`set`, from mock C1, after checking the screenshots of blocks 1–5).
+- **check-test-integrity:** adding the topic tools removes the line
+  `expect(TOOL_NAMES).toEqual([... four names])`. `set` accepted it, to be noted at commit; its
+  replacement is as strict (an exact eight-name list on `tools/list`, and `TOOL_NAMES` equal to
+  it). Until that commit `npm run ci` stops at that step; the steps after it (flaky quarantine,
+  history) were run by hand each time and passed.
+- **plans/00-STATUS.md** rows 1.77, 1.78, 1.86, 1.89–1.91 and 1.93 and their history are left to
+  `set`, who was editing both files; `set` repoints them when it closes the plan.
+
+**Deviations, and files touched beyond the ones named:**
+- `src/main/projects.ts`: it maps `ProjectInfo` too, so it had to carry the new fields; it also got
+  `addNotice` for the topics file's moved-aside notice.
+- `ProjectInfo` also gained `parents`, which `modeRows` needs to nest children.
+- `PaneView` gained an optional `cwd`, which the renderer needs to gather the team's folders for
+  `Ctrl+\`` and for the card's folder list.
+- New modules beyond the plan's names: `src/renderer/orchestration.ts` (switch, popover icon, row
+  menu block, Topics section, card), `src/main/topics.ts` (the store main keeps), and
+  `folderPicker` in `src/renderer/switcher.ts` (a list over `jumpDialog`).
+- `WindowState` gained `topics` and `guidePath`.
+- The topic tools' logic is a pure `topicTool` in `src/core/orchestration/topics.ts`, tested on its
+  own, so `handleControl`'s cases stay one call.
+- The read-only key for the guide is `files.readOnlyMenkar`: `checkFile` takes an optional folder
+  of Menkar's own (the plugin folder), checked through links.
+- `scripts/check-package.mjs` and its test now require `resources/plugin/guide/orchestration-mode.md`
+  in the .deb, so "package:check lists it" is asserted, not just looked at.
+- `tests/core/plugin.test.ts` gained a guard for the guide: it names the topic tools, names only
+  tools the server lists, and no project of this repository.
+- `docs/window.md` and `docs/files.md` were made false by blocks 7 and 6 (one drawer per tab; what
+  opens read only), so both were corrected, with their history.
+
+**My choices, labelled:**
+- "Copy a prompt" keeps the card open and shows a toast. Escape is "Not now". ("Open the guide"
+  closing the card was replaced by 1.94 below.)
+- In a row in the mode, the role and the folder share the line under the name (`Role · folder`)
+  when both show; the ★ goes before the name and "with you" after it.
+- The "N earlier" row's wording is the plan's, in Spanish "N anteriores".
+- `followNewId`/`followResume`: the old id's marks replace the new id's own where both have one
+  (a role, the orchestrator mark); a mark only the new id has stays (as `followParents` does).
+- Reopening a topic with `topic_update { status }` drops a decision it had, which can only happen
+  to a topic closed by `topic_close`, since only open and discussing can be set.
+- The card's folder list is the project's running sessions' folders (the `Ctrl+\`` list), else the
+  recent folders. Its sessions are the listed ones: not hidden, not an earlier conversation.
+
+- The popover's team icon sits after rename and delete. First placed before them, it took the
+  first button's place, which `e2e/window.spec.ts` clicks to rename (caught by the full ui-check).
+
+**After review, two decisions of the human (through `set`):**
+- **1.94 (mock G1):** "Open the guide" hides the card instead of closing it. Closing the guide's
+  tab brings the card back with the radio, the name and the folder chosen, kept per window in
+  memory, and the mode does not move until Start or Not now. The watch on the guide's tab is
+  registered when the frame is built, since app's listeners do not exist while the module loads.
+- **1.95:** "Ask an agent" on every Markdown editor tab. `set` defined the name and the folder;
+  `startNew`'s body became `startNewSession`, which can insert the new tab after a given one, and
+  `askAboutFile` calls it. Also my choices: the button sits at the left of the Save/Preview row,
+  in a wrapper (`.file-actions`), so the existing specs' `.preview-row button:not(.save)` still
+  finds one button; it is on editor tabs only, not on the Markdown preview tab, which has no row;
+  "the project's focused agent pane" is the focused pane of the session tab last selected in that
+  project in this window, else its first session tab; names still starting in a tab count as
+  taken, so two quick clicks don't get one name.
+
+**What the plan did not anticipate:**
+- The mock-ups were not on disk. The look follows §2's text, and `set` checked the screenshots
+  against the mock-ups.
+- `Ctrl+\`` with a hidden drawer in another folder (decision 1.93 above).
+- A test cannot copy into `$MENKAR_FILES` (another user's run would write there), so the specs
+  write to `/tmp/menkar-shots/` and the `b1-` copies were made by hand.

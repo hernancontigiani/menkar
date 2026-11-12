@@ -6,6 +6,7 @@ import { ChangeSet, Text } from '@codemirror/state'
 import { checkFile, isClaudeData } from '../core/files/check'
 import type { Key } from '../core/i18n'
 import { log } from '../core/log'
+import { skillsPluginDir } from './control'
 
 // One buffer per file for the whole app, every window and project: identity is the path resolved
 // through links. Windows are separate processes, so the buffer lives here and they follow it.
@@ -70,7 +71,7 @@ export const isDirty = (path: string) => buffers.get(path)?.dirty === true
 
 // Opens (or finds) the buffer of a file after the file check; the path given back is resolved.
 export async function openBuffer(path: string): Promise<{ path: string } | { refusal: Key }> {
-  const checked = await checkFile(path, homedir())
+  const checked = await checkFile(path, homedir(), skillsPluginDir())
   if ('refusal' in checked) return checked
   const existing = buffers.get(checked.path)
   if (existing) return { path: existing.path }

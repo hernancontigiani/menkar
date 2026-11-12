@@ -4,7 +4,9 @@ Decisions 1.70, 1.72, 1.73 and 1.74 (the human, 2026-11-11). A session renews it
 is done (a `/clear` nobody types), an orchestrator starts its workers in Menkar tabs, a worker's
 last reply is read by name, and a parent session is woken when a worker it started needs it or
 ends a turn. The skills that teach agents to use these tools ship with Menkar as a plugin
-(decisions 1.71 and 1.79–1.84, 2026-11-12; "The skills plugin" below).
+(decisions 1.71 and 1.79–1.84, 2026-11-12; "The skills plugin" below). The orchestration mode
+(`docs/orchestration.md`) adds four tools for topics and shapes `list_sessions`, `start_session`
+and the wake order.
 
 ## The shape
 
@@ -19,13 +21,13 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     call without one.
   - **The protocol** (`protocol.ts`) is newline-delimited JSON-RPC written by hand:
     - `initialize` echoes the client's protocol version and offers `tools`; `ping` gets `{}`.
-    - `tools/list` names four tools; `tools/call` runs one.
+    - `tools/list` names eight tools; `tools/call` runs one.
     - Anything else with an id gets -32601, which is what Claude Code's first `server/discover`
       receives.
     - A failed call is `{content: [{type: "text", text}], isError: true}` with Menkar's own English
       sentence: it goes to the agent, not to the user.
-- **The four tools.** A session is always named by its name, never by its id: a renew or a `/clear`
-  gives it a new id, and an id an agent kept would name nothing.
+- **The eight tools.** A session is always named by its name, never by its id: a renew or a
+  `/clear` gives it a new id, and an id an agent kept would name nothing.
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
   - **`start_session { name, prompt? | prompt_file?, remote_control?, group? }`:** a new Claude
@@ -34,15 +36,31 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     - A name another session of the project already uses in a tab is refused, and so is a group
       the project does not have.
     - The session starts in the caller's folder.
+    - With the orchestration mode on and an orchestrator marked, a caller that is not the
+      orchestrator is refused: "Only this project's orchestrator, ‹name›, starts sessions. Ask it to
+      delegate the work." (`mayStart`, `src/core/orchestration/mayStart.ts`, decision 1.84). With
+      the mode off, or none marked, anyone may.
   - **`list_sessions {}`:** the caller's project, name first, then the id, the shown state, the
     context percentage, the parent's name, and whether the session has a tab. Earlier
-    conversations are left out.
+    conversations are left out. Each session also carries the orchestration mode's marks — `role`
+    (its label or null), `orchestrator`, `priority` and `with_you` — and the answer says whether
+    the mode is on (`orchestration`). With the mode off the marks read null and false: off is the
+    ordinary Menkar (`sessionMarks`, `sessionsAnswer`). A snapshot an older Menkar wrote, without
+    them, reads the same.
   - **`last_reply { name }`:** the last text a session of the caller's project replied. It is read
     from the end of its transcript (`src/core/sessions/lastreply.ts`, read only, in chunks, never
     the whole file) and cut to its first `REPLY_MAX_CHARS` with a note. When the session has not
     replied since it renewed or was cleared, the answer is the last reply of its most recent earlier
     conversation, after a note that says so (`lastReplyAnswer`, decision 1.84, 2026-11-12): a
     worker's report outlives the renew that follows it.
+  - **`topic_add { title, context, blocking? }`, `topic_update { number, title?, context?,
+    blocking?, status? }`, `topic_close { number, decision }`, `topic_list { all? }`:** the
+    project's topics for the human (`docs/orchestration.md`), kept by main in `topics.json`. Any
+    session of the project may call them; a number of another project is "not found". Status set
+    by hand is "open" or "discussing"; only `topic_close` closes. `topic_list` gives one topic per
+    two lines — number, ★ when raised by a priority session, title, who raised it by name,
+    blocking, status, decision when closed, then the context — in the sidebar's order
+    (`topicTool`, `src/core/orchestration/topics.ts`).
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.
@@ -85,6 +103,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     `onShownChange` in `src/main/agentstate.ts`.
   - **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, events wait until no
     new one has come for `WAKE_DELAY_MS`, a child keeps only its latest, and all go in one message.
+    In it, the events of children with the ★ come first; otherwise they keep the order the children
+    first spoke in (decision 1.78).
   - **The post** (`postToSession`, `post.ts`):
     - Main finds the parent's process in Claude Code's registry, `~/.claude/sessions/<pid>.json`,
       read only, by `sessionId`, and requires `peerProtocol` 1.
@@ -108,8 +128,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   The folder is resolved when called (`pluginFolder` in `src/core/paths.ts`, from
   `skillsPluginDir` in `src/main/control.ts`): `resources/plugin` beside app.asar when packaged
   (`electron-builder.yml`'s `extraResources`, since `claude` cannot read inside the archive), the
-  repository's `plugin/` in development. `package:check` requires the manifest and the four
-  `SKILL.md` files in the .deb.
+  repository's `plugin/` in development. `package:check` requires the manifest, the four
+  `SKILL.md` files and the orchestration mode's guide (`guide/orchestration-mode.md`) in the .deb.
 - **The texts' rules,** held by `tests/core/plugin.test.ts`:
   - a body under 200 lines, with detail beyond that in `.md` reference files beside `SKILL.md`,
     each one named by it;
@@ -178,7 +198,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   `shell` and `claude agents --json` say `busy` while the session is idle. That hides the very
   state Menkar reads, and the monitor outlives a killed agent.
 - **`@modelcontextprotocol/sdk`:** a web framework, a schema library and more ship with it, for
-  four tools.
+  a handful of tools.
 - **`--strict-mcp-config`:** it would drop the user's own MCP servers from Menkar's sessions.
 - **Skills through `--add-dir` of a folder holding `.claude/skills/`:** they load, but the folder is
   opened to the agent's file tools.

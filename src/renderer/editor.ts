@@ -19,10 +19,11 @@ import { tags } from '@lezer/highlight'
 import type { Key } from '../core/i18n'
 import type { SyntaxRole } from '../core/theme'
 import type { FileUpdate, TabView } from '../shared/workspace'
-import { act, saveFile } from './app'
+import { act, focusedAgentPane, saveFile } from './app'
 import { el } from './dom'
 import { t, translate } from './i18n'
 import { renderPreview } from './preview'
+import { toast } from './ui'
 
 // An edit that came from the buffer in main, which the view must not send back.
 const remote = Annotation.define<boolean>()
@@ -191,6 +192,25 @@ function makeView(e: EditorTab, text: string, readOnly: boolean, host: HTMLEleme
   })
 }
 
+// Decision 1.95: a new Claude session beside this tab, told to read the file; nothing is sent to
+// a session already running.
+function askButton(tab: TabView): HTMLElement {
+  const button = el(
+    'button',
+    { class: 'flat ask-agent', title: t('files.askAgentTooltip') },
+    t('files.askAgent'),
+  )
+  button.addEventListener('click', () => {
+    const pane = focusedAgentPane(tab.project)
+    void act({ type: 'askAboutFile', tab: tab.id, ...(pane ? { pane } : {}) }).then(
+      ({ refusal }) => {
+        if (refusal) toast(translate(refusal))
+      },
+    )
+  })
+  return button
+}
+
 // The DOM of a file tab, created once per tab and kept across renders.
 export function fileElement(tab: TabView): HTMLElement {
   const existing = editors.get(tab.id)
@@ -230,7 +250,7 @@ export function fileElement(tab: TabView): HTMLElement {
       button.addEventListener('click', () => void act({ type: 'togglePreview', tab: tab.id }))
       row.append(button)
     }
-    root.append(row)
+    root.append(isMarkdown(path) ? el('div', { class: 'file-actions' }, askButton(tab), row) : row)
     const host = el('div', { class: 'editor-host' })
     root.append(host)
     e.view = makeView(e, file.text, file.readOnly !== null, host)

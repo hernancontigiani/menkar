@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Key } from '../i18n'
+import { tidyOrchestration } from './orchestration'
 
 export const DEFAULT_PROJECT_NAME = 'Default'
 export const GROUP_COLORS = ['#5ec4b6', '#c17be0', '#e0b45b', '#7fb2ff', '#e57c9a'] as const
@@ -11,6 +12,20 @@ export interface Group {
   readonly members: readonly string[]
   // Shown as one row in the list, in every window, until expanded.
   readonly collapsed?: true
+}
+
+// The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86). Switching the mode off keeps
+// them, so switching it on again finds the team as it was.
+export interface Orchestration {
+  readonly on: boolean
+  // One per project.
+  readonly orchestrator?: string
+  // A free label by session id, e.g. "Fabric expert".
+  readonly roles?: Readonly<Record<string, string>>
+  // Sessions with the ★: their topics and wakes come first.
+  readonly priority?: readonly string[]
+  // Sessions the human marked as talking with them directly.
+  readonly withYou?: readonly string[]
 }
 
 export interface Project {
@@ -32,6 +47,9 @@ export interface Project {
   // Who started a session through Menkar, by child id: the session woken when the child
   // waits at a prompt or ends its turn.
   readonly parents?: Readonly<Record<string, string>>
+  readonly orchestration?: Orchestration
+  // Its Topics section in the sidebar shows the heading alone.
+  readonly topicsCollapsed?: true
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }
@@ -106,9 +124,11 @@ function leaveGroups(p: Project, sessionId: string): Project {
   }
 }
 
-// A member leaving its project leaves its group and the project's hidden list too.
+// A member leaving its project leaves its group, the project's hidden list and its marks too.
 function leave(p: Project, sessionId: string): Project {
-  const left = leaveGroups({ ...p, members: p.members.filter((m) => m !== sessionId) }, sessionId)
+  const left = tidyOrchestration(
+    leaveGroups({ ...p, members: p.members.filter((m) => m !== sessionId) }, sessionId),
+  )
   return p.hidden?.includes(sessionId)
     ? { ...left, hidden: p.hidden.filter((m) => m !== sessionId) }
     : left

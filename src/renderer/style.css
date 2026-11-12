@@ -1364,3 +1364,199 @@ select option {
 .xterm:not(.ctrl-held) .xterm-cursor-pointer {
   cursor: text;
 }
+
+/* ---------------------------------------------------------------- orchestration mode */
+#orchestration-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.switch-track {
+  position: relative;
+  width: 24px;
+  height: 14px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--fg) 25%, transparent);
+  transition: background 0.12s;
+}
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--fg);
+  transition: left 0.12s;
+}
+#orchestration-switch[aria-checked="true"] .switch-track {
+  background: var(--accent);
+}
+#orchestration-switch[aria-checked="true"] .switch-knob {
+  left: 12px;
+  background: var(--on-accent);
+}
+.project-row .team-button {
+  opacity: 0.45;
+}
+.project-row .team-button.lit {
+  opacity: 1;
+  color: var(--accent);
+}
+/* The Topics section at the top of the sidebar: the Files section's toggle, then one line per
+   topic that unfolds its context. */
+#topics-section {
+  flex: none;
+  max-height: 40%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+#topics-section:empty {
+  display: none;
+}
+.topics-heading {
+  display: flex;
+  align-items: center;
+  margin: 4px 6px 0;
+}
+.topics-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px 4px;
+  border-radius: var(--radius);
+  font-size: 9pt;
+  font-weight: 700;
+  text-align: left;
+}
+.topics-toggle::before {
+  content: "▾";
+  width: 10px;
+  flex: none;
+}
+.topics-toggle.collapsed::before {
+  content: "▸";
+}
+.topics-toggle:hover,
+.topic-row:hover,
+.earlier-row:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+.topics-empty {
+  margin: 0 6px 4px;
+  padding: 2px 4px 4px 22px;
+  font-size: 9pt;
+}
+.topic {
+  margin: 0 6px 1px;
+}
+.topic-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 4px 4px 22px;
+  border-radius: var(--radius);
+  font-size: 9pt;
+  text-align: left;
+}
+.topic-number {
+  flex: none;
+}
+.topic-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topic-blocking {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.topic-detail {
+  padding: 0 4px 6px 22px;
+  font-size: 9pt;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.topic-meta {
+  margin-top: 2px;
+}
+.priority-star {
+  color: var(--yellow);
+  margin-right: 4px;
+  flex: none;
+}
+.row .with-you {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 6px;
+  font-size: 8pt;
+  font-weight: 400;
+  vertical-align: 1px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.row.nested {
+  margin-left: 22px;
+}
+.earlier-row {
+  margin: 0 6px 2px 28px;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius);
+  font-size: 9pt;
+  text-align: left;
+  display: block;
+  width: calc(100% - 34px);
+}
+/* The first-time card (mock F1): the dialog's look, wider, its choices left-aligned. */
+.dialog.orch-card {
+  max-width: 560px;
+}
+.orch-card .message {
+  text-align: left;
+}
+.orch-card .card-question {
+  margin-top: 6px;
+  font-weight: 700;
+}
+.orch-card .card-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.orch-card .card-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.orch-card .card-new {
+  display: flex;
+  gap: 6px;
+  margin-left: 24px;
+}
+.orch-card .card-name {
+  flex: 1;
+}
+.orch-card .card-folder {
+  flex: 1;
+  min-width: 0;
+}
+.orch-card .responses button {
+  font-size: 9pt;
+}
+/* A Markdown tab's row: "Ask an agent" at the left, Save and Preview at the right (1.95). */
+.file-actions {
+  display: flex;
+  align-items: center;
+}
+.file-actions .ask-agent {
+  margin-left: 8px;
+}
+.file-actions .preview-row {
+  flex: 1;
+}

@@ -4,6 +4,8 @@ import { now } from '../core/clock'
 import type { Reading } from '../core/context/types'
 import { formatTime } from '../core/format'
 import type { Key } from '../core/i18n'
+import { teamFolders } from '../core/orchestration/folders'
+import { type ModeRow, modeRows } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import { relativeTime } from '../core/sessions/history'
@@ -17,7 +19,15 @@ import { fileElement, forgetFilesExcept, setFileTheme } from './editor'
 import { openFileDialog } from './fileopen'
 import { t, translate } from './i18n'
 import { applyLook } from './look'
+import {
+  modeSwitch,
+  orchestrationItems,
+  syncModeSwitch,
+  teamButton,
+  topicsSection,
+} from './orchestration'
 import { confirmRemove, infoItems } from './sessionmenus'
+import { folderPicker } from './switcher'
 import {
   applyTerminalLook,
   focusPane,
@@ -195,6 +205,7 @@ export function buildFrame(): void {
       'aside',
       { id: 'sidebar' },
       el('div', { class: 'sidebar-header' }, projectButton, settings),
+      el('div', { id: 'topics-section' }),
       el('div', { id: 'session-list' }),
       el('div', { id: 'files-section' }),
       addSession,
@@ -209,6 +220,7 @@ export function buildFrame(): void {
         toggle,
         newMenu,
         usage,
+        modeSwitch(),
         el(
           'div',
           { class: 'title' },
@@ -268,9 +280,21 @@ export function onRender(listener: (s: WindowState) => void): () => void {
   return () => stateListeners.delete(listener)
 }
 
+// Per window, in memory: the session tab last selected in each project.
+const lastSessionTab = new Map<string, string>()
+
+// The project's focused agent pane: in the session tab last selected there, else its first one.
+export function focusedAgentPane(project: string): string | undefined {
+  const tabs = state?.tabs.filter((x) => x.project === project && x.kind === 'session') ?? []
+  const tab = tabs.find((x) => x.id === lastSessionTab.get(project)) ?? tabs[0]
+  return tab ? (focusedPane.get(tab.id) ?? tab.panes[0]?.id) : undefined
+}
+
 export function render(next: WindowState): void {
   const previous = state
   state = next
+  const selectedNow = next.tabs.find((x) => x.id === next.selectedTab)
+  if (selectedNow?.kind === 'session') lastSessionTab.set(selectedNow.project, selectedNow.id)
   for (const listener of stateListeners) listener(next)
   const look = applyLook(next.settings, (changed) => {
     applyTerminalLook(next.settings, changed)
@@ -294,6 +318,7 @@ export function render(next: WindowState): void {
   const face = blockedPill(faceBadge(agentStates?.blocked ?? {}, next.shown))
   if (face) $('project-button').querySelector('.project-name')?.after(face)
   document.documentElement.classList.toggle('maximized', next.maximized)
+  syncModeSwitch(project)
   renderSessionList(next, project)
   renderStrip(next)
   renderContent(next)
@@ -353,6 +378,9 @@ const folderOf = (info: SessionInfo) =>
 function renderSessionList(s: WindowState, project: ProjectInfo | undefined): void {
   const list = $('session-list')
   $('files-section').replaceChildren(...(project ? filesSection(s, project) : []))
+  $('topics-section').replaceChildren(
+    ...(project?.orchestration.on ? topicsSection(s, project.topicsCollapsed) : []),
+  )
   if (!project) {
     list.replaceChildren()
     return
@@ -402,36 +430,48 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   const selected = new Set(
     s.tabs.find((tab) => tab.id === s.selectedTab)?.panes.map((p) => p.sessionId) ?? [],
   )
-  for (const group of shownGroups) {
-    const members = group.members.filter((id) => byId.has(id) && listed(id))
-    if (!group.collapsed) {
-      children.push(groupHeading(project.id, group, null))
-      for (const id of members) {
-        const info = byId.get(id)
-        if (info) children.push(row(info, showFolder, running.has(id), project, group.name))
-      }
-      continue
-    }
-    const runningMembers = group.members.filter((id) => running.has(id))
-    const readings = runningMembers.flatMap((id) => {
-      const reading = readingOf(id)
-      return reading ? [reading] : []
-    })
+  if (project.orchestration.on)
     children.push(
-      groupHeading(project.id, group, {
-        count: members.length,
-        state: groupState(runningMembers.map(runningState)) ?? 'stopped',
-        reading: readings.sort((a, b) => b.percentage - a.percentage)[0] ?? null,
-        holdsSelected: group.members.some((id) => selected.has(id)),
+      ...modeList(project, {
+        byId,
+        listed: known.filter(listed),
+        running,
+        showFolder,
+        selected,
       }),
     )
-  }
-  const loose = known.filter((id) => !grouped.has(id) && listed(id))
-  if (loose.length > 0 && shownGroups.length > 0)
-    children.push(el('div', { class: 'group-heading dim' }, t('sidebar.noGroup')))
-  for (const id of loose) {
-    const info = byId.get(id)
-    if (info) children.push(row(info, showFolder, running.has(id), project, ''))
+  else {
+    for (const group of shownGroups) {
+      const members = group.members.filter((id) => byId.has(id) && listed(id))
+      if (!group.collapsed) {
+        children.push(groupHeading(project.id, group, null))
+        for (const id of members) {
+          const info = byId.get(id)
+          if (info) children.push(row(info, showFolder, running.has(id), project, group.name))
+        }
+        continue
+      }
+      const runningMembers = group.members.filter((id) => running.has(id))
+      const readings = runningMembers.flatMap((id) => {
+        const reading = readingOf(id)
+        return reading ? [reading] : []
+      })
+      children.push(
+        groupHeading(project.id, group, {
+          count: members.length,
+          state: groupState(runningMembers.map(runningState)) ?? 'stopped',
+          reading: readings.sort((a, b) => b.percentage - a.percentage)[0] ?? null,
+          holdsSelected: group.members.some((id) => selected.has(id)),
+        }),
+      )
+    }
+    const loose = known.filter((id) => !grouped.has(id) && listed(id))
+    if (loose.length > 0 && shownGroups.length > 0)
+      children.push(el('div', { class: 'group-heading dim' }, t('sidebar.noGroup')))
+    for (const id of loose) {
+      const info = byId.get(id)
+      if (info) children.push(row(info, showFolder, running.has(id), project, ''))
+    }
   }
   if (hiddenHere.size > 0) {
     const foot = el(
@@ -655,14 +695,126 @@ async function openSessionFolder(session: string): Promise<void> {
 
 // Per window and not saved: whether the project's hidden members are listed, dimmed.
 let showHiddenInProject = false
+// Per window and not saved: the top rows whose "N earlier" children are unfolded.
+const unfoldedEarlier = new Set<string>()
 
-// `section` is the row's group name, or '' in "No group".
+interface ModeListView {
+  readonly byId: ReadonlyMap<string, SessionInfo>
+  readonly listed: readonly string[]
+  readonly running: ReadonlySet<string>
+  readonly showFolder: boolean
+  readonly selected: ReadonlySet<string | null>
+}
+
+// The list in the orchestration mode (decision 1.89): the team by role, then the others with their
+// groups as the ordinary list has them.
+function modeList(project: ProjectInfo, v: ModeListView): HTMLElement[] {
+  const rows = modeRows(project, {
+    listed: v.listed,
+    open: new Set(state?.open ?? []),
+    unfolded: unfoldedEarlier,
+  })
+  return rows.flatMap((r) => modeItem(r, project, v))
+}
+
+function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElement[] {
+  switch (r.kind) {
+    case 'session': {
+      const info = v.byId.get(r.id)
+      if (!info) return []
+      return [
+        row(info, v.showFolder, v.running.has(r.id), project, r.section ?? '', {
+          nested: r.depth === 1,
+          dragged: r.section !== null,
+        }),
+      ]
+    }
+    case 'earlier': {
+      const node = el(
+        'button',
+        {
+          class: `earlier-row nested dim${r.open ? ' open' : ''}`,
+          'aria-expanded': String(r.open),
+          'data-parent': r.parent,
+        },
+        t('orch.earlier', { n: r.ids.length }),
+      )
+      node.addEventListener('click', () => {
+        if (r.open) unfoldedEarlier.delete(r.parent)
+        else unfoldedEarlier.add(r.parent)
+        if (state) render(state)
+      })
+      return [node]
+    }
+    case 'heading':
+      return [
+        el(
+          'div',
+          { class: 'group-heading team-heading dim' },
+          r.heading === 'experts' ? t('orch.experts') : t('orch.others'),
+        ),
+      ]
+    case 'noGroup':
+      return [el('div', { class: 'group-heading dim' }, t('sidebar.noGroup'))]
+    case 'group': {
+      const group = project.groups.find((g) => g.name === r.name)
+      if (!group) return []
+      if (!r.collapsed) return [groupHeading(project.id, group, null)]
+      const members = group.members.filter((id) => v.listed.includes(id))
+      const runningMembers = group.members.filter((id) => v.running.has(id))
+      const readings = runningMembers.flatMap((id) => {
+        const reading = readingOf(id)
+        return reading ? [reading] : []
+      })
+      return [
+        groupHeading(project.id, group, {
+          count: members.length,
+          state: groupState(runningMembers.map(runningState)) ?? 'stopped',
+          reading: readings.sort((a, b) => b.percentage - a.percentage)[0] ?? null,
+          holdsSelected: group.members.some((id) => v.selected.has(id)),
+        }),
+      ]
+    }
+  }
+}
+
+// A row's text in the orchestration mode: ★ and "with you" beside the name, the role label under
+// it where the folder goes, before the folder when both show. The orchestrator without a label of
+// its own is labelled as the orchestrator.
+function teamText(info: SessionInfo, folder: string | null, project: ProjectInfo): HTMLElement {
+  const o = project.orchestration
+  const role = o.roles[info.id] ?? (o.orchestrator === info.id ? t('orch.orchestrator') : undefined)
+  const under = [role, folder].filter((x): x is string => Boolean(x)).join(' · ')
+  return el(
+    'div',
+    { class: 'text' },
+    el(
+      'div',
+      { class: 'name' },
+      o.priority.includes(info.id)
+        ? el('span', { class: 'priority-star', title: t('orch.priority') }, '★')
+        : null,
+      info.name,
+      o.withYou.includes(info.id)
+        ? el('span', { class: 'with-you' }, t('orch.withYouBadge'))
+        : null,
+    ),
+    under ? el('div', { class: `folder dim${role ? ' role' : ''}` }, under) : null,
+  )
+}
+
+// `section` is the row's group name, or '' in "No group". `nested` and a row that is not dragged
+// exist only in the orchestration mode.
 function row(
   info: SessionInfo,
   showFolder: boolean,
   running: boolean,
   project: ProjectInfo,
   section: string,
+  mode: { readonly nested: boolean; readonly dragged: boolean } = {
+    nested: false,
+    dragged: true,
+  },
 ): HTMLElement {
   const dot = stateDot(sessionState(info.id))
   const phone = phoneIcon(info.id)
@@ -680,14 +832,17 @@ function row(
       'data-section': section,
     },
     dot,
-    el(
-      'div',
-      { class: 'text' },
-      el('div', { class: 'name' }, info.name),
-      showFolder ? el('div', { class: 'folder dim' }, folderOf(info)) : null,
-    ),
+    project.orchestration.on
+      ? teamText(info, showFolder ? folderOf(info) : null, project)
+      : el(
+          'div',
+          { class: 'text' },
+          el('div', { class: 'name' }, info.name),
+          showFolder ? el('div', { class: 'folder dim' }, folderOf(info)) : null,
+        ),
     more,
   )
+  if (mode.nested) node.classList.add('nested')
   // Only while its agent runs (decision 1.21): a stopped session's estimate is too often wrong.
   const ringNode = running ? ring(readingOf(info.id)) : null
   if (ringNode) more.before(ringNode)
@@ -701,33 +856,34 @@ function row(
     event.preventDefault()
     menu(event.clientX, event.clientY)
   })
-  dragToReorder({
-    node,
-    id: info.id,
-    container: () => $('session-list'),
-    // Only its own section's rows: a drop never changes a row's group.
-    items: () =>
-      [...$('session-list').querySelectorAll<HTMLElement>('.row')].filter(
-        (r) => r.dataset.section === section,
-      ),
-    idOf: (item) => item.dataset.session,
-    axis: 'y',
-    markerClass: 'row-marker',
-    ignore: '.more',
-    started: (drag) => {
-      rowDrag = drag ? { sessionId: info.id, marker: drag.marker } : null
-    },
-    dropped: ({ next, last }) => {
-      const target = next ?? last
-      if (target)
-        void act({
-          type: 'moveSession',
-          session: info.id,
-          target,
-          place: next ? 'before' : 'after',
-        })
-    },
-  })
+  if (mode.dragged)
+    dragToReorder({
+      node,
+      id: info.id,
+      container: () => $('session-list'),
+      // Only its own section's rows: a drop never changes a row's group.
+      items: () =>
+        [...$('session-list').querySelectorAll<HTMLElement>('.row')].filter(
+          (r) => r.dataset.section === section,
+        ),
+      idOf: (item) => item.dataset.session,
+      axis: 'y',
+      markerClass: 'row-marker',
+      ignore: '.more',
+      started: (drag) => {
+        rowDrag = drag ? { sessionId: info.id, marker: drag.marker } : null
+      },
+      dropped: ({ next, last }) => {
+        const target = next ?? last
+        if (target)
+          void act({
+            type: 'moveSession',
+            session: info.id,
+            target,
+            place: next ? 'before' : 'after',
+          })
+      },
+    })
   node.addEventListener('click', () => {
     if (justDragged) return
     const tab = state?.tabs.find((tb) => tb.panes.some((p) => p.sessionId === info.id))
@@ -773,6 +929,7 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       { label: t('row.newGroup'), run: () => void newGroupDialog(info.id) },
     ],
   })
+  entries.push(...orchestrationItems(info, project))
   entries.push('separator')
   entries.push({ label: t('row.rename'), run: () => void renameSessionDialog(info) })
   if (info.agent === 'claude')
@@ -1232,7 +1389,35 @@ export function toggleDrawer(): void {
   const tab = selectedTabView()
   if (!tab) return
   const pane = focusedPane.get(tab.id) ?? tab.panes[0]?.id
+  const folders = tab.drawer?.shown ? [] : orchestratorFolders(tab)
+  if (folders.length > 1) {
+    const key = tab.project
+    const last = folders.indexOf(lastDrawerFolder.get(key) ?? '')
+    folderPicker(folders, Math.max(0, last), state?.home ?? '', (folder) => {
+      lastDrawerFolder.set(key, folder)
+      void act({ type: 'toggleDrawer', folder, ...(pane ? { pane } : {}) })
+    })
+    return
+  }
   void act({ type: 'toggleDrawer', ...(pane ? { pane } : {}) })
+}
+
+// Per window and project, in memory: the folder last chosen for the orchestrator's drawer.
+const lastDrawerFolder = new Map<string, string>()
+
+// In the orchestrator's tab, with the mode on: the folders of the project's running sessions.
+function orchestratorFolders(tab: TabView): string[] {
+  const s = state
+  const project = s?.projects.find((p) => p.id === tab.project)
+  const orchestrator = project?.orchestration.on ? project.orchestration.orchestrator : null
+  if (!s || !orchestrator || !tab.panes.some((p) => p.sessionId === orchestrator)) return []
+  const running = new Set(s.running)
+  return teamFolders(
+    s.tabs
+      .filter((x) => x.project === tab.project && x.kind === 'session')
+      .flatMap((x) => x.panes)
+      .map((p) => ({ cwd: p.cwd, running: p.sessionId !== null && running.has(p.sessionId) })),
+  )
 }
 
 let shownNotices = 0
@@ -1272,6 +1457,7 @@ function openProjectPopover(anchor: HTMLElement): void {
       ),
       rename,
       remove,
+      teamButton(p, closePopover),
     )
     node.addEventListener('click', () => {
       closePopover()

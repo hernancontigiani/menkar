@@ -1,6 +1,13 @@
 import { createInterface } from 'node:readline'
 import { pathToFileURL } from 'node:url'
-import { type ControlAnswer, callMenkar, menkarAlive, NOT_RUNNING, snapshotOfPane } from './files'
+import {
+  type ControlAnswer,
+  callMenkar,
+  menkarAlive,
+  NOT_RUNNING,
+  sessionsAnswer,
+  snapshotOfPane,
+} from './files'
 import { answer, type ServerContext } from './protocol'
 
 // Menkar's MCP server. Claude Code starts it for each session Menkar starts, through
@@ -13,8 +20,7 @@ async function listSessions(pane: string): Promise<ControlAnswer> {
   if (!(await menkarAlive())) return { ok: false, text: NOT_RUNNING }
   const snapshot = await snapshotOfPane(pane)
   if (!snapshot) return { ok: false, text: NOT_LISTED }
-  const sessions = snapshot.sessions.map(({ pane: _, ...session }) => session)
-  return { ok: true, text: JSON.stringify({ project: snapshot.project.name, sessions }, null, 2) }
+  return { ok: true, text: sessionsAnswer(snapshot) }
 }
 
 export function serverContext(pane: string | null): ServerContext {

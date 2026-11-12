@@ -27,8 +27,19 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
 - The dialog's own refusals come first: a relative path, a folder, nothing there.
 - **The agents' data is read only**: `~/.claude`, anything in it and `~/.claude.json`, each
   resolved through links, so a dotfile manager's links count too. A file the user cannot write is
-  read only as well. The editor is not editable then, and `saveBuffer` refuses the agents' data
+  read only as well, and so is a file of Menkar's own under its plugin folder, such as the
+  orchestration mode's guide (`files.readOnlyMenkar`, decision 1.91). The editor is not editable
+  then, and `saveBuffer` refuses the agents' data
   **again right before writing**. An e2e asserts a refused save leaves the file's bytes and mtime.
+- **Ask an agent** (decision 1.95, the human, 2026-11-12): every Markdown editor tab, read only or
+  not, has the button at the left of its Save and Preview row. It starts a new Claude session in a
+  tab right after the file's tab, in the shown project, through the same path as a new session
+  (`startNewSession` in `src/main/workspace.ts`), with the first prompt "Read ‹absolute path› and
+  answer my questions about it." Its name is "about ‹file name›", made unique among the project's
+  sessions with a tab, and the ones still starting, by " 2", " 3"… (`askName`,
+  `src/core/files/ask.ts`). Its folder is the project's focused agent pane's (the session tab
+  last selected there, in `drawerFolder`'s order), else the file's folder. Nothing is ever sent
+  to a session already running.
 - Changes on disk: the file's folder is watched (a save by rename or a deletion would end a watch
   on the file). A change equal to the last text the app read or wrote is its own and ignored. A
   real change reloads silently without unsaved edits, and shows the "changed" bar (Reload, Keep

@@ -33,6 +33,12 @@ export function appDirs(): AppDirs {
   }
 }
 
+// The topics the orchestrators keep for the human, apart from projects.json: agents write them
+// often, and a broken one must never move the projects aside.
+export function topicsPath(): string {
+  return join(appDirs().config, 'topics.json')
+}
+
 export function logFile(): string {
   return join(appDirs().cache, 'menkar.log')
 }

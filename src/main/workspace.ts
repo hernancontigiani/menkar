@@ -10,16 +10,24 @@ import { buildCommand, mcpConfig, type Start } from '../core/command'
 import { PANE_ENV } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { WakeBatcher } from '../core/control/events'
-import type { ControlAnswer, ControlRequest, Snapshot } from '../core/control/files'
+import {
+  type ControlAnswer,
+  type ControlRequest,
+  type Snapshot,
+  sessionsAnswer,
+} from '../core/control/files'
 import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
 import { postToSession } from '../core/control/post'
 import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
-import { DrawerRegistry, drawerFolder } from '../core/drawers'
+import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
+import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
+import { mayStart } from '../core/orchestration/mayStart'
+import { shownTopics, type TopicTool, topicsOf, topicTool } from '../core/orchestration/topics'
 import { agentPaths } from '../core/paths'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
@@ -51,6 +59,7 @@ import {
   joinTarget,
   moveMember,
   newGroup,
+  type Project,
   type Projects,
   projectOf,
   removeMember,
@@ -62,6 +71,16 @@ import {
   setGroup,
   showMember,
 } from '../core/projects/model'
+import {
+  orchestrationInfo,
+  sessionMarks,
+  setMode,
+  setOrchestrator,
+  setPriority,
+  setRole,
+  setTopicsCollapsed,
+  setWithYou,
+} from '../core/projects/orchestration'
 import { keptParents, setParent } from '../core/projects/parents'
 import { followNewId, followNewIdInLayout, followResume } from '../core/projects/rekey'
 import { saveProjects } from '../core/projects/store'
@@ -85,6 +104,7 @@ import type {
   PaneAgent,
   TabEntry,
   TabView,
+  TopicView,
   WindowState,
 } from '../shared/workspace'
 import { agentStates, onShownChange } from './agentstate'
@@ -130,6 +150,7 @@ import { currentNotices, currentProjects, dismissNotice, setProjects } from './p
 import { sessions } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
 import { appMessage, Terminal } from './terminal'
+import { currentTopics, setTopics, topicsNow } from './topics'
 import { sessionTokens } from './usage'
 import { openSettings, openUsage } from './windows'
 import { uiZoom } from './zoom'
@@ -236,7 +257,15 @@ function tabView(tab: Tab): TabView {
   const paneViews = ids.flatMap((id) => {
     const pane = panes.get(id)
     return pane
-      ? [{ id: pane.id, agent: pane.agent, sessionId: pane.sessionId, remote: pane.remote }]
+      ? [
+          {
+            id: pane.id,
+            agent: pane.agent,
+            sessionId: pane.sessionId,
+            remote: pane.remote,
+            cwd: pane.cwd,
+          },
+        ]
       : []
   })
   const label = tabLabels.get(tab.id)
@@ -296,13 +325,36 @@ function drawerView(tabId: string): { drawer?: NonNullable<TabView['drawer']> } 
   return { drawer: { id, shown: drawerShown.has(tabId), label: drawerLabels.get(id) ?? '' } }
 }
 
-function openDrawer(tabId: string, focused: string | null): void {
-  const tab = tabById(tabId)
-  const tabPaneList = (tabPanes.get(tabId) ?? []).flatMap((id) => {
+// A tab's panes as the drawer's folder rule reads them.
+function drawerPanes(tabId: string): DrawerPane[] {
+  return (tabPanes.get(tabId) ?? []).flatMap((id) => {
     const pane = panes.get(id)
     return pane ? [{ id, agent: pane.agent !== 'shell', cwd: pane.cwd }] : []
   })
-  const folder = drawerFolder(tabPaneList, focused, tab?.kind === 'file' ? dirname(tab.path) : null)
+}
+
+// The tab a pane is in.
+function tabOfPane(paneId: string): string | undefined {
+  for (const [tabId, ids] of tabPanes) if (ids.includes(paneId)) return tabId
+  return undefined
+}
+
+// The names a new session of the project may not take: its sessions with a tab, and the new
+// sessions still starting in one.
+function takenNames(projectId: string): Set<string> {
+  const starting = layout.windows.flatMap((w) =>
+    w.tabs.flatMap((t) =>
+      t.kind === 'transient' && t.project === projectId ? [tabLabels.get(t.id)?.title ?? ''] : [],
+    ),
+  )
+  return new Set([...namesWithTab(projectId), ...starting])
+}
+
+function openDrawer(tabId: string, focused: string | null, chosen?: string): void {
+  const tab = tabById(tabId)
+  const tabPaneList = drawerPanes(tabId)
+  const folder =
+    chosen ?? drawerFolder(tabPaneList, focused, tab?.kind === 'file' ? dirname(tab.path) : null)
   const tag = t('terminal.tag')
   let id = ''
   const opened = drawers.open(
@@ -331,6 +383,7 @@ function openDrawer(tabId: string, focused: string | null): void {
           },
         },
       ),
+    chosen,
   )
   id = opened.id
   if (opened.fresh)
@@ -338,8 +391,7 @@ function openDrawer(tabId: string, focused: string | null): void {
 }
 
 function closeDrawer(tabId: string): void {
-  const id = drawers.ofTab(tabId)
-  if (id !== undefined) drawerLabels.delete(id)
+  for (const id of drawers.idsOf(tabId)) drawerLabels.delete(id)
   drawerShown.delete(tabId)
   drawers.closeTab(tabId)
 }
@@ -375,6 +427,9 @@ function stateFor(windowId: string): WindowState | undefined {
       hidden: p.hidden ?? [],
       groups: p.groups,
       earlier: keptEarlier(p),
+      parents: keptParents(p),
+      orchestration: orchestrationInfo(p),
+      topicsCollapsed: p.topicsCollapsed === true,
     })),
     heldElsewhere,
     tabs: w.tabs.map(tabView),
@@ -396,7 +451,30 @@ function stateFor(windowId: string): WindowState | undefined {
       items: filesOf(w.shown),
       collapsed: projects.projects.find((p) => p.id === w.shown)?.filesCollapsed === true,
     },
+    topics: topicViews(w.shown),
+    guidePath: join(skillsPluginDir(), 'guide', 'orchestration-mode.md'),
   }
+}
+
+function topicViews(projectId: string): TopicView[] {
+  const project = projects.projects.find((p) => p.id === projectId)
+  if (!project) return []
+  const priority = new Set(project.orchestration?.priority ?? [])
+  return shownTopics(project, topicsOf(currentTopics(), projectId)).flatMap((x) =>
+    x.status === 'closed'
+      ? []
+      : [
+          {
+            number: x.number,
+            title: x.title,
+            context: x.context,
+            from: sessionName(x.from),
+            blocking: x.blocking,
+            status: x.status,
+            priority: priority.has(x.from),
+          },
+        ],
+  )
 }
 
 const filled = (window: BrowserWindow | undefined) =>
@@ -905,7 +983,55 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return { ok: true, text: listText(project.id) }
     case 'last_reply':
       return lastReplyFor(project.id, request.args.name)
+    case 'topic_add':
+    case 'topic_update':
+    case 'topic_close':
+    case 'topic_list':
+      return topicFor(request.tool, project, sessionId, request.args)
   }
+}
+
+type MarkAction = Extract<
+  Action,
+  { type: 'setOrchestrator' | 'setRole' | 'setPriority' | 'setWithYou' }
+>
+
+function marked(state: Projects, projectId: string, action: MarkAction): Projects {
+  switch (action.type) {
+    case 'setOrchestrator': {
+      // Unchecking a session that is not the orchestrator leaves the one that is.
+      const current = state.projects.find((p) => p.id === projectId)?.orchestration?.orchestrator
+      if (!action.on && current !== action.session) return state
+      return setOrchestrator(state, projectId, action.on ? action.session : null)
+    }
+    case 'setRole':
+      return setRole(state, projectId, action.session, action.label)
+    case 'setPriority':
+      return setPriority(state, projectId, action.session, action.on)
+    case 'setWithYou':
+      return setWithYou(state, projectId, action.session, action.on)
+  }
+}
+
+function topicFor(
+  tool: TopicTool,
+  project: Project,
+  sessionId: string,
+  args: Readonly<Record<string, unknown>>,
+): ControlAnswer {
+  const result = topicTool(tool, args, {
+    topics: currentTopics(),
+    projectId: project.id,
+    caller: sessionId,
+    priority: orchestrationInfo(project).priority,
+    nameOf: sessionName,
+    at: topicsNow(),
+  })
+  if (result.topics) {
+    setTopics(result.topics)
+    changed()
+  }
+  return { ok: result.ok, text: result.text }
 }
 
 async function requestRenew(
@@ -1010,6 +1136,9 @@ async function startForAgent(
   projectId: string,
   request: ControlRequest,
 ): Promise<ControlAnswer> {
+  const owner = projects.projects.find((p) => p.id === projectId)
+  const refusal = owner ? mayStart(owner, callerId, sessionName) : null
+  if (refusal) return refuse(refusal)
   const args = request.args
   const name = typeof args.name === 'string' ? args.name.trim() : ''
   if (!name) return refuse('A name is needed to start a session.')
@@ -1100,9 +1229,11 @@ function snapshotOf(projectId: string): Snapshot {
   const parents = p ? keptParents(p) : {}
   return {
     project: { id: projectId, name: p?.name ?? '' },
+    orchestration: p ? orchestrationInfo(p).on : false,
     sessions: projectSessions(projectId).map((id) => {
       const parent = parents[id]
       return {
+        ...(p ? sessionMarks(p, id) : {}),
         name: sessionName(id),
         id,
         state: states.get(id) ?? null,
@@ -1116,12 +1247,7 @@ function snapshotOf(projectId: string): Snapshot {
 }
 
 function listText(projectId: string): string {
-  const { project, sessions: list } = snapshotOf(projectId)
-  return JSON.stringify(
-    { project: project.name, sessions: list.map(({ pane: _, ...session }) => session) },
-    null,
-    2,
-  )
+  return sessionsAnswer(snapshotOf(projectId))
 }
 
 function publishSnapshots(): void {
@@ -1134,10 +1260,17 @@ setSnapshotSource(publishSnapshots)
 // Waking a parent: a session another started waits at a prompt or ends its
 // turn, and its parent hears of it through Claude Code's messaging, a few seconds later and
 // together with its other children's news. Never typed into the parent's terminal.
-const wakes = new WakeBatcher((parent, text) => void wakeSession(parent, text), {
-  set: (fn, ms) => setTimeout(fn, ms),
-  clear: (handle) => clearTimeout(handle as NodeJS.Timeout),
-})
+const wakes = new WakeBatcher(
+  (parent, text) => void wakeSession(parent, text),
+  {
+    set: (fn, ms) => setTimeout(fn, ms),
+    clear: (handle) => clearTimeout(handle as NodeJS.Timeout),
+  },
+  (child) => {
+    const p = projectOf(projects, child)
+    return p ? sessionMarks(p, child).priority : false
+  },
+)
 
 onShownChange((paneId, sessionId, previous, next) => {
   if (!sessionId || panes.get(paneId)?.agent !== 'claude') return
@@ -1651,13 +1784,62 @@ async function rememberFolder(folder: string): Promise<void> {
   settings = { ...settings, new_session_dir: folder }
 }
 
-function addTransientTab(windowId: string, title: string, tooltip: string): string {
+function addTransientTab(windowId: string, title: string, tooltip: string, after?: string): string {
   const w = layout.windows.find((x) => x.id === windowId)
   if (!w) throw new Error(`no window ${windowId}`)
   const tab: Tab = { kind: 'transient', id: newId(), project: w.shown }
-  putWindow({ ...w, tabs: [...w.tabs, tab], selected: { ...w.selected, [w.shown]: tab.id } })
+  const at = after ? w.tabs.findIndex((x) => x.id === after) + 1 : 0
+  const tabs = at > 0 ? [...w.tabs.slice(0, at), tab, ...w.tabs.slice(at)] : [...w.tabs, tab]
+  putWindow({ ...w, tabs, selected: { ...w.selected, [w.shown]: tab.id } })
   tabLabels.set(tab.id, { title, tooltip })
   return tab.id
+}
+
+// A new session in a tab of its own, selected: last in the strip, or right after `after`.
+async function startNewSession(
+  windowId: string,
+  shown: string,
+  action: Extract<Action, { type: 'startNew' }>,
+  after?: string,
+): Promise<ActionResult> {
+  if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
+  const name = action.name.trim()
+  const id = action.agent === 'claude' ? randomUUID() : null
+  const tab = addTransientTab(
+    windowId,
+    name || basename(action.folder),
+    t('tab.tooltipNew', { agent: agentName(action.agent), cwd: action.folder }),
+    after,
+  )
+  await rememberFolder(action.folder)
+  await sessions.updateState((state) => withSetting(state, 'last_agent', action.agent))
+  // With the switch on, the id joins the list at once, before Claude has created the session.
+  if (action.remoteControl && id) {
+    await sessions.updateState((state) => setRemoteControl(state, id, true))
+    remoteIds.add(id)
+  }
+  const start: Start = {
+    kind: 'new',
+    ...(id ? { id } : {}),
+    ...(name ? { name } : {}),
+  }
+  const promptFile = id && action.prompt ? await savePrompt(randomUUID(), action.prompt) : undefined
+  if (id && action.orchestrator) {
+    // A member at once, as start_session's sessions are, so the mark has a session to name.
+    if (name) startedNames.set(id, name)
+    projects = setOrchestrator(addMember(projects, shown, id), shown, id)
+  }
+  await startPane(tab, {
+    agent: action.agent,
+    start,
+    cwd: action.folder,
+    sessionId: null,
+    pending: newSessionPending(windowId, action.folder, id),
+    ...(action.remoteControl && id ? { remote: remoteName(name, action.folder, id) } : {}),
+    ...(promptFile ? { promptFile } : {}),
+  })
+  changed({ projects: Boolean(id && action.orchestrator) })
+  return {}
 }
 
 function newSessionPending(windowId: string, folder: string, expectedId: string | null): Pending {
@@ -1812,7 +1994,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'checkProjectFile': {
       const path = projectFilePath(w.shown, action.name)
       if (!path) return { refusal: 'files.unreadable' }
-      const checked = await checkFile(path, homedir())
+      const checked = await checkFile(path, homedir(), skillsPluginDir())
       return 'refusal' in checked ? { refusal: checked.refusal } : {}
     }
     case 'dragProjectFile':
@@ -1820,6 +2002,24 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'collapseFiles':
       projects = setFilesCollapsed(projects, w.shown, action.collapsed)
+      changed({ projects: true })
+      return {}
+    case 'setOrchestrationMode':
+      projects = setMode(projects, action.project, action.on)
+      changed({ projects: true })
+      return {}
+    case 'setOrchestrator':
+    case 'setRole':
+    case 'setPriority':
+    case 'setWithYou': {
+      const project = projectOf(projects, action.session)
+      if (!project) return {}
+      projects = marked(projects, project.id, action)
+      changed({ projects: true })
+      return {}
+    }
+    case 'setTopicsCollapsed':
+      projects = setTopicsCollapsed(projects, w.shown, action.collapsed)
       changed({ projects: true })
       return {}
     case 'openPaneFolder': {
@@ -1986,9 +2186,10 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'toggleDrawer': {
       const tabId = shownTab(w)
       if (!tabId) return {}
-      if (drawers.ofTab(tabId) !== undefined && drawerShown.has(tabId)) drawerShown.delete(tabId)
+      if (!action.folder && drawers.ofTab(tabId) !== undefined && drawerShown.has(tabId))
+        drawerShown.delete(tabId)
       else {
-        openDrawer(tabId, action.pane ?? null)
+        openDrawer(tabId, action.pane ?? null, action.folder)
         drawerShown.add(tabId)
       }
       changed()
@@ -2023,37 +2224,27 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         settings = { ...settings, sidebar_width: Math.round(action.width) }
       }
       return {}
-    case 'startNew': {
-      if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
-      const name = action.name.trim()
-      const id = action.agent === 'claude' ? randomUUID() : null
-      const tab = addTransientTab(
+    case 'startNew':
+      return startNewSession(windowId, w.shown, action)
+    case 'askAboutFile': {
+      const tab = tabById(action.tab)
+      if (tab?.kind !== 'file') return {}
+      const paneTab = action.pane ? tabOfPane(action.pane) : undefined
+      const paneList = paneTab ? drawerPanes(paneTab) : []
+      const folder =
+        drawerFolder(paneList, action.pane ?? null, dirname(tab.path)) ?? dirname(tab.path)
+      return startNewSession(
         windowId,
-        name || basename(action.folder),
-        t('tab.tooltipNew', { agent: agentName(action.agent), cwd: action.folder }),
+        w.shown,
+        {
+          type: 'startNew',
+          agent: 'claude',
+          folder,
+          name: askName(basename(tab.path), takenNames(w.shown)),
+          prompt: t('files.askPrompt', { path: tab.path }),
+        },
+        tab.id,
       )
-      await rememberFolder(action.folder)
-      await sessions.updateState((state) => withSetting(state, 'last_agent', action.agent))
-      // With the switch on, the id joins the list at once, before Claude has created the session.
-      if (action.remoteControl && id) {
-        await sessions.updateState((state) => setRemoteControl(state, id, true))
-        remoteIds.add(id)
-      }
-      const start: Start = {
-        kind: 'new',
-        ...(id ? { id } : {}),
-        ...(name ? { name } : {}),
-      }
-      await startPane(tab, {
-        agent: action.agent,
-        start,
-        cwd: action.folder,
-        sessionId: null,
-        pending: newSessionPending(windowId, action.folder, id),
-        ...(action.remoteControl && id ? { remote: remoteName(name, action.folder, id) } : {}),
-      })
-      changed()
-      return {}
     }
     case 'continueInChat': {
       const win = windows.get(windowId)

@@ -220,3 +220,21 @@ thin writer: it would write a request and wait for its response as the server do
 **Trigger:** a session without MCP, or the human from a terminal, needs to renew or start a session.
 First question: how the CLI names its pane or project without `MENKAR_PANE`.
 
+### The orchestration mode's guide online
+
+The guide ships inside Menkar (`plugin/guide/orchestration-mode.md`), read from disk by any
+session, and the first-time card opens it in a file tab and copies a prompt naming its path
+(decisions 1.90, 1.91). Nothing links to an online copy: no site exists, and the app opens no URL
+of its own.
+
+**Trigger:** the documentation site exists ("A documentation site" above). First question: whether
+the card links to it, and whether that link counts as the app opening a URL of its own.
+
+### "With you" known by itself
+
+A session is marked "with you" by hand, from its menu, and cleared by hand (decision 1.86). Menkar
+could guess it from the human typing in the pane, or from a timer, but a prompt sent from the phone
+would not be seen, and a wrong guess would keep work from a session or send work to a busy one.
+
+**Trigger:** the human forgets to set or clear the mark often enough to ask for it. First question:
+which signal counts — keys typed in the pane, focus, Remote Control traffic — and how long it holds.

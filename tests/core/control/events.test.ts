@@ -56,6 +56,23 @@ describe('waking a parent', () => {
     expect(sent).toEqual([['orch', 'web finished its turn; api finished its turn']])
   })
 
+  test('in one message, the events of ★ children come first; otherwise the order stays', () => {
+    const sent: [string, string][] = []
+    const clock = fakeTimers()
+    const batcher = new WakeBatcher(
+      (parent, text) => sent.push([parent, text]),
+      clock.timers,
+      (child) => child === 'b1',
+    )
+    batcher.note('orch', 'a1', 'A', 'working', 'done')
+    batcher.note('orch', 'c1', 'C', 'working', 'done')
+    batcher.note('orch', 'b1', 'B', 'working', 'done')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent).toEqual([
+      ['orch', 'B finished its turn; A finished its turn; C finished its turn'],
+    ])
+  })
+
   test('no parent, or a transition that is no event, sends nothing', () => {
     const sent: unknown[] = []
     const clock = fakeTimers()

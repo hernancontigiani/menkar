@@ -115,6 +115,25 @@ built and why.
   (`insertTabAfter` in `layout.ts`), in the window that holds the project, with that window's
   selected tab left as it was.
 
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+- A project may keep `orchestration` (`src/core/projects/orchestration.ts`; the mode itself is
+  `docs/orchestration.md`): `on`, the `orchestrator`'s id (one per project), `roles` (id → a free
+  label), `priority` (ids with the ★) and `with_you` (ids the human marked). Beside it,
+  `topics_collapsed` when the Topics section shows its heading alone.
+- **Switching the mode off keeps every mark** (`on: false` with the rest), so switching it on finds
+  the team as it was.
+- **What always holds** (`keptOrchestration`): every id is a member. A member leaving the project
+  (`leave`, so also `removeMember` and `forgetSession`) takes its marks with it; the orchestrator
+  leaving leaves none.
+- **It follows new ids:** `followNewId` and `followResume` give the new id the old one's role,
+  orchestrator mark, ★ and "with you" (`followOrchestration`), as they give it the old one's place;
+  the old id keeps none.
+- In `projects.json` it sits after `parents`, snake_case like the other keys, written only when
+  something is set, and is read leniently: a key of the wrong type is dropped alone, an id that is
+  not a member is dropped, an orchestrator that is not a member leaves none, a label that is not
+  text is dropped.
+
 ## The layout — `layout.ts`
 
 - A `Layout` is windows; a window shows one project and keeps the tabs of every project it holds,

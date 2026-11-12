@@ -50,3 +50,10 @@ tree. **A subagent's or a session's report is a claim until checked against the 
 Confirm with a one-screen summary: what is done, what is in flight, what you propose to do first,
 and **what you found out of date or contradictory** between the docs and the tree. That last part is
 usually the most useful thing a new orchestrator delivers.
+
+## This repository's conventions, day to day
+
+> Left on 2026-11-12: the topics-file trial (1.52) ends; topics go through Menkar's topic tools (plan 34).
+- **The topics file is `prompts/TOPICS.md`** (gitignored; a trial since 2026-11-11, decision 1.52,
+  to learn what a Menkar panel would need). A decided topic goes to `00-STATUS.md` or the doc that
+  owns it.

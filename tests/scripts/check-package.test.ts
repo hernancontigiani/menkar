@@ -19,6 +19,7 @@ const good = (): Package => ({
     '/opt/Menkar/resources/app.asar',
     '/opt/Menkar/resources/apparmor-profile',
     '/opt/Menkar/resources/plugin/.claude-plugin/plugin.json',
+    '/opt/Menkar/resources/plugin/guide/orchestration-mode.md',
     '/opt/Menkar/resources/plugin/skills/orchestrator/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/worker/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/distill/SKILL.md',
