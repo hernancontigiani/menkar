@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi, ProjectsSnapshot } from '../src/shared/ipc'
@@ -58,9 +58,17 @@ test('TRM-2, PRJ-27, TRM-53 opening a member resumes it once; opening it again s
       .poll(() => args(home))
       .toMatch(
         new RegExp(
-          `^--resume ${SESSION} --add-dir \\S+/Menkar/Client work/files --mcp-config \\{.+\\} --settings \\S+claude-settings\\.json\\n$`,
+          `^--resume ${SESSION} --add-dir \\S+/Menkar/Client work/files --mcp-config \\{.+\\} --plugin-dir \\S+/plugin --settings \\S+claude-settings\\.json\\n$`,
         ),
       )
+    // Plan 33: the plugin folder exists and holds Menkar's four skills.
+    const plugin = /--plugin-dir (\S+)/.exec(args(home))?.[1] ?? ''
+    expect(readdirSync(join(plugin, 'skills')).sort()).toEqual([
+      'distill',
+      'orchestrator',
+      'specialize',
+      'worker',
+    ])
     await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
     await expect(page.locator('.tab')).toHaveCount(1)
     await page.waitForTimeout(500)
@@ -94,7 +102,7 @@ test('TRM-1, 1.16 a new session starts with its id and name, and joins the proje
     await expect
       .poll(() => args(home))
       .toMatch(
-        /^--session-id [0-9a-f-]{36} -n checkout flow --add-dir \S+\/Menkar\/Client work\/files --mcp-config \{.+\} --settings \S+\n$/,
+        /^--session-id [0-9a-f-]{36} -n checkout flow --add-dir \S+\/Menkar\/Client work\/files --mcp-config \{.+\} --plugin-dir \S+\/plugin --settings \S+\n$/,
       )
     await expect
       .poll(async () => (await snapshot(page)).projects[0]?.members.length, { timeout: 15_000 })

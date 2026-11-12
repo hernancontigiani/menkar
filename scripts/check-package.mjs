@@ -37,6 +37,10 @@ export function checkPackage(pkg) {
     `${APP}/chrome-sandbox`,
     `${APP}/resources/app.asar`,
     `${APP}/resources/apparmor-profile`,
+    `${APP}/resources/plugin/.claude-plugin/plugin.json`,
+    ...['orchestrator', 'worker', 'distill', 'specialize'].map(
+      (skill) => `${APP}/resources/plugin/skills/${skill}/SKILL.md`,
+    ),
     `${APP}/resources/app.asar.unpacked/node_modules/node-pty/build/Release/pty.node`,
     '/usr/share/applications/menkar.desktop',
     '/usr/share/icons/hicolor/512x512/apps/menkar.png',

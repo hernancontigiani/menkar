@@ -4,7 +4,12 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { REPLY_MAX_CHARS, replyText, sessionOfProject } from '../../../src/core/control/lastreply'
+import {
+  lastReplyAnswer,
+  REPLY_MAX_CHARS,
+  replyText,
+  sessionOfProject,
+} from '../../../src/core/control/lastreply'
 import { lastReply } from '../../../src/core/sessions/lastreply'
 import { assistant, jsonl, text, toolResult, toolUse, user } from '../../factories/transcript'
 
@@ -72,5 +77,19 @@ describe('the last reply', () => {
       expect(refused).toHaveProperty('refusal')
       expect((refused as { refusal: string }).refusal).toMatch(/^[A-Z].*\.$/)
     }
+  })
+
+  // Decision 1.84: a session that renewed has not replied yet in its new conversation; its report
+  // is the last reply of the conversation it left, read from there and said so.
+  test('no reply yet in the current conversation → the previous conversation’s, labelled', () => {
+    expect(lastReplyAnswer('w1', 'Done: all green.', 'older')).toEqual({ text: 'Done: all green.' })
+    const fallback = lastReplyAnswer('w1', null, 'Report: block 2 done.')
+    expect(fallback).toHaveProperty('text')
+    const shown = (fallback as { text: string }).text
+    expect(shown.startsWith('[Menkar: "w1" has not replied since its last renew or /clear;')).toBe(
+      true,
+    )
+    expect(shown.endsWith('Report: block 2 done.')).toBe(true)
+    expect(lastReplyAnswer('w1', null, null)).toEqual({ refusal: '"w1" has not replied yet.' })
   })
 })

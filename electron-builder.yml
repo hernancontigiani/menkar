@@ -25,3 +25,7 @@ linux:
       Name: Menkar
 deb:
   packageCategory: devel
+# Menkar's skills plugin: `claude --plugin-dir` reads it, and cannot read inside app.asar.
+extraResources:
+  - from: plugin
+    to: plugin

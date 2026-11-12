@@ -54,6 +54,16 @@ export function projectFilesFolder(root: string, folderName: string): string {
   return join(root, folderName, 'files')
 }
 
+// Menkar's skills plugin: an extra resource beside app.asar when packaged, since `claude` cannot
+// read inside the archive; the repository's own folder in development.
+export function pluginFolder(app: {
+  readonly packaged: boolean
+  readonly resourcesPath: string
+  readonly appPath: string
+}): string {
+  return join(app.packaged ? app.resourcesPath : app.appPath, 'plugin')
+}
+
 // What the agents own: read only, never written by Menkar except where a user
 // action confirms it.
 export interface AgentPaths {

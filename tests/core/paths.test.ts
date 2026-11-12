@@ -6,6 +6,7 @@ import {
   appDirs,
   electronUserData,
   filesRoot,
+  pluginFolder,
   projectFilesFolder,
 } from '../../src/core/paths'
 
@@ -68,4 +69,17 @@ test("decision 1.58: the Menkar folder is ~/Menkar under the test's HOME unless 
   expect(filesRoot('')).toBe(join(homedir(), 'Menkar'))
   expect(filesRoot('/srv/shared')).toBe('/srv/shared')
   expect(projectFilesFolder('/h/Menkar', 'Guardian AI')).toBe('/h/Menkar/Guardian AI/files')
+})
+
+test("plan 33, decision 7: the skills plugin is the resources folder's when packaged, the repository's in development", () => {
+  expect(
+    pluginFolder({
+      packaged: true,
+      resourcesPath: '/opt/Menkar/resources',
+      appPath: '/x/app.asar',
+    }),
+  ).toBe('/opt/Menkar/resources/plugin')
+  expect(
+    pluginFolder({ packaged: false, resourcesPath: '/e/resources', appPath: '/home/ana/menkar' }),
+  ).toBe('/home/ana/menkar/plugin')
 })

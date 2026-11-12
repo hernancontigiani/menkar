@@ -27,6 +27,8 @@ export interface CommandOptions {
   readonly promptFile?: string
   // Menkar's MCP server as `--mcp-config` JSON (Claude Code only).
   readonly mcpConfig?: string
+  // Menkar's skills plugin folder (`--plugin-dir`, Claude Code only).
+  readonly pluginDir?: string
 }
 
 // Menkar's MCP server for Claude Code: Electron's own binary runs the script as plain Node, as it
@@ -72,6 +74,7 @@ export function buildCommand(agent: Agent, start: Start, options: CommandOptions
     words.push(`"$(cat '${options.promptFile.replaceAll("'", `'"'"'`)}')"`)
   if (claude) for (const dir of options.addDirs ?? []) words.push('--add-dir', shellQuote(dir))
   if (claude && options.mcpConfig) words.push('--mcp-config', shellQuote(options.mcpConfig))
+  if (claude && options.pluginDir) words.push('--plugin-dir', shellQuote(options.pluginDir))
   if (claude && options.settings) words.push('--settings', shellQuote(options.settings))
   return `${words.join(' ')} && exit\n`
 }

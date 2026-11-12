@@ -11,7 +11,7 @@ import { PANE_ENV } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { WakeBatcher } from '../core/control/events'
 import type { ControlAnswer, ControlRequest, Snapshot } from '../core/control/files'
-import { replyText, sessionOfProject } from '../core/control/lastreply'
+import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
 import { postToSession } from '../core/control/post'
 import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
 import { DrawerRegistry, drawerFolder } from '../core/drawers'
@@ -95,6 +95,7 @@ import {
   mcpServerScript,
   publishSnapshot,
   setSnapshotSource,
+  skillsPluginDir,
 } from './control'
 import {
   applyEdit,
@@ -599,7 +600,10 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         ...(spec.agent === 'claude' && spec.remote ? { remoteControl: spec.remote } : {}),
         ...(filesFolder ? { addDirs: [filesFolder] } : {}),
         ...(spec.agent === 'claude'
-          ? { mcpConfig: mcpConfig(process.execPath, mcpServerScript()) }
+          ? {
+              mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
+              pluginDir: skillsPluginDir(),
+            }
           : {}),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
       })
@@ -1068,18 +1072,24 @@ async function lastReplyFor(projectId: string, named: unknown): Promise<ControlA
   const list = projectSessions(projectId).map((id) => ({ id, name: sessionName(id) }))
   const found = sessionOfProject(named.trim(), list)
   if ('refusal' in found) return refuse(found.refusal)
-  const info = sessionInfo(found.id)
-  if (!info || info.agent !== 'claude') return refuse(`"${named.trim()}" has not replied yet.`)
-  let reply: string | null
+  const current = await replyOf(found.id)
+  const p = projects.projects.find((x) => x.id === projectId)
+  const previousId = current === null && p ? keptEarlier(p)[found.id]?.[0] : undefined
+  const previous = previousId ? await replyOf(previousId) : null
+  const answer = lastReplyAnswer(named.trim(), current, previous)
+  return 'refusal' in answer ? refuse(answer.refusal) : { ok: true, text: answer.text }
+}
+
+// A Claude session's last reply, or null when it has none (or no transcript yet).
+async function replyOf(sessionId: string): Promise<string | null> {
+  const info = sessionInfo(sessionId)
+  if (!info || info.agent !== 'claude') return null
   try {
-    reply = await lastReply(info.file)
+    return await lastReply(info.file)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    reply = null
+    return null
   }
-  return reply === null
-    ? refuse(`"${named.trim()}" has not replied yet.`)
-    : { ok: true, text: replyText(reply) }
 }
 
 function snapshotOf(projectId: string): Snapshot {

@@ -148,4 +148,27 @@ describe('command lines', () => {
       ).toBe('/bin/c --resume r1 && exit\n')
     })
   })
+
+  // Plan 33, decision 8: Menkar's skills reach every Claude session as a plugin folder, before
+  // --settings; Cursor gets nothing.
+  describe("Menkar's skills plugin", () => {
+    const pluginDir = '/opt/Menkar/resources/plugin'
+    test.each([
+      [{ kind: 'new', id: 'n1', name: 'w1' } as const, `--session-id n1 -n w1`],
+      [{ kind: 'resume', id: 'r1' } as const, '--resume r1'],
+      [
+        { kind: 'fork', source: 's1', id: 'f1' } as const,
+        '--resume s1 --fork-session --session-id f1',
+      ],
+    ])('%o carries --plugin-dir after --mcp-config, before --settings', (start, identity) => {
+      expect(buildCommand('claude', start, { ...opts, mcpConfig: '{"a":1}', pluginDir })).toBe(
+        `${CLI} ${identity} --mcp-config '{"a":1}' --plugin-dir ${pluginDir} --settings ${SETTINGS} && exit\n`,
+      )
+    })
+    test('Cursor gets no --plugin-dir', () => {
+      expect(
+        buildCommand('cursor', { kind: 'resume', id: 'r1' }, { cli: '/bin/c', pluginDir }),
+      ).toBe('/bin/c --resume r1 && exit\n')
+    })
+  })
 })

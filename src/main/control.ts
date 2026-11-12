@@ -1,6 +1,7 @@
 import { type FSWatcher, mkdirSync, watch } from 'node:fs'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
+import { app } from 'electron'
 import { now } from '../core/clock'
 import {
   type ControlAnswer,
@@ -12,6 +13,7 @@ import {
 import { sweepPrompts } from '../core/control/prompt'
 import { RequestQueue } from '../core/control/requests'
 import { log } from '../core/log'
+import { pluginFolder } from '../core/paths'
 
 // Main's side of Menkar's MCP server: it says Menkar runs, answers the request files,
 // publishes each project's sessions, and hears each pane's turn end. What a tool does is the
@@ -25,6 +27,13 @@ export interface ControlHandlers {
 
 // Beside the main bundle, as the statusline is: Electron's binary runs it as plain Node.
 export const mcpServerScript = (): string => join(import.meta.dirname, 'mcp-server.js')
+
+export const skillsPluginDir = (): string =>
+  pluginFolder({
+    packaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appPath: app.getAppPath(),
+  })
 
 const PASS_MS = 1000
 const SNAPSHOT_DELAY_MS = 250

@@ -1,9 +1,10 @@
-# Session control: Menkar's MCP server, renewing, starting, waking
+# Session control: Menkar's MCP server, renewing, starting, waking, and its skills
 
 Decisions 1.70, 1.72, 1.73 and 1.74 (the human, 2026-11-11). A session renews itself when its task
 is done (a `/clear` nobody types), an orchestrator starts its workers in Menkar tabs, a worker's
 last reply is read by name, and a parent session is woken when a worker it started needs it or
-ends a turn. The skills that use these tools are not part of this subsystem.
+ends a turn. The skills that teach agents to use these tools ship with Menkar as a plugin
+(decisions 1.71 and 1.79–1.84, 2026-11-12; "The skills plugin" below).
 
 ## The shape
 
@@ -38,7 +39,10 @@ ends a turn. The skills that use these tools are not part of this subsystem.
     conversations are left out.
   - **`last_reply { name }`:** the last text a session of the caller's project replied. It is read
     from the end of its transcript (`src/core/sessions/lastreply.ts`, read only, in chunks, never
-    the whole file) and cut to its first `REPLY_MAX_CHARS` with a note.
+    the whole file) and cut to its first `REPLY_MAX_CHARS` with a note. When the session has not
+    replied since it renewed or was cleared, the answer is the last reply of its most recent earlier
+    conversation, after a note that says so (`lastReplyAnswer`, decision 1.84, 2026-11-12): a
+    worker's report outlives the renew that follows it.
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.
@@ -89,6 +93,40 @@ ends a turn. The skills that use these tools are not part of this subsystem.
       closes.
     - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
+
+## The skills plugin
+
+- **What it is:** `plugin/` in the repository, `.claude-plugin/plugin.json` named `menkar` and four
+  skills, `skills/<folder>/SKILL.md`. Claude Code names a skill after its folder, so they load as
+  `menkar:orchestrator`, `menkar:worker`, `menkar:distill` and `menkar:specialize`.
+  - **orchestrator:** coordinating sessions. Only it starts sessions or hands out work.
+  - **worker:** taking a task from another session; the report is its last message.
+  - **distill:** keeping a specialist's skill current when its task is closed, then renewing.
+  - **specialize:** turning what a session knows into a role with a skill of its own.
+- **How a session gets it:** every Claude command Menkar builds carries `--plugin-dir <plugin>`
+  (`buildCommand`'s `pluginDir`), after `--mcp-config` and before `--settings`. Cursor gets none.
+  The folder is resolved when called (`pluginFolder` in `src/core/paths.ts`, from
+  `skillsPluginDir` in `src/main/control.ts`): `resources/plugin` beside app.asar when packaged
+  (`electron-builder.yml`'s `extraResources`, since `claude` cannot read inside the archive), the
+  repository's `plugin/` in development. `package:check` requires the manifest and the four
+  `SKILL.md` files in the .deb.
+- **The texts' rules,** held by `tests/core/plugin.test.ts`:
+  - a body under 200 lines, with detail beyond that in `.md` reference files beside `SKILL.md`,
+    each one named by it;
+  - each skill declares its admission criterion ("What earns a line here: …");
+  - no session's or project's name of this repository;
+  - every tool written in backticks is one the MCP server lists.
+- **What the skills lean on in Menkar:**
+  - renewing always with a prompt that is the handoff: who the session is, the skill to load, what
+    is in flight (1.84);
+  - `last_reply` reading the previous conversation when a session has not replied since its renew;
+  - the report also sent by name when the session handing the task did not start the worker, since
+    a wake reaches only the parent;
+  - screenshots and long outputs in `$MENKAR_FILES`.
+- **What Claude Code writes on its own for a plugin**, in `~/.claude.json`:
+  `pluginUsage["menkar@inline"]` on each start and `skillUsage["menkar:<skill>"]` when one is
+  used. Menkar writes nothing under `~/.claude`. The skills' texts, once loaded, are part of the
+  session's transcript like any other message.
 
 ## Measured on Claude Code 2.1.322 (2026-11-11, a throwaway home, a local stand-in for the API)
 
@@ -142,3 +180,11 @@ ends a turn. The skills that use these tools are not part of this subsystem.
 - **`@modelcontextprotocol/sdk`:** a web framework, a schema library and more ship with it, for
   four tools.
 - **`--strict-mcp-config`:** it would drop the user's own MCP servers from Menkar's sessions.
+- **Skills through `--add-dir` of a folder holding `.claude/skills/`:** they load, but the folder is
+  opened to the agent's file tools.
+- **Skills as MCP prompts:** only the human can call them (`/mcp__menkar__<name>`); the model can't
+  load them.
+- **MCP-served skills:** compiled off in Claude Code 2.1.322.
+- **Installing the skills into `~/.claude/skills`:** a write under `~/.claude`, which is the human's
+  decision, and a copy that goes stale with every Menkar update.
+- **Folders named `menkar-orchestrator`, …:** they would read `menkar:menkar-orchestrator`.

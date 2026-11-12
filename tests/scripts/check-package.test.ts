@@ -18,6 +18,11 @@ const good = (): Package => ({
     '/opt/Menkar/chrome-sandbox',
     '/opt/Menkar/resources/app.asar',
     '/opt/Menkar/resources/apparmor-profile',
+    '/opt/Menkar/resources/plugin/.claude-plugin/plugin.json',
+    '/opt/Menkar/resources/plugin/skills/orchestrator/SKILL.md',
+    '/opt/Menkar/resources/plugin/skills/worker/SKILL.md',
+    '/opt/Menkar/resources/plugin/skills/distill/SKILL.md',
+    '/opt/Menkar/resources/plugin/skills/specialize/SKILL.md',
     '/opt/Menkar/resources/app.asar.unpacked/node_modules/node-pty/build/Release/pty.node',
     '/usr/share/applications/menkar.desktop',
     '/usr/share/icons/hicolor/512x512/apps/menkar.png',
@@ -36,6 +41,10 @@ describe('package:check', () => {
     [
       'the launcher',
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('.desktop')) }),
+    ],
+    [
+      'a skill of the plugin',
+      (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('worker/SKILL.md')) }),
     ],
     [
       'the native pty',
