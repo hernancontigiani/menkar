@@ -393,3 +393,11 @@
 
 > Left §3 on 2026-11-12: plan 34 moved up to first.
 | 2 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Stub, being designed by `set` with the human, 2026-11-12 |
+
+## 2026-11-12 — updated by `set` (plan 34's details decided, 1.86–1.88)
+
+> Last updated: 2026-11-11.
+| 1 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Stub, being designed by `set` with the human, 2026-11-12 |
+
+> Left §3 on 2026-11-12: plan 34 written.
+| 1 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Stub, being designed by `set` with the human, 2026-11-12; to be executed by a `b1` that `set` starts with `start_session` (2.22) |

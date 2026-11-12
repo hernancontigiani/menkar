@@ -7,7 +7,7 @@
 > **A live index, 300 lines at most.** Written as **current state with a date**; what stops being
 > current leaves for `docs/history/plans/00-STATUS.md` in the same change, verbatim.
 >
-> Last updated: 2026-11-11.
+> Last updated: 2026-11-12.
 
 ## 1. Decided
 
@@ -58,6 +58,12 @@
 | 1.83 | After four specialists' reviews of `menkar:specialize` (the human, 2026-11-12): a role is described by what it owns, advises on, must not decide and defers to, and **what it does for each kind of request** — no forced kind; in the orchestration mode a session's role is **a free label** (e.g. "Fabric expert"), amending 1.77's fixed list (the orchestrator mark stays); a skill aims at **60–120 lines**, 200 at most, and **declares its own admission criterion** ("if a session that never loads it still needs it, it is not skill material"); no story, but **each rule keeps in one line the case that produced it** | 2026-11-12 | `docs/session-control.md` |
 | 1.84 | After the final review of Menkar's skills (the human, 2026-11-12): a renewed session's **handoff note is its renew prompt** (who it is, the skill to load, what is in flight), never a file; **only the orchestrator orchestrates** — another session never starts sessions or acts as one; it may ask the orchestrator to delegate work to an existing expert session, and may always use its own subagents for research, discovery or review (amends 1.70's "any session may start others"; enforced in the tool once the orchestrator is marked, plan 34); Menkar's four skills declare their admission criterion, the case-per-rule of 1.83 binds only role skills | 2026-11-12 | `docs/session-control.md` |
 | 1.85 | `set`, this repository's orchestrator, pushes (the human, 2026-11-12) | 2026-11-12 | `CLAUDE.md` |
+| 1.86 | Plan 34's three open details (the human, 2026-11-12): the panel's team list shows one row per session — state dot, priority ★, name, role label, context ring, "with you" — a click selects its tab, a right-click opens the row's menu; **"with you" is a toggle the human sets and clears by hand** (row menu and panel), read by agents through `list_sessions`; topics are answered **only in the orchestrator's chat**, the panel is read only (a click unfolds a topic's context) | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.87 | Amends 1.49 (the human, 2026-11-12): the statusline bar drops the all-time `$… total`; it shows the cost since the last compaction only (`set · 22% · $12.40`). Not built yet | 2026-11-12 | this row (until built) |
+| 1.88 | A file's right-click menu in the sidebar's Files section gains "Move to Trash" (the human left trash or delete to `set`, 2026-11-12: trash, recoverable, as 1.66). Not built yet | 2026-11-12 | this row (until built) |
+| 1.89 | Plan 34's look (the human, 2026-11-12, from mock-ups A–D): **no panel** — the topics are a collapsible "Topics" section at the top of the sidebar, seen from any tab, and the team is the sidebar itself, ordered by role (amends 1.77 point 3; 1.86's row click and menu apply to the sidebar rows); in the row menu, "Orchestrator", "Role…", "Priority" and "With you" sit loose in their own block, only while the mode is on; a session's children with a tab are nested and indented under it, those without a tab gathered in one "N earlier" row that unfolds on a click; the mode is switched from an icon per project in the project popover, lit when on, **and from a toggle beside Usage in the header**, so it can be discovered | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.90 | The first time a project enters the orchestration mode (no orchestrator marked), Menkar guides the user: a card says what the mode is for, explains in a line what an orchestrator is, and asks which existing session will be it or offers to start a new one; it points to a **guide written to be read by agents** too, shipped inside Menkar so any session can read it from disk, with a way to hand it to another session to ask it questions; the same guide published online later (the human, 2026-11-12: "documentation must be accessible to agents") | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
+| 1.91 | 1.89 and 1.90 settled (the human, 2026-11-12, mock-ups E and F): the header toggle is a switch with the word "Orchestration" beside Usage; the first-time guide is a card over the window — what the mode is, "Who orchestrates?" with the project's sessions or a new one, "Open the guide" (a read-only Menkar file tab) and "Copy a prompt for another session"; "Not now" leaves the mode off; no external link until the guide is published with plan 28's site | 2026-11-12 | `plans/34-orchestration-mode.md` (until delivered) |
 | 1.10 | Decided by `set` after the spec (technical, within the rules): the agent-tablet import also takes `usage.jsonl`; integrations' record and settings backups live in the data directory (no fourth one); `unknown` turns show their own category; menus keep the sans font; the Classic style's terminal uses xterm.js colors close to VTE's defaults; About carries the human's copyright and one credit line to Agent Session Manager, with no link (2026-11-09) | 2026-11-08 | `docs/spec/README.md` |
 | 1.11 | The interface is in English and Spanish, both kept complete: `check-i18n` fails on a key Spanish lacks, so a new string is translated in the same change. agent-tablet's German, French and Hungarian are not carried over | 2026-11-08 | `docs/foundations.md` · `docs/NOT_BUILT_YET.md` |
 | 1.12 | Menkar's logo is an eight-pointed star (four long points, four short), one color, near white (`build/icons/menkar.svg`); the launcher icon sets it on a dark rounded tile; the empty window shows the same star instead of agent-tablet's folder illustration | 2026-11-08 | `build/icons/` |
@@ -108,7 +114,8 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 1 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Stub, being designed by `set` with the human, 2026-11-12 |
+| 1 | `34-orchestration-mode.md` — 1.77, the orchestration mode in the app | Written 2026-11-12, ready; executed by a `b1` that `set` starts with `start_session` (2.22) |
+| 2 | Small tasks, not urgent: 1.87 (statusline without the total), 1.88 (Move to Trash in Files) | To assign after plan 34, or beside it if they share no file |
 
 ## 4. Next plan number
 
