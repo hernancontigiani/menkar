@@ -88,7 +88,7 @@ human waits for the orchestrator instead of polling.
    remote_control?, group? }`, and `list_sessions {}` (the caller's project: name, id, shown
    state, context %, parent, whether it has a tab) — the published snapshot of decision 4 is what
    it reads, and an orchestrator without it would have to ask each worker.
-6b. **A fourth tool, `last_reply { session }`** (1.73): the last reply of a session of the
+6b. **A fourth tool, `last_reply { name }`** (1.73): the last reply of a session of the
     caller's project, read from its transcript in main (read only, from the file's end, never the
     whole file of tens of MB; at most 20,000 characters, cut with a note). A worker's report is its
     last message, written once; the orchestrator reads it here instead of a report file.
@@ -146,6 +146,14 @@ human waits for the orchestrator instead of polling.
     project; the window's selected tab does not change; the new session is a member of the
     caller's project (and of `group` when it names an existing one; an unknown group is refused).
     A `name` already used by a session with a tab in the project is refused.
+
+17. **A session is addressed by its name, never by its id** (the human, 2026-11-11: a renew or a
+    `/clear` gives a session a new id, and a message sent to the old id is lost). The tools take
+    and return names: `last_reply { name }`, `list_sessions` lists names first (the id only as
+    information), `start_session` returns the name. The parent of a child is recorded by id but
+    re-keyed on every follow (decision 12), so a wake reaches the renewed parent. A name is unique
+    among the project's sessions with a tab (decision 16), which is what makes it a handle. The
+    skills (next plan) tell agents to message each other by name.
 
 ### Rejected, and why
 

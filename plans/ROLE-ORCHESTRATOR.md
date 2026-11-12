@@ -115,6 +115,9 @@ name is the declared one**, and asks for a rename if not.
   topics, or when the human asks, never in the middle of a topic you are discussing with them. Don't
   subscribe to idle notices (`notify_when_idle`): each one costs you a turn and says nothing a
   report doesn't.
+- **Address sessions by name, never by their `[ref]` or session id**, and tell the workers to send
+  their one-line report to `set` by name: a `/clear` or a renew gives a session a new id, and a
+  message to the old one is lost (1.74).
 - **Several sessions with one name** (stale ones left by a restart): `ListAgents` shows them with a
   `[ref]`. Send to the most recently started one, and tell the human which ones look stale.
 - **Before you commit a worker's change**, read its diff and check it against the report. A
