@@ -111,7 +111,7 @@ function update(state: Projects, id: string, change: (p: Project) => Project): P
 
 const dropEmpty = (groups: readonly Group[]) => groups.filter((g) => g.members.length > 0)
 
-function leaveGroups(p: Project, sessionId: string): Project {
+export function leaveGroups(p: Project, sessionId: string): Project {
   return {
     ...p,
     groups: dropEmpty(

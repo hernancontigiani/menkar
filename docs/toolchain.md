@@ -86,6 +86,16 @@ work against the last commit. It writes both sides to temporary directories and 
 `git diff <ref>` sees only tracked files, and a session's new tests are untracked until `set`
 commits them.
 
+`npm run ci` stops at the first red step. While a test-integrity failure is accepted but not yet
+committed, the steps after it do not run: run `node scripts/check-flaky.mjs` and
+`node scripts/nothing-lost.mjs` by hand and report them on their own (2026-11-12).
+
+**UI work is reported after `npm run ui-check` runs whole**, not only the specs it touched: in
+plan 34 only the full run caught a new popover icon taking the place of the button another spec
+clicks. Specs write their screenshots to `/tmp/menkar-shots/` only; a worker copies its own into
+`$MENKAR_FILES` by hand, because a spec that wrote there would fill the human's folder whenever a
+Menkar session runs it (2026-11-12).
+
 ## Rejected
 
 - **ESLint + Prettier**: two tools and two configs where Biome is one.

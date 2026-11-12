@@ -30,9 +30,9 @@ Integrations page are still `docs/spec/context.md` until they are built.
     that bypasses permission prompts holds each one behind a card. The cost: in that mode, a message
     any local process of the user posts is delivered without the card. Only the user's own processes
     can reach the socket, and a message can never answer a permission prompt.
-- **The cost since the last compaction** (2026-11-10): the bar shows it before the total
-  (`set · 22% · $12.40 · $246.50 total`). The total is Claude Code's `cost.total_cost_usd`, which
-  counts on across resumes. The cost since is the total minus a baseline, with no transcript read.
+- **The cost since the last compaction** (2026-11-12): the bar shows it, and no all-time total
+  (`set · 22% · $12.40`). The total is Claude Code's `cost.total_cost_usd`, which counts on across
+  resumes. The cost since is the total minus a baseline, with no transcript read.
   - **The hook** (2026-11-11). The `--settings` file also declares a SessionStart hook, four
     entries, matchers `startup`, `resume`, `clear` and `compact`. Its command is the statusline's
     own, with the argument `session-start` (`sessionStartHooks` in `settings.ts`). Checked in
@@ -57,8 +57,8 @@ Integrations page are still `docs/spec/context.md` until they are built.
     outside Menkar, and those whose last compaction came before this.
   - **What it misses.** The baseline is the total at the first statusline run after the
     compaction, so the cost of that first turn falls before it.
-  - **"total"** is the bar's only word. The bar is not translated: the statusline runs inside
-    Claude Code, and reads none of the app's settings.
+  - **The bar has no words.** It is not translated: the statusline runs inside Claude Code, and
+    reads none of the app's settings.
 - **The reading** (`reading.ts`, `tracker.ts`): the session file when it is newer than the
   transcript's last assistant message, otherwise an estimate from that message. At most one read is
   in flight per session, plus one re-read. Main watches the sessions folder and sends every window

@@ -36,6 +36,13 @@ and the wake order.
     - A name another session of the project already uses in a tab is refused, and so is a group
       the project does not have.
     - The session starts in the caller's folder.
+    - **A reused name** (decision 1.92, 2026-11-12): when stopped sessions of the project (members
+      without a tab, not earlier conversations) have the name, the new session takes them over as
+      after a renew (`takeOverName`, `src/core/projects/rekey.ts`). The most recently active one
+      gives its place in the list, its group (the `group` argument wins when given), its hidden
+      flag, its orchestration marks and its children; every one of them, with its own earlier
+      conversations, becomes an earlier conversation of the new one, so the sidebar never shows two
+      rows with that name. The caller is still the parent.
     - With the orchestration mode on and an orchestrator marked, a caller that is not the
       orchestrator is refused: "Only this project's orchestrator, ‹name›, starts sessions. Ask it to
       delegate the work." (`mayStart`, `src/core/orchestration/mayStart.ts`, decision 1.84). With
@@ -53,6 +60,8 @@ and the wake order.
     replied since it renewed or was cleared, the answer is the last reply of its most recent earlier
     conversation, after a note that says so (`lastReplyAnswer`, decision 1.84, 2026-11-12): a
     worker's report outlives the renew that follows it.
+    When two sessions of the project share the name (a stopped one kept it), the one with a tab is
+    read, else the most recently active (`sessionOfProject`, 2026-11-12).
   - **`topic_add { title, context, blocking? }`, `topic_update { number, title?, context?,
     blocking?, status? }`, `topic_close { number, decision }`, `topic_list { all? }`:** the
     project's topics for the human (`docs/orchestration.md`), kept by main in `topics.json`. Any

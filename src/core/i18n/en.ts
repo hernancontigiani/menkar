@@ -153,6 +153,8 @@ export const en = {
   'files.add': 'Add',
   'files.openInMenkar': 'Open in Menkar',
   'files.openWithSystem': 'Open with the system’s app',
+  'files.moveToTrash': 'Move to Trash',
+  'files.notTrashed': 'The file could not be moved to the trash.',
   'files.more': '{n} more…',
   'files.folderGone': 'That folder no longer exists.',
   'groups.collapse': 'Collapse group',

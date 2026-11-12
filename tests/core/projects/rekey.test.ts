@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import type { Layout } from '../../../src/core/projects/layout'
-import { followNewId, followNewIdInLayout, followResume } from '../../../src/core/projects/rekey'
+import {
+  followNewId,
+  followNewIdInLayout,
+  followResume,
+  takeOverName,
+} from '../../../src/core/projects/rekey'
 import { group, project, projects } from '../../factories/projects'
 
 describe('a cleared session’s new id takes the old one’s place', () => {
@@ -132,5 +137,67 @@ describe('a chain of clears', () => {
       ...project('p1', 'Work', ['third', 'second', 'first']),
       earlier: { third: ['second', 'first'] },
     })
+  })
+})
+
+// Decision 1.92: `start_session` with the name of stopped sessions of the project.
+describe('a session started with a stopped session’s name takes it over, as after a renew', () => {
+  test('the human’s case: a stopped "b1" with a role and the ★; the new one takes its place, group, marks and children, and the old one is its earlier conversation', () => {
+    const state = projects([
+      {
+        ...project(
+          'p1',
+          'Work',
+          ['set', 'old-b1', 'kid', 'older-b1'],
+          [group('workers', ['old-b1'])],
+        ),
+        parents: { 'old-b1': 'set', kid: 'old-b1' },
+        earlier: { 'old-b1': ['older-b1'] },
+        orchestration: {
+          on: true,
+          orchestrator: 'set',
+          roles: { 'old-b1': 'Worker' },
+          priority: ['old-b1'],
+        },
+      },
+    ])
+    const p = takeOverName(state, ['old-b1'], 'new-b1').projects[0]
+    expect(p?.members).toEqual(['set', 'new-b1', 'old-b1', 'kid', 'older-b1'])
+    expect(p?.groups).toEqual([group('workers', ['new-b1'])])
+    expect(p?.earlier).toEqual({ 'new-b1': ['old-b1', 'older-b1'] })
+    expect(p?.parents).toEqual({ 'new-b1': 'set', kid: 'new-b1' })
+    expect(p?.orchestration).toEqual({
+      on: true,
+      orchestrator: 'set',
+      roles: { 'new-b1': 'Worker' },
+      priority: ['new-b1'],
+    })
+  })
+
+  test('several stopped ones of the name: the first (most recently active) gives its place and marks; every one, with its own earlier ones, becomes an earlier conversation, its children re-pointed', () => {
+    const state = projects([
+      {
+        ...project(
+          'p1',
+          'Work',
+          ['a', 'recent', 'x', 'stale', 'stale-0', 'kid'],
+          [group('g', ['stale', 'x'])],
+        ),
+        earlier: { stale: ['stale-0'] },
+        parents: { kid: 'stale' },
+        orchestration: { on: true, roles: { recent: 'Worker', stale: 'Old' } },
+      },
+    ])
+    const p = takeOverName(state, ['recent', 'stale'], 'new').projects[0]
+    expect(p?.members).toEqual(['a', 'new', 'recent', 'x', 'stale', 'stale-0', 'kid'])
+    expect(p?.earlier).toEqual({ new: ['recent', 'stale', 'stale-0'] })
+    expect(p?.groups).toEqual([group('g', ['x'])])
+    expect(p?.parents).toEqual({ kid: 'new' })
+    expect(p?.orchestration?.roles?.new).toBe('Worker')
+  })
+
+  test('nothing stopped of that name: nothing changes', () => {
+    const state = projects([project('p1', 'Work', ['a'])])
+    expect(takeOverName(state, [], 'new')).toBe(state)
   })
 })

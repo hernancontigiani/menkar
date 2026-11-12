@@ -349,6 +349,18 @@ export async function dragProjectFile(
   return true
 }
 
+// The user's own choice, from the file's menu. False when the system refused it.
+export async function trashProjectFile(path: string): Promise<boolean> {
+  try {
+    await shell.trashItem(path)
+    log.info('a project file went to the trash', { path })
+    return true
+  } catch (error) {
+    log.warn('a project file could not go to the trash', { path, error })
+    return false
+  }
+}
+
 export async function runTrash(): Promise<void> {
   const d = need()
   const days = d.settings().files_trash_days

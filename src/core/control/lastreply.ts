@@ -8,12 +8,20 @@ export function replyText(reply: string): string {
 }
 
 // The session the caller named among its own project's. By name only: a renew gives a session a
-// new id, so an id an agent kept names nothing a moment later.
+// new id, so an id an agent kept names nothing a moment later. A stopped session can share the
+// name of a running one: the one with a tab wins, then the most recently active.
 export function sessionOfProject(
   named: string,
-  sessions: readonly { readonly id: string; readonly name: string }[],
+  sessions: readonly {
+    readonly id: string
+    readonly name: string
+    readonly hasTab: boolean
+    readonly mtimeMs: number
+  }[],
 ): { id: string } | { refusal: string } {
-  const found = sessions.find((s) => s.name === named)
+  const [found] = sessions
+    .filter((s) => s.name === named)
+    .sort((a, b) => Number(b.hasTab) - Number(a.hasTab) || b.mtimeMs - a.mtimeMs)
   return found ? { id: found.id } : { refusal: `No session of your project is called "${named}".` }
 }
 

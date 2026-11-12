@@ -75,7 +75,13 @@ is labelled "Orchestrator"), the ★ before its name, and "with you" as a badge 
 **The Topics section** sits at the top of the sidebar while the mode is on, collapsible like Files
 and saved (`topics_collapsed`), headed "Topics · N". A row: ★ when raised by a priority session,
 the number, the title, a red mark when blocking. A click unfolds its context, who raised it and its
-status, per window. It is read only. Empty, it says "No open topics".
+status, per window. Empty, it says "No open topics".
+
+**A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the
+orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N",
+through the same cross-session messaging as the wakes (`wakeSession`, `postToSession`); nothing is
+typed into its terminal. With no orchestrator running (none marked, or no tab), the topic still
+goes to discussing and nothing is posted (`discussTopic` in `src/main/workspace.ts`).
 
 ## `Ctrl+\`` in the orchestrator's tab
 

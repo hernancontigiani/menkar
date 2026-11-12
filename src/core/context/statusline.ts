@@ -135,8 +135,8 @@ function fixed(value: number, digits: number): string {
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
-// Menkar's own bar: the session's name, else the start of its id; its context and its cost: since
-// its last compaction and in all, or only in all while the first is not known.
+// Menkar's own bar: the session's name, else the start of its id; its context and its cost since its
+// last compaction, or in all while that is not known.
 export function bar(payload: Payload, sinceCompaction: number | null = null): string {
   const name = get(payload, 'session_name')
   const id = get(payload, 'session_id')
@@ -150,10 +150,7 @@ export function bar(payload: Payload, sinceCompaction: number | null = null): st
   const percentage = get(payload, 'context_window', 'used_percentage')
   if (isNumber(percentage)) parts.push(`${fixed(percentage, 0)}%`)
   const cost = get(payload, 'cost', 'total_cost_usd')
-  if (isNumber(cost)) {
-    if (sinceCompaction !== null) parts.push(`$${fixed(sinceCompaction, 2)}`)
-    parts.push(sinceCompaction !== null ? `$${fixed(cost, 2)} total` : `$${fixed(cost, 2)}`)
-  }
+  if (isNumber(cost)) parts.push(`$${fixed(sinceCompaction ?? cost, 2)}`)
   return parts.join(' · ')
 }
 

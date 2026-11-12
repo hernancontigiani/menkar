@@ -2,6 +2,7 @@
 // (1.89); the row menu's block — Orchestrator, Role…, Priority, With you — only while it is on;
 // switching it off keeps every mark (1.77).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
@@ -405,6 +406,79 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await expect(page.locator('#topics-section')).toBeEmpty()
     await expect(page.locator('#session-list .earlier-row')).toHaveCount(0)
   } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.96: a double-click on a topic sets it to "discussing", selects the orchestrator's tab
+// and posts to the orchestrator through Claude Code's messaging, as the wakes do.
+test('a double-click on a topic: discussing, the orchestrator’s tab selected and told; with no orchestrator running, only discussing (screenshot)', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      const env = team(dirs)
+      mkdirSync(join(dirs.home, '.claude', 'sessions'), { recursive: true })
+      writeFileSync(
+        join(dirs.home, '.claude', 'sessions', '4242.json'),
+        JSON.stringify({
+          pid: 4242,
+          sessionId: TEAM.orch,
+          messagingSocketPath: join(dirs.root, 'orch.sock'),
+          peerProtocol: 1,
+        }),
+      )
+      return env
+    },
+  })
+  const page = launched.window
+  const lines: string[] = []
+  const server = createServer((connection) => {
+    let data = ''
+    connection.on('data', (d) => {
+      data += d
+    })
+    connection.on('end', () => lines.push(...data.split('\n').filter(Boolean)))
+  })
+  await new Promise<void>((resolve) => server.listen(join(root, 'orch.sock'), resolve))
+  const posted = () => lines.map((line) => JSON.parse(line).message.content as string)
+  const statusOf = (number: number) =>
+    (
+      JSON.parse(readFileSync(join(root, 'config', 'menkar', 'topics.json'), 'utf8')).projects[
+        TEAM_PROJECT
+      ].topics as { number: number; status: string }[]
+    ).find((x) => x.number === number)?.status
+  const orchTab = page.locator('.tab', { hasText: 'orchestrator' })
+  try {
+    await expect(page.locator('.tab')).toHaveCount(2)
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await expect(orchTab).not.toHaveClass(/selected/)
+
+    // A single click still only unfolds.
+    await page.locator('.topic-row[data-topic="3"]').click()
+    await expect(page.locator('.topic-detail')).toContainText('From orchestrator · open')
+    expect(statusOf(3)).toBe('open')
+    await page.locator('.topic-row[data-topic="3"]').click()
+
+    await page.locator('.topic-row[data-topic="3"]').dblclick()
+    await expect.poll(() => statusOf(3)).toBe('discussing')
+    await expect(orchTab).toHaveClass(/selected/)
+    await expect
+      .poll(posted, { timeout: 15_000 })
+      .toEqual(['[Menkar] The human wants to discuss topic 3'])
+    await page.locator('.topic-row[data-topic="3"]').click()
+    await expect(page.locator('.topic-detail')).toContainText('From orchestrator · discussing')
+    await shot(page, 'b1-topic-discuss.png')
+
+    // The orchestrator's tab closed: the topic still goes to discussing; nothing is posted.
+    await orchTab.locator('.close').click()
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await page.locator('.topic-row[data-topic="1"]').dblclick()
+    await expect.poll(() => statusOf(1)).toBe('discussing')
+    await page.waitForTimeout(1500)
+    expect(posted()).toEqual(['[Menkar] The human wants to discuss topic 3'])
+  } finally {
+    server.close()
     await launched.close()
   }
 })

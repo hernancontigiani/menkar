@@ -68,8 +68,8 @@ describe('the last reply', () => {
   // Decision 17 (1.74): a session is addressed by its name; an id names nothing once it renews.
   test('only a session of the caller’s project, by its name; an id or another project’s is refused', () => {
     const project = [
-      { id: 'o1', name: 'orch' },
-      { id: 'a1', name: 'api' },
+      { id: 'o1', name: 'orch', hasTab: true, mtimeMs: 1 },
+      { id: 'a1', name: 'api', hasTab: false, mtimeMs: 1 },
     ]
     expect(sessionOfProject('api', project)).toEqual({ id: 'a1' })
     for (const named of ['a1', 'elsewhere']) {
@@ -77,6 +77,22 @@ describe('the last reply', () => {
       expect(refused).toHaveProperty('refusal')
       expect((refused as { refusal: string }).refusal).toMatch(/^[A-Z].*\.$/)
     }
+  })
+
+  // A stopped session can keep the name of the one running now: the one with a tab is meant, and
+  // among stopped ones the most recently active.
+  test('two sessions of one name: the one with a tab, else the most recently active', () => {
+    const stoppedFirst = [
+      { id: 'old', name: 'b1', hasTab: false, mtimeMs: 900 },
+      { id: 'running', name: 'b1', hasTab: true, mtimeMs: 100 },
+    ]
+    expect(sessionOfProject('b1', stoppedFirst)).toEqual({ id: 'running' })
+    const allStopped = [
+      { id: 'older', name: 'b1', hasTab: false, mtimeMs: 100 },
+      { id: 'newer', name: 'b1', hasTab: false, mtimeMs: 900 },
+      { id: 'middle', name: 'b1', hasTab: false, mtimeMs: 500 },
+    ]
+    expect(sessionOfProject('b1', allStopped)).toEqual({ id: 'newer' })
   })
 
   // Decision 1.84: a session that renewed has not replied yet in its new conversation; its report

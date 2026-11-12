@@ -31,3 +31,10 @@
     Menkar's to know. A session first seen with no record is taken as new when its total is below a
     cent, and otherwise as unknown, so its bar shows the total alone until it compacts. That covers
     sessions started outside Menkar, and those whose last compaction came before this.
+
+> Left on 2026-11-12: the bar drops the all-time total (decision 1.87).
+- **The cost since the last compaction** (2026-11-10): the bar shows it before the total
+  (`set · 22% · $12.40 · $246.50 total`). The total is Claude Code's `cost.total_cost_usd`, which
+  counts on across resumes. The cost since is the total minus a baseline, with no transcript read.
+  - **"total"** is the bar's only word. The bar is not translated: the statusline runs inside
+    Claude Code, and reads none of the app's settings.

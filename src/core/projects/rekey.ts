@@ -3,6 +3,7 @@ import type { Layout } from './layout'
 import {
   addMember,
   type Group,
+  leaveGroups,
   type Project,
   type Projects,
   projectOf,
@@ -10,7 +11,7 @@ import {
   showMember,
 } from './model'
 import { followOrchestration } from './orchestration'
-import { followParents } from './parents'
+import { followParents, keptParents, tidyParents } from './parents'
 
 // Claude Code gives a running session a new id when the user clears it (`/clear`, decision 1.56),
 // and another when the user resumes a session inside it (1.57). The id the tab moves to takes the
@@ -87,6 +88,36 @@ export function followResume(
       }
       return followOrchestration(becomeEarlier(withCarried, from, to), from, to)
     }),
+  }
+}
+
+// One more stopped session goes after the ones `to` already holds, with its own earlier ones; its
+// group is left and its children wake `to`.
+function joinEarlier(p: Project, from: string, to: string): Project {
+  const kept = keptEarlier(p)
+  const list = [...(kept[to] ?? []), from, ...(kept[from] ?? [])].filter(
+    (id, i, all) => id !== to && all.indexOf(id) === i,
+  )
+  const { [from]: _from, [to]: _to, ...others } = kept
+  const parents = Object.fromEntries(
+    Object.entries(keptParents(p)).map(([child, parent]) => [child, parent === from ? to : parent]),
+  )
+  return tidyParents({ ...leaveGroups(p, from), earlier: { ...others, [to]: list }, parents })
+}
+
+// A new id, in no project yet, started with the name of stopped sessions (most recently active
+// first): it follows them as after a renew. The first gives its place, group, hidden flag, parent,
+// children and marks; the others join its earlier conversations after it.
+export function takeOverName(state: Projects, stopped: readonly string[], to: string): Projects {
+  const [first, ...rest] = stopped
+  if (first === undefined) return state
+  const followed = followNewId(state, first, to)
+  if (followed === state) return state
+  return {
+    ...followed,
+    projects: followed.projects.map((p) =>
+      p.members.includes(to) ? rest.reduce((q, from) => joinEarlier(q, from, to), p) : p,
+    ),
   }
 }
 

@@ -18,6 +18,10 @@ How the main window is built and why that way. The behaviour it follows is in `d
   sessions, the sidebar width and the remembered folder all go through it, so two writers never
   save from different copies.
 
+A renderer module that imports `./app` back (`sessionmenus.ts`, `orchestration.ts`) must not call
+app's functions while it loads: app's own module state (its render listeners) does not exist yet.
+It registers what it needs from a function app calls, such as `buildFrame` (2026-11-12).
+
 ## Look
 
 - `src/core/theme.ts` resolves the look from `ui_style`, `terminal_theme` and `color_scheme` plus

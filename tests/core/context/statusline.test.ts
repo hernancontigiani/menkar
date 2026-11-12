@@ -220,7 +220,7 @@ test('CTX-26 parity: what the app reads is what the statusline writes', () => {
 })
 
 // The cost since the last compaction: the SessionStart hook (the same script, its hook mode) notes
-// a new session or a compaction, and the bar shows the cost since, then the total.
+// a new session or a compaction, and the bar shows the cost since.
 function hook(d: Dirs, payload: Record<string, unknown>, env: Record<string, string> = {}) {
   const result = spawnSync(process.execPath, [SCRIPT, SESSION_START_ARG], {
     input: JSON.stringify({ hook_event_name: 'SessionStart', ...payload }),
@@ -234,20 +234,20 @@ const turn = (d: Dirs, id: string, total: number) =>
   run(d, JSON.stringify({ session_id: id, session_name: 'set', cost: { total_cost_usd: total } }))
     .out
 
-test('a new session shows the same cost twice until it compacts; then the cost since, kept across a resume', () => {
+test('a new session shows its cost; after a compaction the cost since, kept across a resume', () => {
   const d = dirs()
   expect(hook(d, { session_id: 's1', source: 'startup' })).toEqual({ out: '', code: 0 })
-  expect(turn(d, 's1', 1.2)).toBe('set · $1.20 · $1.20 total\n')
-  expect(turn(d, 's1', 3)).toBe('set · $3.00 · $3.00 total\n')
+  expect(turn(d, 's1', 1.2)).toBe('set · $1.20\n')
+  expect(turn(d, 's1', 3)).toBe('set · $3.00\n')
   hook(d, { session_id: 's1', source: 'compact' })
-  expect(turn(d, 's1', 5)).toBe('set · $0.00 · $5.00 total\n')
-  expect(turn(d, 's1', 7.5)).toBe('set · $2.50 · $7.50 total\n')
+  expect(turn(d, 's1', 5)).toBe('set · $0.00\n')
+  expect(turn(d, 's1', 7.5)).toBe('set · $2.50\n')
   // A resume leaves the baseline: the cost since the compaction goes on.
   hook(d, { session_id: 's1', source: 'resume' })
-  expect(turn(d, 's1', 8)).toBe('set · $3.00 · $8.00 total\n')
+  expect(turn(d, 's1', 8)).toBe('set · $3.00\n')
   // A second compaction starts the count again.
   hook(d, { session_id: 's1', source: 'compact' })
-  expect(turn(d, 's1', 9)).toBe('set · $0.00 · $9.00 total\n')
+  expect(turn(d, 's1', 9)).toBe('set · $0.00\n')
 })
 
 // Measured with Claude Code 2.1.322: after `/clear` the new id's total starts again at 0, and the
@@ -260,7 +260,7 @@ test('a clear starts the new id’s count at nothing, and its record names the M
     out: '',
     code: 0,
   })
-  expect(turn(d, 'after', 0.42)).toBe('set · $0.42 · $0.42 total\n')
+  expect(turn(d, 'after', 0.42)).toBe('set · $0.42\n')
   const start = JSON.parse(readFileSync(join(d.cache, 'session-starts', 'after.json'), 'utf8'))
   expect(start).toMatchObject({ session_id: 'after', source: 'clear', pane: 'pane7' })
   const outside = JSON.parse(readFileSync(join(d.cache, 'session-starts', 'before.json'), 'utf8'))
@@ -288,13 +288,13 @@ test('a session first seen with a cost and no hook record shows its total alone 
   expect(turn(d, 'old', 240)).toBe('set · $240.00\n')
   expect(turn(d, 'old', 246.5)).toBe('set · $246.50\n')
   hook(d, { session_id: 'old', source: 'compact' })
-  expect(turn(d, 'old', 247)).toBe('set · $0.00 · $247.00 total\n')
+  expect(turn(d, 'old', 247)).toBe('set · $0.00\n')
 })
 
 test('a session first seen below a cent, with no hook record, counts as new', () => {
   const d = dirs()
-  expect(turn(d, 'n1', 0.004)).toBe('set · $0.00 · $0.00 total\n')
-  expect(turn(d, 'n1', 0.5)).toBe('set · $0.50 · $0.50 total\n')
+  expect(turn(d, 'n1', 0.004)).toBe('set · $0.00\n')
+  expect(turn(d, 'n1', 0.5)).toBe('set · $0.50\n')
 })
 
 test('the hook notes no fork and no id with a path in it, and never fails', () => {

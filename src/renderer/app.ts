@@ -640,9 +640,20 @@ async function fileMenu(name: string, at: { x: number; y: number }): Promise<voi
         label: t('files.openWithSystem'),
         run: () => void act({ type: 'openProjectFile', name, with: 'system' }),
       },
+      { label: t('files.moveToTrash'), run: () => void trashFile(name) },
     ],
     at,
   )
+}
+
+// No confirmation: the trash gives it back. Unsaved edits in its tab ask the tab's own question.
+async function trashFile(name: string): Promise<void> {
+  let result = await act({ type: 'trashProjectFile', name })
+  if (result.unsaved && typeof result.value === 'string') {
+    if (!(await askUnsaved([result.value], result.unsaved))) return
+    result = await act({ type: 'trashProjectFile', name, force: true })
+  }
+  if (result.refusal) toast(translate(result.refusal))
 }
 
 async function openInMenkar(name: string): Promise<void> {

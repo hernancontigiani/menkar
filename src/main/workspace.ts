@@ -27,7 +27,13 @@ import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
 import { mayStart } from '../core/orchestration/mayStart'
-import { shownTopics, type TopicTool, topicsOf, topicTool } from '../core/orchestration/topics'
+import {
+  shownTopics,
+  type TopicTool,
+  topicsOf,
+  topicTool,
+  updateTopic,
+} from '../core/orchestration/topics'
 import { agentPaths } from '../core/paths'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
@@ -82,7 +88,12 @@ import {
   setWithYou,
 } from '../core/projects/orchestration'
 import { keptParents, setParent } from '../core/projects/parents'
-import { followNewId, followNewIdInLayout, followResume } from '../core/projects/rekey'
+import {
+  followNewId,
+  followNewIdInLayout,
+  followResume,
+  takeOverName,
+} from '../core/projects/rekey'
 import { saveProjects } from '../core/projects/store'
 import { activeProjects, touched } from '../core/projects/switching'
 import {
@@ -144,6 +155,7 @@ import {
   renameFolder,
   startProjectFiles,
   syncShown,
+  trashProjectFile,
   undoBring,
 } from './project-files'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
@@ -1165,7 +1177,12 @@ async function startForAgent(
   if (!tabById(caller.tabId)) return refuse(NOT_KNOWN)
   const id = randomUUID()
   startedNames.set(id, name)
-  projects = setParent(addMember(projects, projectId, id), id, callerId)
+  const namesakes = projectSessions(projectId)
+    .filter((s) => sessionName(s) === name && !inSomeTab(s))
+    .sort((a, b) => (sessionInfo(b)?.mtimeMs ?? 0) - (sessionInfo(a)?.mtimeMs ?? 0))
+  const tookOver = takeOverName(projects, namesakes, id)
+  const joined = tookOver === projects ? addMember(projects, projectId, id) : tookOver
+  projects = setParent(joined, id, callerId)
   if (group) projects = setGroup(projects, projectId, id, { name: group.name, color: group.color })
   const remote = args.remote_control === true
   if (remote) {
@@ -1198,7 +1215,12 @@ async function startForAgent(
 async function lastReplyFor(projectId: string, named: unknown): Promise<ControlAnswer> {
   if (typeof named !== 'string' || !named.trim())
     return refuse('Name the session whose last reply you want.')
-  const list = projectSessions(projectId).map((id) => ({ id, name: sessionName(id) }))
+  const list = projectSessions(projectId).map((id) => ({
+    id,
+    name: sessionName(id),
+    hasTab: inSomeTab(id),
+    mtimeMs: sessionInfo(id)?.mtimeMs ?? 0,
+  }))
   const found = sessionOfProject(named.trim(), list)
   if ('refusal' in found) return refuse(found.refusal)
   const current = await replyOf(found.id)
@@ -2000,6 +2022,18 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'dragProjectFile':
       await dragProjectFile(contents, w.shown, action.name)
       return {}
+    case 'trashProjectFile': {
+      const path = projectFilePath(w.shown, action.name)
+      if (!path) return {}
+      const tabs = layout.windows.flatMap((lw) =>
+        lw.tabs.filter((tab) => tab.kind === 'file' && tab.path === path),
+      )
+      if (!action.force && isDirty(path) && tabs.some((tab) => tab.kind === 'file' && !tab.preview))
+        return { unsaved: [basename(path)], value: path }
+      if (!(await trashProjectFile(path))) return { refusal: 'files.notTrashed' }
+      for (const tab of tabs) closeTab(tab.id)
+      return {}
+    }
     case 'collapseFiles':
       projects = setFilesCollapsed(projects, w.shown, action.collapsed)
       changed({ projects: true })
@@ -2022,6 +2056,27 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       projects = setTopicsCollapsed(projects, w.shown, action.collapsed)
       changed({ projects: true })
       return {}
+    case 'discussTopic': {
+      const updated = updateTopic(
+        currentTopics(),
+        w.shown,
+        action.number,
+        { status: 'discussing' },
+        topicsNow(),
+      )
+      if (!updated) return {}
+      setTopics(updated.topics)
+      const project = projects.projects.find((p) => p.id === w.shown)
+      const orchestrator = project ? orchestrationInfo(project).orchestrator : null
+      const pane = orchestrator ? paneOfSession(orchestrator) : undefined
+      const tab = pane ? w.tabs.find((x) => x.id === pane.tabId) : undefined
+      if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })
+      if (orchestrator && pane?.agent === 'claude')
+        void wakeSession(orchestrator, `The human wants to discuss topic ${action.number}`)
+      notifySeen()
+      changed()
+      return {}
+    }
     case 'openPaneFolder': {
       const tab = tabById(action.tab)
       const list = (tabPanes.get(action.tab) ?? []).flatMap((id) => {

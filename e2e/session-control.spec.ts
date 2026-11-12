@@ -17,10 +17,15 @@ interface Saved {
     groups: { name: string; members: string[] }[]
     earlier?: Record<string, string[]>
     parents?: Record<string, string>
+    orchestration?: { roles?: Record<string, string>; priority?: string[] }
   }[]
 }
 
-async function open() {
+// A stopped session called "worker", with a role and the ★, in the orchestration mode with "api"
+// its orchestrator (decision 1.92).
+const OLD_WORKER = '0b1d0b1d-0000-4000-8000-000000000001'
+
+async function open(options: { stoppedWorker?: boolean } = {}) {
   let root = ''
   let home = ''
   const launched = await launchApp({
@@ -45,6 +50,22 @@ async function open() {
           .map((l) => JSON.stringify(l))
           .join('\n')}\n`,
       )
+      if (options.stoppedWorker)
+        writeFileSync(
+          join(
+            dirs.home,
+            '.claude',
+            'projects',
+            work.replace(/[^A-Za-z0-9]/g, '-'),
+            `${OLD_WORKER}.jsonl`,
+          ),
+          `${[
+            { type: 'custom-title', customTitle: 'worker' },
+            { type: 'user', cwd: work, message: { content: 'an earlier task' } },
+          ]
+            .map((l) => JSON.stringify(l))
+            .join('\n')}\n`,
+        )
       writeFileSync(
         join(dirs.root, 'config', 'menkar', 'projects.json'),
         JSON.stringify({
@@ -54,8 +75,18 @@ async function open() {
             {
               id: CLIENT_WORK,
               name: 'Client work',
-              members: [SESSION],
+              members: options.stoppedWorker ? [SESSION, OLD_WORKER] : [SESSION],
               groups: [{ name: 'pair', color: '#5ec4b6', members: [SESSION] }],
+              ...(options.stoppedWorker
+                ? {
+                    orchestration: {
+                      on: true,
+                      orchestrator: SESSION,
+                      roles: { [OLD_WORKER]: 'Worker' },
+                      priority: [OLD_WORKER],
+                    },
+                  }
+                : {}),
             },
           ],
           windows: [],
@@ -151,6 +182,27 @@ test('start_session opens the new session right after the caller’s tab without
     await said(page, '"parent": "api"')
     await page.keyboard.type('REPLY')
     await said(page, 'TOOL last_reply: "worker" has not replied yet.')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('decision 1.92: start_session with the name of a stopped session takes it over, as after a renew: one "worker" row with its role and ★, the caller its parent, the old one its earlier conversation', async () => {
+  const { launched, page, saved, argLines } = await open({ stoppedWorker: true })
+  try {
+    await expect(page.locator(`.row[data-session="${OLD_WORKER}"]`)).toHaveCount(1)
+    await page.keyboard.type('SPAWN1')
+    await said(page, 'TOOL start_session: Started "worker" in a tab after yours')
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await expect.poll(() => saved().projects[0]?.earlier).toEqual({ [worker]: [OLD_WORKER] })
+    const p = saved().projects[0]
+    expect(p?.members).toEqual([SESSION, worker, OLD_WORKER])
+    expect(p?.parents).toEqual({ [worker]: SESSION })
+    expect(p?.orchestration?.roles).toEqual({ [worker]: 'Worker' })
+    expect(p?.orchestration?.priority).toEqual([worker])
+    await expect(page.locator(`.row[data-session="${worker}"]`)).toHaveCount(1)
+    await expect(page.locator(`.row[data-session="${OLD_WORKER}"]`)).toHaveCount(0)
   } finally {
     await launched.close()
   }

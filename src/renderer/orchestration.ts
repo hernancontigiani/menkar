@@ -348,5 +348,6 @@ function topicRow(topic: TopicView): HTMLElement {
     const s = currentState()
     if (s) render(s)
   })
+  line.addEventListener('dblclick', () => void act({ type: 'discussTopic', number: topic.number }))
   return node
 }

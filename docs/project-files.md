@@ -45,8 +45,15 @@ the renderer draws the section and names files, never paths.
   app (`shell.openPath`), with no toast (decision 1.65, 2026-11-11). Main runs the check, async,
   then decides (`openProjectFile`); the renderer only names the file.
 - **Right click** shows "Open in Menkar", disabled with the check's reason as its tooltip when the
-  file can't be shown (`checkProjectFile`), and "Open with the system's app". Ctrl+click on a
-  terminal link or path still opens with the system's app.
+  file can't be shown (`checkProjectFile`), "Open with the system's app", and "Move to Trash".
+  Ctrl+click on a terminal link or path still opens with the system's app.
+- **Move to Trash** (decisions 1.88, 1.97, 2026-11-12) sends the file to the system's trash
+  (`shell.trashItem`, never a delete) with no confirmation: the trash gives it back. A file open in
+  file tabs, in any window, has those tabs closed after it is trashed. When its editor has unsaved
+  edits, the tab's own close question comes first (Save, Discard, Cancel): Save saves then trashes,
+  Discard trashes without saving, Cancel trashes nothing and leaves the tab. Main resolves the
+  path as for a drag (`trashProjectFile`); a trash the system refuses leaves the tabs and shows
+  "The file could not be moved to the trash."
 - **Dragging a row out** hands the file to another app: the page's `dragstart` names the file
   (`dragProjectFile`), and main resolves the path itself and refuses one that is not a plain name of
   that folder — `..`, an absolute path, a dotfile, a name with a separator (`insideFolder`) — then

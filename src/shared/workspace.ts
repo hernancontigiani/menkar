@@ -128,6 +128,9 @@ export type Action =
     }
   | { readonly type: 'checkProjectFile'; readonly name: string }
   | { readonly type: 'dragProjectFile'; readonly name: string }
+  // To the system's trash, closing the file's tabs in every window; without `force`, unsaved edits
+  // in them come back as `unsaved` to ask first.
+  | { readonly type: 'trashProjectFile'; readonly name: string; readonly force?: boolean }
   | { readonly type: 'collapseFiles'; readonly collapsed: boolean }
   // The orchestration mode (decisions 1.77, 1.89): its switch per project, a session's marks, and
   // the shown project's Topics section.
@@ -137,6 +140,7 @@ export type Action =
   | { readonly type: 'setPriority'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setWithYou'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setTopicsCollapsed'; readonly collapsed: boolean }
+  | { readonly type: 'discussTopic'; readonly number: number }
   // The focused pane's working folder (the drawer's), or a session's, in the file manager.
   | { readonly type: 'openPaneFolder'; readonly tab: string; readonly pane: string | null }
   | { readonly type: 'openSessionFolder'; readonly session: string }

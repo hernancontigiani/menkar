@@ -13,7 +13,7 @@ interface Settings {
   hooks: { SessionStart: { matcher: string; hooks: { type: string; command: string }[] }[] }
 }
 
-test('a compaction noted by the --settings hook resets the cost since; the total stays', async () => {
+test('a compaction noted by the --settings hook resets the cost the bar shows', async () => {
   let home = ''
   let root = ''
   const launched = await launchApp({
@@ -67,10 +67,10 @@ test('a compaction noted by the --settings hook resets the cost since; the total
       })
 
     expect(start('startup')).toBe('')
-    expect(turn(1.2)).toBe('set · 22% · $1.20 · $1.20 total\n')
+    expect(turn(1.2)).toBe('set · 22% · $1.20\n')
     expect(start('compact')).toBe('')
-    expect(turn(234.1)).toBe('set · 22% · $0.00 · $234.10 total\n')
-    expect(turn(246.5)).toBe('set · 22% · $12.40 · $246.50 total\n')
+    expect(turn(234.1)).toBe('set · 22% · $0.00\n')
+    expect(turn(246.5)).toBe('set · 22% · $12.40\n')
   } finally {
     await launched.close()
   }

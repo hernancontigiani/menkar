@@ -17,6 +17,11 @@
   the path itself and refuses one that is not a plain name of that folder — `..`, an absolute path,
   a dotfile, a name with a separator (`insideFolder`) — then calls `webContents.startDrag`.
 
+> Left on 2026-11-12: the right-click menu gains "Move to Trash" (decisions 1.88, 1.97).
+- **Right click** shows "Open in Menkar", disabled with the check's reason as its tooltip when the
+  file can't be shown (`checkProjectFile`), and "Open with the system's app". Ctrl+click on a
+  terminal link or path still opens with the system's app.
+
 ## Bringing a file in
 
 > Left on 2026-11-11: ⬇ became Add (decision 1.62).

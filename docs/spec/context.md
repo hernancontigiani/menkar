@@ -105,10 +105,9 @@ letter by letter — the real dialog lays out the row on one line). Light copies
 The colors do not follow the color theme: the same three in every theme, light and dark.
 
 **The statusline bar** is plain text in Claude Code's own UI, its parts separated by ` · `: the
-name, the percentage, the cost since the last compaction and the total, as in
-`set · 22% · $12.40 · $246.50 total`. While the cost since the last compaction is not known (a
-session first seen with a cost, before it compacts again), the total alone shows, without the
-word (2026-11-10).
+name, the percentage and the cost since the last compaction, as in `set · 22% · $12.40`; no
+all-time total. While the cost since the last compaction is not known (a session first seen with a
+cost, before it compacts again), the total shows in its place (2026-11-12).
 
 **The Integrations page** is a standard preferences page: the page tab shows a puzzle-piece icon and
 "Integrations" beside "General"; the group has a bold title, a dim description paragraph, and a

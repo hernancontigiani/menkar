@@ -564,3 +564,9 @@ module, or a defect injected and removed).
 - `Ctrl+\`` with a hidden drawer in another folder (decision 1.93 above).
 - A test cannot copy into `$MENKAR_FILES` (another user's run would write there), so the specs
   write to `/tmp/menkar-shots/` and the `b1-` copies were made by hand.
+
+> Left §2 on 2026-11-12: the human saw every part of plan 31 on the real desktop — a child's tab opening without the focus, the parent woken when the child finished a turn and when it stopped at a permission prompt, and `renew` keeping the tab and name with the old conversation under "Earlier conversations".
+| 2.22 | The human's check of plan 31 on the real desktop. Seen 2026-11-12: a `start_session` child's tab opened without taking the focus, and its idle parent was woken with "[Menkar] b1 finished its turn". Still to see: the wake at a permission prompt, and `renew` restarting the tab with the same name and the old conversation under "Earlier conversations" | Human | Trusting session control |
+
+> Left §3 on 2026-11-12: the small tasks were built by `b1` and tried by the human.
+| 1 | Small tasks, not urgent: 1.87 (statusline without the total), 1.88 (Move to Trash in Files), 1.92 (a reused name makes the stopped session an earlier conversation), 1.96 (double-click a topic to discuss it), `last_reply` preferring the session with a tab when two share a name (seen 2026-11-12: it read the stopped `b1`) | Next, for `b1` after plan 34 is committed: they touch `src/main/workspace.ts` and the renderer |

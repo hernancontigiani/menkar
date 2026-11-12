@@ -389,3 +389,10 @@ toast instead, as above.
 > Left on 2026-11-10: the bar shows the cost since the last compaction before the total (the human, 2026-11-10).
 **The statusline bar** is plain text in Claude Code's own UI: name, percentage and cost separated by
 ` · `.
+
+> Left on 2026-11-12: the bar drops the all-time total (decision 1.87).
+**The statusline bar** is plain text in Claude Code's own UI, its parts separated by ` · `: the
+name, the percentage, the cost since the last compaction and the total, as in
+`set · 22% · $12.40 · $246.50 total`. While the cost since the last compaction is not known (a
+session first seen with a cost, before it compacts again), the total alone shows, without the
+word (2026-11-10).

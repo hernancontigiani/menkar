@@ -356,6 +356,7 @@ test('decision 1.65: a double-click opens a Markdown file in a Menkar file tab a
     await expect(page.locator('.menu-item')).toHaveText([
       'Open in Menkar',
       'Open with the system’s app',
+      'Move to Trash',
     ])
     await expect(inMenkar).toBeDisabled()
     await expect(inMenkar).toHaveAttribute('title', 'The file is not UTF-8 text.')
@@ -373,6 +374,95 @@ test('decision 1.65: a double-click opens a Markdown file in a Menkar file tab a
     await page.locator('.menu-item', { hasText: 'Open in Menkar' }).click()
     await expect(page.locator('.tab', { hasText: 'notes.md' })).toHaveCount(1)
     await expect(page.locator('.tab.selected')).toHaveText(/notes\.md/)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('decision 1.88: "Move to Trash" in a file’s right-click menu sends that file to the system’s trash, with no confirmation', async () => {
+  let d: Dirs | undefined
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const set = setUp(dirs)
+      d = set.d
+      mkdirSync(set.d.folder, { recursive: true })
+      writeFileSync(join(set.d.folder, 'draft.txt'), 'd')
+      writeFileSync(join(set.d.folder, 'keep.txt'), 'k')
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const json = JSON.parse(readFileSync(file, 'utf8'))
+      json.projects[0].files_folder = PROJECT
+      writeFileSync(file, JSON.stringify(json))
+      return set.env
+    },
+  })
+  if (!d) throw new Error('no dirs')
+  const dirs = d
+  try {
+    const { app, window: page } = launched
+    await expect.poll(() => fileRows(page)).toHaveLength(2)
+    await record(app)
+    await page.locator('#files-section .file-row[data-file="draft.txt"]').click({ button: 'right' })
+    await expect(page.locator('.menu-item', { hasText: 'Move to Trash' })).toBeVisible()
+    await page.screenshot({ path: 'test-results/b1-file-menu-trash.png' })
+    await page.locator('.menu-item', { hasText: 'Move to Trash' }).click()
+    await expect.poll(() => recorded(app, 'trashed')).toEqual([join(dirs.folder, 'draft.txt')])
+    await expect(page.locator('[role=dialog], [role=alertdialog]')).toHaveCount(0)
+    await expect(page.locator('.toast')).toHaveCount(0)
+    // Main resolves the path: a crafted name outside the folder is refused.
+    await act(page, { type: 'trashProjectFile', name: '../x' })
+    expect(await recorded(app, 'trashed')).toEqual([join(dirs.folder, 'draft.txt')])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('decision 1.97: "Move to Trash" on a file open in a file tab trashes it and closes the tab; with unsaved edits it asks the close question first, and Cancel keeps both', async () => {
+  let d: Dirs | undefined
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const set = setUp(dirs)
+      d = set.d
+      mkdirSync(set.d.folder, { recursive: true })
+      writeFileSync(join(set.d.folder, 'clean.md'), '# Clean\n')
+      writeFileSync(join(set.d.folder, 'dirty.md'), '# Dirty\n')
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const json = JSON.parse(readFileSync(file, 'utf8'))
+      json.projects[0].files_folder = PROJECT
+      writeFileSync(file, JSON.stringify(json))
+      return set.env
+    },
+  })
+  if (!d) throw new Error('no dirs')
+  const dirs = d
+  try {
+    const { app, window: page } = launched
+    await expect.poll(() => fileRows(page)).toHaveLength(2)
+    await record(app)
+    const row = (name: string) => page.locator(`#files-section .file-row[data-file="${name}"]`)
+    const tab = (name: string) => page.locator('.tab', { hasText: name })
+    const trash = async (name: string) => {
+      await row(name).click({ button: 'right' })
+      await page.locator('.menu-item', { hasText: 'Move to Trash' }).click()
+    }
+
+    await row('clean.md').dblclick()
+    await expect(tab('clean.md')).toHaveCount(1)
+    await trash('clean.md')
+    await expect.poll(() => recorded(app, 'trashed')).toEqual([join(dirs.folder, 'clean.md')])
+    await expect(tab('clean.md')).toHaveCount(0)
+
+    await row('dirty.md').dblclick()
+    await expect(tab('dirty.md')).toHaveCount(1)
+    await page.locator('.tab-body:not(.hidden) .cm-content').click()
+    await page.keyboard.press('Control+End')
+    await page.keyboard.type('edited')
+    await trash('dirty.md')
+    const question = page.locator('.dialog')
+    await expect(question.locator('.heading')).toHaveText('Save changes to dirty.md?')
+    await question.locator('button', { hasText: 'Cancel' }).click()
+    await expect(question).toHaveCount(0)
+    await expect(tab('dirty.md')).toHaveCount(1)
+    expect(await recorded(app, 'trashed')).toEqual([join(dirs.folder, 'clean.md')])
   } finally {
     await launched.close()
   }
