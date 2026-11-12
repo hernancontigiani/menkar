@@ -1,4 +1,4 @@
-// Menkar's MCP server, a newline-delimited JSON-RPC loop with eight tools; it
+// Menkar's MCP server, a newline-delimited JSON-RPC loop with nine tools; it
 // talks to main through files (decision 8) and refuses every call outside a Menkar pane.
 import {
   mkdirSync,
@@ -60,7 +60,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions, last_reply and the four topic tools', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools and adopt_session', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -73,6 +73,7 @@ describe('the protocol', () => {
       'topic_update',
       'topic_close',
       'topic_list',
+      'adopt_session',
     ])
     expect(TOOL_NAMES).toEqual(reply.result.tools.map((t) => t.name))
   })

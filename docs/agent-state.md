@@ -15,6 +15,12 @@ built.
   - `shown.ts` turns raw states into shown ones (done and seen), and holds the roll-up and the
     blocked counts.
   - `notify.ts` decides what a notification does: sound, toast or desktop notice.
+  - Whether a session notifies at all is asked first, outside this folder: `notifiesFor`
+    (`src/core/orchestration/notifies.ts`) — a session muted by hand never does, and in the
+    orchestration mode a session under the orchestrator does not unless it is "with you"
+    (decisions 1.99, 1.104; `docs/orchestration.md`). With the mode off, an unmuted session
+    notifies exactly as before. A topic's notice uses the same plan and the same tray, keyed by its
+    project and number (`notifyTopic`).
   - `tray.ts` keeps one desktop notification per session. A newer one replaces it, and it is
     closed as soon as its pane is seen or closed, and on quit: the dock shows the count of
     notifications still in the tray, and the human saw it stay at 3 after opening every tab.
@@ -43,6 +49,27 @@ built.
   has no audio of its own.
 - **The settings are read from `state.json` at each notification.** Notifications are rare, and
   Preferences is not built yet, so nothing else holds them.
+
+## Background work is working (decision 1.105, 2026-11-12)
+
+- A Claude Code session whose agent still runs a background task (a shell, a monitor, a subagent,
+  a team, an MCP task, a workflow, a cloud session) is **working**, not idle, in any mode. The human
+  saw a session green while it waited on its own background `npm run ui-check` and thought it had
+  stalled.
+- **Read from the footer's pill**, like every other rule: `CLAUDE_BACKGROUND_PILLS` in `detect.ts`,
+  in the last 3 non-empty lines. The pill starts the footer's line or follows a ` · `, so a count
+  in the conversation or typed in the box does not count. Its texts were read in Claude Code
+  2.1.323's program (`1 shell`, `2 monitors`, `↳ 3 background`, `◇ 1 cloud session`…): what it
+  counts is the `/tasks` list, tasks running or pending and not in the foreground. Not yet checked
+  against a capture of a real screen; the patterns are in one list to correct.
+- **Claude Code's housekeeping is not work**: `saving memories`, `dreaming`, `auto-mode scan`,
+  `memory import` carry no count and stay idle.
+- **Why not the Stop hook's `background_tasks`.** Claude Code's Stop and SubagentStop hooks do
+  carry the tasks in flight, but only at a turn's end: a task that ends, or is stopped from
+  `/tasks`, with no turn after it, would leave the session working. The pill comes and goes with
+  the task. `TaskCreated` and `TaskCompleted` are the task list's (TaskCreate), not background work.
+- Done follows: a session that ends its turn with a shell running stays working while unseen, and
+  is done once the pill is gone.
 
 ## Not built here
 

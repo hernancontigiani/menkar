@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { BrowserWindow, Notification, shell } from 'electron'
+import { BrowserWindow, Notification, shell, type WebContents } from 'electron'
 import { AGENT_NAMES, notifySettings, plan } from '../core/agentstate/notify'
 import {
   type AgentStates,
@@ -14,6 +14,10 @@ import { NotificationTray } from '../core/agentstate/tray'
 import { PaneWatcher } from '../core/agentstate/watch'
 import { t } from '../core/i18n'
 import { log } from '../core/log'
+import { mutedList } from '../core/mute'
+import { closeStaleTopicNotices, topicKey } from '../core/orchestration/notices'
+import { notifiesFor } from '../core/orchestration/notifies'
+import type { Topics } from '../core/orchestration/topics'
 import { projectOf } from '../core/projects/model'
 import { loadState } from '../core/state'
 import type { EventChannel, EventChannels } from '../shared/ipc'
@@ -48,6 +52,10 @@ function withdraw(paneId: string): void {
   notifiedAs.delete(paneId)
 }
 
+export function paneShown(paneId: string): ShownState | undefined {
+  return tracked.get(paneId)?.state
+}
+
 export function agentStates(): AgentStates {
   const panes = [...tracked.values()].map(({ pane, state }) => ({
     paneId: pane.id,
@@ -69,6 +77,7 @@ export function refreshAgentStates(): void {
 }
 
 function playSound(file: string): void {
+  log.info('a notification sound played', { file })
   if (!existsSync(file)) {
     shell.beep()
     return
@@ -79,7 +88,15 @@ function playSound(file: string): void {
 }
 
 async function notify(pane: AgentPane, state: 'blocked' | 'done'): Promise<void> {
-  const settings = notifySettings((await loadState()).rest)
+  const saved = await loadState()
+  const session = pane.sessionId()
+  const projects = currentProjects()
+  if (
+    session !== null &&
+    !notifiesFor(session, projects ? projectOf(projects, session) : undefined, mutedList(saved))
+  )
+    return
+  const settings = notifySettings(saved.rest)
   const what = plan(state, pane.windowFocused(), settings)
   if (what.sound !== null) playSound(what.sound)
   if (what.show === null) return
@@ -102,6 +119,43 @@ async function notify(pane: AgentPane, state: 'blocked' | 'done'): Promise<void>
   tray.show(identity, notification)
   notifiedAs.set(pane.id, identity)
   notification.show()
+}
+
+export interface TopicNotice {
+  readonly project: string
+  readonly number: number
+  readonly title: string
+  // False while the human is discussing another topic of the project.
+  readonly sound: boolean
+  // The focused window showing the topic's project, if any: the notice is a toast there.
+  readonly focused: WebContents | null
+  readonly onClick: () => void
+}
+
+// A topic is raised by Menkar, not by a session, so no session's mute applies (decision 1.103).
+export async function notifyTopic(notice: TopicNotice): Promise<void> {
+  const settings = notifySettings((await loadState()).rest)
+  const what = plan('blocked', notice.focused !== null, settings)
+  if (what.sound !== null && notice.sound) playSound(what.sound)
+  const title = t('topics.noticeTitle', { n: String(notice.number) })
+  if (what.show === 'toast' && notice.focused) {
+    notice.focused.send('topics:toast', {
+      project: notice.project,
+      number: notice.number,
+      text: `${title}: ${notice.title}`,
+    })
+    return
+  }
+  if (what.show === null || !Notification.isSupported()) return
+  const notification = new Notification({ title, body: notice.title })
+  notification.on('click', notice.onClick)
+  tray.show(topicKey(notice.project, notice.number), notification)
+  notification.show()
+}
+
+// After any change: a notice whose topic was seen, closed, or left the mode leaves the tray.
+export function syncTopicNotices(topics: Topics, on: (projectId: string) => boolean): void {
+  closeStaleTopicNotices(tray, topics, on)
 }
 
 type ShownChange = (

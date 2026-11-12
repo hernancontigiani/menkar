@@ -5,8 +5,8 @@ is done (a `/clear` nobody types), an orchestrator starts its workers in Menkar 
 last reply is read by name, and a parent session is woken when a worker it started needs it or
 ends a turn. The skills that teach agents to use these tools ship with Menkar as a plugin
 (decisions 1.71 and 1.79–1.84, 2026-11-12; "The skills plugin" below). The orchestration mode
-(`docs/orchestration.md`) adds four tools for topics and shapes `list_sessions`, `start_session`
-and the wake order.
+(`docs/orchestration.md`) adds four tools for topics and `adopt_session`, and shapes
+`list_sessions`, `start_session` and the wake order.
 
 ## The shape
 
@@ -21,12 +21,12 @@ and the wake order.
     call without one.
   - **The protocol** (`protocol.ts`) is newline-delimited JSON-RPC written by hand:
     - `initialize` echoes the client's protocol version and offers `tools`; `ping` gets `{}`.
-    - `tools/list` names eight tools; `tools/call` runs one.
+    - `tools/list` names nine tools; `tools/call` runs one.
     - Anything else with an id gets -32601, which is what Claude Code's first `server/discover`
       receives.
     - A failed call is `{content: [{type: "text", text}], isError: true}` with Menkar's own English
       sentence: it goes to the agent, not to the user.
-- **The eight tools.** A session is always named by its name, never by its id: a renew or a
+- **The nine tools.** A session is always named by its name, never by its id: a renew or a
   `/clear` gives it a new id, and an id an agent kept would name nothing.
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
@@ -70,6 +70,10 @@ and the wake order.
     two lines — number, ★ when raised by a priority session, title, who raised it by name,
     blocking, status, decision when closed, then the context — in the sidebar's order
     (`topicTool`, `src/core/orchestration/topics.ts`).
+  - **`adopt_session { name }`:** the orchestrator makes a session of its project its child, so
+    Menkar wakes it for that session (decision 1.102, `docs/orchestration.md`). Refused to any
+    other caller ("Only the orchestrator can adopt a session.") and with the mode off; the
+    orchestrator's skill calls it only when the human asks explicitly.
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.
@@ -122,6 +126,9 @@ and the wake order.
       closes.
     - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
+- **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]
+  The human wants to discuss topic N" (a double-click on a topic), "[Menkar] The human took control
+  of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab's banner, decision 1.101).
 
 ## The skills plugin
 

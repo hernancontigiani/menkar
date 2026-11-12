@@ -29,6 +29,7 @@ export function applyLook(settings: Settings, onChange?: (look: Look) => void): 
     '--green': r.green,
     '--yellow': r.yellow,
     '--red': r.red,
+    '--blue': r.blue,
     '--destructive':
       look.style === 'tui' ? r.red : CLASSIC_DESTRUCTIVE[look.dark ? 'dark' : 'light'],
     '--scrim': `rgba(0, 0, 0, ${look.dark ? 0.5 : 0.14})`,

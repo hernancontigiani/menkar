@@ -206,7 +206,7 @@ const PREFIX_ACTIONS: Record<ShortcutOf<'prefix'>, (event: KeyboardEvent) => voi
   sendCtrlB: () => {
     const tab = selectedTab()
     const pane = tab ? focusedOf(tab) : undefined
-    if (pane && tab?.kind !== 'file') window.menkar.panes.input(pane, '\x02')
+    if (pane && tab?.kind !== 'file') window.menkar.panes.typed(pane, '\x02')
   },
 }
 

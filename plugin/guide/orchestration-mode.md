@@ -37,8 +37,8 @@ mode is on:
 
 From the top:
 
-1. **Topics**: the open topics, those raised by a priority session first, then by number. A
-   blocking topic carries a red mark. A click unfolds its context, who raised it and its status.
+1. **Topics**: the open topics, those raised by a priority session first, then blocking ones
+   (with a red mark), then the rest by number, so the top one is the one to take. A click unfolds its context, who raised it and its status.
    The list is read only: a topic is discussed in the orchestrator's chat, and closed there.
 2. **The orchestrator**, with the sessions it started under it. Those without a tab are folded into
    one "earlier" row that a click unfolds.
@@ -61,6 +61,24 @@ every session Menkar starts has:
   too, with their decisions.
 
 The orchestrator usually keeps the topics. Any session of the project may add one.
+
+## Notifications, read-only tabs and handing sessions over
+
+- **Who notifies**: with the mode on, the sessions under the orchestrator make no sound, toast or
+  desktop notice; the orchestrator tells the person what matters, as a topic when they must act. A
+  session marked "with you", the orchestrator itself and sessions not under it notify as usual.
+  Any session can be muted from its row menu ("Mute"), in any mode. The dots still show every
+  session's state.
+- **A new topic** notifies the person, as a waiting session does, and so does a topic that becomes
+  blocking. While a topic is being discussed, new ones arrive without sound.
+- **Read-only tabs**: the tab of a session under the orchestrator takes no keys or pastes, under a
+  yellow banner with "Take control". Taking control marks it "with you" (a blue banner, with "Hand
+  back to the orchestrator"); the orchestrator is told both times. While the session waits at a
+  permission prompt, its tab takes keys.
+- **Handing a session over**: "Hand to the orchestrator" in its row menu (and "Take back from the
+  orchestrator"), the first-time card's list of sessions the orchestrator manages, or
+  `adopt_session`, which the orchestrator calls only when the person asks for it. Nothing
+  restarts; only who is woken changes.
 
 ## Who may start sessions
 

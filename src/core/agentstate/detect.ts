@@ -11,6 +11,30 @@ const CURSOR_SPINNER = /^\s*[⠀-⣿]+\s+[\p{L}\p{N}_]+ing(?![\p{L}\p{N}_])/mu
 const CURSOR_ALLOW = /^\s*(?:\S\s*)?(?:allow|run) .*\(y\)/mu
 const BACKGROUND_TASKS = /(?<![\p{L}\p{N}_])[1-9][0-9]*\s+background\s+tasks?(?![\p{L}\p{N}_])/u
 
+// Claude Code's footer pill while background work runs (decision 1.105), as its 2.1.323 program
+// writes it: "1 shell", "2 monitors", "↳ 3 background", "◇ 1 cloud session"… Claude Code's own
+// housekeeping ("saving memories", "dreaming", "auto-mode scan", "memory import") has no count and
+// is left out. The pill starts the footer's line or follows a " · ", after at most one symbol
+// that is not the input box's prompt, so a count typed in the box or said in the conversation is
+// not read as one.
+const CLAUDE_BACKGROUND_PILLS = [
+  'shells?',
+  'monitors?',
+  'artifact comment monitors?',
+  'local agents?',
+  'teams?',
+  'mcp tasks?',
+  'background', // "↳ 2 background", "2 background tasks", "2 background dynamic workflows"
+  'cloud sessions?',
+  'remote dynamic workflows?',
+] as const
+// The footer's lines: the last non-empty lines of the screen.
+const CLAUDE_FOOTER_LINES = 3
+const CLAUDE_BACKGROUND = new RegExp(
+  `(?:^|·)\\s*(?:[^\\p{L}\\p{N}\\s>❯]\\s*)?[1-9][0-9]*\\s+(?:${CLAUDE_BACKGROUND_PILLS.join('|')})(?![\\p{L}\\p{N}_])`,
+  'mu',
+)
+
 // The line breaks Python's splitlines() honours: the rules' line counts were tuned counting them.
 const LINE_BREAK = new RegExp(
   `\r\n|[\n\r\v\f\x1c-\x1e${String.fromCodePoint(0x85, 0x2028, 0x2029)}]`,
@@ -40,7 +64,13 @@ function claude(title: string, screen: string): RawState {
   ) {
     return 'blocked'
   }
-  if (CLAUDE_TITLE_WORKING.test(title) || recent.includes('esc to interrupt')) return 'working'
+  if (
+    CLAUDE_TITLE_WORKING.test(title) ||
+    recent.includes('esc to interrupt') ||
+    CLAUDE_BACKGROUND.test(bottom(screen, CLAUDE_FOOTER_LINES))
+  ) {
+    return 'working'
+  }
   return 'idle'
 }
 

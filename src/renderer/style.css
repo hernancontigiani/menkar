@@ -12,6 +12,7 @@
   --green: #a6e3a1;
   --yellow: #f9e2af;
   --red: #f38ba8;
+  --blue: #89b4fa;
   --destructive: #f38ba8;
   --scrim: rgba(0, 0, 0, 0.5);
   --ui-font: monospace;
@@ -644,6 +645,29 @@ html.classic .frame-label {
 .term {
   position: absolute;
   inset: 2px 6px;
+}
+.pane-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+}
+/* A warning that must stand out in every theme and scheme: a fixed amber, with dark text. */
+.pane-banner.warning,
+.pane-banner.warning button {
+  background: #f5c211;
+  color: #241f31;
+}
+.pane-banner.warning button {
+  font-weight: 700;
+  border: 1px solid rgba(36, 31, 49, 0.45);
+  border-radius: var(--control-radius);
+}
+.pane-banner.info {
+  background: color-mix(in srgb, var(--blue) 25%, transparent);
+}
+.pane-banner .bar-text {
+  flex: 1;
 }
 .find-bar {
   display: flex;
@@ -1492,6 +1516,13 @@ select option {
   margin-right: 4px;
   flex: none;
 }
+.row .muted-icon {
+  margin-left: 6px;
+  vertical-align: -1px;
+}
+.row .muted-icon svg {
+  display: inline-block;
+}
 .row .with-you {
   margin-left: 6px;
   padding: 0 5px;
@@ -1529,10 +1560,14 @@ select option {
   flex-direction: column;
   gap: 4px;
 }
-.orch-card .card-choice {
+.orch-card .card-choice,
+.orch-card .card-managed {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.orch-card .card-managed[hidden] {
+  display: none;
 }
 .orch-card .card-new {
   display: flex;

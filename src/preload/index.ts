@@ -47,6 +47,7 @@ const api: MenkarApi = {
   panes: {
     attach: (pane) => ipcRenderer.invoke('pty:attach', { pane }),
     input: (pane, data) => send('pty:input', { pane, data }),
+    typed: (pane, data) => send('pty:typed', { pane, data }),
     resize: (pane, cols, rows) => send('pty:resize', { pane, cols, rows }),
     reveal: (paneId) => send('panes:reveal', { paneId }),
     pathsExist: (paths) => ipcRenderer.invoke('terminal:paths-exist', { paths }),
@@ -55,6 +56,8 @@ const api: MenkarApi = {
   agentState: {
     onChanged: (listener) => subscribe('agentState:changed', listener),
     onToast: (listener) => subscribe('agentState:toast', listener),
+    onTopicToast: (listener) => subscribe('topics:toast', listener),
+    onTopicUnfold: (listener) => subscribe('topics:unfold', listener),
   },
   context: {
     onReading: (listener) => subscribe('context:reading', listener),

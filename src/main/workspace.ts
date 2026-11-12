@@ -26,10 +26,16 @@ import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
+import { followMuted, mutedList, setMuted } from '../core/mute'
+import { adopt } from '../core/orchestration/adopt'
 import { mayStart } from '../core/orchestration/mayStart'
+import { readOnly } from '../core/orchestration/readonly'
 import {
+  markSeen,
   shownTopics,
+  type Topics,
   type TopicTool,
+  topicNotice,
   topicsOf,
   topicTool,
   updateTopic,
@@ -88,7 +94,7 @@ import {
   setTopicsCollapsed,
   setWithYou,
 } from '../core/projects/orchestration'
-import { keptParents, setParent } from '../core/projects/parents'
+import { clearParent, keptParents, setParent } from '../core/projects/parents'
 import {
   followNewId,
   followNewIdInLayout,
@@ -119,7 +125,7 @@ import type {
   TopicView,
   WindowState,
 } from '../shared/workspace'
-import { agentStates, onShownChange } from './agentstate'
+import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
 import { contextReading, sessionSettingsFile, trackContext } from './context'
 import {
@@ -191,6 +197,8 @@ interface Pane {
 
 // The sessions in state.json's `remote_control`, kept current from the sessions service.
 let remoteIds = new Set<string>()
+// The sessions in state.json's `muted`, kept the same way.
+let mutedIds = new Set<string>()
 
 // The orientation of a tab that is not a session tab in the layout (a transient tab split).
 const tabOrientation = new Map<string, 'horizontal' | 'vertical'>()
@@ -454,6 +462,7 @@ function stateFor(windowId: string): WindowState | undefined {
     open: [...panes.values()].flatMap((p) => (p.sessionId ? [p.sessionId] : [])),
     readings: readingsOf(w.shown),
     remoteControl: [...remoteIds],
+    muted: [...mutedIds],
     ghostty: ghosttyInstalled(),
     home: homedir(),
     notices: currentNotices(),
@@ -565,6 +574,10 @@ function filePaths(): Set<string> {
 }
 
 function changed(options: { projects?: boolean } = {}): void {
+  syncTopicNotices(currentTopics(), (id) => {
+    const project = projects.projects.find((p) => p.id === id)
+    return project !== undefined && orchestrationInfo(project).on
+  })
   releaseBuffersExcept(filePaths())
   startShownTabs()
   syncShown(new Set(layout.windows.map((lw) => lw.shown)))
@@ -837,8 +850,24 @@ export function revealPane(paneId: string): void {
   changed()
 }
 
+// The terminal's own input passes even in a read-only pane: its replies to the agent's queries
+// (cursor position, colors, focus) must arrive, or a session could hang at its start. The window
+// keeps the user's keys and pastes out of it.
 export function paneInput(paneId: string, data: string): void {
   ;(panes.get(paneId)?.terminal ?? drawers.byId(paneId))?.write(data)
+}
+
+// A key Menkar sends on the user's behalf. Drawers are never read only.
+export function paneTyped(paneId: string, data: string): void {
+  const pane = panes.get(paneId)
+  if (pane) {
+    const project = pane.sessionId ? projectOf(projects, pane.sessionId) : undefined
+    const team = project
+      ? { parents: keptParents(project), orchestration: orchestrationInfo(project) }
+      : undefined
+    if (readOnly(pane.sessionId, team, paneShown(pane.id))) return
+  }
+  paneInput(paneId, data)
 }
 
 export function paneResize(paneId: string, cols: number, rows: number): void {
@@ -1015,6 +1044,28 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
     case 'topic_close':
     case 'topic_list':
       return topicFor(request.tool, project, sessionId, request.args)
+    case 'adopt_session':
+      return adoptFor(project.id, sessionId, request.args.name)
+  }
+}
+
+function adoptFor(projectId: string, caller: string, named: unknown): ControlAnswer {
+  if (typeof named !== 'string' || !named.trim()) return refuse('Name the session to adopt.')
+  const list = projectSessions(projectId).map((id) => ({
+    id,
+    name: sessionName(id),
+    hasTab: inSomeTab(id),
+    mtimeMs: sessionInfo(id)?.mtimeMs ?? 0,
+  }))
+  const found = sessionOfProject(named.trim(), list)
+  if ('refusal' in found) return refuse(found.refusal)
+  const result = adopt(projects, caller, found.id)
+  if ('refusal' in result) return refuse(result.refusal)
+  projects = result.projects
+  changed({ projects: true })
+  return {
+    ok: true,
+    text: `"${named.trim()}" is now your child: Menkar wakes you when it waits or ends its turn.`,
   }
 }
 
@@ -1046,8 +1097,9 @@ function topicFor(
   sessionId: string,
   args: Readonly<Record<string, unknown>>,
 ): ControlAnswer {
+  const before = currentTopics()
   const result = topicTool(tool, args, {
-    topics: currentTopics(),
+    topics: before,
     projectId: project.id,
     caller: sessionId,
     priority: orchestrationInfo(project).priority,
@@ -1056,9 +1108,68 @@ function topicFor(
   })
   if (result.topics) {
     setTopics(result.topics)
+    noticeTopics(project, before, result.topics)
     changed()
   }
   return { ok: result.ok, text: result.text }
+}
+
+// A topic raised, or turned blocking, notifies the human (decision 1.103) while the mode is on: off,
+// the Topics section is not shown, so a notice would lead nowhere.
+function noticeTopics(project: Project, before: Topics, after: Topics): void {
+  if (!orchestrationInfo(project).on) return
+  const old = topicsOf(before, project.id)
+  const discussing = old.some((x) => x.status === 'discussing')
+  for (const topic of topicsOf(after, project.id)) {
+    const was = old.find((x) => x.number === topic.number)
+    if (was === topic) continue
+    const notice = topicNotice(was, topic, discussing)
+    if (!notice) continue
+    notifyTopic({
+      project: project.id,
+      number: topic.number,
+      title: topic.title,
+      sound: notice.sound,
+      focused: focusedShowing(project.id),
+      onClick: () => showTopic(project.id, topic.number),
+    }).catch((error: unknown) =>
+      log.warn('a topic notification failed', { number: topic.number, error }),
+    )
+  }
+}
+
+function focusedShowing(projectId: string): WebContents | null {
+  for (const w of layout.windows) {
+    const window = windows.get(w.id)
+    if (w.shown === projectId && window && !window.isDestroyed() && window.isFocused())
+      return window.webContents
+  }
+  return null
+}
+
+function seeTopic(projectId: string, number: number): void {
+  const next = markSeen(currentTopics(), projectId, number)
+  if (next !== currentTopics()) setTopics(next)
+}
+
+// A topic's notice clicked: the orchestrator's tab shown, the Topics section open, the topic unfolded.
+function showTopic(projectId: string, number: number): void {
+  const project = projects.projects.find((p) => p.id === projectId)
+  const orchestrator = project ? orchestrationInfo(project).orchestrator : null
+  const pane = orchestrator ? paneOfSession(orchestrator) : undefined
+  if (pane) revealPane(pane.id)
+  else {
+    const w = layout.windows.find((x) => x.id === holder(layout, projectId))
+    if (w) {
+      putWindow({ ...w, shown: projectId })
+      windows.get(w.id)?.focus()
+    }
+  }
+  if (project?.topicsCollapsed) projects = setTopicsCollapsed(projects, projectId, false)
+  seeTopic(projectId, number)
+  changed({ projects: true })
+  const window = windows.get(holder(layout, projectId) ?? '')
+  if (window && !window.isDestroyed()) window.webContents.send('topics:unfold', { number })
 }
 
 async function requestRenew(
@@ -1196,6 +1307,7 @@ async function startForAgent(
     .filter((s) => sessionName(s) === name && !inSomeTab(s))
     .sort((a, b) => (sessionInfo(b)?.mtimeMs ?? 0) - (sessionInfo(a)?.mtimeMs ?? 0))
   const tookOver = takeOverName(projects, namesakes, id)
+  if (tookOver !== projects && namesakes[0]) followMute(namesakes[0], id)
   const joined = tookOver === projects ? addMember(projects, projectId, id) : tookOver
   projects = setParent(joined, id, callerId)
   if (group) projects = setGroup(projects, projectId, id, { name: group.name, color: group.color })
@@ -1370,6 +1482,7 @@ export function followPaneStart(
   }
   projects = followResume(projects, from, sessionId, tab.project)
   layout = followNewIdInLayout(layout, from, sessionId)
+  followMute(from, sessionId)
   pane.sessionId = sessionId
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
@@ -1395,8 +1508,20 @@ function followClear(pane: Pane, from: string, to: string): boolean {
         log.error('Remote Control did not follow a session’s new id', { from, to, error }),
       )
   }
+  followMute(from, to)
   changed({ projects: true })
   return true
+}
+
+function followMute(from: string, to: string): void {
+  if (!mutedIds.has(from)) return
+  mutedIds.delete(from)
+  mutedIds.add(to)
+  sessions
+    .updateState((state) => followMuted(state, from, to))
+    .catch((error: unknown) =>
+      log.error('a mute did not follow a session’s new id', { from, to, error }),
+    )
 }
 
 // ---------------------------------------------------------------- windows
@@ -1750,6 +1875,7 @@ export async function startWorkspace(): Promise<void> {
   settings = settingsOf(await sessions.currentState())
   startPhase('state for the workspace')
   remoteIds = new Set(remoteControlList(await sessions.currentState()))
+  mutedIds = new Set(mutedList(await sessions.currentState()))
   installedAgents = []
   if (await findOnPath(AGENT_COMMANDS.claude)) installedAgents.push('claude')
   if (await findOnPath(AGENT_COMMANDS.cursor)) installedAgents.push('cursor')
@@ -1759,6 +1885,7 @@ export async function startWorkspace(): Promise<void> {
     void sessions.currentState().then((state) => {
       settings = settingsOf(state)
       remoteIds = new Set(remoteControlList(state))
+      mutedIds = new Set(mutedList(state))
       push()
     })
   })
@@ -2078,6 +2205,43 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed({ projects: true })
       return {}
     }
+    // Decision 1.101: the orchestrator hears who has the session, through the wakes' messaging.
+    case 'takeControl':
+    case 'handBack': {
+      const project = projectOf(projects, action.session)
+      const orchestrator = project ? orchestrationInfo(project).orchestrator : null
+      if (!project || !orchestrator) return {}
+      projects = setWithYou(projects, project.id, action.session, action.type === 'takeControl')
+      changed({ projects: true })
+      const name = sessionName(action.session)
+      if (paneOfSession(orchestrator)?.agent === 'claude')
+        void wakeSession(
+          orchestrator,
+          action.type === 'takeControl'
+            ? `The human took control of ${name}`
+            : `The human handed ${name} back`,
+        )
+      return {}
+    }
+    case 'setManaged': {
+      const project = projects.projects.find((p) => p.id === w.shown)
+      const orchestrator = project ? orchestrationInfo(project).orchestrator : null
+      if (!orchestrator) return {}
+      for (const session of action.sessions)
+        if (session !== orchestrator)
+          projects = action.on
+            ? setParent(projects, session, orchestrator)
+            : clearParent(projects, session)
+      changed({ projects: true })
+      return {}
+    }
+    case 'seeTopic':
+      seeTopic(w.shown, action.number)
+      changed()
+      return {}
+    case 'showTopic':
+      showTopic(action.project, action.number)
+      return {}
     case 'setTopicsCollapsed':
       projects = setTopicsCollapsed(projects, w.shown, action.collapsed)
       changed({ projects: true })
@@ -2092,6 +2256,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       )
       if (!updated) return {}
       setTopics(updated.topics)
+      seeTopic(w.shown, action.number)
       const project = projects.projects.find((p) => p.id === w.shown)
       const orchestrator = project ? orchestrationInfo(project).orchestrator : null
       const pane = orchestrator ? paneOfSession(orchestrator) : undefined
@@ -2351,6 +2516,13 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed()
       // Nothing is typed: a running session connects at its next start, or when the user types /rc.
       return action.on && pane?.terminal.running && !pane.remote ? { value: 'toast' } : {}
+    }
+    case 'setMuted': {
+      await sessions.updateState((state) => setMuted(state, action.session, action.on))
+      if (action.on) mutedIds.add(action.session)
+      else mutedIds.delete(action.session)
+      changed()
+      return {}
     }
     case 'forkSession': {
       const info = sessionInfo(action.session)

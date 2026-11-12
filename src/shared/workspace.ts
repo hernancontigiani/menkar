@@ -85,6 +85,8 @@ export interface WindowState {
   readonly agents: readonly ('claude' | 'cursor')[]
   // Sessions with Remote Control on.
   readonly remoteControl: readonly string[]
+  // Sessions muted by hand: no sound, toast or desktop notice.
+  readonly muted: readonly string[]
   readonly ghostty: boolean
   // Maximized or full screen: the window's edge is the screen's.
   readonly maximized: boolean
@@ -214,6 +216,15 @@ export type Action =
   | { readonly type: 'togglePreview'; readonly tab: string }
   | { readonly type: 'openFilesIn'; readonly window: string; readonly paths: readonly string[] }
   | { readonly type: 'setRemoteControl'; readonly session: string; readonly on: boolean }
+  | { readonly type: 'setMuted'; readonly session: string; readonly on: boolean }
+  // The human unfolded a topic of the shown project; a notice's Show, for any project.
+  | { readonly type: 'seeTopic'; readonly number: number }
+  // A read-only tab's banner: the session becomes "with you", or goes back to the orchestrator.
+  | { readonly type: 'takeControl'; readonly session: string }
+  // Decision 1.102: these sessions become the shown project's orchestrator's children, or leave it.
+  | { readonly type: 'setManaged'; readonly sessions: readonly string[]; readonly on: boolean }
+  | { readonly type: 'handBack'; readonly session: string }
+  | { readonly type: 'showTopic'; readonly project: string; readonly number: number }
   | {
       readonly type: 'continueInChat'
       readonly session: string

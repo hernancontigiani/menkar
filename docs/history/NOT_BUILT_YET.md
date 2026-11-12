@@ -57,3 +57,15 @@ the collapsed row. Nothing else reads it, so there is no API, CLI output or mess
 designing one without a reader would guess its shape.
 **Trigger:** a session or a tool needs to know who leads a group (the orchestration board is the
 likely first). First question: whether it reads `projects.json` or asks the running app.
+
+## Notifications for a new topic
+
+> Left on 2026-11-12: built by plan 35 (decision 1.103, `docs/orchestration.md`).
+### Notifications for a new topic
+
+A new topic shows in the sidebar's Topics section only: no toast, sound, desktop notice or count on
+the dock, as `blocked` has. Left out of the orchestration mode on 2026-11-12 because nobody had
+decided which of them, or for which topics (all, blocking ones, a priority session's).
+
+**Trigger:** the human misses a topic that waited for them. First question: which topics notify,
+and whether through the same settings as a blocked session.

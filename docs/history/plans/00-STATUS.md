@@ -577,3 +577,65 @@ module, or a defect injected and removed).
 
 > Left §3 on 2026-11-12: plan 35 written.
 | 1 | `35-orchestration-notifications.md` — notifications through the orchestrator, and states reported by the sessions | Stub, being designed by `set` with the human, 2026-11-12 |
+
+## 2026-11-12 — plan 35 closed (built by `b1`, tried by the human); 1.105 built by `b2`
+
+| 1.99 | Notifications in the orchestration mode (the human, 2026-11-12, topic 3): while the mode is on, only the orchestrator and a session marked "with you" notify (sound, toast, desktop notice, dock count); the others, ★ ones included, notify only through the orchestrator; the sidebar's dots and blocked counts still show every session. When a child waits at a permission prompt, the orchestrator turns that wake into a blocking topic, which notifies the human | 2026-11-12 | `plans/35-orchestration-notifications.md` (until delivered) |
+| 1.100 | Amends 1.77's topic order (the human, 2026-11-12, topic 5): topics from ★ sessions first, then blocking ones, then the rest by number, so the top topic is the one to take | 2026-11-12 | `plans/35-orchestration-notifications.md` (until delivered) |
+| 1.101 | Read-only tabs in the orchestration mode (the human, 2026-11-12, topic 7): a session under the orchestrator (its parent is the orchestrator) opens read only — every key blocked, scrolling, selecting and copying still work — under a yellow warning banner "This session reports to the orchestrator. Take control?"; taking control marks it "with you" and the banner turns blue, "This session is with you. Hand it back?"; both moves post a [Menkar] message to the orchestrator; a permission prompt makes the tab writable while it waits; loose sessions and the orchestrator have no banner | 2026-11-12 | `plans/35-orchestration-notifications.md` (until delivered) |
+| 1.102 | A session comes under the orchestrator (becomes its child) from the row menu ("Hand to the orchestrator" / "Take back from the orchestrator"), from the first-time card's list of sessions the orchestrator manages (all checked by default), or from a new MCP tool the orchestrator calls only when the human asks it explicitly; nothing restarts or is typed, only who is woken changes (the human, 2026-11-12, topic 8) | 2026-11-12 | `plans/35-orchestration-notifications.md` (until delivered) |
+| 1.103 | Topic notifications in the orchestration mode (the human, 2026-11-12, topic 4): every new topic notifies as a blocked session does (sound, toast, desktop notice, dock count); a change notifies only when a topic becomes blocking; a click opens the orchestrator's tab with the topic unfolded; the dock counts open topics not yet seen (unfolded or double-clicked), added to every other project's notifications; while a topic is "discussing", new topics make no sound but still show and count | 2026-11-12 | `plans/35-orchestration-notifications.md` (until delivered) |
+| 1.104 | Amends 1.99 (the human, 2026-11-12, topic 9): in the mode, loose sessions (not under the orchestrator) notify as today; only the sessions under the orchestrator are muted. Any session, in any mode, can be muted from its row menu ("Mute" / "Unmute"): no sound, toast or desktop notice, shown with a muted-speaker icon in its row; its dot still shows | 2026-11-12 | `plans/35-orchestration-notifications.md` (until delivered) |
+| 1.105 | A session whose agent still has a background task running (a shell or an agent it started in the background) shows as working (yellow), not free, in any mode; read from the screen if Claude Code shows it reliably, else from a hook — to be measured first (the human, 2026-11-12, topic 10, after seeing b1 green while its own `ui-check` ran). Not built yet | 2026-11-12 | this row (until built) |
+| 1 | `35-orchestration-notifications.md` — notifications through the orchestrator, mute, read-only tabs, handing sessions over | Written 2026-11-12, ready; to `b1` |
+
+### Plan 35's execution log, verbatim
+
+
+Executed by `b1` on 2026-11-12, blocks 1–5 in order, `npm run ci` green after each.
+
+**Deviations and what the plan did not anticipate:**
+- **The dock count (§2.2):** Menkar sets no badge; the dock counts the desktop's open notices. Asked
+  `set`, who chose: a topic's desktop notice goes in the agents' tray under its project and number,
+  and seeing the topic closes it; a toast stays out of the count. §2.2 corrected accordingly.
+- **Topic notices only while the mode is on** (b1's choice): off, the Topics section is not shown,
+  so a notice's Show would lead nowhere.
+- **A topic becoming blocking sounds even while another is discussed** (b1's choice): §2.2 silences
+  only new topics then.
+- **Show opens a collapsed Topics section** (b1's choice), or the unfolded topic would not show.
+- **The blue banner** needed a blue the themes did not have: a new role `blue` (the theme's ANSI 4;
+  libadwaita's blue in Classic), `--blue` in the page (`src/core/theme.ts`, `src/renderer/look.ts`).
+- **The banner is per pane**, at the top of the pane like the find bar, not across a two-pane tab:
+  a tab body's flex layout would have put it beside the panes.
+- **Mute follows a resume and a reused name too**, as §2.1 says, though Remote Control follows only
+  a clear and a renew; `followMute` is called from `followClear`, the resume path and
+  `startForAgent`'s name takeover.
+- **The card's default (all checked)** made three older specs' sessions fold under the
+  orchestrator; their `startWithFirst` now unchecks the boxes.
+- **Test integrity:** the old order test was kept with non-blocking topics (its rule still holds);
+  the new order is a new test.
+- **The guide** (`plugin/guide/orchestration-mode.md`) said the old topic order: corrected, with a
+  short section on notifications, read-only tabs and handing sessions over.
+- **Not anticipated:** read only drops every byte the renderer sends to that pane, terminal replies
+  included (focus reports, answers to queries). Nothing in the stand-in needs them; with the real
+  Claude Code, untried.
+
+**After `set`'s review (2026-11-12):**
+- **Read only moved to the window**, reversing §2.3's "main drops its input": dropping every byte
+  also swallowed the terminal's replies to Claude Code's queries. The renderer now blocks the user's
+  keys, pastes, drops and input-method text; xterm's `onData` passes. Main refuses only what Menkar
+  sends for a key (`pty:typed`: Shift+Enter's newline, a passed-on Ctrl+B). The spec checks that a
+  read-only pane's stand-in gets the reply to its CSI 6n while typed keys, pastes (keys, menu,
+  event) and a drop reach nothing.
+- **The yellow banner** is a fixed amber (`#f5c211`) with dark text, the same in every look and
+  scheme; at 30 % of the theme's yellow it read brown.
+- **A topic closed before it was seen** kept its desktop notice, and the dock its count, for good
+  (the human, on a real desktop). Every change now closes the notices of topics closed, seen, or in
+  a project out of the mode or deleted (`closeStaleTopicNotices`).
+
+> Left on 2026-11-12: built in the small tasks (commit 2bd4a3f); their rows point to their docs.
+| 1.87 | Amends 1.49 (the human, 2026-11-12): the statusline bar drops the all-time `$… total`; it shows the cost since the last compaction only (`set · 22% · $12.40`). Not built yet | 2026-11-12 | this row (until built) |
+| 1.88 | A file's right-click menu in the sidebar's Files section gains "Move to Trash" (the human left trash or delete to `set`, 2026-11-12: trash, recoverable, as 1.66). Not built yet | 2026-11-12 | this row (until built) |
+| 1.92 | When `start_session` starts a session with the name of a stopped session of the project (no tab), the stopped one becomes an earlier conversation of the new one, as after `renew` (1.63, 1.70), bringing its own earlier conversations; the sidebar never shows two rows with one name from it (the human, 2026-11-12, after `set` restarted `b1`). Not built yet | 2026-11-12 | this row (until built) |
+| 1.96 | A double-click on a topic in the sidebar's Topics section sets it to "discussing", selects the orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N" through the same cross-session messaging as the wakes (1.72); nothing is typed into its terminal (the human, 2026-11-12). Not built yet | 2026-11-12 | this row (until built) |
+| 1.97 | Amends 1.88 (the human, 2026-11-12): "Move to Trash" on a file open in a Menkar file tab trashes it and closes its tab; a tab with unsaved edits asks first with the tab's own close question, and Cancel cancels the trash | 2026-11-12 | this row (until built) |

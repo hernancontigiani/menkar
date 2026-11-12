@@ -18,6 +18,7 @@ export const TOOL_NAMES = [
   'topic_update',
   'topic_close',
   'topic_list',
+  'adopt_session',
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 

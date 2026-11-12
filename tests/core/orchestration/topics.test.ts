@@ -8,13 +8,16 @@ import {
   closeTopic,
   emptyTopics,
   loadTopics,
+  markSeen,
   parseTopics,
   saveTopics,
   serializeTopics,
   shownTopics,
   type Topics,
+  topicNotice,
   topicsOf,
   topicTool,
+  unseenTopics,
   updateTopic,
 } from '../../../src/core/orchestration/topics'
 import { topicsPath } from '../../../src/core/paths'
@@ -42,15 +45,60 @@ describe('topics', () => {
     ).toBe(1)
   })
 
-  test('shown: open and discussing only, ★ sessions first, then by number; blocking is not moved', () => {
+  test('shown: open and discussing only, ★ sessions first, then by number', () => {
     let t = add(emptyTopics(), 'A', 'one')
-    t = add(t, 'B', 'two', true)
+    t = add(t, 'B', 'two')
     t = add(t, 'A', 'three')
     t = closeTopic(t, 'p1', 3, 'trash', LATER)?.topics ?? t
     const project = { orchestration: { priority: ['B'] } }
     expect(shownTopics(project, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 1])
-    t = add(t, 'A', 'four', true)
+    t = add(t, 'A', 'four')
     expect(shownTopics({}, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([1, 2, 4])
+  })
+
+  // Decision 1.100: the top topic is the one to take — ★ sessions' first, then blocking ones, then
+  // the rest by number.
+  test('shown: open and discussing only; 1 (A), 2 (★B), 3 (A, blocking), 4 (A) → 2, 3, 1, 4', () => {
+    let t = add(emptyTopics(), 'A', 'one')
+    t = add(t, 'B', 'two')
+    t = add(t, 'A', 'three', true)
+    t = add(t, 'A', 'four')
+    const project = { orchestration: { priority: ['B'] } }
+    expect(shownTopics(project, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 3, 1, 4])
+    t = add(t, 'A', 'five')
+    t = closeTopic(t, 'p1', 5, 'trash', LATER)?.topics ?? t
+    expect(shownTopics({}, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([3, 1, 2, 4])
+  })
+
+  // Decision 1.103: a new topic notifies as a blocked session does, without sound while another is
+  // being discussed; a change notifies only when the topic becomes blocking.
+  test('which topic events notify: new → sound; new while one is discussing → notice, no sound; text change → none; becomes blocking → notice', () => {
+    const t = add(emptyTopics(), 'A', 'one')
+    const one = topicsOf(t, 'p1')[0]
+    if (!one) throw new Error('no topic')
+    expect(topicNotice(undefined, one, false)).toEqual({ sound: true })
+    expect(topicNotice(undefined, one, true)).toEqual({ sound: false })
+    expect(topicNotice(one, { ...one, title: 'renamed', context: 'more' }, false)).toBeNull()
+    expect(topicNotice(one, { ...one, blocking: true }, false)).toEqual({ sound: true })
+    const blocking = { ...one, blocking: true }
+    expect(topicNotice(blocking, { ...blocking, title: 'again' }, false)).toBeNull()
+    expect(topicNotice(one, { ...one, status: 'closed' }, false)).toBeNull()
+  })
+
+  test('the unseen count: 3 open, 1 of them seen, 1 closed unseen → 2, over every project', () => {
+    let t = add(add(add(emptyTopics(), 'A', 'one'), 'A', 'two'), 'A', 'three')
+    t = add(t, 'A', 'four')
+    t = closeTopic(t, 'p1', 4, 'done', LATER)?.topics ?? t
+    t = markSeen(t, 'p1', 2)
+    expect(unseenTopics(t)).toBe(2)
+    expect(unseenTopics(add(t, 'A', 'other', false, 'p2'))).toBe(3)
+  })
+
+  test('seen is kept through a write and read back; a topic written without it reads as not seen', () => {
+    const t = markSeen(add(add(emptyTopics(), 'A', 'one'), 'A', 'two'), 'p1', 1)
+    const read = parseTopics(JSON.parse(JSON.stringify(serializeTopics(t))))
+    expect(topicsOf(read, 'p1').map((x) => x.seen === true)).toEqual([true, false])
+    expect(markSeen(read, 'p1', 9)).toBe(read)
   })
 
   test('a closed topic keeps its decision, and `all` lists it', () => {

@@ -22,6 +22,18 @@ interface View {
 }
 
 const views = new Map<string, View>()
+// Panes whose session reports to the orchestrator: the user's keys, pastes and drops never reach
+// xterm there, while xterm's own replies to the agent's queries still go out through onData.
+const readOnlyPanes = new Set<string>()
+const USER_INPUT_EVENTS = [
+  'beforeinput',
+  'input',
+  'compositionstart',
+  'compositionupdate',
+  'compositionend',
+  'paste',
+  'drop',
+] as const
 let focusListener: (paneId: string) => void = () => {}
 export function onPaneFocus(listener: (paneId: string) => void): void {
   focusListener = listener
@@ -236,16 +248,37 @@ function create(pane: PaneView, label?: string): View {
   }
   term.open(host)
   const terminalActions: Record<ShortcutOf<'terminal'>, () => void> = {
-    newline: () => window.menkar.panes.input(pane.id, '\x1b\r'),
+    newline: () => window.menkar.panes.typed(pane.id, '\x1b\r'),
     copy: () => void window.menkar.window.act({ type: 'copyText', text: term.getSelection() }),
-    paste: () => void navigator.clipboard.readText().then((text) => term.paste(text)),
+    paste: () => pasteClipboard(),
     find: () => toggleFind(view),
     bottom: () => term.scrollToBottom(),
   }
+  const pasteClipboard = () => {
+    if (readOnlyPanes.has(pane.id)) return
+    void navigator.clipboard.readText().then((text) => term.paste(text))
+  }
+  // Captured on the host, before xterm's own listeners on its textarea see them.
+  for (const type of USER_INPUT_EVENTS)
+    host.addEventListener(
+      type,
+      (event) => {
+        if (!readOnlyPanes.has(pane.id)) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+      },
+      true,
+    )
   term.attachCustomKeyEventHandler((event) => {
     if (isAppKey(event)) return false
     // Every other modified End is the agent's (xterm sends it on); only the table's is the view's.
     const id = matchShortcut('terminal', event)
+    // A read-only pane keeps the view's keys (copy, find, the end) and drops the rest, for keydown
+    // and keypress alike; Chromium must not type it into xterm's textarea either.
+    if (!id && readOnlyPanes.has(pane.id)) {
+      event.preventDefault()
+      return false
+    }
     if (!id) return true
     // Returning false stops only xterm: Chromium would still run its own command for the key, and
     // Ctrl+Shift+V (paste as plain text) pasted the clipboard a second time.
@@ -273,8 +306,9 @@ function create(pane: PaneView, label?: string): View {
         {
           label: t('terminal.paste'),
           shortcut: 'Ctrl+Shift+V',
+          disabled: readOnlyPanes.has(pane.id),
           run: () => {
-            void navigator.clipboard.readText().then((text) => term.paste(text))
+            pasteClipboard()
             back()
           },
         },
@@ -306,6 +340,37 @@ function create(pane: PaneView, label?: string): View {
   })
   views.set(pane.id, view)
   return view
+}
+
+export interface PaneBanner {
+  readonly kind: string
+  readonly tone: 'warning' | 'info'
+  readonly text: string
+  readonly button: string
+  readonly run: () => void
+}
+
+// The bar across the top of a pane (decision 1.101), rebuilt only when its kind changes.
+export function setPaneBanner(paneId: string, banner: PaneBanner | null, readOnly: boolean): void {
+  if (readOnly) readOnlyPanes.add(paneId)
+  else readOnlyPanes.delete(paneId)
+  const view = views.get(paneId)
+  if (!view) return
+  view.root.classList.toggle('read-only', readOnly)
+  const shown = view.root.querySelector<HTMLElement>(':scope > .pane-banner')
+  if (shown?.dataset.kind === banner?.kind) return
+  shown?.remove()
+  if (!banner) return
+  const button = el('button', {}, banner.button)
+  button.addEventListener('click', banner.run)
+  view.root.prepend(
+    el(
+      'div',
+      { class: `pane-banner ${banner.tone}`, 'data-kind': banner.kind, role: 'status' },
+      el('span', { class: 'bar-text' }, banner.text),
+      button,
+    ),
+  )
 }
 
 // The DOM of a pane, created once and moved between tab bodies as the layout changes.

@@ -40,3 +40,14 @@ export function followParents(p: Project, from: string, to: string): Project {
     moved[child === from ? to : child] = parent === from ? to : parent
   return tidyParents({ ...p, parents: moved })
 }
+
+// Taken back from the orchestrator: the session no longer wakes anyone.
+export function clearParent(state: Projects, child: string): Projects {
+  return {
+    ...state,
+    projects: state.projects.map((p) => {
+      const { [child]: _, ...rest } = keptParents(p)
+      return p.members.includes(child) ? withParents(p, rest) : p
+    }),
+  }
+}

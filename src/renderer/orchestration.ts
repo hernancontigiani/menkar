@@ -15,6 +15,19 @@ import { dialogClosed, dialogOpened, type MenuEntry, showDialog, toast } from '.
 // The switch beside Usage, for the project the window shows.
 export function modeSwitch(): HTMLElement {
   onRender(watchGuide)
+  window.menkar.agentState.onTopicToast(({ project, number, text }) =>
+    toast(text, {
+      action: {
+        label: t('toast.show'),
+        run: () => void act({ type: 'showTopic', project, number }),
+      },
+    }),
+  )
+  window.menkar.agentState.onTopicUnfold(({ number }) => {
+    unfoldedTopics.add(number)
+    const s = currentState()
+    if (s) render(s)
+  })
   const node = el(
     'button',
     {
@@ -141,6 +154,29 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
   )
   const chosen = () =>
     choices.querySelector<HTMLInputElement>('input[name="orchestrator"]:checked')?.value ?? NEW
+  // Decision 1.102: the sessions the orchestrator manages, all checked; the one chosen to
+  // orchestrate is not listed.
+  const boxes = candidates.map((info) => {
+    const box = el('input', { type: 'checkbox', value: info.id })
+    box.checked = true
+    return el(
+      'label',
+      { class: 'card-managed', 'data-session': info.id },
+      box,
+      el('span', {}, info.name),
+    )
+  })
+  const managedList = el('div', { class: 'card-choices' }, ...boxes)
+  const syncManaged = () => {
+    const pick = chosen()
+    for (const row of boxes) row.hidden = row.dataset.session === pick
+  }
+  choices.addEventListener('change', syncManaged)
+  syncManaged()
+  const managed = () =>
+    boxes
+      .filter((row) => !row.hidden && row.querySelector('input')?.checked)
+      .flatMap((row) => (row.dataset.session ? [row.dataset.session] : []))
 
   return new Promise((resolve) => {
     dialogOpened()
@@ -177,8 +213,9 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
     later.addEventListener('click', close)
     start.addEventListener('click', () => {
       const pick = chosen()
+      const sessions = managed()
       close()
-      void startTeam(p, pick, name.value.trim() || 'orchestrator', folder.value)
+      void startTeam(p, pick, name.value.trim() || 'orchestrator', folder.value, sessions)
     })
     const card = el(
       'div',
@@ -191,6 +228,8 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
         el('div', { class: 'body dim' }, t('orch.cardOrchestrator')),
         el('div', { class: 'card-question' }, t('orch.cardWho')),
         choices,
+        candidates.length > 0 ? el('div', { class: 'card-question' }, t('orch.cardManaged')) : null,
+        candidates.length > 0 ? managedList : null,
       ),
       el('div', { class: 'responses' }, guide, copy, later, start),
     )
@@ -226,6 +265,7 @@ async function startTeam(
   pick: string,
   name: string,
   folder: string,
+  managed: readonly string[],
 ): Promise<void> {
   if (pick === NEW) {
     if (!folder) return
@@ -239,6 +279,8 @@ async function startTeam(
     })
     if (refusal) return toast(translate(refusal))
   } else await act({ type: 'setOrchestrator', session: pick, on: true })
+  // A new orchestrator is marked as it starts, so it exists by now.
+  if (managed.length > 0) await act({ type: 'setManaged', sessions: managed, on: true })
   await act({ type: 'setOrchestrationMode', project: p.id, on: true })
 }
 
@@ -251,6 +293,16 @@ export function orchestrationItems(info: SessionInfo, project: ProjectInfo): Men
   const isOrchestrator = o.orchestrator === info.id
   const priority = o.priority.includes(info.id)
   const withYou = o.withYou.includes(info.id)
+  const managed = o.orchestrator !== null && project.parents[info.id] === o.orchestrator
+  const hand: MenuEntry[] =
+    o.orchestrator && !isOrchestrator
+      ? [
+          {
+            label: managed ? t('orch.takeBack') : t('orch.handTo'),
+            run: () => void act({ type: 'setManaged', sessions: [info.id], on: !managed }),
+          },
+        ]
+      : []
   return [
     'separator',
     {
@@ -266,6 +318,7 @@ export function orchestrationItems(info: SessionInfo, project: ProjectInfo): Men
       label: checked(withYou, t('orch.withYou')),
       run: () => void act({ type: 'setWithYou', session: info.id, on: !withYou }),
     },
+    ...hand,
   ]
 }
 
@@ -344,7 +397,10 @@ function topicRow(topic: TopicView): HTMLElement {
     )
   line.addEventListener('click', () => {
     if (open) unfoldedTopics.delete(topic.number)
-    else unfoldedTopics.add(topic.number)
+    else {
+      unfoldedTopics.add(topic.number)
+      void act({ type: 'seeTopic', number: topic.number })
+    }
     const s = currentState()
     if (s) render(s)
   })

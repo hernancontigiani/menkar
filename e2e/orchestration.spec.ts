@@ -46,9 +46,12 @@ const card = (page: Page) => page.locator('.orch-card')
 const cardButton = (page: Page, label: string) =>
   card(page).locator('.responses button', { hasText: label })
 
-// The first time, the switch opens the card; Start with the first session listed marks it.
+// The first time, the switch opens the card; Start with the first session listed marks it. The
+// others are left loose, so their rows stay where these tests look for them.
 async function startWithFirst(page: Page): Promise<void> {
   await expect(card(page)).toBeVisible()
+  for (const box of await card(page).locator('.card-managed:visible input').all())
+    await box.uncheck()
   await cardButton(page, 'Start').click()
   await expect(card(page)).toHaveCount(0)
 }
@@ -380,12 +383,12 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await expect(page.locator('.row', { hasText: 'notes' }).locator('.with-you')).toHaveText(
       'with you',
     )
-    // The ★ session's topic first; the blocking one marked, not moved.
+    // Decision 1.100: the ★ session's topic first, then the blocking one, then by number.
     await expect(page.locator('.topics-toggle')).toHaveText('Topics · 3')
     await expect(page.locator('.topic-row')).toHaveText([
       '★2Schema of the orders table',
-      '1Release date',
       '3Deploy key missing',
+      '1Release date',
     ])
     await expect(page.locator('.topic-row[data-topic="3"] .topic-blocking')).toHaveCount(1)
     await shot(page, 'orchestration-sidebar.png')
@@ -553,6 +556,324 @@ test("Ctrl+` in the orchestrator's tab asks which of the team's folders; the las
     await page.keyboard.press('Control+Backquote')
     await expect(drawer(page).locator('.frame-label')).toHaveText('shell · lib')
     await expect(jumpRows(page)).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+const paneOf = (page: Page, session: string) =>
+  page.evaluate(async (id) => {
+    const s = await (globalThis as unknown as PageGlobals).menkar.window.state()
+    return s?.tabs.flatMap((tab) => tab.panes).find((p) => p.sessionId === id)?.id ?? ''
+  }, session)
+
+// Typed into a pane whose tab is not shown, as main's input path receives it.
+const typeInto = (page: Page, pane: string, data: string) =>
+  page.evaluate(
+    ([id, text]) => (globalThis as unknown as PageGlobals).menkar.panes.input(id, text),
+    [pane, data] as const,
+  )
+
+const logOf = (root: string) => {
+  const file = join(root, 'cache', 'menkar', 'menkar.log')
+  return existsSync(file) ? readFileSync(file, 'utf8') : ''
+}
+const sounds = (root: string) =>
+  logOf(root)
+    .split('\n')
+    .filter((l) => l.includes('sound played'))
+
+// Decision 1.104: any session can be muted from its row menu, in any mode: no sound, toast or
+// desktop notice; its row shows a muted speaker and its dot still shows the state.
+test('Mute in the row menu: the row shows the muted speaker; a blocked state raises no sound or toast, while an unmuted one does (screenshot)', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return { ...clientWork(dirs, { tabs: [['login'], ['api'], ['long']] }), MENKAR_LOG: 'info' }
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('.tab')).toHaveCount(3)
+    await expect
+      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .toEqual(Array(3).fill(expect.stringContaining('stand-in claude ready')))
+    const items = await rowMenu(page, CLIENT.login)
+    await items.filter({ hasText: /^Mute$/ }).click()
+    await expect(page.locator(`.row[data-session="${CLIENT.login}"] .muted-icon`)).toHaveCount(1)
+    await expect(page.locator(`.row[data-session="${CLIENT.api}"] .muted-icon`)).toHaveCount(0)
+    const saved = () =>
+      JSON.parse(readFileSync(join(root, 'config', 'menkar', 'state.json'), 'utf8')).muted
+    await expect.poll(saved).toEqual([CLIENT.login])
+    await expect((await rowMenu(page, CLIENT.login)).filter({ hasText: /^Unmute$/ })).toHaveCount(1)
+    await page.keyboard.press('Escape')
+
+    await page.locator('.tab').nth(2).click()
+    await typeInto(page, await paneOf(page, CLIENT.login), 'ASK')
+    await expect
+      .poll(() => page.locator(`.row[data-session="${CLIENT.login}"] .dot`).getAttribute('class'), {
+        timeout: 10_000,
+      })
+      .toContain('blocked')
+    await shot(page, 'mute.png')
+    await page.waitForTimeout(1000)
+    expect(sounds(root)).toEqual([])
+    await expect(page.locator('.toast')).toHaveCount(0)
+
+    // The same blocked state in a session not muted notifies.
+    await typeInto(page, await paneOf(page, CLIENT.api), 'ASK')
+    await expect.poll(() => sounds(root).length, { timeout: 10_000 }).toBe(1)
+    await expect(page.locator('.toast')).toContainText('api review')
+  } finally {
+    await launched.close()
+  }
+})
+
+const topicsFile = (root: string) =>
+  JSON.parse(readFileSync(join(root, 'config', 'menkar', 'topics.json'), 'utf8')).projects[
+    TEAM_PROJECT
+  ].topics as { number: number; status: string; seen?: boolean }[]
+
+// Decision 1.103: a new topic notifies as a blocked session does, without sound while another is
+// being discussed; its notice's Show opens the orchestrator's tab with the topic unfolded and seen.
+test('a new topic raises a toast "Topic N"; with one discussing, a toast and no sound; Show unfolds it and marks it seen', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return { ...team(dirs), MENKAR_LOG: 'info' }
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('.tab')).toHaveCount(2)
+    await expect
+      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
+    const orch = await paneOf(page, TEAM.orch)
+    await typeInto(page, orch, 'TOPIC')
+    await expect(page.locator('.toast')).toContainText('Topic 4: Pick a port', { timeout: 15_000 })
+    await expect.poll(() => sounds(root).length).toBe(1)
+    await expect(page.locator('.topic-row')).toHaveCount(4)
+
+    await page.locator('.topic-row[data-topic="1"]').dblclick()
+    await expect.poll(() => topicsFile(root).find((x) => x.number === 1)?.status).toBe('discussing')
+    await page.locator('.toast').evaluateAll((ns) => {
+      for (const n of ns) n.remove()
+    })
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await typeInto(page, orch, 'TOPIC')
+    const toast = page.locator('.toast', { hasText: 'Topic 5: Pick a port' })
+    await expect(toast).toBeVisible({ timeout: 15_000 })
+    await page.waitForTimeout(1000)
+    expect(sounds(root).length).toBe(1)
+    expect(topicsFile(root).find((x) => x.number === 5)?.seen).toBeUndefined()
+
+    await toast.locator('button', { hasText: 'Show' }).click()
+    await expect(page.locator('.tab', { hasText: 'orchestrator' })).toHaveClass(/selected/)
+    await expect(page.locator('.topic-row[data-topic="5"]')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    await expect(page.locator('.topic-detail')).toContainText('Which port should the API use?')
+    await expect.poll(() => topicsFile(root).find((x) => x.number === 5)?.seen).toBe(true)
+    await shot(page, 'topic-notice.png')
+  } finally {
+    await launched.close()
+  }
+})
+
+const ESC = String.fromCharCode(27)
+
+// The orchestrator's messaging socket, as the stand-in cannot open one: what Menkar posts to it.
+function orchestratorSocket(dirs: { readonly root: string; readonly home: string }): void {
+  mkdirSync(join(dirs.home, '.claude', 'sessions'), { recursive: true })
+  writeFileSync(
+    join(dirs.home, '.claude', 'sessions', '4242.json'),
+    JSON.stringify({
+      pid: 4242,
+      sessionId: TEAM.orch,
+      messagingSocketPath: join(dirs.root, 'orch.sock'),
+      peerProtocol: 1,
+    }),
+  )
+}
+
+async function listen(root: string): Promise<{ posted: () => string[]; close: () => void }> {
+  const lines: string[] = []
+  const server = createServer((connection) => {
+    let data = ''
+    connection.on('data', (d) => {
+      data += d
+    })
+    connection.on('end', () => lines.push(...data.split('\n').filter(Boolean)))
+  })
+  await new Promise<void>((resolve) => server.listen(join(root, 'orch.sock'), resolve))
+  return {
+    posted: () => lines.map((line) => JSON.parse(line).message.content as string),
+    close: () => server.close(),
+  }
+}
+
+// Decision 1.101: a session under the orchestrator is read only — main drops what is typed or
+// pasted — under a yellow banner; Take control makes it "with you", writable, under a blue one,
+// and tells the orchestrator; Hand back undoes both; at a permission prompt it is writable.
+test('a read-only tab: keys and pastes never reach its agent while its terminal still answers the agent’s queries; Take control lets them through and tells the orchestrator; Hand back closes it again (screenshots)', async () => {
+  let root = ''
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      home = dirs.home
+      const env = team(dirs)
+      orchestratorSocket(dirs)
+      return { ...env, FAKE_CLAUDE_QUERY: TEAM.w1 }
+    },
+  })
+  const page = launched.window
+  const socket = await listen(root)
+  const inputFile = () => join(home, 'claude-input.txt')
+  const received = () =>
+    existsSync(inputFile())
+      ? readFileSync(inputFile(), 'utf8')
+          .split('\n')
+          .filter(Boolean)
+          .map((hex) => Buffer.from(hex, 'hex').toString())
+          .join('')
+      : ''
+  const banner = page.locator('.tab-body:not(.hidden) .pane-banner')
+  try {
+    await expect
+      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await expect(banner).toHaveClass(/warning/)
+    await expect(banner).toContainText('This session reports to the orchestrator.')
+    await expect(banner.locator('button')).toHaveText('Take control')
+    // The terminal's own reply to the agent's cursor-position query arrives, read only or not.
+    await expect.poll(received, { timeout: 10_000 }).toMatch(new RegExp(`${ESC}\\[\\d+;\\d+R`))
+    await page.locator('.tab-body:not(.hidden) .xterm').click()
+    await page.keyboard.type('typed-while-read-only')
+    await page.keyboard.press('Shift+Enter')
+    await page.evaluate(() =>
+      (globalThis as unknown as PageGlobals).menkar.window.act({
+        type: 'copyText',
+        text: 'pasted-while-read-only',
+      }),
+    )
+    await page.keyboard.press('Control+Shift+V')
+    await page.locator('.tab-body:not(.hidden) .xterm').click({ button: 'right' })
+    await expect(page.locator('.menu-item', { hasText: 'Paste' })).toBeDisabled()
+    await page.keyboard.press('Escape')
+    await page.locator('.tab-body:not(.hidden) .xterm textarea').evaluate((area) => {
+      for (const type of ['paste', 'drop'] as const) {
+        const data = new DataTransfer()
+        data.setData('text/plain', `${type}-event-while-read-only`)
+        area.dispatchEvent(
+          type === 'paste'
+            ? new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })
+            : new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }),
+        )
+      }
+    })
+    await page.waitForTimeout(800)
+    expect(received()).not.toContain('read-only')
+    expect(received()).not.toContain('\x1b\r')
+    await shot(page, 'banner-yellow.png')
+
+    // The orchestrator's own tab has no banner and takes keys.
+    await page.locator('.tab', { hasText: 'orchestrator' }).click()
+    await expect(banner).toHaveCount(0)
+    await page.locator('.tab-body:not(.hidden) .xterm').click()
+    await page.keyboard.type('to-the-orchestrator')
+    await expect.poll(received).toContain('to-the-orchestrator')
+
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await banner.locator('button', { hasText: 'Take control' }).click()
+    await expect(banner).toHaveClass(/info/)
+    await expect(banner).toContainText('This session is with you.')
+    await expect.poll(async () => (await shown(page))?.withYou).toContain(TEAM.w1)
+    await page.locator('.tab-body:not(.hidden) .xterm').click()
+    await page.keyboard.type('typed-with-you')
+    await expect.poll(received).toContain('typed-with-you')
+    await expect
+      .poll(socket.posted, { timeout: 15_000 })
+      .toEqual(['[Menkar] The human took control of login worker'])
+    await shot(page, 'banner-blue.png')
+
+    // At a permission prompt, even handed back, the tab takes keys while it waits.
+    await page.keyboard.type('ASK')
+    await banner.locator('button', { hasText: 'Hand back to the orchestrator' }).click()
+    await expect
+      .poll(socket.posted, { timeout: 15_000 })
+      .toContain('[Menkar] The human handed login worker back')
+    await expect(banner).toContainText('Waiting for your permission', { timeout: 10_000 })
+    await expect(banner).toHaveClass(/warning/)
+    await page.locator('.tab-body:not(.hidden) .xterm').click()
+    await page.keyboard.type('answer-at-prompt')
+    await expect.poll(received).toContain('answer-at-prompt')
+  } finally {
+    socket.close()
+    await launched.close()
+  }
+})
+
+const parents = (page: Page) =>
+  page.evaluate(async () => {
+    const s = await (globalThis as unknown as PageGlobals).menkar.window.state()
+    return s?.projects.find((p) => p.id === s.shown)?.parents
+  })
+
+// Decision 1.102: the row menu hands a session to the orchestrator and takes it back; nothing
+// restarts, only who is woken changes — and so its tab turns read only.
+test('"Hand to the orchestrator" nests a loose session under it and its tab turns read only; "Take back" makes it loose again', async () => {
+  const launched = await launchApp({ prepare: (dirs) => team(dirs) })
+  const page = launched.window
+  try {
+    await expect(page.locator('.tab')).toHaveCount(2)
+    await page.locator('.row', { hasText: 'fabric' }).dblclick()
+    await expect(page.locator('.tab')).toHaveCount(3)
+    await expect(page.locator('.tab.selected')).toHaveText(/fabric/)
+    await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toHaveCount(0)
+    const items = await rowMenu(page, TEAM.expert)
+    await expect(items.filter({ hasText: 'Take back from the orchestrator' })).toHaveCount(0)
+    await items.filter({ hasText: 'Hand to the orchestrator' }).click()
+    await expect.poll(() => parents(page)).toMatchObject({ [TEAM.expert]: TEAM.orch })
+    await expect.poll(() => listed(page)).toContain('  ★fabric')
+    await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toContainText(
+      'This session reports to the orchestrator.',
+    )
+    // The orchestrator's own row offers neither.
+    const own = await rowMenu(page, TEAM.orch)
+    await expect(own.filter({ hasText: /orchestrator/i })).toHaveText(['✓ Orchestrator'])
+    await page.keyboard.press('Escape')
+
+    await (await rowMenu(page, TEAM.expert))
+      .filter({ hasText: 'Take back from the orchestrator' })
+      .click()
+    await expect.poll(async () => (await parents(page))?.[TEAM.expert]).toBeUndefined()
+    await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('the card lists the sessions the orchestrator manages, all checked but the one chosen; one unchecked stays loose (screenshot)', async () => {
+  const { launched, page } = await launch()
+  try {
+    await page.locator('#orchestration-switch').click()
+    const managed = card(page).locator('.card-managed:visible')
+    // The first radio, the long name, orchestrates: it is not listed.
+    await expect(managed).toHaveText(['api review', 'login fix'])
+    await expect(managed.locator('input:checked')).toHaveCount(2)
+    await card(page).locator('.card-choice', { hasText: 'login fix' }).click()
+    await expect(managed).toHaveText(['abcdefghijklmnopqrstuvwxyz0123456789ABCD', 'api review'])
+    await managed.filter({ hasText: 'api review' }).locator('input').uncheck()
+    await shot(page, 'card-managed.png')
+    await cardButton(page, 'Start').click()
+    await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: CLIENT.login })
+    await expect.poll(() => parents(page)).toEqual({ [CLIENT.long]: CLIENT.login })
   } finally {
     await launched.close()
   }

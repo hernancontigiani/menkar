@@ -126,6 +126,9 @@ export interface InvokeChannels {
 // Renderer → main, fire and forget.
 export interface SendChannels {
   'pty:input': { pane: string; data: string }
+  // What Menkar sends for a key the user pressed (Ctrl+Enter's newline, a passed-on Ctrl+B): unlike
+  // the terminal's own input, it is refused in a read-only pane.
+  'pty:typed': { pane: string; data: string }
   'pty:resize': { pane: string; cols: number; rows: number }
   'panes:reveal': { paneId: string }
 }
@@ -154,6 +157,10 @@ export interface EventChannels {
   'agentState:changed': AgentStates
   // An agent the user is not watching finished or needs them, in the focused window: its toast.
   'agentState:toast': { readonly paneId: string; readonly text: string }
+  // A topic raised or turned blocking, in the focused window that shows its project.
+  'topics:toast': { readonly project: string; readonly number: number; readonly text: string }
+  // Show this topic's context: a notice about it was clicked.
+  'topics:unfold': { readonly number: number }
   // What a chat's process said (plan 14); `ended`: Claude's process exited.
   'chat:event': { readonly chatId: string; readonly event: ChatEvent | { readonly kind: 'ended' } }
   // A setting changed (plan 12): Menkar's own windows re-apply the look.
@@ -196,6 +203,7 @@ export interface MenkarApi {
   readonly panes: {
     attach(pane: string): Promise<{ buffer: string; end: number }>
     input(pane: string, data: string): void
+    typed(pane: string, data: string): void
     resize(pane: string, cols: number, rows: number): void
     reveal(paneId: string): void
     pathsExist(paths: readonly string[]): Promise<readonly boolean[]>
@@ -204,6 +212,8 @@ export interface MenkarApi {
   readonly agentState: {
     onChanged(listener: (states: AgentStates) => void): () => void
     onToast(listener: (toast: EventChannels['agentState:toast']) => void): () => void
+    onTopicToast(listener: (toast: EventChannels['topics:toast']) => void): () => void
+    onTopicUnfold(listener: (topic: EventChannels['topics:unfold']) => void): () => void
   }
   readonly context: {
     onReading(listener: (event: EventChannels['context:reading']) => void): () => void

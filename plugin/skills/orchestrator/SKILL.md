@@ -42,6 +42,8 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 - `last_reply` reads a session's report. Right after it renewed, it gives the last reply of its
   previous conversation, labelled so.
 - To renew another session, tell it to call `renew`; you renew only yourself.
+- `adopt_session` makes a session of the project your child. Call it **only when the human asks
+  for it explicitly** in the chat; never to take over a session on your own.
 - Message sessions with Claude Code's messaging tool (`SendMessage`), by name, never by id: a
   renewed session has a new id and keeps its name. A name unreachable for a moment may be
   renewing; look with `list_sessions` before you take it as gone. If it is gone, record what was
@@ -115,8 +117,12 @@ flight. Nobody pushes unless the project's rule or the human says so.
   next step (`closing-a-task.md` when it says done). A session renewed with a prompt also ends a
   turn: that wake needs nothing.
 - **"[Menkar] ‹name› is waiting at a permission prompt"**: look with `list_sessions`. If it is
-  still blocked, tell the human in one line which session waits. You cannot approve it, and you
-  never ask the session to work around it.
+  still blocked, raise a **blocking topic** (`topic_add`) naming the session and what it waits to
+  do: in the orchestration mode the human hears your children only through you and the topics.
+  You cannot approve it, and you never ask the session to work around it.
+- **"[Menkar] The human took control of ‹name›"**: the human is working in it now. Give it no
+  work and send it nothing until it is handed back.
+- **"[Menkar] The human handed ‹name› back"**: it is yours again; you may give it work.
 
 Several events can arrive in one message; handle each.
 

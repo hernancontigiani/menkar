@@ -16,6 +16,8 @@ export interface Topic {
   readonly decision?: string
   readonly created: string
   readonly updated: string
+  // The human unfolded or double-clicked it; written only once true.
+  readonly seen?: true
 }
 
 interface ProjectTopics {
@@ -132,15 +134,40 @@ export function closeTopic(
   }))
 }
 
-// Open and discussing ones, those raised by a ★ session first, then by number; a blocking one is
-// marked where it is, not moved. `all` adds the closed ones, in the same order.
+export function markSeen(t: Topics, projectId: string, number: number): Topics {
+  const found = t.projects[projectId]?.topics.find((x) => x.number === number)
+  if (!found || found.seen) return t
+  return change(t, projectId, number, (topic) => ({ ...topic, seen: true }))?.topics ?? t
+}
+
+// The open topics the human has not looked at yet, of every project.
+export function unseenTopics(t: Topics): number {
+  return Object.values(t.projects)
+    .flatMap((p) => p.topics)
+    .filter((x) => x.status !== 'closed' && !x.seen).length
+}
+
+// What a topic's change raises: a new one notifies, silently while the human is discussing another
+// (they are in the conversation already); later, only becoming blocking notifies again.
+export function topicNotice(
+  before: Topic | undefined,
+  after: Topic,
+  discussing: boolean,
+): { readonly sound: boolean } | null {
+  if (!before) return { sound: !discussing }
+  if (after.status !== 'closed' && after.blocking && !before.blocking) return { sound: true }
+  return null
+}
+
+// Open and discussing ones, those raised by a ★ session first, then blocking ones, then by number,
+// so the top one is the one to take. `all` adds the closed ones, in the same order.
 export function shownTopics(
   project: { readonly orchestration?: { readonly priority?: readonly string[] } },
   list: readonly Topic[],
   all = false,
 ): Topic[] {
   const priority = new Set(project.orchestration?.priority ?? [])
-  const rank = (x: Topic) => (priority.has(x.from) ? 0 : 1)
+  const rank = (x: Topic) => (priority.has(x.from) ? 0 : x.blocking ? 1 : 2)
   return list
     .filter((x) => all || x.status !== 'closed')
     .sort((a, b) => rank(a) - rank(b) || a.number - b.number)
@@ -153,7 +180,7 @@ const STATUSES: readonly TopicStatus[] = ['open', 'discussing', 'closed']
 
 function parseTopic(value: unknown): Topic | null {
   if (!isObject(value)) return null
-  const { number, title, context, from, blocking, status, decision, created, updated } = value
+  const { number, title, context, from, blocking, status, decision, created, updated, seen } = value
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
   if (typeof title !== 'string' || typeof from !== 'string') return null
   const known = STATUSES.find((s) => s === status)
@@ -167,6 +194,7 @@ function parseTopic(value: unknown): Topic | null {
     ...(typeof decision === 'string' ? { decision } : {}),
     created: typeof created === 'string' ? created : '',
     updated: typeof updated === 'string' ? updated : '',
+    ...(seen === true ? { seen: true as const } : {}),
   }
 }
 

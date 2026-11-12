@@ -1,6 +1,7 @@
 // Claude Code's and Cursor's state rules (docs/spec/agent-state.md, AST-1 to AST-16).
 import { describe, expect, test } from 'vitest'
 import { detectState } from '../../../src/core/agentstate/detect'
+import { nextShown } from '../../../src/core/agentstate/shown'
 
 const screen = (...lines: string[]) => lines.join('\n')
 
@@ -56,6 +57,98 @@ describe("Claude Code's rules", () => {
     expect(detectState('claude', '✳ x', screen(...lines))).toBe('working')
     lines.splice(1, 3) // one non-empty line fewer: the question is the 14th from the bottom
     expect(detectState('claude', '✳ x', screen(...lines))).toBe('blocked')
+  })
+
+  // Decision 1.105: a background task still running is working, from the pill in Claude Code's
+  // footer. Its texts were read in Claude Code 2.1.323's program, not seen drawn yet.
+  const box = ['─'.repeat(40), '> ', '─'.repeat(40)]
+  const idleWith = (footer: string) => screen('● Done.', '', ...box, footer)
+
+  test.each([
+    '  ⏵⏵ auto mode on (shift+tab to cycle) · 1 shell · ↓ to manage',
+    '  3 shells · ↓ to manage',
+    '  1 shell, 2 monitors',
+    '  1 monitor',
+    '  1 Artifact comment monitor',
+    '  2 local agents',
+    '  1 local agent',
+    '  1 team',
+    '  1 MCP task',
+    '  ↳ 2 background',
+    '  2 background tasks',
+    '  3 background dynamic workflows',
+    '  ◇ 1 cloud session',
+    '  ◇ 2 remote dynamic workflows',
+    '  ⏵⏵ auto mode on · 1 shell', // too narrow for "↓ to manage"
+  ])('decision 1.105: the footer pill "%s" while idle is working', (footer) => {
+    expect(detectState('claude', '✳ x', idleWith(footer))).toBe('working')
+  })
+
+  test.each([
+    '  ? for shortcuts',
+    '  saving memories',
+    '  dreaming',
+    '  auto-mode scan',
+    '  memory import 2/5',
+    '  0 shells',
+  ])('decision 1.105: "%s" in the footer is not background work', (footer) => {
+    expect(detectState('claude', '✳ x', idleWith(footer))).toBe('idle')
+  })
+
+  test('decision 1.105: a pill named in the conversation or typed in the box is not the footer', () => {
+    const above = screen(
+      'I started 2 shells for the tests:',
+      '  2 shells',
+      ...box,
+      '  ? for shortcuts',
+    )
+    expect(detectState('claude', '✳ x', above)).toBe('idle')
+    const typed = screen(
+      '● Done.',
+      '─'.repeat(40),
+      '> 2 shells',
+      '─'.repeat(40),
+      '  ? for shortcuts',
+    )
+    expect(detectState('claude', '✳ x', typed)).toBe('idle')
+  })
+
+  // Captured from Claude Code 2.1.323 in tmux, idle after a turn, two shells in the background and
+  // a one-line statusline like Menkar's: the pill is on the last line, under the statusline.
+  const captured = (footer: string) =>
+    screen(
+      '✻ Cogitated for 3s · done 8:47 PM · 2 shells still running',
+      '',
+      `${'─'.repeat(40)} footer-probe ─`,
+      '❯ ',
+      '─'.repeat(56),
+      '  probe · 22% · $1.20',
+      footer,
+    )
+
+  test("decision 1.105: Claude Code's real footer with two shells running is working", () => {
+    expect(detectState('claude', '✳ x', captured('  ⏵⏵ auto mode on · 2 shells'))).toBe('working')
+  })
+
+  test('decision 1.105: the turn summary naming shells still running, with no pill below, is idle', () => {
+    expect(detectState('claude', '✳ x', captured('  ⏵⏵ auto mode on'))).toBe('idle')
+  })
+
+  test("decision 1.105: the pill counts only in the last 3 non-empty lines, the footer's", () => {
+    expect(detectState('claude', '✳ x', screen('  1 shell', '', 'a', '  ', 'b'))).toBe('working')
+    expect(detectState('claude', '✳ x', screen('  1 shell', 'a', 'b', 'c'))).toBe('idle')
+  })
+
+  test('decision 1.105: a permission question with the pill in the footer is blocked', () => {
+    const question = screen('Do you want to proceed?', '❯ 1. Yes', '  2. No', '  1 shell')
+    expect(detectState('claude', '✳ x', question)).toBe('blocked')
+  })
+
+  test('decision 1.105: unseen, the turn ends with a shell still running: working until it ends, then done', () => {
+    let state = nextShown('working', detectState('claude', '✳ x', idleWith('  1 shell')), false)
+    expect(state).toBe('working')
+    state = nextShown(state, detectState('claude', '✳ x', idleWith('  ? for shortcuts')), false)
+    expect(state).toBe('done')
   })
 
   test('AST-10 other permission prompts are blocked', () => {

@@ -5,6 +5,7 @@ import type { Reading } from '../core/context/types'
 import { formatTime } from '../core/format'
 import type { Key } from '../core/i18n'
 import { teamFolders } from '../core/orchestration/folders'
+import { bannerOf } from '../core/orchestration/readonly'
 import { type ModeRow, modeRows } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
@@ -32,7 +33,9 @@ import {
   applyTerminalLook,
   focusPane,
   forgetPanesExcept,
+  type PaneBanner,
   paneElement,
+  setPaneBanner,
   showPanes,
 } from './terminals'
 import {
@@ -806,6 +809,7 @@ function teamText(info: SessionInfo, folder: string | null, project: ProjectInfo
         ? el('span', { class: 'priority-star', title: t('orch.priority') }, '★')
         : null,
       info.name,
+      mutedIcon(info.id),
       o.withYou.includes(info.id)
         ? el('span', { class: 'with-you' }, t('orch.withYouBadge'))
         : null,
@@ -848,7 +852,7 @@ function row(
       : el(
           'div',
           { class: 'text' },
-          el('div', { class: 'name' }, info.name),
+          el('div', { class: 'name' }, info.name, mutedIcon(info.id)),
           showFolder ? el('div', { class: 'folder dim' }, folderOf(info)) : null,
         ),
     more,
@@ -929,6 +933,11 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       run: () => void act({ type: 'stopSession', session: info.id }),
     })
   if (info.agent === 'claude') entries.push(remoteItem(info.id))
+  const muted = state?.muted.includes(info.id) ?? false
+  entries.push({
+    label: muted ? t('row.unmute') : t('row.mute'),
+    run: () => void act({ type: 'setMuted', session: info.id, on: !muted }),
+  })
   entries.push({
     label: t('row.group'),
     submenu: [
@@ -1268,8 +1277,10 @@ function renderContent(s: WindowState): void {
     const children: HTMLElement[] = []
     if (tab.file) children.push(fileElement(tab))
     if (tab.chat !== undefined) children.push(chatElement(tab.id, tab.chat))
+    const project = s.projects.find((p) => p.id === tab.project)
     for (const pane of tab.panes) {
       const node = paneElement(pane)
+      syncBanner(pane.id, pane.sessionId, project)
       node.classList.toggle('hidden', zoomed && pane.id !== focused)
       children.push(node)
     }
@@ -1318,6 +1329,41 @@ function renderContent(s: WindowState): void {
     )
   lastSelected = selected?.id ?? null
   drawerFocus(s)
+}
+
+// Decision 1.101: a session under the orchestrator is read only until the human takes control.
+function syncBanner(paneId: string, sessionId: string | null, project: ProjectInfo | undefined) {
+  const shown = agentStates?.panes.find((p) => p.paneId === paneId)?.state
+  const kind = bannerOf(sessionId, project, shown)
+  if (!kind || !sessionId) {
+    setPaneBanner(paneId, null, false)
+    return
+  }
+  const take = () => void act({ type: 'takeControl', session: sessionId })
+  const banners: Record<typeof kind, PaneBanner> = {
+    reports: {
+      kind,
+      tone: 'warning',
+      text: t('orch.bannerReports'),
+      button: t('orch.takeControl'),
+      run: take,
+    },
+    permission: {
+      kind,
+      tone: 'warning',
+      text: t('orch.bannerPermission'),
+      button: t('orch.takeControl'),
+      run: take,
+    },
+    withYou: {
+      kind,
+      tone: 'info',
+      text: t('orch.bannerWithYou'),
+      button: t('orch.handBack'),
+      run: () => void act({ type: 'handBack', session: sessionId }),
+    },
+  }
+  setPaneBanner(paneId, banners[kind], kind === 'reports')
 }
 
 // Opening a drawer focuses it; hiding it, or its shell ending, gives the focus back to the pane
@@ -1812,6 +1858,37 @@ function phoneGlyph(): SVGSVGElement {
   const speaker = document.createElementNS(ns, 'line')
   attrs(speaker, { x1: '3.4', y1: '10.1', x2: '5.6', y2: '10.1', 'stroke-linecap': 'round' })
   svg.append(body, speaker)
+  return svg
+}
+
+// A muted session's row (decision 1.104): a speaker struck through, after the name.
+function mutedIcon(sessionId: string): HTMLElement | null {
+  if (!state?.muted.includes(sessionId)) return null
+  return el('span', { class: 'muted-icon', title: t('row.muted') }, mutedGlyph())
+}
+
+// The phone's size and stroke, so the two read as one family.
+function mutedGlyph(): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(ns, 'svg')
+  const attrs = (node: Element, values: Record<string, string>) => {
+    for (const [key, value] of Object.entries(values)) node.setAttribute(key, value)
+  }
+  attrs(svg, {
+    viewBox: '0 0 9 13',
+    width: '9',
+    height: '13',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '1.3',
+    'stroke-linejoin': 'round',
+    'aria-hidden': 'true',
+  })
+  const speaker = document.createElementNS(ns, 'path')
+  attrs(speaker, { d: 'M1 5h2l3-2.5v8L3 8H1z' })
+  const slash = document.createElementNS(ns, 'line')
+  attrs(slash, { x1: '.8', y1: '1.5', x2: '8.2', y2: '11.5', 'stroke-linecap': 'round' })
+  svg.append(speaker, slash)
   return svg
 }
 

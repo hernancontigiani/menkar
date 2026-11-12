@@ -1,6 +1,6 @@
 # The orchestration mode
 
-Decisions 1.77, 1.78, 1.83, 1.84, 1.86, 1.89–1.91, 1.93 and 1.94 (the human, 2026-11-12; the look chosen from
+Decisions 1.77, 1.78, 1.83, 1.84, 1.86, 1.89–1.91, 1.93, 1.94 and 1.99–1.104 (the human, 2026-11-12; the look chosen from
 mock-ups). A project can be switched into a mode where the human talks to one orchestrator
 session, sees the team in the sidebar ordered by role, and sees the open topics the orchestrator
 keeps for them. Off, Menkar is as before and the marks wait. The guide for users and agents ships
@@ -22,8 +22,11 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   - **Numbers are per project and never reused:** `next` is kept beside the list, and a file whose
     `next` fell behind a number in use reads it as that number plus one.
   - **A closed topic stays,** with its decision.
-  - **The order shown** (`shownTopics`), in the sidebar and in `topic_list`: open and discussing
-    only, those raised by a ★ session first, then by number. A blocking topic is marked, not moved.
+  - **The order shown** (`shownTopics`), in the sidebar and in `topic_list` (decision 1.100, which
+    amends 1.77's): open and discussing only, those raised by a ★ session first, then blocking ones,
+    then the rest by number, so the top topic is the one to take.
+  - **`seen`**, written only once true: the human unfolded the topic or double-clicked it. A topic
+    written before it reads as not seen.
 - **Main keeps the topics** (`src/main/topics.ts`), loaded at start and written in the background on
   every change. The window state carries the shown project's topics in that order, `from` as a
   name (`TopicView`).
@@ -99,6 +102,88 @@ starting it the first time, and hides the one shown; the others stay alive and h
 hangs one up. Closing the tab hangs them all up, as closing a tab hangs up its drawer. Every other
 tab keeps one drawer.
 
+## Notifications in the mode
+
+Decisions 1.99, 1.103 and 1.104 (the human, 2026-11-12). The human hears what is theirs: the
+orchestrator, the sessions working with them, the loose ones, and the topics.
+
+- **Who notifies** (`notifiesFor`, `src/core/orchestration/notifies.ts`, asked by main's `notify`
+  first): a session muted by hand never does, in any mode; with the mode off, every other one does
+  as before; with it on, a session **under the orchestrator** (its parent is the orchestrator) does
+  not, unless it is marked "with you". The orchestrator and loose sessions notify as before: nothing
+  else would tell the human about a loose one. Only the alerts go quiet (sound, toast, desktop
+  notice): the dots, the blocked counts and the dropdown's badge still count every session.
+- **Mute** ("Mute" / "Unmute" in every row menu, in any mode): `muted` in `state.json`
+  (`src/core/mute.ts`, `docs/sessions.md`); the row shows a struck-through speaker after the name,
+  drawn like the phone, 9×13 in the text color.
+- **A new topic** notifies as a blocked session does, through the same settings: "Topic N" and its
+  title, as a toast in the focused window that shows the project, or a desktop notice otherwise.
+  While a topic of the project is "discussing", a new one makes no sound; it still shows. A change
+  notifies only when a topic **becomes blocking** (`topicNotice`, raised from `topic_add` and
+  `topic_update` in `src/main/workspace.ts`), and only while the mode is on: off, the Topics
+  section is not shown, so a notice would lead nowhere. Menkar raises topics, not the orchestrator,
+  so muting the orchestrator never mutes them.
+- **Show** (the toast's button, or a click on the desktop notice) shows the orchestrator's tab, opens
+  the Topics section if it was collapsed and unfolds the topic.
+- **The dock's count** is the desktop's own count of Menkar's open desktop notices; Menkar sets no
+  badge. A topic's desktop notice goes in the same tray as the agents' (`NotificationTray`), under
+  its project and number, and seeing the topic — unfolding it or double-clicking it — closes it
+  (`set`, 2026-11-12, correcting the plan, which assumed a badge Menkar does not set). A topic
+  shown as a toast stays out of the count, as an agent's toast does. `unseenTopics` counts the open
+  topics not seen, of every project.
+- **A topic's notice also leaves the tray** when the topic is closed before the human saw it, when its
+  project leaves the mode, and when the project is deleted: after every change, main closes each
+  topic notice whose topic is no longer open, unseen and in a project in the mode
+  (`closeStaleTopicNotices`, `src/core/orchestration/notices.ts`). Without it, a topic closed by
+  `topic_close` left the dock at "(1)" with nothing to clear it (the human, on a real desktop,
+  2026-11-12).
+
+## Read-only tabs
+
+Decision 1.101 (the human, 2026-11-12). While the mode is on, the tab of a session **under the
+orchestrator** and not "with you" is read only: the orchestrator gives it its work, and keys typed
+there would cross its instructions (`readOnly` and `bannerOf`, `src/core/orchestration/readonly.ts`).
+
+- **The window keeps the user's input out** (`src/renderer/terminals.ts`): keys through the custom
+  key handler, keydown and keypress alike, past the app's shortcuts and the view's own (copy, find,
+  the end); pastes (Ctrl+Shift+V, the menu's Paste, greyed, any paste event) and drops; typing
+  through an input method. **The terminal's own replies still go out**: Claude Code queries its
+  terminal (the cursor's position, colors, the keyboard protocol, focus), and a swallowed answer
+  could hang or garble a session, worst at a resume that starts read only (`set`, 2026-11-12).
+  Scrolling, selecting and copying work. Drawers are never read only.
+- **Main refuses what Menkar sends for a key** in a read-only pane (`pty:typed`, `paneTyped` in
+  `src/main/workspace.ts`: Shift+Enter's newline, a passed-on Ctrl+B); the terminal's own input
+  (`pty:input`) passes.
+- **A yellow banner** across the top of the pane, a fixed amber with dark text in every look and
+  scheme so it stands out (the human, through `set`, 2026-11-12): "This session reports to the
+  orchestrator.", with
+  "Take control", which marks it "with you", makes it writable and posts to the orchestrator
+  "[Menkar] The human took control of ‹name›".
+- **"With you"**, the banner is blue (the theme's ANSI blue, the role `blue`): "This session is
+  with you.", with "Hand back to the orchestrator", which clears the mark, makes it read only again
+  and posts "[Menkar] The human handed ‹name› back". Both posts go through the wakes' messaging
+  (`wakeSession`); nothing is typed.
+- **At a permission prompt** (shown state `blocked`) the tab is writable while it waits; the banner
+  stays yellow and says "Waiting for your permission".
+- Loose sessions and the orchestrator have no banner and stay writable; with the mode off, nothing
+  is read only.
+
+## Handing sessions to the orchestrator
+
+Decision 1.102 (the human, 2026-11-12). A session comes under the orchestrator — becomes its child —
+in three ways; nothing restarts and nothing is typed, only who is woken changes (and so its tab
+turns read only):
+
+- **The row menu**, in the mode, for any session but the orchestrator, after "With you": "Hand to
+  the orchestrator" (its parent becomes the orchestrator), or, for one under it, "Take back from the
+  orchestrator" (`clearParent`, `src/core/projects/parents.ts`). Both are `setManaged`.
+- **The first-time card**: under "Who orchestrates?", "Sessions the orchestrator manages", a box per
+  listed session, all checked; the one chosen to orchestrate is not listed. Start sets the checked
+  ones' parent to the orchestrator, a new one once it is marked; unchecked ones stay as they were.
+- **`adopt_session { name }`**, a Menkar MCP tool (`adopt`, `src/core/orchestration/adopt.ts`): the
+  orchestrator makes a session of its project its child. Refused to any other caller and with the
+  mode off. The orchestrator's skill calls it only when the human asks for it explicitly.
+
 ## Rejected
 
 - **A panel beside the orchestrator's tab** (1.77's first form): it repeated the team the sidebar
@@ -112,3 +197,11 @@ tab keeps one drawer.
 - **Fixed roles** (Expert, Consultant, Reviewer, Worker): a free label (1.83).
 - **An external link in the card**: no site exists yet; the app opens no URL of its own.
 - **Blocked events before finished ones in a wake**: not decided; only ★ first (1.78).
+- **Reported states** (`set_waiting`): in the mode a worker waits only on the orchestrator, and the
+  human's questions go as topics (`docs/NOT_BUILT_YET.md`).
+- **Muting loose sessions in the mode** (1.99's first form): nothing would ever tell the human about
+  them (1.104).
+- **Muting topics with the orchestrator**: the human would lose what waits on them.
+- **Read only by hiding the terminal**: the human must still watch the session work.
+- **A badge Menkar sets on the dock** for unseen topics: the desktop already counts Menkar's
+  notices, and a second count would add to it.

@@ -37,3 +37,19 @@ ends a turn. The skills that use these tools are not part of this subsystem.
 
 > Left on 2026-11-12: the orchestration mode adds four topic tools and shapes list_sessions, start_session and the wake order (plan 34).
   four tools.
+
+## Session control: Menkar's MCP server, renewing, starting, waking, and its skills
+
+> Left on 2026-11-12: plan 35 adds adopt_session (decision 1.102).
+(`docs/orchestration.md`) adds four tools for topics and shapes `list_sessions`, `start_session`
+and the wake order.
+
+## The shape
+
+> Left on 2026-11-12: adopt_session is the ninth tool (decision 1.102).
+    - `tools/list` names eight tools; `tools/call` runs one.
+
+## The shape
+
+> Left on 2026-11-12: adopt_session is the ninth tool (decision 1.102).
+- **The eight tools.** A session is always named by its name, never by its id: a renew or a

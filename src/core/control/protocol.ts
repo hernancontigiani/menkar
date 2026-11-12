@@ -110,6 +110,16 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
       },
     },
   },
+  {
+    name: 'adopt_session',
+    description:
+      'Makes a session of your Menkar project your child, so Menkar wakes you when it waits or ends its turn. Only the orchestrator, in the orchestration mode; call it only when the human asks for it explicitly.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: "The session's name." } },
+      required: ['name'],
+    },
+  },
 ]
 
 export interface ServerContext {

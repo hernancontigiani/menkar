@@ -13,6 +13,10 @@ export class NotificationTray<N extends Closable> {
     return this.#shown.size
   }
 
+  keys(): string[] {
+    return [...this.#shown.keys()]
+  }
+
   show(identity: string, notification: N): void {
     this.#shown.get(identity)?.close()
     this.#shown.set(identity, notification)

@@ -31,6 +31,7 @@ import {
   paneBuffer,
   paneInput,
   paneResize,
+  paneTyped,
   revealPane,
   runAction,
   startWorkspace,
@@ -71,6 +72,7 @@ handle('terminal:paths-exist', (_event, { paths }) => {
   )
 })
 on('pty:input', (_event, { pane, data }) => paneInput(pane, data))
+on('pty:typed', (_event, { pane, data }) => paneTyped(pane, data))
 on('pty:resize', (_event, { pane, cols, rows }) => paneResize(pane, cols, rows))
 on('panes:reveal', (_event, { paneId }) => revealPane(paneId))
 

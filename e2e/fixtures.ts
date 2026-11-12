@@ -14,7 +14,9 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // as Claude Code starts it: RENEW calls renew, then ends the turn (the Stop hook its --settings
 // declares); SPAWN1 starts "worker" in the group "pair" with a prompt; SPAWN2 asks for "worker"
 // again; SPAWN3 names a group that does not exist; LISTS lists the project; REPLY asks for
-// worker's last reply. Each answer is printed as "TOOL <name>: <text>".
+// worker's last reply; TOPIC raises a topic "Pick a port". Each answer is printed as
+// "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the terminal for the cursor's
+// position (CSI 6n) as it starts, as Claude Code queries its terminal.
 const FAKE_CLAUDE = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path')
 const args = process.argv.slice(2)
@@ -43,6 +45,7 @@ function sessionStart(source, id, transcript) {
   })
 }
 const ownId = at >= 0 ? args[at + 1] : args.includes('--resume') ? args[args.indexOf('--resume') + 1] : null
+if (ownId && process.env.FAKE_CLAUDE_QUERY === ownId) process.stdout.write('\\x1b[6n')
 function callTool(name, toolArgs, endsTurn) {
   const server = JSON.parse(args[args.indexOf('--mcp-config') + 1]).mcpServers.menkar
   const child = require('node:child_process').spawn(server.command, server.args, {
@@ -100,6 +103,7 @@ process.stdin.on('data', (d) => {
     SPAWN3: ['start_session', { name: 'other', group: 'no such group' }],
     LISTS: ['list_sessions', {}],
     REPLY: ['last_reply', { name: 'worker' }],
+    TOPIC: ['topic_add', { title: 'Pick a port', context: 'Which port should the API use?' }],
   }
   for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
     if (!typed.endsWith(word)) continue

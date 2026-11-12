@@ -230,15 +230,6 @@ of its own.
 **Trigger:** the documentation site exists ("A documentation site" above). First question: whether
 the card links to it, and whether that link counts as the app opening a URL of its own.
 
-### Notifications for a new topic
-
-A new topic shows in the sidebar's Topics section only: no toast, sound, desktop notice or count on
-the dock, as `blocked` has. Left out of the orchestration mode on 2026-11-12 because nobody had
-decided which of them, or for which topics (all, blocking ones, a priority session's).
-
-**Trigger:** the human misses a topic that waited for them. First question: which topics notify,
-and whether through the same settings as a blocked session.
-
 ### A session reporting what it waits on
 
 Menkar reads a session's state from its screen, so a session that ended its turn waiting on another

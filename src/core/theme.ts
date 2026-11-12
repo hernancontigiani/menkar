@@ -77,6 +77,7 @@ export interface Roles {
   readonly green: string
   readonly yellow: string
   readonly red: string
+  readonly blue: string
 }
 
 export interface Look {
@@ -194,6 +195,7 @@ function rolesOf(name: string, palette: Palette): Roles {
     green: ansi[2] ?? fg,
     yellow: ansi[3] ?? fg,
     red: ansi[1] ?? fg,
+    blue: ansi[4] ?? fg,
   }
 }
 
@@ -211,6 +213,7 @@ const CLASSIC: Readonly<Record<'light' | 'dark', Roles>> = {
     green: '#2ec27e',
     yellow: '#e5a50a',
     red: '#e01b24',
+    blue: '#3584e4',
   },
   dark: {
     bg: '#242424',
@@ -224,6 +227,7 @@ const CLASSIC: Readonly<Record<'light' | 'dark', Roles>> = {
     green: '#2ec27e',
     yellow: '#e5a50a',
     red: '#e01b24',
+    blue: '#3584e4',
   },
 }
 

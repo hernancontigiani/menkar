@@ -94,6 +94,10 @@ the new id, and so does the saved tab.
   id is in `remote_control` in `state.json`, the new id takes its place there, so the new one's
   next start carries `--remote-control` and the old one's does not. A resume moves no flag: each
   session keeps its own.
+- **A mute follows every new id** (`followMuted`, `src/core/mute.ts`, decision 1.104): `muted` in
+  `state.json` is a sorted list of ids, as `remote_control` is, and the new id takes the old one's
+  place after a clear, a renew, an in-session resume and a reused name. Unlike Remote Control, a
+  resume moves it too.
 
 ## Menkar's `state.json`
 
