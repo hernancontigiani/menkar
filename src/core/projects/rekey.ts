@@ -13,17 +13,14 @@ import { followParents } from './parents'
 
 // Claude Code gives a running session a new id when the user clears it (`/clear`, decision 1.56),
 // and another when the user resumes a session inside it (1.57). The id the tab moves to takes the
-// old one's place: its spot among the project's members, its group and the group's leader mark,
-// and its hidden flag. The old id stays a member, right after it and outside any group, as one of
+// old one's place: its spot among the project's members, its group and its hidden flag. The old id stays a member, right after it and outside any group, as one of
 // the new session's earlier conversations (1.63): in no list, in that session's menu.
 
 const swap = (ids: readonly string[], from: string, to: string) =>
   ids.map((id) => (id === from ? to : id))
 
 function followInGroup(g: Group, from: string, to: string): Group {
-  if (!g.members.includes(from)) return g
-  const members = swap(g.members, from, to)
-  return g.leader === from ? { ...g, members, leader: to } : { ...g, members }
+  return g.members.includes(from) ? { ...g, members: swap(g.members, from, to) } : g
 }
 
 function followInProject(p: Project, from: string, to: string): Project {

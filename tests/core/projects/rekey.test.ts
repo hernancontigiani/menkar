@@ -4,14 +4,9 @@ import { followNewId, followNewIdInLayout, followResume } from '../../../src/cor
 import { group, project, projects } from '../../factories/projects'
 
 describe('a cleared session’s new id takes the old one’s place', () => {
-  test('in the project’s members, its group and its leader mark; the old id stays, ungrouped, right after it, as an earlier conversation', () => {
+  test('in the project’s members and its group; the old id stays, ungrouped, right after it, as an earlier conversation', () => {
     const state = projects([
-      project(
-        'p1',
-        'Work',
-        ['a', 'old', 'b'],
-        [{ ...group('auth', ['old', 'a']), leader: 'old' }, group('ui', ['b'])],
-      ),
+      project('p1', 'Work', ['a', 'old', 'b'], [group('auth', ['old', 'a']), group('ui', ['b'])]),
       project('p2', 'Other', ['c']),
     ])
     const followed = followNewId(state, 'old', 'new')
@@ -20,20 +15,11 @@ describe('a cleared session’s new id takes the old one’s place', () => {
         'p1',
         'Work',
         ['a', 'new', 'old', 'b'],
-        [{ ...group('auth', ['new', 'a']), leader: 'new' }, group('ui', ['b'])],
+        [group('auth', ['new', 'a']), group('ui', ['b'])],
       ),
       earlier: { new: ['old'] },
     })
     expect(followed.projects[1]).toBe(state.projects[1])
-  })
-
-  test('a group whose leader is another member keeps that leader', () => {
-    const state = projects([
-      project('p1', 'Work', ['a', 'old'], [{ ...group('g', ['a', 'old']), leader: 'a' }]),
-    ])
-    expect(followNewId(state, 'old', 'new').projects[0]?.groups).toEqual([
-      { ...group('g', ['a', 'new']), leader: 'a' },
-    ])
   })
 
   test('a hidden old id passes its hidden flag to the new one, and shows as the stopped row', () => {
@@ -80,16 +66,11 @@ describe('a cleared session’s new id takes the old one’s place', () => {
 })
 
 describe('a session resumed inside a tab joins the tab’s project, in the left one’s place', () => {
-  test('out of another project and its group there (its leader mark dropped), shown; the session left is its earlier conversation', () => {
+  test('out of another project and its group there, shown; the session left is its earlier conversation', () => {
     const state = projects([
       project('p1', 'Work', ['left']),
       {
-        ...project(
-          'p2',
-          'Other',
-          ['x', 'picked'],
-          [{ ...group('g', ['picked', 'x']), leader: 'picked' }],
-        ),
+        ...project('p2', 'Other', ['x', 'picked'], [group('g', ['picked', 'x'])]),
         hidden: ['picked'],
       },
     ])

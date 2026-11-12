@@ -66,7 +66,7 @@ ends a turn. The skills that use these tools are not part of this subsystem.
   1. The renew is noted.
   2. At the turn's end, from the Stop hook's record whose session id is the pane's, the tab is
      re-keyed to a new id first. This is `followClear`, the same function a followed `/clear` runs:
-     project place, group, leader mark, hidden flag, parents, Remote Control, and the old id as an
+     project place, group, hidden flag, parents, Remote Control, and the old id as an
      earlier conversation.
   3. The pane is hung up. Its exit leaves the tab in place.
   4. The new session starts in that tab.

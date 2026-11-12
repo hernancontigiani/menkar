@@ -53,3 +53,9 @@
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
 **Only a user action writes it** (hiding a session). Reading never creates it, because a start
 without `state.json` and `projects.json` is the first start that imports agent-tablet's data.
+
+## A session that changes id in its tab, and trash and delete
+
+> Left on 2026-11-12: groups lose their leader; a group is only visual (decision 1.76).
+  place: its spot in the project's members, its group, the group's leader mark and its hidden flag.
+    project's members, its group (and the leader mark), the hidden list, and every `earlier` list,

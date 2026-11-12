@@ -280,14 +280,11 @@ button.group-heading:hover,
 button.group-heading.contains-selected {
   box-shadow: inset 3px 0 0 var(--accent);
 }
-.group-heading .group-name,
-.group-heading .group-leader {
+.group-heading .group-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-}
-.group-heading .group-name {
   flex: none;
   max-width: 60%;
 }
@@ -357,18 +354,6 @@ button.group-heading.contains-selected {
 }
 .file-age {
   flex: none;
-}
-.row .name:has(.leader-star) {
-  display: flex;
-  gap: 4px;
-}
-.row .name-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.leader-star {
-  flex: none;
-  color: var(--yellow);
 }
 .row {
   display: flex;

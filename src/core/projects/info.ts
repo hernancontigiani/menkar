@@ -12,7 +12,6 @@ export interface ProjectInfo {
     readonly color: string
     readonly members: readonly string[]
     readonly collapsed?: true
-    readonly leader?: string
   }[]
   // Each session's earlier conversations: members kept out of the list and the hidden count.
   readonly earlier: Readonly<Record<string, readonly string[]>>

@@ -69,7 +69,7 @@ the new id, and so does the saved tab.
   `workspace.ts` acts on a `clear` or `resume` record of a live Claude pane whose session is
   another id. A start Menkar made with `--resume` names the pane's own id, so nothing moves.
 - **After a clear** (`followNewId`, `src/core/projects/rekey.ts`) the new id takes the old one's
-  place: its spot in the project's members, its group, the group's leader mark and its hidden flag.
+  place: its spot in the project's members, its group and its hidden flag.
   Nothing changes when the new id already is in a project.
 - **A renew** (`docs/session-control.md`) follows the same way as a clear: `followClear` in
   `workspace.ts` is shared by both. It also moves the session's parents (`docs/projects.md`).
@@ -131,7 +131,7 @@ is shown as written; none is `—`).
     other; failures are listed together, as for a selection trashed from Add session. Cleared,
     they become ordinary rows of the list.
   - **`projects.json` forgets it** (`forgetSession`, `src/core/projects/earlier.ts`): out of its
-    project's members, its group (and the leader mark), the hidden list, and every `earlier` list,
+    project's members, its group, the hidden list, and every `earlier` list,
     as key or entry. Until 1.66 a removed session stayed a member. Usage loses nothing: a turn
     already in the history keeps its project, and a gone transcript brings no new ones.
     `state.json` keeps whatever it held for the id (a name, Remote Control).

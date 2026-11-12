@@ -45,7 +45,6 @@ import {
 } from '../core/projects/layout'
 import {
   addMember,
-  clearLeader,
   createProject,
   deleteProject,
   hideMember,
@@ -61,7 +60,6 @@ import {
   setFilesCollapsed,
   setFilesFolder,
   setGroup,
-  setLeader,
   showMember,
 } from '../core/projects/model'
 import { keptParents, setParent } from '../core/projects/parents'
@@ -1198,7 +1196,7 @@ export function followPaneStart(
 }
 
 // The session in a pane took a new id the way a `/clear` gives one: the new id takes the old one's
-// place in its project, group, leader mark, hidden flag, parents and Remote Control, and the old
+// place in its project, group, hidden flag, parents and Remote Control, and the old
 // one becomes its earlier conversation. Used by a followed clear and by a renew. False
 // when the old id is in no project, or the new one already is in one: then nothing changes.
 function followClear(pane: Pane, from: string, to: string): boolean {
@@ -1766,13 +1764,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const project = projectOf(projects, action.session)
       if (!project) return {}
       projects = setGroup(projects, project.id, action.session, action.group)
-      changed({ projects: true })
-      return {}
-    }
-    case 'setLeader': {
-      const led = (action.leader ? setLeader : clearLeader)(projects, action.session)
-      if (led === projects) return {}
-      projects = led
       changed({ projects: true })
       return {}
     }

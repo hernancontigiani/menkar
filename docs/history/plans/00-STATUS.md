@@ -370,3 +370,6 @@
 
 > Left §1 on 2026-11-12: 1.75 delivered.
 | 1.75 | Menkar's terminals do not inherit the variables that describe a running Claude Code session (`CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_CHILD_SESSION`, `CLAUDE_CODE_MESSAGING_*`, `CLAUDE_CODE_ENTRYPOINT` and the like), so a Menkar started from inside Claude Code starts clean sessions it can wake; the user's configuration (`CLAUDE_CONFIG_DIR`, `ANTHROPIC_*`) is passed as it was (the human, 2026-11-12) | 2026-11-12 | this row (until delivered) |
+
+> Left §1 on 2026-11-12: 1.76's removal delivered.
+| 1.76 | Amends 1.50 and 1.54 (the human, 2026-11-12): a group is only a visual way to gather sessions; **the leader mark per group goes** (the ★, its menu entries, `leader` in `projects.json`, read leniently and dropped). Roles belong to the orchestration mode, per session, not to groups: experts in an area, consultants, troubleshooting, documentation — to be designed with that mode | 2026-11-12 | this row (until the removal is delivered) |

@@ -10,11 +10,10 @@ import { group, project, projects } from '../../factories/projects'
 
 describe('earlier conversations', () => {
   // Decision 1.66: a transcript moved to the trash or deleted leaves projects.json whole.
-  test('a removed session leaves its project, group, leader mark, hidden list and earlier conversations', () => {
-    const leads = { ...group('pair', ['now', 'x']), leader: 'now' }
+  test('a removed session leaves its project, group, hidden list and earlier conversations', () => {
     const state = projects([
       {
-        ...project('p1', 'Work', ['now', 'a', 'b', 'x'], [leads]),
+        ...project('p1', 'Work', ['now', 'a', 'b', 'x'], [group('pair', ['now', 'x'])]),
         hidden: ['now'],
         earlier: { now: ['a', 'b'] },
       },

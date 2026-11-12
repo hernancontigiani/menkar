@@ -89,17 +89,12 @@ export function parseProjects(value: unknown): Projects {
           g.color === undefined || g.color === null || g.color === ''
             ? DEFAULT_GROUP_COLOR
             : String(g.color)
-        const groupMembers = strings(g.members, 'group members').filter((m) => memberSet.has(m))
-        // Repaired, not unreadable: a leader that is not one of the group's is dropped, and the
-        // leader is put back first.
-        const leader =
-          typeof g.leader === 'string' && groupMembers.includes(g.leader) ? g.leader : undefined
+        // A group's other keys (a `leader` an earlier version wrote, say) are not read.
         return {
           name: g.name,
           color,
-          members: leader ? [leader, ...groupMembers.filter((m) => m !== leader)] : groupMembers,
+          members: strings(g.members, 'group members').filter((m) => memberSet.has(m)),
           ...(g.collapsed === true ? { collapsed: true as const } : {}),
-          ...(leader ? { leader } : {}),
         }
       })
       .filter((g) => g.members.length > 0)
@@ -142,7 +137,7 @@ export function parseProjects(value: unknown): Projects {
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
 // keys, then id, name, members, groups, and hidden, the files keys, earlier and parents when any. A group writes name, color, members,
-// then collapsed and leader only when set; a group's unknown keys are not kept.
+// then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
   windows: readonly SavedWindow[] = [],
@@ -161,7 +156,6 @@ export function serializeProjects(
         color: g.color,
         members: g.members,
         ...(g.collapsed ? { collapsed: true } : {}),
-        ...(g.leader ? { leader: g.leader } : {}),
       })),
       ...(p.hidden && p.hidden.length > 0 ? { hidden: p.hidden } : {}),
       ...(p.filesFolder ? { files_folder: p.filesFolder } : {}),

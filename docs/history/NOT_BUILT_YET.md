@@ -47,3 +47,13 @@ Menkar speaks English and Spanish, both complete (`plans/00-STATUS.md` §1 1.11)
 German, French and Hungarian from Agent Session Manager, each covering about 230 of its 370 strings;
 every new string would need three translations nobody here can check, and a stale catalog shows a mix
 of languages.
+
+## Who leads a group
+
+> Left on 2026-11-12: groups lose their leader; a group is only visual (decision 1.76).
+### Who leads a group, read by something other than the sidebar
+A group's leader (decision 1.54) is shown only in the session list: a star on its row, its name on
+the collapsed row. Nothing else reads it, so there is no API, CLI output or message that names it;
+designing one without a reader would guess its shape.
+**Trigger:** a session or a tool needs to know who leads a group (the orchestration board is the
+likely first). First question: whether it reads `projects.json` or asks the running app.

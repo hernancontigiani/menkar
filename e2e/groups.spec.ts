@@ -1,13 +1,13 @@
 // Decision 1.54: a group collapses into one row by clicking its heading, saved in projects.json;
 // the row counts what the group would list, shows the most urgent state and the fullest ring of
-// its running members, and is marked while the selected tab holds a member. A group's leader is
-// set from the row's menu, goes first, and wears a star. Nothing expands a group by itself.
+// its running members, and is marked while the selected tab holds a member. Nothing expands a
+// group by itself.
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
 import { launchApp } from './app'
-import { CLIENT, CLIENT_NAMES, type ClientKey, clientWork, SESSION } from './fixtures'
+import { CLIENT, type ClientKey, clientWork, SESSION } from './fixtures'
 
 type PageGlobals = { menkar: MenkarApi }
 
@@ -20,11 +20,6 @@ const rows = (page: Page) =>
     .evaluateAll((ns) => ns.map((n) => n.getAttribute('data-session')))
 
 const heading = (page: Page) => page.locator('#session-list .group-heading').first()
-
-async function rowMenu(page: Page, session: string, item: string) {
-  await page.locator(`.row[data-session="${session}"] .more`).click()
-  await page.locator('.menu-item', { hasText: item }).last().click()
-}
 
 // "Client work" with the group "API" of three (login, api, long) and one loose session.
 function groupsWork(
@@ -127,34 +122,6 @@ test('the collapsed row: stopped with no ring while none runs; the fullest ring 
     await act(page, { type: 'openSession', session: SESSION })
     await expect(page.locator('.tab')).toHaveCount(3)
     await expect(heading(page)).not.toHaveClass(/contains-selected/)
-  } finally {
-    await launched.close()
-  }
-})
-
-test('“Make group leader” puts the member first with a star, named on the collapsed row; “Not the group’s leader” takes the star off and keeps the order', async () => {
-  const launched = await launchApp({ prepare: (dirs) => groupsWork(dirs) })
-  const page = launched.window
-  try {
-    await expect.poll(() => rows(page)).toHaveLength(4)
-    await page.locator(`.row[data-session="${SESSION}"] .more`).click()
-    await expect(page.locator('.menu-item', { hasText: 'group leader' })).toHaveCount(0)
-    await page.keyboard.press('Escape')
-
-    await rowMenu(page, CLIENT.long, 'Make group leader')
-    await expect.poll(() => rows(page)).toEqual([CLIENT.long, CLIENT.login, CLIENT.api, SESSION])
-    await expect(page.locator('#session-list .leader-star')).toHaveCount(1)
-    await expect(page.locator(`.row[data-session="${CLIENT.long}"] .leader-star`)).toHaveAttribute(
-      'title',
-      'Group leader',
-    )
-    await heading(page).click()
-    await expect(heading(page)).toContainText(`★ ${CLIENT_NAMES.long}`)
-    await heading(page).click()
-
-    await rowMenu(page, CLIENT.long, 'Not the group’s leader')
-    await expect(page.locator('#session-list .leader-star')).toHaveCount(0)
-    await expect.poll(() => rows(page)).toEqual([CLIENT.long, CLIENT.login, CLIENT.api, SESSION])
   } finally {
     await launched.close()
   }

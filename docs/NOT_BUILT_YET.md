@@ -187,15 +187,6 @@ agent that runs in a terminal fits.
 agent: the five facts above, read from its docs, Agent Desk's code and a real session, before
 any code.
 
-### Who leads a group, read by something other than the sidebar
-
-A group's leader (decision 1.54) is shown only in the session list: a star on its row, its name on
-the collapsed row. Nothing else reads it, so there is no API, CLI output or message that names it;
-designing one without a reader would guess its shape.
-
-**Trigger:** a session or a tool needs to know who leads a group (the orchestration board is the
-likely first). First question: whether it reads `projects.json` or asks the running app.
-
 ### Waking an agent other than Claude Code
 
 Menkar wakes a parent session through Claude Code's documented cross-session messaging

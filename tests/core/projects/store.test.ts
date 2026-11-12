@@ -171,21 +171,16 @@ describe('projects.json', () => {
     })
   })
 
-  describe('a collapsed group and its leader (1.54)', () => {
+  describe('a collapsed group (1.54)', () => {
     const file = (g: Record<string, unknown>) =>
       valid({ projects: [{ id: 'a', name: 'A', members: ['a1', 'b'], groups: [g] }] })
     const written = (g: Record<string, unknown>) =>
       (serializeProjects(parseProjects(file(g))).projects as { groups: unknown[] }[])[0]?.groups[0]
 
-    test('collapsed and a leader that is a member round-trip, after the members', () => {
-      const g = { name: 'g', color: '#5ec4b6', members: ['b', 'a1'], collapsed: true, leader: 'b' }
+    test('collapsed round-trips, after the members', () => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['b', 'a1'], collapsed: true }
       expect(parseProjects(file(g)).projects[0]?.groups[0]).toEqual(g)
       expect(JSON.stringify(written(g))).toBe(JSON.stringify(g))
-    })
-
-    test('a leader written anywhere but first is read back first', () => {
-      const g = { name: 'g', color: '#5ec4b6', members: ['a1', 'b'], leader: 'b' }
-      expect(parseProjects(file(g)).projects[0]?.groups[0]?.members).toEqual(['b', 'a1'])
     })
 
     test.each([false, 'yes'])('collapsed: %j reads as expanded and is not written', (collapsed) => {
@@ -194,18 +189,17 @@ describe('projects.json', () => {
       expect(written(g)).toEqual({ name: 'g', color: '#5ec4b6', members: ['a1'] })
     })
 
-    test('a leader that is not a member of the group is dropped; the file is still read', () => {
-      const g = { name: 'g', color: '#5ec4b6', members: ['a1'], leader: 'zz' }
+    // Decision 1.76: groups have no leader any more. A file an earlier version wrote with one
+    // reads as before, its members in the order written, and the next save leaves the key out.
+    test('a `leader` an earlier version wrote is read without error and not written back', () => {
+      const g = { name: 'g', color: '#5ec4b6', members: ['a1', 'b'], leader: 'b' }
       expect(parseProjects(file(g)).projects[0]?.groups[0]).toEqual({
         name: 'g',
         color: '#5ec4b6',
-        members: ['a1'],
+        members: ['a1', 'b'],
       })
-      expect(written({ ...g, leader: 'b' })).toEqual({
-        name: 'g',
-        color: '#5ec4b6',
-        members: ['a1'],
-      })
+      expect(written(g)).toEqual({ name: 'g', color: '#5ec4b6', members: ['a1', 'b'] })
+      expect(written({ ...g, leader: 'zz' })).not.toHaveProperty('leader')
     })
 
     // The guard against rewriting every projects.json on the first save after this change.

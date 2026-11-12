@@ -35,7 +35,7 @@ function twoProjects(dirs: { readonly root: string; readonly home: string }) {
           id: CLIENT_WORK,
           name: 'Client work',
           members: [SESSION],
-          groups: [{ name: 'pair', color: '#5ec4b6', members: [SESSION], leader: SESSION }],
+          groups: [{ name: 'pair', color: '#5ec4b6', members: [SESSION] }],
         },
         {
           id: SIDE,
@@ -60,7 +60,7 @@ interface Saved {
   projects: {
     id: string
     members: string[]
-    groups: { members: string[]; leader?: string }[]
+    groups: { members: string[] }[]
     earlier?: Record<string, string[]>
   }[]
   windows: { tabs: Record<string, { panes?: string[] }[]> }[]
@@ -90,13 +90,13 @@ async function openAndType(word: string) {
 
 const dot = (page: Page, session: string) => page.locator(`.row[data-session="${session}"] .dot`)
 
-test('after /clear the tab runs the new id, which takes the old one’s place in its project and group, leader mark and Remote Control too; the old one is its earlier conversation, opened again from its menu', async () => {
+test('after /clear the tab runs the new id, which takes the old one’s place in its project and group and Remote Control too; the old one is its earlier conversation, opened again from its menu', async () => {
   const { launched, page, saved, remote } = await openAndType('CLEAR')
   try {
     await expect(page.locator('.xterm-rows')).toContainText('stand-in cleared')
     await expect.poll(() => saved().projects[0]?.members).toEqual([CLEARED_SESSION, SESSION])
     expect(saved().projects[0]?.groups).toEqual([
-      { name: 'pair', color: '#5ec4b6', members: [CLEARED_SESSION], leader: CLEARED_SESSION },
+      { name: 'pair', color: '#5ec4b6', members: [CLEARED_SESSION] },
     ])
     expect(saved().windows[0]?.tabs[CLIENT_WORK]?.map((t) => t.panes)).toEqual([[CLEARED_SESSION]])
     expect(saved().projects[0]?.earlier).toEqual({ [CLEARED_SESSION]: [SESSION] })

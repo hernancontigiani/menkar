@@ -95,7 +95,6 @@ export type Action =
       readonly group: { readonly name: string; readonly color: string } | null
     }
   | { readonly type: 'newGroup'; readonly session: string; readonly name: string }
-  | { readonly type: 'setLeader'; readonly session: string; readonly leader: boolean }
   // The shown project's files folder (decision 1.51). Without paths, bringing in opens the
   // system's file chooser; with them (from newestIncoming), each must be where shared files arrive.
   | { readonly type: 'bringFiles'; readonly paths?: readonly string[] }

@@ -420,7 +420,6 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     children.push(
       groupHeading(project.id, group, {
         count: members.length,
-        leaderName: group.leader ? (byId.get(group.leader)?.name ?? null) : null,
         state: groupState(runningMembers.map(runningState)) ?? 'stopped',
         reading: readings.sort((a, b) => b.percentage - a.percentage)[0] ?? null,
         holdsSelected: group.members.some((id) => selected.has(id)),
@@ -457,7 +456,6 @@ type GroupView = ProjectInfo['groups'][number]
 
 interface Collapsed {
   readonly count: number
-  readonly leaderName: string | null
   readonly state: DotState
   readonly reading: Reading | null
   readonly holdsSelected: boolean
@@ -489,10 +487,6 @@ function groupHeading(project: string, group: GroupView, collapsed: Collapsed | 
     )
     name.style.color = group.color
     node.append(name)
-    if (collapsed.leaderName)
-      node.append(
-        el('span', { class: 'group-leader' }, t('groups.leaderOn', { name: collapsed.leaderName })),
-      )
     node.append(el('span', { class: 'group-fill' }), stateDot(collapsed.state))
     const ringNode = ring(collapsed.reading)
     if (ringNode) node.append(ringNode)
@@ -671,7 +665,6 @@ function row(
   section: string,
 ): HTMLElement {
   const dot = stateDot(sessionState(info.id))
-  const leads = project.groups.some((g) => g.name === section && g.leader === info.id)
   const phone = phoneIcon(info.id)
   if (phone) queueMicrotask(() => dot.after(phone))
   const more = el(
@@ -690,14 +683,7 @@ function row(
     el(
       'div',
       { class: 'text' },
-      leads
-        ? el(
-            'div',
-            { class: 'name' },
-            el('span', { class: 'name-text' }, info.name),
-            el('span', { class: 'leader-star', title: t('row.leaderStar') }, '★'),
-          )
-        : el('div', { class: 'name' }, info.name),
+      el('div', { class: 'name' }, info.name),
       showFolder ? el('div', { class: 'folder dim' }, folderOf(info)) : null,
     ),
     more,
@@ -787,14 +773,6 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       { label: t('row.newGroup'), run: () => void newGroupDialog(info.id) },
     ],
   })
-  const group = project.groups.find((g) => g.members.includes(info.id))
-  if (group) {
-    const leads = group.leader === info.id
-    entries.push({
-      label: leads ? t('row.notLeader') : t('row.makeLeader'),
-      run: () => void act({ type: 'setLeader', session: info.id, leader: !leads }),
-    })
-  }
   entries.push('separator')
   entries.push({ label: t('row.rename'), run: () => void renameSessionDialog(info) })
   if (info.agent === 'claude')

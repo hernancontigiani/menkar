@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
   addMember,
-  clearLeader,
   createProject,
   deleteProject,
   freshProjects,
@@ -15,7 +14,6 @@ import {
   renameProject,
   setCollapsed,
   setGroup,
-  setLeader,
 } from '../../../src/core/projects/model'
 import { group, project, projects } from '../../factories/projects'
 
@@ -237,58 +235,16 @@ describe('dragging a row (2026-11-10)', () => {
   })
 })
 
-describe('a group leader and a collapsed group (1.54)', () => {
-  const state = (leader?: string) =>
+describe('a collapsed group (1.54)', () => {
+  const state = () =>
     projects([
-      project(
-        'p',
-        'P',
-        ['a', 'b', 'c', 'x'],
-        [{ ...group('g', ['a', 'b', 'c']), ...(leader ? { leader } : {}) }, group('other', ['x'])],
-      ),
+      project('p', 'P', ['a', 'b', 'c', 'x'], [group('g', ['a', 'b', 'c']), group('other', ['x'])]),
       project('q', 'Q'),
     ])
   const g = (after: ReturnType<typeof state>) =>
     after.projects[0]?.groups.find((each) => each.name === 'g')
 
-  test('making a member leader puts it first; another replaces it; clearing keeps the order', () => {
-    const c = setLeader(state(), 'c')
-    expect(g(c)).toMatchObject({ leader: 'c', members: ['c', 'a', 'b'] })
-    const a = setLeader(c, 'a')
-    expect(g(a)).toMatchObject({ leader: 'a', members: ['a', 'c', 'b'] })
-    const cleared = clearLeader(a, 'a')
-    expect(g(cleared)).not.toHaveProperty('leader')
-    expect(g(cleared)?.members).toEqual(['a', 'c', 'b'])
-  })
-
-  test('a session in "No group" or in no project cannot lead', () => {
-    const loose = projects([project('p', 'P', ['a', 'n'], [group('g', ['a'])])])
-    expect(setLeader(loose, 'n')).toBe(loose)
-    expect(setLeader(loose, 'nowhere')).toBe(loose)
-  })
-
-  test('the leader stays first when rows are dragged', () => {
-    expect(moveMember(state('a'), 'a', 'c', 'after')).toEqual(state('a'))
-    expect(g(moveMember(state('a'), 'c', 'a', 'before'))?.members).toEqual(['a', 'c', 'b'])
-  })
-
-  test.each<[string, (s: ReturnType<typeof state>) => ReturnType<typeof state>]>([
-    ['moved to No group', (s) => setGroup(s, 'p', 'b', null)],
-    ['moved to another group', (s) => setGroup(s, 'p', 'b', { name: 'other', color: '#5ec4b6' })],
-    ['moved to a new group', (s) => ok(newGroup(s, 'p', 'b', 'fresh')).projects],
-    ['removed from the project', (s) => removeMember(s, 'b')],
-    ['moved to another project', (s) => addMember(s, 'q', 'b')],
-  ])('the leader %s leaves its group without a leader', (_, change) => {
-    const before = setLeader(state(), 'b')
-    expect(g(before)?.leader).toBe('b')
-    const after = g(change(before))
-    expect(after).not.toHaveProperty('leader')
-    expect(after?.members).not.toContain('b')
-  })
-
-  test("picking a session's own group again changes nothing: it keeps its place and its lead", () => {
-    const led = setLeader(state(), 'b')
-    expect(setGroup(led, 'p', 'b', { name: 'g', color: '#5ec4b6' })).toBe(led)
+  test("picking a session's own group again changes nothing: it keeps its place", () => {
     const plain = state()
     expect(setGroup(plain, 'p', 'a', { name: 'g', color: '#5ec4b6' })).toBe(plain)
   })

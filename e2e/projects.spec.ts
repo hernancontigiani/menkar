@@ -73,7 +73,7 @@ async function rowMenu(page: Page, session: string, ...path: string[]) {
       .click()
 }
 
-// The whole label, or "Group" would also match "Make group leader".
+// The whole label: a short one such as "Group" would also match any longer label holding it.
 const exactly = (label: string) =>
   new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( ▸)?$`)
 
