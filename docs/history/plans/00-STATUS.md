@@ -642,3 +642,6 @@ Executed by `b1` on 2026-11-12, blocks 1–5 in order, `npm run ci` green after 
 
 > Left on 2026-11-13: 1.107 built.
 | 1.107 | Four profiles in the orchestration mode (the human, 2026-11-13): the **orchestrator**; an **expert**, a worker under the orchestrator that always implements one part of the system, with its skill (e.g. the session that runs releases); a **generalist worker**, under the orchestrator, in its repository; a **consultant**, always loose, answering anyone (the human, the orchestrator, another session) and not executing for the orchestrator. No new mark: a loose session with a role label is a consultant, a session under the orchestrator with a label an expert, without one a generalist. The sidebar's "Experts and consultants" becomes "Consultants"; experts show nested under the orchestrator with their label. Not built yet | 2026-11-13 | this row (until built) |
+
+> Left on 2026-11-13: 1.108 built.
+| 1.108 | Menkar remembers the model a session was started with (`models` in `state.json`, like `remote_control`) and passes it again with `--model` when the session renews; it follows a `/clear`, a resume and a reused name. `--model` sets the session's model only and never the user's default, unlike `/model`, which only the human can type (the human, 2026-11-13, topic 17). Not built yet | 2026-11-13 | this row (until built) |

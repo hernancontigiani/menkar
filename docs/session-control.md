@@ -35,8 +35,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     caller becomes its parent.
     - **`model`** (decision 1.106, 2026-11-12) is passed as it is, `claude --model <model>`, so the
       orchestrator picks it per task. It becomes a command-line argument: anything but one word
-      not starting with `-` is refused (`readModel`, `src/core/control/model.ts`). Only the start
-      carries it; a later resume runs with Claude Code's own record of the session.
+      not starting with `-` is refused (`readModel`, `src/core/control/model.ts`). Menkar keeps it
+      for the session (decision 1.108, below, at Renewing); a resume runs with Claude Code's own
+      record of the session. `--model` is "Model for the current session" (`claude --help`,
+      2.1.323): it never changes the user's default, which only `/model` does.
+    - Over a reused name, the namesake's model follows to the new session, as after a renew; a
+      `model` given wins.
     - A name another session of the project already uses in a tab is refused, and so is a group
       the project does not have.
     - The session starts in the caller's folder.
@@ -105,10 +109,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   1. The renew is noted.
   2. At the turn's end, from the Stop hook's record whose session id is the pane's, the tab is
      re-keyed to a new id first. This is `followClear`, the same function a followed `/clear` runs:
-     project place, group, hidden flag, parents, Remote Control, and the old id as an
+     project place, group, hidden flag, parents, Remote Control, mute, model, and the old id as an
      earlier conversation.
   3. The pane is hung up. Its exit leaves the tab in place.
-  4. The new session starts in that tab.
+  4. The new session starts in that tab, with `--model` when the old one was started with one
+     (decision 1.108, 2026-11-13): `models` in `state.json` (`src/core/models.ts`, see
+     `docs/sessions.md`), read before the re-key.
 
   Starting it first would race its own SessionStart record. When no record comes within
   `RENEW_FALLBACK_MS`, the pane's shown state turning idle or done stands in.

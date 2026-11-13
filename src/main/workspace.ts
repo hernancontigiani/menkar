@@ -27,6 +27,7 @@ import { terminalPathExists } from '../core/files/exists'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
+import { followModel, modelOf, setModel } from '../core/models'
 import { followMuted, mutedList, setMuted } from '../core/mute'
 import { adopt } from '../core/orchestration/adopt'
 import { mayStart } from '../core/orchestration/mayStart'
@@ -1220,6 +1221,7 @@ async function renew(paneId: string): Promise<void> {
   const from = request.sessionId
   const info = sessionInfo(from)
   const to = randomUUID()
+  const model = modelOf(await sessions.currentState(), from)
   if (!followClear(pane, from, to)) {
     log.warn('a session was not renewed: it is in no project', { session: from })
     return
@@ -1237,7 +1239,7 @@ async function renew(paneId: string): Promise<void> {
     const remote = remoteIds.has(to) ? remoteName(name ?? '', pane.cwd, to) : undefined
     await startPane(tabId, {
       agent: 'claude',
-      start: { kind: 'new', id: to, ...(name ? { name } : {}) },
+      start: { kind: 'new', id: to, ...(name ? { name } : {}), ...(model ? { model } : {}) },
       cwd: pane.cwd,
       sessionId: to,
       ...(remote ? { remote } : {}),
@@ -1310,7 +1312,12 @@ async function startForAgent(
     .filter((s) => sessionName(s) === name && !inSomeTab(s))
     .sort((a, b) => (sessionInfo(b)?.mtimeMs ?? 0) - (sessionInfo(a)?.mtimeMs ?? 0))
   const tookOver = takeOverName(projects, namesakes, id)
-  if (tookOver !== projects && namesakes[0]) followMute(namesakes[0], id)
+  if (tookOver !== projects && namesakes[0]) {
+    followMute(namesakes[0], id)
+    await followSessionModel(namesakes[0], id)
+  }
+  const chosen = model.model
+  if (chosen) await sessions.updateState((state) => setModel(state, id, chosen))
   const joined = tookOver === projects ? addMember(projects, projectId, id) : tookOver
   projects = setParent(joined, id, callerId)
   if (group) projects = setGroup(projects, projectId, id, { name: group.name, color: group.color })
@@ -1486,6 +1493,7 @@ export function followPaneStart(
   projects = followResume(projects, from, sessionId, tab.project)
   layout = followNewIdInLayout(layout, from, sessionId)
   followMute(from, sessionId)
+  void followSessionModel(from, sessionId)
   pane.sessionId = sessionId
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
@@ -1512,8 +1520,18 @@ function followClear(pane: Pane, from: string, to: string): boolean {
       )
   }
   followMute(from, to)
+  void followSessionModel(from, to)
   changed({ projects: true })
   return true
+}
+
+async function followSessionModel(from: string, to: string): Promise<void> {
+  try {
+    if (modelOf(await sessions.currentState(), from) === undefined) return
+    await sessions.updateState((state) => followModel(state, from, to))
+  } catch (error) {
+    log.error('a model did not follow a session’s new id', { from, to, error })
+  }
 }
 
 function followMute(from: string, to: string): void {

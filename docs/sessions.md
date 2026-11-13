@@ -98,6 +98,10 @@ the new id, and so does the saved tab.
   `state.json` is a sorted list of ids, as `remote_control` is, and the new id takes the old one's
   place after a clear, a renew, an in-session resume and a reused name. Unlike Remote Control, a
   resume moves it too.
+- **A session's model follows every new id the same way** (`followModel`, `src/core/models.ts`,
+  decision 1.108, 2026-11-13): `models` in `state.json` maps a session id to the model
+  `start_session` started it with, read leniently (a value that is not a non-empty string is
+  dropped). A renew passes it again as `--model`. A session started without one has no entry.
 
 ## Menkar's `state.json`
 

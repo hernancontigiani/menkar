@@ -58,3 +58,10 @@ and the wake order.
   - **`start_session { name, prompt? | prompt_file?, remote_control?, group? }`:** a new Claude
     session in the caller's project, in a tab right after the caller's, not selected. The caller
     becomes its parent.
+
+> Left on 2026-11-13: Menkar keeps a session's model and passes it again on a renew (decision 1.108).
+      not starting with `-` is refused (`readModel`, `src/core/control/model.ts`). Only the start
+      carries it; a later resume runs with Claude Code's own record of the session.
+  4. The new session starts in that tab.
+     project place, group, hidden flag, parents, Remote Control, and the old id as an
+     earlier conversation.
