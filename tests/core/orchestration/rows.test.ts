@@ -17,10 +17,12 @@ const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
     on: true,
     orchestrator: 'O',
     roles: { E: 'Fabric expert' },
-    priority: [],
     withYou: [],
   },
   topicsCollapsed: false,
+  teamView: false,
+  consultantsCollapsed: false,
+  doneTodayOpen: false,
   ...over,
 })
 
@@ -86,7 +88,6 @@ describe('the sidebar in the orchestration mode', () => {
         on: true,
         orchestrator: 'O',
         roles: { O: 'Lead', W1: 'Docs', E: 'Fabric expert' },
-        priority: [],
         withYou: [],
       },
     })
@@ -103,7 +104,7 @@ describe('the sidebar in the orchestration mode', () => {
     const p = info({
       groups: [{ name: 'G', color: '#5ec4b6', members: ['G1', 'G2'], collapsed: true }],
       parents: {},
-      orchestration: { on: true, orchestrator: null, roles: {}, priority: [], withYou: [] },
+      orchestration: { on: true, orchestrator: null, roles: {}, withYou: [] },
     })
     expect(short(modeRows(p, view()))).toEqual([
       'heading others',

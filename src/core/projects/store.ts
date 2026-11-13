@@ -73,6 +73,9 @@ export function parseProjects(value: unknown): Projects {
       parents,
       orchestration,
       topics_collapsed,
+      team_view,
+      consultants_collapsed,
+      done_today_open,
       ...projectRest
     } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
@@ -129,6 +132,9 @@ export function parseProjects(value: unknown): Projects {
       ...withParents,
       ...(marks ? { orchestration: marks } : {}),
       ...(topics_collapsed === true ? { topicsCollapsed: true as const } : {}),
+      ...(team_view === true ? { teamView: true as const } : {}),
+      ...(consultants_collapsed === true ? { consultantsCollapsed: true as const } : {}),
+      ...(done_today_open === true ? { doneTodayOpen: true as const } : {}),
     }
   })
   const first = parsed[0]
@@ -145,7 +151,7 @@ export function parseProjects(value: unknown): Projects {
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
 // keys, then id, name, members, groups, and hidden, the files keys, earlier, parents, orchestration
-// and topics_collapsed when any. A group writes name, color, members,
+// and topics_collapsed, team_view, consultants_collapsed and done_today_open when any. A group writes name, color, members,
 // then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
@@ -182,6 +188,9 @@ function orchestrationKeys(p: Project): Record<string, unknown> {
   return {
     ...(marks ? { orchestration: marks } : {}),
     ...(p.topicsCollapsed ? { topics_collapsed: true } : {}),
+    ...(p.teamView ? { team_view: true } : {}),
+    ...(p.consultantsCollapsed ? { consultants_collapsed: true } : {}),
+    ...(p.doneTodayOpen ? { done_today_open: true } : {}),
   }
 }
 

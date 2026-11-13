@@ -34,6 +34,21 @@ import { mayStart } from '../core/orchestration/mayStart'
 import { readOnly } from '../core/orchestration/readonly'
 import { placeStarted, readPlacement } from '../core/orchestration/started'
 import {
+  closedOn,
+  currentTask,
+  doneToday,
+  followTasks,
+  onStarredTask,
+  openTasks,
+  setTaskStar,
+  starredTasks,
+  type Task,
+  type TaskTool,
+  tasksOf,
+  taskTool,
+} from '../core/orchestration/tasks'
+import {
+  closedTopicsToday,
   markSeen,
   shownTopics,
   type Topics,
@@ -47,6 +62,7 @@ import { agentPaths } from '../core/paths'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
   bringProject,
+  closeBoards,
   closeTab as closeLayoutTab,
   holder,
   insertTabAfter,
@@ -57,6 +73,7 @@ import {
   newWindowProject,
   nthTab,
   openBeside,
+  openBoard,
   openSession,
   removeWindow,
   reopen,
@@ -90,10 +107,12 @@ import {
 import {
   orchestrationInfo,
   sessionMarks,
+  setConsultantsCollapsed,
+  setDoneTodayOpen,
   setMode,
   setOrchestrator,
-  setPriority,
   setRole,
+  setTeamView,
   setTopicsCollapsed,
   setWithYou,
 } from '../core/projects/orchestration'
@@ -122,9 +141,12 @@ import { setAppName } from '../core/state'
 import type {
   Action,
   ActionResult,
+  DoneView,
   PaneAgent,
   TabEntry,
   TabView,
+  TasksView,
+  TaskView,
   TopicView,
   WindowState,
 } from '../shared/workspace'
@@ -171,6 +193,7 @@ import {
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
 import { sessions } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
+import { currentTasks, setTasks } from './tasks'
 import { appMessage, Terminal } from './terminal'
 import { currentTopics, setTopics, topicsNow } from './topics'
 import { sessionTokens } from './usage'
@@ -302,6 +325,7 @@ function tabView(tab: Tab): TabView {
     title = tab.preview ? t('files.previewTitle', { name }) : name
     tooltip = tab.path
   }
+  if (tab.kind === 'board') title = t('board.tab')
   if (tab.kind === 'session') {
     if (!label) title = tab.panes.map(sessionName).join(' │ ')
     const first = tab.panes[0]
@@ -454,6 +478,9 @@ function stateFor(windowId: string): WindowState | undefined {
       parents: keptParents(p),
       orchestration: orchestrationInfo(p),
       topicsCollapsed: p.topicsCollapsed === true,
+      teamView: p.teamView === true,
+      consultantsCollapsed: p.consultantsCollapsed === true,
+      doneTodayOpen: p.doneTodayOpen === true,
     })),
     heldElsewhere,
     tabs: w.tabs.map(tabView),
@@ -477,6 +504,8 @@ function stateFor(windowId: string): WindowState | undefined {
       collapsed: projects.projects.find((p) => p.id === w.shown)?.filesCollapsed === true,
     },
     topics: topicViews(w.shown),
+    tasks: tasksView(w.shown),
+    doneToday: doneTodayView(w.shown),
     guidePath: join(skillsPluginDir(), 'guide', 'orchestration-mode.md'),
   }
 }
@@ -484,8 +513,8 @@ function stateFor(windowId: string): WindowState | undefined {
 function topicViews(projectId: string): TopicView[] {
   const project = projects.projects.find((p) => p.id === projectId)
   if (!project) return []
-  const priority = new Set(project.orchestration?.priority ?? [])
-  return shownTopics(project, topicsOf(currentTopics(), projectId)).flatMap((x) =>
+  const starred = starredTasks(tasksOf(currentTasks(), projectId))
+  return shownTopics(starred, topicsOf(currentTopics(), projectId)).flatMap((x) =>
     x.status === 'closed'
       ? []
       : [
@@ -496,10 +525,57 @@ function topicViews(projectId: string): TopicView[] {
             from: sessionName(x.from),
             blocking: x.blocking,
             status: x.status,
-            priority: priority.has(x.from),
+            star: x.task !== undefined && starred.has(x.task),
           },
         ],
   )
+}
+
+function doneTodayView(projectId: string): DoneView[] {
+  const at = now()
+  const topics = closedTopicsToday(topicsOf(currentTopics(), projectId), at).map((x) => ({
+    kind: 'topic' as const,
+    number: x.number,
+    title: x.title,
+    at: Date.parse(x.updated),
+  }))
+  const tasks = doneToday(tasksOf(currentTasks(), projectId), at).map((x) => ({
+    kind: 'task' as const,
+    number: x.number,
+    title: x.title,
+    at: Date.parse(x.closed ?? ''),
+  }))
+  return [...topics, ...tasks]
+    .sort((a, b) => b.at - a.at)
+    .map(({ kind, number, title }) => ({ kind, number, title }))
+}
+
+function tasksView(projectId: string): TasksView {
+  const list = tasksOf(currentTasks(), projectId)
+  const view = (x: Task): TaskView => ({
+    number: x.number,
+    title: x.title,
+    assignee: x.assignee,
+    assigneeName: sessionName(x.assignee),
+    star: x.star,
+    state: x.state,
+    steps: x.steps,
+    step: x.step,
+    note: x.note,
+    ...(x.waitingOn !== undefined ? { waitingOn: x.waitingOn } : {}),
+  })
+  const closed = closedOn(list, now())
+  const current: Record<string, number> = {}
+  for (const id of new Set(list.map((x) => x.assignee))) {
+    const task = currentTask(list, id)
+    if (task) current[id] = task.number
+  }
+  return {
+    open: openTasks(list).map(view),
+    closedToday: closed.today.map(view),
+    closedBefore: closed.before.map(view),
+    current,
+  }
 }
 
 const filled = (window: BrowserWindow | undefined) =>
@@ -1049,18 +1125,51 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return topicFor(request.tool, project, sessionId, request.args)
     case 'adopt_session':
       return adoptFor(project.id, sessionId, request.args.name)
+    case 'task_add':
+    case 'task_steps':
+    case 'task_progress':
+    case 'task_review':
+    case 'task_close':
+    case 'task_list':
+      return taskFor(request.tool, project, sessionId, request.args)
   }
 }
 
-function adoptFor(projectId: string, caller: string, named: unknown): ControlAnswer {
-  if (typeof named !== 'string' || !named.trim()) return refuse('Name the session to adopt.')
-  const list = projectSessions(projectId).map((id) => ({
+function sessionsForNames(projectId: string) {
+  return projectSessions(projectId).map((id) => ({
     id,
     name: sessionName(id),
     hasTab: inSomeTab(id),
     mtimeMs: sessionInfo(id)?.mtimeMs ?? 0,
   }))
-  const found = sessionOfProject(named.trim(), list)
+}
+
+function taskFor(
+  tool: TaskTool,
+  project: Project,
+  sessionId: string,
+  args: Readonly<Record<string, unknown>>,
+): ControlAnswer {
+  const o = orchestrationInfo(project)
+  const result = taskTool(tool, args, {
+    tasks: currentTasks(),
+    projectId: project.id,
+    caller: sessionId,
+    orchestrator: o.on ? o.orchestrator : null,
+    nameOf: sessionName,
+    idOf: (name) => sessionOfProject(name, sessionsForNames(project.id)),
+    at: topicsNow(),
+  })
+  if (result.tasks) {
+    setTasks(result.tasks)
+    changed()
+  }
+  return { ok: result.ok, text: result.text }
+}
+
+function adoptFor(projectId: string, caller: string, named: unknown): ControlAnswer {
+  if (typeof named !== 'string' || !named.trim()) return refuse('Name the session to adopt.')
+  const found = sessionOfProject(named.trim(), sessionsForNames(projectId))
   if ('refusal' in found) return refuse(found.refusal)
   const result = adopt(projects, caller, found.id)
   if ('refusal' in result) return refuse(result.refusal)
@@ -1072,10 +1181,7 @@ function adoptFor(projectId: string, caller: string, named: unknown): ControlAns
   }
 }
 
-type MarkAction = Extract<
-  Action,
-  { type: 'setOrchestrator' | 'setRole' | 'setPriority' | 'setWithYou' }
->
+type MarkAction = Extract<Action, { type: 'setOrchestrator' | 'setRole' | 'setWithYou' }>
 
 function marked(state: Projects, projectId: string, action: MarkAction): Projects {
   switch (action.type) {
@@ -1087,8 +1193,6 @@ function marked(state: Projects, projectId: string, action: MarkAction): Project
     }
     case 'setRole':
       return setRole(state, projectId, action.session, action.label)
-    case 'setPriority':
-      return setPriority(state, projectId, action.session, action.on)
     case 'setWithYou':
       return setWithYou(state, projectId, action.session, action.on)
   }
@@ -1105,7 +1209,8 @@ function topicFor(
     topics: before,
     projectId: project.id,
     caller: sessionId,
-    priority: orchestrationInfo(project).priority,
+    tasks: tasksOf(currentTasks(), project.id).map((x) => x.number),
+    starred: [...starredTasks(tasksOf(currentTasks(), project.id))],
     nameOf: sessionName,
     at: topicsNow(),
   })
@@ -1317,6 +1422,7 @@ async function startForAgent(
   const tookOver = takeOverName(projects, namesakes, id)
   if (tookOver !== projects && namesakes[0]) {
     followMute(namesakes[0], id)
+    followTaskAssignee(namesakes[0], id)
     await followSessionModel(namesakes[0], id)
   }
   const chosen = model.model
@@ -1397,7 +1503,7 @@ function snapshotOf(projectId: string): Snapshot {
     sessions: projectSessions(projectId).map((id) => {
       const parent = parents[id]
       return {
-        ...(p ? sessionMarks(p, id) : {}),
+        ...(p ? sessionMarks(p, id, onStarredTask(tasksOf(currentTasks(), p.id), id)) : {}),
         name: sessionName(id),
         id,
         state: states.get(id) ?? null,
@@ -1432,7 +1538,7 @@ const wakes = new WakeBatcher(
   },
   (child) => {
     const p = projectOf(projects, child)
-    return p ? sessionMarks(p, child).priority : false
+    return p ? onStarredTask(tasksOf(currentTasks(), p.id), child) : false
   },
 )
 
@@ -1498,6 +1604,7 @@ export function followPaneStart(
   projects = followResume(projects, from, sessionId, tab.project)
   layout = followNewIdInLayout(layout, from, sessionId)
   followMute(from, sessionId)
+  followTaskAssignee(from, sessionId)
   void followSessionModel(from, sessionId)
   pane.sessionId = sessionId
   tabLabels.delete(pane.tabId)
@@ -1525,6 +1632,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
       )
   }
   followMute(from, to)
+  followTaskAssignee(from, to)
   void followSessionModel(from, to)
   changed({ projects: true })
   return true
@@ -1537,6 +1645,11 @@ async function followSessionModel(from: string, to: string): Promise<void> {
   } catch (error) {
     log.error('a model did not follow a session’s new id', { from, to, error })
   }
+}
+
+function followTaskAssignee(from: string, to: string): void {
+  const next = followTasks(currentTasks(), from, to)
+  if (next !== currentTasks()) setTasks(next)
 }
 
 function followMute(from: string, to: string): void {
@@ -2219,11 +2332,19 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'setOrchestrationMode':
       projects = setMode(projects, action.project, action.on)
+      if (!action.on) layout = closeBoards(layout, action.project)
       changed({ projects: true })
       return {}
+    case 'setTaskStar': {
+      const next = setTaskStar(currentTasks(), w.shown, action.number, action.on, topicsNow())
+      if (next) {
+        setTasks(next)
+        changed()
+      }
+      return {}
+    }
     case 'setOrchestrator':
     case 'setRole':
-    case 'setPriority':
     case 'setWithYou': {
       const project = projectOf(projects, action.session)
       if (!project) return {}
@@ -2268,6 +2389,27 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'showTopic':
       showTopic(action.project, action.number)
       return {}
+    case 'setTeamView':
+      projects = setTeamView(projects, w.shown, action.team)
+      changed({ projects: true })
+      return {}
+    case 'setConsultantsCollapsed':
+      projects = setConsultantsCollapsed(projects, w.shown, action.collapsed)
+      changed({ projects: true })
+      return {}
+    case 'setDoneTodayOpen':
+      projects = setDoneTodayOpen(projects, w.shown, action.open)
+      changed({ projects: true })
+      return {}
+    case 'openBoard':
+      layout = openBoard(layout, windowId, newId)
+      changed()
+      return {}
+    case 'selectSessionTab': {
+      const pane = paneOfSession(action.session)
+      if (pane) revealPane(pane.id)
+      return {}
+    }
     case 'setTopicsCollapsed':
       projects = setTopicsCollapsed(projects, w.shown, action.collapsed)
       changed({ projects: true })

@@ -17,11 +17,11 @@ interface Saved {
     groups: { name: string; members: string[] }[]
     earlier?: Record<string, string[]>
     parents?: Record<string, string>
-    orchestration?: { roles?: Record<string, string>; priority?: string[] }
+    orchestration?: { roles?: Record<string, string> }
   }[]
 }
 
-// A stopped session called "worker", with a role and the ★, in the orchestration mode with "api"
+// A stopped session called "worker", with a role and a ★ task, in the orchestration mode with "api"
 // its orchestrator (decision 1.92).
 const OLD_WORKER = '0b1d0b1d-0000-4000-8000-000000000001'
 
@@ -83,8 +83,8 @@ async function open(options: { stoppedWorker?: boolean } = {}) {
                       on: true,
                       orchestrator: SESSION,
                       roles: { [OLD_WORKER]: 'Worker' },
-                      priority: [OLD_WORKER],
                     },
+                    team_view: true,
                   }
                 : {}),
             },
@@ -103,6 +103,32 @@ async function open(options: { stoppedWorker?: boolean } = {}) {
           peerProtocol: 1,
         }),
       )
+      if (options.stoppedWorker)
+        writeFileSync(
+          join(dirs.root, 'config', 'menkar', 'tasks.json'),
+          JSON.stringify({
+            version: 1,
+            projects: {
+              [CLIENT_WORK]: {
+                next: 2,
+                tasks: [
+                  {
+                    number: 1,
+                    title: 'An earlier task',
+                    assignee: OLD_WORKER,
+                    star: true,
+                    state: 'queued',
+                    steps: [],
+                    step: 0,
+                    note: '',
+                    created: '2026-11-13T10:00:00.000-03:00',
+                    updated: '2026-11-13T10:00:00.000-03:00',
+                  },
+                ],
+              },
+            },
+          }),
+        )
       const state = join(dirs.root, 'config', 'menkar', 'state.json')
       writeFileSync(
         state,
@@ -123,7 +149,13 @@ async function open(options: { stoppedWorker?: boolean } = {}) {
       ? readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n')
       : []
   const remote = (): unknown => savedState(root).remote_control
-  return { launched, page, saved, argLines, remote, root }
+  const tasksSaved = (): {
+    projects: Record<string, { tasks: { assignee: string }[] } | undefined>
+  } =>
+    existsSync(join(root, 'config', 'menkar', 'tasks.json'))
+      ? JSON.parse(readFileSync(join(root, 'config', 'menkar', 'tasks.json'), 'utf8'))
+      : { projects: {} }
+  return { launched, page, saved, argLines, remote, root, tasksSaved }
 }
 
 const said = (page: Page, text: string) =>
@@ -187,8 +219,8 @@ test('start_session opens the new session right after the caller’s tab without
   }
 })
 
-test('decision 1.92: start_session with the name of a stopped session takes it over, as after a renew: one "worker" row with its role and ★, the caller its parent, the old one its earlier conversation', async () => {
-  const { launched, page, saved, argLines } = await open({ stoppedWorker: true })
+test('decision 1.92: start_session with the name of a stopped session takes it over, as after a renew: one "worker" row with its role and its tasks, the caller its parent, the old one its earlier conversation', async () => {
+  const { launched, page, saved, argLines, tasksSaved } = await open({ stoppedWorker: true })
   try {
     await expect(page.locator(`.row[data-session="${OLD_WORKER}"]`)).toHaveCount(1)
     await page.keyboard.type('SPAWN1')
@@ -200,7 +232,8 @@ test('decision 1.92: start_session with the name of a stopped session takes it o
     expect(p?.members).toEqual([SESSION, worker, OLD_WORKER])
     expect(p?.parents).toEqual({ [worker]: SESSION })
     expect(p?.orchestration?.roles).toEqual({ [worker]: 'Worker' })
-    expect(p?.orchestration?.priority).toEqual([worker])
+    // Decision 1.114: the ★ is the task's, and the task follows the session to its new id.
+    await expect.poll(() => tasksSaved().projects[CLIENT_WORK]?.tasks[0]?.assignee).toBe(worker)
     await expect(page.locator(`.row[data-session="${worker}"]`)).toHaveCount(1)
     await expect(page.locator(`.row[data-session="${OLD_WORKER}"]`)).toHaveCount(0)
   } finally {

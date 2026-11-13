@@ -252,9 +252,29 @@ describe('projects.json', () => {
         priority: ['X', 'gone', 4],
         with_you: 'X',
       })?.orchestration,
-    ).toEqual({ on: true, roles: { X: 'Docs' }, priority: ['X'] })
+    ).toEqual({ on: true, roles: { X: 'Docs' } })
     expect(read('on')?.orchestration).toBeUndefined()
     expect(read({ on: true }, { topics_collapsed: 'yes' })).not.toHaveProperty('topicsCollapsed')
+  })
+
+  // Decision 1.114: the ★ moved from sessions to tasks; a session's saved ★ is read and dropped.
+  test('session ★ dropped: orchestration.priority: [X] → not read, not written', () => {
+    const file = valid({
+      projects: [
+        {
+          id: 'a',
+          name: 'A',
+          members: ['O', 'X'],
+          groups: [],
+          orchestration: { on: true, orchestrator: 'O', priority: ['X'] },
+        },
+      ],
+    })
+    const parsed = parseProjects(file)
+    expect(parsed.projects[0]?.orchestration).toEqual({ on: true, orchestrator: 'O' })
+    const written = serializeProjects(parsed).projects as Record<string, unknown>[]
+    expect(written[0]?.orchestration).toEqual({ on: true, orchestrator: 'O' })
+    expect(JSON.stringify(serializeProjects(parsed))).not.toContain('priority')
   })
 
   test('PRJ-55 the written form: 2 spaces, non-ASCII as is, unknown keys first, then version, current, projects, windows', async () => {

@@ -4,10 +4,12 @@ import { describe, expect, test } from 'vitest'
 import { forgetSession } from '../../../src/core/projects/earlier'
 import { removeMember } from '../../../src/core/projects/model'
 import {
+  setConsultantsCollapsed,
+  setDoneTodayOpen,
   setMode,
   setOrchestrator,
-  setPriority,
   setRole,
+  setTeamView,
   setTopicsCollapsed,
   setWithYou,
 } from '../../../src/core/projects/orchestration'
@@ -23,7 +25,6 @@ const marked = () => {
   let s = setMode(work(), 'p1', true)
   s = setOrchestrator(s, 'p1', 'O')
   s = setRole(s, 'p1', 'X', 'Fabric expert')
-  s = setPriority(s, 'p1', 'X', true)
   s = setWithYou(s, 'p1', 'X', true)
   return s
 }
@@ -35,7 +36,6 @@ describe('orchestration marks', () => {
       on: false,
       orchestrator: 'O',
       roles: { X: 'Fabric expert' },
-      priority: ['X'],
       withYou: ['X'],
     })
     const written = serializeProjects(off).projects as Record<string, unknown>[]
@@ -43,7 +43,6 @@ describe('orchestration marks', () => {
       on: false,
       orchestrator: 'O',
       roles: { X: 'Fabric expert' },
-      priority: ['X'],
       with_you: ['X'],
     })
   })
@@ -60,20 +59,18 @@ describe('orchestration marks', () => {
     expect(setOrchestrator(s, 'p1', null).projects[0]?.orchestration?.orchestrator).toBeUndefined()
   })
 
-  test('an empty role removes the label; unsetting ★ and with you removes the id', () => {
+  test('an empty role removes the label; unsetting with you removes the id', () => {
     let s = setRole(marked(), 'p1', 'X', '  ')
-    s = setPriority(s, 'p1', 'X', false)
     s = setWithYou(s, 'p1', 'X', false)
     expect(s.projects[0]?.orchestration).toEqual({ on: true, orchestrator: 'O' })
   })
 
-  test('the marks follow a /clear: X → Y, Y has the role and the ★, X none', () => {
+  test('the marks follow a /clear: X → Y, Y has the role and with you, X none', () => {
     const s = followNewId(marked(), 'X', 'Y')
     expect(s.projects[0]?.orchestration).toEqual({
       on: true,
       orchestrator: 'O',
       roles: { Y: 'Fabric expert' },
-      priority: ['Y'],
       withYou: ['Y'],
     })
     expect(followNewId(marked(), 'O', 'O2').projects[0]?.orchestration?.orchestrator).toBe('O2')
@@ -83,7 +80,7 @@ describe('orchestration marks', () => {
     let s = projects([project('p1', 'Work', ['O', 'X']), project('p2', 'Other', ['R'])])
     s = setOrchestrator(s, 'p1', 'O')
     s = setRole(s, 'p1', 'X', 'Docs')
-    s = setPriority(s, 'p2', 'R', true)
+    s = setWithYou(s, 'p2', 'R', true)
     const after = followResume(s, 'X', 'R', 'p1')
     expect(after.projects[0]?.orchestration).toEqual({
       on: false,
@@ -99,6 +96,33 @@ describe('orchestration marks', () => {
       expect(s.projects[0]?.orchestration?.orchestrator).toBe('O')
     }
     expect(removeMember(marked(), 'O').projects[0]?.orchestration?.orchestrator).toBeUndefined()
+  })
+
+  // Decisions 1.112 and 1.115: Work by default, Consultants open and Done today folded by default;
+  // each choice saved per project.
+  test('the Work view: Team, Consultants folded and Done today unfolded round-trip; undone, no key is written', () => {
+    let s = setTeamView(work(), 'p1', true)
+    s = setConsultantsCollapsed(s, 'p1', true)
+    s = setDoneTodayOpen(s, 'p1', true)
+    expect(roundTrip(s).projects[0]).toMatchObject({
+      teamView: true,
+      consultantsCollapsed: true,
+      doneTodayOpen: true,
+    })
+    const written = serializeProjects(s).projects as Record<string, unknown>[]
+    expect(written[0]).toMatchObject({
+      team_view: true,
+      consultants_collapsed: true,
+      done_today_open: true,
+    })
+    s = setDoneTodayOpen(
+      setConsultantsCollapsed(setTeamView(s, 'p1', false), 'p1', false),
+      'p1',
+      false,
+    )
+    const undone = serializeProjects(s).projects as Record<string, unknown>[]
+    for (const key of ['team_view', 'consultants_collapsed', 'done_today_open'])
+      expect(undone[0]).not.toHaveProperty(key)
   })
 
   test('topics collapsed round-trips and is removed when expanded', () => {

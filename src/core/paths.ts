@@ -39,6 +39,11 @@ export function topicsPath(): string {
   return join(appDirs().config, 'topics.json')
 }
 
+// The tasks the orchestrators delegate, apart for the same reason as the topics.
+export function tasksPath(): string {
+  return join(appDirs().config, 'tasks.json')
+}
+
 export function logFile(): string {
   return join(appDirs().cache, 'menkar.log')
 }

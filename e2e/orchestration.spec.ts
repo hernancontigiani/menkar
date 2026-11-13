@@ -1,5 +1,5 @@
 // Plan 34: the orchestration mode. Switched from the header (1.91) and from the project popover
-// (1.89); the row menu's block — Orchestrator, Role…, Priority, With you — only while it is on;
+// (1.89); the row menu's block — Orchestrator, Role…, With you — only while it is on;
 // switching it off keeps every mark (1.77).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -106,16 +106,14 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
     await page.keyboard.press('Escape')
     await page.locator('#orchestration-switch').click()
     await startWithFirst(page)
+    await page.locator('#view-switch .view-team').click()
 
     items = await rowMenu(page, CLIENT.login)
     const labels = await items.allTextContents()
     const group = labels.findIndex((l) => l.startsWith('Group'))
-    expect(labels.slice(group + 1, group + 5)).toEqual([
-      'Orchestrator',
-      'Role…',
-      'Priority',
-      'With you',
-    ])
+    // Decision 1.114: the ★ belongs to tasks, so the row menu has no "Priority".
+    expect(labels.slice(group + 1, group + 4)).toEqual(['Orchestrator', 'Role…', 'With you'])
+    expect(labels).not.toContain('Priority')
     await items.filter({ hasText: /^Orchestrator$/ }).click()
     await expect.poll(async () => (await shown(page))?.orchestrator).toBe(CLIENT.login)
 
@@ -126,13 +124,11 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
     await (await rowMenu(page, CLIENT.long)).filter({ hasText: 'Role…' }).click()
     await page.locator('[role="alertdialog"] input').fill('Fabric expert')
     await page.locator('[role="alertdialog"] button', { hasText: 'Save' }).click()
-    await (await rowMenu(page, CLIENT.long)).filter({ hasText: /^Priority$/ }).click()
     await (await rowMenu(page, CLIENT.login)).filter({ hasText: /^With you$/ }).click()
     const marks = {
       on: true,
       orchestrator: CLIENT.api,
       roles: { [CLIENT.long]: 'Fabric expert' },
-      priority: [CLIENT.long],
       withYou: [CLIENT.login],
     }
     await expect.poll(() => shown(page)).toEqual(marks)
@@ -151,7 +147,6 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
       on: false,
       orchestrator: CLIENT.api,
       roles: { [CLIENT.long]: 'Fabric expert' },
-      priority: [CLIENT.long],
       with_you: [CLIENT.login],
     })
     await page.locator('#orchestration-switch').click()
@@ -243,8 +238,8 @@ test('the card: "A new session" starts a tab named as typed, marked orchestrator
   }
 })
 
-// A team: the orchestrator with two children (one with a tab, one without), an expert with the ★,
-// a plain session in a group, and three topics, one from the ★ session and one blocking.
+// A team: the orchestrator with two children (one with a tab, one without), an expert on a ★ task,
+// a plain session in a group, and three topics, one of the ★ task and one blocking.
 const TEAM = {
   orch: 'a0a0a0a0-0000-4000-8000-0000000000a1',
   w1: 'a0a0a0a0-0000-4000-8000-0000000000a2',
@@ -295,11 +290,12 @@ function team(
           members: Object.values(TEAM),
           groups: [{ name: 'writing', color: '#e0b45b', members: [TEAM.plain] }],
           parents: { [TEAM.w1]: TEAM.orch, [TEAM.w2]: TEAM.orch },
+          // The Team view, where the rows are; Work is the default (decision 1.112).
+          team_view: true,
           orchestration: {
             on: true,
             orchestrator: TEAM.orch,
             roles: { [TEAM.expert]: 'Fabric expert' },
-            priority: [TEAM.expert],
             with_you: [TEAM.plain],
           },
         },
@@ -317,12 +313,19 @@ function team(
       ],
     }),
   )
-  const topic = (number: number, title: string, from: string, blocking: boolean) => ({
+  const topic = (
+    number: number,
+    title: string,
+    from: string,
+    blocking: boolean,
+    task?: number,
+  ) => ({
     number,
     title,
     context: `What to do about ${title.toLowerCase()}.`,
     from,
     blocking,
+    ...(task ? { task } : {}),
     status: 'open',
     created: '2026-11-12T10:00:00.000-03:00',
     updated: '2026-11-12T10:00:00.000-03:00',
@@ -336,8 +339,33 @@ function team(
           next: 4,
           topics: [
             topic(1, 'Release date', TEAM.orch, false),
-            topic(2, 'Schema of the orders table', TEAM.expert, false),
+            topic(2, 'Schema of the orders table', TEAM.expert, false, 1),
             topic(3, 'Deploy key missing', TEAM.orch, true),
+          ],
+        },
+      },
+    }),
+  )
+  writeFileSync(
+    join(config, 'tasks.json'),
+    JSON.stringify({
+      version: 1,
+      projects: {
+        [TEAM_PROJECT]: {
+          next: 2,
+          tasks: [
+            {
+              number: 1,
+              title: 'Orders schema',
+              assignee: TEAM.expert,
+              star: true,
+              state: 'queued',
+              steps: [],
+              step: 0,
+              note: '',
+              created: '2026-11-12T10:00:00.000-03:00',
+              updated: '2026-11-12T10:00:00.000-03:00',
+            },
           ],
         },
       },
@@ -383,7 +411,7 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await expect(page.locator('.row', { hasText: 'notes' }).locator('.with-you')).toHaveText(
       'with you',
     )
-    // Decision 1.100: the ★ session's topic first, then the blocking one, then by number.
+    // Decisions 1.100 and 1.114: the ★ task's topic first, then the blocking one, then by number.
     await expect(page.locator('.topics-toggle')).toHaveText('Topics · 3')
     await expect(page.locator('.topic-row')).toHaveText([
       '★2Schema of the orders table',

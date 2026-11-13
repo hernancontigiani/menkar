@@ -18,7 +18,6 @@ import {
   sessionMarks,
   setMode,
   setOrchestrator,
-  setPriority,
   setRole,
   setWithYou,
 } from '../../../src/core/projects/orchestration'
@@ -60,7 +59,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools and adopt_session', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session and the six task tools', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -74,6 +73,12 @@ describe('the protocol', () => {
       'topic_close',
       'topic_list',
       'adopt_session',
+      'task_add',
+      'task_steps',
+      'task_progress',
+      'task_review',
+      'task_close',
+      'task_list',
     ])
     expect(TOOL_NAMES).toEqual(reply.result.tools.map((t) => t.name))
   })
@@ -225,11 +230,12 @@ describe('list_sessions', () => {
     expect((await serverContext('p404').call('list_sessions', {})).ok).toBe(false)
   })
 
-  test('in the orchestration mode each session carries its role, orchestrator, ★ and with you', async () => {
+  // Decision 1.114: list_sessions' priority is the ★ of the session's current task.
+  test("in the orchestration mode each session carries its role, orchestrator, its current task's ★ and with you", async () => {
     aliveNow()
     let state = projects([project('work', 'Work', ['o1', 'e1', 'w1'])])
     state = setOrchestrator(setMode(state, 'work', true), 'work', 'o1')
-    state = setPriority(setRole(state, 'work', 'e1', 'Fabric expert'), 'work', 'e1', true)
+    state = setRole(state, 'work', 'e1', 'Fabric expert')
     state = setWithYou(state, 'work', 'w1', true)
     const session = (id: string, pane: string, p = state.projects[0]) => ({
       name: id,
@@ -239,7 +245,7 @@ describe('list_sessions', () => {
       parent: null,
       tab: true,
       pane,
-      ...(p ? sessionMarks(p, id) : {}),
+      ...(p ? sessionMarks(p, id, id === 'e1') : {}),
     })
     const on = state.projects[0]
     if (!on) throw new Error('no project')

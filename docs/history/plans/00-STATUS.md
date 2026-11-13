@@ -651,3 +651,44 @@ Executed by `b1` on 2026-11-12, blocks 1–5 in order, `npm run ci` green after 
 
 > Left §3 on 2026-11-13: plan 36 written.
 | 1 | `36-work-view.md` — delegated tasks with steps, the Work view, the Board | Stub, being designed by `set` with the human, 2026-11-13 |
+
+## 2026-11-13 — plan 36 closed (built by `b1`)
+
+| 1.112 | The work view (the human, 2026-11-13, mock-ups M1 and M3): in the orchestration mode the sidebar has a switch "Work | Team" at its top, **Work by default**; Team is today's sidebar; Work shows count tiles, "Waiting on you", the delegated tasks with their steps ("3/5 · building .deb"), and "Done today". A **Board** opens as a tab among the others (columns by the work's state, every task), from a "Board" button right of the header's Orchestration switch (only in the mode) and from a "See all (N) →" at the end of the Tasks section when they don't fit; if open, both select it. Tasks are new data, through Menkar's MCP like topics. Not built yet | 2026-11-13 | `plans/36-work-view.md` (until delivered) |
+| 1.113 | A task's life (the human, 2026-11-13, topic 19): the orchestrator creates a task when it delegates (title, assignee by name) and the handoff names its number; the assignee splits it into 3 to 7 short steps and reports each advance with a one-line note; states queued → in progress (step n of m) → waiting (on a named topic or session) → to review (the assignee says done) → done or dropped, which only the orchestrator sets, after reviewing. Not built yet | 2026-11-13 | `plans/36-work-view.md` (until delivered) |
+| 1.114 | Amends 1.78 point 6 and 1.100 (the human, 2026-11-13): **the ★ belongs to a task, not a session.** The human sets it from a task (right-click in the Work view or the Board), or the orchestrator when the human asks, at `task_add`; a session row shows ★ while its current task has one, and the row menu's "Priority" goes; a topic may name its task, and topics of ★ tasks come first; wakes of sessions on ★ tasks reach the orchestrator first; a session's saved ★ in `projects.json` is read and dropped. Not built yet | 2026-11-13 | `plans/36-work-view.md` (until delivered) |
+| 1.115 | The Work view's sections (the human, 2026-11-13, topic 20): from the top, count tiles, **Topics** (everything waiting on the human is a topic: a review that is the human's reaches them as a topic; no separate "waiting on you"), the tasks, a **Consultants** section (one compact row per consultant with its state dot, a click opens its tab; consultants raise topics, never get tasks), and **Done today** (topics closed and tasks done since local midnight), **folded by default**; Consultants and Done today fold like other sections and their state is saved. Expect 3–4 consultants in a project like ccai. Not built yet | 2026-11-13 | `plans/36-work-view.md` (until delivered) |
+| 1.116 | The Board and tasks in the Team view (the human, 2026-11-13, topic 21): the Board tab has columns Topics · Queued · In progress · Waiting · To review · Done; a card shows title, assignee with its state dot, steps and the current note; a click selects the assignee's tab; read only; done tasks of today shown, older ones folded under "Done before". In the Team view each session row shows its current task and step under its name. Not built yet | 2026-11-13 | `plans/36-work-view.md` (until delivered) |
+| 1 | `36-work-view.md` — delegated tasks with steps, the ★ on tasks, the Work view, the Board | Written 2026-11-13, ready; to `b1` |
+
+### Plan 36's execution log, verbatim
+
+
+Executed by `b1`, 2026-11-13, blocks 1 to 5 in order, each ending with `npm run ci` (the
+test-integrity step red only on the six accepted lines below; flaky and history run by hand, green).
+
+- **Accepted integrity lines (block 2):** six `expect(` lines left: the row menu's labels with
+  "Priority", `orchestration.priority` after a reused name, and four `shownTopics(...)` lines whose
+  first argument was the project's session ★ (`{ orchestration: { priority } }` or `{}`); the
+  function now takes the starred task numbers. Their cases are kept with tasks.
+- **Work by default changed what existing specs see:** the orchestration and session-control specs
+  that read team rows now seed `team_view: true` or click "Team"; no expect changed for it.
+- **Not anticipated:**
+  - `showSession` already existed (showing a hidden member); selecting the assignee's tab is
+    `selectSessionTab`, which starts nothing when the session has no tab.
+  - `TaskState` lives in `src/core/orchestration/taskState.ts`, apart from the store, so the window
+    can name it without the store's Node imports (one definition, no parity test needed).
+  - A line of a doc cut in the middle reaches its history whole (the history check compares whole
+    lines).
+  - "Done today" is computed when a window state is built; past midnight it changes at the next
+    state push, not exactly at 00:00.
+- **b1's choices (labelled in the report):** `task_progress` without `step` keeps the current step;
+  `task_steps` on a task already in progress re-plans it at step 1; the tiles count tasks in
+  progress ("working") and waiting, not sessions; the Work view keeps the Files section at the
+  bottom; a click on a task row (not only a Board card) selects its assignee's tab; the Board's
+  Done column shows dropped tasks struck through.
+- **The human decided (through `set`, 2026-11-13)** the question b1 left open: switching the mode
+  off closes the project's Board tab in every window (`closeBoards`), tested in `layout.test.ts`
+  and `work-view.spec.ts`, both seen failing first.
+- **ui-check:** the first full run had one failure outside this plan, `terminal.spec.ts:607` (the
+  window told when an agent reaches the foreground), green 3 of 3 alone: load-sensitive.

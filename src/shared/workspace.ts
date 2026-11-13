@@ -2,6 +2,7 @@
 // window's renderer. Types only.
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
+import type { TaskState } from '../core/orchestration/taskState'
 import type { SettingsSection } from '../core/preferences'
 import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
@@ -22,7 +23,7 @@ export interface PaneView {
 export interface TabView {
   readonly id: string
   readonly project: string
-  readonly kind: 'session' | 'file' | 'transient'
+  readonly kind: 'session' | 'file' | 'transient' | 'board'
   readonly title: string
   readonly tooltip: string
   readonly panes: readonly PaneView[]
@@ -58,8 +59,39 @@ export interface TopicView {
   readonly from: string
   readonly blocking: boolean
   readonly status: 'open' | 'discussing'
-  // Raised by a session with the ★.
-  readonly priority: boolean
+  // It belongs to a task with the ★.
+  readonly star: boolean
+}
+
+// A task of the shown project (decision 1.113).
+export interface TaskView {
+  readonly number: number
+  readonly title: string
+  readonly assignee: string
+  readonly assigneeName: string
+  readonly star: boolean
+  readonly state: TaskState
+  readonly steps: readonly string[]
+  readonly step: number
+  readonly note: string
+  readonly waitingOn?: string
+}
+
+// "Done today" (decision 1.115): a topic closed or a task done since local midnight.
+export interface DoneView {
+  readonly kind: 'topic' | 'task'
+  readonly number: number
+  readonly title: string
+}
+
+export interface TasksView {
+  // ★ first, then by number.
+  readonly open: readonly TaskView[]
+  // Closed since local midnight, newest first; `closedBefore` the older ones, newest first.
+  readonly closedToday: readonly TaskView[]
+  readonly closedBefore: readonly TaskView[]
+  // Each session's current task, by number.
+  readonly current: Readonly<Record<string, number>>
 }
 
 export interface WindowState {
@@ -95,6 +127,9 @@ export interface WindowState {
   // The shown project's files folder: its files, and whether the section is collapsed.
   readonly files: { readonly items: readonly ProjectFile[]; readonly collapsed: boolean }
   readonly topics: readonly TopicView[]
+  readonly tasks: TasksView
+  // Newest first.
+  readonly doneToday: readonly DoneView[]
   // The orchestration mode's guide, shipped with Menkar (decision 1.90).
   readonly guidePath: string
 }
@@ -139,9 +174,17 @@ export type Action =
   | { readonly type: 'setOrchestrationMode'; readonly project: string; readonly on: boolean }
   | { readonly type: 'setOrchestrator'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setRole'; readonly session: string; readonly label: string }
-  | { readonly type: 'setPriority'; readonly session: string; readonly on: boolean }
+  | { readonly type: 'setTaskStar'; readonly number: number; readonly on: boolean }
   | { readonly type: 'setWithYou'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setTopicsCollapsed'; readonly collapsed: boolean }
+  // The Work view (decisions 1.112, 1.115), saved per project.
+  | { readonly type: 'setTeamView'; readonly team: boolean }
+  | { readonly type: 'setConsultantsCollapsed'; readonly collapsed: boolean }
+  | { readonly type: 'setDoneTodayOpen'; readonly open: boolean }
+  // The shown project's Board tab (decision 1.112), opened once per window and then selected.
+  | { readonly type: 'openBoard' }
+  // Selects the session's tab if it has one; starts nothing.
+  | { readonly type: 'selectSessionTab'; readonly session: string }
   | { readonly type: 'discussTopic'; readonly number: number }
   // The focused pane's working folder (the drawer's), or a session's, in the file manager.
   | { readonly type: 'openPaneFolder'; readonly tab: string; readonly pane: string | null }
@@ -269,7 +312,7 @@ export interface TabEntry {
   readonly tab: string
   readonly projectName: string
   readonly title: string
-  readonly kind: 'session' | 'file' | 'transient'
+  readonly kind: 'session' | 'file' | 'transient' | 'board'
   readonly agent: PaneAgent | null
   readonly panes: readonly string[]
 }

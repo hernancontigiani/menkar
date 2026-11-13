@@ -31,3 +31,6 @@ human likes; the features are all of agent-tablet's.
 > Replaced 2026-11-12 by decision 1.85: set also pushes.
 - **Execution sessions do not commit, branch, tag or push**; `set` commits after reviewing, when the
   human has asked it to. Stage **by path**, never `git add -A` or `.`.
+
+> Left on 2026-11-13: the orchestration doc's row names tasks, the Work view and the Board (plan 36).
+| `docs/orchestration.md` | The orchestration mode: its marks and topics, the sidebar in the mode, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |

@@ -20,6 +20,16 @@ project's docs or the task itself say is not repeated.
   granted, stop and report it before changing anything. Do not quietly follow one of them, and do
   not patch the plan's decision yourself.
 
+## Your task's steps
+
+When the task names a task number (Menkar's orchestration mode), the human follows it by its steps:
+
+- Once you have read it, split it into 3 to 7 short steps with `task_steps`.
+- At each advance, `task_progress` with the step you are at and a one-line note; while you wait on
+  something, give its waiting_on argument ("topic 4", or a session's name).
+- When it is done, `task_review` with a one-line note of what to look at, before your report.
+  Never close it: the orchestrator closes it after reviewing.
+
 ## Never invent what is not defined
 
 - When the task, the docs and the code do not answer a question, **ask**. Do not pick an answer

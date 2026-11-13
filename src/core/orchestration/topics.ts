@@ -1,6 +1,7 @@
 import { basename } from 'node:path'
 import { readJsonReport, UnreadableShape, writeJson } from '../jsonstate'
 import { topicsPath } from '../paths'
+import { localDay, midnight } from '../usage/periods'
 
 export type TopicStatus = 'open' | 'discussing' | 'closed'
 
@@ -12,6 +13,8 @@ export interface Topic {
   // The session that raised it, by id; shown by its current name.
   readonly from: string
   readonly blocking: boolean
+  // The task it belongs to, by number.
+  readonly task?: number
   readonly status: TopicStatus
   readonly decision?: string
   readonly created: string
@@ -52,6 +55,7 @@ export interface NewTopic {
   readonly context: string
   readonly from: string
   readonly blocking: boolean
+  readonly task?: number
 }
 
 // `at` is the time, an ISO string from the clock.
@@ -159,18 +163,29 @@ export function topicNotice(
   return null
 }
 
-// Open and discussing ones, those raised by a ★ session first, then blocking ones, then by number,
-// so the top one is the one to take. `all` adds the closed ones, in the same order.
+// Open and discussing ones, those of a ★ task first, then blocking ones, then by number, so the
+// top one is the one to take. `all` adds the closed ones, in the same order.
 export function shownTopics(
-  project: { readonly orchestration?: { readonly priority?: readonly string[] } },
+  starred: ReadonlySet<number>,
   list: readonly Topic[],
   all = false,
 ): Topic[] {
-  const priority = new Set(project.orchestration?.priority ?? [])
-  const rank = (x: Topic) => (priority.has(x.from) ? 0 : x.blocking ? 1 : 2)
+  const rank = (x: Topic) => (x.task !== undefined && starred.has(x.task) ? 0 : x.blocking ? 1 : 2)
   return list
     .filter((x) => all || x.status !== 'closed')
     .sort((a, b) => rank(a) - rank(b) || a.number - b.number)
+}
+
+// Closed since the local midnight before `nowMs`, newest first; a topic's last change is its close.
+export function closedTopicsToday(list: readonly Topic[], nowMs: number): Topic[] {
+  const start = midnight(localDay(nowMs / 1000)) * 1000
+  return list
+    .flatMap((x) => {
+      const at = x.status === 'closed' ? Date.parse(x.updated) : Number.NaN
+      return at >= start ? [{ x, at }] : []
+    })
+    .sort((a, b) => b.at - a.at)
+    .map(({ x }) => x)
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -180,7 +195,8 @@ const STATUSES: readonly TopicStatus[] = ['open', 'discussing', 'closed']
 
 function parseTopic(value: unknown): Topic | null {
   if (!isObject(value)) return null
-  const { number, title, context, from, blocking, status, decision, created, updated, seen } = value
+  const { number, title, context, from, blocking, task, status, decision, created, updated, seen } =
+    value
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
   if (typeof title !== 'string' || typeof from !== 'string') return null
   const known = STATUSES.find((s) => s === status)
@@ -190,6 +206,7 @@ function parseTopic(value: unknown): Topic | null {
     context: typeof context === 'string' ? context : '',
     from,
     blocking: blocking === true,
+    ...(typeof task === 'number' && Number.isInteger(task) && task > 0 ? { task } : {}),
     status: known ?? 'open',
     ...(typeof decision === 'string' ? { decision } : {}),
     created: typeof created === 'string' ? created : '',
@@ -248,7 +265,9 @@ export interface TopicCall {
   readonly projectId: string
   // The calling session's id.
   readonly caller: string
-  readonly priority: readonly string[]
+  // The project's task numbers, which a topic may name, and those with the ★.
+  readonly tasks: readonly number[]
+  readonly starred: readonly number[]
   readonly nameOf: (id: string) => string
   readonly at: string
 }
@@ -266,7 +285,7 @@ export function topicTool(
   const notFound = `This project has no topic ${String(number)}.`
   if (tool === 'topic_list') {
     const list = shownTopics(
-      { orchestration: { priority: call.priority } },
+      new Set(call.starred),
       topicsOf(call.topics, call.projectId),
       args.all === true,
     )
@@ -277,6 +296,9 @@ export function topicTool(
     if (!text('title')) return refuse('A topic needs a title.')
     if (args.blocking !== undefined && typeof args.blocking !== 'boolean')
       return refuse('blocking must be true or false.')
+    const task = args.task
+    if (task !== undefined && (typeof task !== 'number' || !call.tasks.includes(task)))
+      return refuse(`This project has no task ${String(task)}.`)
     const added = addTopic(
       call.topics,
       call.projectId,
@@ -285,6 +307,7 @@ export function topicTool(
         context: text('context'),
         from: call.caller,
         blocking: args.blocking === true,
+        ...(typeof task === 'number' ? { task } : {}),
       },
       call.at,
     )
@@ -323,11 +346,12 @@ export function topicTool(
 }
 
 function topicLine(x: Topic, call: TopicCall): string {
-  const star = call.priority.includes(x.from) ? '★ ' : ''
+  const star = x.task !== undefined && call.starred.includes(x.task) ? '★ ' : ''
   const parts = [
     `${x.number}. ${star}${x.title}`,
     `from ${call.nameOf(x.from)}`,
     ...(x.blocking ? ['blocking'] : []),
+    ...(x.task !== undefined ? [`task ${x.task}`] : []),
     x.status,
     ...(x.decision !== undefined ? [`decision: ${x.decision}`] : []),
   ]

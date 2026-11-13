@@ -29,6 +29,8 @@ export type Tab =
       readonly preview: boolean
     }
   | { readonly kind: 'transient'; readonly id: string; readonly project: string }
+  // Every topic and task of the project (decision 1.112): one per project.
+  | { readonly kind: 'board'; readonly id: string; readonly project: string }
 
 export type SessionTab = Extract<Tab, { kind: 'session' }>
 
@@ -358,6 +360,28 @@ export function newWindowProject(layout: Layout, projects: Projects): string | n
   return projects.projects.find((p) => holder(layout, p.id) === undefined)?.id ?? null
 }
 
+// The shown project's board, added at the end the first time, and selected.
+export function openBoard(layout: Layout, windowId: string, newId: () => string): Layout {
+  const w = windowOf(layout, windowId)
+  const existing = w.tabs.find((t) => t.kind === 'board' && t.project === w.shown)
+  const tab: Tab = existing ?? { kind: 'board', id: newId(), project: w.shown }
+  return put(layout, {
+    ...w,
+    tabs: existing ? w.tabs : [...w.tabs, tab],
+    selected: { ...w.selected, [w.shown]: tab.id },
+  })
+}
+
+// The project's board, from every window; switching its mode off leaves nothing of the mode shown.
+export function closeBoards(layout: Layout, projectId: string): Layout {
+  let next = layout
+  for (const w of layout.windows)
+    for (const t of w.tabs)
+      if (t.kind === 'board' && t.project === projectId)
+        next = put(next, withoutTab(windowOf(next, w.id), t.id))
+  return next
+}
+
 export function removeWindow(layout: Layout, windowId: string): Layout {
   return { windows: layout.windows.filter((w) => w.id !== windowId) }
 }
@@ -376,6 +400,7 @@ export function toSaved(layout: Layout): SavedWindow[] {
       if (tab.kind === 'session' && tab.panes.length > 0)
         saved = { panes: [...tab.panes], orientation: tab.orientation }
       if (tab.kind === 'file') saved = { file: tab.path, preview: tab.preview }
+      if (tab.kind === 'board') saved = { board: true }
       if (saved) {
         const list = tabs[tab.project] ?? []
         list.push(saved)
@@ -437,6 +462,9 @@ export function reopen(projects: Projects, options: ReopenOptions): Layout {
             panes,
             orientation,
           })
+        } else if (saved.board === true) {
+          if (tabs.some((t) => t.kind === 'board' && t.project === projectId)) continue
+          tabs.push({ kind: 'board', id: options.newId(), project: projectId })
         } else if (typeof saved.file === 'string' && options.isFile(saved.file)) {
           tabs.push({
             kind: 'file',

@@ -54,6 +54,9 @@ describe('starting a session with loose and role', () => {
       parents: keptParents(p),
       orchestration: orchestrationInfo(p),
       topicsCollapsed: false,
+      teamView: false,
+      consultantsCollapsed: false,
+      doneTodayOpen: false,
     }
     const rows = modeRows(info, {
       listed: ['O', 'N'],

@@ -11,8 +11,8 @@ Several Claude Code sessions work on one project at once. Without help, the pers
 talking to every one of them, and keeping in their own head who does what and what is waiting for
 a decision. In the orchestration mode, the person talks to **one session, the orchestrator**. The
 orchestrator hands the work out to the other sessions, reads their reports, and keeps for the
-person the **topics** that need a decision. Menkar shows the team in its sidebar and the open
-topics above it.
+person the **topics** that need a decision, and a **task** for each piece of work it delegates.
+Menkar shows in its sidebar what waits on the person and how far each task is, and the team.
 
 The mode is per project. It is switched on with the **Orchestration** switch in the window's
 header (beside Usage) or with the team icon of the project in the project list. Switching it off
@@ -29,23 +29,34 @@ mode is on:
 - **Role…**: a free label for what a session is, such as "Fabric expert", "Reviewer" or
   "Documentation". An empty label removes it. A session with a role under the orchestrator is an
   expert; a loose one is a consultant (see "Four profiles" below).
-- **Priority** (★): its topics come first in the list, and when several sessions finish at once
-  the orchestrator hears of this one first.
 - **With you**: the person is talking with this session directly right now. The orchestrator gives
   it no work until the person clears the mark. Menkar never sets it by itself.
 
 ## The sidebar in the mode
 
-From the top:
+A switch at its top, **Work | Team**, chooses what it shows, per project; Work is the default.
 
-1. **Topics**: the open topics, those raised by a priority session first, then blocking ones
-   (with a red mark), then the rest by number, so the top one is the one to take. A click unfolds its context, who raised it and its status.
-   The list is read only: a topic is discussed in the orchestrator's chat, and closed there.
-2. **The orchestrator**, with the sessions it started under it. Those without a tab are folded into
-   one "earlier" row that a click unfolds.
-3. **Consultants**: every loose session with a role, each with the sessions it started. Experts
-   are under the orchestrator, in 2, with their role shown.
-4. **Others**: everything else, with its groups as in the ordinary list.
+**Work** is what waits on the person and how far the work is, from the top:
+
+1. **Counts**: open topics, tasks in progress, tasks waiting.
+2. **Topics**: the open topics, those of a ★ task first, then blocking ones (with a red mark),
+   then the rest by number, so the top one is the one to take. A click unfolds its context, who
+   raised it and its status. The list is read only: a topic is discussed in the orchestrator's
+   chat, and closed there. Everything that waits on the person is a topic.
+3. **Tasks**: the open tasks, ★ first: title, who has it, its steps ("3/5") and its latest note,
+   with a red edge while it waits. A click selects that session's tab; a right-click sets or
+   removes the ★. Past six, "See all" opens the Board.
+4. **Consultants**: one row each, with its state; a click opens its tab.
+5. **Done today**: topics closed and tasks done since midnight, folded until opened.
+
+**Team** is the team: the Topics, then the orchestrator with the sessions it started under it
+(those without a tab folded into one "earlier" row a click unfolds), the **Consultants** (every
+loose session with a role), and **Others** with their groups as in the ordinary list. Each
+session's row shows its current task and step under its name, and the ★ while that task has it.
+
+**The Board**, a tab opened with the **Board** button beside the Orchestration switch, shows every
+topic and task in columns: Topics, Queued, In progress, Waiting, To review, Done (today's; older
+ones folded under "Done before"). A card's click selects its session's tab.
 
 ## Topics
 
@@ -62,7 +73,28 @@ every session Menkar starts has:
 - `topic_list`: the open topics in the order the sidebar shows them; with `all`, the closed ones
   too, with their decisions.
 
-The orchestrator usually keeps the topics. Any session of the project may add one.
+The orchestrator usually keeps the topics. Any session of the project may add one, and may name
+the task it belongs to (`topic_add`'s task), so the topics of a ★ task come first.
+
+## Tasks
+
+A task is a piece of work the orchestrator delegated, so the person can see how far it is:
+
+- `task_add`: the orchestrator creates it when it hands the work out, with a title and the session
+  that does it, and names its number in the handoff. It starts **queued**.
+- `task_steps`: the session splits it into 3 to 7 short steps; it goes **in progress** at step 1.
+- `task_progress`: the session reports each advance, the step it is at and a one-line note; with
+  what it waits on (a topic, a session) it is **waiting**.
+- `task_review`: the session says it is done; it is **to review**.
+- `task_close`: only the orchestrator, after reviewing it, closes it as **done** or **dropped**, so
+  "done" always means reviewed. A review that is the person's (a change to try) reaches them as a
+  topic.
+- `task_list`: the open tasks, ★ first; with `all`, the closed ones too.
+
+**The ★ belongs to a task**, not to a session: the person sets it from the task's right-click (in
+the Work view or the Board), or the orchestrator when the person asks. A ★ task's topics come
+first, and when several sessions finish at once the orchestrator hears first of those on ★ tasks.
+Consultants get no tasks: they are asked, and raise topics.
 
 ## Notifications, read-only tabs and handing sessions over
 
@@ -90,7 +122,8 @@ delegate the work. A session may always use its own subagents for research or re
 mode off, or with no orchestrator marked, any session Menkar started may start others, as usual.
 
 `list_sessions` tells an agent, for each session of the project, its role, whether it is the
-orchestrator, whether it has the ★ and whether it is with the person, and whether the mode is on.
+orchestrator, whether its current task has the ★ and whether it is with the person, and whether
+the mode is on.
 
 ## Skills to load
 
@@ -184,8 +217,8 @@ project's sessions, or a new session it starts, which is told to load `menkar:or
 then on:
 
 1. Mark the roles; hand the experts and workers to the orchestrator and leave the consultants
-   loose; put the ★ on the sessions whose work comes first.
+   loose. Put the ★ on the tasks that come first.
 2. Talk to the orchestrator. Let it start the workers.
-3. Read the Topics section; answer a topic in the orchestrator's chat.
+3. Read the Work view; answer a topic in the orchestrator's chat.
 4. When you talk to another session directly, mark it "with you", and clear the mark when you are
    done; ask it to tell the orchestrator what came out of it.

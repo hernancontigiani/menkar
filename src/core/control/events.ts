@@ -26,8 +26,8 @@ export class WakeBatcher {
   constructor(
     private readonly send: (parent: string, text: string) => void,
     private readonly timers: Timers,
-    // Read when the message goes: a child with the ★ (decision 1.78) speaks first.
-    private readonly isPriority: (child: string) => boolean = () => false,
+    // Read when the message goes: a child whose current task has the ★ speaks first.
+    private readonly isStarred: (child: string) => boolean = () => false,
   ) {}
 
   note(
@@ -53,8 +53,8 @@ export class WakeBatcher {
     this.pending.delete(parent)
     if (!entry || entry.events.size === 0) return
     const events = [...entry.events.entries()]
-    const first = events.filter(([child]) => this.isPriority(child))
-    const rest = events.filter(([child]) => !this.isPriority(child))
+    const first = events.filter(([child]) => this.isStarred(child))
+    const rest = events.filter(([child]) => !this.isStarred(child))
     this.send(parent, [...first, ...rest].map(([, text]) => text).join('; '))
   }
 

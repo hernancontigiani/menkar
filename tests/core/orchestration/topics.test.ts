@@ -1,10 +1,13 @@
 // The topics the orchestrator keeps for the human: numbered per project and never reused, shown
-// open first by the ★ of whoever raised them, and kept with their decision once closed.
+// open first by the ★ of the task they belong to, and kept with their decision once closed.
+process.env.TZ = 'America/Argentina/Buenos_Aires'
+
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { beforeEach, describe, expect, test } from 'vitest'
 import {
   addTopic,
+  closedTopicsToday,
   closeTopic,
   emptyTopics,
   loadTopics,
@@ -25,8 +28,22 @@ import { topicsPath } from '../../../src/core/paths'
 const AT = '2026-11-12T23:59:30.000-03:00'
 const LATER = '2026-11-13T00:00:10.000-03:00'
 
-const add = (t: Topics, from: string, title: string, blocking = false, project = 'p1') =>
-  addTopic(t, project, { title, context: `about ${title}`, from, blocking }, AT).topics
+const add = (
+  t: Topics,
+  from: string,
+  title: string,
+  blocking = false,
+  project = 'p1',
+  task?: number,
+) =>
+  addTopic(
+    t,
+    project,
+    { title, context: `about ${title}`, from, blocking, ...(task ? { task } : {}) },
+    AT,
+  ).topics
+
+const none = new Set<number>()
 
 beforeEach(async () => {
   await rm(dirname(topicsPath()), { recursive: true, force: true })
@@ -45,29 +62,37 @@ describe('topics', () => {
     ).toBe(1)
   })
 
-  test('shown: open and discussing only, ★ sessions first, then by number', () => {
+  test('shown: open and discussing only, topics of ★ tasks first, then by number', () => {
     let t = add(emptyTopics(), 'A', 'one')
-    t = add(t, 'B', 'two')
+    t = add(t, 'B', 'two', false, 'p1', 7)
     t = add(t, 'A', 'three')
     t = closeTopic(t, 'p1', 3, 'trash', LATER)?.topics ?? t
-    const project = { orchestration: { priority: ['B'] } }
-    expect(shownTopics(project, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 1])
+    expect(shownTopics(new Set([7]), topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 1])
     t = add(t, 'A', 'four')
-    expect(shownTopics({}, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([1, 2, 4])
+    expect(shownTopics(none, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([1, 2, 4])
   })
 
-  // Decision 1.100: the top topic is the one to take — ★ sessions' first, then blocking ones, then
-  // the rest by number.
-  test('shown: open and discussing only; 1 (A), 2 (★B), 3 (A, blocking), 4 (A) → 2, 3, 1, 4', () => {
+  // Decision 1.114, amending 1.100: the ★ belongs to a task; a topic of a ★ task comes first, then
+  // blocking ones, then the rest by number.
+  test('★ on tasks orders topics: topic 1 (task 2 ★), topic 2 (blocking), topic 3 → [1, 2, 3]', () => {
+    let t = add(emptyTopics(), 'A', 'one', false, 'p1', 2)
+    t = add(t, 'A', 'two', true)
+    t = add(t, 'B', 'three')
+    expect(shownTopics(new Set([2]), topicsOf(t, 'p1')).map((x) => x.number)).toEqual([1, 2, 3])
+    expect(shownTopics(none, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 1, 3])
+  })
+
+  // Decision 1.100, as amended by 1.114: the top topic is the one to take — ★ tasks' first, then
+  // blocking ones, then the rest by number.
+  test('shown: open and discussing only; 1 (A), 2 (★ task), 3 (A, blocking), 4 (A) → 2, 3, 1, 4', () => {
     let t = add(emptyTopics(), 'A', 'one')
-    t = add(t, 'B', 'two')
+    t = add(t, 'B', 'two', false, 'p1', 5)
     t = add(t, 'A', 'three', true)
     t = add(t, 'A', 'four')
-    const project = { orchestration: { priority: ['B'] } }
-    expect(shownTopics(project, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 3, 1, 4])
+    expect(shownTopics(new Set([5]), topicsOf(t, 'p1')).map((x) => x.number)).toEqual([2, 3, 1, 4])
     t = add(t, 'A', 'five')
     t = closeTopic(t, 'p1', 5, 'trash', LATER)?.topics ?? t
-    expect(shownTopics({}, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([3, 1, 2, 4])
+    expect(shownTopics(none, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([3, 1, 2, 4])
   })
 
   // Decision 1.103: a new topic notifies as a blocked session does, without sound while another is
@@ -101,10 +126,22 @@ describe('topics', () => {
     expect(markSeen(read, 'p1', 9)).toBe(read)
   })
 
+  // Decision 1.115: "Done today" holds the topics closed since local midnight, newest first.
+  test('closed today at midnight: closed at 23:58 → today at 23:59, not at 00:01; newest first', () => {
+    let t = add(add(add(emptyTopics(), 'A', 'one'), 'A', 'two'), 'A', 'three')
+    t = closeTopic(t, 'p1', 1, 'x', '2026-11-13T23:58:00.000-03:00')?.topics ?? t
+    t = closeTopic(t, 'p1', 2, 'y', '2026-11-13T23:58:30.000-03:00')?.topics ?? t
+    const list = topicsOf(t, 'p1')
+    expect(
+      closedTopicsToday(list, Date.parse('2026-11-13T23:59:00.000-03:00')).map((x) => x.number),
+    ).toEqual([2, 1])
+    expect(closedTopicsToday(list, Date.parse('2026-11-14T00:01:00.000-03:00'))).toEqual([])
+  })
+
   test('a closed topic keeps its decision, and `all` lists it', () => {
     let t = add(add(add(emptyTopics(), 'A', 'one'), 'A', 'two'), 'A', 'three')
     t = closeTopic(t, 'p1', 3, 'trash', LATER)?.topics ?? t
-    const all = shownTopics({}, topicsOf(t, 'p1'), true)
+    const all = shownTopics(none, topicsOf(t, 'p1'), true)
     expect(all.map((x) => [x.number, x.status, x.decision])).toEqual([
       [1, 'open', undefined],
       [2, 'open', undefined],
@@ -161,7 +198,8 @@ describe('the topic tools', () => {
     topics,
     projectId: 'p1',
     caller,
-    priority: ['B'],
+    tasks: [1, 2],
+    starred: [2],
     nameOf: (id: string) => ({ A: 'api', B: 'fabric' })[id] ?? id,
     at: AT,
   })
@@ -175,12 +213,12 @@ describe('the topic tools', () => {
     expect(one.text).toBe('Topic 1 added.')
     const two = topicTool(
       'topic_add',
-      { title: 'Deploy', context: 'Now?', blocking: true },
+      { title: 'Deploy', context: 'Now?', blocking: true, task: 2 },
       call(one.topics ?? emptyTopics(), 'B'),
     )
     const t = two.topics ?? emptyTopics()
     expect(topicTool('topic_list', {}, call(t)).text).toBe(
-      '2. ★ Deploy · from fabric · blocking · open\n   Now?\n1. Schema · from api · open\n   Which one?',
+      '2. ★ Deploy · from fabric · blocking · task 2 · open\n   Now?\n1. Schema · from api · open\n   Which one?',
     )
     const u = topicTool('topic_update', { number: 1, status: 'discussing' }, call(t))
     expect(u.text).toBe('Topic 1 updated.')
@@ -188,6 +226,26 @@ describe('the topic tools', () => {
     expect(topicTool('topic_list', { all: true }, call(c.topics ?? t)).text).toContain(
       'closed · decision: tomorrow',
     )
+  })
+
+  // A topic may name the task it belongs to (decision 1.114), so a ★ task's topics come first.
+  test('topic_add with a task: kept and listed with it; a task the project lacks → refused', () => {
+    const one = topicTool(
+      'topic_add',
+      { title: 'Name', context: 'Which?', task: 2 },
+      call(emptyTopics()),
+    )
+    const t = one.topics ?? emptyTopics()
+    expect(topicsOf(t, 'p1')[0]?.task).toBe(2)
+    expect(topicTool('topic_list', {}, call(t)).text).toBe(
+      '1. ★ Name · from api · task 2 · open\n   Which?',
+    )
+    expect(parseTopics(JSON.parse(JSON.stringify(serializeTopics(t))))).toEqual(t)
+    expect(topicTool('topic_add', { title: 'x', context: '', task: 9 }, call(t))).toEqual({
+      ok: false,
+      text: 'This project has no task 9.',
+    })
+    expect(topicTool('topic_add', { title: 'x', context: '', task: '2' }, call(t)).ok).toBe(false)
   })
 
   test('refusals: no title, no number, a status it cannot set, a number of another project', () => {

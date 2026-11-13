@@ -81,6 +81,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
         title: { type: 'string', description: 'A short title.' },
         context: { type: 'string', description: 'What the human needs to know to decide.' },
         blocking: { type: 'boolean', description: 'Work waits on it.' },
+        task: { type: 'integer', description: 'The number of the task it belongs to, if any.' },
       },
       required: ['title', 'context'],
     },
@@ -117,7 +118,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'topic_list',
     description:
-      "Lists your Menkar project's open topics, those raised by priority sessions first: number, title, who raised it, whether it blocks, status and context; with all, the closed ones too, with their decision.",
+      "Lists your Menkar project's open topics, those of ★ tasks first, then blocking ones: number, title, who raised it, whether it blocks, status and context; with all, the closed ones too, with their decision.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -133,6 +134,85 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
       type: 'object',
       properties: { name: { type: 'string', description: "The session's name." } },
       required: ['name'],
+    },
+  },
+  {
+    name: 'task_add',
+    description:
+      "Adds a task to your Menkar project, assigned to a session by its name, and returns its number; name that number in the session's handoff. Only the orchestrator, in the orchestration mode. The task starts queued; its assignee splits it into steps.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'A short title.' },
+        assignee: { type: 'string', description: 'The name of the session that does it.' },
+        star: { type: 'boolean', description: 'Mark it urgent with the ★, when the human asks.' },
+      },
+      required: ['title', 'assignee'],
+    },
+  },
+  {
+    name: 'task_steps',
+    description:
+      'Splits a task assigned to you into 3 to 7 short steps; it goes in progress at step 1. Only its assignee.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The task's number." },
+        steps: { type: 'array', items: { type: 'string' }, description: '3 to 7 short lines.' },
+      },
+      required: ['number', 'steps'],
+    },
+  },
+  {
+    name: 'task_progress',
+    description:
+      'Reports where a task assigned to you is: the step it is at and a one-line note. With waiting_on it is waiting (on a topic, "topic 4", or a session); without it, in progress. Only its assignee.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The task's number." },
+        step: { type: 'integer', description: 'The step it is at now, from 1; omit to keep it.' },
+        note: { type: 'string', description: 'One line: where it is.' },
+        waiting_on: { type: 'string', description: 'What it waits on: "topic 4" or a session.' },
+      },
+      required: ['number', 'note'],
+    },
+  },
+  {
+    name: 'task_review',
+    description:
+      'Says a task assigned to you is done and ready for the orchestrator to review; only the orchestrator closes it. Only its assignee.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The task's number." },
+        note: { type: 'string', description: 'One line: what to look at.' },
+      },
+      required: ['number', 'note'],
+    },
+  },
+  {
+    name: 'task_close',
+    description:
+      'Closes a task of your Menkar project after reviewing it, as done or dropped. Only the orchestrator, in the orchestration mode.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The task's number." },
+        outcome: { type: 'string', enum: ['done', 'dropped'] },
+      },
+      required: ['number', 'outcome'],
+    },
+  },
+  {
+    name: 'task_list',
+    description:
+      "Lists your Menkar project's open tasks, ★ first: number, title, assignee, state, step and note, with the steps; with all, the closed ones too.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        all: { type: 'boolean', description: 'Include closed tasks.' },
+      },
     },
   },
 ]

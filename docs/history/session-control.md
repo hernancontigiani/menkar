@@ -76,3 +76,39 @@ and the wake order.
   - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model? }`:** a new
     Claude session in the caller's project, in a tab right after the caller's, not selected. The
     caller becomes its parent.
+
+## The shape
+
+> Left on 2026-11-13: the ★ moved from sessions to tasks (decision 1.114).
+    (its label or null), `orchestrator`, `priority` and `with_you` — and the answer says whether
+    the mode is on (`orchestration`).
+
+## The shape
+
+> Left on 2026-11-13: topic_add gained task, and the task tools joined (decisions 1.113, 1.114).
+  - **`topic_add { title, context, blocking? }`, `topic_update { number, title?, context?,
+    blocking?, status? }`, `topic_close { number, decision }`, `topic_list { all? }`:** the
+    project's topics for the human (`docs/orchestration.md`), kept by main in `topics.json`. Any
+    session of the project may call them; a number of another project is "not found". Status set
+    by hand is "open" or "discussing"; only `topic_close` closes. `topic_list` gives one topic per
+    two lines — number, ★ when raised by a priority session, title, who raised it by name,
+    blocking, status, decision when closed, then the context — in the sidebar's order
+    (`topicTool`, `src/core/orchestration/topics.ts`).
+
+## The shape
+
+> Left on 2026-11-13: the ★ moved from sessions to tasks (decision 1.114).
+    In it, the events of children with the ★ come first; otherwise they keep the order the children
+    first spoke in (decision 1.78).
+
+## The shape
+
+> Left on 2026-11-13: the ★ moved from sessions to tasks (decision 1.114); the whole line.
+    the mode is on (`orchestration`). With the mode off the marks read null and false: off is the
+    ordinary Menkar (`sessionMarks`, `sessionsAnswer`). A snapshot an older Menkar wrote, without
+
+## The skills plugin
+
+> Left on 2026-11-13: the skills learned tasks (decision 1.113).
+  - **orchestrator:** coordinating sessions. Only it starts sessions or hands out work.
+  - **worker:** taking a task from another session; the report is its last message.

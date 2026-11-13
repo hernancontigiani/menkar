@@ -12,14 +12,12 @@ const ids = (value: unknown, members: ReadonlySet<string>): string[] =>
 // Only what is set, so an untouched project writes nothing and an empty one reads as absent.
 function compact(o: Orchestration): Orchestration | undefined {
   const roles = o.roles && Object.keys(o.roles).length > 0 ? o.roles : undefined
-  const priority = o.priority && o.priority.length > 0 ? o.priority : undefined
   const withYou = o.withYou && o.withYou.length > 0 ? o.withYou : undefined
-  if (!o.on && !o.orchestrator && !roles && !priority && !withYou) return undefined
+  if (!o.on && !o.orchestrator && !roles && !withYou) return undefined
   return {
     on: o.on,
     ...(o.orchestrator ? { orchestrator: o.orchestrator } : {}),
     ...(roles ? { roles } : {}),
-    ...(priority ? { priority } : {}),
     ...(withYou ? { withYou } : {}),
   }
 }
@@ -37,12 +35,12 @@ export function keptOrchestration(
     on: o.on,
     ...(o.orchestrator && set.has(o.orchestrator) ? { orchestrator: o.orchestrator } : {}),
     roles,
-    priority: ids(o.priority, set),
     withYou: ids(o.withYou, set),
   })
 }
 
-// The file's `orchestration`, read leniently: a key of the wrong type is dropped alone.
+// The file's `orchestration`, read leniently: a key of the wrong type is dropped alone. A
+// `priority` an earlier Menkar wrote is dropped: the ★ belongs to tasks now.
 export function parseOrchestration(
   value: unknown,
   members: readonly string[],
@@ -57,7 +55,6 @@ export function parseOrchestration(
       on: value.on === true,
       ...(typeof value.orchestrator === 'string' ? { orchestrator: value.orchestrator } : {}),
       roles,
-      priority: ids(value.priority, new Set(members)),
       withYou: ids(value.with_you, new Set(members)),
     },
     members,
@@ -71,7 +68,6 @@ export function serializeOrchestration(p: Project): Record<string, unknown> | un
     on: o.on,
     ...(o.orchestrator ? { orchestrator: o.orchestrator } : {}),
     ...(o.roles ? { roles: o.roles } : {}),
-    ...(o.priority ? { priority: o.priority } : {}),
     ...(o.withYou ? { with_you: o.withYou } : {}),
   }
 }
@@ -93,14 +89,12 @@ export function followOrchestration(p: Project, from: string, to: string): Proje
     list?.includes(from) ? [...new Set(list.map((id) => (id === from ? to : id)))] : list
   const { [from]: fromRole, ...others } = o.roles ?? {}
   const roles = fromRole === undefined ? others : { ...others, [to]: fromRole }
-  const { roles: _roles, priority: _priority, withYou: _withYou, ...base } = o
-  const priority = swap(o.priority)
+  const { roles: _roles, withYou: _withYou, ...base } = o
   const withYou = swap(o.withYou)
   return withOrchestration(p, {
     ...base,
     ...(o.orchestrator === from ? { orchestrator: to } : {}),
     roles,
-    ...(priority ? { priority } : {}),
     ...(withYou ? { withYou } : {}),
   })
 }
@@ -153,15 +147,6 @@ export function setRole(
   })
 }
 
-export function setPriority(
-  state: Projects,
-  projectId: string,
-  sessionId: string,
-  on: boolean,
-): Projects {
-  return change(state, projectId, (o) => ({ ...o, priority: toggled(o.priority, sessionId, on) }))
-}
-
 export function setWithYou(
   state: Projects,
   projectId: string,
@@ -171,20 +156,31 @@ export function setWithYou(
   return change(state, projectId, (o) => ({ ...o, withYou: toggled(o.withYou, sessionId, on) }))
 }
 
-export function setTopicsCollapsed(
-  state: Projects,
-  projectId: string,
-  collapsed: boolean,
-): Projects {
+type Flag = 'topicsCollapsed' | 'teamView' | 'consultantsCollapsed' | 'doneTodayOpen'
+
+// A project's flag, written only while true.
+function setFlag(state: Projects, projectId: string, flag: Flag, on: boolean): Projects {
   return {
     ...state,
     projects: state.projects.map((p) => {
       if (p.id !== projectId) return p
-      const { topicsCollapsed: _, ...rest } = p
-      return collapsed ? { ...rest, topicsCollapsed: true } : rest
+      const { [flag]: _, ...rest } = p
+      return on ? { ...rest, [flag]: true } : rest
     }),
   }
 }
+
+export const setTopicsCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
+  setFlag(state, projectId, 'topicsCollapsed', collapsed)
+
+export const setTeamView = (state: Projects, projectId: string, team: boolean) =>
+  setFlag(state, projectId, 'teamView', team)
+
+export const setConsultantsCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
+  setFlag(state, projectId, 'consultantsCollapsed', collapsed)
+
+export const setDoneTodayOpen = (state: Projects, projectId: string, open: boolean) =>
+  setFlag(state, projectId, 'doneTodayOpen', open)
 
 export function orchestrationInfo(p: Project): ProjectInfo['orchestration'] {
   const o = keptOrchestration(p.orchestration, p.members)
@@ -192,15 +188,16 @@ export function orchestrationInfo(p: Project): ProjectInfo['orchestration'] {
     on: o?.on ?? false,
     orchestrator: o?.orchestrator ?? null,
     roles: o?.roles ?? {},
-    priority: o?.priority ?? [],
     withYou: o?.withYou ?? [],
   }
 }
 
 // What list_sessions says of a session; with the mode off, nothing: off is the ordinary Menkar.
+// `priority` is the ★ of its current task.
 export function sessionMarks(
   p: Project,
   sessionId: string,
+  onStarredTask = false,
 ): {
   readonly role: string | null
   readonly orchestrator: boolean
@@ -212,7 +209,7 @@ export function sessionMarks(
   return {
     role: o.roles?.[sessionId] ?? null,
     orchestrator: o.orchestrator === sessionId,
-    priority: o.priority?.includes(sessionId) ?? false,
+    priority: onStarredTask,
     withYou: o.withYou?.includes(sessionId) ?? false,
   }
 }

@@ -2,6 +2,7 @@
 // `idle` or `done`, is an event; per parent they wait 3 s and go together in one message.
 import { describe, expect, test } from 'vitest'
 import { WAKE_DELAY_MS, WakeBatcher, wakeEvent } from '../../../src/core/control/events'
+import { addTask, emptyTasks, onStarredTask, tasksOf } from '../../../src/core/orchestration/tasks'
 
 function fakeTimers() {
   let pending: { fn: () => void; at: number } | null = null
@@ -63,6 +64,27 @@ describe('waking a parent', () => {
       (parent, text) => sent.push([parent, text]),
       clock.timers,
       (child) => child === 'b1',
+    )
+    batcher.note('orch', 'a1', 'A', 'working', 'done')
+    batcher.note('orch', 'c1', 'C', 'working', 'done')
+    batcher.note('orch', 'b1', 'B', 'working', 'done')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent).toEqual([
+      ['orch', 'B finished its turn; A finished its turn; C finished its turn'],
+    ])
+  })
+
+  // Decision 1.114: the ★ belongs to a task; a child whose current task has it speaks first.
+  test('wake order by task ★: A (no task) and B (★ task) finish together → "B …; A …"', () => {
+    const sent: [string, string][] = []
+    const clock = fakeTimers()
+    let t = addTask(emptyTasks(), 'p1', { title: 'urgent', assignee: 'b1', star: true }, '').tasks
+    t = addTask(t, 'p1', { title: 'calm', assignee: 'c1', star: false }, '').tasks
+    const list = tasksOf(t, 'p1')
+    const batcher = new WakeBatcher(
+      (parent, text) => sent.push([parent, text]),
+      clock.timers,
+      (child) => onStarredTask(list, child),
     )
     batcher.note('orch', 'a1', 'A', 'working', 'done')
     batcher.note('orch', 'c1', 'C', 'working', 'done')

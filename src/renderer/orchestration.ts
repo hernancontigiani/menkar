@@ -286,12 +286,11 @@ async function startTeam(
 
 const checked = (on: boolean, label: string) => `${on ? '✓ ' : ''}${label}`
 
-// After "Group ▸", only while the mode is on: Orchestrator, Role…, Priority, With you.
+// After "Group ▸", only while the mode is on: Orchestrator, Role…, With you.
 export function orchestrationItems(info: SessionInfo, project: ProjectInfo): MenuEntry[] {
   const o = project.orchestration
   if (!o.on) return []
   const isOrchestrator = o.orchestrator === info.id
-  const priority = o.priority.includes(info.id)
   const withYou = o.withYou.includes(info.id)
   const managed = o.orchestrator !== null && project.parents[info.id] === o.orchestrator
   const hand: MenuEntry[] =
@@ -310,10 +309,6 @@ export function orchestrationItems(info: SessionInfo, project: ProjectInfo): Men
       run: () => void act({ type: 'setOrchestrator', session: info.id, on: !isOrchestrator }),
     },
     { label: t('orch.role'), run: () => void roleDialog(info, o.roles[info.id] ?? '') },
-    {
-      label: checked(priority, t('orch.priority')),
-      run: () => void act({ type: 'setPriority', session: info.id, on: !priority }),
-    },
     {
       label: checked(withYou, t('orch.withYou')),
       run: () => void act({ type: 'setWithYou', session: info.id, on: !withYou }),
@@ -372,7 +367,7 @@ function topicRow(topic: TopicView): HTMLElement {
       'aria-expanded': String(open),
       title: topic.title,
     },
-    topic.priority ? el('span', { class: 'priority-star' }, '★') : null,
+    topic.star ? el('span', { class: 'priority-star' }, '★') : null,
     el('span', { class: 'topic-number dim' }, String(topic.number)),
     el('span', { class: 'topic-title' }, topic.title),
     topic.blocking ? el('span', { class: 'topic-blocking', title: t('orch.blocking') }) : null,

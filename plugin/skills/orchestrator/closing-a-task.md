@@ -13,10 +13,14 @@ Read this when a worker reports a task done. Closing is a checklist, not a feeli
 6. **Temporary files** (a task's plan, prompts, notes) are deleted only after the record they hold
    is committed, or moved where the project keeps it.
 7. **References** to anything deleted or renamed are fixed, by name as well as by path.
-8. **The index is current**: the project's status file says the task is done and what it left
+8. **Its task, after you reviewed it**: `task_close` as done, or dropped. Never before: done means
+   reviewed. A review that is the human's (a visual change to try, a behaviour to feel) goes to
+   them as a topic naming the task (`topic_add` with its `task`) and saying what to try; the task
+   stays to review until they answer.
+9. **The index is current**: the project's status file says the task is done and what it left
    open.
-9. **Locks the worker held** are released, and the lock state says so.
-10. **Commit** as the project's rule says.
-11. **Tell the worker the task is closed.** A long-lived expert then distills and sends you the
+10. **Locks the worker held** are released, and the lock state says so.
+11. **Commit** as the project's rule says.
+12. **Tell the worker the task is closed.** A long-lived expert then distills and sends you the
     summary by name; read it before it renews. A worker with nothing owed renews with its handoff
     prompt (its next task, or who it is and what it waits for), or stays idle.

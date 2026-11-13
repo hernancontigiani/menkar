@@ -93,6 +93,29 @@ describe("Menkar's skills plugin", () => {
       expect(guide).not.toMatch(word)
   })
 
+  // Decision 1.113: the orchestrator adds and closes tasks, the worker reports on its own and never
+  // closes it; the guide names every task tool.
+  test('the task tools: the orchestrator adds and closes, the worker sets steps, reports and hands to review, the guide names all six', () => {
+    const folder = join(PLUGIN, 'skills', 'orchestrator')
+    const orchestrator = toolsNamed(
+      [
+        skill('orchestrator').body,
+        ...readdirSync(folder)
+          .filter((f) => f !== 'SKILL.md')
+          .map((f) => readFileSync(join(folder, f), 'utf8')),
+      ].join('\n'),
+    )
+    for (const tool of ['task_add', 'task_close']) expect(orchestrator).toContain(tool)
+    const worker = toolsNamed(skill('worker').body)
+    for (const tool of ['task_steps', 'task_progress', 'task_review'])
+      expect(worker).toContain(tool)
+    for (const tool of ['task_add', 'task_close']) expect(worker).not.toContain(tool)
+    const guide = toolsNamed(readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8'))
+    const tasks = TOOL_NAMES.filter((x) => x.startsWith('task_'))
+    expect(tasks).toHaveLength(6)
+    for (const tool of tasks) expect(guide).toContain(tool)
+  })
+
   test.each(SKILLS)('%s names only tools the MCP server lists', (name) => {
     for (const tool of toolsNamed(skill(name).body)) expect(TOOL_NAMES).toContain(tool)
   })

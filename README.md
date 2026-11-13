@@ -51,9 +51,10 @@ menkar` takes it all out.
 - **On the next start** the windows and their tabs come back (the `reopen_tabs` setting turns it off).
 - **The orchestration mode** (the "Orchestration" switch beside Usage, or a project's team icon in
   the dropdown) is for a project where several sessions work together: you talk to one session,
-  the orchestrator, which hands the work out; the sidebar shows the team by role, with the topics
-  waiting for your decision at its top. A session's menu sets the orchestrator, a role, a priority ★
-  and "with you". The first time, Menkar asks who orchestrates and offers its guide, which ships
+  the orchestrator, which hands the work out as tasks. The sidebar's **Work** view shows the topics
+  waiting for your decision and how far each task is ("3/5 · building .deb"); **Team** shows the
+  team by role; the **Board** button opens every topic and task in columns. A session's menu sets
+  the orchestrator, a role and "with you"; a task's right-click sets its ★. The first time, Menkar asks who orchestrates and offers its guide, which ships
   with the app (`/opt/Menkar/resources/plugin/guide/orchestration-mode.md` on Ubuntu) so any
   session can read it.
 - **Add session** (the sidebar's button) lists every session Claude Code and Cursor have on the

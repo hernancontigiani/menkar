@@ -50,6 +50,9 @@ export function projectsSnapshot(): ProjectsSnapshot {
       parents: keptParents(p),
       orchestration: orchestrationInfo(p),
       topicsCollapsed: p.topicsCollapsed === true,
+      teamView: p.teamView === true,
+      consultantsCollapsed: p.consultantsCollapsed === true,
+      doneTodayOpen: p.doneTodayOpen === true,
     })),
     notices,
   }

@@ -157,7 +157,6 @@ describe('a session started with a stopped session’s name takes it over, as af
           on: true,
           orchestrator: 'set',
           roles: { 'old-b1': 'Worker' },
-          priority: ['old-b1'],
         },
       },
     ])
@@ -170,7 +169,6 @@ describe('a session started with a stopped session’s name takes it over, as af
       on: true,
       orchestrator: 'set',
       roles: { 'new-b1': 'Worker' },
-      priority: ['new-b1'],
     })
   })
 

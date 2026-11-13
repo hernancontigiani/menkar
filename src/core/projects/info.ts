@@ -22,10 +22,12 @@ export interface ProjectInfo {
     readonly on: boolean
     readonly orchestrator: string | null
     readonly roles: Readonly<Record<string, string>>
-    readonly priority: readonly string[]
     readonly withYou: readonly string[]
   }
   readonly topicsCollapsed: boolean
+  readonly teamView: boolean
+  readonly consultantsCollapsed: boolean
+  readonly doneTodayOpen: boolean
 }
 
 // A message for the user, shown until dismissed: a key of `t()` and its placeholders.

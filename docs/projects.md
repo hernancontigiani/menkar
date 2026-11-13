@@ -119,16 +119,19 @@ built and why.
 
 - A project may keep `orchestration` (`src/core/projects/orchestration.ts`; the mode itself is
   `docs/orchestration.md`): `on`, the `orchestrator`'s id (one per project), `roles` (id → a free
-  label), `priority` (ids with the ★) and `with_you` (ids the human marked). Beside it,
-  `topics_collapsed` when the Topics section shows its heading alone.
+  label) and `with_you` (ids the human marked). A `priority` an earlier Menkar wrote (ids with the
+  ★) is read and dropped, never written: the ★ belongs to tasks now (decision 1.114, 2026-11-13).
+  Beside it, `topics_collapsed` when the Topics section shows its heading alone, and the Work
+  view's choices (decision 1.112): `team_view` when the sidebar shows Team, `consultants_collapsed`
+  and `done_today_open`, each written only while true.
 - **Switching the mode off keeps every mark** (`on: false` with the rest), so switching it on finds
   the team as it was.
 - **What always holds** (`keptOrchestration`): every id is a member. A member leaving the project
   (`leave`, so also `removeMember` and `forgetSession`) takes its marks with it; the orchestrator
   leaving leaves none.
 - **It follows new ids:** `followNewId` and `followResume` give the new id the old one's role,
-  orchestrator mark, ★ and "with you" (`followOrchestration`), as they give it the old one's place;
-  the old id keeps none.
+  orchestrator mark and "with you" (`followOrchestration`), as they give it the old one's place;
+  the old id keeps none. Its tasks follow too, in `tasks.json` (`docs/orchestration.md`).
 - In `projects.json` it sits after `parents`, snake_case like the other keys, written only when
   something is set, and is read leniently: a key of the wrong type is dropped alone, an id that is
   not a member is dropped, an orchestrator that is not a member leaves none, a label that is not
@@ -148,7 +151,8 @@ built and why.
   `layout.alreadyBeside`, `layout.sharesTab`) for the toast. Moving between tabs (`stepTab`,
   `nthTab`) only counts the shown project's tabs.
 - **What is saved** (`toSaved`): per window, the shown project (`current`), its session tabs
-  (joined panes) and file tabs (`tabs`), grouped by project, leaving out projects with none, and
+  (joined panes), file tabs and Board tab (`{ board: true }`, reopened once per project) (`tabs`),
+  grouped by project, leaving out projects with none, and
   `maximized` (decision 1.98, 2026-11-12): whether the window manager has it maximized, full screen
   aside. Main sets it (`setMaximized`) when the window maximizes, restores, leaves full screen or
   closes; full screen leaves it as it was.

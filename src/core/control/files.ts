@@ -19,6 +19,12 @@ export const TOOL_NAMES = [
   'topic_close',
   'topic_list',
   'adopt_session',
+  'task_add',
+  'task_steps',
+  'task_progress',
+  'task_review',
+  'task_close',
+  'task_list',
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 

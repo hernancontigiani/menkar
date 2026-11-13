@@ -26,10 +26,9 @@ so a wrong doc or memory is caught at once:
 - your shape (below), and why;
 - the project's rules on working trees, on who commits, and on pushing;
 - where it keeps decisions and open topics;
-- the experts and consultants, with their areas, and the priority sessions: in Menkar's
-  orchestration mode, `list_sessions` gives each session's `role`, `parent` and `priority` — a
-  session with a role under you is an expert, a loose one with a role a consultant; otherwise, the
-  ones the human names;
+- the experts and consultants, with their areas: in Menkar's orchestration mode, `list_sessions`
+  gives each session's `role` and `parent` — a session with a role under you is an expert, a loose
+  one with a role a consultant; otherwise, the ones the human names;
 - anything else you will act on that you read rather than were told.
 
 Write "not found" for what you did not find, and ask; don't fill it in. When the human says a
@@ -82,11 +81,15 @@ docs within a minute, you are shape 3 there, and you route.
   on a smaller model. Which one is written in the project's own docs; if not, ask the human.
 - **A session marked "with you"** (with_you in `list_sessions`) is talking with the human: give
   it no work and don't interrupt it until the mark clears.
-- **Priority sessions first** (`priority` in `list_sessions`, the ★): their reports, their topics
-  and their turn at a shared resource come before the others'.
+- **A task for each piece of work you delegate** (`task_add`: a title and the session by name);
+  name its number in the task message. The session splits it into steps and reports each advance,
+  so the human sees how far it is. A consultant gets no task: ask it, and it raises topics.
+- **★ tasks first** (`priority` in `list_sessions` is the ★ of a session's current task): their
+  reports, topics and turn at a shared resource come before the others'. The ★ is the human's;
+  give it at `task_add` only when they ask.
 - **The task message stands on its own.** It holds, in this order:
-  1. "This task comes from ‹your name›, the orchestrator; load `menkar:worker`." Its text arrives
-     as an ordinary prompt; this is how the session knows.
+  1. "This task comes from ‹your name›, the orchestrator; load `menkar:worker`. It is task N."
+     Its text arrives as an ordinary prompt; this is how the session knows.
   2. The facts you measured (file and line, numbers), **each one checked in this session**, with
      the command. A premise you did not check is the subtle way of inventing.
   3. What is decided, and where it is written; what to do; which files it may touch.
@@ -113,7 +116,7 @@ Follow the project's rule on working trees (its `CLAUDE.md` or memory); do not c
   every change as it lands, so the human can watch.
 - **Worktrees**: the running environment is a shared resource with **one owner at a time**.
   Sessions work in their worktree until they need to validate visually; then they take their turn,
-  priority sessions first, and check their branch out where the environment runs.
+  ★ tasks first, and check their branch out where the environment runs.
 - **Before a turn passes**, the shared state must match what the next branch expects (migrations of
   the leaving branch rolled back, for example). That is the one change to the running environment
   you allow without the human, and only with the procedure the project documents; with none, ask
@@ -128,7 +131,7 @@ flight. Nobody pushes unless the project's rule or the human says so.
 ## When you are woken
 
 - **"[Menkar] ‹name› finished its turn"**: read its report with `last_reply`, check it, decide the
-  next step (`closing-a-task.md` when it says done). A session renewed with a prompt also ends a
+  next step (`closing-a-task.md` when it says done, or its task is to review). A session renewed with a prompt also ends a
   turn: that wake needs nothing.
 - **"[Menkar] ‹name› is waiting at a permission prompt"**: look with `list_sessions`. If it is
   still blocked, raise a **blocking topic** (`topic_add`) naming the session and what it waits to

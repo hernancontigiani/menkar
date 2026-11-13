@@ -22,8 +22,6 @@ export interface Orchestration {
   readonly orchestrator?: string
   // A free label by session id, e.g. "Fabric expert".
   readonly roles?: Readonly<Record<string, string>>
-  // Sessions with the ★: their topics and wakes come first.
-  readonly priority?: readonly string[]
   // Sessions the human marked as talking with them directly.
   readonly withYou?: readonly string[]
 }
@@ -50,6 +48,12 @@ export interface Project {
   readonly orchestration?: Orchestration
   // Its Topics section in the sidebar shows the heading alone.
   readonly topicsCollapsed?: true
+  // The sidebar in the mode shows Team instead of Work (decision 1.112).
+  readonly teamView?: true
+  // The Work view's Consultants section shows its heading alone.
+  readonly consultantsCollapsed?: true
+  // The Work view's Done today section, folded unless this is set.
+  readonly doneTodayOpen?: true
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }
@@ -59,6 +63,7 @@ export type Orientation = 'horizontal' | 'vertical'
 export type SavedTab =
   | { readonly panes: readonly string[]; readonly orientation: Orientation }
   | { readonly file: string; readonly preview: boolean }
+  | { readonly board: true }
 
 export interface SavedWindow {
   readonly current: string

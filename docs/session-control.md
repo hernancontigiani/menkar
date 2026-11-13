@@ -62,9 +62,10 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **`list_sessions {}`:** the caller's project, name first, then the id, the shown state, the
     context percentage, the parent's name, and whether the session has a tab. Earlier
     conversations are left out. Each session also carries the orchestration mode's marks — `role`
-    (its label or null), `orchestrator`, `priority` and `with_you` — and the answer says whether
-    the mode is on (`orchestration`). With the mode off the marks read null and false: off is the
-    ordinary Menkar (`sessionMarks`, `sessionsAnswer`). A snapshot an older Menkar wrote, without
+    (its label or null), `orchestrator`, `priority` (the ★ of its current task, decision 1.114)
+    and `with_you` — and the answer says whether the mode is on (`orchestration`). With the mode
+    off the marks read null and false: off is the ordinary Menkar (`sessionMarks`,
+    `sessionsAnswer`). A snapshot an older Menkar wrote, without
     them, reads the same.
   - **`last_reply { name }`:** the last text a session of the caller's project replied. It is read
     from the end of its transcript (`src/core/sessions/lastreply.ts`, read only, in chunks, never
@@ -74,14 +75,31 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     worker's report outlives the renew that follows it.
     When two sessions of the project share the name (a stopped one kept it), the one with a tab is
     read, else the most recently active (`sessionOfProject`, 2026-11-12).
-  - **`topic_add { title, context, blocking? }`, `topic_update { number, title?, context?,
+  - **`topic_add { title, context, blocking?, task? }`, `topic_update { number, title?, context?,
     blocking?, status? }`, `topic_close { number, decision }`, `topic_list { all? }`:** the
     project's topics for the human (`docs/orchestration.md`), kept by main in `topics.json`. Any
-    session of the project may call them; a number of another project is "not found". Status set
-    by hand is "open" or "discussing"; only `topic_close` closes. `topic_list` gives one topic per
-    two lines — number, ★ when raised by a priority session, title, who raised it by name,
-    blocking, status, decision when closed, then the context — in the sidebar's order
-    (`topicTool`, `src/core/orchestration/topics.ts`).
+    session of the project may call them; a number of another project is "not found". `task`
+    names the task the topic belongs to; a number the project has no task for is refused. Status
+    set by hand is "open" or "discussing"; only `topic_close` closes. `topic_list` gives one topic
+    per two lines — number, ★ when its task has the ★, title, who raised it by name, blocking, its
+    task, status, decision when closed, then the context — in the sidebar's order (`topicTool`,
+    `src/core/orchestration/topics.ts`).
+  - **The task tools** (decision 1.113, `taskTool`, `src/core/orchestration/tasks.ts`), kept by main
+    in `tasks.json`. Who may call each is part of the decision, and the refusals are our own
+    sentences:
+    - `task_add { title, assignee, star? }`: the orchestrator only, with the mode on ("Only the
+      orchestrator adds tasks.", "The orchestration mode is off in this project."); the assignee by
+      name (`sessionOfProject`). Answers "Task N added."; the task is queued.
+    - `task_steps { number, steps }`: the assignee only ("Only the session the task is assigned to
+      reports on it."); 3 to 7 non-empty lines; in progress at step 1.
+    - `task_progress { number, step?, note, waiting_on? }`: the assignee only, after its steps;
+      `step` from 1 to the number of steps, kept when omitted; with `waiting_on` the task is
+      waiting, without it in progress.
+    - `task_review { number, note }`: the assignee only; to review.
+    - `task_close { number, outcome }`: the orchestrator only, with the mode on; `done` or
+      `dropped`. A closed task takes no more reports ("Task N is closed.").
+    - `task_list { all? }`: anyone; the open tasks, ★ first, each with its steps and the current one
+      marked; `all` adds the closed ones.
   - **`adopt_session { name }`:** the orchestrator makes a session of its project its child, so
     Menkar wakes it for that session (decision 1.102, `docs/orchestration.md`). Refused to any
     other caller ("Only the orchestrator can adopt a session.") and with the mode off; the
@@ -130,8 +148,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     `onShownChange` in `src/main/agentstate.ts`.
   - **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, events wait until no
     new one has come for `WAKE_DELAY_MS`, a child keeps only its latest, and all go in one message.
-    In it, the events of children with the ★ come first; otherwise they keep the order the children
-    first spoke in (decision 1.78).
+    In it, the events of children whose current task has the ★ come first; otherwise they keep the
+    order the children first spoke in (decisions 1.78 and 1.114).
   - **The post** (`postToSession`, `post.ts`):
     - Main finds the parent's process in Claude Code's registry, `~/.claude/sessions/<pid>.json`,
       read only, by `sessionId`, and requires `peerProtocol` 1.
@@ -156,8 +174,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
 - **What it is:** `plugin/` in the repository, `.claude-plugin/plugin.json` named `menkar` and four
   skills, `skills/<folder>/SKILL.md`. Claude Code names a skill after its folder, so they load as
   `menkar:orchestrator`, `menkar:worker`, `menkar:distill` and `menkar:specialize`.
-  - **orchestrator:** coordinating sessions. Only it starts sessions or hands out work.
-  - **worker:** taking a task from another session; the report is its last message.
+  - **orchestrator:** coordinating sessions. Only it starts sessions or hands out work; it adds a
+    task when it delegates, names its number in the handoff, and closes it after reviewing (a
+    review that is the human's goes to them as a topic).
+  - **worker:** taking a task from another session; with a task number, it sets 3 to 7 steps,
+    reports each advance and hands it to review, never closing it; the report is its last
+    message.
   - **distill:** keeping a specialist's skill current when its task is closed, then renewing.
   - **specialize:** turning what a session knows into a role with a skill of its own.
 - **How a session gets it:** every Claude command Menkar builds carries `--plugin-dir <plugin>`

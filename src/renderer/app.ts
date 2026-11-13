@@ -12,7 +12,7 @@ import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import { relativeTime } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
 import { DEFAULT_SETTINGS, SIDEBAR_MIN_WIDTH } from '../core/settings'
-import type { Action, ActionResult, TabView, WindowState } from '../shared/workspace'
+import type { Action, ActionResult, TabView, TaskView, WindowState } from '../shared/workspace'
 import { openAddSession } from './addsession'
 import { mountChat } from './chat'
 import { el, icon } from './dom'
@@ -49,6 +49,14 @@ import {
   toast,
   unsavedQuestion,
 } from './ui'
+import {
+  boardButton,
+  boardElement,
+  syncBoardButton,
+  teamTaskLine,
+  viewSwitch,
+  workView,
+} from './work'
 
 let state: WindowState | undefined
 // Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
@@ -81,7 +89,7 @@ window.menkar.context.onReading(({ sessionId, reading }) => {
 export type DotState = ShownState | 'stopped'
 
 // A session with a pane shows its agent's state (idle until one is known); without one, stopped.
-function sessionState(id: string): DotState {
+export function sessionState(id: string): DotState {
   const panes = agentStates?.panes.filter((p) => p.sessionId === id) ?? []
   if (panes.length > 0) return rollup(panes.map((p) => p.state))
   return state?.open.includes(id) ? 'idle' : 'stopped'
@@ -149,6 +157,12 @@ const TITLE_CHARS = 28
 export const act = (action: Action) => window.menkar.window.act(action)
 export const currentState = () => state
 
+// The session's current task: in progress or waiting, else its oldest queued one.
+export function currentTaskOf(sessionId: string): TaskView | undefined {
+  const n = state?.tasks.current[sessionId]
+  return n === undefined ? undefined : state?.tasks.open.find((x) => x.number === n)
+}
+
 const $ = (id: string) => document.getElementById(id) as HTMLElement
 
 // ---------------------------------------------------------------- the frame, built once
@@ -208,6 +222,7 @@ export function buildFrame(): void {
       'aside',
       { id: 'sidebar' },
       el('div', { class: 'sidebar-header' }, projectButton, settings),
+      el('div', { id: 'view-switch' }),
       el('div', { id: 'topics-section' }),
       el('div', { id: 'session-list' }),
       el('div', { id: 'files-section' }),
@@ -224,6 +239,7 @@ export function buildFrame(): void {
         newMenu,
         usage,
         modeSwitch(),
+        boardButton(),
         el(
           'div',
           { class: 'title' },
@@ -322,6 +338,7 @@ export function render(next: WindowState): void {
   if (face) $('project-button').querySelector('.project-name')?.after(face)
   document.documentElement.classList.toggle('maximized', next.maximized)
   syncModeSwitch(project)
+  syncBoardButton(project)
   renderSessionList(next, project)
   renderStrip(next)
   renderContent(next)
@@ -381,9 +398,13 @@ const folderOf = (info: SessionInfo) =>
 function renderSessionList(s: WindowState, project: ProjectInfo | undefined): void {
   const list = $('session-list')
   $('files-section').replaceChildren(...(project ? filesSection(s, project) : []))
+  const mode = project?.orchestration.on === true
+  const work = mode && !project?.teamView
+  $('view-switch').replaceChildren(...(mode && project ? [viewSwitch(project)] : []))
   $('topics-section').replaceChildren(
-    ...(project?.orchestration.on ? topicsSection(s, project.topicsCollapsed) : []),
+    ...(mode && !work && project ? topicsSection(s, project.topicsCollapsed) : []),
   )
+  list.classList.toggle('work', work)
   if (!project) {
     list.replaceChildren()
     return
@@ -433,6 +454,10 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   const selected = new Set(
     s.tabs.find((tab) => tab.id === s.selectedTab)?.panes.map((p) => p.sessionId) ?? [],
   )
+  if (work) {
+    list.replaceChildren(...workView(s, project, byId, known.filter(listed)))
+    return
+  }
   if (project.orchestration.on)
     children.push(
       ...modeList(project, {
@@ -797,6 +822,7 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
 // its own is labelled as the orchestrator.
 function teamText(info: SessionInfo, folder: string | null, project: ProjectInfo): HTMLElement {
   const o = project.orchestration
+  const task = currentTaskOf(info.id)
   const role = o.roles[info.id] ?? (o.orchestrator === info.id ? t('orch.orchestrator') : undefined)
   const under = [role, folder].filter((x): x is string => Boolean(x)).join(' · ')
   return el(
@@ -805,15 +831,14 @@ function teamText(info: SessionInfo, folder: string | null, project: ProjectInfo
     el(
       'div',
       { class: 'name' },
-      o.priority.includes(info.id)
-        ? el('span', { class: 'priority-star', title: t('orch.priority') }, '★')
-        : null,
+      task?.star ? el('span', { class: 'priority-star', title: task.title }, '★') : null,
       info.name,
       mutedIcon(info.id),
       o.withYou.includes(info.id)
         ? el('span', { class: 'with-you' }, t('orch.withYouBadge'))
         : null,
     ),
+    teamTaskLine(task),
     under ? el('div', { class: `folder dim${role ? ' role' : ''}` }, under) : null,
   )
 }
@@ -1276,6 +1301,7 @@ function renderContent(s: WindowState): void {
     const focused = focusedPane.get(tab.id)
     const children: HTMLElement[] = []
     if (tab.file) children.push(fileElement(tab))
+    if (tab.kind === 'board') children.push(boardElement(s, () => state && render(state)))
     if (tab.chat !== undefined) children.push(chatElement(tab.id, tab.chat))
     const project = s.projects.find((p) => p.id === tab.project)
     for (const pane of tab.panes) {

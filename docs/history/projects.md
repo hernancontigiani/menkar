@@ -79,3 +79,22 @@ keeps how they are built and why.
   and file tabs, grouped by project, leaving out projects with none.
   its path is still a regular file. With "Reopen tabs on start" off, or nothing usable left, the
   result is one window on `current` with no tabs.
+
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+> Left on 2026-11-13: the ★ moved from sessions to tasks (decision 1.114).
+  label), `priority` (ids with the ★) and `with_you` (ids the human marked). Beside it,
+  `topics_collapsed` when the Topics section shows its heading alone.
+
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+> Left on 2026-11-13: the ★ moved from sessions to tasks (decision 1.114).
+- **It follows new ids:** `followNewId` and `followResume` give the new id the old one's role,
+  orchestrator mark, ★ and "with you" (`followOrchestration`), as they give it the old one's place;
+  the old id keeps none.
+
+## The layout — `layout.ts`
+
+> Left on 2026-11-13: the Board tab is saved with the layout (decision 1.112).
+- **What is saved** (`toSaved`): per window, the shown project (`current`), its session tabs
+  (joined panes) and file tabs (`tabs`), grouped by project, leaving out projects with none, and
