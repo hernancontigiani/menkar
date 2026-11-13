@@ -78,6 +78,20 @@ describe('the protocol', () => {
     expect(TOOL_NAMES).toEqual(reply.result.tools.map((t) => t.name))
   })
 
+  test('decision 1.106: start_session takes an optional model, described for the agent', async () => {
+    const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
+      result: {
+        tools: {
+          name: string
+          inputSchema: { properties: Record<string, { type: string }>; required?: string[] }
+        }[]
+      }
+    }
+    const start = reply.result.tools.find((t) => t.name === 'start_session')
+    expect(start?.inputSchema.properties.model).toMatchObject({ type: 'string' })
+    expect(start?.inputSchema.required).toEqual(['name'])
+  })
+
   test('a call goes to Menkar with its arguments, and its answer comes back as text', async () => {
     const calls: unknown[] = []
     const reply = await answer(

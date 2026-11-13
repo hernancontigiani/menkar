@@ -30,9 +30,13 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   `/clear` gives it a new id, and an id an agent kept would name nothing.
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
-  - **`start_session { name, prompt? | prompt_file?, remote_control?, group? }`:** a new Claude
-    session in the caller's project, in a tab right after the caller's, not selected. The caller
-    becomes its parent.
+  - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model? }`:** a new
+    Claude session in the caller's project, in a tab right after the caller's, not selected. The
+    caller becomes its parent.
+    - **`model`** (decision 1.106, 2026-11-12) is passed as it is, `claude --model <model>`, so the
+      orchestrator picks it per task. It becomes a command-line argument: anything but one word
+      not starting with `-` is refused (`readModel`, `src/core/control/model.ts`). Only the start
+      carries it; a later resume runs with Claude Code's own record of the session.
     - A name another session of the project already uses in a tab is refused, and so is a group
       the project does not have.
     - The session starts in the caller's folder.

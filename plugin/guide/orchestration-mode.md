@@ -121,6 +121,41 @@ experts beside it carry.
    it asks the person, until the same kind of question has come often enough that an expert is
    created for it.
 
+## Experts and workers
+
+An expert who also implements its own area becomes the bottleneck of that area, and implementing
+spends the context that holds what it knows. What works better:
+
+- **The expert knows; generalist workers execute.** The orchestrator asks the expert for the task
+  (a plan, or the key points and traps of its area), starts a generalist worker for it, and tells
+  the worker which expert to ask about that area. When the worker reports, the orchestrator asks
+  the expert to review the result. Several workers can then work in one area at once, while the
+  expert stays free to think with the person.
+- **Keep the expert loose**, not under the orchestrator: it stays in "Experts and consultants", its
+  tab stays writable for the person, and the orchestrator messages it by name, asking it to answer
+  by name.
+- **Let the expert do a change itself** when it is small enough that explaining it costs more than
+  making it.
+- **Workers can run on a smaller model** when an expert answers their questions and reviews their
+  work. Which model is the project's choice: write it in the project's own instructions (below);
+  the orchestrator never guesses one.
+
+## What a project writes down for its orchestrator
+
+`menkar:orchestrator` is written for any project. What is particular to one project goes in that
+project's own instructions (its `CLAUDE.md`, or the docs it points to), where the orchestrator
+reads it when it starts, and nowhere else:
+
+- whether sessions share one working tree or use worktrees, and who commits and pushes;
+- where the project keeps its decisions;
+- the experts and consultants and their areas, if their own skills do not say it;
+- the model generalist workers run on;
+- how the project's environment is started, seeded and migrated, if workers verify against it.
+
+A few lines are usually enough. A project needs a role file or a skill of its own for its
+orchestrator only when that list grows into a method of its own (how plans are written, executed
+and closed, for example).
+
 ## Setting it up
 
 The first time the mode is switched on in a project, Menkar asks who orchestrates: one of the

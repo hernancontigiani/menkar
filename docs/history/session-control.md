@@ -53,3 +53,8 @@ and the wake order.
 
 > Left on 2026-11-12: adopt_session is the ninth tool (decision 1.102).
 - **The eight tools.** A session is always named by its name, never by its id: a renew or a
+
+> Left on 2026-11-12: start_session takes an optional model (decision 1.106).
+  - **`start_session { name, prompt? | prompt_file?, remote_control?, group? }`:** a new Claude
+    session in the caller's project, in a tab right after the caller's, not selected. The caller
+    becomes its parent.

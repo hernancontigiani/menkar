@@ -12,6 +12,18 @@ describe('command lines', () => {
     ).toBe(`${CLI} --session-id 0b6c-e1 -n 'checkout flow' --settings ${SETTINGS} && exit\n`)
   })
 
+  test('decision 1.106: a model given is passed as --model; none, no flag', () => {
+    expect(
+      buildCommand('claude', { kind: 'new', id: 'n1', name: 'w', model: 'sonnet' }, opts),
+    ).toBe(`${CLI} --session-id n1 -n w --model sonnet --settings ${SETTINGS} && exit\n`)
+    expect(buildCommand('claude', { kind: 'new', id: 'n1', name: 'w' }, opts)).not.toContain(
+      '--model',
+    )
+    expect(
+      buildCommand('claude', { kind: 'new', id: 'n1', model: 'claude-opus-4-1[1m]' }, opts),
+    ).toContain("--model 'claude-opus-4-1[1m]'")
+  })
+
   test('TRM-2 a resume', () => {
     expect(buildCommand('claude', { kind: 'resume', id: '7f3a' }, opts)).toBe(
       `${CLI} --resume 7f3a --settings ${SETTINGS} && exit\n`,

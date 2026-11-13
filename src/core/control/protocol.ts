@@ -36,6 +36,11 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
         },
         remote_control: { type: 'boolean', description: 'Turn Remote Control on for it.' },
         group: { type: 'string', description: 'An existing group of the project to put it in.' },
+        model: {
+          type: 'string',
+          description:
+            "The model the new session runs, as the agent names it, e.g. a smaller one for a generalist worker; omit it for the user's default.",
+        },
       },
       required: ['name'],
     },

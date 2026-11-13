@@ -17,6 +17,7 @@ import {
   sessionsAnswer,
 } from '../core/control/files'
 import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
+import { readModel } from '../core/control/model'
 import { postToSession } from '../core/control/post'
 import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
 import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
@@ -1286,6 +1287,8 @@ async function startForAgent(
   const project = projects.projects.find((p) => p.id === projectId)
   const group = groupName ? project?.groups.find((g) => g.name === groupName) : undefined
   if (groupName && !group) return refuse(`The project has no group called "${groupName}".`)
+  const model = readModel(args.model)
+  if ('refusal' in model) return refuse(model.refusal)
   const hasPrompt = typeof args.prompt === 'string' && args.prompt !== ''
   if (hasPrompt && args.prompt_file !== undefined)
     return refuse('Give either prompt or prompt_file, not both.')
@@ -1326,7 +1329,7 @@ async function startForAgent(
   layout = insertTabAfter(layout, caller.tabId, tab)
   await startPane(tab.id, {
     agent: 'claude',
-    start: { kind: 'new', id, name },
+    start: { kind: 'new', id, name, ...model },
     cwd: caller.cwd,
     sessionId: id,
     ...(remote ? { remote: remoteName(name, caller.cwd, id) } : {}),

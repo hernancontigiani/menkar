@@ -11,6 +11,8 @@ export type Start =
       readonly kind: 'new'
       readonly id?: string
       readonly name?: string
+      // Claude Code's `--model`, as the agent names it; a later resume keeps Claude Code's own.
+      readonly model?: string
     }
   | { readonly kind: 'resume'; readonly id: string }
   | { readonly kind: 'fork'; readonly source: string; readonly id: string }
@@ -56,6 +58,7 @@ export function buildCommand(agent: Agent, start: Start, options: CommandOptions
       if (claude) {
         if (start.id) args.push('--session-id', start.id)
         if (start.name) args.push('-n', start.name)
+        if (start.model) args.push('--model', start.model)
         if (options.remoteControl) args.push(`--remote-control=${options.remoteControl}`)
       }
       break

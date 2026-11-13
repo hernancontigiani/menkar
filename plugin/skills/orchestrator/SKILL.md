@@ -66,6 +66,8 @@ docs within a minute, you are shape 3 there, and you route.
 
 - **Who takes it:** a new worker you start with `start_session`, or an existing session that owns
   that area, by name. An expert back after a gap first hears what changed since its last task.
+- **Its model** (`model` in `start_session`): a generalist worker with an expert behind it may run
+  on a smaller model. Which one is written in the project's own docs; if not, ask the human.
 - **A session marked "with you"** (with_you in `list_sessions`) is talking with the human: give
   it no work and don't interrupt it until the mark clears.
 - **Priority sessions first** (`priority` in `list_sessions`, the ★): their reports, their topics
