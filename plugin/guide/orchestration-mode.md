@@ -213,12 +213,21 @@ and closed, for example).
 ## Setting it up
 
 The first time the mode is switched on in a project, Menkar asks who orchestrates: one of the
-project's sessions, or a new session it starts, which is told to load `menkar:orchestrator`. From
-then on:
+project's sessions, or a new session it starts, which is told to load `menkar:orchestrator` and
+that the orchestration is new. In the card's list of sessions the orchestrator manages, leave
+unchecked the consultants and any session still in the middle of something with you: a checked
+one comes under the orchestrator and its tab turns read only.
 
-1. Mark the roles; hand the experts and workers to the orchestrator and leave the consultants
-   loose. Put the ★ on the tasks that come first.
-2. Talk to the orchestrator. Let it start the workers.
-3. Read the Work view; answer a topic in the orchestrator's chat.
-4. When you talk to another session directly, mark it "with you", and clear the mark when you are
-   done; ask it to tell the orchestrator what came out of it.
+An orchestrator that finds nothing configured yet (no session under it, no role, no task) reads
+this guide and walks you through the rest, as if you did not know the mode: what each session is,
+which ones to hand it, the project's rules to write down. You don't need to know this guide to
+start. When it cannot answer something from the guide, it says what was missing.
+
+From then on:
+
+1. Talk to the orchestrator. Let it start the workers and create the tasks.
+2. Read the Work view; answer a topic in the orchestrator's chat (a double-click on it tells the
+   orchestrator).
+3. To talk to a session under the orchestrator, press "Take control" on its banner, and "Back to
+   reporting to the orchestrator" when you are done; ask it to tell the orchestrator what came
+   out of it.

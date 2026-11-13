@@ -99,7 +99,8 @@ export const en = {
   'orch.cardCopied': 'Prompt copied',
   'orch.cardPrompt':
     'Read {path} — Menkar’s guide to its orchestration mode — and help me set it up in this project.',
-  'orch.firstPrompt': 'Load `menkar:orchestrator`. You are the orchestrator of the project {name}.',
+  'orch.firstPrompt':
+    "Load `menkar:orchestrator`. You are the orchestrator of the project {name}. Its orchestration is new: read Menkar's guide at {guide} first, then help me configure it.",
   'header.usageTooltip': 'Usage: time, tokens and cost',
   'menu.newWindow': 'New window',
   'menu.newSession': 'New session',

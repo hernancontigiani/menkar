@@ -118,3 +118,7 @@ keeps for them. Off, Menkar is as before and the marks wait. The guide for users
 
 > Left on 2026-11-13: the ★ moved from sessions to tasks (decision 1.114).
 - **Blocked events before finished ones in a wake**: not decided; only ★ first (1.78).
+
+> Left on 2026-11-13: a new orchestrator's first prompt says the orchestration is new and names the guide.
+    prompt telling it to load `menkar:orchestrator` and marked as it starts, then switches the mode
+    on. **Not now** leaves it off.

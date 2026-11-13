@@ -101,7 +101,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.cardCopied': 'Prompt copiado',
   'orch.cardPrompt':
     'Leé {path} — la guía de Menkar sobre su modo de orquestación — y ayudame a configurarlo en este proyecto.',
-  'orch.firstPrompt': 'Cargá `menkar:orchestrator`. Sos el orquestador del proyecto {name}.',
+  'orch.firstPrompt':
+    'Cargá `menkar:orchestrator`. Sos el orquestador del proyecto {name}. Su orquestación es nueva: leé primero la guía de Menkar en {guide} y después ayudame a configurarla.',
   'header.usageTooltip': 'Uso: tiempo, tokens y costo',
   'menu.newWindow': 'Ventana nueva',
   'menu.newSession': 'Nueva sesión',

@@ -74,8 +74,9 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   "orchestrator" by default, and a folder among the project's running sessions' folders — the list
   `Ctrl+\`` offers — or, with none, the recent folders Add session offers).
   - **Start** marks the chosen session, or starts the new one through `startNew` with a first
-    prompt telling it to load `menkar:orchestrator` and marked as it starts, then switches the mode
-    on. **Not now** leaves it off.
+    prompt telling it to load `menkar:orchestrator`, that the project's orchestration is new, and to
+    read the guide at its absolute path first (2026-11-13), marked as it starts; then it switches
+    the mode on. **Not now** leaves it off.
   - **Open the guide** opens `plugin/guide/orchestration-mode.md` in a Menkar file tab, read only
     (files under the plugin folder get `files.readOnlyMenkar` from the file check), and hides the
     card (decision 1.94, mock G1). Closing that tab brings the card back with what had been chosen

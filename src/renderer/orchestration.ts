@@ -215,7 +215,14 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
       const pick = chosen()
       const sessions = managed()
       close()
-      void startTeam(p, pick, name.value.trim() || 'orchestrator', folder.value, sessions)
+      void startTeam(
+        p,
+        pick,
+        name.value.trim() || 'orchestrator',
+        folder.value,
+        sessions,
+        s.guidePath,
+      )
     })
     const card = el(
       'div',
@@ -266,6 +273,7 @@ async function startTeam(
   name: string,
   folder: string,
   managed: readonly string[],
+  guide: string,
 ): Promise<void> {
   if (pick === NEW) {
     if (!folder) return
@@ -274,7 +282,7 @@ async function startTeam(
       agent: 'claude',
       folder,
       name,
-      prompt: t('orch.firstPrompt', { name: p.name }),
+      prompt: t('orch.firstPrompt', { name: p.name, guide }),
       orchestrator: true,
     })
     if (refusal) return toast(translate(refusal))

@@ -216,7 +216,7 @@ test('the card: "Open the guide" opens Menkar’s guide read only and hides the 
   }
 })
 
-test('the card: "A new session" starts a tab named as typed, marked orchestrator, told to load the skill', async () => {
+test('the card: "A new session" starts a tab named as typed, marked orchestrator, told to load the skill and read the guide first', async () => {
   const { launched, page, home } = await launch()
   try {
     await page.locator('#orchestration-switch').click()
@@ -226,11 +226,11 @@ test('the card: "A new session" starts a tab named as typed, marked orchestrator
     await expect(page.locator('.tab.selected')).toHaveText(/lead/)
     const argsFile = join(home, 'claude-args.txt')
     const args = () => (existsSync(argsFile) ? readFileSync(argsFile, 'utf8') : '')
-    await expect
-      .poll(args)
-      .toContain(
-        '-n lead Load `menkar:orchestrator`. You are the orchestrator of the project Client work.',
-      )
+    // The orchestration is new: the prompt names Menkar's guide by its absolute path.
+    const told =
+      /-n lead Load `menkar:orchestrator`\. You are the orchestrator of the project Client work\. Its orchestration is new: read Menkar's guide at (\/\S+\/orchestration-mode\.md) first, then help me configure it\./
+    await expect.poll(args).toMatch(told)
+    expect(existsSync(told.exec(args())?.[1] ?? '')).toBe(true)
     const id = /--session-id (\S+) -n lead/.exec(args())?.[1]
     await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: id })
   } finally {
