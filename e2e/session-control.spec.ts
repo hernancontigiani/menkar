@@ -231,7 +231,11 @@ test('a started session waiting at a permission prompt wakes its parent through 
     const frames = () => lines.map((line) => JSON.parse(line))
     await expect
       .poll(() => frames().map((f) => f.message.content), { timeout: 20_000 })
-      .toContainEqual('[Menkar] worker is waiting at a permission prompt')
+      .toContainEqual(
+        expect.stringMatching(
+          /^\[Menkar\] worker is waiting at a permission prompt \(\d{2}:\d{2}:\d{2}\)$/,
+        ),
+      )
     for (const frame of frames()) {
       expect(Object.keys(frame)).toEqual(['type', 'message', 'from', 'msg_id'])
       expect(frame).toMatchObject({ type: 'user', from: 'menkar' })

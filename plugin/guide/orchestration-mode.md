@@ -74,11 +74,11 @@ The orchestrator usually keeps the topics. Any session of the project may add on
 - **A new topic** notifies the person, as a waiting session does, and so does a topic that becomes
   blocking. While a topic is being discussed, new ones arrive without sound.
 - **Read-only tabs**: the tab of a session under the orchestrator takes no keys or pastes, under a
-  yellow banner with "Take control". Taking control marks it "with you" (a blue banner, with "Hand
-  back to the orchestrator"); the orchestrator is told both times. While the session waits at a
+  yellow banner with "Take control". Taking control marks it "with you" (a blue banner, with "Back
+  to reporting to the orchestrator"); the orchestrator is told both times. While the session waits at a
   permission prompt, its tab takes keys.
-- **Handing a session over**: "Hand to the orchestrator" in its row menu (and "Take back from the
-  orchestrator"), the first-time card's list of sessions the orchestrator manages, or
+- **Handing a session over**: "Report to the orchestrator" in its row menu (and "Stop reporting to
+  the orchestrator"), the first-time card's list of sessions the orchestrator manages, or
   `adopt_session`, which the orchestrator calls only when the person asks for it. Nothing
   restarts; only who is woken changes.
 
@@ -144,7 +144,7 @@ experts and consultants beside it carry.
   worker to ask that consultant about the area. When the worker reports, the orchestrator may ask
   the consultant to review the result. Several workers can then work in one area at once, while
   the consultant stays free to think with the person.
-- **An expert executes its part.** Hand a session to the orchestrator ("Hand to the orchestrator")
+- **An expert executes its part.** Hand a session to the orchestrator ("Report to the orchestrator")
   to make it an expert of its part: the orchestrator then drives it (a release, say) and is woken
   when it finishes, so the person need not watch both.
 - **Workers can run on a smaller model** when a consultant answers their questions and reviews

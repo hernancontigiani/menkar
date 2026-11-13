@@ -41,6 +41,16 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
           description:
             "The model the new session runs, as the agent names it, e.g. a smaller one for a generalist worker; omit it for the user's default.",
         },
+        loose: {
+          type: 'boolean',
+          description:
+            'Start it with no parent, as a consultant: Menkar never wakes you for it and its tab is never read only.',
+        },
+        role: {
+          type: 'string',
+          description:
+            "The role label it is born with, as the human's Role… sets it; no tool changes it later.",
+        },
       },
       required: ['name'],
     },

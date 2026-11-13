@@ -35,3 +35,15 @@ Decisions 1.77, 1.78, 1.83, 1.84, 1.86, 1.89–1.91, 1.93 and 1.94 (the human, 2
 > Left on 2026-11-13: the heading became "Consultants" (decision 1.107).
 2. **"Experts and consultants"**: every session with a role label that is not the orchestrator and
    not nested, each with its own children as in 1.
+
+## Read-only tabs
+
+> Left on 2026-11-13: the blue banner's button became "Back to reporting to the orchestrator" (decision 1.111).
+  with you.", with "Hand back to the orchestrator", which clears the mark, makes it read only again
+
+## Handing sessions to the orchestrator
+
+> Left on 2026-11-13: the row menu's two items were renamed (decision 1.111).
+- **The row menu**, in the mode, for any session but the orchestrator, after "With you": "Hand to
+  the orchestrator" (its parent becomes the orchestrator), or, for one under it, "Take back from the
+  orchestrator" (`clearParent`, `src/core/projects/parents.ts`). Both are `setManaged`.

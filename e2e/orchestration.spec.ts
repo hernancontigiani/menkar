@@ -466,9 +466,7 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await page.locator('.topic-row[data-topic="3"]').dblclick()
     await expect.poll(() => statusOf(3)).toBe('discussing')
     await expect(orchTab).toHaveClass(/selected/)
-    await expect
-      .poll(posted, { timeout: 15_000 })
-      .toEqual(['[Menkar] The human wants to discuss topic 3'])
+    await expect.poll(posted, { timeout: 15_000 }).toEqual([expect.stringMatching(DISCUSS_3)])
     await page.locator('.topic-row[data-topic="3"]').click()
     await expect(page.locator('.topic-detail')).toContainText('From orchestrator · discussing')
     await shot(page, 'b1-topic-discuss.png')
@@ -479,12 +477,15 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await page.locator('.topic-row[data-topic="1"]').dblclick()
     await expect.poll(() => statusOf(1)).toBe('discussing')
     await page.waitForTimeout(1500)
-    expect(posted()).toEqual(['[Menkar] The human wants to discuss topic 3'])
+    expect(posted()).toEqual([expect.stringMatching(DISCUSS_3)])
   } finally {
     server.close()
     await launched.close()
   }
 })
+
+// Every post ends with the local time, so Claude Code keeps two identical ones apart.
+const DISCUSS_3 = /^\[Menkar\] The human wants to discuss topic 3 \(\d{2}:\d{2}:\d{2}\)$/
 
 const drawer = (page: Page) => page.locator('.tab-body:not(.hidden) .pane.drawer')
 const jumpRows = (page: Page) => page.locator('.jump-row')
@@ -718,8 +719,8 @@ async function listen(root: string): Promise<{ posted: () => string[]; close: ()
 
 // Decision 1.101: a session under the orchestrator is read only — main drops what is typed or
 // pasted — under a yellow banner; Take control makes it "with you", writable, under a blue one,
-// and tells the orchestrator; Hand back undoes both; at a permission prompt it is writable.
-test('a read-only tab: keys and pastes never reach its agent while its terminal still answers the agent’s queries; Take control lets them through and tells the orchestrator; Hand back closes it again (screenshots)', async () => {
+// and tells the orchestrator; Back to reporting undoes both; at a permission prompt it is writable.
+test('a read-only tab: keys and pastes never reach its agent while its terminal still answers the agent’s queries; Take control lets them through and tells the orchestrator; Back to reporting closes it again (screenshots)', async () => {
   let root = ''
   let home = ''
   const launched = await launchApp({
@@ -799,15 +800,23 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
     await expect.poll(received).toContain('typed-with-you')
     await expect
       .poll(socket.posted, { timeout: 15_000 })
-      .toEqual(['[Menkar] The human took control of login worker'])
+      .toEqual([
+        expect.stringMatching(
+          /^\[Menkar\] The human took control of login worker \(\d{2}:\d{2}:\d{2}\)$/,
+        ),
+      ])
     await shot(page, 'banner-blue.png')
 
     // At a permission prompt, even handed back, the tab takes keys while it waits.
     await page.keyboard.type('ASK')
-    await banner.locator('button', { hasText: 'Hand back to the orchestrator' }).click()
+    await banner.locator('button', { hasText: 'Back to reporting to the orchestrator' }).click()
     await expect
       .poll(socket.posted, { timeout: 15_000 })
-      .toContain('[Menkar] The human handed login worker back')
+      .toContainEqual(
+        expect.stringMatching(
+          /^\[Menkar\] The human handed login worker back \(\d{2}:\d{2}:\d{2}\)$/,
+        ),
+      )
     await expect(banner).toContainText('Waiting for your permission', { timeout: 10_000 })
     await expect(banner).toHaveClass(/warning/)
     await page.locator('.tab-body:not(.hidden) .xterm').click()
@@ -827,7 +836,7 @@ const parents = (page: Page) =>
 
 // Decision 1.102: the row menu hands a session to the orchestrator and takes it back; nothing
 // restarts, only who is woken changes — and so its tab turns read only.
-test('"Hand to the orchestrator" nests a loose session under it and its tab turns read only; "Take back" makes it loose again', async () => {
+test('"Report to the orchestrator" nests a loose session under it and its tab turns read only; "Stop reporting to the orchestrator" makes it loose again', async () => {
   const launched = await launchApp({ prepare: (dirs) => team(dirs) })
   const page = launched.window
   try {
@@ -837,8 +846,8 @@ test('"Hand to the orchestrator" nests a loose session under it and its tab turn
     await expect(page.locator('.tab.selected')).toHaveText(/fabric/)
     await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toHaveCount(0)
     const items = await rowMenu(page, TEAM.expert)
-    await expect(items.filter({ hasText: 'Take back from the orchestrator' })).toHaveCount(0)
-    await items.filter({ hasText: 'Hand to the orchestrator' }).click()
+    await expect(items.filter({ hasText: 'Stop reporting to the orchestrator' })).toHaveCount(0)
+    await items.filter({ hasText: 'Report to the orchestrator' }).click()
     await expect.poll(() => parents(page)).toMatchObject({ [TEAM.expert]: TEAM.orch })
     await expect.poll(() => listed(page)).toContain('  ★fabric')
     await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toContainText(
@@ -850,7 +859,7 @@ test('"Hand to the orchestrator" nests a loose session under it and its tab turn
     await page.keyboard.press('Escape')
 
     await (await rowMenu(page, TEAM.expert))
-      .filter({ hasText: 'Take back from the orchestrator' })
+      .filter({ hasText: 'Stop reporting to the orchestrator' })
       .click()
     await expect.poll(async () => (await parents(page))?.[TEAM.expert]).toBeUndefined()
     await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toHaveCount(0)

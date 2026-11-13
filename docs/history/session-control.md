@@ -69,3 +69,10 @@ and the wake order.
 > Left on 2026-11-13: every post ends with the local time, so Claude Code does not drop a repeat.
       `{"type":"user","message":{"content":"[Menkar] …"},"from":"menkar","msg_id":"…"}`, and
       closes.
+
+## The shape
+
+> Left on 2026-11-13: start_session gained loose and role (decision 1.111).
+  - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model? }`:** a new
+    Claude session in the caller's project, in a tab right after the caller's, not selected. The
+    caller becomes its parent.

@@ -32,6 +32,7 @@ import { followMuted, mutedList, setMuted } from '../core/mute'
 import { adopt } from '../core/orchestration/adopt'
 import { mayStart } from '../core/orchestration/mayStart'
 import { readOnly } from '../core/orchestration/readonly'
+import { placeStarted, readPlacement } from '../core/orchestration/started'
 import {
   markSeen,
   shownTopics,
@@ -1291,6 +1292,8 @@ async function startForAgent(
   if (groupName && !group) return refuse(`The project has no group called "${groupName}".`)
   const model = readModel(args.model)
   if ('refusal' in model) return refuse(model.refusal)
+  const placement = readPlacement(args)
+  if ('refusal' in placement) return refuse(placement.refusal)
   const hasPrompt = typeof args.prompt === 'string' && args.prompt !== ''
   if (hasPrompt && args.prompt_file !== undefined)
     return refuse('Give either prompt or prompt_file, not both.')
@@ -1319,7 +1322,7 @@ async function startForAgent(
   const chosen = model.model
   if (chosen) await sessions.updateState((state) => setModel(state, id, chosen))
   const joined = tookOver === projects ? addMember(projects, projectId, id) : tookOver
-  projects = setParent(joined, id, callerId)
+  projects = placeStarted(joined, projectId, id, callerId, placement)
   if (group) projects = setGroup(projects, projectId, id, { name: group.name, color: group.color })
   const remote = args.remote_control === true
   if (remote) {
@@ -1345,7 +1348,9 @@ async function startForAgent(
   changed({ projects: true })
   return {
     ok: true,
-    text: `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
+    text: placement.loose
+      ? `Started "${name}" in a tab after yours, loose: you are not its parent. Address it by this name.`
+      : `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
   }
 }
 

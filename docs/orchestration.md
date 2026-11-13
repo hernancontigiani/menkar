@@ -165,7 +165,7 @@ there would cross its instructions (`readOnly` and `bannerOf`, `src/core/orchest
   "Take control", which marks it "with you", makes it writable and posts to the orchestrator
   "[Menkar] The human took control of ‹name›".
 - **"With you"**, the banner is blue (the theme's ANSI blue, the role `blue`): "This session is
-  with you.", with "Hand back to the orchestrator", which clears the mark, makes it read only again
+  with you.", with "Back to reporting to the orchestrator", which clears the mark, makes it read only again
   and posts "[Menkar] The human handed ‹name› back". Both posts go through the wakes' messaging
   (`wakeSession`); nothing is typed.
 - **At a permission prompt** (shown state `blocked`) the tab is writable while it waits; the banner
@@ -179,15 +179,22 @@ Decision 1.102 (the human, 2026-11-12). A session comes under the orchestrator �
 in three ways; nothing restarts and nothing is typed, only who is woken changes (and so its tab
 turns read only):
 
-- **The row menu**, in the mode, for any session but the orchestrator, after "With you": "Hand to
-  the orchestrator" (its parent becomes the orchestrator), or, for one under it, "Take back from the
-  orchestrator" (`clearParent`, `src/core/projects/parents.ts`). Both are `setManaged`.
+- **The row menu**, in the mode, for any session but the orchestrator, after "With you": "Report to
+  the orchestrator" (its parent becomes the orchestrator), or, for one under it, "Stop reporting to
+  the orchestrator" (`clearParent`, `src/core/projects/parents.ts`). Both are `setManaged`. The four
+  texts share one vocabulary (decision 1.111): these two, the yellow banner's "This session reports
+  to the orchestrator." and the blue one's "Back to reporting to the orchestrator".
 - **The first-time card**: under "Who orchestrates?", "Sessions the orchestrator manages", a box per
   listed session, all checked; the one chosen to orchestrate is not listed. Start sets the checked
   ones' parent to the orchestrator, a new one once it is marked; unchecked ones stay as they were.
 - **`adopt_session { name }`**, a Menkar MCP tool (`adopt`, `src/core/orchestration/adopt.ts`): the
   orchestrator makes a session of its project its child. Refused to any other caller and with the
   mode off. The orchestrator's skill calls it only when the human asks for it explicitly.
+- **Born loose, or with a role** (decision 1.111): `start_session` with `loose: true` records no
+  parent, so the new session is a consultant (1.107): no wakes to its caller, no read-only tab. With
+  `role` it is born with that label (`placeStarted`, `src/core/orchestration/started.ts`); a loose
+  one with a label sits under "Consultants". No tool changes an existing session's role: that stays
+  the human's, from the row menu's "Role…".
 
 ## Rejected
 

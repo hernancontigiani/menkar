@@ -645,3 +645,6 @@ Executed by `b1` on 2026-11-12, blocks 1–5 in order, `npm run ci` green after 
 
 > Left on 2026-11-13: 1.108 built.
 | 1.108 | Menkar remembers the model a session was started with (`models` in `state.json`, like `remote_control`) and passes it again with `--model` when the session renews; it follows a `/clear`, a resume and a reused name. `--model` sets the session's model only and never the user's default, unlike `/model`, which only the human can type (the human, 2026-11-13, topic 17). Not built yet | 2026-11-13 | this row (until built) |
+
+> Left on 2026-11-13: 1.111 built, with the "Report to" rename the human added.
+| 1.111 | Starting specialists (the human, 2026-11-13, topic 18): the blue banner's button becomes "Back to reporting to the orchestrator" / "Volver a reportar al orquestador" (it ends "with you"); the row menu's "Take back from the orchestrator" becomes "Stop reporting to the orchestrator" / "Dejar de reportar al orquestador" (it makes the session loose); `start_session` gains `loose: true` (no parent: a consultant) and `role` (the label the session is born with); changing an existing session's role stays the human's, from the row menu, with no tool for it. Not built yet | 2026-11-13 | this row (until built) |

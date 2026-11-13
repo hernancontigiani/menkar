@@ -30,9 +30,13 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   `/clear` gives it a new id, and an id an agent kept would name nothing.
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
-  - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model? }`:** a new
-    Claude session in the caller's project, in a tab right after the caller's, not selected. The
-    caller becomes its parent.
+  - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model?, loose?,
+    role? }`:** a new Claude session in the caller's project, in a tab right after the caller's, not
+    selected. The caller becomes its parent, unless `loose` is true.
+    - **`loose`** and **`role`** (decision 1.111, 2026-11-13): loose records no parent (a
+      consultant: never woken for, never read only); `role` is the label it is born with, empty
+      for none (`readPlacement`, `placeStarted`, `src/core/orchestration/started.ts`). No tool
+      changes an existing session's role.
     - **`model`** (decision 1.106, 2026-11-12) is passed as it is, `claude --model <model>`, so the
       orchestrator picks it per task. It becomes a command-line argument: anything but one word
       not starting with `-` is refused (`readModel`, `src/core/control/model.ts`). Menkar keeps it
