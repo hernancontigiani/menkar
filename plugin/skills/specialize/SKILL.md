@@ -107,6 +107,13 @@ Then, for the same role:
 - If the project has an orchestrator, send it, by name, one message with your role, its boundaries
   in a line, and the path of your skill.
 - From now on, `menkar:distill` keeps the skill current when a task closes.
+- **Your context**, and a line your role skill carries for it: when a consultation or a task
+  closes, look at your own row in `list_sessions`. If your parent is the orchestrator (you are an
+  expert), it decides when you renew: don't renew on your own, and tell it by name if you pass the
+  context ring's red mark. If you are loose (a consultant), you decide: past the yellow mark, run
+  `menkar:distill`, then renew with a prompt that names your skill. Prefer that to a compaction,
+  which summarises and loses detail. Read where you are each time: a session can be handed to the
+  orchestrator or taken back.
 - When you renew, do it **with a prompt that is the handoff**: who you are and your role, the skill
   to load, and what is in flight (locks you hold, answers you owe, half-done work). Nothing else
   carries it.

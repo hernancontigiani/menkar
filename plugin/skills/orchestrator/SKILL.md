@@ -43,6 +43,10 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 - `last_reply` reads a session's report. Right after it renewed, it gives the last reply of its
   previous conversation, labelled so.
 - To renew another session, tell it to call `renew`; you renew only yourself.
+- **Renewing is yours for the sessions under you** (experts and workers): between tasks, have them
+  distill if they learned something and renew with a prompt naming their skill. A **consultant**
+  (loose) renews itself; if `list_sessions` shows one past the red mark, raise a topic for the
+  human, and don't message it.
 - `adopt_session` makes a session of the project your child. Call it **only when the human asks
   for it explicitly** in the chat; never to take over a session on your own.
 - Message sessions with Claude Code's messaging tool (`SendMessage`), by name, never by id: a
