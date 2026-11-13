@@ -648,3 +648,6 @@ Executed by `b1` on 2026-11-12, blocks 1–5 in order, `npm run ci` green after 
 
 > Left on 2026-11-13: 1.111 built, with the "Report to" rename the human added.
 | 1.111 | Starting specialists (the human, 2026-11-13, topic 18): the blue banner's button becomes "Back to reporting to the orchestrator" / "Volver a reportar al orquestador" (it ends "with you"); the row menu's "Take back from the orchestrator" becomes "Stop reporting to the orchestrator" / "Dejar de reportar al orquestador" (it makes the session loose); `start_session` gains `loose: true` (no parent: a consultant) and `role` (the label the session is born with); changing an existing session's role stays the human's, from the row menu, with no tool for it. Not built yet | 2026-11-13 | this row (until built) |
+
+> Left §3 on 2026-11-13: plan 36 written.
+| 1 | `36-work-view.md` — delegated tasks with steps, the Work view, the Board | Stub, being designed by `set` with the human, 2026-11-13 |
