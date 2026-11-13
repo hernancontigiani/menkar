@@ -26,7 +26,8 @@
   without a prompt): deferred with their trigger in `docs/NOT_BUILT_YET.md`; survey in
   `research/reported-states.md`.
 - **Other agents in the mode** (Codex, Gemini, Cursor): STATUS 2.21 and `docs/NOT_BUILT_YET.md`.
-- **"With you" known by itself**, and **the guide online**: `docs/NOT_BUILT_YET.md`.
+- **The guide online**: `docs/NOT_BUILT_YET.md`. ("With you" known by itself was dropped on
+  2026-11-13: read-only tabs make taking control explicit.)
 - **An overview with counts** (2a: working, blocked, done, idle, stopped for a project or a group,
   each count opening its list): not asked for since the sidebar became the team in the mode;
   reconsider if the sidebar stops being enough with many sessions.

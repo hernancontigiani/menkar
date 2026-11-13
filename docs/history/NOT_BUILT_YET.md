@@ -69,3 +69,14 @@ decided which of them, or for which topics (all, blocking ones, a priority sessi
 
 **Trigger:** the human misses a topic that waited for them. First question: which topics notify,
 and whether through the same settings as a blocked session.
+
+> Left on 2026-11-13: dropped, not deferred (the human): read-only tabs (1.101) make "with you" explicit — the human must press "Take control" to type — so there is nothing left to guess.
+
+### "With you" known by itself
+
+A session is marked "with you" by hand, from its menu, and cleared by hand (decision 1.86). Menkar
+could guess it from the human typing in the pane, or from a timer, but a prompt sent from the phone
+would not be seen, and a wrong guess would keep work from a session or send work to a busy one.
+
+**Trigger:** the human forgets to set or clear the mark often enough to ask for it. First question:
+which signal counts — keys typed in the pane, focus, Remote Control traffic — and how long it holds.
