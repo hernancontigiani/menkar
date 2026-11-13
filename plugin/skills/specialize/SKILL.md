@@ -97,8 +97,8 @@ Then, for the same role:
   memory, the skill, or your handoff.
 - Write the skill as `role-skill-contents.md` says: **60 to 120 lines, 200 at most**, its own
   admission criterion, a pointer instead of a copy, one line of case per rule, no private data.
-- **Where**: where the human says (their own skills repository or the project's skills folder).
-  If nobody said, ask. Do not commit; say which files you wrote.
+- **Where**: the skills folder of the repository it is used in (`.claude/skills/<name>/`). If the
+  human keeps it out of git there, leave it untracked. Do not commit; say which files you wrote.
 - **Wait for the human's read** of the final file before step 6: anything that states a rule is
   theirs to accept.
 
