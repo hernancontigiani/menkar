@@ -109,10 +109,12 @@ name is the declared one**, and asks for a rename if not.
   human changed, and the commit message says so. Stage by path; when two workers touched one file,
   stage only the hunks of the work you are committing (`git apply --cached` with a hunk-only patch).
   A decision the human made goes into `00-STATUS.md` §1 in the same commit.
-- **A build for the human to try**: `npm run package`, then `npm run package:check`. Give them
-  `sudo apt install ~/git/menkar/release/menkar_0.1.0_amd64.deb` to run in their own terminal (the
-  `!` prefix cannot read a sudo password), then a restart. `dpkg-query -W -f='${Version}\n' menkar`
-  tells you which build is installed.
+- **A build for the human to try**: ask `packager`, this repository's packaging expert (its skill
+  is `.claude/skills/packager/`), saying which tree state to package — the main tree as it is, or
+  HEAD only. It reports the Version and the install line, `~/git/menkar/install-local.sh`, which
+  the human runs in their own terminal, then restarts (2026-11-13).
+- **Specialists' skills** (`menkar:specialize`): review a new role skill yourself before the
+  human's read, and give the human a short summary of its rules to accept (2026-11-13).
 - **Agents left behind**: look for stopped or orphaned `claude` processes only when `menkar.log` has
   "outlived" warnings, or when Menkar died without quitting (a logout, a kill). End them by PID,
   after checking each one, and only once the human agrees.

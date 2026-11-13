@@ -57,3 +57,9 @@ usually the most useful thing a new orchestrator delivers.
 - **The topics file is `prompts/TOPICS.md`** (gitignored; a trial since 2026-11-11, decision 1.52,
   to learn what a Menkar panel would need). A decided topic goes to `00-STATUS.md` or the doc that
   owns it.
+
+> Left on 2026-11-13: builds go to `packager`, the packaging expert.
+- **A build for the human to try**: `npm run package`, then `npm run package:check`. Give them
+  `sudo apt install ~/git/menkar/release/menkar_0.1.0_amd64.deb` to run in their own terminal (the
+  `!` prefix cannot read a sudo password), then a restart. `dpkg-query -W -f='${Version}\n' menkar`
+  tells you which build is installed.

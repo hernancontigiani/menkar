@@ -13,6 +13,9 @@ category is Development.
   `/usr/share/applications/menkar.desktop` (`StartupWMClass=menkar`, kept in step with
   `desktopName` in `package.json`), and the icon at
   `/usr/share/icons/hicolor/512x512/apps/menkar.png`.
+- **Menkar's skills plugin** goes in `/opt/Menkar/resources/plugin/`, outside `app.asar`
+  (`extraResources`), because `claude --plugin-dir` reads plain files and cannot read inside an
+  asar. `package:check` fails when its manifest, guide or any of its skills is missing.
 - **The post-install** (electron-builder's own template) links `/usr/bin/menkar` through
   `update-alternatives` and sets `chrome-sandbox` to `0755`. When the system's AppArmor understands
   `abi/4.0` it also copies `resources/apparmor-profile` to `/etc/apparmor.d/menkar` and loads it.
