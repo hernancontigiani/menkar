@@ -1,7 +1,7 @@
 # Research prompt — orchestration dashboards and human inboxes for coding agents
 
 > Paste everything below the line into a session **with web access**. It is self-contained.
-> Context for the human: `plans/ideas/groups-and-orchestration.md`, Idea 2.
+> Context for the human: `plans/ideas/groups-and-orchestration.md` (pruned 2026-11-12; the board and inbox it asks about are built as the orchestration mode's topics). Superseded in part by `research/ways-of-working.md` and `research/reported-states.md`.
 
 ---
 
