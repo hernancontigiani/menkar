@@ -137,14 +137,24 @@ spends the context that holds what it knows. What works better:
 - **Let the expert do a change itself** when it is small enough that explaining it costs more than
   making it.
 - **Workers can run on a smaller model** when an expert answers their questions and reviews their
-  work. Which model is the project's choice: write it in the project's own instructions (below);
-  the orchestrator never guesses one.
+  work. Which model is the project's choice: write it in the project's own instructions or memory
+  (below); the orchestrator never guesses one.
+- **How an expert stays current without implementing.** Its skill holds ways of working and points
+  to the project's docs by file and section, never the facts themselves, and a worker that changes
+  a feature updates its doc in the same change: the skill follows without being touched. The
+  expert reviews the workers' results in its area, so it sees what changed; an expert back after a
+  gap first hears from the orchestrator what changed since its last task; and when what changed
+  alters how the expert works, not only a fact, it runs `menkar:distill` to update its skill.
 
 ## What a project writes down for its orchestrator
 
 `menkar:orchestrator` is written for any project. What is particular to one project goes in that
-project's own instructions (its `CLAUDE.md`, or the docs it points to), where the orchestrator
-reads it when it starts, and nowhere else:
+project's own instructions (its `CLAUDE.md`, or the docs it points to) or in the agent's memory for
+that project, where the orchestrator reads it when it starts. The instructions are shared with
+everyone who works on the repository; the memory is the person's own, on their machine. Rules of
+the team (working trees, commits, the environment) go in the instructions; how this person
+orchestrates (which experts, which model for workers) may go in the memory when others working on
+the repository do not orchestrate:
 
 - whether sessions share one working tree or use worktrees, and who commits and pushes;
 - where the project keeps its decisions;
