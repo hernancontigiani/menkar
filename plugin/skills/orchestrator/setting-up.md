@@ -12,7 +12,8 @@ didn't, one step at a time, and keep what they decide where the project keeps it
    profiles, the marks, topics and tasks, and what a project writes down for its orchestrator.
 2. **Read the project**: its `CLAUDE.md` and the docs it points to, its memory, and
    `list_sessions` for the sessions there are.
-3. **Go through the sessions with the human**, one by one: what each one does, whether it has
+3. **Show the human every session first** ("I see these N sessions: …"), then **go through them**
+   one by one: what each one does, whether it has
    work in flight with them, and which profile fits — an expert or a generalist worker (under
    you), or a consultant (loose). Explain a profile in a line when you ask; don't assume they
    remember it.
