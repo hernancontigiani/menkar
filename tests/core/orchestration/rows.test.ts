@@ -18,6 +18,8 @@ const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
     orchestrator: 'O',
     roles: { E: 'Fabric expert' },
     withYou: [],
+    parked: [],
+    workersCap: null,
   },
   topicsCollapsed: false,
   teamView: false,
@@ -37,6 +39,7 @@ const short = (rows: ReturnType<typeof modeRows>) =>
   rows.map((r) => {
     if (r.kind === 'session') return r.depth === 1 ? `  ${r.id}` : r.id
     if (r.kind === 'earlier') return `earlier(${r.ids.length})${r.open ? ' open' : ''}`
+    if (r.kind === 'parked') return `parked(${r.ids.length})${r.open ? ' open' : ''}`
     if (r.kind === 'heading') return `heading ${r.heading}`
     if (r.kind === 'group') return `group ${r.name}${r.collapsed ? ' collapsed' : ''}`
     return 'no group'
@@ -89,6 +92,8 @@ describe('the sidebar in the orchestration mode', () => {
         orchestrator: 'O',
         roles: { O: 'Lead', W1: 'Docs', E: 'Fabric expert' },
         withYou: [],
+        parked: [],
+        workersCap: null,
       },
     })
     expect(short(modeRows(p, view())).slice(0, 5)).toEqual([
@@ -104,7 +109,14 @@ describe('the sidebar in the orchestration mode', () => {
     const p = info({
       groups: [{ name: 'G', color: '#5ec4b6', members: ['G1', 'G2'], collapsed: true }],
       parents: {},
-      orchestration: { on: true, orchestrator: null, roles: {}, withYou: [] },
+      orchestration: {
+        on: true,
+        orchestrator: null,
+        roles: {},
+        withYou: [],
+        parked: [],
+        workersCap: null,
+      },
     })
     expect(short(modeRows(p, view()))).toEqual([
       'heading others',
@@ -122,5 +134,42 @@ describe('the sidebar in the orchestration mode', () => {
   test('a row not listed (hidden, earlier conversation) stays out; its children are top rows', () => {
     const rows = modeRows(info(), view({ listed: ['W1', 'W2', 'E', 'S'] }))
     expect(short(rows)).toEqual(['heading consultants', 'E', 'heading others', 'W1', 'W2', 'S'])
+  })
+})
+
+// Decision 1.120: parked workers show apart, in a folded "Parked · N" row under the orchestrator.
+describe('parked workers', () => {
+  const parked = () =>
+    info({
+      orchestration: {
+        on: true,
+        orchestrator: 'O',
+        roles: { E: 'Fabric expert' },
+        withYou: [],
+        parked: ['W2'],
+        workersCap: null,
+      },
+    })
+
+  test('W2 parked, W3 stopped: "earlier(1)" then "parked(1)" under O; unfolded, W2 nested', () => {
+    expect(short(modeRows(parked(), view())).slice(0, 4)).toEqual([
+      'O',
+      '  W1',
+      'earlier(1)',
+      'parked(1)',
+    ])
+    expect(short(modeRows(parked(), view({ parkedOpen: true }))).slice(0, 5)).toEqual([
+      'O',
+      '  W1',
+      'earlier(1)',
+      'parked(1) open',
+      '  W2',
+    ])
+  })
+
+  test('a parked worker that runs again is a plain child', () => {
+    expect(
+      short(modeRows(parked(), view({ open: new Set(['O', 'W1', 'W2']) }))).slice(0, 4),
+    ).toEqual(['O', '  W1', '  W2', 'earlier(1)'])
   })
 })

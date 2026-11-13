@@ -26,13 +26,22 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       receives.
     - A failed call is `{content: [{type: "text", text}], isError: true}` with Menkar's own English
       sentence: it goes to the agent, not to the user.
-- **The nine tools.** A session is always named by its name, never by its id: a renew or a
+- **The tools** (`TOOL_NAMES`). A session is always named by its name, never by its id: a renew or a
   `/clear` gives it a new id, and an id an agent kept would name nothing.
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
-  - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model?, loose?,
-    role? }`:** a new Claude session in the caller's project, in a tab right after the caller's, not
-    selected. The caller becomes its parent, unless `loose` is true.
+  - **`start_session { name?, task?, prompt? | prompt_file?, remote_control?, group?, model?,
+    loose?, role? }`:** a new Claude session in the caller's project, in a tab right after the
+    caller's, not selected. The caller becomes its parent, unless `loose` is true.
+    - **`task`** (decision 1.118, 2026-11-13): the session is named `<project>-t<N>` by Menkar and
+      becomes the task's assignee (`startName`, `src/core/orchestration/workers.ts`; `assignTask`);
+      `name` may then be omitted, and a given one must be that name. Without `task`, a name is
+      needed ("A name is needed to start a session: give name, or task."). A task assigned to
+      another session ("Task N is assigned to ‹name›."), closed, or unknown is refused.
+    - **The cap** (decision 1.118): when the new session would be a worker (the orchestrator's
+      child, no role, not loose) and the project runs its `workers_cap` of them, it is refused:
+      "This project runs at most N workers at once; N are running. Leave the task queued and start
+      it when one finishes." (`capRefusal`). An expert or a consultant is not.
     - **`loose`** and **`role`** (decision 1.111, 2026-11-13): loose records no parent (a
       consultant: never woken for, never read only); `role` is the label it is born with, empty
       for none (`readPlacement`, `placeStarted`, `src/core/orchestration/started.ts`). No tool
@@ -87,14 +96,18 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **The task tools** (decision 1.113, `taskTool`, `src/core/orchestration/tasks.ts`), kept by main
     in `tasks.json`. Who may call each is part of the decision, and the refusals are our own
     sentences:
-    - `task_add { title, assignee, star? }`: the orchestrator only, with the mode on ("Only the
+    - `task_add { title, assignee?, star? }`: the orchestrator only, with the mode on ("Only the
       orchestrator adds tasks.", "The orchestration mode is off in this project."); the assignee by
-      name (`sessionOfProject`). Answers "Task N added."; the task is queued.
+      name (`sessionOfProject`), or none until `start_session { task }` (decision 1.118). Answers
+      "Task N added."; the task is queued.
     - `task_steps { number, steps }`: the assignee only ("Only the session the task is assigned to
       reports on it."); 3 to 7 non-empty lines; in progress at step 1.
     - `task_progress { number, step?, note, waiting_on? }`: the assignee only, after its steps;
       `step` from 1 to the number of steps, kept when omitted; with `waiting_on` the task is
       waiting, without it in progress.
+    - One in progress per assignee (decision 1.119): `task_steps`, or `task_progress` without
+      `waiting_on`, while another of the assignee's tasks is in progress is refused ("Finish or
+      wait on task N first.").
     - `task_review { number, note }`: the assignee only; to review.
     - `task_close { number, outcome }`: the orchestrator only, with the mode on; `done` or
       `dropped`. A closed task takes no more reports ("Task N is closed.").
@@ -104,6 +117,20 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     Menkar wakes it for that session (decision 1.102, `docs/orchestration.md`). Refused to any
     other caller ("Only the orchestrator can adopt a session.") and with the mode off; the
     orchestrator's skill calls it only when the human asks explicitly.
+  - **`park_session { name }`** (decisions 1.118, 1.120): the orchestrator only, for a worker (its
+    child, no role) whose current task is waiting (`mayPark`). Once the worker's turn is over — its
+    shown state idle or done, or the Stop hook's record — Menkar stops it as
+    closing its tab does, never mid-turn, and marks it parked (`orchestration.parked`).
+  - **`resume_session { name, prompt? }`** (decision 1.118): the orchestrator only, with the mode on;
+    a parked or stopped Claude Code session of the project, refused when it has a tab. It opens in
+    a tab after the orchestrator's, not selected, as `--resume <id>`, the prompt as its first
+    message; its parked mark goes. A worker is refused at the cap, as `start_session` is.
+  - **`task_close`'s worker** (decision 1.120): the worker started for that task — the
+    orchestrator's child, no role, named `<project>-t<N>` for it (`hideOnClose`) — is stopped after
+    its turn, as parking does, and hidden.
+  - **`set_workers_cap { cap }`** (decision 1.123): the orchestrator only, with the mode on; a whole
+    number from 1, or null or absent for any number (`capTool`). The orchestrator's skill calls it
+    only when the human asks explicitly.
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.
@@ -180,6 +207,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **worker:** taking a task from another session; with a task number, it sets 3 to 7 steps,
     reports each advance and hands it to review, never closing it; the report is its last
     message.
+  - The orchestrator's `workers.md` (decisions 1.118–1.120, 1.123): a worker per task, parking and
+    resuming, the cap, experts with several tasks; the worker's skill: an expert's skill it loads
+    is read only, its lesson goes in the report (one keeper per skill, 1.119).
   - **distill:** keeping a specialist's skill current when its task is closed, then renewing.
   - **specialize:** turning what a session knows into a role with a skill of its own.
 - **How a session gets it:** every Claude command Menkar builds carries `--plugin-dir <plugin>`

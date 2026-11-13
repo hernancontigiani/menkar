@@ -130,6 +130,8 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
       orchestrator: CLIENT.api,
       roles: { [CLIENT.long]: 'Fabric expert' },
       withYou: [CLIENT.login],
+      parked: [],
+      workersCap: null,
     }
     await expect.poll(() => shown(page)).toEqual(marks)
 
@@ -911,6 +913,111 @@ test('the card lists the sessions the orchestrator manages, all checked but the 
     await cardButton(page, 'Start').click()
     await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: CLIENT.login })
     await expect.poll(() => parents(page)).toEqual({ [CLIENT.long]: CLIENT.login })
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decisions 1.120 and 1.118: a parked worker shows apart, in a folded "Parked · N" row under the
+// orchestrator; unfolded, with what its task waits on.
+test('a parked worker: "Parked · 1" under the orchestrator, folded; unfolded, the worker with what its task waits on (screenshot)', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = team(dirs)
+      const config = join(dirs.root, 'config', 'menkar')
+      const projects = JSON.parse(readFileSync(join(config, 'projects.json'), 'utf8'))
+      projects.projects[0].orchestration.parked = [TEAM.w2]
+      writeFileSync(join(config, 'projects.json'), JSON.stringify(projects))
+      const tasks = JSON.parse(readFileSync(join(config, 'tasks.json'), 'utf8'))
+      tasks.projects[TEAM_PROJECT].next = 3
+      tasks.projects[TEAM_PROJECT].tasks.push({
+        number: 2,
+        title: 'Login fix',
+        assignee: TEAM.w2,
+        star: false,
+        state: 'waiting',
+        steps: ['read', 'fix', 'open the PR'],
+        step: 3,
+        note: 'PR open',
+        waiting_on: 'the PR review',
+        created: '2026-11-12T10:00:00.000-03:00',
+        updated: '2026-11-12T10:00:00.000-03:00',
+      })
+      writeFileSync(join(config, 'tasks.json'), JSON.stringify(tasks))
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    await expect
+      .poll(() => listed(page))
+      .toEqual([
+        'orchestrator',
+        '  login worker',
+        'Parked · 1',
+        'Consultants',
+        '★fabric',
+        'Others',
+        '●writing',
+        'noteswith you',
+      ])
+    await expect(page.locator('.parked-row')).toHaveAttribute('aria-expanded', 'false')
+    await page.locator('.parked-row').click()
+    await expect.poll(() => listed(page)).toContain('  old worker')
+    const parked = page.locator(`.row[data-session="${TEAM.w2}"]`)
+    await expect(parked.locator('.parked-on')).toHaveText('waiting on the PR review')
+    await expect(parked.locator('.team-task')).toContainText('Login fix')
+    await shot(page, 'parked.png')
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decisions 1.121 and 1.122: the cap on workers at once is the project's, asked in the first-time
+// card (empty = unlimited) and changed later from a gear beside the popover's mode icon, shown only
+// while the mode is on.
+test('the cap: the card asks "Workers at once", empty by default; Start with 2 saves it; the gear beside the mode icon, only while on, opens the project’s orchestration settings, where it changes (screenshot)', async () => {
+  const { launched, page, root } = await launch()
+  const saved = () =>
+    JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8')).projects[0]
+      .orchestration
+  try {
+    await page.locator('#project-button').click()
+    await expect(page.locator('.project-row .team-button')).toHaveCount(1)
+    await expect(page.locator('.project-row .orch-settings-button')).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await page.locator('#orchestration-switch').click()
+    await expect(card(page)).toBeVisible()
+    const field = card(page).locator('.cap-field input')
+    await expect(field).toHaveValue('')
+    await expect(field).toHaveAttribute('placeholder', 'Unlimited')
+    await field.fill('2')
+    await startWithFirst(page)
+    await expect.poll(saved).toMatchObject({ on: true, workers_cap: 2 })
+
+    await page.locator('#project-button').click()
+    await expect(page.locator('.project-row .orch-settings-button')).toHaveAttribute(
+      'title',
+      'Orchestration settings',
+    )
+    await shot(page, 'orchestration-settings-gear.png')
+    await page.locator('.project-row .orch-settings-button').click()
+    const dialog = page.locator('[role="alertdialog"]')
+    await expect(dialog.locator('.heading')).toHaveText('Orchestration settings of Client work')
+    await expect(dialog.locator('.cap-label')).toHaveText('Workers at once')
+    await expect(dialog.locator('.cap-field input')).toHaveValue('2')
+    await dialog.locator('.cap-field input').fill('3')
+    await shot(page, 'orchestration-settings.png')
+    await dialog.locator('button', { hasText: 'Save' }).click()
+    await expect.poll(saved).toMatchObject({ workers_cap: 3 })
+    // The mode did not move.
+    expect((await shown(page))?.on).toBe(true)
+
+    await page.locator('#project-button').click()
+    await page.locator('.project-row .orch-settings-button').click()
+    await dialog.locator('.cap-field input').fill('')
+    await dialog.locator('button', { hasText: 'Save' }).click()
+    await expect.poll(saved).not.toHaveProperty('workers_cap')
   } finally {
     await launched.close()
   }

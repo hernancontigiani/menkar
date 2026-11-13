@@ -23,6 +23,7 @@ import { applyLook } from './look'
 import {
   modeSwitch,
   orchestrationItems,
+  settingsButton,
   syncModeSwitch,
   teamButton,
   topicsSection,
@@ -736,6 +737,8 @@ async function openSessionFolder(session: string): Promise<void> {
 let showHiddenInProject = false
 // Per window and not saved: the top rows whose "N earlier" children are unfolded.
 const unfoldedEarlier = new Set<string>()
+// Per window and not saved: the orchestrator's "Parked" row unfolded.
+let parkedOpen = false
 
 interface ModeListView {
   readonly byId: ReadonlyMap<string, SessionInfo>
@@ -752,6 +755,7 @@ function modeList(project: ProjectInfo, v: ModeListView): HTMLElement[] {
     listed: v.listed,
     open: new Set(state?.open ?? []),
     unfolded: unfoldedEarlier,
+    parkedOpen,
   })
   return rows.flatMap((r) => modeItem(r, project, v))
 }
@@ -761,12 +765,31 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
     case 'session': {
       const info = v.byId.get(r.id)
       if (!info) return []
-      return [
-        row(info, v.showFolder, v.running.has(r.id), project, r.section ?? '', {
-          nested: r.depth === 1,
-          dragged: r.section !== null,
-        }),
-      ]
+      const node = row(info, v.showFolder, v.running.has(r.id), project, r.section ?? '', {
+        nested: r.depth === 1,
+        dragged: r.section !== null,
+      })
+      const waits = r.parked ? currentTaskOf(r.id)?.waitingOn : undefined
+      if (waits)
+        node
+          .querySelector('.text')
+          ?.append(el('div', { class: 'parked-on dim' }, t('orch.parkedOn', { on: waits })))
+      return [node]
+    }
+    case 'parked': {
+      const node = el(
+        'button',
+        {
+          class: `parked-row nested dim${r.open ? ' open' : ''}`,
+          'aria-expanded': String(r.open),
+        },
+        t('orch.parked', { n: r.ids.length }),
+      )
+      node.addEventListener('click', () => {
+        parkedOpen = !r.open
+        if (state) render(state)
+      })
+      return [node]
     }
     case 'earlier': {
       const node = el(
@@ -1541,6 +1564,7 @@ function openProjectPopover(anchor: HTMLElement): void {
       rename,
       remove,
       teamButton(p, closePopover),
+      settingsButton(p, closePopover),
     )
     node.addEventListener('click', () => {
       closePopover()

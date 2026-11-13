@@ -112,3 +112,13 @@ and the wake order.
 > Left on 2026-11-13: the skills learned tasks (decision 1.113).
   - **orchestrator:** coordinating sessions. Only it starts sessions or hands out work.
   - **worker:** taking a task from another session; the report is its last message.
+
+## The shape
+
+> Left on 2026-11-13: plan 37 adds `start_session`'s `task`, an optional assignee, and the workers' tools (decisions 1.118–1.123); the tools are no longer counted in prose.
+- **The nine tools.** A session is always named by its name, never by its id: a renew or a
+  - **`start_session { name, prompt? | prompt_file?, remote_control?, group?, model?, loose?,
+    role? }`:** a new Claude session in the caller's project, in a tab right after the caller's, not
+    selected. The caller becomes its parent, unless `loose` is true.
+    - `task_add { title, assignee, star? }`: the orchestrator only, with the mode on ("Only the
+      name (`sessionOfProject`). Answers "Task N added."; the task is queued.

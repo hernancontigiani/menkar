@@ -67,7 +67,8 @@ export interface TopicView {
 export interface TaskView {
   readonly number: number
   readonly title: string
-  readonly assignee: string
+  // null until a worker is started for it.
+  readonly assignee: string | null
   readonly assigneeName: string
   readonly star: boolean
   readonly state: TaskState
@@ -172,6 +173,8 @@ export type Action =
   // The orchestration mode (decisions 1.77, 1.89): its switch per project, a session's marks, and
   // the shown project's Topics section.
   | { readonly type: 'setOrchestrationMode'; readonly project: string; readonly on: boolean }
+  // null: any number of workers at once.
+  | { readonly type: 'setWorkersCap'; readonly project: string; readonly cap: number | null }
   | { readonly type: 'setOrchestrator'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setRole'; readonly session: string; readonly label: string }
   | { readonly type: 'setTaskStar'; readonly number: number; readonly on: boolean }

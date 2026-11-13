@@ -73,6 +73,69 @@ export function teamButton(p: ProjectInfo, closePopover: () => void): HTMLElemen
   return node
 }
 
+// Beside the mode icon while the project's mode is on (decision 1.122): its orchestration settings.
+export function settingsButton(p: ProjectInfo, closePopover: () => void): HTMLElement | null {
+  if (!p.orchestration.on) return null
+  const node = el(
+    'button',
+    { class: 'orch-settings-button', title: t('orch.settingsTooltip') },
+    icon('gear'),
+  )
+  node.addEventListener('click', (event) => {
+    event.stopPropagation()
+    closePopover()
+    void settingsDialog(p)
+  })
+  return node
+}
+
+// "Workers at once" (decisions 1.118, 1.121): a number, empty for any number.
+function capField(cap: number | null): {
+  readonly node: HTMLElement
+  readonly read: () => number | null | 'wrong'
+} {
+  const input = el('input', {
+    type: 'number',
+    min: '1',
+    step: '1',
+    class: 'workers-cap',
+    placeholder: t('orch.workersCapUnlimited'),
+  })
+  input.value = cap === null ? '' : String(cap)
+  const read = (): number | null | 'wrong' => {
+    const text = input.value.trim()
+    if (text === '') return null
+    const n = Number(text)
+    return Number.isInteger(n) && n >= 1 ? n : 'wrong'
+  }
+  const node = el(
+    'label',
+    { class: 'cap-field' },
+    el('span', { class: 'cap-label' }, t('orch.workersCap')),
+    input,
+    el('span', { class: 'cap-hint dim' }, t('orch.workersCapHint')),
+  )
+  return { node, read }
+}
+
+// The project's own orchestration settings (decision 1.122): not the app's, so not in Settings.
+async function settingsDialog(p: ProjectInfo): Promise<void> {
+  const field = capField(p.orchestration.workersCap)
+  const answer = await showDialog({
+    heading: t('orch.settingsHeading', { name: p.name }),
+    extra: el('div', { class: 'orch-settings' }, field.node),
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('dialog.save'), value: 'save', style: 'suggested' },
+    ],
+    defaultValue: 'save',
+  })
+  if (answer.value !== 'save') return
+  const cap = field.read()
+  if (cap === 'wrong') return toast(t('orch.workersCapWrong'))
+  await act({ type: 'setWorkersCap', project: p.id, cap })
+}
+
 // Switching on a project with no orchestrator marked opens the first-time card instead (1.90).
 export async function switchMode(p: ProjectInfo, on: boolean): Promise<void> {
   if (on && !p.orchestration.orchestrator) return firstTimeCard(p)
@@ -173,6 +236,7 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
   }
   choices.addEventListener('change', syncManaged)
   syncManaged()
+  const cap = capField(p.orchestration.workersCap)
   const managed = () =>
     boxes
       .filter((row) => !row.hidden && row.querySelector('input')?.checked)
@@ -212,6 +276,8 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
     })
     later.addEventListener('click', close)
     start.addEventListener('click', () => {
+      const workers = cap.read()
+      if (workers === 'wrong') return toast(t('orch.workersCapWrong'))
       const pick = chosen()
       const sessions = managed()
       close()
@@ -222,6 +288,7 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
         folder.value,
         sessions,
         s.guidePath,
+        workers,
       )
     })
     const card = el(
@@ -237,6 +304,8 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
         choices,
         candidates.length > 0 ? el('div', { class: 'card-question' }, t('orch.cardManaged')) : null,
         candidates.length > 0 ? managedList : null,
+        el('div', { class: 'card-question' }, t('orch.workersCap')),
+        cap.node,
       ),
       el('div', { class: 'responses' }, guide, copy, later, start),
     )
@@ -274,6 +343,7 @@ async function startTeam(
   folder: string,
   managed: readonly string[],
   guide: string,
+  cap: number | null,
 ): Promise<void> {
   if (pick === NEW) {
     if (!folder) return
@@ -289,6 +359,7 @@ async function startTeam(
   } else await act({ type: 'setOrchestrator', session: pick, on: true })
   // A new orchestrator is marked as it starts, so it exists by now.
   if (managed.length > 0) await act({ type: 'setManaged', sessions: managed, on: true })
+  if (cap !== p.orchestration.workersCap) await act({ type: 'setWorkersCap', project: p.id, cap })
   await act({ type: 'setOrchestrationMode', project: p.id, on: true })
 }
 

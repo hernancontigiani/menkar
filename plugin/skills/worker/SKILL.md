@@ -66,6 +66,8 @@ When the task names a task number (Menkar's orchestration mode), the human follo
   one session commits everything, in others you commit your own branch. Either way, only validated
   work, by path, never another session's files. When neither says, don't commit. Never push unless
   the project's rule or the human says so.
+- **An expert's skill you were told to load is read only**: never edit or distill it; its expert
+  is its one keeper. A lesson for it goes in your report, and the orchestrator hands it on.
 - **You don't orchestrate**: never start sessions or hand out work. If part of the task belongs to
   an expert session, ask the orchestrator, by name, to delegate it. Your own subagents are fine for
   research, discovery or review.

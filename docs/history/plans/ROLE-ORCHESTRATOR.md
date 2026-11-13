@@ -63,3 +63,12 @@ usually the most useful thing a new orchestrator delivers.
   `sudo apt install ~/git/menkar/release/menkar_0.1.0_amd64.deb` to run in their own terminal (the
   `!` prefix cannot read a sudo password), then a restart. `dpkg-query -W -f='${Version}\n' menkar`
   tells you which build is installed.
+
+> Left on 2026-11-13: b1 and b2 give way to per-task workers (1.118).
+- **Deciding who executes what** (1.55): you assign each plan or task to `b1` or `b2`; the human
+  does not. Two workers, no third: a third was weighed and rejected, since the sessions' work
+  overlapped too much. Give a worker work near what it already knows when that helps, but never
+  two workers on one file at once.
+- **Renewing `b1` and `b2`** follows `menkar:orchestrator`: between plans, once a worker's work is
+  committed and nothing is owed to it, it renews with a handoff prompt (its name, its next task or
+  "wait"). The plan and the tree hold everything the next task needs.

@@ -9,6 +9,8 @@ export type ModeRow =
       readonly id: string
       readonly depth: 0 | 1
       readonly section: string | null
+      // Under the orchestrator's "Parked" row.
+      readonly parked?: true
     }
   // A top row's children without a tab, folded into one row until a click unfolds them.
   | {
@@ -17,6 +19,9 @@ export type ModeRow =
       readonly ids: readonly string[]
       readonly open: boolean
     }
+  // The orchestrator's parked workers (decision 1.120), folded into one row until a click unfolds
+  // them; they are not among its "earlier" children.
+  | { readonly kind: 'parked'; readonly ids: readonly string[]; readonly open: boolean }
   | { readonly kind: 'heading'; readonly heading: 'consultants' | 'others' }
   | { readonly kind: 'group'; readonly name: string; readonly collapsed: boolean }
   | { readonly kind: 'noGroup' }
@@ -28,6 +33,8 @@ export interface ModeView {
   readonly open: ReadonlySet<string>
   // Top rows whose "N earlier" row this window unfolded.
   readonly unfolded: ReadonlySet<string>
+  // This window unfolded the orchestrator's "Parked" row.
+  readonly parkedOpen?: boolean
 }
 
 export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
@@ -48,11 +55,17 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
     if (top !== id) children.set(top, [...(children.get(top) ?? []), id])
   }
   const tops = view.listed.filter((id) => topOf(id) === id)
+  const o = project.orchestration
+  const orchestrator = o.orchestrator && tops.includes(o.orchestrator) ? o.orchestrator : null
+  const parkedMarks = new Set(o.parked)
   const withChildren = (id: string, section: string | null): ModeRow[] => {
     const own = children.get(id) ?? []
     const shown = own.filter((c) => view.open.has(c))
-    const folded = own.filter((c) => !view.open.has(c))
+    const stopped = own.filter((c) => !view.open.has(c))
+    const parked = id === orchestrator ? stopped.filter((c) => parkedMarks.has(c)) : []
+    const folded = stopped.filter((c) => !parked.includes(c))
     const open = view.unfolded.has(id)
+    const parkedOpen = view.parkedOpen === true
     return [
       { kind: 'session', id, depth: 0, section },
       ...shown.map((c): ModeRow => ({ kind: 'session', id: c, depth: 1, section: null })),
@@ -64,11 +77,25 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
               : []),
           ]
         : []),
+      ...(parked.length > 0
+        ? [
+            { kind: 'parked', ids: parked, open: parkedOpen } as const,
+            ...(parkedOpen
+              ? parked.map(
+                  (c): ModeRow => ({
+                    kind: 'session',
+                    id: c,
+                    depth: 1,
+                    section: null,
+                    parked: true,
+                  }),
+                )
+              : []),
+          ]
+        : []),
     ]
   }
 
-  const o = project.orchestration
-  const orchestrator = o.orchestrator && tops.includes(o.orchestrator) ? o.orchestrator : null
   // A loose session with a role label is a consultant (decision 1.107); a labelled child is an
   // expert and stays nested under the orchestrator.
   const consultants = tops.filter((id) => id !== orchestrator && o.roles[id] !== undefined)

@@ -28,7 +28,15 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: "The session's name." },
+        name: {
+          type: 'string',
+          description: "The session's name; with task, Menkar names it and it may be omitted.",
+        },
+        task: {
+          type: 'integer',
+          description:
+            "A task's number: Menkar names the session <project>-t<number> and assigns it the task. Only a task with no assignee.",
+        },
         prompt: { type: 'string', description: 'Its first prompt.' },
         prompt_file: {
           type: 'string',
@@ -52,7 +60,6 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
             "The role label it is born with, as the human's Role… sets it; no tool changes it later.",
         },
       },
-      required: ['name'],
     },
   },
   {
@@ -139,7 +146,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'task_add',
     description:
-      "Adds a task to your Menkar project, assigned to a session by its name, and returns its number; name that number in the session's handoff. Only the orchestrator, in the orchestration mode. The task starts queued; its assignee splits it into steps.",
+      "Adds a task to your Menkar project and returns its number; name that number in the session's handoff. Assign it to a session by its name, or leave it unassigned and start its worker with start_session's task. Only the orchestrator, in the orchestration mode. The task starts queued; its assignee splits it into steps.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -147,7 +154,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
         assignee: { type: 'string', description: 'The name of the session that does it.' },
         star: { type: 'boolean', description: 'Mark it urgent with the ★, when the human asks.' },
       },
-      required: ['title', 'assignee'],
+      required: ['title'],
     },
   },
   {
@@ -213,6 +220,43 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
       properties: {
         all: { type: 'boolean', description: 'Include closed tasks.' },
       },
+    },
+  },
+  {
+    name: 'set_workers_cap',
+    description:
+      'Sets how many workers your Menkar project runs at once: started or resumed sessions you are the parent of, with no role. Null for any number. Only the orchestrator, in the orchestration mode, and only when the human asks for it explicitly.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        cap: {
+          type: ['integer', 'null'],
+          description: 'A whole number from 1, or null for any number.',
+        },
+      },
+    },
+  },
+  {
+    name: 'park_session',
+    description:
+      'Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as closing its tab does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: "The worker's name." } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'resume_session',
+    description:
+      'Resumes a parked or stopped session of your Menkar project by its name, with its conversation, in a tab after yours without taking the focus; the optional prompt is its first message, e.g. what came back on its task. Only the orchestrator.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: "The session's name." },
+        prompt: { type: 'string', description: 'Its first message once resumed.' },
+      },
+      required: ['name'],
     },
   },
 ]

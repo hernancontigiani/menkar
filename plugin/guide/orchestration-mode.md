@@ -81,7 +81,7 @@ the task it belongs to (`topic_add`'s task), so the topics of a ★ task come fi
 A task is a piece of work the orchestrator delegated, so the person can see how far it is:
 
 - `task_add`: the orchestrator creates it when it hands the work out, with a title and the session
-  that does it, and names its number in the handoff. It starts **queued**.
+  that does it, or with no session yet, and names its number in the handoff. It starts **queued**.
 - `task_steps`: the session splits it into 3 to 7 short steps; it goes **in progress** at step 1.
 - `task_progress`: the session reports each advance, the step it is at and a one-line note; with
   what it waits on (a topic, a session) it is **waiting**.
@@ -95,6 +95,30 @@ A task is a piece of work the orchestrator delegated, so the person can see how 
 the Work view or the Board), or the orchestrator when the person asks. A ★ task's topics come
 first, and when several sessions finish at once the orchestrator hears first of those on ★ tasks.
 Consultants get no tasks: they are asked, and raise topics.
+
+## A worker per task
+
+- **Each task gets a new worker**: the orchestrator creates the task, then starts its worker with
+  `start_session` and the task's number. Menkar names it after the project and the task
+  ("menkar-t42") and gives it the task. Names are unique across the computer, so two projects'
+  workers never collide.
+- **Parked**: when a task will wait long (a pull request under review), the orchestrator parks its
+  worker with `park_session`. Once its turn is over, Menkar closes its tab and keeps its
+  conversation. The Team view shows parked workers apart, in a folded "Parked · N" row under the
+  orchestrator, each with what its task waits on. When the wait ends (tell the orchestrator what
+  came back), it resumes the same worker with `resume_session`, with its whole context.
+- **When a task closes**, its worker's tab closes and its row is hidden from the sidebar.
+- **Workers at once**: a number per project, empty for any number. Set it in the first-time card,
+  later in the project's orchestration settings (the gear beside the project's mode icon in the
+  project menu, while the mode is on), or ask the orchestrator, which then uses `set_workers_cap`. At the limit the
+  orchestrator leaves the next task queued until a worker finishes. Experts, consultants and
+  parked workers don't count.
+- Only the orchestrator's own workers are parked, counted or hidden: a session you started, an
+  expert and a consultant never are.
+- **An expert may hold several tasks**, one in progress at a time: the orchestrator gives it
+  another only while the current one waits on something outside, and never a third. For parallel
+  work in its area, the orchestrator starts a worker that reads the expert's skill without
+  changing it; only the expert keeps its skill up to date, with what the workers report.
 
 ## Notifications, read-only tabs and handing sessions over
 

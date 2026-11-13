@@ -1464,7 +1464,8 @@ select option {
 }
 .topics-toggle:hover,
 .topic-row:hover,
-.earlier-row:hover {
+.earlier-row:hover,
+.parked-row:hover {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
 }
 .topics-empty {
@@ -1535,7 +1536,8 @@ select option {
 .row.nested {
   margin-left: 22px;
 }
-.earlier-row {
+.earlier-row,
+.parked-row {
   margin: 0 6px 2px 28px;
   padding: 4px 4px 4px 10px;
   border-radius: var(--radius);
@@ -1582,6 +1584,27 @@ select option {
   min-width: 0;
 }
 .orch-card .responses button {
+  font-size: 9pt;
+}
+/* "Workers at once" in the first-time card and the project's orchestration settings. */
+.cap-field {
+  display: grid;
+  grid-template-columns: auto 6em;
+  align-items: center;
+  gap: 4px 8px;
+  text-align: left;
+}
+.cap-field .cap-hint {
+  grid-column: 1 / -1;
+  font-size: 9pt;
+}
+.orch-card .cap-field .cap-label {
+  display: none;
+}
+.orch-card .cap-field {
+  grid-template-columns: 8em;
+}
+.parked-on {
   font-size: 9pt;
 }
 /* A Markdown tab's row: "Ask an agent" at the left, Save and Preview at the right (1.95). */

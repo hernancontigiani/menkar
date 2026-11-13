@@ -116,6 +116,25 @@ describe("Menkar's skills plugin", () => {
     for (const tool of tasks) expect(guide).toContain(tool)
   })
 
+  // Decisions 1.118–1.120 and 1.123: the orchestrator parks and resumes workers by name and sets the
+  // cap only when the human asks; the guide tells the person the same; every tool named exists.
+  test('workers per task: the orchestrator names park_session, resume_session and set_workers_cap, which exist; the guide names all three; a worker never distills an expert’s skill', () => {
+    const folder = join(PLUGIN, 'skills', 'orchestrator')
+    const files = readdirSync(folder).filter((f) => f !== 'SKILL.md')
+    expect(files).toContain('workers.md')
+    const workers = readFileSync(join(folder, 'workers.md'), 'utf8')
+    const named = toolsNamed(workers).filter((x) => x !== 'waiting_on')
+    for (const tool of ['start_session', 'park_session', 'resume_session', 'set_workers_cap'])
+      expect(named).toContain(tool)
+    for (const tool of named) expect(TOOL_NAMES).toContain(tool)
+    expect(workers).toMatch(/`set_workers_cap` only when the human asks for it explicitly/)
+    expect(skill('orchestrator').body).toContain('`workers.md`')
+    const guide = toolsNamed(readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8'))
+    for (const tool of ['park_session', 'resume_session', 'set_workers_cap'])
+      expect(guide).toContain(tool)
+    expect(skill('worker').body).toMatch(/never edit or distill it/)
+  })
+
   test.each(SKILLS)('%s names only tools the MCP server lists', (name) => {
     for (const tool of toolsNamed(skill(name).body)) expect(TOOL_NAMES).toContain(tool)
   })

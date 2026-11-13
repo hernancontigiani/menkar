@@ -30,13 +30,12 @@ Read, in this order, and **touch nothing until you are done**:
   and what is blocked by what. The parallelism test is in `plans/README.md`: a shared **file or
   runtime resource** (the app's state file, the installed launcher, the statusline entry), not a
   conceptual dependency.
-- **Deciding who executes what** (1.55): you assign each plan or task to `b1` or `b2`; the human
-  does not. Two workers, no third: a third was weighed and rejected, since the sessions' work
-  overlapped too much. Give a worker work near what it already knows when that helps, but never
-  two workers on one file at once.
-- **Renewing `b1` and `b2`** follows `menkar:orchestrator`: between plans, once a worker's work is
-  committed and nothing is owed to it, it renews with a handoff prompt (its name, its next task or
-  "wait"). The plan and the tree hold everything the next task needs.
+- **Deciding who executes what** (1.55, amended by 1.118 on 2026-11-13): you start a worker per
+  task with `start_session { task }` (`menkar-t<N>`); the human does not choose. This project's cap
+  is two workers at once: a third was weighed and rejected before, since the sessions' work
+  overlapped too much. Never two workers on one file at once. Park a worker whose task waits long
+  and resume it when the wait ends; a closed task's worker is hidden by Menkar. `packager` (expert)
+  builds the .deb; `claude-cli` (consultant) answers about Claude Code.
 - **Writing the execution session's `prompts/PROMPT-<topic>.md`** (gitignored and one-shot, so what
   is deleted there does not come back). **The invariant procedure does not go in it** — it lives in
   `/execute-plan`, which the session loads itself; repeating it per prompt is the copy that goes

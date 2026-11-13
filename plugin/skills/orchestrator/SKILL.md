@@ -13,11 +13,12 @@ to an expert, and they may use their own subagents.
 What earns a line here: it changes what an orchestrating session does, and it holds in any
 project. What Menkar's tool descriptions or the project's docs already say is not repeated.
 
-Three files beside this one hold detail; read each when its moment comes:
+Four files beside this one hold detail; read each when its moment comes:
 - `setting-up.md`: first, when `list_sessions` shows no session under you, no role and no task.
 - `locks-and-environment.md`: before you grant a verification, a build or anything heavy, or when
   a check fails in a part nobody touched.
 - `closing-a-task.md`: when a worker reports a task done.
+- `workers.md`: when you hand out work, when a task will wait long, and when a task closes.
 
 ## When you load this skill: say what you read
 
@@ -44,8 +45,8 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 - `last_reply` reads a session's report. Right after it renewed, it gives the last reply of its
   previous conversation, labelled so.
 - To renew another session, tell it to call `renew`; you renew only yourself.
-- **Renewing is yours for the sessions under you** (experts and workers): between tasks, have them
-  distill if they learned something and renew with a prompt naming their skill. A **consultant**
+- **Renewing is yours for your experts**: between tasks, have them distill if they learned
+  something and renew with a prompt naming their skill. A worker goes with its task. A **consultant**
   (loose) renews itself; if `list_sessions` shows one past the red mark, raise a topic for the
   human, and don't message it.
 - `adopt_session` makes a session of the project your child. Call it **only when the human asks
@@ -76,13 +77,13 @@ docs within a minute, you are shape 3 there, and you route.
 
 ## Handing out work
 
-- **Who takes it:** a new worker you start with `start_session`, or an existing session that owns
-  that area, by name. An expert back after a gap first hears what changed since its last task.
+- **Who takes it:** a new worker for that task (`workers.md`), or the expert that owns that area,
+  by name. An expert back after a gap first hears what changed since its last task.
 - **Its model** (`model` in `start_session`): a generalist worker with a consultant behind it may run
   on a smaller model. Which one is written in the project's own docs; if not, ask the human.
 - **A session marked "with you"** (with_you in `list_sessions`) is talking with the human: give
   it no work and don't interrupt it until the mark clears.
-- **A task for each piece of work you delegate** (`task_add`: a title and the session by name);
+- **A task for each piece of work you delegate** (`task_add`; for a new worker, `workers.md`);
   name its number in the task message. The session splits it into steps and reports each advance,
   so the human sees how far it is. A consultant gets no task: ask it, and it raises topics.
 - **★ tasks first** (`priority` in `list_sessions` is the ★ of a session's current task): their

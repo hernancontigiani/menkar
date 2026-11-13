@@ -17,7 +17,8 @@ interface Saved {
     groups: { name: string; members: string[] }[]
     earlier?: Record<string, string[]>
     parents?: Record<string, string>
-    orchestration?: { roles?: Record<string, string> }
+    orchestration?: { roles?: Record<string, string>; parked?: string[] }
+    hidden?: string[]
   }[]
 }
 
@@ -25,7 +26,7 @@ interface Saved {
 // its orchestrator (decision 1.92).
 const OLD_WORKER = '0b1d0b1d-0000-4000-8000-000000000001'
 
-async function open(options: { stoppedWorker?: boolean } = {}) {
+async function open(options: { stoppedWorker?: boolean; orchestrated?: boolean } = {}) {
   let root = ''
   let home = ''
   const launched = await launchApp({
@@ -86,6 +87,9 @@ async function open(options: { stoppedWorker?: boolean } = {}) {
                     },
                     team_view: true,
                   }
+                : {}),
+              ...(options.orchestrated
+                ? { orchestration: { on: true, orchestrator: SESSION }, team_view: true }
                 : {}),
             },
           ],
@@ -150,7 +154,7 @@ async function open(options: { stoppedWorker?: boolean } = {}) {
       : []
   const remote = (): unknown => savedState(root).remote_control
   const tasksSaved = (): {
-    projects: Record<string, { tasks: { assignee: string }[] } | undefined>
+    projects: Record<string, { tasks: { assignee?: string; state: string }[] } | undefined>
   } =>
     existsSync(join(root, 'config', 'menkar', 'tasks.json'))
       ? JSON.parse(readFileSync(join(root, 'config', 'menkar', 'tasks.json'), 'utf8'))
@@ -275,6 +279,63 @@ test('a started session waiting at a permission prompt wakes its parent through 
     }
   } finally {
     server.close()
+    await launched.close()
+  }
+})
+
+// Decisions 1.118 and 1.120: a worker per task, named by Menkar; parked while its task waits, after
+// its turn, resumed with its conversation and a prompt, hidden once its task closes.
+test('a worker per task: started for task 1 as "client-work-t1"; parked while it waits; resumed with a prompt; hidden when the task closes', async () => {
+  const { launched, page, saved, argLines, tasksSaved } = await open({ orchestrated: true })
+  try {
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 1 added.')
+    await page.keyboard.type('WORKT')
+    await said(page, 'TOOL start_session: Started "client-work-t1" in a tab after yours for task 1')
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    expect(argLines()[1]).toContain(`--session-id ${worker} -n client-work-t1 fix the login`)
+    await expect.poll(() => tasksSaved().projects[CLIENT_WORK]?.tasks[0]?.assignee).toBe(worker)
+    await expect.poll(() => saved().projects[0]?.parents).toEqual({ [worker]: SESSION })
+
+    // The worker reports, and waits on the PR, ending its turn: the human takes control of its
+    // read-only tab to type for it.
+    await page.locator('.tab').nth(1).click()
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('STEPS')
+    await said(page, 'TOOL task_steps: Task 1 has 3 steps')
+    await page.keyboard.type('WAITS')
+    await said(page, 'TOOL task_progress: Task 1 is waiting on the PR review')
+
+    await page.locator('.tab').first().click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('PARK')
+    await said(page, 'TOOL park_session: "client-work-t1" will be parked once its turn is over')
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect.poll(() => saved().projects[0]?.orchestration?.parked).toEqual([worker])
+
+    await page.keyboard.type('WAKEW')
+    await said(page, 'TOOL resume_session: Resumed "client-work-t1"')
+    await expect(page.locator('.tab')).toHaveCount(2)
+    await expect(page.locator('.tab.selected')).toHaveAttribute(
+      'data-tab',
+      (await page.locator('.tab').first().getAttribute('data-tab')) ?? '',
+    )
+    await expect.poll(() => argLines().length).toBe(3)
+    expect(argLines()[2]).toContain(`--resume ${worker}`)
+    expect(argLines()[2]).toContain('the PR got feedback')
+    await expect.poll(() => saved().projects[0]?.orchestration?.parked).toBeUndefined()
+
+    await page.keyboard.type('CLOSE1')
+    await said(page, 'TOOL task_close: Task 1 closed as done.')
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect.poll(() => saved().projects[0]?.hidden).toEqual([worker])
+    await expect(page.locator(`.row[data-session="${worker}"]`)).toHaveCount(0)
+  } finally {
     await launched.close()
   }
 })

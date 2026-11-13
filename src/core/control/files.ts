@@ -25,6 +25,9 @@ export const TOOL_NAMES = [
   'task_review',
   'task_close',
   'task_list',
+  'set_workers_cap',
+  'park_session',
+  'resume_session',
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 

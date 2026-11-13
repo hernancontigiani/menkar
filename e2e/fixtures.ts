@@ -14,7 +14,10 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // as Claude Code starts it: RENEW calls renew, then ends the turn (the Stop hook its --settings
 // declares); SPAWN1 starts "worker" in the group "pair" with a prompt; SPAWN2 asks for "worker"
 // again; SPAWN3 names a group that does not exist; LISTS lists the project; REPLY asks for
-// worker's last reply; TOPIC raises a topic "Pick a port". Each answer is printed as
+// worker's last reply; TOPIC raises a topic "Pick a port". A worker per task (decision 1.118):
+// TASKADD adds an unassigned task, WORKT starts its worker, STEPS and WAITS (which ends the turn)
+// report on task 1, PARK parks "client-work-t1", WAKEW resumes it with a prompt, CLOSE1 closes
+// task 1 as done. Each answer is printed as
 // "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the terminal for the cursor's
 // position (CSI 6n) as it starts, as Claude Code queries its terminal.
 const FAKE_CLAUDE = `#!/usr/bin/env node
@@ -104,6 +107,13 @@ process.stdin.on('data', (d) => {
     LISTS: ['list_sessions', {}],
     REPLY: ['last_reply', { name: 'worker' }],
     TOPIC: ['topic_add', { title: 'Pick a port', context: 'Which port should the API use?' }],
+    TASKADD: ['task_add', { title: 'Fix the login' }],
+    WORKT: ['start_session', { task: 1, prompt: 'fix the login' }],
+    STEPS: ['task_steps', { number: 1, steps: ['read', 'fix', 'open the PR'] }],
+    WAITS: ['task_progress', { number: 1, step: 3, note: 'PR open', waiting_on: 'the PR review' }, true],
+    PARK: ['park_session', { name: 'client-work-t1' }],
+    WAKEW: ['resume_session', { name: 'client-work-t1', prompt: 'the PR got feedback' }],
+    CLOSE1: ['task_close', { number: 1, outcome: 'done' }],
   }
   for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
     if (!typed.endsWith(word)) continue

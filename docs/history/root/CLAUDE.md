@@ -34,3 +34,8 @@ human likes; the features are all of agent-tablet's.
 
 > Left on 2026-11-13: the orchestration doc's row names tasks, the Work view and the Board (plan 36).
 | `docs/orchestration.md` | The orchestration mode: its marks and topics, the sidebar in the mode, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
+
+> Left on 2026-11-13: workers are per task, capped at two (1.118 amends 1.55).
+- **Roles:** the `set` session (at this repository's root) designs the plans, writes their launch
+  prompts in `prompts/`, reviews what is built and commits it; the sessions `b1` and `b2` execute the
+  plans they are given. **`set` decides who executes what** (1.55); two workers, no third.

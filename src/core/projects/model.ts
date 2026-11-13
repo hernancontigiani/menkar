@@ -24,6 +24,10 @@ export interface Orchestration {
   readonly roles?: Readonly<Record<string, string>>
   // Sessions the human marked as talking with them directly.
   readonly withYou?: readonly string[]
+  // Workers stopped while their task waits long, to be resumed with their context (decision 1.118).
+  readonly parked?: readonly string[]
+  // Workers running at once (decision 1.118); absent, unlimited.
+  readonly workersCap?: number
 }
 
 export interface Project {

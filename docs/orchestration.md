@@ -10,7 +10,8 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
 ## The data
 
 - **Marks, per project in `projects.json`:** `orchestration` — on, the orchestrator, roles,
-  "with you" — and `topics_collapsed`, `team_view`, `consultants_collapsed` and `done_today_open`. How they are read, kept and followed through a `/clear`, a
+  "with you", `parked` and `workers_cap` (decision 1.118) — and `topics_collapsed`, `team_view`,
+  `consultants_collapsed` and `done_today_open`. How they are read, kept and followed through a `/clear`, a
   resume or a session leaving is in `docs/projects.md` ("The orchestration mode's marks").
 - **Topics, in `topics.json` in the config directory** (`topicsPath` in `src/core/paths.ts`;
   `src/core/orchestration/topics.ts`), a file of their own: agents write topics often, and a broken
@@ -37,7 +38,8 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   `src/core/orchestration/tasks.ts`), a file of their own for the same reason as the topics, read
   and written the same way, version 1: `{ version, projects: { [projectId]: { next, tasks } } }`.
   - A task: `number` (per project, never reused, as topics), `title`, `assignee` (a session id,
-    shown by its current name), `star`, `state`, `steps` (3 to 7 lines, empty while queued), `step`
+    shown by its current name; absent until a worker is started for it, decision 1.118), `star`,
+    `state`, `steps` (3 to 7 lines, empty while queued), `step`
     (1-based, 0 while queued), `note` (the latest report, one line), `waiting_on` while waiting,
     `created`, `updated` and `closed` (ISO, through the clock).
   - **States:** `queued` (added) → `in progress` (steps set; step n of m) → `waiting` (on a topic
@@ -45,6 +47,9 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
     only the orchestrator sets, after reviewing, so "done" always means reviewed.
   - **A session's current task** (`currentTask`): its task in progress or waiting, else its oldest
     queued one.
+  - **One in progress per assignee** (decision 1.119): `task_steps`, or `task_progress` without
+    `waiting_on`, on a task while the same assignee has another in progress is refused ("Finish or
+    wait on task N first.").
   - **The ★ belongs to a task** (decision 1.114): a topic of a ★ task comes first, a row shows ★
     while its current task has it (`onStarredTask`), and its wakes reach the orchestrator first.
     The human sets it from a task's right-click (`setTaskStar`), the orchestrator at `task_add`
@@ -58,7 +63,8 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   session's current task (`TasksView`), and "Done today" (`DoneView`).
 - **Agents reach them** through Menkar's MCP tools (`docs/session-control.md`): `topic_add`,
   `topic_update`, `topic_close`, `topic_list`, the six task tools, the marks in `list_sessions`,
-  and `start_session` refused to anyone but the orchestrator while the mode is on with one marked.
+  and `start_session` refused to anyone but the orchestrator while the mode is on with one marked;
+  `park_session`, `resume_session` and `set_workers_cap` for workers per task (below).
 
 ## Switching it, and the marks
 
@@ -116,7 +122,9 @@ nested under it with its label; a **generalist** worker, under it without a labe
 **consultant**, a loose session with a label, under "Consultants".
 
 1. **The orchestrator**, then its children with a tab, indented; its children without a tab fold
-   into one "N earlier" row a click unfolds (per window, not saved).
+   into one "N earlier" row a click unfolds (per window, not saved). Its parked workers fold apart,
+   after it, into a "Parked · N" row; unfolded (per window, not saved), each parked worker with
+   "waiting on …" from its current task (decision 1.120; `modeRows`).
 2. **"Consultants"**: every session with a role label that is not the orchestrator and not
    nested, each with its own children as in 1.
 3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
@@ -262,6 +270,46 @@ turns read only):
   one with a label sits under "Consultants". No tool changes an existing session's role: that stays
   the human's, from the row menu's "Role…".
 
+## Workers per task
+
+Decisions 1.118–1.123 (the human, 2026-11-13). The orchestrator starts a new generalist worker for
+each task, parks it while its task waits long, resumes it with its context, and the worker goes
+away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; main applies them.
+
+- **Who is a worker** (`isWorker`): with the mode on, a child of the orchestrator with no role
+  label. Experts (a label), consultants (loose) and sessions the human started are never parked,
+  counted or hidden by Menkar.
+- **Its name** (`workerName`): `start_session { task }` names the session `<project>-t<N>` — the
+  project's name lowercased, every run of other characters one dash — and assigns it the task
+  (`assignTask`). Names are unique across the machine, so the project is in them. A given name must
+  be that one; a task assigned to another session, open or parked, or closed, is refused
+  (`untakenRefusal`): moving it would lose the context its session keeps. `task_add` may leave the
+  assignee out for this.
+- **Parking** (`park_session`, `mayPark`): only the orchestrator, for a worker whose current task
+  is waiting. Once its turn is over (its shown state idle or done, or the Stop hook's record)
+  Menkar stops it as closing its tab does, never mid-turn and never by typing, and
+  marks it `parked` in `projects.json`. The mark follows a new id and leaves with the member.
+- **Resuming** (`resume_session`): only the orchestrator, a parked or stopped Claude Code session of
+  the project, by name, not one with a tab. A tab after the orchestrator's, without the focus,
+  `--resume` of the same id, the optional prompt as its first message (as `start_session` passes
+  one). The parked mark goes, and the row shows again.
+- **Closing a task** (`task_close`, `hideOnClose`): the worker started for that task — the
+  orchestrator's child, no role, named for that task's number — is stopped after its turn and
+  hidden at once. Any other assignee is left as it is.
+- **The cap** (`workers_cap`, `atCap`, `capRefusal`): a whole number from 1 per project, absent for
+  any number. It counts the running workers; parked and stopped ones have no tab and don't count. A
+  `start_session` or `resume_session` of a session that would count is refused at the cap; starting
+  an expert or a consultant is not.
+- **Where the cap is set**: the first-time card's "Workers at once" (decision 1.121; empty by
+  default, saved on Start), the project's orchestration settings dialog (decision 1.122: a gear
+  beside the project's mode icon in the project popover, shown only while its mode is on; the cap
+  first), and
+  `set_workers_cap` (decision 1.123: only the orchestrator, in the mode, only when the human asks).
+  Orchestration settings belong to the project, so Settings has no Orchestration section.
+- **Experts with several tasks** (decision 1.119): one in progress, enforced by the task tools; the
+  rest — another task only while the current one waits outside, never a third, a skill's one
+  keeper — is the orchestrator's and the worker's skills.
+
 ## Rejected
 
 - **A panel beside the orchestrator's tab** (1.77's first form): it repeated the team the sidebar
@@ -289,3 +337,12 @@ turns read only):
 - **Read only by hiding the terminal**: the human must still watch the session work.
 - **A badge Menkar sets on the dock** for unseen topics: the desktop already counts Menkar's
   notices, and a second count would add to it.
+- **Fixed workers reused for every task** (b1/b2): a task waiting days on a PR blocks its worker or
+  loses its context (the human, 2026-11-13).
+- **Closing a waiting worker and starting a new one for the feedback**: the new one rebuilds the
+  context the old one had.
+- **Two sessions of one expert**: both would distill one skill file and diverge (1.119).
+- **Worker names without the project**: cross-session messages go by name across the machine; two
+  `t42` would collide.
+- **An Orchestration section in Settings** (1.120's first form): orchestration settings belong to
+  the project, not the app (1.122).

@@ -695,3 +695,101 @@ test-integrity step red only on the six accepted lines below; flaky and history 
 
 > Left §3 on 2026-11-13: plan 37 written.
 | 1 | `37-worker-per-task.md` — a worker per task, parking and resuming, the cap | Stub, being designed by `set` with the human, 2026-11-13 |
+
+## 2026-11-13 — plan 37 closed (built by `b1`)
+
+| 1.55 | Amends 1.5 (the human, 2026-11-11): `set` runs from Menkar's own repository and decides which plan or task each worker takes; the workers stay two, `b1` and `b2` — a third was weighed before and rejected, since the sessions' work overlapped too much | 2026-11-11 | `CLAUDE.md` · `plans/ROLE-ORCHESTRATOR.md` |
+| 1.118 | **A worker per task** (the human, 2026-11-13): the orchestrator starts a new generalist worker for each task instead of reusing fixed ones, named `<project>-t<task number>` (names must be unique across the machine: cross-session messages go by name); a worker whose task waits long (a PR under review) is **parked** — stopped, transcript kept — and **resumed by name** with its context when the wait ends; when its task closes it is hidden; a per-project cap on workers running at once, **unlimited by default**, parked ones not counted. Amends 1.55 for this repository (b1 and b2 give way to per-task workers; its reason, overlapping work, is kept by a cap of 2). Usage per task is not changed. Not built yet | 2026-11-13 | `plans/37-worker-per-task.md` (until delivered) |
+| 1.119 | Experts and several tasks (the human, 2026-11-13): an expert may hold several tasks, **one in progress** at a time, the others waiting or queued; the orchestrator gives it another only while its current one waits on something outside (a long build), naming the task in every message, and gives no third. When an area needs real parallel work, the orchestrator starts a per-task worker that **loads the expert's skill read only**; **a skill has one keeper**, the named expert, the only one that distills it; a worker's lesson for that skill goes in its report and the orchestrator hands it to the expert. Generalist workers hold one task. Not built yet | 2026-11-13 | `plans/37-worker-per-task.md` (until delivered) |
+| 1.120 | Plan 37's details (the human, 2026-11-13, topics 22–24): parked workers show apart in the Team view, in a folded "Parked · N" row under the orchestrator, each with what it waits on; a closed task's worker is hung up and hidden **at once**; the cap on workers running at once is set in **Settings → Work**, per project, empty = unlimited. Not built yet | 2026-11-13 | `plans/37-worker-per-task.md` (until delivered) |
+| 1.121 | The first-time card also asks for the cap on workers running at once ("Workers at once", a number field, empty = unlimited by default), saved as the project's cap; Settings → Work → Orchestration changes it later (the human, 2026-11-13). Not built yet | 2026-11-13 | `plans/37-worker-per-task.md` (until delivered) |
+| 1.122 | Amends 1.120's place for the cap (the human, 2026-11-13): orchestration settings are the project's, not the app's — **no Orchestration section in Settings**; the project popover's mode icon opens (right-click, or an "Orchestration settings…" item) a small dialog with that project's orchestration settings, the cap on workers at once first; the first-time card still asks for it (1.121). Not built yet | 2026-11-13 | `plans/37-worker-per-task.md` (until delivered) |
+| 1.123 | The orchestrator can change its project's orchestration settings (the cap first) with an MCP tool, `set_workers_cap { cap }` (empty = unlimited), only when the human asks it explicitly; refused to anyone but the orchestrator (the human, 2026-11-13). Not built yet | 2026-11-13 | `plans/37-worker-per-task.md` (until delivered) |
+| 1 | `37-worker-per-task.md` — a worker per task, parking and resuming, experts with several tasks, the cap | Written 2026-11-13, ready; to `b1` |
+
+### Plan 37's execution log, verbatim
+
+
+(Written by the session that executes it: `b1`, 2026-11-13.)
+
+### What was built, and where it deviates
+
+- **Pure rules in a new `src/core/orchestration/workers.ts`**: `workerName`, `startName`,
+  `workerTeam`, `isWorker`, `startsWorker`, `runningWorkers`, `atCap`, `capRefusal`, `mayPark`,
+  `hideOnClose`, `capTool`. Tasks gained `assignTask` and `untakenRefusal`; `Task.assignee` is
+  optional; the one-in-progress rule is in `taskTool`.
+- **`start_session`'s schema no longer requires `name`** (with `task` it may be omitted): the
+  expect asserting `required: ['name']` in `tests/core/control/server.test.ts` was rewritten to
+  `toBeUndefined()`, accepted by `set`; the guarantee moved to `startName`'s test (neither name
+  nor task → refused). `npm run ci` reports this one line under test integrity until committed.
+- **Parking and closing share one mechanism** (`stopAfterTurn` in `src/main/workspace.ts`): at once
+  when the pane's shown state is idle or done, else at the Stop hook's record or the next idle
+  check (renew's interval). Renew's own map is untouched.
+- **`resume_session` refreshes the session list first**: the stand-in's transcript was not yet in
+  the list when it was asked, and the session read as no Claude session.
+- **A parked mark is cleared on resume and on close only**; the Team view shows a parked session
+  under "Parked" only while it has no tab, so a parked worker the human reopens by hand shows as
+  a plain child (`rows.test.ts`).
+- **The e2e types for the worker after "Take control"**: its tab is read only under the
+  orchestrator, as decided (1.101).
+- **`ProjectInfo.orchestration` gained `parked` and `workersCap`**: the e2e constant `marks` in
+  `e2e/orchestration.spec.ts` (data, not an expect line) and the factories in `rows.test.ts` got
+  the two keys.
+- **Nothing was built in Settings** (1.122 arrived before block 3).
+- **`docs/session-control.md` counted "nine tools"** (already stale at fifteen); the count left
+  prose ("The tools (`TOOL_NAMES`)"), with its history.
+
+### Choices of mine (labelled)
+
+- `workerName` of a project whose name has no `[a-z0-9]` at all: `project-t<N>`.
+- A cap is a whole number from 1; `0`, negatives, fractions and strings read as absent (lenient).
+- `resume_session` refuses a non-Claude session ("Only a Claude Code session is resumed."): a
+  prompt could not reach it.
+- The card's and the dialog's field: a value that is not a whole number from 1 shows a toast and
+  saves nothing (the card stays open).
+
+### Not anticipated
+
+- An intermittent Vitest failure inside `npm run ci`, twice in about ten runs, not reproduced in
+  eight more; its name was lost to an output filter. Not traced to this plan's files.
+
+### Closing
+
+The plan is not deleted by `b1`: its exit includes `plans/ROLE-ORCHESTRATOR.md` and
+`plans/00-STATUS.md`, which are `set`'s.
+
+### Answers from `set` (2026-11-13)
+
+1. The cap bounds workers: only a start or resume of a session that would itself count (the
+   orchestrator's child, no role, not loose) is refused at the cap.
+2. Parking is for per-task workers (1.118): only the orchestrator's child with no role label whose
+   current task waits; an expert is never parked.
+3. `task_close` on an assignee mid-turn: hung up after its turn, as park and renew do, never
+   mid-turn; at once if idle; then hidden.
+4. `start_session { task }` on a task assigned to another session, open or parked, is refused
+   ("Task N is assigned to ‹name›."): moving it would lose the context 1.118 keeps. A task with no
+   assignee takes the worker; a closed one is refused.
+
+### Additions from `set` (2026-11-13)
+
+- 1.121 (the human): the first-time card's "Workers at once" field, in block 3.
+- 1.123 (the human): the MCP tool `set_workers_cap`, in block 1.
+
+### The settings dialog's entry (the human, 2026-11-13)
+
+Asked through `set` with three options (right-click the mode icon; a one-item menu on right-click;
+a gear beside the mode icon), the human chose the gear, shown only while that project's mode is on,
+with no right-click behaviour. Replaced in §2.5: "The project popover's mode icon (right-click), or
+an "Orchestration settings…" item there, opens a small dialog"; in block 3: "from the popover's mode
+icon (right-click) or an "Orchestration settings…" item".
+
+### Lines replaced by 1.122 (the human, 2026-11-13)
+
+- §2.5: "**Settings → Work → Orchestration** (a new section in the Work group): one row per project
+  with the mode on, a number field, empty = unlimited."
+- Block 3: "Settings → Work → Orchestration: a cap row per project with the mode on; strings
+  en/es."
+- Block 3's title: "Block 3 — Team view and Settings".
+- Block 3: "Spec and screenshots `‹name›-parked.png`, `‹name›-settings-cap.png`."
+- Exit: "`docs/preferences.md`: the Orchestration section in Settings' Work group."
+- §1 "What already exists": the Settings sections line no longer applies.

@@ -23,6 +23,9 @@ export interface ProjectInfo {
     readonly orchestrator: string | null
     readonly roles: Readonly<Record<string, string>>
     readonly withYou: readonly string[]
+    readonly parked: readonly string[]
+    // Workers running at once; null, unlimited.
+    readonly workersCap: number | null
   }
   readonly topicsCollapsed: boolean
   readonly teamView: boolean

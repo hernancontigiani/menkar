@@ -10,8 +10,8 @@ export interface Task {
   // Per project, never reused.
   readonly number: number
   readonly title: string
-  // A session id, shown by its current name.
-  readonly assignee: string
+  // A session id, shown by its current name; absent until a worker is started for it.
+  readonly assignee?: string
   readonly star: boolean
   readonly state: TaskState
   // Set by the assignee; empty while queued.
@@ -60,7 +60,7 @@ const withProject = (t: Tasks, projectId: string, p: ProjectTasks): Tasks => ({
 
 export interface NewTask {
   readonly title: string
-  readonly assignee: string
+  readonly assignee?: string
   readonly star: boolean
 }
 
@@ -126,6 +126,37 @@ export function closeTask(
     updated: at,
     closed: at,
   }))
+}
+
+// Why a task cannot take a new worker, or null: it is open and nobody else holds it.
+export function untakenRefusal(
+  list: readonly Task[],
+  number: number,
+  nameOf: (id: string) => string,
+  taker?: string,
+): string | null {
+  const task = list.find((x) => x.number === number)
+  if (!task) return `This project has no task ${number}.`
+  if (!isOpen(task)) return `Task ${number} is closed.`
+  if (task.assignee !== undefined && task.assignee !== taker)
+    return `Task ${number} is assigned to ${nameOf(task.assignee)}.`
+  return null
+}
+
+// A worker started for a task becomes its assignee. A task already assigned keeps its session, open
+// or parked: moving it would lose the context that session holds.
+export function assignTask(
+  t: Tasks,
+  projectId: string,
+  number: number,
+  sessionId: string,
+  at: string,
+  nameOf: (id: string) => string,
+): { readonly tasks: Tasks } | { readonly refusal: string } {
+  const refusal = untakenRefusal(tasksOf(t, projectId), number, nameOf, sessionId)
+  if (refusal) return { refusal }
+  const changed = change(t, projectId, number, (x) => ({ ...x, assignee: sessionId, updated: at }))
+  return changed ? { tasks: changed.tasks } : { refusal: `This project has no task ${number}.` }
 }
 
 // null when the project has no task with that number.
@@ -205,14 +236,15 @@ function parseTask(value: unknown): Task | null {
     value
   const waitingOn = value.waiting_on
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
-  if (typeof title !== 'string' || typeof assignee !== 'string') return null
+  if (typeof title !== 'string') return null
+  if (assignee !== undefined && typeof assignee !== 'string') return null
   const known = TASK_STATES.find((s) => s === state) ?? 'queued'
   const lines = Array.isArray(steps) ? steps.filter((x): x is string => typeof x === 'string') : []
   const at = typeof step === 'number' && Number.isInteger(step) ? step : 0
   return {
     number,
     title,
-    assignee,
+    ...(typeof assignee === 'string' ? { assignee } : {}),
     star: star === true,
     state: known,
     steps: lines,
@@ -322,15 +354,18 @@ export function taskTool(
     if (call.orchestrator === null) return refuse(MODE_OFF)
     if (call.caller !== call.orchestrator) return refuse('Only the orchestrator adds tasks.')
     if (!text('title')) return refuse('A task needs a title.')
-    if (!text('assignee')) return refuse('Name the session the task is for.')
     if (args.star !== undefined && typeof args.star !== 'boolean')
       return refuse('star must be true or false.')
-    const found = call.idOf(text('assignee'))
-    if ('refusal' in found) return refuse(found.refusal)
+    let assignee: string | undefined
+    if (text('assignee')) {
+      const found = call.idOf(text('assignee'))
+      if ('refusal' in found) return refuse(found.refusal)
+      assignee = found.id
+    }
     const added = addTask(
       call.tasks,
       call.projectId,
-      { title: text('title'), assignee: found.id, star: args.star === true },
+      { title: text('title'), ...(assignee ? { assignee } : {}), star: args.star === true },
       call.at,
     )
     return { ok: true, text: `Task ${added.number} added.`, tasks: added.tasks }
@@ -363,6 +398,14 @@ export function taskTool(
   }
   if (call.caller !== task.assignee) return refuse(NOT_ASSIGNEE)
   if (!isOpen(task)) return refuse(closed)
+  // Decision 1.119: one in progress per assignee. A report that leaves this task waiting, or hands
+  // it to review, is always accepted.
+  const goesInProgress =
+    tool === 'task_steps' || (tool === 'task_progress' && args.waiting_on === undefined)
+  const other = list.find(
+    (x) => x.number !== number && x.assignee === call.caller && x.state === 'in progress',
+  )
+  if (goesInProgress && other) return refuse(`Finish or wait on task ${other.number} first.`)
   if (tool === 'task_steps') {
     const steps = args.steps
     if (!Array.isArray(steps) || steps.some((x) => typeof x !== 'string' || !x.trim()))
@@ -405,6 +448,7 @@ export function taskTool(
 }
 
 function taskLines(x: Task, nameOf: (id: string) => string): string {
+  const assignee = x.assignee === undefined ? 'unassigned' : nameOf(x.assignee)
   const star = x.star ? '★ ' : ''
   const where =
     x.steps.length > 0 && isOpen(x) && x.state !== 'queued'
@@ -412,7 +456,7 @@ function taskLines(x: Task, nameOf: (id: string) => string): string {
       : x.state
   const parts = [
     `${x.number}. ${star}${x.title}`,
-    nameOf(x.assignee),
+    assignee,
     where,
     ...(x.waitingOn !== undefined ? [`on ${x.waitingOn}`] : []),
     ...(x.note ? [x.note] : []),

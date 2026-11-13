@@ -13,12 +13,17 @@ const ids = (value: unknown, members: ReadonlySet<string>): string[] =>
 function compact(o: Orchestration): Orchestration | undefined {
   const roles = o.roles && Object.keys(o.roles).length > 0 ? o.roles : undefined
   const withYou = o.withYou && o.withYou.length > 0 ? o.withYou : undefined
-  if (!o.on && !o.orchestrator && !roles && !withYou) return undefined
+  const parked = o.parked && o.parked.length > 0 ? o.parked : undefined
+  const cap = o.workersCap
+  if (!o.on && !o.orchestrator && !roles && !withYou && !parked && cap === undefined)
+    return undefined
   return {
     on: o.on,
     ...(o.orchestrator ? { orchestrator: o.orchestrator } : {}),
     ...(roles ? { roles } : {}),
     ...(withYou ? { withYou } : {}),
+    ...(parked ? { parked } : {}),
+    ...(cap !== undefined ? { workersCap: cap } : {}),
   }
 }
 
@@ -36,8 +41,13 @@ export function keptOrchestration(
     ...(o.orchestrator && set.has(o.orchestrator) ? { orchestrator: o.orchestrator } : {}),
     roles,
     withYou: ids(o.withYou, set),
+    parked: ids(o.parked, set),
+    ...(o.workersCap !== undefined ? { workersCap: o.workersCap } : {}),
   })
 }
+
+export const isCap = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1
 
 // The file's `orchestration`, read leniently: a key of the wrong type is dropped alone. A
 // `priority` an earlier Menkar wrote is dropped: the ★ belongs to tasks now.
@@ -56,6 +66,8 @@ export function parseOrchestration(
       ...(typeof value.orchestrator === 'string' ? { orchestrator: value.orchestrator } : {}),
       roles,
       withYou: ids(value.with_you, new Set(members)),
+      parked: ids(value.parked, new Set(members)),
+      ...(isCap(value.workers_cap) ? { workersCap: value.workers_cap } : {}),
     },
     members,
   )
@@ -69,6 +81,8 @@ export function serializeOrchestration(p: Project): Record<string, unknown> | un
     ...(o.orchestrator ? { orchestrator: o.orchestrator } : {}),
     ...(o.roles ? { roles: o.roles } : {}),
     ...(o.withYou ? { with_you: o.withYou } : {}),
+    ...(o.parked ? { parked: o.parked } : {}),
+    ...(o.workersCap !== undefined ? { workers_cap: o.workersCap } : {}),
   }
 }
 
@@ -89,13 +103,15 @@ export function followOrchestration(p: Project, from: string, to: string): Proje
     list?.includes(from) ? [...new Set(list.map((id) => (id === from ? to : id)))] : list
   const { [from]: fromRole, ...others } = o.roles ?? {}
   const roles = fromRole === undefined ? others : { ...others, [to]: fromRole }
-  const { roles: _roles, withYou: _withYou, ...base } = o
+  const { roles: _roles, withYou: _withYou, parked: _parked, ...base } = o
   const withYou = swap(o.withYou)
+  const parked = swap(o.parked)
   return withOrchestration(p, {
     ...base,
     ...(o.orchestrator === from ? { orchestrator: to } : {}),
     roles,
     ...(withYou ? { withYou } : {}),
+    ...(parked ? { parked } : {}),
   })
 }
 
@@ -156,6 +172,23 @@ export function setWithYou(
   return change(state, projectId, (o) => ({ ...o, withYou: toggled(o.withYou, sessionId, on) }))
 }
 
+export function setParked(
+  state: Projects,
+  projectId: string,
+  sessionId: string,
+  on: boolean,
+): Projects {
+  return change(state, projectId, (o) => ({ ...o, parked: toggled(o.parked, sessionId, on) }))
+}
+
+// null, or anything but a whole number from 1, is unlimited.
+export function setWorkersCap(state: Projects, projectId: string, cap: number | null): Projects {
+  return change(state, projectId, (o) => {
+    const { workersCap: _, ...rest } = o
+    return isCap(cap) ? { ...rest, workersCap: cap } : rest
+  })
+}
+
 type Flag = 'topicsCollapsed' | 'teamView' | 'consultantsCollapsed' | 'doneTodayOpen'
 
 // A project's flag, written only while true.
@@ -189,6 +222,8 @@ export function orchestrationInfo(p: Project): ProjectInfo['orchestration'] {
     orchestrator: o?.orchestrator ?? null,
     roles: o?.roles ?? {},
     withYou: o?.withYou ?? [],
+    parked: o?.parked ?? [],
+    workersCap: o?.workersCap ?? null,
   }
 }
 

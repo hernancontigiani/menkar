@@ -161,17 +161,16 @@ function taskRow(task: TaskView): HTMLElement {
     el(
       'div',
       { class: 'task-line dim' },
-      el('span', { class: 'task-assignee' }, task.assigneeName),
+      el('span', { class: 'task-assignee' }, assigneeText(task)),
       task.steps.length > 0 ? stepSegments(task) : null,
     ),
     task.note || note
       ? el('div', { class: 'task-note dim' }, [note, task.note].filter(Boolean).join(' · '))
       : null,
   )
-  node.addEventListener(
-    'click',
-    () => void act({ type: 'selectSessionTab', session: task.assignee }),
-  )
+  node.addEventListener('click', () => {
+    if (task.assignee !== null) void act({ type: 'selectSessionTab', session: task.assignee })
+  })
   taskMenu(node, task)
   return node
 }
@@ -374,8 +373,8 @@ function taskCard(task: TaskView): HTMLElement {
     el(
       'div',
       { class: 'card-meta' },
-      stateDot(sessionState(task.assignee)),
-      el('span', { class: 'card-assignee' }, task.assigneeName),
+      task.assignee === null ? null : stateDot(sessionState(task.assignee)),
+      el('span', { class: 'card-assignee' }, assigneeText(task)),
       el('span', { class: 'card-progress dim' }, progressText(task)),
     ),
     task.steps.length > 0 && task.state !== 'queued' ? stepSegments(task) : null,
@@ -383,10 +382,9 @@ function taskCard(task: TaskView): HTMLElement {
       ? el('div', { class: 'card-note dim' }, [note, task.note].filter(Boolean).join(' · '))
       : null,
   )
-  node.addEventListener(
-    'click',
-    () => void act({ type: 'selectSessionTab', session: task.assignee }),
-  )
+  node.addEventListener('click', () => {
+    if (task.assignee !== null) void act({ type: 'selectSessionTab', session: task.assignee })
+  })
   taskMenu(node, task)
   return node
 }
@@ -407,3 +405,6 @@ export function syncBoardButton(project: ProjectInfo | undefined): void {
     .getElementById('board-button')
     ?.classList.toggle('hidden', project?.orchestration.on !== true)
 }
+
+const assigneeText = (task: TaskView): string =>
+  task.assignee === null ? t('work.unassigned') : task.assigneeName

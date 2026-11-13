@@ -34,6 +34,7 @@ import { mayStart } from '../core/orchestration/mayStart'
 import { readOnly } from '../core/orchestration/readonly'
 import { placeStarted, readPlacement } from '../core/orchestration/started'
 import {
+  assignTask,
   closedOn,
   currentTask,
   doneToday,
@@ -46,6 +47,7 @@ import {
   type TaskTool,
   tasksOf,
   taskTool,
+  untakenRefusal,
 } from '../core/orchestration/tasks'
 import {
   closedTopicsToday,
@@ -58,6 +60,16 @@ import {
   topicTool,
   updateTopic,
 } from '../core/orchestration/topics'
+import {
+  capRefusal,
+  capTool,
+  hideOnClose,
+  isWorker,
+  mayPark,
+  startName,
+  startsWorker,
+  workerTeam,
+} from '../core/orchestration/workers'
 import { agentPaths } from '../core/paths'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
@@ -111,10 +123,12 @@ import {
   setDoneTodayOpen,
   setMode,
   setOrchestrator,
+  setParked,
   setRole,
   setTeamView,
   setTopicsCollapsed,
   setWithYou,
+  setWorkersCap,
 } from '../core/projects/orchestration'
 import { clearParent, keptParents, setParent } from '../core/projects/parents'
 import {
@@ -555,8 +569,8 @@ function tasksView(projectId: string): TasksView {
   const view = (x: Task): TaskView => ({
     number: x.number,
     title: x.title,
-    assignee: x.assignee,
-    assigneeName: sessionName(x.assignee),
+    assignee: x.assignee ?? null,
+    assigneeName: x.assignee === undefined ? '' : sessionName(x.assignee),
     star: x.star,
     state: x.state,
     steps: x.steps,
@@ -566,7 +580,7 @@ function tasksView(projectId: string): TasksView {
   })
   const closed = closedOn(list, now())
   const current: Record<string, number> = {}
-  for (const id of new Set(list.map((x) => x.assignee))) {
+  for (const id of new Set(list.flatMap((x) => (x.assignee === undefined ? [] : [x.assignee])))) {
     const task = currentTask(list, id)
     if (task) current[id] = task.number
   }
@@ -1132,7 +1146,162 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
     case 'task_close':
     case 'task_list':
       return taskFor(request.tool, project, sessionId, request.args)
+    case 'set_workers_cap':
+      return capFor(project, sessionId, request.args)
+    case 'park_session':
+      return parkFor(project, sessionId, request.args.name)
+    case 'resume_session':
+      return resumeFor(pane, project, sessionId, request)
   }
+}
+
+// By pane: a worker to hang up once its turn is over, parked or put away with its closed task.
+interface StopRequest {
+  readonly sessionId: string
+  readonly after: 'park' | 'hide'
+  timer?: ReturnType<typeof setTimeout>
+}
+const stopRequests = new Map<string, StopRequest>()
+
+function turnOver(paneId: string): boolean {
+  const state = agentStates().panes.find((p) => p.paneId === paneId)?.state
+  return state === 'idle' || state === 'done'
+}
+
+// Never mid-turn: hanging up then would lose the turn's work, and nothing is typed into it.
+function stopAfterTurn(pane: Pane, sessionId: string, after: StopRequest['after']): void {
+  const before = stopRequests.get(pane.id)
+  if (before?.timer) clearTimeout(before.timer)
+  stopRequests.set(pane.id, { sessionId, after })
+  if (turnOver(pane.id)) stopNow(pane.id)
+  else stopWhenIdle(pane.id)
+}
+
+function stopWhenIdle(paneId: string): void {
+  const request = stopRequests.get(paneId)
+  if (!request) return
+  if (turnOver(paneId)) stopNow(paneId)
+  else request.timer = setTimeout(() => stopWhenIdle(paneId), RENEW_CHECK_MS)
+}
+
+function stopNow(paneId: string): void {
+  const request = stopRequests.get(paneId)
+  const pane = panes.get(paneId)
+  stopRequests.delete(paneId)
+  if (request?.timer) clearTimeout(request.timer)
+  if (!request || !pane || pane.sessionId !== request.sessionId) return
+  const project = projectOf(projects, request.sessionId)
+  stopPane(pane)
+  if (project && request.after === 'park')
+    projects = setParked(projects, project.id, request.sessionId, true)
+  if (project && request.after === 'hide') {
+    projects = setParked(projects, project.id, request.sessionId, false)
+    const hidden = hideMember(projects, request.sessionId, false)
+    if (hidden.ok) projects = hidden.projects
+  }
+  log.info('a worker was stopped', { session: request.sessionId, after: request.after })
+  changed({ projects: true })
+}
+
+// As closing its tab does: the tab goes with its only pane.
+function stopPane(pane: Pane): void {
+  if ((tabPanes.get(pane.tabId) ?? []).length <= 1) closeTab(pane.tabId)
+  else pane.terminal.hangUp()
+}
+
+function parkFor(project: Project, caller: string, named: unknown): ControlAnswer {
+  if (typeof named !== 'string' || !named.trim()) return refuse('Name the worker to park.')
+  const found = sessionOfProject(named.trim(), sessionsForNames(project.id))
+  if ('refusal' in found) return refuse(found.refusal)
+  const current = currentTask(tasksOf(currentTasks(), project.id), found.id)
+  const refusal = mayPark(workerTeam(project), caller, found.id, current)
+  if (refusal) return refuse(refusal)
+  const pane = paneOfSession(found.id)
+  if (!pane) return refuse(`"${named.trim()}" is not running; nothing to park.`)
+  stopAfterTurn(pane, found.id, 'park')
+  return {
+    ok: true,
+    text: `"${named.trim()}" will be parked once its turn is over; resume it with resume_session when task ${current?.number ?? ''} can go on.`,
+  }
+}
+
+async function resumeFor(
+  caller: Pane,
+  project: Project,
+  callerId: string,
+  request: ControlRequest,
+): Promise<ControlAnswer> {
+  const team = workerTeam(project)
+  if (team.orchestrator === null) return refuse('The orchestration mode is off in this project.')
+  if (callerId !== team.orchestrator)
+    return refuse("Only this project's orchestrator resumes a session.")
+  const named = request.args.name
+  if (typeof named !== 'string' || !named.trim()) return refuse('Name the session to resume.')
+  // Its transcript, its folder and its agent, as the agents' folders hold them now.
+  await sessions.refresh()
+  sessionList = await sessions.list()
+  const found = sessionOfProject(named.trim(), sessionsForNames(project.id))
+  if ('refusal' in found) return refuse(found.refusal)
+  const id = found.id
+  if (inSomeTab(id)) return refuse(`"${named.trim()}" already has a tab.`)
+  if (sessionInfo(id)?.agent !== 'claude') return refuse('Only a Claude Code session is resumed.')
+  if (isWorker(team, id)) {
+    const full = capRefusal(team, runningIn(project.id))
+    if (full) return refuse(full)
+  }
+  const promptFile = await prompted(request.id, request.args.prompt)
+  if (promptFile !== null && typeof promptFile !== 'string') return promptFile
+  if (!tabById(caller.tabId)) return refuse(NOT_KNOWN)
+  stopRequests.delete(paneOfSession(id)?.id ?? '')
+  projects = setParked(showMember(projects, id), project.id, id, false)
+  const tab: Tab = {
+    kind: 'session',
+    id: newId(),
+    project: project.id,
+    panes: [id],
+    orientation: 'horizontal',
+  }
+  layout = insertTabAfter(layout, caller.tabId, tab)
+  await startPane(tab.id, { ...resumeSpec(id), ...(promptFile ? { promptFile } : {}) })
+  changed({ projects: true })
+  return {
+    ok: true,
+    text: `Resumed "${named.trim()}" with its conversation in a tab after yours.`,
+  }
+}
+
+// A closed task's worker goes away at once (decision 1.120): hung up after its turn, then hidden.
+function putAwayWorker(project: Project, number: number): void {
+  const task = tasksOf(currentTasks(), project.id).find((x) => x.number === number)
+  const id = task?.assignee
+  if (
+    !task ||
+    id === undefined ||
+    !hideOnClose(workerTeam(project), project.name, task, sessionName)
+  )
+    return
+  const pane = paneOfSession(id)
+  if (pane) {
+    stopAfterTurn(pane, id, 'hide')
+    return
+  }
+  projects = setParked(projects, project.id, id, false)
+  const hidden = hideMember(projects, id, false)
+  if (hidden.ok) projects = hidden.projects
+  changed({ projects: true })
+}
+
+function capFor(
+  project: Project,
+  sessionId: string,
+  args: Readonly<Record<string, unknown>>,
+): ControlAnswer {
+  const result = capTool(args, workerTeam(project), sessionId)
+  if (result.ok) {
+    projects = setWorkersCap(projects, project.id, result.cap)
+    changed({ projects: true })
+  }
+  return { ok: result.ok, text: result.text }
 }
 
 function sessionsForNames(projectId: string) {
@@ -1163,6 +1332,8 @@ function taskFor(
   if (result.tasks) {
     setTasks(result.tasks)
     changed()
+    if (tool === 'task_close' && typeof args.number === 'number')
+      putAwayWorker(project, args.number)
   }
   return { ok: result.ok, text: result.text }
 }
@@ -1302,6 +1473,7 @@ async function requestRenew(
 
 // The Stop hook's record: the turn in this pane ended, under this session id.
 function turnEnded(paneId: string, sessionId: string): void {
+  if (stopRequests.get(paneId)?.sessionId === sessionId) stopNow(paneId)
   const request = renewRequests.get(paneId)
   if (request && panes.get(paneId)?.sessionId === sessionId && request.sessionId === sessionId)
     void renew(paneId)
@@ -1366,6 +1538,11 @@ function projectSessions(projectId: string): string[] {
   return p.members.filter((id) => !earlier.has(id))
 }
 
+// The project's sessions with a tab: the ones running.
+function runningIn(projectId: string): Set<string> {
+  return new Set(projectSessions(projectId).filter(inSomeTab))
+}
+
 // Names with a tab in the project: a name is how the agents address a session.
 function namesWithTab(projectId: string): Set<string> {
   return new Set(
@@ -1387,8 +1564,13 @@ async function startForAgent(
   const refusal = owner ? mayStart(owner, callerId, sessionName) : null
   if (refusal) return refuse(refusal)
   const args = request.args
-  const name = typeof args.name === 'string' ? args.name.trim() : ''
-  if (!name) return refuse('A name is needed to start a session.')
+  const named = startName(args, owner?.name ?? '')
+  if ('refusal' in named) return refuse(named.refusal)
+  const { name, task } = named
+  if (task !== undefined) {
+    const taken = untakenRefusal(tasksOf(currentTasks(), projectId), task, sessionName)
+    if (taken) return refuse(taken)
+  }
   if (namesWithTab(projectId).has(name))
     return refuse(`A session called "${name}" already has a tab in this project.`)
   const groupName = typeof args.group === 'string' ? args.group.trim() : ''
@@ -1399,6 +1581,11 @@ async function startForAgent(
   if ('refusal' in model) return refuse(model.refusal)
   const placement = readPlacement(args)
   if ('refusal' in placement) return refuse(placement.refusal)
+  const team = owner ? workerTeam(owner) : null
+  if (team && startsWorker(team, callerId, placement)) {
+    const full = capRefusal(team, runningIn(projectId))
+    if (full) return refuse(full)
+  }
   const hasPrompt = typeof args.prompt === 'string' && args.prompt !== ''
   if (hasPrompt && args.prompt_file !== undefined)
     return refuse('Give either prompt or prompt_file, not both.')
@@ -1430,6 +1617,10 @@ async function startForAgent(
   const joined = tookOver === projects ? addMember(projects, projectId, id) : tookOver
   projects = placeStarted(joined, projectId, id, callerId, placement)
   if (group) projects = setGroup(projects, projectId, id, { name: group.name, color: group.color })
+  if (task !== undefined) {
+    const assigned = assignTask(currentTasks(), projectId, task, id, topicsNow(), sessionName)
+    if ('tasks' in assigned) setTasks(assigned.tasks)
+  }
   const remote = args.remote_control === true
   if (remote) {
     remoteIds.add(id)
@@ -1456,7 +1647,9 @@ async function startForAgent(
     ok: true,
     text: placement.loose
       ? `Started "${name}" in a tab after yours, loose: you are not its parent. Address it by this name.`
-      : `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
+      : task !== undefined
+        ? `Started "${name}" in a tab after yours for task ${task}, now assigned to it; you are its parent. Address it by this name.`
+        : `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
   }
 }
 
@@ -2328,6 +2521,10 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'collapseFiles':
       projects = setFilesCollapsed(projects, w.shown, action.collapsed)
+      changed({ projects: true })
+      return {}
+    case 'setWorkersCap':
+      projects = setWorkersCap(projects, action.project, action.cap)
       changed({ projects: true })
       return {}
     case 'setOrchestrationMode':

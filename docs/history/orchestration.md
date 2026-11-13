@@ -122,3 +122,15 @@ keeps for them. Off, Menkar is as before and the marks wait. The guide for users
 > Left on 2026-11-13: a new orchestrator's first prompt says the orchestration is new and names the guide.
     prompt telling it to load `menkar:orchestrator` and marked as it starts, then switches the mode
     on. **Not now** leaves it off.
+
+## The data
+
+> Left on 2026-11-13: plan 37 adds `parked` and `workers_cap`, a task with no assignee yet, and the workers' tools (decisions 1.118–1.123).
+  "with you" — and `topics_collapsed`, `team_view`, `consultants_collapsed` and `done_today_open`. How they are read, kept and followed through a `/clear`, a
+    shown by its current name), `star`, `state`, `steps` (3 to 7 lines, empty while queued), `step`
+  and `start_session` refused to anyone but the orchestrator while the mode is on with one marked.
+
+## The sidebar in the mode
+
+> Left on 2026-11-13: parked workers fold apart into a "Parked · N" row (decision 1.120).
+   into one "N earlier" row a click unfolds (per window, not saved).

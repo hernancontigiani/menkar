@@ -8,6 +8,7 @@ import { dirname } from 'node:path'
 import { beforeEach, describe, expect, test } from 'vitest'
 import {
   addTask,
+  assignTask,
   closeTask,
   currentTask,
   doneToday,
@@ -320,5 +321,80 @@ describe('the task tools', () => {
     )
     expect(taskTool('task_list', { all: true }, call(t, 'V')).text).toContain('3. Old · b1 · done')
     expect(taskTool('task_list', {}, call(emptyTasks(), 'V')).text).toBe('No open tasks.')
+  })
+})
+
+// Decision 1.119: an assignee may hold several open tasks, at most one in progress.
+describe('one task in progress per assignee', () => {
+  const twoForW = () => {
+    let t = add(add(emptyTasks(), 'one'), 'two')
+    t = taskTool('task_steps', { number: 1, steps: ['a', 'b', 'c'] }, call(t, 'W')).tasks ?? t
+    return t
+  }
+
+  test('task 1 in progress for W; steps or progress on task 2 → refused; task 1 waiting → task 2 steps accepted', () => {
+    let t = twoForW()
+    expect(taskTool('task_steps', { number: 2, steps: ['x', 'y', 'z'] }, call(t, 'W'))).toEqual({
+      ok: false,
+      text: 'Finish or wait on task 1 first.',
+    })
+    t =
+      taskTool(
+        'task_progress',
+        { number: 1, note: 'long build', waiting_on: 'the build' },
+        call(t, 'W'),
+      ).tasks ?? t
+    const second = taskTool('task_steps', { number: 2, steps: ['x', 'y', 'z'] }, call(t, 'W'))
+    expect(second.ok).toBe(true)
+    t = second.tasks ?? t
+    expect(taskTool('task_progress', { number: 1, note: 'built' }, call(t, 'W'))).toEqual({
+      ok: false,
+      text: 'Finish or wait on task 2 first.',
+    })
+    expect(
+      taskTool('task_progress', { number: 1, note: 'still', waiting_on: 'the build' }, call(t, 'W'))
+        .ok,
+    ).toBe(true)
+  })
+
+  test('another assignee in progress does not count, nor the same task again', () => {
+    let t = add(twoForW(), 'three', 'V')
+    expect(taskTool('task_progress', { number: 1, step: 2, note: 'n' }, call(t, 'W')).ok).toBe(true)
+    t = taskTool('task_steps', { number: 3, steps: ['a', 'b', 'c'] }, call(t, 'V')).tasks ?? t
+    expect(tasksOf(t, 'p1')[2]?.state).toBe('in progress')
+  })
+})
+
+// Decision 1.118: a task can be created first and its worker started for it.
+describe('a task without an assignee', () => {
+  test('task_add without assignee: queued, unassigned, listed as such', () => {
+    const added = taskTool('task_add', { title: 'Fix the login' }, call(emptyTasks(), 'O'))
+    expect(added).toMatchObject({ ok: true, text: 'Task 1 added.' })
+    const t = added.tasks ?? emptyTasks()
+    expect(tasksOf(t, 'p1')[0]?.assignee).toBeUndefined()
+    expect(taskTool('task_list', {}, call(t, 'W')).text).toBe(
+      '1. Fix the login · unassigned · queued',
+    )
+    expect(parseTasks(JSON.parse(JSON.stringify(serializeTasks(t))))).toEqual(t)
+  })
+
+  test('a worker takes an unassigned task; one assigned to another session or closed is refused', () => {
+    let t = taskTool('task_add', { title: 'Fix the login' }, call(emptyTasks(), 'O')).tasks
+    t = add(t ?? emptyTasks(), 'Docs', 'V')
+    const taken = assignTask(t, 'p1', 1, 'W', LATER, (id) => names[id] ?? id)
+    expect('tasks' in taken && tasksOf(taken.tasks, 'p1')[0]).toMatchObject({
+      assignee: 'W',
+      updated: LATER,
+    })
+    expect(assignTask(t, 'p1', 2, 'W', LATER, (id) => names[id] ?? id)).toEqual({
+      refusal: 'Task 2 is assigned to b2.',
+    })
+    expect(assignTask(t, 'p1', 9, 'W', LATER, (id) => names[id] ?? id)).toEqual({
+      refusal: 'This project has no task 9.',
+    })
+    t = closeTask(t, 'p1', 1, 'dropped', LATER)?.tasks ?? t
+    expect(assignTask(t, 'p1', 1, 'W', LATER, (id) => names[id] ?? id)).toEqual({
+      refusal: 'Task 1 is closed.',
+    })
   })
 })
