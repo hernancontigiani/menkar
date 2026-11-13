@@ -24,7 +24,7 @@ project's docs or the task itself say is not repeated.
 
 - When the task, the docs and the code do not answer a question, **ask**. Do not pick an answer
   because it seems reasonable: a guess written into the code looks decided to everyone after you.
-- Ask the session the task names for that area ("for X ask ‹expert›"). If it names none, ask the
+- Ask the session the task names for that area ("for X ask ‹consultant›"). If it names none, ask the
   session that handed you the task.
 - Message sessions by their name with Claude Code's messaging tool (`SendMessage`), never by an id
   or a ref: a renewed session has a new id and keeps its name.

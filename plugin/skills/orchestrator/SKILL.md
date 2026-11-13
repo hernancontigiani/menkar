@@ -27,7 +27,8 @@ so a wrong doc or memory is caught at once:
 - the project's rules on working trees, on who commits, and on pushing;
 - where it keeps decisions and open topics;
 - the experts and consultants, with their areas, and the priority sessions: in Menkar's
-  orchestration mode, `list_sessions` gives each session's `role` and `priority`; otherwise, the
+  orchestration mode, `list_sessions` gives each session's `role`, `parent` and `priority` — a
+  session with a role under you is an expert, a loose one with a role a consultant; otherwise, the
   ones the human names;
 - anything else you will act on that you read rather than were told.
 
@@ -56,8 +57,14 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 2. **A manager with expertise, beside a few experts.** Workers come and go per task; one or two
    experts stay. The human sometimes works with an expert directly, and the expert tells you what
    came out of it.
-3. **A manager without the expertise, beside many experts.** You organise the work and the order;
-   you send a worker's question to the expert who owns that area.
+3. **A manager without the expertise, beside experts and consultants.** You organise the work and
+   the order; you send a worker's question to the consultant who owns that area.
+
+**Who is who** (in Menkar's mode): an **expert** is a worker under you that always implements one
+part of the system, with its own skill (the session that runs releases, say): hand it the work of
+its part. A **generalist worker** implements whatever you hand it. A **consultant** is never under
+you: it answers anyone about its area and does not execute for you; ask it, by name, and ask it to
+answer by name.
 
 The shape can differ by area: if you cannot answer a worker's question about an area from the
 docs within a minute, you are shape 3 there, and you route.
@@ -66,7 +73,7 @@ docs within a minute, you are shape 3 there, and you route.
 
 - **Who takes it:** a new worker you start with `start_session`, or an existing session that owns
   that area, by name. An expert back after a gap first hears what changed since its last task.
-- **Its model** (`model` in `start_session`): a generalist worker with an expert behind it may run
+- **Its model** (`model` in `start_session`): a generalist worker with a consultant behind it may run
   on a smaller model. Which one is written in the project's own docs; if not, ask the human.
 - **A session marked "with you"** (with_you in `list_sessions`) is talking with the human: give
   it no work and don't interrupt it until the mark clears.
@@ -79,7 +86,7 @@ docs within a minute, you are shape 3 there, and you route.
      the command. A premise you did not check is the subtle way of inventing.
   3. What is decided, and where it is written; what to do; which files it may touch.
   4. The checks to run, and that it reports their real result.
-  5. Whom to ask about what, by role and session name ("for X ask the X expert, ‹name›; if
+  5. Whom to ask about what, by role and session name ("for X ask the X consultant, ‹name›; if
      nothing covers it, ask me").
   6. That the human's data and running app are off-limits: no reseeding, resetting or "fixing",
      their servers stay up, unless the human asks.

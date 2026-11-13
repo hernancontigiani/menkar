@@ -27,7 +27,8 @@ mode is on:
 - **Orchestrator**: the session the person talks to. One per project; marking another one moves
   the mark.
 - **Role…**: a free label for what a session is, such as "Fabric expert", "Reviewer" or
-  "Documentation". An empty label removes it. Sessions with a role are the experts and consultants.
+  "Documentation". An empty label removes it. A session with a role under the orchestrator is an
+  expert; a loose one is a consultant (see "Four profiles" below).
 - **Priority** (★): its topics come first in the list, and when several sessions finish at once
   the orchestrator hears of this one first.
 - **With you**: the person is talking with this session directly right now. The orchestrator gives
@@ -42,7 +43,8 @@ From the top:
    The list is read only: a topic is discussed in the orchestrator's chat, and closed there.
 2. **The orchestrator**, with the sessions it started under it. Those without a tab are folded into
    one "earlier" row that a click unfolds.
-3. **Experts and consultants**: every session with a role, each with the sessions it started.
+3. **Consultants**: every loose session with a role, each with the sessions it started. Experts
+   are under the orchestrator, in 2, with their role shown.
 4. **Others**: everything else, with its groups as in the ordinary list.
 
 ## Topics
@@ -101,50 +103,59 @@ Menkar ships skills every session it starts can load:
   its role and its boundaries.
 - `menkar:distill`: a long-lived expert loads it when a task closes, to keep what it learned.
 
+## Four profiles
+
+- **The orchestrator**: the session the person talks to. It hands out work, follows it, and keeps
+  the topics.
+- **An expert**: a worker **under the orchestrator** that always implements one part of the
+  system, with a skill of its own (for example the session that always runs releases). The
+  orchestrator hands it the work of its part; the person rarely talks to it, and takes control of
+  its tab when they do.
+- **A generalist worker**: under the orchestrator, in its repository, implementing whatever it is
+  handed. Usually started for a task and renewed or closed after it.
+- **A consultant**: **always loose**, never under the orchestrator. It knows an area (often
+  another repository) and answers anyone who asks — the person, the orchestrator, a worker — but
+  does not execute for the orchestrator. Its tab is always writable.
+
+Menkar needs no extra mark for this: a session with a role under the orchestrator is an expert,
+one with a role that is loose is a consultant, and one with no role under the orchestrator is a
+generalist.
+
 ## Three shapes of an orchestration
 
 What changes between projects is how much the orchestrator itself knows, and so how much the
-experts beside it carry.
+experts and consultants beside it carry.
 
-1. **The orchestrator is also the expert.** A small team: the person talks only to the
-   orchestrator; it designs the work, hands it to generalist workers and reviews what comes back.
-   The workers know nothing in particular, and the person rarely talks to one.
-2. **The orchestrator manages, with expertise, beside a few experts.** Workers are started for a
-   task and go when it ends. One or two expert sessions stay open; the person sometimes works with
-   one directly on a topic, marks it "with you", and when the idea closes the expert tells the
-   orchestrator what came out of it. The orchestrator decides who takes the resulting work and
-   when, by priority, and which sessions may work at the same time, by the files and resources
-   they touch.
-3. **The orchestrator manages, without the expertise, beside many experts.** Some experts design,
-   some review or consult. The orchestrator starts the workers and orders the work, but sends a
-   worker's question about its task to the expert who owns that area. With no expert for an area,
-   it asks the person, until the same kind of question has come often enough that an expert is
-   created for it.
+1. **The orchestrator knows everything.** A small team: the person talks only to the orchestrator;
+   it designs the work, hands it to generalist workers and reviews what comes back.
+2. **The orchestrator manages, with expertise, beside a few experts.** Generalist workers are
+   started for a task and go when it ends; one or two experts stay for the parts they always
+   implement. The orchestrator decides who takes the work and when, by priority, and which
+   sessions may work at the same time, by the files and resources they touch.
+3. **The orchestrator manages, without the expertise, beside experts and consultants.** It starts
+   the workers and orders the work, but sends a worker's question about an area to the consultant
+   who owns it. With no consultant for an area, it asks the person, until the same kind of question
+   has come often enough that one is created for it.
 
-## Experts and workers
+## Working with consultants and experts
 
-An expert who also implements its own area becomes the bottleneck of that area, and implementing
-spends the context that holds what it knows. What works better:
-
-- **The expert knows; generalist workers execute.** The orchestrator asks the expert for the task
-  (a plan, or the key points and traps of its area), starts a generalist worker for it, and tells
-  the worker which expert to ask about that area. When the worker reports, the orchestrator asks
-  the expert to review the result. Several workers can then work in one area at once, while the
-  expert stays free to think with the person.
-- **Keep the expert loose**, not under the orchestrator: it stays in "Experts and consultants", its
-  tab stays writable for the person, and the orchestrator messages it by name, asking it to answer
-  by name.
-- **Let the expert do a change itself** when it is small enough that explaining it costs more than
-  making it.
-- **Workers can run on a smaller model** when an expert answers their questions and reviews their
-  work. Which model is the project's choice: write it in the project's own instructions or memory
-  (below); the orchestrator never guesses one.
-- **How an expert stays current without implementing.** Its skill holds ways of working and points
-  to the project's docs by file and section, never the facts themselves, and a worker that changes
-  a feature updates its doc in the same change: the skill follows without being touched. The
-  expert reviews the workers' results in its area, so it sees what changed; an expert back after a
-  gap first hears from the orchestrator what changed since its last task; and when what changed
-  alters how the expert works, not only a fact, it runs `menkar:distill` to update its skill.
+- **A consultant knows; workers execute.** For work in a consultant's area, the orchestrator asks
+  the consultant for the key points and traps (or a plan), starts a worker for it, and tells the
+  worker to ask that consultant about the area. When the worker reports, the orchestrator may ask
+  the consultant to review the result. Several workers can then work in one area at once, while
+  the consultant stays free to think with the person.
+- **An expert executes its part.** Hand a session to the orchestrator ("Hand to the orchestrator")
+  to make it an expert of its part: the orchestrator then drives it (a release, say) and is woken
+  when it finishes, so the person need not watch both.
+- **Workers can run on a smaller model** when a consultant answers their questions and reviews
+  their work. Which model is the project's choice: write it in the project's own instructions or
+  memory (below); the orchestrator never guesses one.
+- **How a consultant or an expert stays current.** Its skill holds ways of working and points to
+  the project's docs by file and section, never the facts themselves, and a worker that changes a
+  feature updates its doc in the same change: the skill follows without being touched. A
+  consultant reviews the workers' results in its area, so it sees what changed; a session back
+  after a gap first hears from the orchestrator what changed since its last task; and when what
+  changed alters how it works, not only a fact, it runs `menkar:distill` to update its skill.
 
 ## What a project writes down for its orchestrator
 
@@ -158,7 +169,7 @@ the repository do not orchestrate:
 
 - whether sessions share one working tree or use worktrees, and who commits and pushes;
 - where the project keeps its decisions;
-- the experts and consultants and their areas, if their own skills do not say it;
+- the experts and consultants and their areas, if their own skills and roles do not say it;
 - the model generalist workers run on;
 - how the project's environment is started, seeded and migrated, if workers verify against it.
 
@@ -172,7 +183,8 @@ The first time the mode is switched on in a project, Menkar asks who orchestrate
 project's sessions, or a new session it starts, which is told to load `menkar:orchestrator`. From
 then on:
 
-1. Mark the experts' roles, and the ★ on the sessions whose work comes first.
+1. Mark the roles; hand the experts and workers to the orchestrator and leave the consultants
+   loose; put the ★ on the sessions whose work comes first.
 2. Talk to the orchestrator. Let it start the workers.
 3. Read the Topics section; answer a topic in the orchestrator's chat.
 4. When you talk to another session directly, mark it "with you", and clear the mark when you are
