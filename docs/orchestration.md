@@ -63,10 +63,15 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
 `modeRows` (`src/core/orchestration/rows.ts`) orders the rows; `renderSessionList` draws them while
 the shown project's mode is on, and today's list otherwise, through the same code as before.
 
+**Four profiles** (decision 1.107, the human, 2026-11-13), read from the marks with no mark of their
+own: the **orchestrator**; an **expert**, a session under the orchestrator with a role label, shown
+nested under it with its label; a **generalist** worker, under it without a label; a
+**consultant**, a loose session with a label, under "Consultants".
+
 1. **The orchestrator**, then its children with a tab, indented; its children without a tab fold
    into one "N earlier" row a click unfolds (per window, not saved).
-2. **"Experts and consultants"**: every session with a role label that is not the orchestrator and
-   not nested, each with its own children as in 1.
+2. **"Consultants"**: every session with a role label that is not the orchestrator and not
+   nested, each with its own children as in 1.
 3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
    drag order).
 

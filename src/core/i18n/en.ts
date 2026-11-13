@@ -65,7 +65,7 @@ export const en = {
   'orch.rolePlaceholder': 'Role',
   'orch.withYouBadge': 'with you',
   'orch.earlier': '{n} earlier',
-  'orch.experts': 'Experts and consultants',
+  'orch.consultants': 'Consultants',
   'orch.others': 'Others',
   'topics.noticeTitle': 'Topic {n}',
   'orch.bannerReports': 'This session reports to the orchestrator.',

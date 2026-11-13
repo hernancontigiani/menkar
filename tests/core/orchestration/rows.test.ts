@@ -1,5 +1,5 @@
 // The sidebar in the orchestration mode (decision 1.89, mock C1): the orchestrator and its children
-// first, then "Experts and consultants", then "Others" with groups as today. A child sits under its
+// first, then "Consultants" (decision 1.107), then "Others" with groups as today. A child sits under its
 // parent wherever the parent is; children without a tab fold into one "N earlier" row.
 import { describe, expect, test } from 'vitest'
 import { modeRows } from '../../../src/core/orchestration/rows'
@@ -46,7 +46,7 @@ describe('the sidebar in the orchestration mode', () => {
       'O',
       '  W1',
       'earlier(2)',
-      'heading experts',
+      'heading consultants',
       'E',
       'heading others',
       'group G',
@@ -68,7 +68,7 @@ describe('the sidebar in the orchestration mode', () => {
       'O',
       '  W1',
       '  W2',
-      'heading experts',
+      'heading consultants',
       'E',
       '  W3',
       'heading others',
@@ -94,12 +94,12 @@ describe('the sidebar in the orchestration mode', () => {
       'O',
       '  W1',
       'earlier(2)',
-      'heading experts',
+      'heading consultants',
       'E',
     ])
   })
 
-  test('a collapsed group shows its heading alone; without an orchestrator or experts, Others alone', () => {
+  test('a collapsed group shows its heading alone; without an orchestrator or consultants, Others alone', () => {
     const p = info({
       groups: [{ name: 'G', color: '#5ec4b6', members: ['G1', 'G2'], collapsed: true }],
       parents: {},
@@ -120,6 +120,6 @@ describe('the sidebar in the orchestration mode', () => {
 
   test('a row not listed (hidden, earlier conversation) stays out; its children are top rows', () => {
     const rows = modeRows(info(), view({ listed: ['W1', 'W2', 'E', 'S'] }))
-    expect(short(rows)).toEqual(['heading experts', 'E', 'heading others', 'W1', 'W2', 'S'])
+    expect(short(rows)).toEqual(['heading consultants', 'E', 'heading others', 'W1', 'W2', 'S'])
   })
 })

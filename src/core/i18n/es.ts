@@ -67,7 +67,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.rolePlaceholder': 'Rol',
   'orch.withYouBadge': 'con vos',
   'orch.earlier': '{n} anteriores',
-  'orch.experts': 'Expertos y consultores',
+  'orch.consultants': 'Consultores',
   'orch.others': 'Otros',
   'topics.noticeTitle': 'Tema {n}',
   'orch.bannerReports': 'Esta sesión responde al orquestador.',

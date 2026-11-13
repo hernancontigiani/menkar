@@ -29,3 +29,9 @@ Decisions 1.77, 1.78, 1.83, 1.84, 1.86, 1.89–1.91, 1.93 and 1.94 (the human, 2
 
 > Left on 2026-11-12: the yellow banner became a fixed amber with dark text.
 - **A yellow banner** across the top of the pane: "This session reports to the orchestrator.", with
+
+## The sidebar in the mode
+
+> Left on 2026-11-13: the heading became "Consultants" (decision 1.107).
+2. **"Experts and consultants"**: every session with a role label that is not the orchestrator and
+   not nested, each with its own children as in 1.

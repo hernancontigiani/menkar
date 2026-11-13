@@ -765,7 +765,7 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
         el(
           'div',
           { class: 'group-heading team-heading dim' },
-          r.heading === 'experts' ? t('orch.experts') : t('orch.others'),
+          r.heading === 'consultants' ? t('orch.consultants') : t('orch.others'),
         ),
       ]
     case 'noGroup':

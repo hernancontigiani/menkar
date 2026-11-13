@@ -368,7 +368,7 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
         'orchestrator',
         '  login worker',
         '1 earlier',
-        'Experts and consultants',
+        'Consultants',
         '★fabric',
         'Others',
         '●writing',

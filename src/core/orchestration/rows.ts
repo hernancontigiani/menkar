@@ -3,7 +3,7 @@ import type { ProjectInfo } from '../projects/info'
 // What the sidebar draws in the orchestration mode (decision 1.89), in order.
 export type ModeRow =
   // `section` is what a drag stays within: a group's name, '' for "No group", null where rows are
-  // not dragged (the orchestrator's and the experts' parts, and every nested child).
+  // not dragged (the orchestrator's and the consultants' parts, and every nested child).
   | {
       readonly kind: 'session'
       readonly id: string
@@ -17,7 +17,7 @@ export type ModeRow =
       readonly ids: readonly string[]
       readonly open: boolean
     }
-  | { readonly kind: 'heading'; readonly heading: 'experts' | 'others' }
+  | { readonly kind: 'heading'; readonly heading: 'consultants' | 'others' }
   | { readonly kind: 'group'; readonly name: string; readonly collapsed: boolean }
   | { readonly kind: 'noGroup' }
 
@@ -69,14 +69,16 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
 
   const o = project.orchestration
   const orchestrator = o.orchestrator && tops.includes(o.orchestrator) ? o.orchestrator : null
-  const experts = tops.filter((id) => id !== orchestrator && o.roles[id] !== undefined)
-  const team = new Set([...(orchestrator ? [orchestrator] : []), ...experts])
+  // A loose session with a role label is a consultant (decision 1.107); a labelled child is an
+  // expert and stays nested under the orchestrator.
+  const consultants = tops.filter((id) => id !== orchestrator && o.roles[id] !== undefined)
+  const team = new Set([...(orchestrator ? [orchestrator] : []), ...consultants])
   const others = tops.filter((id) => !team.has(id))
 
   const rows: ModeRow[] = orchestrator ? withChildren(orchestrator, null) : []
-  if (experts.length > 0) {
-    rows.push({ kind: 'heading', heading: 'experts' })
-    for (const id of experts) rows.push(...withChildren(id, null))
+  if (consultants.length > 0) {
+    rows.push({ kind: 'heading', heading: 'consultants' })
+    for (const id of consultants) rows.push(...withChildren(id, null))
   }
   if (others.length === 0) return rows
   rows.push({ kind: 'heading', heading: 'others' })
