@@ -692,3 +692,6 @@ test-integrity step red only on the six accepted lines below; flaky and history 
   and `work-view.spec.ts`, both seen failing first.
 - **ui-check:** the first full run had one failure outside this plan, `terminal.spec.ts:607` (the
   window told when an agent reaches the foreground), green 3 of 3 alone: load-sensitive.
+
+> Left §3 on 2026-11-13: plan 37 written.
+| 1 | `37-worker-per-task.md` — a worker per task, parking and resuming, the cap | Stub, being designed by `set` with the human, 2026-11-13 |
