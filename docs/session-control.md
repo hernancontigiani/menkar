@@ -132,8 +132,15 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     - Main finds the parent's process in Claude Code's registry, `~/.claude/sessions/<pid>.json`,
       read only, by `sessionId`, and requires `peerProtocol` 1.
     - It connects to the registry's `messagingSocketPath`, writes one line
-      `{"type":"user","message":{"content":"[Menkar] …"},"from":"menkar","msg_id":"…"}`, and
-      closes.
+      `{"type":"user","message":{"content":"[Menkar] … (14:32:05)"},"from":"menkar","msg_id":"…"}`,
+      and closes.
+    - **Every post ends with the local time, seconds included** (`wakeFrame`, read through
+      `src/core/clock.ts`; 2026-11-13). Claude Code drops a message identical to the sender's
+      previous one ("Dropped a peer message from menkar: identical to the previous message from
+      this sender"): a child that finished two turns in a row, before and after a renew, woke its
+      parent once. Wakes are batched for `WAKE_DELAY_MS`, so two to one parent fall in different
+      seconds; only the human repeating the same action within a second could match, and that
+      repeat is the one dropped.
     - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
 - **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]

@@ -4,11 +4,12 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { postToSession, wakeFrame } from '../../../src/core/control/post'
 
 const servers: Server[] = []
 afterEach(() => {
+  vi.useRealTimers()
   for (const s of servers.splice(0)) s.close()
 })
 
@@ -46,10 +47,25 @@ function listen(socket: string): Promise<{ lines: () => string; closed: Promise<
 }
 
 describe('posting to a session', () => {
-  test('the frame is the measured one line', () => {
+  test('the frame is the measured one line, the local time closing the text', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 13, 14, 32, 5))
     expect(wakeFrame('api finished its turn', 'm-1')).toBe(
-      '{"type":"user","message":{"content":"[Menkar] api finished its turn"},"from":"menkar","msg_id":"m-1"}\n',
+      '{"type":"user","message":{"content":"[Menkar] api finished its turn (14:32:05)"},"from":"menkar","msg_id":"m-1"}\n',
     )
+  })
+
+  // Claude Code drops a message identical to the sender's previous one: a child that finishes two
+  // turns in a row would wake its parent once.
+  test('two identical events in a row are two different texts, across midnight too', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const content = (frame: string) => JSON.parse(frame).message.content as string
+    vi.setSystemTime(new Date(2026, 10, 12, 23, 59, 59))
+    const first = content(wakeFrame('b1 finished its turn', 'm-1'))
+    vi.setSystemTime(new Date(2026, 10, 13, 0, 0, 0))
+    const second = content(wakeFrame('b1 finished its turn', 'm-2'))
+    expect(first).toBe('[Menkar] b1 finished its turn (23:59:59)')
+    expect(second).toBe('[Menkar] b1 finished its turn (00:00:00)')
   })
 
   test('the session’s socket receives exactly one line, and the client closes', async () => {

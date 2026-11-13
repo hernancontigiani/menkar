@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { join } from 'node:path'
+import { now, timeOfDay } from '../clock'
 
 // Waking a session through Claude Code's cross-session messaging: its registry entry
 // (`<pid>.json`, read only) names the socket; one line goes in, nothing is read back. The frame is
@@ -8,10 +9,12 @@ import { join } from 'node:path'
 
 export const PEER_PROTOCOL = 1
 
+// The time closes every text: Claude Code drops a message identical to the sender's previous one,
+// so a child that finished two turns in a row would wake its parent once.
 export function wakeFrame(text: string, msgId: string): string {
   return `${JSON.stringify({
     type: 'user',
-    message: { content: `[Menkar] ${text}` },
+    message: { content: `[Menkar] ${text} (${timeOfDay(now())})` },
     from: 'menkar',
     msg_id: msgId,
   })}\n`

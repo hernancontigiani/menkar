@@ -65,3 +65,7 @@ and the wake order.
   4. The new session starts in that tab.
      project place, group, hidden flag, parents, Remote Control, and the old id as an
      earlier conversation.
+
+> Left on 2026-11-13: every post ends with the local time, so Claude Code does not drop a repeat.
+      `{"type":"user","message":{"content":"[Menkar] …"},"from":"menkar","msg_id":"…"}`, and
+      closes.
