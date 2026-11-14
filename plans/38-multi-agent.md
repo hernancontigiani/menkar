@@ -285,7 +285,7 @@ eight that this design adds:
 | D13 | Cursor's turn hooks need entries in `~/.cursor/hooks.json` (three, global, `user_email` in their payload) | An integrations-menu item, consented and removable, its page saying all three facts **Decided (1.140).** |
 | D14 | Binding an OpenCode pane's caller after `/new` (**a port per pane**, §3.4; **decided, 1.138**) | A per-pane loopback proxy in Menkar's main process |
 | D15 | Codex's cost in Usage | Menkar's price table for OpenAI models, marked `~` as Claude's per-model costs are (`src/core/usage/prices.ts`) |
-| D16 | Phases' order (§4) | P0 (merged to `main` early) → P1a → P1b → P2 → P3; P4 whenever |
+| D16 | Phases' order (§4) | P0 (merged to `main` early) → P1a → P1b → P2 → P3; P4 whenever **Decided (1.142).** |
 | **D17** | **Menkar's calls that make an agent write its own data**: a title at creation or start (Claude `-n`, OpenCode `title`), **a rename of an existing session** (Codex `thread/name/set` after its first turn — the line the human should see drawn), a queued wake (D1: Codex's queue SQLite, OpenCode's inbox rows) | Allowed, each named in `docs/agents.md`; `CLAUDE.md`'s rule reworded to say so **Decided (1.139).** |
 | **D18** | **Trash and delete for Codex and OpenCode sessions** (writes into `~/.codex`, `opencode.db`) | Not in this plan; deferred with a trigger |
 | **D19** | **The classifier on non-Claude turns** (it runs `claude -p`; a Codex-only user may have no `claude`) | Classify them when `claude` is installed; otherwise their turns stay unclassified, said in the Usage window |
