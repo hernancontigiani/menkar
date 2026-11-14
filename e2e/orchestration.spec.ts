@@ -415,7 +415,7 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
       'with you',
     )
     // Decisions 1.100 and 1.114: the ★ task's topic first, then the blocking one, then by number.
-    await expect(page.locator('.topics-toggle')).toHaveText('Topics · 3')
+    await expect(page.locator('.topics-toggle')).toHaveText('Awaiting you · 3')
     await expect(page.locator('.topic-row')).toHaveText([
       '★2Schema of the orders table',
       '3Deploy key missing',
@@ -694,7 +694,7 @@ test('a new topic raises a toast "Topic N"; with one discussing, a toast and no 
       .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
     const orch = await paneOf(page, TEAM.orch)
     await typeInto(page, orch, 'TOPIC')
-    await expect(page.locator('.toast')).toContainText('Topic 4: Pick a port', { timeout: 15_000 })
+    await expect(page.locator('.toast')).toContainText('Item 4: Pick a port', { timeout: 15_000 })
     await expect.poll(() => sounds(root).length).toBe(1)
     await expect(page.locator('.topic-row')).toHaveCount(4)
 
@@ -705,7 +705,7 @@ test('a new topic raises a toast "Topic N"; with one discussing, a toast and no 
     })
     await page.locator('.tab', { hasText: 'login worker' }).click()
     await typeInto(page, orch, 'TOPIC')
-    const toast = page.locator('.toast', { hasText: 'Topic 5: Pick a port' })
+    const toast = page.locator('.toast', { hasText: 'Item 5: Pick a port' })
     await expect(toast).toBeVisible({ timeout: 15_000 })
     await page.waitForTimeout(1000)
     expect(sounds(root).length).toBe(1)

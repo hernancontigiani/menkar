@@ -184,3 +184,9 @@ in every window** (`closeBoards`; the human, 2026-11-13), so nothing of the mode
     The human sets it from a task's right-click (`setTaskStar`), the orchestrator at `task_add`
     when the human asks.
   `topic_update`, `topic_close`, `topic_list`, the six task tools, the marks in `list_sessions`,
+
+## The sidebar in the mode
+
+> Left on 2026-11-14: the Topics section's label says whose turn it is, "Awaiting you · N" (decision 1.146).
+and saved (`topics_collapsed`), headed "Topics · N". A row: ★ when its task has the ★, the
+status, per window. Empty, it says "No open topics".

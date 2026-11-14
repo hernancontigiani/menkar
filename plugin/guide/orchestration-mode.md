@@ -39,7 +39,7 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
 **Work** is what waits on the person and how far the work is, from the top:
 
 1. **Counts**: open topics, tasks in progress, tasks waiting.
-2. **Topics**: the open topics, those of a ★ task first, then blocking ones (with a red mark),
+2. **Awaiting you** — the topics: the open ones, those of a ★ task first, then blocking ones (with a red mark),
    then the rest by number, so the top one is the one to take. A click unfolds its context, who
    raised it and its status. The list is read only: a topic is discussed in the orchestrator's
    chat, and closed there. Everything that waits on the person is a topic.
@@ -49,13 +49,13 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
 4. **Consultants**: one row each, with its state; a click opens its tab.
 5. **Done today**: topics closed and tasks done since midnight, folded until opened.
 
-**Team** is the team: the Topics, then the orchestrator with the sessions it started under it
+**Team** is the team: **Awaiting you** (the topics), then the orchestrator with the sessions it started under it
 (those without a tab folded into one "earlier" row a click unfolds), the **Consultants** (every
 loose session with a role), and **Others** with their groups as in the ordinary list. Each
 session's row shows its current task and step under its name, and the ★ while that task has it.
 
 **The Board**, a panel under the header opened and closed with the **Board** button beside the
-Orchestration switch, shows every topic and task in columns: Topics, Queued, In progress, Waiting,
+Orchestration switch, shows every topic and task in columns: **Awaiting you** (the topics), Queued, In progress, Waiting,
 To review, Done (today's; older ones folded under "Done before"). It opens two cards high; the
 person drags its lower edge, or picks "Show all" or "Default size", and it reopens as they left it.
 A card's click selects its session's tab.
@@ -236,6 +236,9 @@ the repository do not orchestrate:
 - the experts and consultants and their areas, if their own skills and roles do not say it;
 - the model generalist workers run on;
 - how the project's environment is started, seeded and migrated, if workers verify against it.
+- how a worker verifies a change before reporting: which checks it runs locally (the whole suite,
+  or only the tests related to the change), and whether it waits for a hosted CI to pass and
+  addresses an automated review's comments.
 
 A few lines are usually enough. A project needs a role file or a skill of its own for its
 orchestrator only when that list grows into a method of its own (how plans are written, executed

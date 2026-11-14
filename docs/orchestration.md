@@ -149,9 +149,11 @@ while it has no steps; decision 1.116).
 
 **The Topics section** sits under the switch in the Team view and after the tiles in the Work
 view, collapsible like Files
-and saved (`topics_collapsed`), headed "Topics · N". A row: ★ when its task has the ★, the
+and saved (`topics_collapsed`), headed "Awaiting you · N", so it says whose turn it is (1.146, the
+human, 2026-11-14: only the label the user sees; "topic" stays the thing's name for agents, tools and
+code). A row: ★ when its task has the ★, the
 number, the title, a red mark when blocking. A click unfolds its context, who raised it and its
-status, per window. Empty, it says "No open topics".
+status, per window. Empty, it says "Nothing awaits you".
 
 **A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the
 orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N",
