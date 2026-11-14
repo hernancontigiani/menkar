@@ -274,3 +274,17 @@ Unknown until tried with two real accounts: whether every local resume shows the
 closed, and reports what the saved tabs did; and the human will pass a package they know that
 eases switching accounts, to be analysed for making the switch smoother in Menkar. First question:
 what the package does and whether any of it writes under `~/.claude` (a decision for the human).
+
+### A faster Usage report with categories
+
+Since 2026-11-14 a month's report takes ~0.75 s without categories and ~2.3 s with them, on a copy
+of the human's data (task 9). What is left with categories is the per-line lookup of a logged
+line's project and category, still done twice (totals and bars). Resolving them in memory per
+session (each session's turns loaded once, a binary search by time) would bring it near zero, but
+must reproduce `projectAt`'s fallback to the first turn and the rule that a turn the human did not
+start takes the latest human turn's category; and the totals could come from the bars only if
+every figure adds up across days. The human finds 2.3 s tolerable for now (2026-11-14).
+
+**Trigger:** the human finds the Usage window slow again, or the statusline log's growth (~4,500
+lines a day) pushes a month with categories past ~4 s. First question: a parity test against the
+SQL lookups before any change.
