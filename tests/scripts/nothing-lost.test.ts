@@ -25,7 +25,7 @@ function write(root: string, files: Record<string, string>): void {
 
 describe('nothing-lost', () => {
   test.each([
-    ['CLAUDE.md', 'docs/history/root/CLAUDE.md'],
+    ['CLAUDE.md', 'docs/history/root/CLAUDE.history.md'],
     ['plans/00-STATUS.md', 'docs/history/plans/00-STATUS.md'],
     ['docs/spec/sessions.md', 'docs/history/spec/sessions.md'],
     ['docs/history/README.md', null],
@@ -43,14 +43,14 @@ describe('nothing-lost', () => {
   test('a line that left a document without reaching its history is lost; once there, it is not', () => {
     const root = repo({
       'CLAUDE.md': '# Rules\n\n- keep this\n- drop this\n',
-      'docs/history/root/CLAUDE.md': '# History\n',
+      'docs/history/root/CLAUDE.history.md': '# History\n',
     })
     write(root, { 'CLAUDE.md': '# Rules\n\n- keep this\n' })
     expect(check(root, 'CLAUDE.md')).toEqual([
-      'CLAUDE.md:4: not in docs/history/root/CLAUDE.md: - drop this',
+      'CLAUDE.md:4: not in docs/history/root/CLAUDE.history.md: - drop this',
     ])
     write(root, {
-      'docs/history/root/CLAUDE.md': '# History\n\n> Left on 2026-11-08.\n- drop this\n',
+      'docs/history/root/CLAUDE.history.md': '# History\n\n> Left on 2026-11-08.\n- drop this\n',
     })
     expect(check(root, 'CLAUDE.md')).toEqual([])
   })
@@ -58,11 +58,11 @@ describe('nothing-lost', () => {
   test('the history only grows', () => {
     const root = repo({
       'CLAUDE.md': '# Rules\n',
-      'docs/history/root/CLAUDE.md': '# History\n- old\n',
+      'docs/history/root/CLAUDE.history.md': '# History\n- old\n',
     })
-    write(root, { 'docs/history/root/CLAUDE.md': '# History\n' })
+    write(root, { 'docs/history/root/CLAUDE.history.md': '# History\n' })
     expect(check(root, 'CLAUDE.md')).toEqual([
-      'docs/history/root/CLAUDE.md:2: the mirror lost a line: - old',
+      'docs/history/root/CLAUDE.history.md:2: the mirror lost a line: - old',
     ])
   })
 

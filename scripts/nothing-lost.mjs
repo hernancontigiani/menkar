@@ -12,8 +12,10 @@ import { fileURLToPath } from 'node:url'
 
 const HISTORY = 'docs/history/'
 // The documents that hold decisions, and where each one's history goes. The mirror keeps the rest
-// of the path, so one is computed from the other.
-const ROOT_FILES = new Map([['CLAUDE.md', `${HISTORY}root/CLAUDE.md`]])
+// of the path, so one is computed from the other. A root file's mirror is renamed: agents load a
+// `CLAUDE.md` or `AGENTS.md` in any folder they touch as instructions, and the mirror holds rules
+// that are no longer true.
+const ROOT_FILES = new Set(['CLAUDE.md'])
 const PREFIXES = new Map([
   ['plans/00-STATUS.md', `${HISTORY}plans/00-STATUS.md`],
   ['docs/', HISTORY],
@@ -25,8 +27,7 @@ const HUNK = /^@@ -(\d+)(?:,\d+)? /
 /** @param {string} path @returns {string | null} */
 export function mirrorOf(path) {
   if (path.startsWith(HISTORY)) return null
-  const root = ROOT_FILES.get(path)
-  if (root) return root
+  if (ROOT_FILES.has(path)) return `${HISTORY}root/${path.replace(/\.md$/, '.history.md')}`
   for (const [source, target] of PREFIXES) {
     if (path === source) return source.endsWith('/') ? target + path.slice(source.length) : target
     if (source.endsWith('/') && path.startsWith(source)) return target + path.slice(source.length)

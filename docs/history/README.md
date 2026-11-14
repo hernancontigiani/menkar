@@ -9,7 +9,7 @@ else**: no skill, role or `CLAUDE.md` sends a session to read it.
 
 | Document | Its history |
 |---|---|
-| `CLAUDE.md` | `docs/history/root/CLAUDE.md` |
+| `CLAUDE.md` | `docs/history/root/CLAUDE.history.md` |
 | `docs/<file>` | `docs/history/<file>` |
 | `plans/00-STATUS.md` | `docs/history/plans/00-STATUS.md` |
 
