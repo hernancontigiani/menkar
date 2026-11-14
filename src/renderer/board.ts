@@ -20,16 +20,18 @@ let pending: number | null = null
 let showAllWhenOpen = false
 let lastProject: string | undefined
 
+// A full card (decision 1.132): a title clamped to two lines, an assignee with its dot, the step bar
+// and a note.
 const PROBE_TASK: TaskView = {
   number: 1,
-  title: 'x',
-  assignee: null,
-  assigneeName: '',
+  title: 'x '.repeat(200),
+  assignee: '',
+  assigneeName: 'x',
   star: false,
   state: 'in progress',
   steps: ['a', 'b', 'c'],
   step: 1,
-  note: '',
+  note: 'x',
 }
 
 export function boardFrame(): HTMLElement[] {
@@ -130,6 +132,8 @@ function boardSizes() {
   const board = panel?.querySelector<HTMLElement>('.board')
   const column = board?.querySelector<HTMLElement>('.board-column')
   const probe = panel?.querySelector<HTMLElement>('.board-probe')
+  // The columns share the panel's width, so the probe's title wraps as a real card's does.
+  if (probe && column) probe.style.width = `${column.offsetWidth}px`
   const boardStyle = board ? getComputedStyle(board) : undefined
   const columnStyle = column ? getComputedStyle(column) : undefined
   return {

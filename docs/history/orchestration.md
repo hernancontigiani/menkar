@@ -171,3 +171,9 @@ in every window** (`closeBoards`; the human, 2026-11-13), so nothing of the mode
 
 > Left on 2026-11-14: "See all (N) →" opens the Board panel on Show all (decision 1.126).
    ★. More than 6: the first 6 and "See all (N) →", which opens the Board.
+
+## The Board
+
+> Left on 2026-11-14: the probe became a full card at a real column's width (decision 1.132).
+  gaps (`defaultBoardHeight`, `src/core/orchestration/board.ts`), measured from a hidden probe card
+  and the real heading, never a share of the window. A divider under it resizes it. "Show all"

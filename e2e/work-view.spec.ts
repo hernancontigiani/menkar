@@ -374,10 +374,10 @@ test('the Board panel: toggled from the header (pressed), under the header and o
     expect(Math.round(box?.x ?? 0)).toBeGreaterThanOrEqual(
       Math.round((sidebar?.x ?? 0) + (sidebar?.width ?? 0)),
     )
-    // Two cards per column, about 165 px, whatever the window's height.
+    // Two full cards per column, about 240 px, whatever the window's height.
     const initial = await height(page, '#board-panel')
-    expect(initial).toBeGreaterThan(140)
-    expect(initial).toBeLessThan(200)
+    expect(initial).toBeGreaterThan(220)
+    expect(initial).toBeLessThan(260)
 
     await expect(column('topics').locator('.board-card')).toHaveCount(2)
     await expect(column('queued').locator('.task-card')).toHaveText([/Notes cleanup/])
@@ -533,6 +533,60 @@ test('the shell drawer keeps its height when the Board opens; the agent’s pane
     // Show all is capped so the agent's pane keeps its minimum: the drawer still keeps its height.
     await page.locator('#board-panel [data-key="show-all"]').click()
     await expect.poll(() => height(page, drawer)).toBe(before)
+  } finally {
+    await launched.close()
+  }
+})
+
+const FULL: SeedTask[] = [7, 8, 9].map((number) => ({
+  number,
+  title: 'Measure the default height',
+  assignee: TEAM.w1,
+  state: 'in progress',
+  steps: STEPS5,
+  step: 2,
+  note: 'reading the probe',
+}))
+
+// How many lines a card's title takes, from the rectangles of its text.
+const titleLines = (card: ReturnType<Page['locator']>) =>
+  card.locator('.card-title').evaluate((n) => {
+    const range = document.createRange()
+    range.selectNodeContents(n)
+    return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size
+  })
+
+test('the Board at its default height shows two full cards whole (two-line title, assignee, bar, note), at the test window’s width and at a wide one (screenshots)', async () => {
+  const { launched, page } = await open(FULL)
+  try {
+    await page.locator('#board-button').click()
+    await expect(panel(page)).toBeVisible()
+    for (const width of [0, 1550]) {
+      if (width > 0) {
+        await launched.app.evaluate(({ BrowserWindow }, w) => {
+          const win = BrowserWindow.getAllWindows()[0]
+          const b = win?.getContentBounds()
+          if (win && b) win.setContentBounds({ ...b, width: w })
+        }, width)
+        await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(width)
+      }
+      const cards = columnOf(page, 'in-progress').locator('.task-card')
+      await expect(cards).toHaveCount(3)
+      for (const i of [0, 1]) {
+        const card = cards.nth(i)
+        expect(await titleLines(card)).toBe(2)
+        await expect(card.locator('.card-assignee')).toHaveText('packager')
+        await expect(card.locator('.dot')).toHaveCount(1)
+        await expect(card.locator('.segment')).toHaveCount(5)
+        await expect(card.locator('.card-note')).toHaveText('reading the probe')
+      }
+      const visible = await columnOf(page, 'in-progress')
+        .locator('.board-cards')
+        .evaluate((n) => n.getBoundingClientRect().bottom)
+      const second = await cards.nth(1).evaluate((n) => n.getBoundingClientRect().bottom)
+      expect(second).toBeLessThanOrEqual(visible + 0.5)
+      await shot(page, `board-full-cards-${width || 'test'}.png`)
+    }
   } finally {
     await launched.close()
   }

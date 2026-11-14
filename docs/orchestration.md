@@ -168,8 +168,11 @@ only while the mode is on, toggles it, light blue (`aria-pressed`) while it is o
 bar closes it the same way.
 
 - **Its height.** By default, two cards per column: the bar, a heading and two cards with their
-  gaps (`defaultBoardHeight`, `src/core/orchestration/board.ts`), measured from a hidden probe card
-  and the real heading, never a share of the window. A divider under it resizes it. "Show all"
+  gaps (`defaultBoardHeight`, `src/core/orchestration/board.ts`), measured from the real heading
+  and a hidden probe card at a real column's width, never a share of the window. The probe is a
+  full card (decision 1.132, the human, 2026-11-14): a title clamped to two lines, the assignee
+  with its dot, the step bar and a one-line note, so two real cards fit. It stays one fixed height
+  for the layout, not measured from the cards on show. A divider under it resizes it. "Show all"
   grows it to fit the tallest column, at most 70 % of the right-hand area (`showAllHeight`);
   "Default size" goes back. A column with more cards than fit scrolls under its fixed heading; the
   columns keep a minimum width (160 px) and the panel scrolls sideways when they don't fit.

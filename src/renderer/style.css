@@ -1902,9 +1902,14 @@ select option {
   position: absolute;
   top: 0;
   left: 0;
-  width: 160px;
   visibility: hidden;
   pointer-events: none;
+}
+.board-probe .card-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .board-heading {
   display: flex;
