@@ -275,14 +275,14 @@ eight that this design adds:
 | D3 | When `send_message` and `start_session`'s `agent` are listed | `send_message`: always to a non-Claude caller; to a Claude caller once a non-Claude CLI is installed, refusing Claude→Claude. `agent`: once two or more CLIs are installed |
 | D4 | `start_session`'s `agent` default | The caller's agent |
 | D5 | Naming | The human's sessions: the agent's title. `start_session`'s: Menkar names them through the agent's own call (Claude `-n`, OpenCode `title`, Codex `thread/name/set` after the first turn); Cursor: D22 **Decided (1.139): Codex named through `thread/name/set`.** |
-| D6 | Codex's turn-end signal | `-c notify` **chaining the user's own `notify`** (read from `~/.codex/config.toml`), as Menkar's statusline chains Claude's |
-| D7 | Cursor's card at every Menkar tool call (`--approve-mcps` does not remove it, measured; only `--force` does, approving everything) | An integrations item writing Menkar's allow entries into `~/.cursor/cli-config.json`, consented and removable (D13's pattern); one entry set covers every pane, the per-pane plugin folders sharing one basename |
+| D6 | Codex's turn-end signal | `-c notify` **chaining the user's own `notify`** (read from `~/.codex/config.toml`), as Menkar's statusline chains Claude's **Decided (1.140).** |
+| D7 | Cursor's card at every Menkar tool call (`--approve-mcps` does not remove it, measured; only `--force` does, approving everything) | An integrations item writing Menkar's allow entries into `~/.cursor/cli-config.json`, consented and removable (D13's pattern); one entry set covers every pane, the per-pane plugin folders sharing one basename **Decided (1.140).** |
 | D8 | Cursor's status line | None |
 | D9 | OpenCode: Menkar's own `opencode serve` (**amends 1.72's "no port"**, §3.4; the ports **decided, 1.138**); one session in two servers; OpenCode's Usage turn | Menkar's own server, loopback only; warn, don't refuse; a turn per user message |
 | D10 | The skills' text across agents | Claude's unchanged; per-agent notes to the others; Claude's mixed-project needs met outside the skill (§3.1) |
 | D11 | This repository's `CLAUDE.md` → `AGENTS.md` | Move, with `CLAUDE.md` = `@AGENTS.md`; history mirror `AGENTS.history.md` |
 | D12 | Environment tuning | Keep the display variables; strip the rest as §3.5 |
-| D13 | Cursor's turn hooks need entries in `~/.cursor/hooks.json` (three, global, `user_email` in their payload) | An integrations-menu item, consented and removable, its page saying all three facts |
+| D13 | Cursor's turn hooks need entries in `~/.cursor/hooks.json` (three, global, `user_email` in their payload) | An integrations-menu item, consented and removable, its page saying all three facts **Decided (1.140).** |
 | D14 | Binding an OpenCode pane's caller after `/new` (**a port per pane**, §3.4; **decided, 1.138**) | A per-pane loopback proxy in Menkar's main process |
 | D15 | Codex's cost in Usage | Menkar's price table for OpenAI models, marked `~` as Claude's per-model costs are (`src/core/usage/prices.ts`) |
 | D16 | Phases' order (§4) | P0 (merged to `main` early) → P1a → P1b → P2 → P3; P4 whenever |
@@ -290,7 +290,7 @@ eight that this design adds:
 | **D18** | **Trash and delete for Codex and OpenCode sessions** (writes into `~/.codex`, `opencode.db`) | Not in this plan; deferred with a trigger |
 | **D19** | **The classifier on non-Claude turns** (it runs `claude -p`; a Codex-only user may have no `claude`) | Classify them when `claude` is installed; otherwise their turns stay unclassified, said in the Usage window |
 | **D20** | **Menkar's MCP in every non-Claude session, or only with the orchestration mode on** (1.127 "by default" vs 1.134's cost) | Measured per request for 18 tools: Codex +7 tokens, Cursor +125, OpenCode +2.4–2.8k (it does not defer). **Every session for Codex and Cursor.** For OpenCode the real granularity is **per folder on Menkar's one server** (its MCP connection is per folder; the caller is known only at `tools/call`): recommended, added for a folder when its first session enters a project with the mode on, **kept until Menkar's server stops** (removal is unmeasured, and the server only adds); every OpenCode session in that folder then pays it |
-| **D21** | **Cursor's `user_email` in the hook payload**: Menkar receives it with every Cursor turn | Never stored or logged; the hook passes on only what Usage and state need |
+| **D21** | **Cursor's `user_email` in the hook payload**: Menkar receives it with every Cursor turn | Never stored or logged; the hook passes on only what Usage and state need **Decided (1.140).** |
 | **D22** | **Naming a Cursor worker** (nothing outside Cursor can name a chat) | **Decided (the human, 2026-11-14, 1.137):** a Cursor session `start_session` starts keeps `<project>-t<N>` in Menkar's own data for good; Cursor's generated title is not shown for it ("the name is anecdotal as long as sessions can message each other"); a `/rename` by the human is followed. Sessions the human starts keep Cursor's title, as today |
 
 ## 6. What was rejected, and why
