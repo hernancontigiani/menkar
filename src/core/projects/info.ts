@@ -26,6 +26,8 @@ export interface ProjectInfo {
     readonly parked: readonly string[]
     // Workers running at once; null, unlimited.
     readonly workersCap: number | null
+    // Folders added by hand; the sessions' own are derived where they are shown.
+    readonly folders: readonly string[]
   }
   readonly topicsCollapsed: boolean
   readonly teamView: boolean

@@ -4,6 +4,8 @@ import { describe, expect, test } from 'vitest'
 import { forgetSession } from '../../../src/core/projects/earlier'
 import { removeMember } from '../../../src/core/projects/model'
 import {
+  addFolder,
+  removeFolder,
   setConsultantsCollapsed,
   setDoneTodayOpen,
   setMode,
@@ -157,6 +159,29 @@ describe('the workers cap', () => {
         withYou: ['X'],
       })
     }
+  })
+})
+
+// Decision 1.124: folders the human adds by hand to a project, in projects.json beside the marks.
+describe('the added folders', () => {
+  test('an added folder round-trips as folders, once; removed, it is no longer listed', () => {
+    let s = addFolder(work(), 'p1', '/repo/other')
+    s = addFolder(s, 'p1', '/repo/other')
+    expect(roundTrip(s).projects[0]?.orchestration?.folders).toEqual(['/repo/other'])
+    expect((serializeProjects(s).projects as Record<string, unknown>[])[0]?.orchestration).toEqual({
+      on: false,
+      folders: ['/repo/other'],
+    })
+    s = removeFolder(s, 'p1', '/repo/other')
+    expect(s.projects[0]).not.toHaveProperty('orchestration')
+  })
+
+  test('in the file, a relative path or a non-text entry is dropped alone', () => {
+    const raw = JSON.parse(JSON.stringify(serializeProjects(marked())))
+    raw.projects[0].orchestration.folders = ['/ok', 'relative', 3, '/ok']
+    expect(parseProjects(raw).projects[0]?.orchestration?.folders).toEqual(['/ok'])
+    raw.projects[0].orchestration.folders = 'not a list'
+    expect(parseProjects(raw).projects[0]?.orchestration).not.toHaveProperty('folders')
   })
 })
 

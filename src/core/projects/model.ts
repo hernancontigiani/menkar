@@ -28,6 +28,8 @@ export interface Orchestration {
   readonly parked?: readonly string[]
   // Workers running at once (decision 1.118); absent, unlimited.
   readonly workersCap?: number
+  // Folders the human added by hand to the project's folders (decision 1.124), absolute.
+  readonly folders?: readonly string[]
 }
 
 export interface Project {

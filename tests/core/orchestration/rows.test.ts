@@ -20,6 +20,7 @@ const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
     withYou: [],
     parked: [],
     workersCap: null,
+    folders: [],
   },
   topicsCollapsed: false,
   teamView: false,
@@ -94,6 +95,7 @@ describe('the sidebar in the orchestration mode', () => {
         withYou: [],
         parked: [],
         workersCap: null,
+        folders: [],
       },
     })
     expect(short(modeRows(p, view())).slice(0, 5)).toEqual([
@@ -116,6 +118,7 @@ describe('the sidebar in the orchestration mode', () => {
         withYou: [],
         parked: [],
         workersCap: null,
+        folders: [],
       },
     })
     expect(short(modeRows(p, view()))).toEqual([
@@ -148,6 +151,7 @@ describe('parked workers', () => {
         withYou: [],
         parked: ['W2'],
         workersCap: null,
+        folders: [],
       },
     })
 

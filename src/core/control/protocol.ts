@@ -59,6 +59,11 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
           description:
             "The role label it is born with, as the human's Role… sets it; no tool changes it later.",
         },
+        folder: {
+          type: 'string',
+          description:
+            "An absolute path: the folder it starts in, one of the project's folders (its sessions' folders and the ones the human added), e.g. another repository. Omit it to start in your own folder.",
+        },
       },
     },
   },

@@ -1,4 +1,4 @@
-import { teamFolders } from '../core/orchestration/folders'
+import { membersFolders, type ProjectFolder, presentFolders } from '../core/orchestration/folders'
 import type { ProjectInfo } from '../core/projects/info'
 import { recentFolders } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
@@ -118,12 +118,81 @@ function capField(cap: number | null): {
   return { node, read }
 }
 
+// Decision 1.124: its sessions' folders, earlier conversations included, and the ones added by
+// hand; `added` stands in for the project's own while the settings dialog edits them.
+export function projectFolderList(
+  s: WindowState,
+  p: ProjectInfo,
+  added: readonly string[] = p.orchestration.folders,
+): ProjectFolder[] {
+  const paneCwds = new Map<string, string>()
+  for (const pane of s.tabs.flatMap((tab) => tab.panes))
+    if (pane.sessionId && pane.cwd) paneCwds.set(pane.sessionId, pane.cwd)
+  return membersFolders(p.members, s.sessions, paneCwds, added)
+}
+
+// "Folders": every folder of the project, the sessions' own marked and kept; an added one is
+// removed, and "Add folder…" opens the system's chooser. Both apply at once, not on Save.
+function foldersField(p: ProjectInfo): HTMLElement {
+  let added = [...p.orchestration.folders]
+  const list = el('div', { class: 'orch-folder-list' })
+  const draw = () => {
+    const s = currentState()
+    if (!s) return
+    list.replaceChildren(
+      ...projectFolderList(s, p, added).map((f) =>
+        el(
+          'div',
+          { class: 'orch-folder-row', 'data-folder': f.path },
+          el('span', { class: 'orch-folder-path', title: f.path }, tilde(f.path, s.home)),
+          s.missingFolders.includes(f.path)
+            ? el('span', { class: 'orch-folder-missing' }, t('orch.folderMissing'))
+            : null,
+          f.added
+            ? removeButton(f.path)
+            : el('span', { class: 'dim orch-folder-auto' }, t('orch.folderAuto')),
+        ),
+      ),
+    )
+  }
+  const removeButton = (path: string) => {
+    const node = el(
+      'button',
+      { class: 'orch-folder-remove', title: t('orch.folderRemove') },
+      icon('trash'),
+    )
+    node.addEventListener('click', () => {
+      added = added.filter((x) => x !== path)
+      draw()
+      void act({ type: 'removeProjectFolder', project: p.id, folder: path })
+    })
+    return node
+  }
+  const add = el('button', { class: 'orch-folder-add' }, t('orch.folderAdd'))
+  add.addEventListener('click', async () => {
+    const { value } = await act({ type: 'pickFolder' })
+    if (typeof value !== 'string') return
+    added = [...added.filter((x) => x !== value), value]
+    draw()
+    await act({ type: 'addProjectFolder', project: p.id, folder: value })
+  })
+  draw()
+  return el(
+    'div',
+    { class: 'folders-field' },
+    el('div', { class: 'orch-folders-label' }, t('orch.folders')),
+    list,
+    add,
+    el('div', { class: 'orch-folders-hint dim' }, t('orch.foldersHint')),
+  )
+}
+
 // The project's own orchestration settings (decision 1.122): not the app's, so not in Settings.
 async function settingsDialog(p: ProjectInfo): Promise<void> {
   const field = capField(p.orchestration.workersCap)
   const answer = await showDialog({
     heading: t('orch.settingsHeading', { name: p.name }),
-    extra: el('div', { class: 'orch-settings' }, field.node),
+    extra: el('div', { class: 'orch-settings' }, field.node, foldersField(p)),
     buttons: [
       { label: t('dialog.cancel'), value: 'cancel' },
       { label: t('dialog.save'), value: 'save', style: 'suggested' },
@@ -321,19 +390,10 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
   })
 }
 
-// The folders the project's running sessions work in, as Ctrl+` offers them; with none, the
-// recent folders Add session offers.
+// The project's folders, as Ctrl+` offers them; with none, the recent folders Add session offers.
 function cardFolders(s: WindowState, p: ProjectInfo): string[] {
-  const running = new Set(s.running)
-  const panes = s.tabs
-    .filter((tab) => tab.project === p.id)
-    .flatMap((tab) => tab.panes)
-    .map((pane) => ({
-      cwd: pane.cwd,
-      running: pane.sessionId !== null && running.has(pane.sessionId),
-    }))
-  const team = teamFolders(panes)
-  return team.length > 0 ? team : recentFolders(s.sessions)
+  const own = presentFolders(projectFolderList(s, p), s.missingFolders)
+  return own.length > 0 ? own : recentFolders(s.sessions)
 }
 
 async function startTeam(

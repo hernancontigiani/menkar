@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { join } from 'node:path'
 import { now, timeOfDay } from '../clock'
+import type { WorkCounts } from '../orchestration/counts'
 
 // Waking a session through Claude Code's cross-session messaging: its registry entry
 // (`<pid>.json`, read only) names the socket; one line goes in, nothing is read back. The frame is
@@ -11,13 +12,19 @@ export const PEER_PROTOCOL = 1
 
 // The time closes every text: Claude Code drops a message identical to the sender's previous one,
 // so a child that finished two turns in a row would wake its parent once.
-export function wakeFrame(text: string, msgId: string): string {
+export function wakeFrame(text: string, msgId: string, counts?: WorkCounts): string {
+  const tail = counts ? ` · ${countsText(counts)}` : ''
   return `${JSON.stringify({
     type: 'user',
-    message: { content: `[Menkar] ${text} (${timeOfDay(now())})` },
+    message: { content: `[Menkar] ${text} (${timeOfDay(now())})${tail}` },
     from: 'menkar',
     msg_id: msgId,
   })}\n`
+}
+
+// English, like the rest of the frame: it is read by an agent, not shown in the UI.
+function countsText(c: WorkCounts): string {
+  return `${c.topics} topic${c.topics === 1 ? '' : 's'} · ${c.working} working · ${c.waiting} waiting`
 }
 
 interface Peer {
@@ -68,10 +75,11 @@ export async function postToSession(
   sessionId: string,
   text: string,
   msgId: string,
+  counts?: WorkCounts,
 ): Promise<PostOutcome> {
   const peer = await findPeer(sessionsDir, sessionId)
   if (!peer?.socket) return 'no session'
   if (peer.protocol !== PEER_PROTOCOL) return 'protocol'
-  await sendLine(peer.socket, wakeFrame(text, msgId))
+  await sendLine(peer.socket, wakeFrame(text, msgId, counts))
   return 'posted'
 }

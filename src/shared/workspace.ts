@@ -121,6 +121,8 @@ export interface WindowState {
   // Sessions muted by hand: no sound, toast or desktop notice.
   readonly muted: readonly string[]
   readonly ghostty: boolean
+  // Projects' folders gone from disk (decision 1.124), checked by main off the UI path.
+  readonly missingFolders: readonly string[]
   // Maximized or full screen: the window's edge is the screen's.
   readonly maximized: boolean
   // The first scan of the agents' folders has not ended: the list and the saved tabs are coming.
@@ -175,6 +177,9 @@ export type Action =
   | { readonly type: 'setOrchestrationMode'; readonly project: string; readonly on: boolean }
   // null: any number of workers at once.
   | { readonly type: 'setWorkersCap'; readonly project: string; readonly cap: number | null }
+  // A folder the human adds by hand to the project's folders, or removes (decision 1.124).
+  | { readonly type: 'addProjectFolder'; readonly project: string; readonly folder: string }
+  | { readonly type: 'removeProjectFolder'; readonly project: string; readonly folder: string }
   | { readonly type: 'setOrchestrator'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setRole'; readonly session: string; readonly label: string }
   | { readonly type: 'setTaskStar'; readonly number: number; readonly on: boolean }

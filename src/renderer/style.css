@@ -1604,6 +1604,48 @@ select option {
 .orch-card .cap-field {
   grid-template-columns: 8em;
 }
+/* The project's folders in its orchestration settings (1.124). */
+.orch-settings {
+  display: grid;
+  gap: 14px;
+}
+.folders-field {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+.folders-field .orch-folders-hint {
+  font-size: 9pt;
+}
+.orch-folder-list {
+  display: grid;
+  gap: 2px;
+  max-height: 14em;
+  overflow-y: auto;
+}
+.orch-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+.orch-folder-row .orch-folder-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.orch-folder-row .orch-folder-auto {
+  font-size: 9pt;
+}
+.orch-folder-row .orch-folder-missing {
+  font-size: 9pt;
+  color: var(--destructive);
+}
+.folders-field .orch-folder-add {
+  justify-self: start;
+}
 .parked-on {
   font-size: 9pt;
 }

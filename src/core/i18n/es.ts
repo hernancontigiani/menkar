@@ -68,6 +68,13 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.workersCapUnlimited': 'Sin límite',
   'orch.workersCapWrong':
     'Workers a la vez es un número entero desde 1, o vacío para cualquier cantidad.',
+  'orch.folders': 'Carpetas',
+  'orch.foldersHint':
+    'Dónde pueden empezar sus sesiones: cada carpeta en la que trabajan sus sesiones y las que se agregan aquí.',
+  'orch.folderAuto': 'de sus sesiones',
+  'orch.folderMissing': 'no existe',
+  'orch.folderAdd': 'Agregar carpeta…',
+  'orch.folderRemove': 'Quitar esta carpeta',
   'orch.orchestrator': 'Orquestador',
   'orch.role': 'Rol…',
   'orch.withYou': 'Con vos',

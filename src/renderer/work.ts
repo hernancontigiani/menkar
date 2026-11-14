@@ -1,3 +1,4 @@
+import { workCounts } from '../core/orchestration/counts'
 import { type ModeRow, modeRows } from '../core/orchestration/rows'
 import type { TaskState } from '../core/orchestration/taskState'
 import type { ProjectInfo } from '../core/projects/info'
@@ -62,12 +63,13 @@ export function workView(
   listed: readonly string[],
 ): HTMLElement[] {
   const open = s.tasks.open
+  const counts = workCounts(s.topics, open)
   const tiles = el(
     'div',
     { class: 'work-tiles' },
-    tile(s.topics.length, t('work.tileTopics'), 'topics'),
-    tile(open.filter((x) => x.state === 'in progress').length, t('work.tileWorking'), 'working'),
-    tile(open.filter((x) => x.state === 'waiting').length, t('work.tileWaiting'), 'waiting'),
+    tile(counts.topics, t('work.tileTopics'), 'topics'),
+    tile(counts.working, t('work.tileWorking'), 'working'),
+    tile(counts.waiting, t('work.tileWaiting'), 'waiting'),
   )
   return [
     tiles,

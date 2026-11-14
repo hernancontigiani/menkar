@@ -124,6 +124,10 @@ built and why.
   Beside it, `topics_collapsed` when the Topics section shows its heading alone, and the Work
   view's choices (decision 1.112): `team_view` when the sidebar shows Team, `consultants_collapsed`
   and `done_today_open`, each written only while true.
+- **`orchestration.folders`** (decision 1.124, 2026-11-14): the absolute paths the human added to
+  the project's folders, each once (`addFolder`, `removeFolder`); written only while one is left.
+  Read leniently: an entry that is not an absolute path is dropped alone, a value that is not a
+  list is dropped. The project's other folders are its sessions' and are never written.
 - **Switching the mode off keeps every mark** (`on: false` with the rest), so switching it on finds
   the team as it was.
 - **What always holds** (`keptOrchestration`): every id is a member. A member leaving the project

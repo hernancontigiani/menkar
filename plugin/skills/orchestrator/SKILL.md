@@ -39,8 +39,10 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 
 ## Using Menkar's tools
 
-- `start_session` starts the session **in your folder**. A long first prompt goes in a file (its
-  prompt_file argument). A session of another repository is added by the human, not by you.
+- `start_session` starts the session **in your folder**; with `folder`, in another of the
+  project's folders (another repository). A plan across repositories is one task per session, each
+  started in its folder. A folder the project lacks is added by the human, not by you. A long first
+  prompt goes in a file (its prompt_file argument).
 - Start a consultant with `start_session`, `loose: true` and its `role`: it is nobody's child.
 - `last_reply` reads a session's report. Right after it renewed, it gives the last reply of its
   previous conversation, labelled so.

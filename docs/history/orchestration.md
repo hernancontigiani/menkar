@@ -134,3 +134,25 @@ keeps for them. Off, Menkar is as before and the marks wait. The guide for users
 
 > Left on 2026-11-13: parked workers fold apart into a "Parked · N" row (decision 1.120).
    into one "N earlier" row a click unfolds (per window, not saved).
+
+## The data
+
+> Left on 2026-11-14: a project's added folders join the marks (decision 1.124).
+  "with you", `parked` and `workers_cap` (decision 1.118) — and `topics_collapsed`, `team_view`,
+
+## The first-time card
+
+> Left on 2026-11-14: the card offers the project's folders, not only its running sessions' (decision 1.124).
+  "orchestrator" by default, and a folder among the project's running sessions' folders — the list
+  `Ctrl+\`` offers — or, with none, the recent folders Add session offers).
+
+## `Ctrl+\`` in the orchestrator's tab
+
+> Left on 2026-11-14: `Ctrl+\`` offers the project's folders, running or not, and the added ones (decision 1.124); `teamFolders` was removed.
+drawer first gathers the folders of the project's sessions with a running pane, each once
+(`teamFolders`, `src/core/orchestration/folders.ts`). With one, the drawer opens there at once, as
+
+## The sidebar in the mode
+
+> Left on 2026-11-14: the tiles' count moved to `workCounts`, shared with the orchestrator's posts (decision 1.125).
+1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting.

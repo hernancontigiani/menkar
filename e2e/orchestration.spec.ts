@@ -1,7 +1,7 @@
 // Plan 34: the orchestration mode. Switched from the header (1.91) and from the project popover
 // (1.89); the row menu's block — Orchestrator, Role…, With you — only while it is on;
 // switching it off keeps every mark (1.77).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
@@ -132,6 +132,7 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
       withYou: [CLIENT.login],
       parked: [],
       workersCap: null,
+      folders: [],
     }
     await expect.poll(() => shown(page)).toEqual(marks)
 
@@ -497,6 +498,11 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await expect.poll(() => statusOf(3)).toBe('discussing')
     await expect(orchTab).toHaveClass(/selected/)
     await expect.poll(posted, { timeout: 15_000 }).toEqual([expect.stringMatching(DISCUSS_3)])
+    // The post's counts are the Work view's tiles.
+    await page.locator('#view-switch .view-work').click()
+    await expect(page.locator('.work-tile .tile-n')).toHaveText(['3', '0', '0'])
+    await page.locator('#view-switch .view-team').click()
+    await expect(page.locator('.work-tile')).toHaveCount(0)
     await page.locator('.topic-row[data-topic="3"]').click()
     await expect(page.locator('.topic-detail')).toContainText('From orchestrator · discussing')
     await shot(page, 'b1-topic-discuss.png')
@@ -514,8 +520,12 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
   }
 })
 
-// Every post ends with the local time, so Claude Code keeps two identical ones apart.
-const DISCUSS_3 = /^\[Menkar\] The human wants to discuss topic 3 \(\d{2}:\d{2}:\d{2}\)$/
+// Every post ends with the local time, so Claude Code keeps two identical ones apart; one to the
+// orchestrator, then with the Work view's counts (decision 1.125).
+const COUNTS = ' · 3 topics · 0 working · 0 waiting'
+const DISCUSS_3 = new RegExp(
+  `^\\[Menkar\\] The human wants to discuss topic 3 \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
+)
 
 const drawer = (page: Page) => page.locator('.tab-body:not(.hidden) .pane.drawer')
 const jumpRows = (page: Page) => page.locator('.jump-row')
@@ -832,7 +842,9 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
       .poll(socket.posted, { timeout: 15_000 })
       .toEqual([
         expect.stringMatching(
-          /^\[Menkar\] The human took control of login worker \(\d{2}:\d{2}:\d{2}\)$/,
+          new RegExp(
+            `^\\[Menkar\\] The human took control of login worker \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
+          ),
         ),
       ])
     await shot(page, 'banner-blue.png')
@@ -844,7 +856,9 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
       .poll(socket.posted, { timeout: 15_000 })
       .toContainEqual(
         expect.stringMatching(
-          /^\[Menkar\] The human handed login worker back \(\d{2}:\d{2}:\d{2}\)$/,
+          new RegExp(
+            `^\\[Menkar\\] The human handed login worker back \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
+          ),
         ),
       )
     await expect(banner).toContainText('Waiting for your permission', { timeout: 10_000 })
@@ -1018,6 +1032,88 @@ test('the cap: the card asks "Workers at once", empty by default; Start with 2 s
     await dialog.locator('.cap-field input').fill('')
     await dialog.locator('button', { hasText: 'Save' }).click()
     await expect.poll(saved).not.toHaveProperty('workers_cap')
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.124: a project's folders are its sessions' folders and the ones added by hand. The
+// first-time card offers them; the gear's dialog lists them, the sessions' own marked and kept,
+// an added one removable; "Add folder…" goes through the system's chooser.
+test('the project’s folders: the card offers its sessions’ folders; the gear’s dialog lists them, adds one through the chooser and removes it (screenshot)', async () => {
+  const { launched, page, root, home } = await launch()
+  const other = join(home, 'other', 'repo')
+  mkdirSync(other, { recursive: true })
+  const saved = () =>
+    JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8')).projects[0]
+      .orchestration
+  await launched.app.evaluate(({ dialog }, chosen) => {
+    dialog.showOpenDialog = (async () => ({
+      canceled: false,
+      filePaths: [chosen],
+    })) as unknown as typeof dialog.showOpenDialog
+  }, other)
+  try {
+    await page.locator('#orchestration-switch').click()
+    await expect(card(page).locator('.card-folder option')).toHaveText(['~/work/api', '~/work/web'])
+    await startWithFirst(page)
+
+    await page.locator('#project-button').click()
+    await page.locator('.project-row .orch-settings-button').click()
+    const dialog = page.locator('[role="alertdialog"]')
+    const rows = dialog.locator('.orch-folder-row')
+    await expect(dialog.locator('.orch-folders-label')).toHaveText('Folders')
+    await expect(rows.locator('.orch-folder-path')).toHaveText(['~/work/api', '~/work/web'])
+    await expect(rows.locator('.orch-folder-auto')).toHaveCount(2)
+    await expect(rows.locator('.orch-folder-remove')).toHaveCount(0)
+
+    await dialog.locator('.orch-folder-add', { hasText: 'Add folder…' }).click()
+    await expect(rows.locator('.orch-folder-path')).toHaveText([
+      '~/work/api',
+      '~/work/web',
+      '~/other/repo',
+    ])
+    await expect(rows.nth(2).locator('.orch-folder-remove')).toHaveCount(1)
+    await expect.poll(saved).toMatchObject({ folders: [other] })
+    await shot(page, 'folders.png')
+
+    await rows.nth(2).locator('.orch-folder-remove').click()
+    await expect(rows).toHaveCount(2)
+    await expect.poll(saved).not.toHaveProperty('folders')
+    await dialog.locator('button', { hasText: 'Cancel' }).click()
+    // Added and removed at once, not on Save: Cancel leaves them as they are.
+    expect(saved()).not.toHaveProperty('folders')
+  } finally {
+    await launched.close()
+  }
+})
+
+// A folder of the project gone from disk: the card (and Ctrl+`) do not offer it; the gear's list
+// keeps it, marked missing, so the human sees why.
+test('a project folder gone from disk: the card leaves it out; the gear’s list keeps it marked “missing” (screenshot)', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      const env = clientWork(dirs)
+      rmSync(join(dirs.home, 'work', 'web'), { recursive: true })
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    expect(home).not.toBe('')
+    await page.locator('#orchestration-switch').click()
+    await expect(card(page).locator('.card-folder option')).toHaveText(['~/work/api'])
+    await startWithFirst(page)
+
+    await page.locator('#project-button').click()
+    await page.locator('.project-row .orch-settings-button').click()
+    const rows = page.locator('[role="alertdialog"] .orch-folder-row')
+    await expect(rows.locator('.orch-folder-path')).toHaveText(['~/work/api', '~/work/web'])
+    await expect(rows.nth(0).locator('.orch-folder-missing')).toHaveCount(0)
+    await expect(rows.nth(1).locator('.orch-folder-missing')).toHaveText('missing')
+    await shot(page, 'folders-missing.png')
   } finally {
     await launched.close()
   }

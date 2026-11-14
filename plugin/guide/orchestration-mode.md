@@ -107,6 +107,10 @@ Consultants get no tasks: they are asked, and raise topics.
   conversation. The Team view shows parked workers apart, in a folded "Parked · N" row under the
   orchestrator, each with what its task waits on. When the wait ends (tell the orchestrator what
   came back), it resumes the same worker with `resume_session`, with its whole context.
+- **In another repository**: the orchestrator can start a worker in any of the project's folders —
+  every folder its sessions work in, and the ones you add under "Folders" in the project's
+  orchestration settings (the gear beside its mode icon). A plan that touches several
+  repositories becomes one task per session, each in its folder.
 - **When a task closes**, its worker's tab closes and its row is hidden from the sidebar.
 - **Workers at once**: a number per project, empty for any number. Set it in the first-time card,
   later in the project's orchestration settings (the gear beside the project's mode icon in the

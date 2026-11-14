@@ -55,6 +55,42 @@ describe('posting to a session', () => {
     )
   })
 
+  test('a post to the orchestrator ends, after its time, with the Work view’s three counts', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 14, 8, 47, 33))
+    const content = (frame: string) => JSON.parse(frame).message.content as string
+    expect(
+      content(
+        wakeFrame('packager finished its turn', 'm-1', { topics: 2, working: 1, waiting: 1 }),
+      ),
+    ).toBe('[Menkar] packager finished its turn (08:47:33) · 2 topics · 1 working · 1 waiting')
+    expect(
+      content(
+        wakeFrame('packager finished its turn', 'm-2', { topics: 0, working: 0, waiting: 0 }),
+      ),
+    ).toBe('[Menkar] packager finished its turn (08:47:33) · 0 topics · 0 working · 0 waiting')
+    expect(
+      content(
+        wakeFrame('packager finished its turn', 'm-3', { topics: 1, working: 3, waiting: 0 }),
+      ),
+    ).toBe('[Menkar] packager finished its turn (08:47:33) · 1 topic · 3 working · 0 waiting')
+    expect(content(wakeFrame('packager finished its turn', 'm-4'))).toBe(
+      '[Menkar] packager finished its turn (08:47:33)',
+    )
+  })
+
+  test('the counts reach the socket with the post', async () => {
+    const { sessions, socket } = registry({ sessionId: 'parent', peerProtocol: 1 })
+    const peer = await listen(socket)
+    const counts = { topics: 2, working: 1, waiting: 0 }
+    expect(await postToSession(sessions, 'parent', 'api finished its turn', 'm-5', counts)).toBe(
+      'posted',
+    )
+    await peer.closed
+    expect(peer.lines()).toBe(wakeFrame('api finished its turn', 'm-5', counts))
+    expect(peer.lines()).toContain('· 2 topics · 1 working · 0 waiting')
+  })
+
   // Claude Code drops a message identical to the sender's previous one: a child that finishes two
   // turns in a row would wake its parent once.
   test('two identical events in a row are two different texts, across midnight too', () => {

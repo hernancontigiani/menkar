@@ -31,8 +31,15 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
   - **`start_session { name?, task?, prompt? | prompt_file?, remote_control?, group?, model?,
-    loose?, role? }`:** a new Claude session in the caller's project, in a tab right after the
-    caller's, not selected. The caller becomes its parent, unless `loose` is true.
+    loose?, role?, folder? }`:** a new Claude session in the caller's project, in a tab right after
+    the caller's, not selected. The caller becomes its parent, unless `loose` is true.
+    - **`folder`** (decision 1.124, 2026-11-14): an absolute path where it starts, one of the
+      project's folders (its sessions' folders, earlier conversations included, and the ones the
+      human added; `docs/orchestration.md`). One that is not is refused: "‹folder› is not one of
+      this project's folders: ‹the list›. The human adds one in the project's orchestration
+      settings." (`startFolder`, `src/core/orchestration/folders.ts`); one that no longer exists on
+      disk is refused with the list too. Without it, the caller's folder. It combines with `task`,
+      `loose`, `role` and `model`.
     - **`task`** (decision 1.118, 2026-11-13): the session is named `<project>-t<N>` by Menkar and
       becomes the task's assignee (`startName`, `src/core/orchestration/workers.ts`; `assignTask`);
       `name` may then be omitted, and a given one must be that name. Without `task`, a name is
@@ -190,6 +197,11 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       parent once. Wakes are batched for `WAKE_DELAY_MS`, so two to one parent fall in different
       seconds; only the human repeating the same action within a second could match, and that
       repeat is the one dropped.
+    - **A post to the orchestrator** of a project with the mode on ends, after the time, with the
+      Work view's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):
+      `wakeSession` passes them in (`postCounts`, `src/core/orchestration/counts.ts`, the tiles'
+      own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
+      it. Posts to other sessions have no counts.
     - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
 - **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]

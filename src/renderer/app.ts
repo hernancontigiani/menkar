@@ -4,7 +4,7 @@ import { now } from '../core/clock'
 import type { Reading } from '../core/context/types'
 import { formatTime } from '../core/format'
 import type { Key } from '../core/i18n'
-import { teamFolders } from '../core/orchestration/folders'
+import { presentFolders } from '../core/orchestration/folders'
 import { bannerOf } from '../core/orchestration/readonly'
 import { type ModeRow, modeRows } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
@@ -23,6 +23,7 @@ import { applyLook } from './look'
 import {
   modeSwitch,
   orchestrationItems,
+  projectFolderList,
   settingsButton,
   syncModeSwitch,
   teamButton,
@@ -1511,19 +1512,14 @@ export function toggleDrawer(): void {
 // Per window and project, in memory: the folder last chosen for the orchestrator's drawer.
 const lastDrawerFolder = new Map<string, string>()
 
-// In the orchestrator's tab, with the mode on: the folders of the project's running sessions.
+// In the orchestrator's tab, with the mode on: the project's folders (decision 1.124).
 function orchestratorFolders(tab: TabView): string[] {
   const s = state
   const project = s?.projects.find((p) => p.id === tab.project)
   const orchestrator = project?.orchestration.on ? project.orchestration.orchestrator : null
-  if (!s || !orchestrator || !tab.panes.some((p) => p.sessionId === orchestrator)) return []
-  const running = new Set(s.running)
-  return teamFolders(
-    s.tabs
-      .filter((x) => x.project === tab.project && x.kind === 'session')
-      .flatMap((x) => x.panes)
-      .map((p) => ({ cwd: p.cwd, running: p.sessionId !== null && running.has(p.sessionId) })),
-  )
+  if (!s || !project || !orchestrator || !tab.panes.some((p) => p.sessionId === orchestrator))
+    return []
+  return presentFolders(projectFolderList(s, project), s.missingFolders)
 }
 
 let shownNotices = 0

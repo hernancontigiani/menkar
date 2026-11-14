@@ -10,7 +10,7 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
 ## The data
 
 - **Marks, per project in `projects.json`:** `orchestration` — on, the orchestrator, roles,
-  "with you", `parked` and `workers_cap` (decision 1.118) — and `topics_collapsed`, `team_view`,
+  "with you", `parked`, `workers_cap` (decision 1.118) and the added `folders` (decision 1.124) — and `topics_collapsed`, `team_view`,
   `consultants_collapsed` and `done_today_open`. How they are read, kept and followed through a `/clear`, a
   resume or a session leaving is in `docs/projects.md` ("The orchestration mode's marks").
 - **Topics, in `topics.json` in the config directory** (`topicsPath` in `src/core/paths.ts`;
@@ -77,8 +77,8 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
 - **The first-time card** (`firstTimeCard`): switching on a project with no orchestrator marked opens
   it instead. It says what the mode is and what an orchestrator is, and asks "Who orchestrates?":
   one radio per listed session (with a tab first, then by name) and "A new session" (a name,
-  "orchestrator" by default, and a folder among the project's running sessions' folders — the list
-  `Ctrl+\`` offers — or, with none, the recent folders Add session offers).
+  "orchestrator" by default, and a folder among the project's folders — the list `Ctrl+\``
+  offers — or, with none, the recent folders Add session offers).
   - **Start** marks the chosen session, or starts the new one through `startNew` with a first
     prompt telling it to load `menkar:orchestrator`, that the project's orchestration is new, and to
     read the guide at its absolute path first (2026-11-13), marked as it starts; then it switches
@@ -100,7 +100,9 @@ for Team; `set`'s choice, 2026-11-13). Off, neither shows and the sidebar is the
 
 **The Work view** (decision 1.115, `src/renderer/work.ts`), from the top:
 
-1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting.
+1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting, counted by
+   `workCounts` (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
+   orchestrator (below).
 2. **Topics**, as in the Team view below.
 3. **Tasks · N**: the open tasks, ★ first, then by number. A row: ★, the title, `3/5` (or the state
    while it has no steps), the assignee, one segment per step (done, current, to come), and the
@@ -111,6 +113,14 @@ for Team; `set`'s choice, 2026-11-13). Off, neither shows and the sidebar is the
    opens its tab. Foldable, saved (`consultants_collapsed`).
 5. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
    by default**, its unfolding saved (`done_today_open`).
+
+**Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) — a wake,
+"The human wants to discuss topic N", "took control of", "handed … back" — ends, after its time,
+with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2 topics · 1
+working · 1 waiting`. The human follows the orchestrator from a phone through Remote Control, where
+the statusline does not show and the posts do. `postCounts` gives them only for the orchestrator of
+a project with the mode on, from the same `workCounts` as the tiles; posts to any other session are
+unchanged.
 
 **The Team view** is the sidebar as follows. `modeRows` (`src/core/orchestration/rows.ts`) orders
 the rows; `renderSessionList` draws them while the shown project's mode is on, and today's list
@@ -168,12 +178,36 @@ else is edited there.
 ## `Ctrl+\`` in the orchestrator's tab
 
 With the mode on and the selected tab running the orchestrator, a `Ctrl+\`` that would open the
-drawer first gathers the folders of the project's sessions with a running pane, each once
-(`teamFolders`, `src/core/orchestration/folders.ts`). With one, the drawer opens there at once, as
+drawer first gathers the project's folders (below). With one, the drawer opens there at once, as
 anywhere else. With several, a list (`folderPicker`, `src/renderer/switcher.ts`) shows them by the
 folder's last name with the path as caption, the one last chosen (per window and project, in
 memory) preselected; Enter opens the drawer there (`toggleDrawer`'s `folder`). A shown drawer is
 hidden as always, with no list.
+
+## A project's folders
+
+Decision 1.124 (the human, 2026-11-14): **the folders of all its sessions, running or not, earlier
+conversations included** (each session's `cwd`; a session just started, with no transcript yet,
+takes its pane's folder), **plus the folders the human adds by hand**, each once, the sessions'
+own by path and the added ones after them (`membersFolders`, `projectFolders`,
+`src/core/orchestration/folders.ts`; `foldersOfProject` in main, `projectFolderList` in the
+renderer, both through it).
+
+- **Added folders** are the project's `folders` in `projects.json` (`docs/projects.md`), edited in
+  the project's orchestration settings dialog: a "Folders" list of every folder of the project, the
+  sessions' own marked "from its sessions" and not removable, an added one with a remove button,
+  and "Add folder…" through the system's folder chooser (main's `pickFolder`). Adding and removing
+  apply at once, not on Save. An added folder a session already works in is shown once, as the
+  session's.
+- **`start_session { folder }`** starts the new session there: accepted only when it is one of the
+  project's folders and exists on disk, refused otherwise with a sentence listing the project's
+  folders (`startFolder`; `docs/session-control.md`).
+- **`Ctrl+\``** in the orchestrator's tab (above) and **the first-time card** offer the same list
+  without the folders gone from disk (`presentFolders`); the settings' list keeps those, marked
+  "missing", so the human sees why. Main checks the disk off the UI path whenever it sends the
+  windows their state, one check at a time (`checkFolders`, `missingFolders`), and sends the gone
+  ones as the state's `missingFolders`; a folder that cannot be read counts as there.
+- A plan touching several repositories becomes one task per session and folder.
 
 **One shell per folder** (decision 1.93, the human, 2026-11-12): in that tab each folder picked keeps
 a drawer of its own (`DrawerRegistry`, `src/core/drawers.ts`). Picking a folder shows its drawer,

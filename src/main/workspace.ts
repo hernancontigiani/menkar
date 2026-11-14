@@ -30,6 +30,14 @@ import { log } from '../core/log'
 import { followModel, modelOf, setModel } from '../core/models'
 import { followMuted, mutedList, setMuted } from '../core/mute'
 import { adopt } from '../core/orchestration/adopt'
+import { postCounts } from '../core/orchestration/counts'
+import {
+  isAbsoluteFolder,
+  membersFolders,
+  missingFolders,
+  type ProjectFolder,
+  startFolder,
+} from '../core/orchestration/folders'
 import { mayStart } from '../core/orchestration/mayStart'
 import { readOnly } from '../core/orchestration/readonly'
 import { placeStarted, readPlacement } from '../core/orchestration/started'
@@ -117,7 +125,9 @@ import {
   showMember,
 } from '../core/projects/model'
 import {
+  addFolder,
   orchestrationInfo,
+  removeFolder,
   sessionMarks,
   setConsultantsCollapsed,
   setDoneTodayOpen,
@@ -508,6 +518,7 @@ function stateFor(windowId: string): WindowState | undefined {
     remoteControl: [...remoteIds],
     muted: [...mutedIds],
     ghostty: ghosttyInstalled(),
+    missingFolders: goneFolders,
     home: homedir(),
     notices: currentNotices(),
     agents: installedAgents,
@@ -624,6 +635,7 @@ export function pushWindowStates(): void {
 }
 
 function push(): void {
+  void checkFolders()
   lastRunning = runningKey()
   for (const [id, window] of windows) {
     const state = stateFor(id)
@@ -1581,6 +1593,14 @@ async function startForAgent(
   if ('refusal' in model) return refuse(model.refusal)
   const placement = readPlacement(args)
   if ('refusal' in placement) return refuse(placement.refusal)
+  const known = owner ? foldersOfProject(owner).map((f) => f.path) : []
+  const where = startFolder(args.folder, known)
+  if ('refusal' in where) return refuse(where.refusal)
+  if (where.folder !== null && !(await isFolder(where.folder)))
+    return refuse(
+      `${where.folder} is one of this project's folders but no longer exists on disk. The project's folders: ${known.join(', ')}.`,
+    )
+  const cwd = where.folder ?? caller.cwd
   const team = owner ? workerTeam(owner) : null
   if (team && startsWorker(team, callerId, placement)) {
     const full = capRefusal(team, runningIn(projectId))
@@ -1637,9 +1657,9 @@ async function startForAgent(
   await startPane(tab.id, {
     agent: 'claude',
     start: { kind: 'new', id, name, ...model },
-    cwd: caller.cwd,
+    cwd,
     sessionId: id,
-    ...(remote ? { remote: remoteName(name, caller.cwd, id) } : {}),
+    ...(remote ? { remote: remoteName(name, cwd, id) } : {}),
     ...(promptFile ? { promptFile } : {}),
   })
   changed({ projects: true })
@@ -1651,6 +1671,51 @@ async function startForAgent(
         ? `Started "${name}" in a tab after yours for task ${task}, now assigned to it; you are its parent. Address it by this name.`
         : `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
   }
+}
+
+// The projects' folders gone from disk; the windows hear of a change. One check at a time: one
+// asked for meanwhile runs once the current one ends.
+let goneFolders: readonly string[] = []
+let checkingFolders = false
+let checkFoldersAgain = false
+
+async function checkFolders(): Promise<void> {
+  if (checkingFolders) {
+    checkFoldersAgain = true
+    return
+  }
+  checkingFolders = true
+  try {
+    do {
+      checkFoldersAgain = false
+      const all = projects.projects.flatMap((p) => foldersOfProject(p))
+      const gone = await missingFolders(all, folderExists)
+      if (gone.join('\n') !== goneFolders.join('\n')) {
+        goneFolders = gone
+        push()
+      }
+    } while (checkFoldersAgain)
+  } finally {
+    checkingFolders = false
+  }
+}
+
+// A folder that cannot be read is taken as there: only one surely gone is hidden.
+async function folderExists(path: string): Promise<boolean> {
+  try {
+    return await isFolder(path)
+  } catch (error) {
+    log.warn('a project folder could not be checked', { path, error })
+    return true
+  }
+}
+
+// Decision 1.124: its sessions' folders, earlier conversations included, and the ones added by hand.
+function foldersOfProject(p: Project): ProjectFolder[] {
+  const paneCwds = new Map<string, string>()
+  for (const pane of panes.values())
+    if (pane.sessionId && pane.cwd) paneCwds.set(pane.sessionId, pane.cwd)
+  return membersFolders(p.members, sessionList, paneCwds, orchestrationInfo(p).folders)
 }
 
 async function lastReplyFor(projectId: string, named: unknown): Promise<ControlAnswer> {
@@ -1749,7 +1814,20 @@ async function wakeSession(parent: string, text: string): Promise<void> {
     return
   }
   try {
-    const outcome = await postToSession(agentPaths().claudeSessions, parent, text, randomUUID())
+    const project = projectOf(projects, parent)
+    const counts = postCounts(
+      project ? orchestrationInfo(project) : undefined,
+      parent,
+      project ? topicsOf(currentTopics(), project.id) : [],
+      project ? tasksOf(currentTasks(), project.id) : [],
+    )
+    const outcome = await postToSession(
+      agentPaths().claudeSessions,
+      parent,
+      text,
+      randomUUID(),
+      counts,
+    )
     if (outcome === 'posted') log.info('a parent session was woken', { parent })
     else log.warn('a parent session could not be woken', { parent, outcome })
   } catch (error) {
@@ -2525,6 +2603,15 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'setWorkersCap':
       projects = setWorkersCap(projects, action.project, action.cap)
+      changed({ projects: true })
+      return {}
+    case 'addProjectFolder':
+      if (!isAbsoluteFolder(action.folder) || !(await isFolder(action.folder))) return {}
+      projects = addFolder(projects, action.project, action.folder)
+      changed({ projects: true })
+      return {}
+    case 'removeProjectFolder':
+      projects = removeFolder(projects, action.project, action.folder)
       changed({ projects: true })
       return {}
     case 'setOrchestrationMode':

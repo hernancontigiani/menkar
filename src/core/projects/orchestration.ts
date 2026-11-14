@@ -1,3 +1,4 @@
+import { isAbsoluteFolder } from '../orchestration/folders'
 import type { ProjectInfo } from './info'
 import type { Orchestration, Project, Projects } from './model'
 
@@ -15,7 +16,8 @@ function compact(o: Orchestration): Orchestration | undefined {
   const withYou = o.withYou && o.withYou.length > 0 ? o.withYou : undefined
   const parked = o.parked && o.parked.length > 0 ? o.parked : undefined
   const cap = o.workersCap
-  if (!o.on && !o.orchestrator && !roles && !withYou && !parked && cap === undefined)
+  const folders = o.folders && o.folders.length > 0 ? o.folders : undefined
+  if (!o.on && !o.orchestrator && !roles && !withYou && !parked && cap === undefined && !folders)
     return undefined
   return {
     on: o.on,
@@ -24,6 +26,7 @@ function compact(o: Orchestration): Orchestration | undefined {
     ...(withYou ? { withYou } : {}),
     ...(parked ? { parked } : {}),
     ...(cap !== undefined ? { workersCap: cap } : {}),
+    ...(folders ? { folders } : {}),
   }
 }
 
@@ -43,6 +46,7 @@ export function keptOrchestration(
     withYou: ids(o.withYou, set),
     parked: ids(o.parked, set),
     ...(o.workersCap !== undefined ? { workersCap: o.workersCap } : {}),
+    ...(o.folders ? { folders: o.folders } : {}),
   })
 }
 
@@ -68,6 +72,15 @@ export function parseOrchestration(
       withYou: ids(value.with_you, new Set(members)),
       parked: ids(value.parked, new Set(members)),
       ...(isCap(value.workers_cap) ? { workersCap: value.workers_cap } : {}),
+      folders: Array.isArray(value.folders)
+        ? [
+            ...new Set(
+              value.folders.filter(
+                (x): x is string => typeof x === 'string' && isAbsoluteFolder(x),
+              ),
+            ),
+          ]
+        : [],
     },
     members,
   )
@@ -83,6 +96,7 @@ export function serializeOrchestration(p: Project): Record<string, unknown> | un
     ...(o.withYou ? { with_you: o.withYou } : {}),
     ...(o.parked ? { parked: o.parked } : {}),
     ...(o.workersCap !== undefined ? { workers_cap: o.workersCap } : {}),
+    ...(o.folders ? { folders: o.folders } : {}),
   }
 }
 
@@ -189,6 +203,22 @@ export function setWorkersCap(state: Projects, projectId: string, cap: number | 
   })
 }
 
+// A folder added by hand (decision 1.124), once.
+export function addFolder(state: Projects, projectId: string, path: string): Projects {
+  if (!isAbsoluteFolder(path)) return state
+  return change(state, projectId, (o) => ({
+    ...o,
+    folders: [...(o.folders ?? []).filter((x) => x !== path), path],
+  }))
+}
+
+export function removeFolder(state: Projects, projectId: string, path: string): Projects {
+  return change(state, projectId, (o) => ({
+    ...o,
+    folders: (o.folders ?? []).filter((x) => x !== path),
+  }))
+}
+
 type Flag = 'topicsCollapsed' | 'teamView' | 'consultantsCollapsed' | 'doneTodayOpen'
 
 // A project's flag, written only while true.
@@ -224,6 +254,7 @@ export function orchestrationInfo(p: Project): ProjectInfo['orchestration'] {
     withYou: o?.withYou ?? [],
     parked: o?.parked ?? [],
     workersCap: o?.workersCap ?? null,
+    folders: o?.folders ?? [],
   }
 }
 

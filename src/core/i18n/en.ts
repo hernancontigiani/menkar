@@ -64,6 +64,13 @@ export const en = {
   'orch.workersCapHint': 'Empty: any number. Experts, consultants and parked workers don’t count.',
   'orch.workersCapUnlimited': 'Unlimited',
   'orch.workersCapWrong': 'Workers at once is a whole number from 1, or empty for any number.',
+  'orch.folders': 'Folders',
+  'orch.foldersHint':
+    'Where its sessions can start: every folder its sessions work in, and the ones added here.',
+  'orch.folderAuto': 'from its sessions',
+  'orch.folderMissing': 'missing',
+  'orch.folderAdd': 'Add folder…',
+  'orch.folderRemove': 'Remove this folder',
   'orch.orchestrator': 'Orchestrator',
   'orch.role': 'Role…',
   'orch.withYou': 'With you',

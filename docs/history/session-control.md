@@ -122,3 +122,7 @@ and the wake order.
     selected. The caller becomes its parent, unless `loose` is true.
     - `task_add { title, assignee, star? }`: the orchestrator only, with the mode on ("Only the
       name (`sessionOfProject`). Answers "Task N added."; the task is queued.
+
+> Left on 2026-11-14: `start_session` gained `folder` (decision 1.124).
+    loose?, role? }`:** a new Claude session in the caller's project, in a tab right after the
+    caller's, not selected. The caller becomes its parent, unless `loose` is true.
