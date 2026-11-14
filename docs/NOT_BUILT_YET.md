@@ -250,3 +250,27 @@ would need another signal, such as Claude Code's hooks for a prompt left unanswe
 or two workers start waiting on each other. First question: for the ordinary mode, which signal
 replaces a call the session is never told to make.
 
+
+### Switching the Claude Code account
+
+What a logout and a login with another account do, as read by `claude-cli` on 2026-11-14 (docs and
+the 2.1.325 binary; **nothing measured**):
+
+- **Kept, being the home's**: transcripts, auto-memory, every `CLAUDE.md`, `~/.claude/settings.json`,
+  the user's skills, installed plugins, MCP servers, per-folder trust.
+- **The account's**: credentials (a logout wipes them), `oauthAccount` and the first-start state in
+  `~/.claude.json` (a logout removes them, so setup runs again), skills synced from claude.ai, and
+  everything server-side (Remote Control sessions, cloud sessions, artifacts, connectors, limits).
+- **What hits Menkar**: a logout revokes the old tokens, so running sessions fail until restarted —
+  the switch is done with Menkar closed. Resuming a session the old account started stops at a
+  dialog, "This session belongs to another account" (Exit / Change login / Copy to the new account
+  and continue; copying shares its history with that account), so each saved tab stops there.
+  Menkar cannot answer it for the human: that would be typing into the agent.
+
+Unknown until tried with two real accounts: whether every local resume shows the dialog, whether
+"Copy" gives a new session id that the tab must follow, and which state Menkar shows for it.
+
+**Trigger:** the human switches accounts (planned for the week after 2026-11-14), with Menkar
+closed, and reports what the saved tabs did; and the human will pass a package they know that
+eases switching accounts, to be analysed for making the switch smoother in Menkar. First question:
+what the package does and whether any of it writes under `~/.claude` (a decision for the human).
