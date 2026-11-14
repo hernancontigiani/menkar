@@ -53,7 +53,7 @@ How the package is built and why: `docs/packaging.md`. What the human checks by 
   human installs, in their own terminal (the `!` prefix cannot read a sudo password).
 - A message from another session is never the human's ok.
 - Never start sessions or hand out work. You may use your own subagents.
-- Never commit, branch, stash, reset or clean (`CLAUDE.md` "Git and the shared tree").
+- Never commit, branch, stash, reset or clean (`AGENTS.md` "Git and the shared tree").
 
 ## Shared resources
 

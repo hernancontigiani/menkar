@@ -5,8 +5,9 @@
 // Exits 1 listing each removed line missing from the mirror, and also when a mirror itself lost a
 // line: the mirror only grows. Compares against HEAD, so a document with someone else's uncommitted
 // edits reads as a loss — check `git diff --quiet HEAD -- <document>` before starting to cut.
-import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -15,7 +16,10 @@ const HISTORY = 'docs/history/'
 // of the path, so one is computed from the other. A root file's mirror is renamed: agents load a
 // `CLAUDE.md` or `AGENTS.md` in any folder they touch as instructions, and the mirror holds rules
 // that are no longer true.
-const ROOT_FILES = new Set(['CLAUDE.md'])
+const ROOT_FILES = new Set(['AGENTS.md'])
+// A document's previous path: while HEAD does not hold the document yet, its text and its history
+// are compared against what HEAD holds under the previous path, so a move loses nothing it carries.
+const PREVIOUSLY = new Map([['AGENTS.md', 'CLAUDE.md']])
 const PREFIXES = new Map([
   ['plans/00-STATUS.md', `${HISTORY}plans/00-STATUS.md`],
   ['docs/', HISTORY],
@@ -24,10 +28,13 @@ const PREFIXES = new Map([
 const MARKUP = /^(\s*|[-|:\s]+|```[\w-]*)$/
 const HUNK = /^@@ -(\d+)(?:,\d+)? /
 
+/** @param {string} name */
+const rootMirror = (name) => `${HISTORY}root/${name.replace(/\.md$/, '.history.md')}`
+
 /** @param {string} path @returns {string | null} */
 export function mirrorOf(path) {
   if (path.startsWith(HISTORY)) return null
-  if (ROOT_FILES.has(path)) return `${HISTORY}root/${path.replace(/\.md$/, '.history.md')}`
+  if (ROOT_FILES.has(path)) return rootMirror(path)
   for (const [source, target] of PREFIXES) {
     if (path === source) return source.endsWith('/') ? target + path.slice(source.length) : target
     if (source.endsWith('/') && path.startsWith(source)) return target + path.slice(source.length)
@@ -63,8 +70,50 @@ export function removedLines(diff) {
 }
 
 /** @param {string} root @param {string} path */
-function removed(root, path) {
-  return removedLines(git(root, 'diff', '--no-color', '--no-ext-diff', '-U0', 'HEAD', '--', path))
+function inHead(root, path) {
+  return spawnSync('git', ['cat-file', '-e', `HEAD:${path}`], { cwd: root }).status === 0
+}
+
+/**
+ * The lines `path` lost since HEAD held it at `before`.
+ * @param {string} root @param {string} before @param {string} path
+ */
+function removedSince(root, before, path) {
+  if (before === path) {
+    return removedLines(git(root, 'diff', '--no-color', '--no-ext-diff', '-U0', 'HEAD', '--', path))
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'nothing-lost-'))
+  try {
+    const old = join(dir, 'HEAD')
+    writeFileSync(old, git(root, 'show', `HEAD:${before}`))
+    const now = join(root, path)
+    const diff = spawnSync(
+      'git',
+      [
+        'diff',
+        '--no-index',
+        '--no-color',
+        '--no-ext-diff',
+        '-U0',
+        '--',
+        old,
+        existsSync(now) ? now : '/dev/null',
+      ],
+      { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    )
+    // --no-index exits 1 when the files differ, which is not a failure here.
+    if (diff.status !== 0 && diff.status !== 1)
+      throw new Error(`git diff --no-index: ${diff.stderr}`)
+    return removedLines(diff.stdout)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** @param {string} root @param {string} path @returns {string} */
+function pathInHead(root, path) {
+  const previous = PREVIOUSLY.get(path)
+  return previous !== undefined && !inHead(root, path) && inHead(root, previous) ? previous : path
 }
 
 /** @param {string} root @param {string} path @returns {string[]} */
@@ -79,10 +128,13 @@ export function check(root, path) {
           .map((line) => line.trim())
       : [],
   )
-  const problems = removed(root, path)
+  const before = pathInHead(root, path)
+  const mirrorBefore = before === path ? mirror : rootMirror(before)
+  const problems = removedSince(root, before, path)
     .filter(([, text]) => !kept.has(text.trim()))
     .map(([n, text]) => `${path}:${n}: not in ${mirror}: ${text.trim()}`)
-  for (const [n, text] of removed(root, mirror)) {
+  const mirrorWas = inHead(root, mirrorBefore) ? mirrorBefore : mirror
+  for (const [n, text] of removedSince(root, mirrorWas, mirror)) {
     problems.push(`${mirror}:${n}: the mirror lost a line: ${text.trim()}`)
   }
   return problems
@@ -90,10 +142,18 @@ export function check(root, path) {
 
 /** @param {string} root @returns {string[]} */
 export function mirroredDocuments(root) {
-  const tracked = git(root, 'ls-files', '--cached', '--deleted', '*.md')
+  const listed = git(
+    root,
+    'ls-files',
+    '--cached',
+    '--deleted',
+    '--others',
+    '--exclude-standard',
+    '*.md',
+  )
     .split(/\s+/)
     .filter(Boolean)
-  return [...new Set(tracked.filter((path) => mirrorOf(path) !== null))].sort()
+  return [...new Set(listed.filter((path) => mirrorOf(path) !== null))].sort()
 }
 
 /** @param {string[]} paths @returns {number} */

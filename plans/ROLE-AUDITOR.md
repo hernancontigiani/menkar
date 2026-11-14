@@ -39,7 +39,7 @@ before reading a line.
 
 ## Reading order
 
-1. `CLAUDE.md`: the cross-cutting rules the code may be contradicting, and the vocabulary.
+1. `AGENTS.md`: the cross-cutting rules the code may be contradicting, and the vocabulary.
 2. `plans/00-STATUS.md`: what is decided, so you do not reopen it.
 3. **The topic's documents**: `README.md` says what the user is promised; the subsystem's
    `docs/` file says how it is built and its why-nots. You will compare them against the code in

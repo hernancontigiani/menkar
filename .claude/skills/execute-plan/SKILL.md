@@ -9,7 +9,7 @@ else. If it is a stub (no execution blocks), say so and stop: it needs `/design-
 
 ## Before touching a line
 
-1. **`CLAUDE.md`** — the product rules, the TypeScript conventions, the git rules (**sessions do not
+1. **`AGENTS.md`** — the product rules, the TypeScript conventions, the git rules (**sessions do not
    commit**) and the language (everything in English).
 2. **`plans/README.md`** — the method, and above all the shape of a plan.
 3. **The whole plan, not only its blocks.** The design sections carry the rationale and **what was
@@ -82,4 +82,4 @@ found in the code that contradicts the plan**. Only then start.
 - **Fix dangling references** to the deleted file in the same pass — its name as well as its path.
 - **Only then delete your own `prompts/PROMPT-*.md`.** Not earlier: `prompts/` is gitignored, so it is
   the only copy, and while you work it is the record of what you were asked.
-- **Do not propose a `CHANGELOG.md` entry before the first tagged release** (`CLAUDE.md`).
+- **Do not propose a `CHANGELOG.md` entry before the first tagged release** (`AGENTS.md`).

@@ -3,13 +3,13 @@
 **What stops being true goes here**: the previous version of a rule, when it changed, the closing
 note of a delivered plan. The documents say how the system is today and why; this keeps how it got
 there, for the day someone needs to understand an old decision. **Nothing loads it for anything
-else**: no skill, role or `CLAUDE.md` sends a session to read it.
+else**: no skill, role or `AGENTS.md` sends a session to read it.
 
 **Each decision document has its history at a mirrored path:**
 
 | Document | Its history |
 |---|---|
-| `CLAUDE.md` | `docs/history/root/CLAUDE.history.md` |
+| `AGENTS.md` | `docs/history/root/AGENTS.history.md` |
 | `docs/<file>` | `docs/history/<file>` |
 | `plans/00-STATUS.md` | `docs/history/plans/00-STATUS.md` |
 

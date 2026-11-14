@@ -18,7 +18,7 @@ earlier conversation.
 
 Read, in this order, and **touch nothing until you are done**:
 
-1. `CLAUDE.md` — the product rules, the git rules, the language, the comment conventions.
+1. `AGENTS.md` — the product rules, the git rules, the language, the comment conventions.
 2. `plans/README.md` — the method: the shape of a plan and the rules that already cost something.
 3. `plans/00-STATUS.md` — **your working document and the source of truth for state.**
 4. `ls plans/ prompts/` and `git log --oneline -20` — which plans exist and what moved since the
@@ -51,7 +51,7 @@ Read, in this order, and **touch nothing until you are done**:
 - **Closing questions OPEN IN OTHER files that the delivered work just answered.** It is the step
   most often skipped, because nobody asks for it, and the question then gets re-discussed with the
   human as if it were undecided.
-- **Making room for a rule in a `CLAUDE.md` at its budget.** Look for the symptom before the
+- **Making room for a rule in `AGENTS.md` at its budget.** Look for the symptom before the
   content: which bullet grew twice (a rule does not grow; a narrative grows a sentence per
   incident). Only if that is not enough decide what goes — and what goes is a fact that already
   lives in another file, never the why, which is what keeps the rule alive the first time it looks
@@ -70,7 +70,7 @@ Read, in this order, and **touch nothing until you are done**:
   other's half-state as its own red.
 - **What is named and what exists go in the same pass.** A consumer importing a name that is not
   defined yet breaks the suite for every other session, not just its own.
-- **Shared files are edited by adding, never by reordering** (`CLAUDE.md`, `00-STATUS.md`,
+- **Shared files are edited by adding, never by reordering** (`AGENTS.md`, `00-STATUS.md`,
   `README.md`), and **re-read from disk right before writing**: saving the version read ten
   minutes ago silently drops the line another session added meanwhile.
 - **A session that restores files builds the list by OWNERSHIP, never by difference.** "Everything

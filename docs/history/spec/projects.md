@@ -664,3 +664,6 @@ start, and quitting. It holds agent-tablet's decisions 1.13, 1.15–1.19. Index 
 cross-window move; the dialog itself is in `sessions.md`), **F20** (what a tab's panes mean for a
 window; a project is open in at most one window.** Where agent-tablet's code breaks one of them,
 the case says so and gives the behaviour that keeps it.
+
+> Left on 2026-11-14: the rules file moved to `AGENTS.md` (decision 1.143).
+The invariants every case below holds (Menkar `CLAUDE.md`, product rules): **a session belongs to

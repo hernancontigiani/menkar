@@ -12,7 +12,7 @@ without rethinking the design**.
 
 Read, in this order, and **do not write a line of the plan until you are done**:
 
-1. `CLAUDE.md` — the product rules, the TypeScript conventions, the comment conventions and what earns a
+1. `AGENTS.md` — the product rules, the TypeScript conventions, the comment conventions and what earns a
    file. Its "Where each thing lives" table is what you need to declare the exit.
 2. `plans/README.md` — **the shape of a plan**. It is your template; do not invent another.
 3. `plans/00-STATUS.md` — what is decided and by whom. **Everything recorded there enters the plan
@@ -22,7 +22,7 @@ Read, in this order, and **do not write a line of the plan until you are done**:
 ## The first thing you write is the exit, not the scope
 
 Before the goal, the header declares **which file each part of the plan goes to when it is
-executed**: what the user sees to `README.md`, rules that constrain future code to `CLAUDE.md`,
+executed**: what the user sees to `README.md`, rules that constrain future code to `AGENTS.md`,
 the explanation of a subsystem to its `docs/` file, what is deferred to `docs/NOT_BUILT_YET.md`,
 and the rest to `git log`. **A decision that replaces a recorded one says so in the exit**: the old
 text leaves its document for that document's history (`docs/history/README.md`) in the same change,
@@ -55,7 +55,7 @@ number is that number. The code never documents that.
   shape of a plan, point 2) — the concrete case, written before the code. It is how you check the
   plan does not contradict itself: the test of a decision cannot be written if another section of
   the same plan denies it.
-- **Every new runtime dependency, named and justified** (`CLAUDE.md`, "TypeScript").
+- **Every new runtime dependency, named and justified** (`AGENTS.md`, "TypeScript").
 - **For anything that reads an agent's files: what it reads, and the test that proves it writes
   nothing there.** A transcript can be many MB and grows while it is read; say how it is read
   incrementally.
@@ -73,7 +73,7 @@ number is that number. The code never documents that.
   decision and why the new fact reopens it.
 - **If the piece has no consumer yet**, defer it with its trigger in `docs/NOT_BUILT_YET.md`
   instead of designing it blind.
-- **If a rule in `CLAUDE.md` does not fit your case**, the plan says so in those words and writes
+- **If a rule in `AGENTS.md` does not fit your case**, the plan says so in those words and writes
   three things: which rule, why it does not apply, and **what replaces the guarantee that is lost**.
   The third is the one that is almost always missing: what the system does the day the only
   remaining mechanism fails — and a test that asserts it.

@@ -27,7 +27,7 @@ and it does not go in.
 
 Two things that are not style and do earn a line:
 
-- A rule `CLAUDE.md` states explicitly and the branch does not meet: a write under `~/.claude` the
+- A rule `AGENTS.md` states explicitly and the branch does not meet: a write under `~/.claude` the
   human did not decide, a second name kept for a session Claude already named, something encoded
   into a session name, a network connection, a user-visible string outside `t()`, blocking work on
   the main or renderer process, a path resolved at import in new code, `Date.now()` or `new Date()` inline in logic, a new
@@ -84,7 +84,7 @@ no account of how the finding was reached, no praise.
   and the commit reviewed.
 - `BLOCKERS` — only what breaks. Each names where it is, what goes wrong, what sequence triggers it,
   and what would close it. Leave the section out when there are none.
-- `ALSO IN THIS BRANCH` — the explicit `CLAUDE.md` rules the branch does not meet, and new paths with
+- `ALSO IN THIS BRANCH` — the explicit `AGENTS.md` rules the branch does not meet, and new paths with
   no test. Three bullets at most. Leave it out when there are none.
 - `CHECKED AND CORRECT` — what was verified and holds, so the reader knows what not to re-check.
   Short: the seams that could plausibly have broken and did not.

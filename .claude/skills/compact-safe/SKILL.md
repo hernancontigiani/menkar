@@ -34,7 +34,7 @@ it?"*:
   `internal/x/y.go`, function `z`, so that …"*.
 - **What NOT to touch** in this task, if instinct would.
 
-**What does not go in**: anything the tree, `git log`, `plans/00-STATUS.md` or `CLAUDE.md` answer.
+**What does not go in**: anything the tree, `git log`, `plans/00-STATUS.md` or `AGENTS.md` answer.
 **If the file is longer than a screen, half of it is surplus.**
 
 Last thing before the human compacts: **name the file's path in your visible message.** The

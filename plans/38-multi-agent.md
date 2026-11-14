@@ -27,8 +27,8 @@
 >   their subsystem changes, pointing to `docs/agents.md` for the per-agent part.
 >   `docs/session-control.md`'s port rejection is amended there, its old text to its history.
 > - What a user sees (which agents, what each needs installed, what each costs) → `README.md`.
-> - Rules: 1.135's is in `CLAUDE.md`; D17's rewording of "the agents' data is read, never
->   rewritten" goes there too, the old text to `docs/history/root/CLAUDE.history.md`.
+> - Rules: 1.135's is in `AGENTS.md`; D17's rewording of "the agents' data is read, never
+>   rewritten" goes there too, the old text to `docs/history/root/AGENTS.history.md`.
 > - The integrations-menu items (D6, D7, D13) → `docs/preferences.md`.
 > - Deferred, each with its trigger → `docs/NOT_BUILT_YET.md`: typing as Cursor's plan B,
 >   Antigravity CLI, Pi, Windows and macOS per agent, trash and delete for the new agents (D18).
@@ -139,7 +139,7 @@ The per-mechanism table, with each reason against 1.134, is `agents-compared.md`
    `MENKAR_PANE` (Claude, Codex, Cursor) or OpenCode's `_meta` session id through a per-pane proxy
    (D14). Whether it is mounted in every non-Claude session or only in the orchestration mode is
    **D20**, with each agent's per-request cost in view (§3.2).
-3. **One Usage model**, fed by one reader per agent, so a turn is defined once (`CLAUDE.md`).
+3. **One Usage model**, fed by one reader per agent, so a turn is defined once (`AGENTS.md`).
 
 ### 3.1 Messaging across agents (D2, D3)
 
@@ -286,7 +286,7 @@ eight that this design adds:
 | D14 | Binding an OpenCode pane's caller after `/new` (**a port per pane**, §3.4; **decided, 1.138**) | A per-pane loopback proxy in Menkar's main process |
 | D15 | Codex's cost in Usage | Menkar's price table for OpenAI models, marked `~` as Claude's per-model costs are (`src/core/usage/prices.ts`) **Decided (1.143).** |
 | D16 | Phases' order (§4) | P0 (merged to `main` early) → P1a → P1b → P2 → P3; P4 whenever **Decided (1.142).** |
-| **D17** | **Menkar's calls that make an agent write its own data**: a title at creation or start (Claude `-n`, OpenCode `title`), **a rename of an existing session** (Codex `thread/name/set` after its first turn — the line the human should see drawn), a queued wake (D1: Codex's queue SQLite, OpenCode's inbox rows) | Allowed, each named in `docs/agents.md`; `CLAUDE.md`'s rule reworded to say so **Decided (1.139).** |
+| **D17** | **Menkar's calls that make an agent write its own data**: a title at creation or start (Claude `-n`, OpenCode `title`), **a rename of an existing session** (Codex `thread/name/set` after its first turn — the line the human should see drawn), a queued wake (D1: Codex's queue SQLite, OpenCode's inbox rows) | Allowed, each named in `docs/agents.md`; `AGENTS.md`'s rule reworded to say so **Decided (1.139).** |
 | **D18** | **Trash and delete for Codex and OpenCode sessions** (writes into `~/.codex`, `opencode.db`) | Not in this plan; deferred with a trigger **Decided (1.143).** |
 | **D19** | **The classifier on non-Claude turns** (it runs `claude -p`; a Codex-only user may have no `claude`) | Classify them when `claude` is installed; otherwise their turns stay unclassified, said in the Usage window **Decided (1.143).** |
 | **D20** | **Menkar's MCP in every non-Claude session, or only with the orchestration mode on** (1.127 "by default" vs 1.134's cost) | Measured per request for 18 tools: Codex +7 tokens, Cursor +125, OpenCode +2.4–2.8k (it does not defer). **Every session for Codex and Cursor.** For OpenCode the real granularity is **per folder on Menkar's one server** (its MCP connection is per folder; the caller is known only at `tools/call`): recommended, added for a folder when its first session enters a project with the mode on, **kept until Menkar's server stops** (removal is unmeasured, and the server only adds); every OpenCode session in that folder then pays it **Decided (1.141).** |

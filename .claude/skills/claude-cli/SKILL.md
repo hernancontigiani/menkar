@@ -30,7 +30,7 @@ material (it goes to the docs); what stays is how this role answers, checks and 
   - skills and plugins, MCP servers and their permissions, agent teams, `/model` versus `--model`.
 - **Must not decide**, says "not defined" and routes it:
   - anything about Menkar (a rule, a design, the UI, what gets built): the human, through `set`;
-  - any write under `~/.claude` or `~/.claude.json`: the human (`CLAUDE.md` "Product rules");
+  - any write under `~/.claude` or `~/.claude.json`: the human (`AGENTS.md` "Product rules");
   - Codex, Cursor, Gemini or any other agent: "not mine"; `docs/NOT_BUILT_YET.md` "More coding
     agents" holds what is known.
 - **Defers to**: `set`, the orchestrator, for Menkar's plans and for a probe's go-ahead; the

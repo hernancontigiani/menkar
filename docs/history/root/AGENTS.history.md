@@ -39,3 +39,7 @@ human likes; the features are all of agent-tablet's.
 - **Roles:** the `set` session (at this repository's root) designs the plans, writes their launch
   prompts in `prompts/`, reviews what is built and commits it; the sessions `b1` and `b2` execute the
   plans they are given. **`set` decides who executes what** (1.55); two workers, no third.
+
+> Moved 2026-11-14 by decision 1.143: the rules file is `AGENTS.md`, and `CLAUDE.md` holds only
+> `@AGENTS.md`; this history continues here, its first entries written while it was `CLAUDE.md`'s.
+# CLAUDE.md — Menkar

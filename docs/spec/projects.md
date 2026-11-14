@@ -8,7 +8,7 @@ project and the saved orientation; the panes themselves are in `terminal.md`), *
 (the sidebar width; its look is in `look.md`); keys **K4–K8, K12, K29–K31, K33, K34**; menu items
 **M12, M13, M16, M18, M19, M22–M25, M32**.
 
-The invariants every case below holds (Menkar `CLAUDE.md`, product rules): **a session belongs to
+The invariants every case below holds (Menkar `AGENTS.md`, product rules): **a session belongs to
 one project at most, runs if and only if it has a tab, and is in at most one tab across every
 window; a project is open in at most one window.** A case that could break one of them says so and
 gives the behaviour that keeps it.

@@ -2,7 +2,7 @@
 
 **What empties is the content, not the folder.** A delivered plan is deleted, because from then on
 the code is a better description of itself; whatever must not be lost in that deletion is moved out
-first, and **every plan declares where in its header** (`CLAUDE.md`, "Where each thing lives"). **A
+first, and **every plan declares where in its header** (`AGENTS.md`, "Where each thing lives"). **A
 plan whose header names a destination that does not exist yet is not deleted**: it stays alive
 holding that part until the file that receives it exists.
 
@@ -72,7 +72,7 @@ file each part moves to) · which plan it replaces or modifies, if any.
 - **What stops being true leaves verbatim for its history in `docs/history/`, in the same
   change** — a superseded rule, a closed row of the index, a plan's closing note. Nobody loads the
   history; it exists for the day someone asks why. `npm run ci` checks no line is lost on the way.
-- **Sessions do not commit** (`CLAUDE.md`, "Git and the shared tree").
+- **Sessions do not commit** (`AGENTS.md`, "Git and the shared tree").
 
 ## Rules that already cost something
 

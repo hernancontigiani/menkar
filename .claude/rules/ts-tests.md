@@ -6,7 +6,7 @@ paths:
 
 # Writing a TypeScript test
 
-A checklist, not an explanation. If it contradicts `CLAUDE.md`, `CLAUDE.md` wins and this file is
+A checklist, not an explanation. If it contradicts `AGENTS.md`, `AGENTS.md` wins and this file is
 out of date.
 
 ## Before writing
