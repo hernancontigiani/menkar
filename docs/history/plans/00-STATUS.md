@@ -815,3 +815,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-14: 1.132 built (task 7).
 | 1.132 | Amends 1.126's default height (the human, 2026-11-14, from a screenshot where one card and a bit showed): the Board's default height is measured from a **full sample card** — a two-line title, the assignee line, the step bar and a note line — so two real cards fit; still one fixed height, not measured from the cards shown. Not built yet | 2026-11-14 | this row (until built) |
+
+> Closed 2026-11-14: 2.22 decided as 1.136 (a separate branch).
+| 2.22 | How multi-agent support lands without destabilising what ships: it touches many parts, so the human wants a stable package now (2026-11-14, from HEAD cff7630) and expects the next one to need much validation. Options for the architecture phase (1.135): build it on a branch, merged when validated; or on main behind the agent entries (an agent not enabled until validated, as `NOT_BUILT_YET.md` already says per platform) with Claude Code's path covered by the existing suite; plus which hand checks `docs/release-checklist.md` gains | Human, at the architecture (1.135 step 2) | The multi-agent implementation |
