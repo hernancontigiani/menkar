@@ -112,6 +112,15 @@ The chart, as the human decided it (2026-11-08):
   3, 7 or 14 days, the smallest stride whose labels do not collide at the plot's width (8 pt sans
   taken as 5.5 px a character, 4 px apart); Today and All, every n-th bar as before. All through
   `Intl.DateTimeFormat` in the app's language: no month or day name is written by hand.
+- **Totals' tree** (decision 1.130): projects open expanded and their category rows open
+  collapsed, so a classified project shows its categories and a click shows a category's sessions;
+  without classification a project's sessions show as before. What is expanded or collapsed is
+  kept while the window is open, not across openings.
+- **While a report is on its way** (decision 1.131): whatever asks for new figures (the period, the
+  month stepper, "All projects") replaces the table or the chart, and the footer whose figures are
+  all the report's, with the app's turning star until they arrive; the header stays usable and a
+  late answer to an older choice is still dropped. Switching Totals and By day, or the metric,
+  reuses the figures already there and shows no star.
 
 ## By model
 

@@ -1,5 +1,6 @@
 import '@xterm/xterm/css/xterm.css'
 import './style.css'
+import './turning.css'
 import './segmented.css'
 import { matchShortcut, type ShortcutOf } from '../core/shortcuts'
 import { openAddSession } from './addsession'

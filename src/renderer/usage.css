@@ -202,3 +202,21 @@ select option {
   background-color: var(--bg);
   color: var(--fg);
 }
+
+.usage-loading {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usage-loading .turning-star {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.usage-loading .turning-star svg {
+  width: 48px;
+  height: 48px;
+}

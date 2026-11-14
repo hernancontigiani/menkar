@@ -159,12 +159,13 @@ consent, not a side effect.
 **Trigger:** the export proves too coarse for a real analysis, or the human asks for it. First
 question: which questions the export could not answer, so the tools are shaped by them.
 
-### More coding agents: Codex, OpenCode, Gemini CLI
+### More coding agents: Codex, OpenCode
 
 Menkar runs two agents today: Claude Code and Cursor's terminal agent (`cursor-agent`), listed in
 `src/core/agents.ts`. The human wants OpenAI's Codex CLI and OpenCode too (2026-11-10); Codex comes
 before 1.0 (1.127). Pi is left out: its users are another public, unlikely to use Menkar; it is
-reconsidered if asked (the human, 2026-11-14). An agent is more than a command: Menkar needs, per agent, how to start
+reconsidered if asked (the human, 2026-11-14). Gemini CLI is left out too: its
+sign-in for individuals is no longer served (2026-11-14). An agent is more than a command: Menkar needs, per agent, how to start
 and resume a session,
 where its transcripts live and their format (the session list, names, Usage's time and tokens, the
 classifier's input), how its running state shows in the terminal (agent-state detection), and what

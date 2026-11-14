@@ -216,13 +216,16 @@ test('USG-51 the footer adds the last limits Claude Code reported, rounded', asy
 async function delayPeriod(app: ElectronApplication, period: string, ms: number): Promise<void> {
   await app.evaluate(
     ({ ipcMain }, { period, ms }) => {
-      type Handler = (event: unknown, request: { kind: string; period?: string }) => unknown
+      type Handler = (
+        event: unknown,
+        request: { which: { kind: string; period?: string } },
+      ) => unknown
       const handlers = (ipcMain as unknown as { _invokeHandlers: Map<string, Handler> })
         ._invokeHandlers
       const original = handlers.get('usage:view')
       if (!original) throw new Error('no usage:view handler')
       handlers.set('usage:view', async (event, request) => {
-        if (request.period === period) await new Promise((r) => setTimeout(r, ms))
+        if (request.which.period === period) await new Promise((r) => setTimeout(r, ms))
         return original(event, request)
       })
     },
@@ -265,6 +268,53 @@ for (const slow of ['30d', 'today'] as const) {
     }
   })
 }
+
+test('decision 1.131: while a report is on its way the table gives way to the turning star; the header stays usable', async () => {
+  const launched = await launchApp({
+    prepare: ({ home }) => {
+      sessions(home, [
+        { id: 'recent', minutesAgo: 30, exec: 10 },
+        { id: 'ten-days-ago', minutesAgo: 10 * 24 * 60, exec: 10 },
+      ])
+      return undefined
+    },
+  })
+  try {
+    // the star's rules moved to their own sheet: the main window still turns its stars
+    const spins = (page: Page) =>
+      page.evaluate(() => {
+        const probe = document.createElement('div')
+        probe.className = 'turning'
+        probe.innerHTML = '<svg></svg>'
+        document.body.append(probe)
+        const name = getComputedStyle(probe.querySelector('svg') as Element).animationName
+        probe.remove()
+        return name
+      })
+    expect(await spins(launched.window)).toBe('turning-star')
+    const usage = await openUsage(launched.app, launched.window)
+    const star = usage.locator('[data-key="loading"]')
+    await expect(usage.locator('.usage-row.session')).toHaveCount(1)
+    await usage.locator('[data-toggles="view"] [data-value="chart"]').click()
+    await expect(star).toHaveCount(0)
+    await usage.locator('[data-toggles="view"] [data-value="totals"]').click()
+    await expect(star).toHaveCount(0)
+    await delayPeriod(launched.app, '30d', 2000)
+    await usage.locator('[data-toggles="period"] [data-value="30d"]').click()
+    await expect(star).toBeVisible()
+    await expect(star.locator('svg')).toHaveCSS('animation-name', 'turning-star')
+    await expect(usage.locator('.usage-table')).toHaveCount(0)
+    // the footer's figures are the old period's too, so they go with the table
+    await expect(usage.locator('[data-key="footer"]')).toHaveCount(0)
+    await expect(pressed(usage, 'period')).toHaveText('30 days')
+    await expect(star).toHaveCSS('opacity', '1')
+    await shot(usage, 'test-results/usage/loading.png')
+    await expect(star).toHaveCount(0, { timeout: 5000 })
+    await expect(usage.locator('.usage-row.session')).toHaveCount(2)
+  } finally {
+    await launched.close()
+  }
+})
 
 test('LOOK-50 By day: the first three projects and "Other" in their fixed colors, dark and light', async () => {
   for (const scheme of ['dark', 'light'] as const) {
@@ -503,6 +553,18 @@ test('decision 1.15: with classification on, one project stacks by category; Tot
     const usage = await openUsage(launched.app, launched.window, true)
     await expect(usage.locator('.usage-row.project .name')).toHaveText(['Shop'])
     await expect(usage.locator('.usage-row.category .name')).toHaveText(['Unclassified'])
+    // decision 1.130: a project opens expanded, its categories collapsed until clicked
+    const category = usage.locator('.usage-row.category')
+    await expect(usage.locator('.usage-row.project .arrow')).toHaveText('▾')
+    await expect(category.locator('.arrow')).toHaveText('▸')
+    await expect(usage.locator('.usage-row.session')).toHaveCount(0)
+    await shot(usage, 'test-results/usage/totals-categories.png')
+    await category.locator('.arrow').click()
+    await expect(category.locator('.arrow')).toHaveText('▾')
+    await expect(usage.locator('.usage-row.session .name')).toHaveText(['shop-1'])
+    await category.locator('.arrow').click()
+    await expect(category.locator('.arrow')).toHaveText('▸')
+    await expect(usage.locator('.usage-row.session')).toHaveCount(0)
     await usage.locator('[data-toggles="view"] [data-value="chart"]').click()
     await expect(usage.locator('.legend-item')).toHaveText(['Unclassified'])
     await expect(usage.locator('[data-toggles="stack"] button')).toHaveText(['Category', 'Model'])

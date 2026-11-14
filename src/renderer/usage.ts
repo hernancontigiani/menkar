@@ -1,6 +1,7 @@
 import './windows.css'
 import './usage.css'
 import './segmented.css'
+import './turning.css'
 import { now } from '../core/clock'
 import { latestOnly } from '../core/latest'
 import { resolveLook } from '../core/theme'
@@ -31,6 +32,7 @@ import { arrows, type Month, type StepperState, step } from '../core/usage/stepp
 import { el } from './dom'
 import { loadCatalog, t } from './i18n'
 import { applyLook } from './look'
+import { STAR_SVG } from './star'
 
 // The Usage window: a period, its Totals as a table or By day as a stacked chart, and a footer.
 
@@ -44,7 +46,11 @@ const state = {
   stack: 'project' as Stack,
   stepper: { month: thisMonth(), all: false } as StepperState,
   collapsed: new Set<string>(),
+  // category rows start collapsed, so what is kept for them is which ones were opened
+  expanded: new Set<string>(),
   data: null as UsageView | null,
+  // a report is on its way: the table or chart gives way to the turning star, the header stays
+  loading: false,
   dark: true,
   locale: 'en',
   // every project instead of the opener window's
@@ -139,7 +145,8 @@ function byModel(node: Node): string {
 
 function tableRow(node: Node, depth: number, path: string, rows: HTMLElement[]): void {
   const hasChildren = node.children.length > 0
-  const collapsed = state.collapsed.has(path)
+  const opened = node.kind === 'category' ? state.expanded : null
+  const collapsed = opened ? !opened.has(path) : state.collapsed.has(path)
   const arrow = el(
     'button',
     { class: 'arrow', 'aria-label': node.label, ...(hasChildren ? {} : { 'aria-hidden': 'true' }) },
@@ -147,7 +154,10 @@ function tableRow(node: Node, depth: number, path: string, rows: HTMLElement[]):
   )
   if (hasChildren) {
     arrow.addEventListener('click', () => {
-      if (collapsed) state.collapsed.delete(path)
+      if (opened) {
+        if (collapsed) opened.add(path)
+        else opened.delete(path)
+      } else if (collapsed) state.collapsed.delete(path)
       else state.collapsed.add(path)
       render()
     })
@@ -521,19 +531,32 @@ function render(): void {
     }
     views.append(stack)
   }
+  if (state.loading) {
+    body.append(views, loadingStar())
+    app.replaceChildren(top, body)
+    return
+  }
   const drawn = state.view === 'chart' ? chartBox(view) : null
   body.append(views, drawn ? drawn.box : table(view), ...footer(view))
   app.replaceChildren(top, body)
   drawn?.draw()
 }
 
+function loadingStar(): HTMLElement {
+  const star = el('span', { class: 'turning-star' })
+  star.innerHTML = STAR_SVG
+  return el('div', { class: 'usage-loading turning dim', 'data-key': 'loading' }, star)
+}
+
 // A pass, then the report.
 async function refresh(): Promise<void> {
   const current = askReport()
+  state.loading = true
   render()
   const view = await window.menkar.usage.view(which(), state.allProjects)
   if (!current()) return
   state.data = view
+  state.loading = false
   if (!view.categories) state.stack = 'project'
   render()
 }

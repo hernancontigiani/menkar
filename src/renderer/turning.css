@@ -1,0 +1,24 @@
+/* While the first scan runs: the star turns, shown only once the wait passes 300 ms, so a fast
+   start never flashes it; still with reduced motion. */
+.turning {
+  opacity: 0;
+  animation: turning-appear 0s linear 300ms forwards;
+}
+.turning svg {
+  animation: turning-star 2.4s linear infinite;
+}
+@keyframes turning-appear {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes turning-star {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turning svg {
+    animation: none;
+  }
+}
