@@ -37,9 +37,9 @@ decided.
 | Mechanism | Claude Code | Codex | Cursor | OpenCode |
 |---|---|---|---|---|
 | **Where** | `~/.claude/projects/<cwd>/<id>.jsonl`; **deleted after `cleanupPeriodDays`** (default 30) (r, cc 3) | `~/.codex/sessions/Y/M/D/rollout-*.jsonl`; `.zst` after 7 days; index `state_5.sqlite` (m, codex §1.2) | `~/.cursor/projects/<slug>/agent-transcripts/<id>/<id>.jsonl`; **rewritten**, not append-only (m, cursor §1.2) | SQLite `opencode.db` (`session_v2`, `session_message`), WAL; read-only works while written (m, oc §1.2); parts inline in `session_message.data.content`, `session_part` empty (m, oc M20) |
-| **Turn boundaries** | user message to the next (in use, `src/core/usage/`) | `task_started` / `task_complete` (m, codex M10) | `turn_ended` in the transcript; `beforeSubmitPrompt` / `stop` hooks for times (m, cursor §1.2) | `idle` message per execution; **one idle can close several user messages** (m, oc M16) |
-| **Time per turn** | transcript timestamps (in use) | `task_complete.started_at/completed_at/duration_ms` (m, codex M10) | **not in the transcript** (only a minute-precision `<timestamp>` inside each user text); from when the `beforeSubmitPrompt` and `stop` hooks run (m, cursor §1.2) | per model step: `assistant.time{created, firstToken, streamed, completed}` (m, oc M20); a turn sums its steps (i) |
-| **Tokens per turn** | transcript `usage` (in use) | `token_count.info.last_token_usage` (m) | **only from hooks** (`stop`, `afterAgentResponse`: input, output, cache read, cache write); `model` is `default` under `auto`, so a turn's model is unknown (m, cursor M6) | per step, `assistant.tokens` (m); summed per turn (i) |
+| **Turn boundaries** | user message to the next (in use, `src/core/usage/`) | `task_started` / `task_complete` (m, codex M10) | `turn_ended` in the transcript; `beforeSubmitPrompt` / `stop` hooks for times (m, cursor §1.2), the hooks only with a same-event entry in the user's or the project's `hooks.json` (m, cursor M12) | `idle` message per execution; **one idle can close several user messages** (m, oc M16) |
+| **Time per turn** | transcript timestamps (in use) | `task_complete.started_at/completed_at/duration_ms` (m, codex M10) | **not in the transcript** (only a minute-precision `<timestamp>` inside each user text); from when the `beforeSubmitPrompt` and `stop` hooks run (m, cursor §1.2), which needs that same entry (m, cursor M12) | per model step: `assistant.time{created, firstToken, streamed, completed}` (m, oc M20); a turn sums its steps (i) |
+| **Tokens per turn** | transcript `usage` (in use) | `token_count.info.last_token_usage` (m) | **only from hooks** (`stop`, `afterAgentResponse`: input, output, cache read, cache write), and **only if the user's `~/.cursor/hooks.json` or the project's `.cursor/hooks.json` has the same event**; otherwise no tokens at all. `model` is `default` under `auto`, so a turn's model is unknown (m, cursor M6, M12) | per step, `assistant.tokens` (m); summed per turn (i) |
 | **Cost** | exact, from the statusline's `cost.total_cost_usd`, appended to `usage.jsonl` (ctx; cc 3) | none in data; Menkar's price table (i) | none (i) | **`cost` in USD in the data** (m, oc M20) |
 | **Last reply** | transcript tail (`last_reply`, sc) | `task_complete.last_agent_message` (m) | last assistant text before `turn_ended`, or `afterAgentResponse.text` (m) | the last `assistant` text before `idle` (m for the rows, oc M20; i for walking back past tool-call steps) |
 
@@ -47,27 +47,27 @@ decided.
 
 | Mechanism | Claude Code | Codex | Cursor | OpenCode |
 |---|---|---|---|---|
-| **Running state without the screen** | Stop hook ~50 ms after the turn (m); registry `status` idle/busy/waiting + `waitingFor` (m; a monitor makes it read busy); Notification hook `permission_prompt` after ~6 s (r) (cc 4) | `-c notify` at turn end, ~1 s; no start signal (m, codex M7) | plugin hooks `beforeSubmitPrompt`/`stop`, no trust; `stop` in the same ms as `afterAgentResponse`; of the two runs whose turns succeeded, one fired neither (m, cursor M5); no permission-prompt hook, but `beforeMCPExecution` fired before the MCP card was answered (m) | server events `session.execution.*`, `permission.asked` (m, oc M21); also `session_v2.time_busy > time_idle` (m, oc M17); no hook, trust or write |
+| **Running state without the screen** | Stop hook ~50 ms after the turn (m); registry `status` idle/busy/waiting + `waitingFor` (m; a monitor makes it read busy); Notification hook `permission_prompt` after ~6 s (r) (cc 4) | `-c notify` at turn end, ~1 s; no start signal (m, codex M7) | plugin hooks `beforeSubmitPrompt`/`stop`, no trust, but **only if Cursor's own `hooks.json` (user or project) has the same event**; per run alone, only `sessionStart` (new chats only), `sessionEnd` and `beforeMCPExecution` (m, cursor M12); `stop` comes in the same ms as `afterAgentResponse` (m, cursor M5) | server events `session.execution.*`, `permission.asked` (m, oc M21); also `session_v2.time_busy > time_idle` (m, oc M17); no hook, trust or write |
 | **Screen strings** | in use (`detect.ts`); the footer's pills read from the binary, not yet a real screen (cc 4) | "Working (… esc to interrupt)"; "Would you like to run…"; `› ` (r, codex §1.3) | "Thinking N tokens"; "Run this command?"; "→ Add a follow-up" (m, cursor M8); the trust prompt "Workspace Trust Required … [a] Trust this workspace" (m, cursor M1) | "⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt"; "△ Permission required" (m, oc M14, M17); "Ask anything…" (r); the tab's spinner also turns while a message only waits in the inbox (m, oc M8) |
-| **Waking an idle session** | post to the messaging socket: **~50 ms** (m); socket and auth documented, frame not (`peerProtocol 1`); `crossSessionInbound:"accept"` in `--settings` (cc 5) | **`codex queue`**: ~5 s embedded, ~8 s through the daemon; ≤10 s polling (m, codex M1, M12) | **no channel**: end and `--resume <id> "<event>"`, a restart of a few seconds plus re-indexing (m, not timed); headless `-p --resume` is lost (m, cursor §2) | **`POST …/prompt {delivery:"queue"}`** on Menkar's server: ~50 ms (m, oc M13) |
-| **Behind a pending permission** | held, card untouched, delivered when it closes (m; only Esc was tested); never approves (r) (cc 5) | held 25 s, ran right after approval (m, codex M2) | `followup_message` waits for the turn's `stop`, after the card closes (i); end-and-resume must wait for idle, because ending at a card drops it (i) | held 25 s, ran 1.6 s after approval (m, oc M14) |
+| **Waking an idle session** | post to the messaging socket: **~50 ms** (m); socket and auth documented, frame not (`peerProtocol 1`); `crossSessionInbound:"accept"` in `--settings` (cc 5) | **`codex queue`**: ~5 s embedded, ~8 s through the daemon; ≤10 s polling (m, codex M1, M12) | **no channel**: end and `--resume <id> "<event>"`, a restart of a few seconds plus re-indexing (m, not timed); headless `-p --resume` is lost (m, cursor §2). A working session: `stop`'s `followup_message` starts a new turn ~2.4 s after `stop` (m, cursor M13), only with a `stop` entry in the user's or project's `hooks.json`; a `stop` hook that waits leaves the session idle and typable, and its late answer was delivered twice (m, cursor M14) | **`POST …/prompt {delivery:"queue"}`** on Menkar's server: ~50 ms (m, oc M13) |
+| **Behind a pending permission** | held, card untouched, delivered when it closes (m; only Esc was tested); never approves (r) (cc 5) | held 25 s, ran right after approval (m, codex M2) | `followup_message` is returned at the turn's `stop`, after the card closes (i); end-and-resume must wait for idle, because ending at a card drops it (i) | held 25 s, ran 1.6 s after approval (m, oc M14) |
 | **A half-typed draft** | kept (i): the message goes through the command queue, not the input box (binary, wake-orchestrator §1.2); not measured with a draft | kept (m, codex M3) | lost on end-and-resume (i); kept by `followup_message` (i) | kept (m, oc M15) |
-| **Marked as not from the user** | yes, two shapes: `SendMessage` arrives as `<cross-session-message from=… from-name=…>` (observed, 2.1.325); a Menkar socket post as "Another Claude session sent a message: …" plus the not-your-user note, with no tag and no sender name (m, wake-probes §1) | no: a user message (m) | no: the resume prompt arrives as an ordinary `<user_query>` (m, cursor M3); `followup_message`'s marking is unknown | no: a user message; a `synthetic` post exists, unprobed (r) |
+| **Marked as not from the user** | yes, two shapes: `SendMessage` arrives as `<cross-session-message from=… from-name=…>` (observed, 2.1.325); a Menkar socket post as "Another Claude session sent a message: …" plus the not-your-user note, with no tag and no sender name (m, wake-probes §1) | no: a user message (m) | no: both the resume prompt and `followup_message` show, and are stored, as an ordinary user message (`<user_query>`) (m, cursor M3, M13) | no: a user message; a `synthetic` post exists, unprobed (r) |
 | **Messaging another session by name** | `SendMessage`, native, on the same socket (not timed; ~50 ms is a Menkar post's figure); drained at the receiver's next tool round, or a new turn if idle (r); by name, `notify_when_idle`, verified sender, reply-by-`from`, delivery feedback, other machines through Remote Control; **reaches only Claude Code sessions** (r, cc 6) | none (r) | none (r) | none; its native child sessions (`session.create {parentID}`) report to the parent's inbox, but they are hidden subagent sessions, not tabs (r/i, oc §2) |
 
 ### 1.4 Menkar's MCP, skills, instructions
 
 | Mechanism | Claude Code | Codex | Cursor | OpenCode |
 |---|---|---|---|---|
-| **How passed per session** | `--mcp-config` inline, added to the user's servers (m); tools are deferred, so one ToolSearch step (m); ~0.06 s start, ~17 MB RSS per session (m, cc 7) | `-c mcp_servers.menkar.*`, which makes the TUI run embedded (m, codex M5–6) | `--plugin-dir` with `.mcp.json` (m, cursor M4); a folder per pane is a proposal (i); Cursor started the server twice per session (m), and whether both stay alive is unknown | `OPENCODE_CONFIG_CONTENT` on **Menkar's own `opencode serve`**, one extra long-lived process per Menkar (m, oc M10); TUIs start with `--server <url>` and `OPENCODE_PASSWORD` (m, oc M8) |
+| **How passed per session** | `--mcp-config` inline, added to the user's servers (m); tools are deferred, so one ToolSearch step (m); ~0.06 s start, ~17 MB RSS per session (m, cc 7) | `-c mcp_servers.menkar.*`, which makes the TUI run embedded (m, codex M5–6) | `--plugin-dir` with `.mcp.json` (m, cursor M4); a folder per pane is a proposal (i); Cursor started the server twice per session (m), and whether both stay alive is unknown; per-pane folders must share one basename (e.g. `…/<pane>/menkar`) so that one allowlist entry covers every pane (m, cursor M16) | `OPENCODE_CONFIG_CONTENT` on **Menkar's own `opencode serve`**, one extra long-lived process per Menkar (m, oc M10); TUIs start with `--server <url>` and `OPENCODE_PASSWORD` (m, oc M8) |
 | **Does the pty's env reach the server** | **yes** (`MENKAR_PANE`) (m, sc) | **no**; `env={…}` in the config does (m, codex M6) | **no**; `.mcp.json` `env` does (m, cursor M4) | **no**; the server's whole env does, including its password (m, oc M10); the pty's env does reach the session's shell commands (r, oc §1.6) |
-| **Caller identity** | `MENKAR_PANE` | `MENKAR_PANE` in `env` | `MENKAR_PANE` in a per-pane `.mcp.json` | `_meta["ai.opencode/sessionID"]` on each call (m, oc M18) |
-| **Approval card for Menkar's tools** | none with `permissions.allow` in `--settings` (m, ctx) | none with `default_tools_approval_mode="approve"` (m, codex M6) | **a card at every call**; nothing per run narrower than `--force` (the card m; the rest r; `--approve-mcps` unmeasured) | none with `permission {"menkar_*":"allow"}`; needs `codemode:false` to see the tools at all, so their schemas go in every request (m/i, oc M18); without the `allow` rule unprobed |
+| **Caller identity** | `MENKAR_PANE` | `MENKAR_PANE` in `env` | `MENKAR_PANE` in a per-pane `.mcp.json` | `_meta["ai.opencode/sessionID"]` on each call (m, oc M18, M27); a session made by `/new` calls with an id nothing ties to its pane, so Menkar binds it with a per-pane proxy (m, oc M29) |
+| **Approval card for Menkar's tools** | none with `permissions.allow` in `--settings` (m, ctx) | none with `default_tools_approval_mode="approve"` (m, codex M6) | **a card at every call**; nothing per run narrower than `--force` (the card m; the rest r; `--approve-mcps` unmeasured); "Allowlist MCP Tool" writes `Mcp(<server>:<tool>)` into `permissions.allow` of the user's `~/.cursor/cli-config.json`; the server is named `plugin-<folder basename>-<.mcp.json key>`, not after the manifest's `name` (m, cursor M15–M16) | none with `permission {"menkar_*":"allow"}`; needs `codemode:false` to see the tools at all, so their schemas go in every request (m/i, oc M18); without the `allow` rule unprobed |
 | **Skills per session** | `--plugin-dir` as `menkar:<name>` (m); descriptions ~1,670 characters (m), ~420 tokens per turn (i), cached; bodies 5–13 KB, ~1.2–3.3k tokens (i), once, re-attached after compaction (r, cc 8) | **none**: no flag or `-c` adds a skills folder (r, codex §4) | `--plugin-dir`; may take Menkar's plugin as it is (m for `skills/`; r that `.claude-plugin/plugin.json` is accepted; i that Menkar's plugin loads as it is) | config key `skills` (m with v1's `{paths:[dir]}`, oc M19; the `[dir]` form r) |
 | **Project instructions** | `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` (cwd and above; subfolders on demand), `@`-imports (4 hops), `.claude/rules`; **`AGENTS.md` only when no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the cwd or above** (2.1.277+); `.claude/rules` loads either way; `@AGENTS.md` in `CLAUDE.md` loads it once (r, cc 9) | `AGENTS.md` root→cwd, 32 KiB; `project_doc_fallback_filenames` can name `CLAUDE.md` (r, codex §5) | `AGENTS.md`, `CLAUDE.md` (behind a "third-party" setting, on by default) and `.cursor/rules/*.mdc`; measured in the cwd, read up to `/`; 100 KB each (r); no `.claude/rules` | **`AGENTS.md` only**, no size limit; `instructions: [file]` per run, the file's size in every request (m, oc §5) |
 | **Status line / context** | Menkar's own statusline in `--settings`, chaining the user's; stdin has context, cost and rate limits (r/m, cc 10) | built-in only; context from `token_count` (r) | footer `Auto · 4.4%`; a command status line only in the user's `cli-config.json` (footer m; status line r, cursor §1.4) | no external status line (r); TUI footer "1.0K (1%)" (m, oc M12); `GET /api/session/<id>/context` (route m, fields unprobed); TUI plugins only (r) |
 | **Remote mode** | **Remote Control**, per session (`--remote-control[=name]`); needs claude.ai auth (r, cc 11) | daemon-wide, experimental; not for embedded sessions (r, codex §1.5) | none for a local session (r) | server-wide `opencode pair` (r) |
-| **Writes to the user's config** | none by Menkar except what the human accepts in the integrations menu (statusline, `cleanupPeriodDays`) (ctx); Claude itself writes `pluginUsage`/`skillUsage` in `~/.claude.json` (m, sc) | none by Menkar; trust by the human (m) | none by Menkar; trust by the human; allowlisting from the card writes config (m) | none to config by Menkar (m); but Menkar's API calls make OpenCode write `opencode.db`: the session row with its id and title, and each wake's inbox row, of the same nature as `codex queue`'s SQLite queue (m, oc M6, M7) |
+| **Writes to the user's config** | none by Menkar except what the human accepts in the integrations menu (statusline, `cleanupPeriodDays`) (ctx); Claude itself writes `pluginUsage`/`skillUsage` in `~/.claude.json` (m, sc) | none by Menkar; trust by the human (m) | none by Menkar; trust by the human; allowlisting from the card writes `~/.cursor/cli-config.json` (m); Menkar's turn hooks would need an entry in `~/.cursor/hooks.json` (m, cursor M12; D13) | none to config by Menkar (m); but Menkar's API calls make OpenCode write `opencode.db`: the session row with its id and title, and each wake's inbox row, of the same nature as `codex queue`'s SQLite queue (m, oc M6, M7) |
 
 ## 2. Per mechanism: unify through Menkar, or keep native
 
@@ -83,15 +83,15 @@ The layers named below:
 | Choosing the id | **Keep native**; Codex binds the id from `notify` (rollout must exist) | Three agents let Menkar choose; Codex cannot, and needs no workaround | Unchanged |
 | Naming | **Keep native**: Menkar shows the agent's own name or title, and sets one at start only where the agent's start does (`-n`, `session.create {title}`) | The rule "the name is the one the agent has" holds per agent; see decision D5 for Codex and Cursor | Unchanged |
 | Transcripts and Usage | **Unify the model, keep the readers native**: one reader per agent in `src/core/`, all feeding `src/core/usage/` | Each format is different, and Usage must stay one definition (CLAUDE.md); D9 picks OpenCode's "turn" | Unchanged: the Claude reader stays as it is |
-| Running state | **Keep native** per agent: the screen plus the agent's own signal | No signal is common; each is free or near free | Unchanged |
+| Running state | **Keep native** per agent: the screen plus the agent's own signal | No signal is common; each is free or near free. Cursor's is free only with the consented `hooks.json` entry (D13) | Unchanged |
 | Waking (Menkar → session) | **Unify the interface `wake(session, text)` (it exists, 1.72); keep each transport native**: socket, `codex queue`, inbox post, end-and-resume | Each agent's channel is its fastest; nothing common is as fast as Claude's socket | Unchanged |
 | A session messaging another by name | **Bridge, do not replace** (1.129): Claude keeps `SendMessage`; Menkar adds a `send_message` tool, routed through `wake`, for the sessions that need it (D3) | `SendMessage` is ~50 ms with a verified sender, `notify_when_idle` and delivery feedback; a Menkar route adds a file hop (fs.watch plus a ≤1 s poll; 10 s is the timeout) plus the 3 s wake batch if it rides the batcher and loses all of that (cc 13) | Nothing, if the tool is not listed in Claude-only projects (D3) |
 | Menkar's MCP server | **Unify the server; keep the transport native** per agent (`--mcp-config`, `-c`, `--plugin-dir`, `OPENCODE_CONFIG_CONTENT`) | One program and one set of tools; how it is mounted cannot be common | Unchanged |
-| Caller identity | **Server accepts two ways**: `MENKAR_PANE` (Claude, Codex, Cursor), or OpenCode's `_meta` session id mapped to a pane | Only OpenCode's MCP server is one process per folder on one server, shared by its sessions, with the server's env (m, oc M10). So Menkar's `opencode serve` must carry **no** `MENKAR_PANE`, or every OpenCode call would pass as that pane (i). A session Menkar did not create (the human's `/new` in a Menkar tab) has an id Menkar never mapped: the server learns it from the event stream or refuses it (i; a design point) | Unchanged |
+| Caller identity | **Server accepts two ways**: `MENKAR_PANE` (Claude, Codex, Cursor), or OpenCode's `_meta` session id mapped to a pane through a per-pane proxy (D14) | Only OpenCode's MCP server is one process per folder on one server, shared by its sessions, with the server's env (m, oc M10). So Menkar's `opencode serve` must carry **no** `MENKAR_PANE`, or every OpenCode call would pass as that pane (i). A session Menkar did not create (the human's `/new`, or a click on another tab of OpenCode's shared tab list) has an id Menkar never mapped, and **the event stream cannot bind it**: `session.created`/`session.viewed` name no client, and the TUI's environment is kept only in the server's memory (m, oc M26–M28). **A per-pane proxy binds it exactly**: each OpenCode pane gets its own loopback port forwarding to the one server, and the pane's `POST /api/session/<id>/view` and `…/prompt` name its current session (m, oc M29), with no extra process. A server per pane also works (`MENKAR_PANE` in its env), at ~270 MB per tab (m, oc M30) | Unchanged |
 | Approval for Menkar's tools | **Keep native** per agent; Cursor is D7 | Three agents allow it per run. For Cursor, a per-pane folder must keep **one folder basename** for every pane, because Cursor names the server `plugin-<folder name>-<server>` (m); otherwise an allowlisted tool would match only one pane (i) | Unchanged |
 | Skills | **Keep native** where per-session exists (Claude and Cursor: `--plugin-dir`; OpenCode: `skills`); **serve through the MCP server only for Codex** (`load_skill`, or `developer_instructions`) | For Claude, an MCP `load_skill` would save ~420 cached tokens per turn, but costs a ToolSearch hop per load and loses the description trigger, `/menkar:<name>` and the re-attachment after compaction (cc 13) | Unchanged, *if* the skills' text stays as it is for Claude (D10) |
 | Project instructions | **Keep native**; for this repository, D11 | Each agent reads its own file; per-session pointers (`project_doc_fallback_filenames`, `instructions`) exist for Codex and OpenCode | Unchanged |
-| Status line and context | **Keep native**: Claude's statusline; Codex's `token_count`; Cursor's `stop` tokens, which give a context percentage only with a per-model window, unknown under `auto`; OpenCode's API | Claude's reading is the richest (cost included), and the others cannot match it | Unchanged |
+| Status line and context | **Keep native**: Claude's statusline; Codex's `token_count`; Cursor's `stop` tokens (only with the D13 entry), which give a context percentage only with a per-model window, unknown under `auto`; OpenCode's API | Claude's reading is the richest (cost included), and the others cannot match it | Unchanged |
 | Remote mode | **Keep native**; only Claude declares one (an agent-entry field) | Others are daemon- or server-wide, or absent | Unchanged |
 | Trust prompts | **Keep native**: the human answers on the agent's own screen; Menkar never pre-writes the trust file (agent-deck does) | A write to the agent's data is the human's (CLAUDE.md); state detection must show these prompts as waiting (Cursor's matches no rule today, `cursor §1.3`) | Unchanged |
 | Environment for children | **Unify the mechanism** (`withoutSessionEnv`), **extend the list** per agent (`codex §1.7`, `cursor §1.7`, `oc §1.7`) | A list costs nothing at run time | Unchanged |
@@ -110,7 +110,7 @@ for them.
 - Starting any agent from `start_session`.
 - Menkar's tools in every session.
 - Waking a parent of any agent: Claude by the socket, Codex by `codex queue`, OpenCode by the
-  inbox, Cursor by `stop`'s `followup_message` when the parent is mid-turn (unmeasured), else
+  inbox, Cursor by `followup_message` if it is mid-turn (measured, needs D13), else
   end-and-resume.
 - Reading any child's report with `last_reply`, through its agent's reader.
 
@@ -123,7 +123,7 @@ for them.
   allowlist, at every Menkar tool call (D7). A Cursor worker also waits for the human at each
   Menkar tool call unless allowlisted, so it is a weak unattended worker too. agent-deck forbids OpenCode as a conductor, for its
   own reasons (`oc §3`).
-- **OpenCode sessions need Menkar's own `opencode serve` running** (D9). Without it, Menkar can show OpenCode sessions read only, but not start, wake or serve them.
+- **OpenCode sessions need Menkar's own `opencode serve` running** (D9). Without it, Menkar can show OpenCode sessions read only, but not start, wake or serve them. OpenCode's tabs are shared by every TUI of the user, so a Menkar pane can switch into another pane's session or the human's (m, oc M31): Menkar binds per pane through its proxy (D14), not per tab.
 - **The skills name Claude Code tools** (`SendMessage`, `--plugin-dir`); other agents need their
   own wording (D10).
 - **Usage across agents** is comparable in time and tokens. Cost exists only for Claude (the
@@ -145,7 +145,8 @@ for them.
 - Options: native channels (Codex `codex queue`, OpenCode the inbox post); typing into the
   terminal; end-and-resume.
 - **Recommended: the native channels.** For Cursor: `stop`'s `followup_message` for a working
-  session, end-and-resume for an idle one. Typing stays plan B for Cursor only, if the restart
+  session, end-and-resume for an idle one. `followup_message` is measured to work, but needs D13; without it, every Cursor wake is
+  end-and-resume. Typing stays plan B for Cursor only, if the restart
   cost proves too high.
 - Nothing is typed for Codex or OpenCode, and both are measured to keep drafts and approvals.
 
@@ -187,7 +188,7 @@ for them.
 - **Recommended: `-c notify`**, stated in the integrations page, with the screen as the fallback.
 
 **D7. Cursor's approval card at every Menkar tool call.**
-- Options: accept it; the human allowlists from the card once (Cursor writes their config: `cli-config.json` or the project's `.cursor/cli.json`, which one is unmeasured); the
+- Options: accept it; the human allowlists from the card once (Cursor writes `~/.cursor/cli-config.json` `permissions.allow`; one entry covers every pane if Menkar's per-pane folders share a basename); the
   project's `.cursor/cli.json`; `--force`.
 - **Recommended: accept it, and let the human allowlist once from the card.** `--force` approves
   everything.
@@ -203,7 +204,21 @@ for them.
 **D9. OpenCode needs Menkar's own `opencode serve`.**
 - Options: Menkar runs one (loopback, its own password, stopped with Menkar); use the user's
   shared service, where per-run config cannot reach a session (only `PUT /api/experimental/mcp/<server>` could add Menkar's MCP there: per folder, for every session of the user in that folder, until the service restarts, a change to the user's running agent; r, oc §4); no OpenCode in the orchestration mode.
-- **Recommended: Menkar's own server.** Cost: one long-lived `opencode serve` per Menkar (memory unmeasured), started with the first OpenCode tab.
+- **Recommended: Menkar's own server.** Cost: one long-lived `opencode serve` per Menkar, about 270 MB resident after a few turns (m, oc M30), started with the first OpenCode tab.
+- **One session in two servers runs two turns at once** (m, oc M22–M25):
+  - Menkar's server and the human's service share `opencode.db` without error.
+  - A queued post to one server does not wait for a turn running on the other.
+  - Each TUI shows only its own server's activity.
+  - The history interleaves by write order, so a reply can land after a later exchange.
+  - `integrity_check` stays `ok`, and `time_busy` is last-writer-wins.
+  - OpenCode's tab list is shared by every TUI of the user
+    (`$XDG_STATE_HOME/opencode/latest/tui/tabs.json`, m, oc M31). The human's own TUI lists
+    Menkar's sessions, and one click opens a running one.
+  - Options: accept it as the human's choice, as for a Claude session resumed twice; warn when the
+    database shows the session busy (`time_busy > time_idle`) with no Menkar turn; refuse to
+    start or wake it then.
+  - **Recommended: warn**, without refusing. Whether the busy check is reliable across servers is
+    unprobed.
 - Also decided with it: OpenCode's "turn" for Usage. **Recommended: one per user message**, as
   for Claude, so that counts compare. A steered or queued message that arrives during an
   execution starts a new turn at its own `user` row. The execution's `idle` outcome
@@ -240,20 +255,41 @@ tool. Codex: `NO_COLOR`, `TERM=dumb`, `PAGER=cat`. Cursor: `NO_COLOR=1`, `TERM=d
   weigh stripping them with the identity set. An inherited `CURSOR_ASKPASS_SOCKET` would point a
   child's git credential prompts at the parent's socket.
 
+**D13. Cursor's turn hooks need an entry in the user's `~/.cursor/hooks.json`.**
+- A per-run plugin's `stop`, `beforeSubmitPrompt` and `afterAgentResponse` do not run without a
+  same-event entry in the user's or the project's `hooks.json` (m, cursor M12).
+- Options:
+  - an integrations-menu item adding Menkar's hook to `~/.cursor/hooks.json`: consented,
+    removable, and telling panes apart by `MENKAR_PANE`, which the hooks see;
+  - the project's `.cursor/hooks.json`, which is the user's repository;
+  - none, leaving Cursor with the screen and the transcript only: no turn-end signal, no tokens
+    for Usage, no `followup_message`.
+- **Recommended: the integrations-menu item.** Without it, Cursor's Usage has no tokens and its
+  wake is always a restart.
+
+**D14. Binding an OpenCode pane's caller after `/new`.**
+- Options: a per-pane proxy in Menkar's main process (exact, no extra process; m, oc M29); a server
+  per pane (~270 MB each; m, oc M30); refuse calls from unmapped ids with Menkar's own sentence.
+- **Recommended: the per-pane proxy.** Menkar's list then follows the pane to its new session, as
+  it does after a `/clear` for Claude.
+
 ## 5. Still unknown
 
 | Unknown | Blocks |
 |---|---|
-| Cursor: why one of two successful runs fired no `stop` / `beforeSubmitPrompt` (cursor unknown 1) | **design** for Cursor's state and Usage, which rest on hooks |
-| Cursor: whether `followup_message` starts a turn in the TUI (cursor 2) | **design** of Cursor's wake |
+| ~~Cursor: why one of two successful runs fired no `stop` / `beforeSubmitPrompt`~~ **Resolved**: plugin turn hooks need a same-event entry in Cursor's own `hooks.json` (cursor M12; D13) | — |
+| Cursor: why `sessionEnd` fires in some runs and not others; whether a project `.claude/settings.json` hook counts | build |
+| ~~Cursor: whether `followup_message` starts a turn in the TUI~~ **Resolved**: yes, ~2.4 s after `stop`, with D13 (cursor M13) | — |
+| Cursor: the default `loop_limit`, and the cause of the double delivery after a waiting `stop` hook (cursor M14) | build |
 | Cursor: `${env:…}` in a plugin's `.mcp.json`; `--approve-mcps` per call (cursor 3) | build (a folder per pane works anyway) |
 | Cursor: `--trust` in the TUI (cursor 4) | build |
-| Cursor: where "Allowlist MCP Tool" writes, and whether the server's name always follows the folder name | **design** of D7 and of the per-pane folder |
+| ~~Cursor: where "Allowlist MCP Tool" writes, and whether the server's name follows the folder name~~ **Resolved** (cursor M15–M16) | — |
 | Cursor: whether the twice-started MCP server is two live processes per session | build |
 | Cursor: whether `/rename-chat` writes `meta.json`'s `title` | D5 |
-| OpenCode: one session held by two servers at once (oc 1) | **design** of D9 |
+| ~~OpenCode: one session held by two servers at once (oc 1)~~ **Resolved** (oc M22–M25; D9) | — |
+| OpenCode: whether `time_busy > time_idle`, read across servers, is reliable enough to warn or refuse | build (D9's warning) |
 | OpenCode: a TUI of another version against Menkar's server (oc 2) | build |
-| OpenCode: a session Menkar did not create inside its tab (`/new`), and the caller's identity | **design** of caller identity |
+| ~~OpenCode: a session Menkar did not create inside its tab (`/new`), and the caller's identity~~ **Resolved** (oc M26–M29; D14) | — |
 | OpenCode: MCP approval without an `allow` rule; a `synthetic` post against a user one (oc 3) | build |
 | Codex: what the MCP status-line provider receives (codex unknowns) | nothing (context comes from `token_count`) |
 | A real model's behaviour with Menkar's skills and tools in each agent | build (tuning the texts) |

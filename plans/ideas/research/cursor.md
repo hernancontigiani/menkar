@@ -40,6 +40,11 @@ plan: nothing here is decided. Its sections mirror `codex.md`, so the two compar
 5. **Hooks need no trust and see the pty's environment** (`MENKAR_PANE` included). **MCP servers do
    not see it**: like Codex, they get only `HOME, LOGNAME, PATH, SHELL, TERM, USER` plus the
    config's `env` (measured).
+6. **But a plugin's turn hooks (`beforeSubmitPrompt`, `stop`, `afterAgentResponse`) fire only if
+   the user's `~/.cursor/hooks.json` or the project's `.cursor/hooks.json` has a hook for the same
+   event** (measured, item 12). Per run, with no file written, Menkar gets no turn-end signal,
+   no tokens and no `followup_message`. Point 4's Usage and §2's wake need one consented entry in
+   the user's `~/.cursor/hooks.json`.
 
 ## Measured on cursor-agent 2026.11.13-eacade1 (2026-11-14, a throwaway home, the human's login)
 
@@ -147,6 +152,67 @@ The start command was `HOME=<tmp> MENKAR_PANE=probe-pane cursor-agent --model au
     - The worker's socket is `/tmp/.cursor/<slug>/worker.sock` when the projects path is longer
       than 83 characters (read, bundle `index.js`). Measured here because the scratchpad path is
       long.
+
+## Second round, measured on cursor-agent 2026.11.13-eacade1 (2026-11-14, 11:17–11:30)
+
+Same conditions as the first round: a throwaway `HOME` with a copy of `auth.json`, deleted
+afterwards; `--model auto`; a private tmux server; 14 short turns over 10 runs (A–J), mostly
+`--resume <id> "Say OK …"` on one chat; every process checked by its `HOME` and stopped. The human's
+`~/.cursor` was not touched: `cli-config.json` keeps its 10:28 mtime, and there is no
+`~/.cursor/hooks.json`.
+
+12. **A plugin's turn hooks run only when Cursor's own config has a hook for the same event.**
+    `beforeSubmitPrompt`, `stop` and `afterAgentResponse` from `--plugin-dir` fire only if the same
+    event also has a hook in the project's `.cursor/hooks.json` or the user's `~/.cursor/hooks.json`.
+    The condition is per event.
+    - A (plugin only, a new chat, 2 turns): only `sessionStart` and `sessionEnd` fired.
+    - B (plugin only, `--resume`): nothing fired.
+    - C (plugin + a project `hooks.json` with only `stop`): the project's `stop` and **the
+      plugin's `stop`** fired; the plugin's `beforeSubmitPrompt` and `afterAgentResponse` did not.
+    - D (plugin + a user `~/.cursor/hooks.json` with only `stop`): both `stop`s fired.
+    - E (plugin + a Claude-format `Stop` in `~/.claude/settings.json`): nothing fired.
+    - F (plugin only again, after C–E): nothing fired, so this is not a cache.
+
+    This explains the first round. Its third run had only the plugin's hooks; its fourth had a
+    project `hooks.json` with the same events.
+    - `beforeMCPExecution` from a plugin fired alone.
+    - `sessionStart` runs only for a new chat, never on `--resume` (read, bundle `1212.index.js`:
+      the call is guarded by `!ct`, the chat to resume).
+    - `sessionEnd` fired in A, C, D and E but not in B; the condition is unknown.
+    - The client's own check (`hasHooksForStep`, bundle `4107.index.js`) counts plugin hooks. The
+      turn hooks are requested by Cursor's server (`ExecuteHookRequest`), which seems to learn of
+      user and project hooks only (inferred from the runs).
+13. **`followup_message` from a `stop` hook starts a new turn in the interactive TUI** (run G).
+    - The plugin's `stop` returned `{"followup_message":"[Menkar] probe event: reply exactly
+      FOLLOW-INDIA."}`, enabled by a no-op project `stop`.
+    - 2.4 s after the first `stop`, the model answered it: `stop` ran at 11:25:34.08 and the next
+      `stop` at 11:25:36.53.
+    - **The TUI shows it as an ordinary user message**, with the text as sent. The transcript
+      holds it as a `<user_query>`, with nothing marking it as not typed.
+    - The second `stop` had `loop_count: 1`. Only **one `turn_ended`** was written for both
+      exchanges.
+    - Each hook entry takes `loop_limit` (a positive integer, or null for none) and `timeout` in
+      seconds (read, bundle `index.js`). The default limit was not found.
+14. **A `stop` hook that waits does not hold the session** (runs G2 and G3, a 15 s `sleep` before
+    answering).
+    - During the wait the screen looked idle: the reply shown, the box, the footer, no spinner.
+    - A message the human typed and sent during the wait **ran as its own turn at once**.
+    - The late `followup_message` was then **delivered twice**: two `[Menkar] …` user messages
+      and two replies.
+    - So `followup_message` is usable only when the hook answers at once, from an event already
+      waiting.
+15. **"Allowlist MCP Tool (tab)" writes the user's `~/.cursor/cli-config.json`**, adding
+    `"Mcp(plugin-plugin-probe:probe_ping)"` to `permissions.allow` (run H). Nothing else changed
+    besides Cursor's own data and its skills manifest.
+16. **The MCP server's name follows the plugin folder's basename, not the manifest's `name`:**
+    `plugin-<folder basename>-<server key in .mcp.json>`.
+    - I: the same plugin copied to another path with the same basename `plugin`, and the manifest
+      renamed to `othername`. Cursor named it `plugin-plugin-probe`, and the allowlist from H
+      applied: no card.
+    - J: the same plugin with basename `menkar-x`. Cursor named it `plugin-menkar-x-probe` and
+      showed the card.
+    - So per-pane plugin folders that share one basename (`…/<pane>/menkar`) share one allowlist
+      entry.
 
 ## 1. The five facts
 
@@ -293,7 +359,7 @@ the user's files**:
 | Need | Per run | Measured |
 |---|---|---|
 | MCP server | `--plugin-dir` with `.mcp.json` | yes; no server prompt, one card per tool call |
-| Hooks (turn end, reply text, tokens) | `--plugin-dir` with `hooks/hooks.json` | yes; no trust prompt |
+| Hooks (turn end, reply text, tokens) | `--plugin-dir` with `hooks/hooks.json` | no trust prompt; **but the turn hooks run only if the user's or the project's `hooks.json` has the same event** (item 12) |
 | Skills | `--plugin-dir` with `skills/<name>/SKILL.md` | yes (the model found and read it) |
 | Rules | `--plugin-dir` with `rules/*.mdc` | **no**: an `alwaysApply` plugin rule was not in context |
 | Extra folders | `--add-dir` | not measured |
@@ -349,13 +415,15 @@ hand them on.
 | Way | Keeps the rule | Notes |
 |---|---|---|
 | **End and `--resume <id> "<event>"`** | **Yes** | Measured: the history is kept and the event runs as the first turn. Costs as in `wake-orchestrator.md` §5: draft lost, background shells cut, restart time (a few seconds, plus re-indexing). Cursor's only rule-keeping wake for an **idle** session |
-| A `stop` hook answering `{"followup_message": "<event>"}` | Yes | Read: `stop` and `subagentStop` take `followup_message`; `{"decision":"block","reason":…}` is turned into one; `loop_limit` caps it. **Only at the end of a turn in progress**: an event that arrives while the session works can be handed over at its turn's end without typing and without a restart. Unmeasured |
+| A `stop` hook answering `{"followup_message": "<event>"}` | Yes | **Measured** (items 13–14): a new turn about 2.4 s later, shown as an ordinary user message. **Only at the end of a turn in progress**, and only if the hook answers at once: a waiting hook leaves the session idle and typable, and its late answer was delivered twice. **Needs a `stop` entry in the user's `~/.cursor/hooks.json`** (or the project's), or the plugin's `stop` never runs (item 12) |
 | Typing into the pty (agent-deck: tmux send after a prompt check) | **No**, amends the rule | Measured fragility: the sent text stayed in the box |
 | Headless `-p --resume` into the open chat | — | Measured: lost on the TUI's next turn |
 | A blocking MCP call or a waiting `stop` hook | Yes | Keeps the turn "working" (Dorothy's model); a hook has a timeout (read: `timeoutMs`-style fields; value unknown) |
 
 **Recommendation for 2.21, for the human:** for Cursor, an event for a **working** session waits
 for its `stop` hook and goes out as `followup_message`, which keeps the rule and needs no restart.
+This needs the user's consent to a `stop` entry in `~/.cursor/hooks.json` (item 12). Without it,
+every Cursor wake is end-and-resume.
 An event for an **idle** session is end-and-resume, using the chat id Menkar chose with
 `create-chat`. Typing stays plan B only if the restart cost proves too high in practice.
 
@@ -401,7 +469,10 @@ An event for an **idle** session is end-and-resume, using the chat id Menkar cho
     Menkar.
   - **Approvals:** the server loaded with no prompt, but **every tool call showed "Run this MCP
     tool?"** (measured). The ways around it are all the human's:
-    - "Allowlist MCP Tool (tab)" on the card, which writes their config;
+    - "Allowlist MCP Tool (tab)" on the card, which writes `Mcp(<server>:<tool>)` into
+      `permissions.allow` of their `~/.cursor/cli-config.json` (measured, item 15). The server is
+      `plugin-<folder basename>-<key>`, so the per-pane folders must share one basename for one
+      entry to cover every pane (measured, item 16);
     - `permissions` in the project's `.cursor/cli.json`, which is their repository;
     - `--force`, which approves everything.
 
@@ -494,7 +565,15 @@ Read at `9fa44b5`. Cursor is a first-class tool there, launched as `agent` or `c
 7. **`start_session { agent? }` and `send_message`**, shared with Codex (`codex.md` §3).
 8. **Skills for Cursor sessions** through the plugin folder, with an agent-neutral text.
 9. **`sessionenv.ts` for Cursor:** the variables in §1.7.
-10. **What stays the human's (topics for `set`):**
+10. **The enabling hook entry.** For the plugin's `beforeSubmitPrompt`, `stop` and
+    `afterAgentResponse` to run, the user's `~/.cursor/hooks.json` needs one entry per event
+    (measured, item 12). That entry would be an integrations-menu item, accepted and removable on
+    its own, as for `~/.claude/settings.json`. It could then be Menkar's hook itself, telling panes
+    apart by `MENKAR_PANE`, which would make the plugin's hooks redundant (inferred).
+11. **What stays the human's (topics for `set`):**
+    - **whether Menkar may offer a `~/.cursor/hooks.json` entry** through the integrations menu.
+      Without it, a Cursor session gives Menkar no turn end, no tokens and no `followup_message`:
+      the screen and the transcript only;
     - 2.21 for Cursor: `followup_message` plus end-and-resume, against typing;
     - **Menkar's tools asking for approval at every call** in a Cursor session: accept it,
       allowlist once (their config or the project's `.cursor/cli.json`), or start Cursor sessions
@@ -509,11 +588,13 @@ Read at `9fa44b5`. Cursor is a first-class tool there, launched as `agent` or `c
 
 Each is asked of `set` first, and runs in a throwaway home.
 
-1. Why one run fired only `beforeMCPExecution` and no `stop` / `beforeSubmitPrompt`: whether
-   plugin hooks load late, or are skipped on some first turn.
-2. Whether `stop`'s `followup_message` starts the next turn in the TUI, and how it shows there.
+1. ~~Why a run fired no `stop` / `beforeSubmitPrompt`~~: answered, item 12. Still open: why
+   `sessionEnd` fired in some runs and not in B, and whether an entry in the project's
+   `.claude/settings.json` (another source Cursor lists) enables it.
+2. ~~Whether `followup_message` starts a turn~~: answered, items 13–14. Still open: the default
+   `loop_limit`, and the cause of the double delivery after a waiting hook.
 3. Whether `.mcp.json` in a plugin expands `${env:MENKAR_PANE}`, and whether `--approve-mcps` skips
-   the per-tool card.
+   the per-tool card. (Where the allowlist writes, and the server's name: answered, items 15–16.)
 4. Whether `--trust` skips the TUI's trust prompt, and whether it writes `.workspace-trusted`.
 5. `--add-dir` in the TUI.
 6. Whether a rename (`/rename-chat`, or the built-in skill) writes `meta.json`'s `title`.
