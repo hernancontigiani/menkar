@@ -177,3 +177,10 @@ in every window** (`closeBoards`; the human, 2026-11-13), so nothing of the mode
 > Left on 2026-11-14: the probe became a full card at a real column's width (decision 1.132).
   gaps (`defaultBoardHeight`, `src/core/orchestration/board.ts`), measured from a hidden probe card
   and the real heading, never a share of the window. A divider under it resizes it. "Show all"
+
+## The data
+
+> Left on 2026-11-14: the orchestrator sets or removes a task's ★ with `task_star` (decision 1.144); the tools are no longer counted in prose.
+    The human sets it from a task's right-click (`setTaskStar`), the orchestrator at `task_add`
+    when the human asks.
+  `topic_update`, `topic_close`, `topic_list`, the six task tools, the marks in `list_sessions`,

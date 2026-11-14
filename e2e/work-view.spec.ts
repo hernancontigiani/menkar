@@ -591,3 +591,45 @@ test('the Board at its default height shows two full cards whole (two-line title
     await launched.close()
   }
 })
+
+const LONG_TITLE =
+  'task_star: the orchestrator sets or removes a star on a task when the human asks for it, and the Board shows it'
+
+test('a title of three lines or more is clamped to two on the Board, whole in its tooltip, and the second card still fits at the default height (screenshot)', async () => {
+  const [first, second, third] = FULL
+  const { launched, page } = await open([
+    first as SeedTask,
+    { ...(second as SeedTask), title: LONG_TITLE },
+    third as SeedTask,
+  ])
+  try {
+    await page.locator('#board-button').click()
+    await expect(panel(page)).toBeVisible()
+    const cards = columnOf(page, 'in-progress').locator('.task-card')
+    await expect(cards).toHaveCount(3)
+    const long = cards.nth(1)
+    const title = long.locator('.card-title')
+    await expect(title).toHaveAttribute('title', LONG_TITLE)
+    const lines = await title.evaluate((n) => {
+      // One line's height, from a copy of the title holding one word.
+      const one = n.cloneNode() as HTMLElement
+      one.textContent = 'x'
+      n.after(one)
+      const line = one.offsetHeight
+      one.remove()
+      return { shown: n.clientHeight / line, whole: n.scrollHeight / line }
+    })
+    expect(lines.whole).toBeGreaterThanOrEqual(3)
+    expect(lines.shown).toBeLessThanOrEqual(2.05)
+    const visible = await columnOf(page, 'in-progress')
+      .locator('.board-cards')
+      .evaluate((n) => n.getBoundingClientRect().bottom)
+    for (const part of ['.step-segments', '.card-note']) {
+      const bottom = await long.locator(part).evaluate((n) => n.getBoundingClientRect().bottom)
+      expect(bottom).toBeLessThanOrEqual(visible + 0.5)
+    }
+    await shot(page, 'board-long-title.png')
+  } finally {
+    await launched.close()
+  }
+})

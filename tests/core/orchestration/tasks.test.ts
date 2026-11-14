@@ -302,6 +302,38 @@ describe('the task tools', () => {
     expect(tasksOf(added.tasks ?? emptyTasks(), 'p1')[0]?.star).toBe(true)
   })
 
+  // Decision 1.144: the orchestrator sets or removes a task's ★, in the mode, when the human asks.
+  test('task_star: the orchestrator sets and removes the ★ of an open task', () => {
+    let t = add(emptyTasks(), 'one')
+    const set = taskTool('task_star', { number: 1, star: true }, { ...call(t, 'O'), at: LATER })
+    expect(set).toMatchObject({ ok: true, text: 'Task 1 has the ★.' })
+    t = set.tasks ?? t
+    expect(tasksOf(t, 'p1')[0]).toMatchObject({ star: true, updated: LATER })
+    const removed = taskTool('task_star', { number: 1, star: false }, call(t, 'O'))
+    expect(removed).toMatchObject({ ok: true, text: 'Task 1 no longer has the ★.' })
+    expect(tasksOf(removed.tasks ?? t, 'p1')[0]?.star).toBe(false)
+  })
+
+  test('task_star refused: not the orchestrator, the mode off, no number, an unknown or closed task, a star that is not true or false', () => {
+    let t = add(emptyTasks(), 'one')
+    const star = (args: Record<string, unknown>, caller = 'O', o: string | null = 'O') =>
+      taskTool('task_star', args, call(t, caller, o))
+    expect(star({ number: 1, star: true }, 'W')).toEqual({
+      ok: false,
+      text: "Only the orchestrator sets a task's ★, when the person asks.",
+    })
+    expect(star({ number: 1, star: true }, 'O', null)).toEqual({
+      ok: false,
+      text: 'The orchestration mode is off in this project.',
+    })
+    expect(star({ star: true }).ok).toBe(false)
+    expect(star({ number: 9, star: true }).text).toBe('This project has no task 9.')
+    expect(star({ number: 1 }).text).toBe('star must be true or false.')
+    expect(star({ number: 1, star: 'yes' }).text).toBe('star must be true or false.')
+    t = closeTask(t, 'p1', 1, 'done', LATER)?.tasks ?? t
+    expect(star({ number: 1, star: true })).toEqual({ ok: false, text: 'Task 1 is closed.' })
+  })
+
   test('task_list: anyone; open tasks, ★ first; all adds the closed ones', () => {
     let t = add(add(emptyTasks(), 'Docs', 'V'), 'Release 0.2', 'W', true)
     t =

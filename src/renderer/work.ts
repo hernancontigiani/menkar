@@ -349,7 +349,7 @@ export function boardElement(s: WindowState, rerender: () => void): HTMLElement 
           },
           el(
             'div',
-            { class: 'card-title' },
+            { class: 'card-title', title: x.title },
             x.star ? el('span', { class: 'priority-star' }, '★') : null,
             el('span', { class: 'dim' }, `${x.number} `),
             x.title,
@@ -382,7 +382,7 @@ export function taskCard(task: TaskView): HTMLElement {
     },
     el(
       'div',
-      { class: 'card-title' },
+      { class: 'card-title', title: task.title },
       star(task),
       el('span', { class: 'dim' }, `${task.number} `),
       task.title,

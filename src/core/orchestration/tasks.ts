@@ -316,6 +316,7 @@ export type TaskTool =
   | 'task_review'
   | 'task_close'
   | 'task_list'
+  | 'task_star'
 
 export interface TaskCall {
   readonly tasks: Tasks
@@ -382,6 +383,21 @@ export function taskTool(
       updated: call.at,
     }))
     return changed ? { ok: true, text: answer, tasks: changed.tasks } : refuse(closed)
+  }
+  if (tool === 'task_star') {
+    if (call.orchestrator === null) return refuse(MODE_OFF)
+    if (call.caller !== call.orchestrator)
+      return refuse("Only the orchestrator sets a task's ★, when the person asks.")
+    if (typeof args.star !== 'boolean') return refuse('star must be true or false.')
+    if (!isOpen(task)) return refuse(closed)
+    const starred = setTaskStar(call.tasks, call.projectId, number, args.star, call.at)
+    return starred
+      ? {
+          ok: true,
+          text: args.star ? `Task ${number} has the ★.` : `Task ${number} no longer has the ★.`,
+          tasks: starred,
+        }
+      : refuse(closed)
   }
   if (tool === 'task_close') {
     if (call.orchestrator === null) return refuse(MODE_OFF)

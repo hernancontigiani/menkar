@@ -1910,7 +1910,7 @@ select option {
   visibility: hidden;
   pointer-events: none;
 }
-.board-probe .card-title {
+.board-card .card-title {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;

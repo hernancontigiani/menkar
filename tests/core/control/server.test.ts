@@ -59,7 +59,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the six task tools, set_workers_cap, park_session and resume_session', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, park_session and resume_session', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -79,6 +79,7 @@ describe('the protocol', () => {
       'task_review',
       'task_close',
       'task_list',
+      'task_star',
       'set_workers_cap',
       'park_session',
       'resume_session',

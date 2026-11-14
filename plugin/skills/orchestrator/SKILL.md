@@ -89,8 +89,8 @@ docs within a minute, you are shape 3 there, and you route.
   name its number in the task message. The session splits it into steps and reports each advance,
   so the human sees how far it is. A consultant gets no task: ask it, and it raises topics.
 - **★ tasks first** (`priority` in `list_sessions` is the ★ of a session's current task): their
-  reports, topics and turn at a shared resource come before the others'. The ★ is the human's;
-  give it at `task_add` only when they ask.
+  reports, topics and turn at a shared resource come before the others'. The ★ is the human's:
+  give it at `task_add`, or give or take it away with `task_star`, only when they ask.
 - **The task message stands on its own.** It holds, in this order:
   1. "This task comes from ‹your name›, the orchestrator; load `menkar:worker`. It is task N."
      Its text arrives as an ordinary prompt; this is how the session knows.

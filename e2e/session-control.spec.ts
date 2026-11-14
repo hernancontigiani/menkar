@@ -339,3 +339,53 @@ test('a worker per task: started for task 1 as "client-work-t1"; parked while it
     await launched.close()
   }
 })
+
+// Decision 1.144: the orchestrator gives a task the ★ and takes it away with task_star, and the
+// Work view and the Board show it; a session that is not the orchestrator is refused.
+test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Work view and the Board follow; a worker is refused (screenshot)', async () => {
+  const { launched, page, tasksSaved } = await open({ orchestrated: true })
+  const starOf = () =>
+    (tasksSaved().projects[CLIENT_WORK]?.tasks[0] as { star?: boolean } | undefined)?.star
+  const row = page.locator('.task-row[data-task="1"]')
+  const card = page.locator('#board-panel .task-card[data-task="1"]')
+  try {
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 1 added.')
+    await page.locator('#view-switch .view-work').click()
+    await expect(row).toBeVisible()
+    await expect(row.locator('.priority-star')).toHaveCount(0)
+
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('STAR1')
+    await said(page, 'TOOL task_star: Task 1 has the ★.')
+    await expect.poll(starOf).toBe(true)
+    await expect(row.locator('.priority-star')).toHaveCount(1)
+    await page.locator('#board-button').click()
+    await expect(card.locator('.priority-star')).toHaveCount(1)
+    const files = process.env.MENKAR_FILES
+    if (files) await page.screenshot({ path: join(files, 'menkar-t14-task-star-set.png') })
+
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('DROPSTAR')
+    await said(page, 'TOOL task_star: Task 1 no longer has the ★.')
+    await expect.poll(starOf).toBe(false)
+    await expect(card.locator('.priority-star')).toHaveCount(0)
+    await expect(row.locator('.priority-star')).toHaveCount(0)
+    if (files) await page.screenshot({ path: join(files, 'menkar-t14-task-star-removed.png') })
+
+    // The worker started for task 1 is not the orchestrator.
+    await page.keyboard.type('WORKT')
+    await said(page, 'TOOL start_session: Started "client-work-t1"')
+    await page.locator('.tab').nth(1).click()
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('STAR1')
+    await said(page, "TOOL task_star: Only the orchestrator sets a task's ★, when the person asks.")
+    expect(starOf()).toBe(false)
+  } finally {
+    await launched.close()
+  }
+})

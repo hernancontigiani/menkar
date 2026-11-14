@@ -25,6 +25,7 @@ export const TOOL_NAMES = [
   'task_review',
   'task_close',
   'task_list',
+  'task_star',
   'set_workers_cap',
   'park_session',
   'resume_session',

@@ -829,3 +829,7 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-14: plan 38 approved; its architecture queued.
 | 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design for review (1.135 step 1): Fable 5.2, then the human |
+
+> Replaced 2026-11-14: 1.144 and 1.145 built (tasks 14, 15).
+| 1.144 | The orchestrator can set or remove a task's ★ with an MCP tool, `task_star { number, star }`, **only when the human asks it explicitly** (the ★ is theirs, as the cap is in 1.123); refused to anyone but the orchestrator, in the orchestration mode. The orchestrator skill says so (the human, 2026-11-14) | 2026-11-14 | `docs/orchestration.md` · `docs/session-control.md` (when built) |
+| 1.145 | A task card's title on the Board is **clamped to two lines** with an ellipsis, the full title in its tooltip, so every card is as tall as the full sample card the default height is measured from (1.132) and two cards always fit (the human, 2026-11-14, from a screenshot where a three-line title hid the second card's step bar). Not built yet | 2026-11-14 | this row (until built) |

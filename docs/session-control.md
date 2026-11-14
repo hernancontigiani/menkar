@@ -120,6 +120,10 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       `dropped`. A closed task takes no more reports ("Task N is closed.").
     - `task_list { all? }`: anyone; the open tasks, ★ first, each with its steps and the current one
       marked; `all` adds the closed ones.
+    - `task_star { number, star }` (decision 1.144): the orchestrator only, with the mode on ("Only
+      the orchestrator sets a task's ★, when the person asks."); an open task of the project
+      (`setTaskStar`), `true` sets the ★ and `false` removes it. The orchestrator's skill calls it
+      only when the human asks explicitly.
   - **`adopt_session { name }`:** the orchestrator makes a session of its project its child, so
     Menkar wakes it for that session (decision 1.102, `docs/orchestration.md`). Refused to any
     other caller ("Only the orchestrator can adopt a session.") and with the mode off; the

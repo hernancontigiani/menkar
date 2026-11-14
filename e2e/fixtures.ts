@@ -18,7 +18,7 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // worker's last reply; TOPIC raises a topic "Pick a port". A worker per task (decision 1.118):
 // TASKADD adds an unassigned task, WORKT starts its worker, STEPS and WAITS (which ends the turn)
 // report on task 1, PARK parks "client-work-t1", WAKEW resumes it with a prompt, CLOSE1 closes
-// task 1 as done. Each answer is printed as
+// task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away. Each answer is printed as
 // "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the terminal for the cursor's
 // position (CSI 6n) as it starts, as Claude Code queries its terminal.
 const FAKE_CLAUDE = `#!/usr/bin/env node
@@ -115,6 +115,8 @@ process.stdin.on('data', (d) => {
     PARK: ['park_session', { name: 'client-work-t1' }],
     WAKEW: ['resume_session', { name: 'client-work-t1', prompt: 'the PR got feedback' }],
     CLOSE1: ['task_close', { number: 1, outcome: 'done' }],
+    STAR1: ['task_star', { number: 1, star: true }],
+    DROPSTAR: ['task_star', { number: 1, star: false }],
   }
   for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
     if (!typed.endsWith(word)) continue

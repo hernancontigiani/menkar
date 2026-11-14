@@ -228,6 +228,19 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
     },
   },
   {
+    name: 'task_star',
+    description:
+      "Sets (true) or removes (false) the ★ of an open task of your Menkar project: a ★ task's reports and topics come first. Only the orchestrator, in the orchestration mode, and only when the human asks for it explicitly.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        number: { type: 'integer', description: "The task's number." },
+        star: { type: 'boolean', description: 'true sets the ★, false removes it.' },
+      },
+      required: ['number', 'star'],
+    },
+  },
+  {
     name: 'set_workers_cap',
     description:
       'Sets how many workers your Menkar project runs at once: started or resumed sessions you are the parent of, with no role. Null for any number. Only the orchestrator, in the orchestration mode, and only when the human asks for it explicitly.',

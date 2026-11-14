@@ -95,7 +95,7 @@ describe("Menkar's skills plugin", () => {
 
   // Decision 1.113: the orchestrator adds and closes tasks, the worker reports on its own and never
   // closes it; the guide names every task tool.
-  test('the task tools: the orchestrator adds and closes, the worker sets steps, reports and hands to review, the guide names all six', () => {
+  test('the task tools: the orchestrator adds and closes, the worker sets steps, reports and hands to review, the guide names all seven', () => {
     const folder = join(PLUGIN, 'skills', 'orchestrator')
     const orchestrator = toolsNamed(
       [
@@ -105,14 +105,14 @@ describe("Menkar's skills plugin", () => {
           .map((f) => readFileSync(join(folder, f), 'utf8')),
       ].join('\n'),
     )
-    for (const tool of ['task_add', 'task_close']) expect(orchestrator).toContain(tool)
+    for (const tool of ['task_add', 'task_close', 'task_star']) expect(orchestrator).toContain(tool)
     const worker = toolsNamed(skill('worker').body)
     for (const tool of ['task_steps', 'task_progress', 'task_review'])
       expect(worker).toContain(tool)
-    for (const tool of ['task_add', 'task_close']) expect(worker).not.toContain(tool)
+    for (const tool of ['task_add', 'task_close', 'task_star']) expect(worker).not.toContain(tool)
     const guide = toolsNamed(readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8'))
     const tasks = TOOL_NAMES.filter((x) => x.startsWith('task_'))
-    expect(tasks).toHaveLength(6)
+    expect(tasks).toHaveLength(7)
     for (const tool of tasks) expect(guide).toContain(tool)
   })
 
@@ -128,6 +128,7 @@ describe("Menkar's skills plugin", () => {
       expect(named).toContain(tool)
     for (const tool of named) expect(TOOL_NAMES).toContain(tool)
     expect(workers).toMatch(/`set_workers_cap` only when the human asks for it explicitly/)
+    expect(skill('orchestrator').body).toMatch(/`task_star`[^.]*only when they ask/)
     expect(skill('orchestrator').body).toContain('`workers.md`')
     const guide = toolsNamed(readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8'))
     for (const tool of ['park_session', 'resume_session', 'set_workers_cap'])

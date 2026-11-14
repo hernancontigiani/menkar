@@ -92,9 +92,10 @@ A task is a piece of work the orchestrator delegated, so the person can see how 
   "done" always means reviewed. A review that is the person's (a change to try) reaches them as a
   topic.
 - `task_list`: the open tasks, ★ first; with `all`, the closed ones too.
+- `task_star`: only the orchestrator, when the person asks for it, sets or removes a task's ★.
 
 **The ★ belongs to a task**, not to a session: the person sets it from the task's right-click (in
-the Work view or the Board), or the orchestrator when the person asks. A ★ task's topics come
+the Work view or the Board), or the orchestrator (`task_star`) when the person asks. A ★ task's topics come
 first, and when several sessions finish at once the orchestrator hears first of those on ★ tasks.
 Consultants get no tasks: they are asked, and raise topics.
 

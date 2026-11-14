@@ -52,8 +52,8 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
     wait on task N first.").
   - **The ★ belongs to a task** (decision 1.114): a topic of a ★ task comes first, a row shows ★
     while its current task has it (`onStarredTask`), and its wakes reach the orchestrator first.
-    The human sets it from a task's right-click (`setTaskStar`), the orchestrator at `task_add`
-    when the human asks.
+    The human sets it from a task's right-click (`setTaskStar`), the orchestrator at `task_add` or
+    with `task_star` (decision 1.144), only when the human asks.
   - **Tasks follow a session to a new id** (`followTasks`): a `/clear`, a resume, a renew and a
     reused name move its tasks to the new id, wherever its mute follows.
   - **Done today** (`doneToday`, `closedTopicsToday`): tasks closed as done and topics closed since
@@ -62,7 +62,7 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   the shown project's open tasks (★ first, then by number), those closed today and before, each
   session's current task (`TasksView`), and "Done today" (`DoneView`).
 - **Agents reach them** through Menkar's MCP tools (`docs/session-control.md`): `topic_add`,
-  `topic_update`, `topic_close`, `topic_list`, the six task tools, the marks in `list_sessions`,
+  `topic_update`, `topic_close`, `topic_list`, the task tools, the marks in `list_sessions`,
   and `start_session` refused to anyone but the orchestrator while the mode is on with one marked;
   `park_session`, `resume_session` and `set_workers_cap` for workers per task (below).
 
@@ -193,6 +193,8 @@ first, and the older ones folded under "Done before · N" (per window, not saved
 struck through. A task card: its number, ★, title, the assignee with its state dot, `3/5` and the
 step segments, the note. A click selects the assignee's tab; the right-click sets the ★; nothing
 else is edited there.
+A card's title, topic or task, is clamped to two lines with an ellipsis and whole in its tooltip,
+so no card outgrows the probe (decision 1.145, the human, 2026-11-14).
 A done task shows `N/N` and every segment done, whatever step its worker last reported; a dropped
 one keeps the step it stopped at (decision 1.128, 2026-11-14).
 

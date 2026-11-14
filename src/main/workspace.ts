@@ -1156,6 +1156,7 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
     case 'task_review':
     case 'task_close':
     case 'task_list':
+    case 'task_star':
       return taskFor(request.tool, project, sessionId, request.args)
     case 'set_workers_cap':
       return capFor(project, sessionId, request.args)
