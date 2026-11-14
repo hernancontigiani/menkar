@@ -278,12 +278,12 @@ eight that this design adds:
 | D6 | Codex's turn-end signal | `-c notify` **chaining the user's own `notify`** (read from `~/.codex/config.toml`), as Menkar's statusline chains Claude's |
 | D7 | Cursor's card at every Menkar tool call (`--approve-mcps` does not remove it, measured; only `--force` does, approving everything) | An integrations item writing Menkar's allow entries into `~/.cursor/cli-config.json`, consented and removable (D13's pattern); one entry set covers every pane, the per-pane plugin folders sharing one basename |
 | D8 | Cursor's status line | None |
-| D9 | OpenCode: Menkar's own `opencode serve` (**amends 1.72's "no port"**, §3.4); one session in two servers; OpenCode's Usage turn | Menkar's own server, loopback only; warn, don't refuse; a turn per user message |
+| D9 | OpenCode: Menkar's own `opencode serve` (**amends 1.72's "no port"**, §3.4; the ports **decided, 1.138**); one session in two servers; OpenCode's Usage turn | Menkar's own server, loopback only; warn, don't refuse; a turn per user message |
 | D10 | The skills' text across agents | Claude's unchanged; per-agent notes to the others; Claude's mixed-project needs met outside the skill (§3.1) |
 | D11 | This repository's `CLAUDE.md` → `AGENTS.md` | Move, with `CLAUDE.md` = `@AGENTS.md`; history mirror `AGENTS.history.md` |
 | D12 | Environment tuning | Keep the display variables; strip the rest as §3.5 |
 | D13 | Cursor's turn hooks need entries in `~/.cursor/hooks.json` (three, global, `user_email` in their payload) | An integrations-menu item, consented and removable, its page saying all three facts |
-| D14 | Binding an OpenCode pane's caller after `/new` (**a port per pane**, §3.4) | A per-pane loopback proxy in Menkar's main process |
+| D14 | Binding an OpenCode pane's caller after `/new` (**a port per pane**, §3.4; **decided, 1.138**) | A per-pane loopback proxy in Menkar's main process |
 | D15 | Codex's cost in Usage | Menkar's price table for OpenAI models, marked `~` as Claude's per-model costs are (`src/core/usage/prices.ts`) |
 | D16 | Phases' order (§4) | P0 (merged to `main` early) → P1a → P1b → P2 → P3; P4 whenever |
 | **D17** | **Menkar's calls that make an agent write its own data**: a title at creation or start (Claude `-n`, OpenCode `title`), **a rename of an existing session** (Codex `thread/name/set` after its first turn — the line the human should see drawn), a queued wake (D1: Codex's queue SQLite, OpenCode's inbox rows) | Allowed, each named in `docs/agents.md`; `CLAUDE.md`'s rule reworded to say so |
