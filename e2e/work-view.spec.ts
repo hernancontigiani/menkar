@@ -84,9 +84,9 @@ const BASE_TASKS: SeedTask[] = [
     number: 5,
     title: 'Old chore',
     assignee: TEAM.w2,
-    state: 'done',
-    steps: ['a', 'b', 'c'],
-    step: 3,
+    state: 'dropped',
+    steps: ['a', 'b', 'c', 'd', 'e', 'f'],
+    step: 4,
     closed: daysAgo(3),
   },
   {
@@ -94,8 +94,8 @@ const BASE_TASKS: SeedTask[] = [
     title: 'Icon fix',
     assignee: TEAM.w1,
     state: 'done',
-    steps: ['a', 'b', 'c'],
-    step: 3,
+    steps: ['a', 'b', 'c', 'd', 'e', 'f'],
+    step: 4,
     closed: nowIso(),
   },
 ]
@@ -388,10 +388,20 @@ test('the Board panel: toggled from the header (pressed), under the header and o
     await expect(column('waiting').locator('.task-card')).toHaveText([/Docs pass/])
     await expect(column('to-review').locator('.task-card')).toHaveText([/Login fix/])
     await expect(column('done').locator('.task-card')).toHaveText([/Icon fix/])
+    // A done task's bar is complete whatever step its worker last reported.
+    const iconFix = column('done').locator('.task-card', { hasText: 'Icon fix' })
+    await expect(iconFix).toContainText('6/6')
+    await expect(iconFix.locator('.segment')).toHaveCount(6)
+    await expect(iconFix.locator('.segment.done')).toHaveCount(6)
     await expect(column('done').locator('.board-before')).toHaveText('Done before · 1')
     await shot(page, 'board-default.png')
     await column('done').locator('.board-before').click()
     await expect(column('done').locator('.task-card')).toHaveCount(2)
+    const dropped = column('done').locator('.task-card', { hasText: 'Old chore' })
+    await expect(dropped).toContainText('4/6')
+    await expect(dropped.locator('.segment.done')).toHaveCount(3)
+    await expect(dropped.locator('.segment.current')).toHaveCount(1)
+    await iconFix.screenshot({ path: join(SHOTS, 'board-done-card.png') })
 
     await page.locator('.tab', { hasText: 'orchestrator' }).click()
     await column('in-progress').locator('.task-card').click()

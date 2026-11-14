@@ -190,6 +190,8 @@ first, and the older ones folded under "Done before · N" (per window, not saved
 struck through. A task card: its number, ★, title, the assignee with its state dot, `3/5` and the
 step segments, the note. A click selects the assignee's tab; the right-click sets the ★; nothing
 else is edited there.
+A done task shows `N/N` and every segment done, whatever step its worker last reported; a dropped
+one keeps the step it stopped at (decision 1.128, 2026-11-14).
 
 ## `Ctrl+\`` in the orchestrator's tab
 

@@ -106,13 +106,22 @@ function tasksSection(open: readonly TaskView[]): HTMLElement[] {
   return [head, ...nodes]
 }
 
+// A worker rarely reports its last step before the task is closed, so a done task is shown
+// complete; a dropped one keeps the step it stopped at.
+function shownStep(task: TaskView): { step: number; complete: boolean } {
+  return task.state === 'done'
+    ? { step: task.steps.length, complete: true }
+    : { step: task.step, complete: false }
+}
+
 export function stepSegments(task: TaskView): HTMLElement {
+  const { step, complete } = shownStep(task)
   return el(
     'span',
     { class: 'step-segments', 'aria-hidden': 'true' },
     ...task.steps.map((_, i) =>
       el('span', {
-        class: `segment${i + 1 < task.step ? ' done' : i + 1 === task.step ? ' current' : ''}`,
+        class: `segment${complete || i + 1 < step ? ' done' : i + 1 === step ? ' current' : ''}`,
       }),
     ),
   )
@@ -121,7 +130,7 @@ export function stepSegments(task: TaskView): HTMLElement {
 // "3/5", or the state when the task has no steps yet.
 export function progressText(task: TaskView): string {
   return task.steps.length > 0 && task.state !== 'queued'
-    ? t('work.steps', { step: task.step, steps: task.steps.length })
+    ? t('work.steps', { step: shownStep(task).step, steps: task.steps.length })
     : stateLabel(task.state)
 }
 
