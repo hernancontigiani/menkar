@@ -102,6 +102,10 @@ Each one is broken by an ordinary-looking line of code.
     calling `core`.
   - `src/renderer/` — the UI: plain TypeScript and DOM with xterm.js, no UI framework unless a plan
     justifies one. It talks to main only through the preload's typed API.
+- **What differs per coding agent lives behind one interface per concern, one implementation per
+  agent** (starting, transcripts, state, waking, the MCP's mounting…), chosen once from the session's
+  agent: shared code never branches on an agent's name, and a change to one agent's implementation
+  cannot break another's (1.135). How it is organised is the multi-agent architecture's to decide.
 - **IPC is typed once**: one module declares every channel and its payload, imported by main,
   preload and renderer. `contextIsolation` on, `nodeIntegration` off, `sandbox` on for the renderer.
 - **Never block the main process or the renderer.** Reading transcripts, scanning folders and SQLite
