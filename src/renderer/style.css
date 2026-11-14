@@ -810,7 +810,8 @@ html.classic .frame-label {
   border-radius: 13px;
   min-width: 320px;
   max-width: 480px;
-  overflow: hidden;
+  max-height: calc(100vh - 48px);
+  overflow: hidden auto;
 }
 html.classic .dialog {
   background: var(--surface0);
@@ -826,9 +827,13 @@ html.classic .dialog {
   font-weight: 700;
   font-size: 13pt;
 }
+/* A dialog taller than the window scrolls; its buttons stay reachable at the bottom. */
 .dialog .responses {
   display: flex;
   border-top: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
+  position: sticky;
+  bottom: 0;
+  background: inherit;
 }
 .dialog .responses button {
   flex: 1;

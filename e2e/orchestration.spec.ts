@@ -1118,3 +1118,68 @@ test('a project folder gone from disk: the card leaves it out; the gear’s list
     await launched.close()
   }
 })
+
+// A project with many sessions in a short window: the card's two lists are as long as the
+// project, and its buttons were once cut off below the window with no way to reach them.
+test('the card in a short window with 20 more sessions: it fits, its buttons stay in view and the last managed session scrolls into view (screenshot)', async () => {
+  const crowd = Array.from({ length: 20 }, (_, i) => ({
+    id: `c20c20c2-0000-4000-8000-${String(i).padStart(12, '0')}`,
+    name: `crowd ${String(i + 1).padStart(2, '0')}`,
+  }))
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = clientWork(dirs)
+      const cwd = join(dirs.home, 'work', 'api')
+      const transcripts = join(dirs.home, '.claude', 'projects', cwd.replace(/[^A-Za-z0-9]/g, '-'))
+      for (const s of crowd)
+        writeFileSync(
+          join(transcripts, `${s.id}.jsonl`),
+          `${[
+            { type: 'custom-title', customTitle: s.name },
+            { type: 'user', cwd, message: { content: `work on ${s.name}` } },
+          ]
+            .map((l) => JSON.stringify(l))
+            .join('\n')}\n`,
+        )
+      const file = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const projects = JSON.parse(readFileSync(file, 'utf8')) as {
+        projects: { members: string[] }[]
+      }
+      projects.projects[0]?.members.push(...crowd.map((s) => s.id))
+      writeFileSync(file, JSON.stringify(projects))
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    await launched.app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(800, 600)
+    })
+    await expect.poll(() => page.evaluate(() => globalThis.innerHeight)).toBe(600)
+    await page.locator('#orchestration-switch').click()
+    await expect(card(page)).toBeVisible()
+    const managed = card(page).locator('.card-managed:visible')
+    await expect(managed).toHaveCount(22)
+    const box = await card(page).boundingBox()
+    expect(box).not.toBeNull()
+    if (box) {
+      expect(box.y).toBeGreaterThanOrEqual(0)
+      expect(box.y + box.height).toBeLessThanOrEqual(600)
+    }
+    for (const label of ['Start', 'Not now']) await expect(cardButton(page, label)).toBeInViewport()
+    await expect(card(page).locator('.heading')).toBeInViewport()
+    const last = managed.last()
+    await expect(last).toHaveText('login fix')
+    await last.scrollIntoViewIfNeeded()
+    await expect(last).toBeInViewport()
+    await last.locator('input').uncheck()
+    await expect(last.locator('input')).not.toBeChecked()
+    await shot(page, 'card-short-window.png')
+    await cardButton(page, 'Start').click()
+    await expect(card(page)).toHaveCount(0)
+    await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: CLIENT.long })
+    await expect.poll(() => parents(page)).not.toHaveProperty(CLIENT.login)
+  } finally {
+    await launched.close()
+  }
+})
