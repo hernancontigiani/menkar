@@ -1,6 +1,8 @@
 // Plan 36: the orchestration mode's Work view (decisions 1.112, 1.115), the ★ on tasks (1.114),
-// tasks in the Team view and the Board (1.116), on a seeded team with tasks.json and topics.json.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+// tasks in the Team view and the Board panel (1.116, 1.126), on a seeded team with tasks.json and
+// topics.json.
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { launchApp } from './app'
@@ -147,6 +149,8 @@ function seed(
             [PROJECT]: [
               { panes: [TEAM.orch], orientation: 'horizontal' },
               { panes: [TEAM.w1], orientation: 'horizontal' },
+              // An earlier version's Board tab: dropped on read (decision 1.126).
+              { board: true },
             ],
           },
         },
@@ -207,12 +211,19 @@ function seed(
 const saved = (root: string, file: string) =>
   JSON.parse(readFileSync(join(root, 'config', 'menkar', file), 'utf8'))
 
-async function open(tasks = BASE_TASKS, teamView = false) {
+// `profile`: a previous run's root, whose config is carried over, as a restart would find it.
+async function open(tasks = BASE_TASKS, teamView = false, profile?: string) {
   let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
       root = dirs.root
-      return seed(dirs, tasks, teamView)
+      const env = seed(dirs, tasks, teamView)
+      if (profile)
+        cpSync(join(profile, 'config'), join(dirs.root, 'config'), {
+          recursive: true,
+          force: true,
+        })
+      return env
     },
   })
   const page = launched.window
@@ -305,12 +316,16 @@ test('the Team view: saved per project, each row with its current task and step,
     await expect(page.locator(`.row[data-session="${TEAM.orch}"] .team-task`)).toHaveCount(0)
     await shot(page, 'team-tasks.png')
 
-    // The human, 2026-11-13: switching the mode off closes the Board tab.
+    // Switching the mode off closes the Board panel, and the saved flag with it (decision 1.126).
     await page.locator('#board-button').click()
-    await expect(page.locator('.tab')).toHaveCount(3)
+    await expect(page.locator('#board-panel')).toBeVisible()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(true)
     await page.locator('#orchestration-switch').click()
+    await expect(page.locator('#board-panel')).toBeHidden()
+    await expect
+      .poll(() => saved(root, 'projects.json').projects[0])
+      .not.toHaveProperty('board_open')
     await expect(page.locator('.tab')).toHaveCount(2)
-    await expect(page.locator('.tab', { hasText: 'Board' })).toHaveCount(0)
     await expect(page.locator('#view-switch')).toBeEmpty()
     await expect(page.locator('#board-button')).toBeHidden()
     await expect(page.locator('.team-task')).toHaveCount(0)
@@ -321,13 +336,49 @@ test('the Team view: saved per project, each row with its current task and step,
   }
 })
 
-test('the Board: opened from the header once, its columns and cards, a card selects its assignee’s tab, "Done before" folded (screenshot)', async () => {
-  const { launched, page } = await open()
+const panel = (page: Page) => page.locator('#board-panel')
+const columnOf = (page: Page, key: string) => page.locator(`#board-panel [data-column="${key}"]`)
+const height = async (page: Page, selector: string) =>
+  Math.round((await page.locator(selector).boundingBox())?.height ?? -1)
+// The right-hand area under the header.
+const area = (page: Page) =>
+  page.evaluate(
+    () =>
+      (document.getElementById('content')?.clientHeight ?? 0) -
+      (document.querySelector<HTMLElement>('.content-header')?.offsetHeight ?? 0),
+  )
+
+test('the Board panel: toggled from the header (pressed), under the header and over the tab strip only, two cards high, its cards as before (screenshot)', async () => {
+  const { launched, page, root } = await open()
   try {
-    await page.locator('#board-button').click()
-    await expect(page.locator('.tab')).toHaveCount(3)
-    await expect(page.locator('.tab.selected')).toHaveText(/Board/)
-    const column = (key: string) => page.locator(`.tab-body:not(.hidden) [data-column="${key}"]`)
+    const button = page.locator('#board-button')
+    const column = (key: string) => columnOf(page, key)
+    await expect(button).toHaveAttribute('aria-pressed', 'false')
+    await expect(panel(page)).toBeHidden()
+    await button.click()
+    await expect(button).toHaveAttribute('aria-pressed', 'true')
+    await expect(panel(page)).toBeVisible()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(true)
+    await expect(page.locator('.tab')).toHaveCount(2)
+    const [header, box, strip, sidebar] = await Promise.all(
+      ['.content-header', '#board-panel', '#tab-strip', '#sidebar'].map((x) =>
+        page.locator(x).boundingBox(),
+      ),
+    )
+    expect(Math.round(box?.y ?? 0)).toBeGreaterThanOrEqual(
+      Math.round((header?.y ?? 0) + (header?.height ?? 0)),
+    )
+    expect(Math.round(strip?.y ?? 0)).toBeGreaterThanOrEqual(
+      Math.round((box?.y ?? 0) + (box?.height ?? 0)),
+    )
+    expect(Math.round(box?.x ?? 0)).toBeGreaterThanOrEqual(
+      Math.round((sidebar?.x ?? 0) + (sidebar?.width ?? 0)),
+    )
+    // Two cards per column, about 165 px, whatever the window's height.
+    const initial = await height(page, '#board-panel')
+    expect(initial).toBeGreaterThan(140)
+    expect(initial).toBeLessThan(200)
+
     await expect(column('topics').locator('.board-card')).toHaveCount(2)
     await expect(column('queued').locator('.task-card')).toHaveText([/Notes cleanup/])
     await expect(column('in-progress').locator('.task-card')).toHaveText([/Release 0.2/])
@@ -338,43 +389,140 @@ test('the Board: opened from the header once, its columns and cards, a card sele
     await expect(column('to-review').locator('.task-card')).toHaveText([/Login fix/])
     await expect(column('done').locator('.task-card')).toHaveText([/Icon fix/])
     await expect(column('done').locator('.board-before')).toHaveText('Done before · 1')
-    await shot(page, 'board.png')
+    await shot(page, 'board-default.png')
     await column('done').locator('.board-before').click()
     await expect(column('done').locator('.task-card')).toHaveCount(2)
 
-    // Opening it again selects the same tab.
     await page.locator('.tab', { hasText: 'orchestrator' }).click()
-    await page.locator('#board-button').click()
-    await expect(page.locator('.tab')).toHaveCount(3)
-    await expect(page.locator('.tab.selected')).toHaveText(/Board/)
-
     await column('in-progress').locator('.task-card').click()
     await expect(page.locator('.tab.selected')).toHaveText(/packager/)
+
+    // × closes it as the button does.
+    await page.locator('#board-panel [data-key="close"]').click()
+    await expect(panel(page)).toBeHidden()
+    await expect(button).toHaveAttribute('aria-pressed', 'false')
+    await button.click()
+    await expect(panel(page)).toBeVisible()
+    await button.click()
+    await expect(panel(page)).toBeHidden()
+    await expect
+      .poll(() => saved(root, 'projects.json').projects[0])
+      .not.toHaveProperty('board_open')
   } finally {
     await launched.close()
   }
 })
 
-test('more than 6 open tasks: the list shows 6 and "See all (8) →", which opens the Board, once', async () => {
-  const many: SeedTask[] = Array.from({ length: 8 }, (_, i) => ({
-    number: i + 1,
-    title: `Task ${i + 1}`,
-    assignee: TEAM.w2,
-    state: 'queued',
-  }))
-  const { launched, page } = await open(many)
+const QUEUED: SeedTask[] = Array.from({ length: 8 }, (_, i) => ({
+  number: i + 1,
+  title: `Task ${i + 1}`,
+  assignee: TEAM.w2,
+  state: 'queued',
+}))
+
+test('the Board panel resized by dragging, reopened at its last height, Show all at most 70 %, Default size, and as it was after a restart (screenshot)', async () => {
+  const { launched, page, root } = await open(QUEUED)
+  let relaunched: Awaited<ReturnType<typeof open>> | undefined
+  let closed = false
+  try {
+    await page.locator('#board-button').click()
+    await expect(panel(page)).toBeVisible()
+    const initial = await height(page, '#board-panel')
+    // A column with more cards than fit scrolls under its fixed heading.
+    const queued = columnOf(page, 'queued').locator('.board-cards')
+    expect(await queued.evaluate((n) => n.scrollHeight > n.clientHeight)).toBe(true)
+    await expect(columnOf(page, 'queued').locator('.board-heading')).toBeInViewport()
+
+    const divider = await page.locator('#board-divider').boundingBox()
+    const x = (divider?.x ?? 0) + (divider?.width ?? 0) / 2
+    const y = (divider?.y ?? 0) + (divider?.height ?? 0) / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y + 40, { steps: 4 })
+    await page.mouse.move(x, y + 60, { steps: 4 })
+    await page.mouse.up()
+    const dragged = await height(page, '#board-panel')
+    expect(Math.abs(dragged - (initial + 60))).toBeLessThanOrEqual(4)
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_height).toBe(dragged)
+
+    await page.locator('#board-button').click()
+    await expect(panel(page)).toBeHidden()
+    await page.locator('#board-button').click()
+    await expect.poll(() => height(page, '#board-panel')).toBe(dragged)
+
+    await page.locator('#board-panel [data-key="show-all"]').click()
+    const all = await height(page, '#board-panel')
+    expect(all).toBeGreaterThan(dragged)
+    expect(all).toBeLessThanOrEqual(Math.floor((await area(page)) * 0.7))
+    const fits = await queued.evaluate((n) => n.scrollHeight <= n.clientHeight + 1)
+    expect(fits || all === Math.floor((await area(page)) * 0.7)).toBe(true)
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_height).toBe(all)
+    await shot(page, 'board-all.png')
+
+    await page.locator('#board-panel [data-key="default-size"]').click()
+    await expect.poll(() => height(page, '#board-panel')).toBe(initial)
+    await expect
+      .poll(() => saved(root, 'projects.json').projects[0])
+      .not.toHaveProperty('board_height')
+
+    await page.locator('#board-panel [data-key="show-all"]').click()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_height).toBe(all)
+    // The config as the quit leaves it; closing removes the run's own directory.
+    const profile = mkdtempSync(join(tmpdir(), 'menkar-e2e-profile-'))
+    cpSync(join(root, 'config'), join(profile, 'config'), { recursive: true })
+    await launched.close()
+    closed = true
+    relaunched = await open(QUEUED, false, profile)
+    await expect(relaunched.page.locator('#board-button')).toHaveAttribute('aria-pressed', 'true')
+    await expect(panel(relaunched.page)).toBeVisible()
+    await expect.poll(() => height(relaunched?.page as Page, '#board-panel')).toBe(all)
+  } finally {
+    if (!closed) await launched.close()
+    await relaunched?.launched.close()
+  }
+})
+
+test('more than 6 open tasks: the list shows 6 and "See all (8) →", which opens the Board on Show all', async () => {
+  const { launched, page } = await open(QUEUED)
   try {
     await expect(page.locator('#session-list .task-row')).toHaveCount(6)
     await expect(page.locator('.see-all')).toHaveText('See all (8) →')
     await page.locator('.see-all').click()
-    await expect(page.locator('.tab.selected')).toHaveText(/Board/)
-    await expect(
-      page.locator('.tab-body:not(.hidden) [data-column="queued"] .task-card'),
-    ).toHaveCount(8)
-    await page.locator('.tab', { hasText: 'orchestrator' }).click()
-    await page.locator('.see-all').click()
-    await expect(page.locator('.tab')).toHaveCount(3)
-    await expect(page.locator('.tab.selected')).toHaveText(/Board/)
+    await expect(panel(page)).toBeVisible()
+    await expect(page.locator('#board-button')).toHaveAttribute('aria-pressed', 'true')
+    await expect(columnOf(page, 'queued').locator('.task-card')).toHaveCount(8)
+    const queued = columnOf(page, 'queued').locator('.board-cards')
+    await expect
+      .poll(async () => {
+        const fits = await queued.evaluate((n) => n.scrollHeight <= n.clientHeight + 1)
+        const capped = (await height(page, '#board-panel')) === Math.floor((await area(page)) * 0.7)
+        return fits || capped
+      })
+      .toBe(true)
+    await expect(page.locator('.tab')).toHaveCount(2)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('the shell drawer keeps its height when the Board opens; the agent’s pane gives the room', async () => {
+  const { launched, page } = await open()
+  try {
+    const agent = '.tab-body:not(.hidden) > .pane:not(.drawer)'
+    const drawer = '.tab-body:not(.hidden) > .pane.drawer'
+    await page.locator(`${agent} .xterm`).click()
+    await page.keyboard.press('Control+Backquote')
+    await expect(page.locator(drawer)).toBeVisible()
+    const before = await height(page, drawer)
+    const paneBefore = await height(page, agent)
+    await page.locator('#board-button').click()
+    await expect(panel(page)).toBeVisible()
+    const board = await height(page, '#board-panel')
+    await expect.poll(() => height(page, drawer)).toBe(before)
+    expect(await height(page, agent)).toBeLessThan(paneBefore - board + 10)
+    // Show all is capped so the agent's pane keeps its minimum: the drawer still keeps its height.
+    await page.locator('#board-panel [data-key="show-all"]').click()
+    await expect.poll(() => height(page, drawer)).toBe(before)
   } finally {
     await launched.close()
   }

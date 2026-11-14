@@ -45,7 +45,7 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
    chat, and closed there. Everything that waits on the person is a topic.
 3. **Tasks**: the open tasks, ★ first: title, who has it, its steps ("3/5") and its latest note,
    with a red edge while it waits. A click selects that session's tab; a right-click sets or
-   removes the ★. Past six, "See all" opens the Board.
+   removes the ★. Past six, "See all" opens the Board showing every card.
 4. **Consultants**: one row each, with its state; a click opens its tab.
 5. **Done today**: topics closed and tasks done since midnight, folded until opened.
 
@@ -54,9 +54,11 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
 loose session with a role), and **Others** with their groups as in the ordinary list. Each
 session's row shows its current task and step under its name, and the ★ while that task has it.
 
-**The Board**, a tab opened with the **Board** button beside the Orchestration switch, shows every
-topic and task in columns: Topics, Queued, In progress, Waiting, To review, Done (today's; older
-ones folded under "Done before"). A card's click selects its session's tab.
+**The Board**, a panel under the header opened and closed with the **Board** button beside the
+Orchestration switch, shows every topic and task in columns: Topics, Queued, In progress, Waiting,
+To review, Done (today's; older ones folded under "Done before"). It opens two cards high; the
+person drags its lower edge, or picks "Show all" or "Default size", and it reopens as they left it.
+A card's click selects its session's tab.
 
 ## Topics
 

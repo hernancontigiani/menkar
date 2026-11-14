@@ -10,7 +10,7 @@ import {
   type Projects,
   type SavedWindow,
 } from './model'
-import { parseOrchestration, serializeOrchestration } from './orchestration'
+import { isBoardHeight, parseOrchestration, serializeOrchestration } from './orchestration'
 import { keptParents } from './parents'
 
 export const PROJECTS_VERSION = 1
@@ -76,6 +76,8 @@ export function parseProjects(value: unknown): Projects {
       team_view,
       consultants_collapsed,
       done_today_open,
+      board_open,
+      board_height,
       ...projectRest
     } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
@@ -135,6 +137,8 @@ export function parseProjects(value: unknown): Projects {
       ...(team_view === true ? { teamView: true as const } : {}),
       ...(consultants_collapsed === true ? { consultantsCollapsed: true as const } : {}),
       ...(done_today_open === true ? { doneTodayOpen: true as const } : {}),
+      ...(board_open === true ? { boardOpen: true as const } : {}),
+      ...(isBoardHeight(board_height) ? { boardHeight: Math.round(board_height) } : {}),
     }
   })
   const first = parsed[0]
@@ -151,7 +155,8 @@ export function parseProjects(value: unknown): Projects {
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
 // keys, then id, name, members, groups, and hidden, the files keys, earlier, parents, orchestration
-// and topics_collapsed, team_view, consultants_collapsed and done_today_open when any. A group writes name, color, members,
+// and topics_collapsed, team_view, consultants_collapsed, done_today_open, board_open and
+// board_height when any. A group writes name, color, members,
 // then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
@@ -191,6 +196,8 @@ function orchestrationKeys(p: Project): Record<string, unknown> {
     ...(p.teamView ? { team_view: true } : {}),
     ...(p.consultantsCollapsed ? { consultants_collapsed: true } : {}),
     ...(p.doneTodayOpen ? { done_today_open: true } : {}),
+    ...(p.boardOpen ? { board_open: true } : {}),
+    ...(p.boardHeight !== undefined ? { board_height: p.boardHeight } : {}),
   }
 }
 

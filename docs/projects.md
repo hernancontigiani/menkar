@@ -124,6 +124,10 @@ built and why.
   Beside it, `topics_collapsed` when the Topics section shows its heading alone, and the Work
   view's choices (decision 1.112): `team_view` when the sidebar shows Team, `consultants_collapsed`
   and `done_today_open`, each written only while true.
+- **The Board panel** (decision 1.126, 2026-11-14; `setBoard`): `board_open` while it is open,
+  written only while true and cleared when the mode goes off, and `board_height`, its last height
+  in pixels, written only once dragged or picked (Default size removes it). Read leniently: a
+  height that is not a positive number is dropped alone.
 - **`orchestration.folders`** (decision 1.124, 2026-11-14): the absolute paths the human added to
   the project's folders, each once (`addFolder`, `removeFolder`); written only while one is left.
   Read leniently: an entry that is not an absolute path is dropped alone, a value that is not a
@@ -155,7 +159,8 @@ built and why.
   `layout.alreadyBeside`, `layout.sharesTab`) for the toast. Moving between tabs (`stepTab`,
   `nthTab`) only counts the shown project's tabs.
 - **What is saved** (`toSaved`): per window, the shown project (`current`), its session tabs
-  (joined panes), file tabs and Board tab (`{ board: true }`, reopened once per project) (`tabs`),
+  (joined panes) and file tabs (`tabs`); a Board tab an earlier version saved (`{ board: true }`)
+  is dropped on read (decision 1.126),
   grouped by project, leaving out projects with none, and
   `maximized` (decision 1.98, 2026-11-12): whether the window manager has it maximized, full screen
   aside. Main sets it (`setMaximized`) when the window maximizes, restores, leaves full screen or

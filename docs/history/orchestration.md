@@ -156,3 +156,18 @@ drawer first gathers the folders of the project's sessions with a running pane, 
 
 > Left on 2026-11-14: the tiles' count moved to `workCounts`, shared with the orchestrator's posts (decision 1.125).
 1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting.
+
+## The Board
+
+> Left on 2026-11-14: the Board became a panel under the header, not a tab (decision 1.126).
+Decisions 1.112 and 1.116 (2026-11-13). A tab of its own kind, `board`, one per project
+(`openBoard`, `src/core/projects/layout.ts`), opened by the header's **Board** button, right of the
+Orchestration switch and shown only while the mode is on, and by the Work view's "See all (N) →";
+when it is open, both select it. It is saved with the layout (`{ board: true }`) and reopened once
+per project; closing it is closing a file tab. **Switching the mode off closes the project's Board
+in every window** (`closeBoards`; the human, 2026-11-13), so nothing of the mode shows with it off.
+
+## The sidebar in the mode
+
+> Left on 2026-11-14: "See all (N) →" opens the Board panel on Show all (decision 1.126).
+   ★. More than 6: the first 6 and "See all (N) →", which opens the Board.

@@ -26,6 +26,7 @@ const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
   teamView: false,
   consultantsCollapsed: false,
   doneTodayOpen: false,
+  board: { open: false, height: null },
   ...over,
 })
 

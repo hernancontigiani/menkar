@@ -98,3 +98,8 @@ keeps how they are built and why.
 > Left on 2026-11-13: the Board tab is saved with the layout (decision 1.112).
 - **What is saved** (`toSaved`): per window, the shown project (`current`), its session tabs
   (joined panes) and file tabs (`tabs`), grouped by project, leaving out projects with none, and
+
+## The layout — `layout.ts`
+
+> Left on 2026-11-14: the Board is a panel, not a tab; a saved Board tab is dropped (decision 1.126).
+  (joined panes), file tabs and Board tab (`{ board: true }`, reopened once per project) (`tabs`),

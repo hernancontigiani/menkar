@@ -6,6 +6,7 @@ import { removeMember } from '../../../src/core/projects/model'
 import {
   addFolder,
   removeFolder,
+  setBoard,
   setConsultantsCollapsed,
   setDoneTodayOpen,
   setMode,
@@ -127,6 +128,40 @@ describe('orchestration marks', () => {
     const undone = serializeProjects(s).projects as Record<string, unknown>[]
     for (const key of ['team_view', 'consultants_collapsed', 'done_today_open'])
       expect(undone[0]).not.toHaveProperty(key)
+  })
+
+  // Decision 1.126: whether the Board is open and its last height, per project.
+  test('the Board open and its height round-trip; Default size and closing write no key', () => {
+    const s = setBoard(work(), 'p1', { open: true, height: 240 })
+    expect(roundTrip(s).projects[0]).toMatchObject({ boardOpen: true, boardHeight: 240 })
+    expect((serializeProjects(s).projects as Record<string, unknown>[])[0]).toMatchObject({
+      board_open: true,
+      board_height: 240,
+    })
+    const reset = setBoard(setBoard(s, 'p1', { height: null }), 'p1', { open: false })
+    const written = (serializeProjects(reset).projects as Record<string, unknown>[])[0]
+    expect(written).not.toHaveProperty('board_open')
+    expect(written).not.toHaveProperty('board_height')
+    expect(setBoard(s, 'p1', { open: false }).projects[0]?.boardHeight).toBe(240)
+  })
+
+  test('a board height the version cannot read is dropped alone', () => {
+    const file = serializeProjects(setBoard(work(), 'p1', { open: true })) as {
+      projects: Record<string, unknown>[]
+    }
+    for (const bad of ['tall', -5, 0, Number.NaN, null]) {
+      const first = { ...file.projects[0], board_height: bad }
+      const read = parseProjects(JSON.parse(JSON.stringify({ ...file, projects: [first] })))
+      expect(read.projects[0]?.boardOpen).toBe(true)
+      expect(read.projects[0]).not.toHaveProperty('boardHeight')
+    }
+  })
+
+  test('switching the mode off closes the Board, keeping its height', () => {
+    const s = setBoard(setMode(work(), 'p1', true), 'p1', { open: true, height: 300 })
+    const off = setMode(s, 'p1', false)
+    expect(off.projects[0]?.boardOpen).toBeUndefined()
+    expect(off.projects[0]?.boardHeight).toBe(300)
   })
 
   test('topics collapsed round-trips and is removed when expanded', () => {

@@ -108,7 +108,7 @@ for Team; `set`'s choice, 2026-11-13). Off, neither shows and the sidebar is the
    while it has no steps), the assignee, one segment per step (done, current, to come), and the
    note — "waiting on ‹what›" first while waiting, with a red edge. A click selects the assignee's
    tab if it has one, starting nothing (`selectSessionTab`); the right-click menu sets or removes the
-   ★. More than 6: the first 6 and "See all (N) →", which opens the Board.
+   ★. More than 6: the first 6 and "See all (N) →", which opens the Board on Show all.
 4. **Consultants · N** (when any): one compact row each, its state dot, name and role; a click
    opens its tab. Foldable, saved (`consultants_collapsed`).
 5. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
@@ -161,12 +161,28 @@ goes to discussing and nothing is posted (`discussTopic` in `src/main/workspace.
 
 ## The Board
 
-Decisions 1.112 and 1.116 (2026-11-13). A tab of its own kind, `board`, one per project
-(`openBoard`, `src/core/projects/layout.ts`), opened by the header's **Board** button, right of the
-Orchestration switch and shown only while the mode is on, and by the Work view's "See all (N) →";
-when it is open, both select it. It is saved with the layout (`{ board: true }`) and reopened once
-per project; closing it is closing a file tab. **Switching the mode off closes the project's Board
-in every window** (`closeBoards`; the human, 2026-11-13), so nothing of the mode shows with it off.
+Decisions 1.112, 1.116 and 1.126 (the human, 2026-11-14, from mock-ups). **A panel, not a tab**
+(`src/renderer/board.ts`), between the header and the tab strip, across the right-hand area and
+never over the sidebar. The header's **Board** button, right of the Orchestration switch and shown
+only while the mode is on, toggles it, light blue (`aria-pressed`) while it is open; the × in its
+bar closes it the same way.
+
+- **Its height.** By default, two cards per column: the bar, a heading and two cards with their
+  gaps (`defaultBoardHeight`, `src/core/orchestration/board.ts`), measured from a hidden probe card
+  and the real heading, never a share of the window. A divider under it resizes it. "Show all"
+  grows it to fit the tallest column, at most 70 % of the right-hand area (`showAllHeight`);
+  "Default size" goes back. A column with more cards than fit scrolls under its fixed heading; the
+  columns keep a minimum width (160 px) and the panel scrolls sideways when they don't fit.
+- **The drawer keeps its height** (the human, 2026-11-14): the Board's room comes from the agent's
+  pane only. Its height is capped so the pane keeps six rows under it with the drawer shown
+  (`boardCap`), and the drawer's default height is a share of the tab's area as if the Board were
+  closed, so opening it never changes the drawer.
+- **Saved per project** in `projects.json` (`board_open`, `board_height`; `docs/projects.md`):
+  it reopens as it was after a restart. The last height is the one dragged or picked, Show all
+  included as the pixels it came to; Default size removes it.
+- The Work view's "See all (N) →" opens it on Show all. **Switching the mode off closes it**
+  (`setMode` clears `board_open`), so nothing of the mode shows with it off.
+- A Board tab an earlier version saved in the layout (`{ board: true }`) is dropped on read.
 
 Columns (`boardElement`, `src/renderer/work.ts`): **Topics** (the open ones, in their order) ·
 **Queued** · **In progress** · **Waiting** · **To review** · **Done**: today's closed tasks, newest

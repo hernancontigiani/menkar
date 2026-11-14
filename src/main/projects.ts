@@ -53,6 +53,7 @@ export function projectsSnapshot(): ProjectsSnapshot {
       teamView: p.teamView === true,
       consultantsCollapsed: p.consultantsCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
+      board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
     })),
     notices,
   }

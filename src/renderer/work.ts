@@ -5,6 +5,7 @@ import type { ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { DoneView, TaskView, WindowState } from '../shared/workspace'
 import { act, sessionState, stateDot } from './app'
+import { openBoardShowingAll, toggleBoard } from './board'
 import { el } from './dom'
 import { t } from './i18n'
 import { topicsSection } from './orchestration'
@@ -99,7 +100,7 @@ function tasksSection(open: readonly TaskView[]): HTMLElement[] {
   const nodes = open.slice(0, SHOWN_TASKS).map(taskRow)
   if (open.length > SHOWN_TASKS) {
     const all = el('button', { class: 'see-all' }, t('work.seeAll', { n: open.length }))
-    all.addEventListener('click', () => void act({ type: 'openBoard' }))
+    all.addEventListener('click', () => openBoardShowingAll())
     nodes.push(all)
   }
   return [head, ...nodes]
@@ -288,7 +289,8 @@ export function teamTaskLine(task: TaskView | undefined): HTMLElement | null {
 // Per window, not saved: the Board's "Done before" unfolded.
 let doneBeforeOpen = false
 
-// The Board tab (decisions 1.112, 1.116): every topic and task of the project by state; read only.
+// The Board's columns (decisions 1.112, 1.116, 1.126): every topic and task of the project by
+// state; read only. A column's cards scroll under its fixed heading.
 export function boardElement(s: WindowState, rerender: () => void): HTMLElement {
   const by = (state: TaskState) => s.tasks.open.filter((x) => x.state === state)
   const column = (key: string, title: string, cards: HTMLElement[], extra: HTMLElement[] = []) =>
@@ -301,10 +303,14 @@ export function boardElement(s: WindowState, rerender: () => void): HTMLElement 
         el('span', {}, title),
         el('span', { class: 'dim' }, String(cards.length)),
       ),
-      ...(cards.length === 0 && extra.length === 0
-        ? [el('div', { class: 'board-empty dim' }, t('board.empty'))]
-        : cards),
-      ...extra,
+      el(
+        'div',
+        { class: 'board-cards' },
+        ...(cards.length === 0 && extra.length === 0
+          ? [el('div', { class: 'board-empty dim' }, t('board.empty'))]
+          : cards),
+        ...extra,
+      ),
     )
   const before = s.tasks.closedBefore
   const foldBefore = el(
@@ -356,7 +362,7 @@ export function boardElement(s: WindowState, rerender: () => void): HTMLElement 
   )
 }
 
-function taskCard(task: TaskView): HTMLElement {
+export function taskCard(task: TaskView): HTMLElement {
   const note =
     task.state === 'waiting' && task.waitingOn ? t('work.waitingOn', { on: task.waitingOn }) : ''
   const node = el(
@@ -391,21 +397,27 @@ function taskCard(task: TaskView): HTMLElement {
   return node
 }
 
-// Right of the header's Orchestration switch, only while the mode is on.
+// Right of the header's Orchestration switch, only while the mode is on; pressed while the Board
+// is open.
 export function boardButton(): HTMLElement {
   const node = el(
     'button',
-    { id: 'board-button', class: 'header-text hidden', title: t('board.tooltip') },
+    {
+      id: 'board-button',
+      class: 'header-text hidden',
+      title: t('board.tooltip'),
+      'aria-pressed': 'false',
+    },
     t('board.button'),
   )
-  node.addEventListener('click', () => void act({ type: 'openBoard' }))
+  node.addEventListener('click', () => toggleBoard())
   return node
 }
 
 export function syncBoardButton(project: ProjectInfo | undefined): void {
-  document
-    .getElementById('board-button')
-    ?.classList.toggle('hidden', project?.orchestration.on !== true)
+  const node = document.getElementById('board-button')
+  node?.classList.toggle('hidden', project?.orchestration.on !== true)
+  node?.setAttribute('aria-pressed', String(project?.board.open === true))
 }
 
 const assigneeText = (task: TaskView): string =>

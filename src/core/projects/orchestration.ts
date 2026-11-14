@@ -147,8 +147,10 @@ const toggled = (list: readonly string[] | undefined, id: string, on: boolean) =
   return on ? [...rest, id] : rest
 }
 
+// Off, the Board closes too: nothing of the mode shows with it off.
 export function setMode(state: Projects, projectId: string, on: boolean): Projects {
-  return change(state, projectId, (o) => ({ ...o, on }))
+  const next = change(state, projectId, (o) => ({ ...o, on }))
+  return on ? next : setBoard(next, projectId, { open: false })
 }
 
 // One orchestrator per project (decision 1.77): marking one unmarks the previous; null unmarks.
@@ -277,5 +279,32 @@ export function sessionMarks(
     orchestrator: o.orchestrator === sessionId,
     priority: onStarredTask,
     withYou: o.withYou?.includes(sessionId) ?? false,
+  }
+}
+
+export const isBoardHeight = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+
+// The Board panel (decision 1.126): `height` null goes back to the default.
+export function setBoard(
+  state: Projects,
+  projectId: string,
+  what: { readonly open?: boolean; readonly height?: number | null },
+): Projects {
+  return {
+    ...state,
+    projects: state.projects.map((p) => {
+      if (p.id !== projectId) return p
+      let next: Project = p
+      if (what.open !== undefined) {
+        const { boardOpen: _, ...rest } = next
+        next = what.open ? { ...rest, boardOpen: true } : rest
+      }
+      if (what.height !== undefined) {
+        const { boardHeight: _, ...rest } = next
+        next = isBoardHeight(what.height) ? { ...rest, boardHeight: Math.round(what.height) } : rest
+      }
+      return next
+    }),
   }
 }

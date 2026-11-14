@@ -80,3 +80,9 @@ would not be seen, and a wrong guess would keep work from a session or send work
 
 **Trigger:** the human forgets to set or clear the mark often enough to ask for it. First question:
 which signal counts — keys typed in the pane, focus, Remote Control traffic — and how long it holds.
+
+**Trigger:** after 1.0, the human installs one of them on Ubuntu to try it. First question, per
+
+> Replaced 2026-11-14: "Agent Desk" was agent-deck (the human).
+- **A reference.** The human points to the open-source *Agent Desk*, which supports many of
+agent: the five facts above, read from its docs, Agent Desk's code and a real session, before

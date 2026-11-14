@@ -60,6 +60,10 @@ export interface Project {
   readonly consultantsCollapsed?: true
   // The Work view's Done today section, folded unless this is set.
   readonly doneTodayOpen?: true
+  // The Board panel shown (decision 1.126).
+  readonly boardOpen?: true
+  // Its last height in pixels, dragged or picked; absent, the default.
+  readonly boardHeight?: number
   // Keys a later version wrote, written back as they came.
   readonly rest: Readonly<Record<string, unknown>>
 }
@@ -69,7 +73,6 @@ export type Orientation = 'horizontal' | 'vertical'
 export type SavedTab =
   | { readonly panes: readonly string[]; readonly orientation: Orientation }
   | { readonly file: string; readonly preview: boolean }
-  | { readonly board: true }
 
 export interface SavedWindow {
   readonly current: string

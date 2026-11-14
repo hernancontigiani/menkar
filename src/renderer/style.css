@@ -1845,24 +1845,90 @@ select option {
 .team-task.waiting {
   color: var(--red);
 }
-/* The Board tab: one column per state, scrolling sideways when the window is narrow. */
+/* The Board panel (decision 1.126): between the header and the tab strip; each column scrolls its
+   cards under a fixed heading, and the panel scrolls sideways when the columns don't fit. */
+#board-panel {
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--fg) 3%, var(--bg));
+}
+#board-panel.hidden,
+#board-divider.hidden {
+  display: none;
+}
+.board-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 9pt;
+}
+.board-bar-title {
+  flex: 1;
+  font-weight: 700;
+  color: var(--subtext0);
+}
+.board-bar-button {
+  padding: 1px 8px;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.board-bar-button:hover {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+#board-divider {
+  flex: none;
+  height: 5px;
+  cursor: row-resize;
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+#board-button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--blue) 45%, var(--bg));
+  box-shadow: inset 0 0 0 1px var(--blue);
+}
 .board {
   flex: 1;
+  min-height: 0;
   display: flex;
-  gap: 10px;
-  padding: 12px;
-  overflow: auto;
-  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 10px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 .board-column {
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 140px;
-  padding: 8px;
+  min-width: 160px;
+  min-height: 0;
+  padding: 6px;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+.board-cards {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+.board-cards > * {
+  flex: none;
+}
+.board-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 160px;
+  visibility: hidden;
+  pointer-events: none;
 }
 .board-heading {
   display: flex;

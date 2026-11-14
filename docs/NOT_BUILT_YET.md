@@ -178,7 +178,7 @@ agent that runs in a terminal fits.
   each agent's entry says on which platforms it is enabled. On a platform where it is not enabled
   the agent **does not appear at all** — not even greyed; greyed means only "supported here, but
   not installed on this machine". Set in the code per release, not by the user.
-- **A reference.** The human points to the open-source *Agent Desk*, which supports many of
+- **A reference.** The human points to the open-source *agent-deck* (asheshgoplani/agent-deck), which supports many of
   these agents; read it for each agent's commands and transcript formats. Menkar is written from
   scratch (decision 1.1), so it is read as documentation, not copied — and its license is checked
   first.
@@ -196,8 +196,8 @@ agent that runs in a terminal fits.
 - **The variables a running agent sets for its children** must not reach the agents Menkar starts
   (`src/core/sessionenv.ts` holds Claude Code's, 1.75): find each new agent's.
 
-**Trigger:** after 1.0, the human installs one of them on Ubuntu to try it. First question, per
-agent: the five facts above, read from its docs, Agent Desk's code and a real session, before
+**Trigger:** fired for Codex (1.127, 2026-11-14: before 1.0, inside the orchestration mode). First question, per
+agent: the five facts above, read from its docs, agent-deck's code and a real session, before
 any code.
 
 ### Waking an agent other than Claude Code

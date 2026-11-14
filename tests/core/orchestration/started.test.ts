@@ -57,6 +57,7 @@ describe('starting a session with loose and role', () => {
       teamView: false,
       consultantsCollapsed: false,
       doneTodayOpen: false,
+      board: { open: false, height: null },
     }
     const rows = modeRows(info, {
       listed: ['O', 'N'],

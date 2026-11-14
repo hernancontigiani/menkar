@@ -23,7 +23,7 @@ export interface PaneView {
 export interface TabView {
   readonly id: string
   readonly project: string
-  readonly kind: 'session' | 'file' | 'transient' | 'board'
+  readonly kind: 'session' | 'file' | 'transient'
   readonly title: string
   readonly tooltip: string
   readonly panes: readonly PaneView[]
@@ -189,8 +189,8 @@ export type Action =
   | { readonly type: 'setTeamView'; readonly team: boolean }
   | { readonly type: 'setConsultantsCollapsed'; readonly collapsed: boolean }
   | { readonly type: 'setDoneTodayOpen'; readonly open: boolean }
-  // The shown project's Board tab (decision 1.112), opened once per window and then selected.
-  | { readonly type: 'openBoard' }
+  // The shown project's Board panel (decision 1.126): `height` null goes back to the default.
+  | { readonly type: 'setBoard'; readonly open?: boolean; readonly height?: number | null }
   // Selects the session's tab if it has one; starts nothing.
   | { readonly type: 'selectSessionTab'; readonly session: string }
   | { readonly type: 'discussTopic'; readonly number: number }
@@ -320,7 +320,7 @@ export interface TabEntry {
   readonly tab: string
   readonly projectName: string
   readonly title: string
-  readonly kind: 'session' | 'file' | 'transient' | 'board'
+  readonly kind: 'session' | 'file' | 'transient'
   readonly agent: PaneAgent | null
   readonly panes: readonly string[]
 }

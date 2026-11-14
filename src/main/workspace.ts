@@ -82,7 +82,6 @@ import { agentPaths } from '../core/paths'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
   bringProject,
-  closeBoards,
   closeTab as closeLayoutTab,
   holder,
   insertTabAfter,
@@ -93,7 +92,6 @@ import {
   newWindowProject,
   nthTab,
   openBeside,
-  openBoard,
   openSession,
   removeWindow,
   reopen,
@@ -129,6 +127,7 @@ import {
   orchestrationInfo,
   removeFolder,
   sessionMarks,
+  setBoard,
   setConsultantsCollapsed,
   setDoneTodayOpen,
   setMode,
@@ -349,7 +348,6 @@ function tabView(tab: Tab): TabView {
     title = tab.preview ? t('files.previewTitle', { name }) : name
     tooltip = tab.path
   }
-  if (tab.kind === 'board') title = t('board.tab')
   if (tab.kind === 'session') {
     if (!label) title = tab.panes.map(sessionName).join(' │ ')
     const first = tab.panes[0]
@@ -505,6 +503,7 @@ function stateFor(windowId: string): WindowState | undefined {
       teamView: p.teamView === true,
       consultantsCollapsed: p.consultantsCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
+      board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
     })),
     heldElsewhere,
     tabs: w.tabs.map(tabView),
@@ -2616,7 +2615,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'setOrchestrationMode':
       projects = setMode(projects, action.project, action.on)
-      if (!action.on) layout = closeBoards(layout, action.project)
       changed({ projects: true })
       return {}
     case 'setTaskStar': {
@@ -2685,9 +2683,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       projects = setDoneTodayOpen(projects, w.shown, action.open)
       changed({ projects: true })
       return {}
-    case 'openBoard':
-      layout = openBoard(layout, windowId, newId)
-      changed()
+    case 'setBoard':
+      projects = setBoard(projects, w.shown, action)
+      changed({ projects: true })
       return {}
     case 'selectSessionTab': {
       const pane = paneOfSession(action.session)

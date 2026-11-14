@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
   bringProject,
-  closeBoards,
   closeTab,
   holder,
   insertTabAfter,
@@ -12,7 +11,6 @@ import {
   newWindowProject,
   nthTab,
   openBeside,
-  openBoard,
   openSession,
   removeWindow,
   reopen,
@@ -535,67 +533,23 @@ describe('a tab started by another session', () => {
   })
 })
 
-// Decision 1.112: the Board is a tab of its own, one per project; opening it again selects it, and
-// it is saved with the layout like a file tab.
-describe('the Board tab', () => {
-  test('opening it adds one board tab and selects it; opening it again selects the same one', () => {
-    const layout = layoutOf(win('w1', 'A', [session('t1', 'A', ['S1'])], { A: 't1' }))
-    const once = openBoard(layout, 'w1', ids('b'))
-    const board = tabsOf(once, 'w1').filter((x) => x.kind === 'board')
-    expect(board).toHaveLength(1)
-    expect(once.windows[0]?.selected.A).toBe(board[0]?.id)
-    const back = { windows: [{ ...(once.windows[0] as LayoutWindow), selected: { A: 't1' } }] }
-    const twice = openBoard(back, 'w1', ids('c'))
-    expect(tabsOf(twice, 'w1').filter((x) => x.kind === 'board')).toHaveLength(1)
-    expect(twice.windows[0]?.selected.A).toBe(board[0]?.id)
-  })
-
-  test('another project shown gets its own board', () => {
-    const layout = openBoard(layoutOf(win('w1', 'A', [])), 'w1', ids('b'))
-    const other = openBoard(
-      { windows: [{ ...(layout.windows[0] as LayoutWindow), shown: 'B' }] },
-      'w1',
-      ids('c'),
-    )
-    expect(tabsOf(other, 'w1').map((x) => [x.kind, x.project])).toEqual([
-      ['board', 'A'],
-      ['board', 'B'],
-    ])
-  })
-
-  test('saved as { board: true } and reopened as a board tab, once per project', () => {
-    const layout = openBoard(layoutOf(win('w1', 'A', [session('t1', 'A', ['S1'])])), 'w1', ids('b'))
-    const saved = toSaved(layout)
-    expect(saved[0]?.tabs.A).toEqual([
-      { panes: ['S1'], orientation: 'horizontal' },
-      { board: true },
-    ])
+// Decision 1.126: the Board is a panel, no longer a tab; a Board tab an earlier version saved is
+// dropped on read, the tabs around it kept.
+describe('a saved Board tab', () => {
+  test('is dropped on read', () => {
     const state = projects([project('A', 'A', ['S1'])], 'A')
     const reopened = reopen(
       {
         ...state,
-        windows: [{ current: 'A', tabs: { A: [{ board: true }, { board: true }] } }] as never,
+        windows: [
+          {
+            current: 'A',
+            tabs: { A: [{ board: true }, { panes: ['S1'], orientation: 'horizontal' }] },
+          },
+        ] as never,
       },
       { reopenTabs: true, isFile: () => true, newId: ids('id') },
     )
-    expect(reopened.windows[0]?.tabs.map((x) => x.kind)).toEqual(['board'])
-  })
-})
-
-// The human, 2026-11-13: switching the mode off closes the project's Board in every window, so
-// nothing of the mode shows with it off.
-describe('closing the Board when the mode goes off', () => {
-  test("the project's board goes from every window, its selection moving to a neighbour; other projects' boards stay", () => {
-    let layout = layoutOf(
-      win('w1', 'A', [session('t1', 'A', ['S1'])], { A: 't1' }),
-      win('w2', 'B', []),
-    )
-    layout = openBoard(layout, 'w1', ids('a'))
-    layout = openBoard(layout, 'w2', ids('b'))
-    const closed = closeBoards(layout, 'A')
-    expect(tabsOf(closed, 'w1').map((x) => x.kind)).toEqual(['session'])
-    expect(closed.windows[0]?.selected.A).toBe('t1')
-    expect(tabsOf(closed, 'w2').map((x) => [x.kind, x.project])).toEqual([['board', 'B']])
-    expect(closeBoards(closed, 'A')).toEqual(closed)
+    expect(reopened.windows[0]?.tabs.map((x) => x.kind)).toEqual(['session'])
   })
 })

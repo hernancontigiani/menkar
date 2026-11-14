@@ -14,6 +14,7 @@ import type { SessionInfo } from '../core/sessions/info'
 import { DEFAULT_SETTINGS, SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, ActionResult, TabView, TaskView, WindowState } from '../shared/workspace'
 import { openAddSession } from './addsession'
+import { boardFrame, renderBoard, sizeBoard } from './board'
 import { mountChat } from './chat'
 import { el, icon } from './dom'
 import { fileElement, forgetFilesExcept, setFileTheme } from './editor'
@@ -51,14 +52,7 @@ import {
   toast,
   unsavedQuestion,
 } from './ui'
-import {
-  boardButton,
-  boardElement,
-  syncBoardButton,
-  teamTaskLine,
-  viewSwitch,
-  workView,
-} from './work'
+import { boardButton, syncBoardButton, teamTaskLine, viewSwitch, workView } from './work'
 
 let state: WindowState | undefined
 // Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
@@ -249,6 +243,7 @@ export function buildFrame(): void {
           el('span', { class: 'title-text' }, t('window.title')),
         ),
       ),
+      ...boardFrame(),
       el('div', { id: 'tab-strip' }),
       el('div', { id: 'tab-content' }),
       el('div', { id: 'toasts' }),
@@ -341,6 +336,7 @@ export function render(next: WindowState): void {
   document.documentElement.classList.toggle('maximized', next.maximized)
   syncModeSwitch(project)
   syncBoardButton(project)
+  renderBoard(next)
   renderSessionList(next, project)
   renderStrip(next)
   renderContent(next)
@@ -1325,7 +1321,6 @@ function renderContent(s: WindowState): void {
     const focused = focusedPane.get(tab.id)
     const children: HTMLElement[] = []
     if (tab.file) children.push(fileElement(tab))
-    if (tab.kind === 'board') children.push(boardElement(s, () => state && render(state)))
     if (tab.chat !== undefined) children.push(chatElement(tab.id, tab.chat))
     const project = s.projects.find((p) => p.id === tab.project)
     for (const pane of tab.panes) {
@@ -1436,9 +1431,19 @@ function drawerFocus(s: WindowState): void {
     if (!s.tabs.some((tab) => tab.id === id)) drawerWasShown.delete(id)
 }
 
+// The default is a share of the tab's area as if the Board were closed: opening it never changes
+// the drawer's height.
 function drawerPixels(): number {
-  const height = $('tab-content').clientHeight
-  return Math.round(drawerHeight ?? height * 0.3)
+  const board = ['board-panel', 'board-divider']
+    .map((id) => document.getElementById(id))
+    .reduce((sum, node) => sum + (node?.offsetHeight ?? 0), 0)
+  return Math.round(drawerHeight ?? ($('tab-content').clientHeight + board) * 0.3)
+}
+
+// The selected tab's drawer, 0 when it shows none.
+export function shownDrawerPixels(): number {
+  const tab = state?.tabs.find((x) => x.id === state?.selectedTab)
+  return tab?.drawer?.shown ? drawerPixels() : 0
 }
 
 // The shell under the tab's panes: a pane's terminal, with a divider on top to resize it.
@@ -1456,6 +1461,7 @@ function drawerElement(drawer: NonNullable<TabView['drawer']>): HTMLElement {
       for (const body of tabBodies.values())
         if (body.classList.contains('with-drawer'))
           body.style.setProperty('--drawer-height', `${drawerHeight}px`)
+      sizeBoard()
     }
     divider.addEventListener('pointermove', move)
     divider.addEventListener('pointerup', () => divider.removeEventListener('pointermove', move), {
