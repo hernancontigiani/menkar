@@ -20,6 +20,14 @@
 > Replaced 2026-11-09 by decision 1.26: the long-prompt key is documented.
 | `models` | By model id as stored: `input`, `output`, `cache_write`, `cache_write_1h`, `cache_read`, `cost_usd` (list price) and `priced` |
 
+> Replaced 2026-11-14: the logs are read once per request, by `readStatusline`; `statuslineIncrements` remains for the export.
+- **What the running total grew by** (2026-11-10, `statuslineIncrements`, shared by the window,
+
+## The Usage window
+
+> Replaced 2026-11-14: the Totals and the bars share one reading of the statusline logs per request.
+is on), the chart's series, axis and labels `src/core/usage/chart.ts`, the month stepper
+
 ## Checked against agent-tablet
 
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).

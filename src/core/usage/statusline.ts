@@ -51,22 +51,31 @@ export interface Increment {
   readonly dollars: number
 }
 
-// What each session's running total grew by in [low, high). The running total is followed through
+// Every line's increment, in the logs' order, and the subscription's 5-hour and 7-day use, in %,
+// as the statusline last reported both: what a request needs from the logs, read once.
+export interface StatuslineLog {
+  readonly increments: readonly Increment[]
+  readonly limits: readonly [number, number] | null
+}
+
+// What each session's running total grew by at each line. The running total is followed through
 // every line. Claude Code keeps a session's total across a resume, so a session's first line can
 // carry what it cost before the log saw it: it counts whole only when `newSession` says the line
 // falls in the session's first turn, and is the base otherwise. A total that drops is a resumed
 // session recomputing its total, a dip of a few dollars, never zero again (/clear starts another
 // session): the new value is the base, and nothing counts. Counted whole, either one added the
 // session's lifetime cost to the day.
-export function statuslineIncrements(
+export function readStatusline(
   paths: readonly string[],
-  low: number,
-  high: number,
   newSession: (sessionId: string, at: number) => boolean,
-): Increment[] {
+): StatuslineLog {
   const previous = new Map<string, number>()
-  const found: Increment[] = []
+  const increments: Increment[] = []
+  let limits: [number, number] | null = null
   for (const line of lines(paths)) {
+    const five = line.five_hour_pct
+    const seven = line.seven_day_pct
+    if (typeof five === 'number' && typeof seven === 'number') limits = [five, seven]
     const sessionId = line.session_id
     const cost = line.cost_usd
     const at = parseSeconds(line.at)
@@ -82,18 +91,21 @@ export function statuslineIncrements(
     const dollars =
       before === undefined ? (newSession(sessionId, at) ? cost : 0) : Math.max(0, cost - before)
     previous.set(sessionId, cost)
-    if (low <= at && at < high) found.push({ sessionId, at, dollars })
+    increments.push({ sessionId, at, dollars })
   }
-  return found
+  return { increments, limits }
 }
 
-// The subscription's 5-hour and 7-day use, in %, as the statusline last reported both.
-export function latestLimits(paths: readonly string[]): [number, number] | null {
-  let found: [number, number] | null = null
-  for (const line of lines(paths)) {
-    const five = line.five_hour_pct
-    const seven = line.seven_day_pct
-    if (typeof five === 'number' && typeof seven === 'number') found = [five, seven]
-  }
-  return found
+// The increments at lines in [low, high), in the logs' order.
+export function incrementsIn(log: StatuslineLog, low: number, high: number): Increment[] {
+  return log.increments.filter((inc) => low <= inc.at && inc.at < high)
+}
+
+export function statuslineIncrements(
+  paths: readonly string[],
+  low: number,
+  high: number,
+  newSession: (sessionId: string, at: number) => boolean,
+): Increment[] {
+  return incrementsIn(readStatusline(paths, newSession), low, high)
 }

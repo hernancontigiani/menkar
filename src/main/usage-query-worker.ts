@@ -10,7 +10,7 @@ import {
   type Period,
   periodBounds,
 } from '../core/usage/periods'
-import { buildReport, buildSeries, foldByCategory } from '../core/usage/report'
+import { buildUsage } from '../core/usage/report'
 import { importedStatuslineLogPath, statuslineLogPath } from '../core/usage/statusline'
 
 // Reads of the usage history, on a thread of their own: SQLite is synchronous.
@@ -60,13 +60,7 @@ function answer(query: Query): UsageView | ReturnType<UsageHistory['sessionToken
     }
     const first = history.firstOpened()
     return {
-      totals: buildReport(history, bounds, options),
-      // the chart's bars: by project, and folded by category when classification is on
-      bars: buildSeries(history, bounds, bucket, options).map((r) =>
-        query.categories
-          ? { project: r, category: foldByCategory(r) }
-          : { project: r, category: null },
-      ),
+      ...buildUsage(history, bounds, bucket, options),
       bucket,
       firstMonth:
         first === null ? null : { year: localDay(first).year, month: localDay(first).month },

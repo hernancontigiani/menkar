@@ -15,10 +15,11 @@ import {
   totalExecution,
   totalTokens,
   UNCLASSIFIED,
+  type UsageView,
   ZERO_TOKENS,
 } from './nodes'
 import { type Bounds, type Bucket, buckets, localDay } from './periods'
-import { latestLimits, statuslineIncrements } from './statusline'
+import { incrementsIn, readStatusline, type StatuslineLog } from './statusline'
 
 export {
   CATEGORIES,
@@ -106,15 +107,15 @@ export interface ReportOptions {
 // Project → session for [start, end) from the history, or project → category → session with
 // categories. A turn counts for the project it was filed under, so a session moved between
 // projects shows under each with its own turns.
-export function buildReport(history: UsageHistory, bounds: Bounds, options: ReportOptions): Report {
+export function buildReport(
+  history: UsageHistory,
+  bounds: Bounds,
+  options: ReportOptions,
+  log: StatuslineLog = readLogs(history, options),
+): Report {
   const categories = options.categories ?? false
   const exact = new Map<string, number>()
-  for (const inc of statuslineIncrements(
-    options.statuslineLogs,
-    bounds.start,
-    bounds.end,
-    (sessionId, at) => history.inFirstTurn(sessionId, at),
-  )) {
+  for (const inc of incrementsIn(log, bounds.start, bounds.end)) {
     const category = categories ? history.categoryAt(inc.sessionId, inc.at) : null
     const key = keyOf(history.projectAt(inc.sessionId, inc.at), inc.sessionId, category)
     exact.set(key, (exact.get(key) ?? 0) + inc.dollars)
@@ -155,17 +156,43 @@ export function buildReport(history: UsageHistory, bounds: Bounds, options: Repo
     const children = categories ? byCategoryNodes(found) : found.map((f) => f.node).sort(byLargest)
     return sum(label, 'project', children)
   })
-  return { bounds, nodes, limits: latestLimits(options.statuslineLogs), tooNew: history.tooNew }
+  return { bounds, nodes, limits: log.limits, tooNew: history.tooNew }
 }
 
-// One report per bucket, so a bar and the period's total cannot disagree.
+// One report per bucket, so a bar and the period's total cannot disagree. Every bar takes its
+// lines from one reading of the logs, as each session's running total follows every line.
 export function buildSeries(
   history: UsageHistory,
   bounds: Bounds,
   unit: Bucket,
   options: ReportOptions,
+  log: StatuslineLog = readLogs(history, options),
 ): Report[] {
-  return buckets(bounds, unit).map((b) => buildReport(history, b, options))
+  return buckets(bounds, unit).map((b) => buildReport(history, b, options, log))
+}
+
+function readLogs(history: UsageHistory, options: ReportOptions): StatuslineLog {
+  return readStatusline(options.statuslineLogs, (sessionId, at) =>
+    history.inFirstTurn(sessionId, at),
+  )
+}
+
+// What the Usage window asks for: the period's totals and its bars, each bar by project and, with
+// categories, folded by category too.
+export function buildUsage(
+  history: UsageHistory,
+  bounds: Bounds,
+  unit: Bucket,
+  options: ReportOptions,
+): Pick<UsageView, 'totals' | 'bars'> {
+  const log = readLogs(history, options)
+  return {
+    totals: buildReport(history, bounds, options, log),
+    bars: buildSeries(history, bounds, unit, options, log).map((r) => ({
+      project: r,
+      category: options.categories ? foldByCategory(r) : null,
+    })),
+  }
 }
 
 // A report built with categories, its projects folded away: one node per category across them.

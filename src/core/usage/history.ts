@@ -1,5 +1,6 @@
 import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
+import type { StatementSync } from 'node:sqlite'
 import { fileStamp, now } from '../clock'
 import { type Db, openDb } from '../db'
 import { log } from '../log'
@@ -146,6 +147,7 @@ export class UsageHistory {
   readonly path: string
   readonly tooNew: boolean
   private readonly db: Db | null
+  private readonly statements = new Map<string, StatementSync>()
 
   // Opens the history, creating, migrating or moving it aside by the rules above.
   constructor(path: string = historyPath(), busyTimeoutMs = BUSY_TIMEOUT_MS) {
@@ -195,6 +197,16 @@ export class UsageHistory {
 
   close(): void {
     this.db?.close()
+  }
+
+  // A report asks the same few queries once per statusline line: each is prepared once.
+  private prepared(db: Db, sql: string): StatementSync {
+    let statement = this.statements.get(sql)
+    if (statement === undefined) {
+      statement = db.raw.prepare(sql)
+      this.statements.set(sql, statement)
+    }
+    return statement
   }
 
   private moveAside(error: unknown): void {
@@ -468,29 +480,29 @@ export class UsageHistory {
 
   // The project of the session's turn in effect at `at` (its first turn, before any).
   projectAt(sessionId: string, at: number): string | null {
-    if (this.db === null) return null
-    const raw = this.db.raw
+    const db = this.db
+    if (db === null) return null
     const row =
-      raw
-        .prepare(
-          'SELECT project_id FROM turns WHERE session_id = ? AND opened <= ? ORDER BY opened DESC, uuid DESC',
-        )
-        .get(sessionId, at) ??
-      raw
-        .prepare('SELECT project_id FROM turns WHERE session_id = ? ORDER BY opened, uuid')
-        .get(sessionId)
+      this.prepared(
+        db,
+        'SELECT project_id FROM turns WHERE session_id = ? AND opened <= ? ORDER BY opened DESC, uuid DESC',
+      ).get(sessionId, at) ??
+      this.prepared(
+        db,
+        'SELECT project_id FROM turns WHERE session_id = ? ORDER BY opened, uuid',
+      ).get(sessionId)
     return nullableStr(row, 'project_id')
   }
 
   // The category of the session's turn in effect at `at`, resolved as in a report.
   categoryAt(sessionId: string, at: number): string | null {
-    if (this.db === null) return null
-    const row = this.db.raw
-      .prepare(
-        `SELECT ${CATEGORY} AS c FROM turns t WHERE t.session_id = ? AND t.opened <= ?` +
-          ' ORDER BY t.opened DESC, t.uuid DESC',
-      )
-      .get(sessionId, at)
+    const db = this.db
+    if (db === null) return null
+    const row = this.prepared(
+      db,
+      `SELECT ${CATEGORY} AS c FROM turns t WHERE t.session_id = ? AND t.opened <= ?` +
+        ' ORDER BY t.opened DESC, t.uuid DESC',
+    ).get(sessionId, at)
     return nullableStr(row, 'c')
   }
 
@@ -512,10 +524,12 @@ export class UsageHistory {
 
   // Whether `at` falls in the session's first turn: no other of its turns opened before it.
   inFirstTurn(sessionId: string, at: number): boolean {
-    if (this.db === null) return false
-    const row = this.db.raw
-      .prepare('SELECT COUNT(*) AS n FROM turns WHERE session_id = ? AND opened <= ?')
-      .get(sessionId, at)
+    const db = this.db
+    if (db === null) return false
+    const row = this.prepared(
+      db,
+      'SELECT COUNT(*) AS n FROM turns WHERE session_id = ? AND opened <= ?',
+    ).get(sessionId, at)
     return num(row, 'n') <= 1
   }
 

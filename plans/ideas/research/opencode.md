@@ -209,6 +209,62 @@ Setup:
     `session.usage.updated`, `permission.asked/replied`, `shell.created/exited`. A turn's end:
     `{"type":"session.execution.succeeded","data":{"sessionID":…},"durable":{"seq":99,…}}`.
 
+## Two servers on one session, and `/new` (2026-11-14, second run, same home and stub)
+
+Asked by `set` after `agents-compared.md`. Setup: the stand-in API again (PID 1423789); **two
+servers on the same throwaway home** — "Menkar's" `opencode serve --port 47901` (PID 1423790) and a
+second one, standing for the human's service, `--port 47902` (PID 1423791) — both with the same
+`OPENCODE_CONFIG_CONTENT`, no `MENKAR_PANE` in their environment; an event listener on each; TUIs
+in `tmux -L ocdual`. Everything stopped by PID afterwards. opencode v2.3.0.
+
+22. **Two servers start and share one `opencode.db` without complaint**: no error or lock in
+    either log. A session created through 47901 (`ses_twoservers0001`) was readable at once
+    through 47902's API.
+23. **Each server and its TUI see only their own live activity.** A post to 47901 ran there; the
+    TUI attached to 47902 on the same session showed nothing, though 47902's
+    `GET …/message` listed the new rows (it reads the database). Each event stream carried only its
+    own server's `session.execution.*`.
+24. **Two turns ran at once on one session.** A `SLOW` turn ran on 47901 (posted 14:17:32.667);
+    a message posted to 47902 with `delivery:"queue"` at 14:17:35.692 **did not wait**: 47902's
+    `GET /api/session/active` was `{}` while 47901's said `running`, and 47902 sent its own model
+    request at 14:17:35.729. That request held 47901's in-flight user message with no reply yet,
+    then 47902's. 47902 answered and wrote its `idle` at 14:17:37; 47901's reply came at 14:17:52
+    and wrote a second `idle`.
+25. **No corruption, but an interleaved history:**
+    - `PRAGMA integrity_check` `ok`; the inbox empty; no error in either server's log;
+    - rows by `seq`: user "SLOW turn on A" (14), user "queue on B" (17), B's assistant (18), idle
+      (24), **A's assistant (25, `time_created` earlier than 17)**, idle (31);
+    - `session_v2.time_busy` held 47902's start: the busy columns are last-writer-wins;
+    - the next turn on 47901 sent the model the whole merged history in `seq` order (both
+      replies, A's after B's), so the model saw B's exchange, but **47901's TUI never showed it**,
+      and 47902's TUI never showed A's.
+26. **`/new` in a TUI makes no session until the first prompt** (only `session.viewed`). The first
+    prompt emitted `session.created` with `{sessionID: "ses_e25932e68ffept3ujYBXML1GK6", slug,
+    location, agent, model}`, then `session.renamed` (the generated title, "stub title"), and
+    the turn's events.
+27. **The new session's MCP call carried its new id**: `"_meta":{"ai.opencode/sessionID":
+    "ses_e25932e68ffept3ujYBXML1GK6"}`.
+28. **Nothing names the TUI that made it.** `session.created` and `session.viewed` (`{sessionID,
+    idle}`) carry no client. The TUI's environment (`MENKAR_PANE=pane-A`) is sent to the server
+    with `PUT /api/session/<id>/environment` but kept **in memory only** (read,
+    `core/src/session/environment.ts:18-28`): it was found nowhere in the database or the events.
+    The only headers clients send are `x-opencode-directory` and `x-opencode-ticket` (read).
+29. **A per-pane proxy binds it.** A 20-line Node HTTP proxy on port 47921 forwarding to 47901,
+    with a TUI started as `--server http://127.0.0.1:47921`: the TUI worked through it, event
+    stream included. The proxy saw `POST /api/session` (the create), then
+    `POST /api/session/ses_e259297acffes88RP16CehOgLM/view`, `…/model` and `…/prompt` — the id
+    of the session that pane shows, at the moment it shows it. The TUI also polls the sessions of
+    its other tabs (`GET /api/session/<id>/message`, `…/inbox`), so a binding reads `/view` and
+    `/prompt`, not every path.
+30. **Memory:** each `opencode serve` had about 270 MB resident (`VmRSS` 283264 kB and 267328 kB)
+    after a few turns; a server per pane would cost that per OpenCode tab.
+31. **The TUI's tabs are shared by every TUI of the user.** They live in
+    `$XDG_STATE_HOME/opencode/latest/tui/tabs.json`, per folder: a TUI in this repository showed
+    tabs for the sessions of my earlier probes, made by other TUIs and other servers. So a
+    Menkar-started TUI lists the human's own OpenCode sessions in that folder as tabs, and the
+    human's own TUI lists Menkar's (inferred: same file when both use the human's
+    `XDG_STATE_HOME`). One click in either opens a session the other is running.
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
@@ -385,8 +441,10 @@ Setup:
   Menkar's OpenCode sessions are the user's sessions, as Menkar's Claude sessions are.
   - Several servers on one database is what `--standalone` already does (read), with WAL.
   - **The same session open in two servers at once** (Menkar's and the human's TUI on the
-    service) could run two turns or two inboxes (inferred; unprobed), like a Claude session
-    resumed in two terminals.
+    service) **runs two turns at once**: a queued post to one server does not wait for a turn
+    running on the other, each TUI shows only its own server's activity, and the history is
+    interleaved by write order; the database stays intact (measured, items 22–25). It is like a
+    Claude session resumed in two terminals, and made likelier by the shared tab list (item 31).
   - The TUI's own environment still reaches its session's shell commands: the TUI sends it with
     `PUT /api/session/<id>/environment` (read, `cli/src/env.ts:15-22`, `tui/src/app.tsx:536`), so
     `MENKAR_PANE` reaches the bash tool, not the MCP server.
@@ -486,6 +544,16 @@ Read in source. The `sessionenv.ts` counterpart:
   (read, `core/src/mcp/client.ts:711-718`; measured, item 18); Menkar knows each
   pane's session id because it created it. The server's check that refuses calls without
   `MENKAR_PANE` needs a second way in for OpenCode.
+- **A session Menkar did not create** (the human's `/new` in a Menkar tab, or a click on another
+  tab of the shared list) calls with an id Menkar never mapped (measured, items 26–28). The
+  server's events and the database do not say which TUI made or shows it. Ways to bind it:
+  - **a per-pane proxy inside Menkar** (one loopback port per OpenCode pane, forwarding to the
+    one server): the pane's `POST …/view` and `…/prompt` paths name its current session
+    (measured, item 29). No extra process; Menkar's main process listens.
+  - a server per pane: the pane is then the server, and `MENKAR_PANE` in the server's environment
+    reaches the MCP server (measured, item 10), at about 270 MB per OpenCode tab (item 30).
+  - refuse unmapped ids: the call fails with Menkar's sentence until the human returns to the
+    pane's own session.
 - **`start_session { agent? }`** as in `codex.md`: `model` becomes `session.create`'s `model`
   (`provider/model`), the name its `title`; `remote_control` is refused.
 - agent-deck does not let an OpenCode session be a conductor (its
@@ -600,7 +668,9 @@ Read at `9fa44b5`. It checks `opencode --version` once and treats 1.x and 2.x ap
    `permission.asked`), with the screen strings of §1.3 as a fallback.
 6. **Context** from `GET /api/session/<id>/context` or the last step's tokens.
 7. **`wake` for OpenCode = `POST /api/session/<id>/prompt {text:"[Menkar] …", delivery:"queue"}`**.
-8. **The MCP server's caller from `_meta["ai.opencode/sessionID"]`**, mapped to the pane.
+8. **The MCP server's caller from `_meta["ai.opencode/sessionID"]`**, mapped to the pane; the map
+   kept current by a per-pane proxy's `/view` and `/prompt` (§3), and the pane's session in
+   Menkar's list following it, as a `/clear` does for Claude.
 9. **`start_session { agent? }`, `send_message`, skills served** as `codex.md` items 8–10 say.
 10. **`sessionenv.ts` for OpenCode:** the variables in §1.7, applied to the panes and to
     Menkar's server.
@@ -609,7 +679,12 @@ Read at `9fa44b5`. It checks `opencode --version` once and treats 1.x and 2.x ap
       beside the user's service;
     - naming: Menkar sets `title` when it creates the session, through OpenCode's API — a
       start-time name like `claude -n`, but written into the agent's data by Menkar's call;
-    - the same session open in Menkar's server and in the human's own TUI at once;
+    - the same session open in Menkar's server and in the human's own TUI at once runs two turns
+      at once (measured): whether Menkar warns, refuses to start a session its database shows
+      busy (`time_busy > time_idle`), or accepts it as the human's choice; and the shared tab
+      list that makes it one click away;
+    - how a pane's caller is bound after `/new`: a per-pane proxy (recommended by me: exact, no
+      process), a server per pane, or refusing;
     - `CLAUDE.md` versus `AGENTS.md` here, or `instructions` per run;
     - OpenCode Desktop's service still running after its uninstall (the human's machine, not
       Menkar's design).
@@ -622,8 +697,9 @@ The first list (queued wake, approval, draft, busy columns and events, `--prompt
 session, MCP approval and `_meta`, skills and instructions) was measured on 2026-11-14 against
 the stand-in API; see "Turns against a stand-in API". Still open, each asked of `set` first:
 
-1. Two servers holding the same session at once (Menkar's and the user's service): double turns,
-   two inboxes.
+1. (Answered in items 22–31: two servers run two turns at once on one session, without
+   corruption; `/new` is bound only by watching the pane's own requests.) Whether a busy check
+   on `time_busy` across servers is reliable enough to refuse a second start.
 2. A TUI of another version against Menkar's server (the service replaces itself on a mismatch;
    `--server` may not).
 3. Whether an MCP tool asks for approval at all without an `allow` rule; whether a `synthetic`

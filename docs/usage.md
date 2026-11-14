@@ -85,7 +85,8 @@ For Menkar (2026-11-08):
 
 Built by plan 12; how it is wired is in `docs/preferences.md`. The window reads `src/core/usage/`
 only: the Totals are `buildReport`, the bars `buildSeries` (folded by category while classification
-is on), the chart's series, axis and labels `src/core/usage/chart.ts`, the month stepper
+is on), both from one reading of the statusline logs per request (`buildUsage`), the chart's
+series, axis and labels `src/core/usage/chart.ts`, the month stepper
 `src/core/usage/stepper.ts`. The types the page receives (`UsageView`, `UsageWhich`) and the shared
 formats live in `src/core/usage/nodes.ts`, which imports no Node module, so the renderer can use
 them.
@@ -185,7 +186,7 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
 | `cost_usd` | The turn's cost: the statusline's exact figure when its session reported one, else the list-price estimate |
 | `cost_exact` | Whether `cost_usd` is the statusline's figure |
 
-- **What the running total grew by** (2026-11-10, `statuslineIncrements`, shared by the window,
+- **What the running total grew by** (2026-11-10, `readStatusline`, shared by the window,
   `menkar usage` and the export). Claude Code keeps a session's total across a resume, so a
   session's first line can carry everything it cost before the log saw it: that line counts whole
   only when it falls in the session's first turn (`inFirstTurn`), and is the base otherwise. A
