@@ -1,5 +1,6 @@
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { e2ePath } from './path'
 
 export const SESSION = '5c1e7a2b-0f3d-4e6a-8b9c-1d2e3f4a5b6c'
 export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
@@ -171,7 +172,7 @@ export function prepare(dirs: {
       },
     }),
   )
-  return { PATH: `${bin}:${process.env.PATH ?? ''}` }
+  return { PATH: e2ePath(dirs.root, bin) }
 }
 
 // The look's standard case: "Client work" with a group "api pair" (#5ec4b6) of two sessions and

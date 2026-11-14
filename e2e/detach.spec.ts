@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import * as pty from 'node-pty'
 import { ensureDisplay } from './display'
+import { e2ePath } from './path'
 
 const DETACHED = '--menkar-detached'
 
@@ -98,6 +99,7 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
     XDG_CACHE_HOME: join(root, 'cache'),
     XDG_DATA_HOME: join(root, 'data'),
     SHELL: '/bin/bash',
+    PATH: e2ePath(root),
     XDG_SESSION_TYPE: 'x11',
   })
   // What keeps every other run attached would keep this one attached too.

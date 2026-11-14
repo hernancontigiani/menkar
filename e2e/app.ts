@@ -8,10 +8,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { _electron, type ElectronApplication, type Page } from '@playwright/test'
 import { ensureDisplay } from './display'
 import { catppuccin } from './fixtures'
+import { e2ePath, foreignEntries } from './path'
 
 export interface LaunchedApp {
   readonly root: string
@@ -56,8 +57,14 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
     XDG_CACHE_HOME: join(root, 'cache'),
     XDG_DATA_HOME: join(root, 'data'),
     SHELL: '/bin/bash',
+    PATH: e2ePath(root),
     ...extraEnv,
   })
+  const foreign = foreignEntries(env.PATH ?? '', root, resolve('.'))
+  if (foreign.length > 0) {
+    rmSync(root, { recursive: true, force: true })
+    throw new Error(`e2e PATH reaches the machine's own folders: ${foreign.join(', ')}`)
+  }
   delete env.ELECTRON_RENDERER_URL
   // On a Wayland desktop Electron would open its window on the developer's screen and ignore
   // xvfb-run's DISPLAY.
@@ -159,7 +166,7 @@ export function savedCursorTab(
       },
     }),
   )
-  return { PATH: `${bin}:${process.env.PATH ?? ''}` }
+  return { PATH: e2ePath(dirs.root, bin) }
 }
 
 // What the app saved in its state.json: nothing until something is saved, so a fresh start has none.

@@ -11,6 +11,7 @@ import {
 import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp, savedState } from './app'
+import { e2ePath } from './path'
 
 // Settings' Integrations, Usage & classifier and About sections on the real app (docs/spec/preferences.md PRF-31 to PRF-36,
 // context.md's switch, classifier.md CLS-25 to CLS-32). The real `claude` is never run.
@@ -144,7 +145,7 @@ test('CLS-25, CLS-26, CLS-27 the switch shows the earlier-turns row; its dialog 
       const answers = [0, 1, 2].map((id) => ({ id, category: 'plan' }))
       writeFileSync(join(replies, '1.json'), JSON.stringify({ result: JSON.stringify(answers) }))
       return {
-        PATH: `${FAKE_DIR}:${process.env.PATH ?? ''}`,
+        PATH: e2ePath(base, FAKE_DIR),
         FAKE_CLAUDE_LOG: log,
         FAKE_CLAUDE_REPLIES: replies,
       }
@@ -253,7 +254,7 @@ function earlierTurns(base: string, home: string): Record<string, string> {
     `${lines.map((l) => JSON.stringify(l)).join('\n')}\n`,
   )
   mkdirSync(join(base, 'fake-log'))
-  return { PATH: `${FAKE_DIR}:${process.env.PATH ?? ''}`, FAKE_CLAUDE_LOG: join(base, 'fake-log') }
+  return { PATH: e2ePath(base, FAKE_DIR), FAKE_CLAUDE_LOG: join(base, 'fake-log') }
 }
 
 const dayBefore = (days: number) => {

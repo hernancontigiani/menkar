@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launchApp, savedCursorTab } from './app'
 import { ensureDisplay } from './display'
+import { e2ePath } from './path'
 
 const ELECTRON = resolve('node_modules/electron/dist/electron')
 const APP = resolve('.')
@@ -28,6 +29,7 @@ test('FIL-31 `menkar open` with no file prints the usage and exits with 2', asyn
     XDG_CONFIG_HOME: join(root, 'config'),
     XDG_CACHE_HOME: join(root, 'cache'),
     XDG_DATA_HOME: join(root, 'data'),
+    PATH: e2ePath(root),
   })
   delete env.WAYLAND_DISPLAY
   mkdirSync(join(root, 'home'))

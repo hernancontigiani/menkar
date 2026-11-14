@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp } from './app'
 import { prepare, SESSION } from './fixtures'
+import { e2ePath } from './path'
 
 // Chat tabs, MCP servers and Ghostty on the real app (docs/spec/chat.md), with the stand-ins of
 // tests/data/chat first on the PATH: the real `claude`, `cursor-agent` and `ghostty` never run.
@@ -40,7 +41,7 @@ function withStandins(log: string) {
     const prepared = prepare(dirs) ?? {}
     return {
       ...prepared,
-      PATH: `${STANDINS}:${prepared.PATH ?? process.env.PATH ?? ''}`,
+      PATH: `${STANDINS}:${prepared.PATH ?? e2ePath(dirs.root)}`,
       FAKE_CHAT_LOG: log,
     }
   }

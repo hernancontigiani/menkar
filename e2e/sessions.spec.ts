@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { MenkarApi, SessionInfo } from '../src/shared/ipc'
 import { launchApp } from './app'
+import { e2ePath } from './path'
 
 const A = '1b4e28ba-2fa1-11d2-883f-0016d3cca427'
 const B = '9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f'
@@ -30,7 +31,7 @@ test('the renderer receives the sessions of a temporary HOME, and an update when
         join(folder, `${B}.jsonl`),
         line({ type: 'user', cwd: '/tmp/demo', message: { content: 'second one' } }),
       )
-      return { PATH: `${bin}:${process.env.PATH ?? ''}` }
+      return { PATH: e2ePath(root, bin) }
     },
   })
   const page = launched.window

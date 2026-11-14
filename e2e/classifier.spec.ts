@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { expect, test } from '@playwright/test'
 import { launchApp } from './app'
+import { e2ePath } from './path'
 
 // The real `claude` is never run: the stand-in in tests/data/classifier answers from a reply file.
 const FAKE_DIR = resolve('tests/data/classifier')
@@ -64,7 +65,7 @@ test('with the switch on, the start-up usage pass is followed by a classificatio
         JSON.stringify({ result: '[{"id":0,"category":"build"}]' }),
       )
       return {
-        PATH: `${FAKE_DIR}:${process.env.PATH ?? ''}`,
+        PATH: e2ePath(base, FAKE_DIR),
         FAKE_CLAUDE_LOG: fakeLog,
         FAKE_CLAUDE_REPLIES: replies,
       }
@@ -106,7 +107,7 @@ test('the earlier-turns estimate and run answer through the preload, with the sw
       const answers = [0, 1, 2].map((id) => ({ id, category: 'design' }))
       writeFileSync(join(replies, '1.json'), JSON.stringify({ result: JSON.stringify(answers) }))
       return {
-        PATH: `${FAKE_DIR}:${process.env.PATH ?? ''}`,
+        PATH: e2ePath(base, FAKE_DIR),
         FAKE_CLAUDE_LOG: fakeLog,
         FAKE_CLAUDE_REPLIES: replies,
       }
