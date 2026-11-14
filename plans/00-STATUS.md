@@ -158,6 +158,7 @@
 
 | Order | Plan | State |
 |---|---|---|
+| 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design for review (1.135 step 1): Fable 5.2, then the human |
 
 ## 4. Next plan number
 
