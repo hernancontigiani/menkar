@@ -214,6 +214,56 @@ afterwards; `--model auto`; a private tmux server; 14 short turns over 10 runs (
     - So per-pane plugin folders that share one basename (`…/<pane>/menkar`) share one allowlist
       entry.
 
+## Third round, measured on cursor-agent 2026.11.13-eacade1 (2026-11-14, 11:38–11:46)
+
+Same conditions as before: a throwaway `HOME` with the copy of `auth.json` deleted afterwards,
+`--model auto`, and 9 short turns. A no-op `stop` in the scratch repository's `.cursor/hooks.json`
+made the plugin's `stop` and its tokens available (item 12).
+
+17. **`--approve-mcps` does not remove the per-call card.**
+    - Command: `cursor-agent --model auto --plugin-dir <plugin> --approve-mcps "Call the probe_ping
+      MCP tool once…"`.
+    - "Run this MCP tool?" was shown as without the flag.
+    - It wrote no approval: `permissions.allow` stayed `["Shell(ls)"]`, and no `mcp-approvals.json`
+      appeared.
+    - So per run, nothing narrower than `--force` removes the card.
+18. **MCP tools are deferred, not sent with their schemas.** The model reaches them through
+    `GetDynamicTools {namespace, toolName}` and then `CallDynamicTool` (transcript, first round).
+    The cost of listing them, from the `stop` hook's `input_tokens`, on a new chat with the same
+    first prompt "Say OK.":
+
+    | Plugin | `input_tokens` |
+    |---|---|
+    | none | 10015 |
+    | 1 tool | 10038 (+23) |
+    | 18 tools, 14,874 bytes of schemas | 10140 (+125) |
+    | none, again | 10015 |
+
+    - `cache_read_tokens` was 3968 in every run.
+    - So the listing costs about 6–7 tokens per tool, not the schemas, which would be about
+      3.7k tokens.
+    - **Using** a tool costs a `GetDynamicTools` round trip first (one model step).
+19. **`/rename <name>` writes both `meta.json`'s `title` and the `name` in `store.db`'s meta**
+    (measured: "Probe Ping MCP" became "Probe Renamed Kilo" in both). It is a TUI slash command
+    (read, bundle `1212.index.js`: "Usage: /rename <name>").
+    - **Nothing outside sets a title:**
+      - no CLI flag (`--help`);
+      - a positional prompt `"/rename Probe Lima"` is **not** run as a command. It reached the model,
+        which searched for a `cursor-app-control.rename_chat` tool for a whole turn and reported it
+        unavailable.
+      - The chat's generated title still came out "Probe Lima": the auto-namer names a chat from
+        its first message (read: the name is generated once, and only while none is set).
+    - The only other writers are typing `/rename` or editing Cursor's files, which are against
+      Menkar's rules.
+20. **Text typed while an approval card is open goes to the card.** In my own probe, `/rename …`
+    and Enter sent at a card that was still open **approved the tool call** ("Run (once)"). This is
+    the case the rule against typing exists for.
+21. **A hidden ACP server mode exists:** `cursor-agent acp`, "Start the Cursor Agent as an ACP
+    (Agent Client Protocol) server". It is hidden from `--help` (read, bundle `index.js`; its
+    session sets `name` and sends `session_info_update`, `178.index.js`). It is a stdio protocol
+    for a client such as an editor, not an inbound channel into a TUI. It could carry a future
+    Cursor chat tab, as `codex app-server` could for Codex (inferred, not run).
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
@@ -593,11 +643,13 @@ Each is asked of `set` first, and runs in a throwaway home.
    `.claude/settings.json` (another source Cursor lists) enables it.
 2. ~~Whether `followup_message` starts a turn~~: answered, items 13–14. Still open: the default
    `loop_limit`, and the cause of the double delivery after a waiting hook.
-3. Whether `.mcp.json` in a plugin expands `${env:MENKAR_PANE}`, and whether `--approve-mcps` skips
-   the per-tool card. (Where the allowlist writes, and the server's name: answered, items 15–16.)
+3. Whether `.mcp.json` in a plugin expands `${env:MENKAR_PANE}`. (`--approve-mcps`: it does not
+   skip the card, item 17. Where the allowlist writes, and the server's name: answered, items
+   15–16.)
 4. Whether `--trust` skips the TUI's trust prompt, and whether it writes `.workspace-trusted`.
 5. `--add-dir` in the TUI.
-6. Whether a rename (`/rename-chat`, or the built-in skill) writes `meta.json`'s `title`.
+6. ~~Whether a rename writes `meta.json`'s `title`~~: `/rename` does, and nothing outside the TUI
+   sets it (item 19).
 7. Whether nested `AGENTS.md` and rules apply when the agent works in that folder.
 8. Whether Menkar's own plugin folder (`.claude-plugin/plugin.json`) loads in Cursor as it is.
 9. Windows and macOS: paths, the trust file, the worker socket.

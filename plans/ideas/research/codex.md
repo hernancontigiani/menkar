@@ -142,6 +142,71 @@ The start command was `codex -C <repo> -c 'mcp_servers.menkar.command=…' -c
     - Correction to item 7: run 1 showed only one line per turn. The extra line appears on the first
       turn of a new thread, when the title is generated.
 
+**Third run, for plan 38's review** (2026-11-14 ~11:42–11:47, same conditions: a throwaway home
+with the human's `auth.json` copied in and then deleted, `tmux -L codexprobe`, two sessions with
+6 short turns in all, every process stopped by PID after checking its `CODEX_HOME`). The screens
+are saved in the scratchpad at `probe/log/screen-*.txt`.
+
+14. **MCP tools are deferred.**
+    - Session A had an MCP stub with **18 tools**, each with a description and two string
+      parameters; session B had none. Both ran the same first prompt.
+    - The first turn's `token_count.last_token_usage.input_tokens` was **14,786 with the server
+      and 14,779 without it: +7 tokens**.
+    - The rollout's `additional_tools` item was the same size (38,139 bytes) in both. It holds
+      `functions` (`exec`, `wait`, `request_user_input…`), `clock` and `collaboration`. None of
+      the 18 schemas was in it.
+    - The model saw the server only as one line, `- mcp__menkar`, in a `<tools>` list.
+    - So the cost of Menkar's server per request is its name, whatever the number of tools.
+      Codex sent `tools/list` once.
+15. **Naming from outside the TUI works, but the open TUI does not see it.**
+    - A separate `codex app-server` over stdio, with the same `CODEX_HOME`, was sent
+      `initialize`, `initialized` and `thread/name/set {threadId, name:"menkar-t9"}`. It answered
+      `{}` and emitted `thread/name/updated`.
+    - It wrote two places: a line `{"id","thread_name":"menkar-t9","updated_at"}` appended to
+      `session_index.jsonl`, and `threads.name` = `menkar-t9` in `state_5.sqlite`. The rollout got
+      no line.
+    - The embedded TUI holding that thread kept showing its old name in the footer.
+    - **Correction to item 9:** session B had **a generated name before any rename**:
+      `session_index.jsonl` held `"thread_name":"Reply with OK"`, and the footer showed
+      "· Reply with OK". Session A, started a minute earlier in the same home, got no generated
+      name. When Codex names a thread by itself is unknown.
+    - **Before the first turn:** the rollout file, whose name ends in the thread id, appears when
+      the session starts (run 1: its timestamp was the trust acceptance). So the id could be learned
+      from the folder before any turn, but that is a race with any other session starting in the
+      same second (inferred).
+16. **Screens, measured** (120×40, one blank line removed):
+    - **Trust prompt:**
+      `Folder access` / `<path>` / `Trust this folder? Codex can read, edit, and run files here,
+      subject to your permission settings. …` / `› 1. Trust and continue` /
+      `2. Back to Agent Command Center` / `enter continue · esc back`.
+    - **Working:**
+      - while MCP servers start: `• Starting MCP servers (2/3): codex_apps (0s • esc to interrupt)`;
+      - in a turn: `• Working (5s • esc to interrupt)`.
+      - **The composer `› Ask Codex to do anything` stays visible below the working line**, so the
+        composer alone does not mean idle. A working line above it does.
+    - **Approval:**
+      - `• Running touch b.txt`, `Would you like to run the following command?`,
+        `Environment: local`, `Reason: …`, `$ touch b.txt`;
+      - `› 1. Yes, proceed (y)`, `2. Yes, and don't ask again for commands that start with …
+        (p)`, `3. No, and tell Codex what to do differently (esc)`;
+      - `Press enter to confirm or esc to cancel`.
+      - The composer is replaced by the card.
+    - **Idle:**
+      - `• OK`, then `Worked for 3s • 11:43 AM`, then `› Ask Codex to do anything`;
+      - the footer: `<model> <effort> · <cwd>`, then `· <thread name>` when there is one, then
+        `← for agents · ? for shortcuts` (and `⚠ 1 warning · f2 to view` when embedded).
+17. **`codex queue`'s store is `$CODEX_HOME/queue_1.sqlite`** (WAL, sqlx migrations).
+    - Tables: `queued_items(id, thread_id, payload_json, queue_order, created_at_ms,
+      updated_at_ms)` and `queued_thread_revisions(revision, thread_id UNIQUE)`.
+    - Setup: a message queued while an approval card was pending.
+    - **One wake wrote** one `queued_items` row: the message id, the thread id,
+      `payload_json` = `{"UserInput":{"content":[{"type":"text","text":"[Menkar] …",
+      "text_elements":[]}],"client_id":"…"}}`, and `queue_order` 0. It also bumped that thread's
+      revision (3).
+    - **On delivery the row was deleted** (`queued_items` count 0) and the revision bumped again
+      (4). Nothing of the queue stays after delivery except the revision counter. The message
+      itself goes into the rollout as a `UserMessage`.
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming

@@ -265,6 +265,48 @@ in `tmux -L ocdual`. Everything stopped by PID afterwards. opencode v2.3.0.
     human's own TUI lists Menkar's (inferred: same file when both use the human's
     `XDG_STATE_HOME`). One click in either opens a session the other is running.
 
+## What Menkar's MCP server costs per request, and `list_changed` (2026-11-14, third run)
+
+Asked by `set` for plan 38's review. Same throwaway home and stand-in API (PID 1653641), opencode
+v2.3.0, one fresh `opencode serve` per configuration (PIDs 1653642, 1654355, 1655127), each
+stopped by PID.
+
+- **The real tool list:** `out/main/mcp-server.js` from the tree (built 2026-11-14 11:25), run once
+  under plain `node` with `MENKAR_PANE=probe-pane` and throwaway `HOME`/XDG folders, fed
+  `initialize`, `notifications/initialized`, `tools/list` on stdin. It answered **18 tools**
+  (`renew` … `resume_session`), **8,847 bytes** of compact JSON; it wrote no file. Plain `node`
+  instead of Electron under `ELECTRON_RUN_AS_NODE` is enough for a listing (the server imports
+  nothing from Electron).
+- **The server in the probes:** a replay stub (`stub/replay.mjs`) answering that exact list,
+  declaring `tools.listChanged`. After its first `tools/call` it added a tool `probe_added` and sent
+  `notifications/tools/list_changed`.
+- **Three configurations,** the same `OPENCODE_CONFIG_CONTENT` otherwise (the stub provider, the
+  skills folder, `permission`): no Menkar MCP; Menkar's with `codemode:false`; Menkar's with Code
+  Mode on (the default). One session each, a one-word first prompt.
+
+32. **The first model request's body** (compact JSON, bytes):
+
+    | Configuration | Body | Tools | Tool definitions | System prompt (chars) |
+    |---|---|---|---|---|
+    | No Menkar MCP | 22,872 | 12 | 13,553 | 8,911 |
+    | Menkar, `codemode:false` | 32,654 (**+9,782**) | 30 (+18 `menkar_*`) | 23,335 (`menkar_*`: 9,783) | 8,911 |
+    | Menkar, Code Mode (default) | 26,637 (**+3,765**) | 12 | 13,553 | 12,593 (+3,682) |
+
+    - With `codemode:false`, **every request grows by the 18 tools' definitions, ~9.8 KB**; it was
+      the same in every later request of that session.
+    - With Code Mode the tools stay out of the tool list; the system prompt gains a "`# Code Mode`"
+      section ("The tools listed below, and `search`, cannot be called directly: they only work as
+      JavaScript inside the `execute` tool… The catalog is partial") with typed signatures, +3.7
+      KB. The model must then write `await tools.<ns>.<tool>(…)` inside `execute`.
+33. **In tokens, roughly:** ~**2,400–2,800 tokens per request** for `codemode:false` (9,782 bytes
+    at 3.5–4 bytes per token, the usual range for English and JSON schema text; no tokenizer was
+    run, nothing left the machine), and ~900–1,100 with Code Mode. The definitions sit at the
+    start of the request, so a provider with prompt caching would bill them as cached reads after
+    the first request (inferred; depends on the provider OpenCode talks to).
+34. **`notifications/tools/list_changed` is honoured.** The stub sent it at 14:43:39.369;
+    OpenCode asked `tools/list` again at 14:43:39.380 (11 ms), and **the very next model request
+    (the step after the call) already listed `menkar_probe_added`** (31 tools, +164 bytes).
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
@@ -583,7 +625,10 @@ Read in source. The `sessionenv.ts` counterpart:
     `core/src/mcp/index.ts:1130`), so `MENKAR_PANE` cannot name the caller; `_meta` does (§3).
   - **`codemode: false` is needed** for the tools to be the model's own: with the default, MCP
     tools are reached only through OpenCode's `execute` tool (Code Mode), and the skills'
-    "call `menkar_…`" would name a tool that is not there (measured, item 18).
+    "call `menkar_…`" would name a tool that is not there (measured, item 18). **Its cost: the 18
+    tools' definitions, ~9.8 KB, ~2.4–2.8k tokens, in every request**; Code Mode costs ~3.7 KB
+    (measured, items 32–33). The server's `tools/list` can shrink it per caller, and OpenCode
+    re-lists on `notifications/tools/list_changed` within the same turn (measured, item 34).
   - **No approval card:** `permission: {"menkar_*":"allow"}` (v1 form) in the same JSON (measured,
     item 18), or `permissions: [{action:"menkar_*", resource:"*", effect:"allow"}]` (v2 form) or on
     `session.create` (accepted, item 6). The action is `<server>_<tool>` (read,
