@@ -86,3 +86,12 @@ which signal counts â€” keys typed in the pane, focus, Remote Control traffic â€
 > Replaced 2026-11-14: "Agent Desk" was agent-deck (the human).
 - **A reference.** The human points to the open-source *Agent Desk*, which supports many of
 agent: the five facts above, read from its docs, Agent Desk's code and a real session, before
+
+> Replaced 2026-11-14: Pi left out of the candidate agents (the human).
+### More coding agents: Codex, OpenCode, Pi
+`src/core/agents.ts`. The human wants OpenAI's Codex CLI, OpenCode and Pi too (2026-11-10), after
+1.0. An agent is more than a command:
+1.0. An agent is more than a command: Menkar needs, per agent, how to start and resume a session,
+
+> Replaced 2026-11-14: Gemini CLI joins the candidates (1.133).
+### More coding agents: Codex, OpenCode
