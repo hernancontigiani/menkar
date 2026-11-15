@@ -288,3 +288,27 @@ every figure adds up across days. The human finds 2.3 s tolerable for now (2026-
 **Trigger:** the human finds the Usage window slow again, or the statusline log's growth (~4,500
 lines a day) pushes a month with categories past ~4 s. First question: a parity test against the
 SQL lookups before any change.
+
+### Task flow metrics: how long tasks spend in each state
+
+The human's idea (2026-11-15): record a timestamp each time a task enters a state, so Menkar can
+show, over the last 7 or 30 days, how long tasks spent queued, in progress, waiting and to review —
+a measure of the team's flow that shows the bottleneck. Long in queue: too few workers at once, or
+more tasks created than the short term can take. Long to review: reviews to speed up.
+
+- **To review needs to say whose review.** Today "To review" holds both the orchestrator's review
+  and the human's (a visual check, a behaviour to try: a topic naming the task, closing-a-task
+  step 8); Menkar knows nothing of a PR waiting for approval or merge. The column stays one; the
+  task gains **who it waits on** (the orchestrator, the human, a PR's review, a PR's merge), set
+  with `task_review`/`task_progress`, shown on the card and kept with the state change, so the
+  human can tell whether their own checks or the PRs are the bottleneck.
+- **Storage:** an append-only table of state changes (state, reviewer, when; the task's number
+  and project only to pair entries and exits — the metric itself is not per task), next to the
+  usage history in SQLite (the one exception to "the app's state is JSON", already the home of
+  Menkar's metrics), while `tasks.json` stays the live state. Moving all of `tasks.json` to SQLite
+  is not needed for this. Time through `src/core/clock.ts`; a task spanning midnight, a restart, a
+  state re-entered.
+- **Shown** in the Usage window beside time and tokens, or the Board; where is the human's call.
+
+**Trigger:** the human asks for flow metrics, or feels a bottleneck they cannot see. First
+question: which states and reviewers to record, and where the numbers show.
