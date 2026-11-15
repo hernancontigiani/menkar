@@ -175,7 +175,8 @@
 
 | Order | Plan | State |
 |---|---|---|
-| 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143). Next: plan 39, its software architecture (1.135 step 2), by a new Opus session with `/design-plan` — **queued until the human says go** (2026-11-14); its launch prompt is `prompts/PROMPT-architect.md` |
+| 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143). Next: plan 39, its software architecture (1.135 step 2), by a new Opus session with `/design-plan` — **launched once plan 40's open questions are settled** (the human, 2026-11-15), with task 20 (how each agent receives the team block) as its research, then its Fable review; **no multi-agent implementation** until the human says so; its launch prompt is `prompts/PROMPT-architect.md` |
+| 2 | 40 — the team block (1.150), stored skills and "Configure role…" (1.152), a generic `specialize`, the orchestrator skill's task rules (1.148, 1.149) | Being designed by `designer-40` (task 22), 2026-11-15; ships on `main` before the multi-agent work |
 
 ## 4. Next plan number
 

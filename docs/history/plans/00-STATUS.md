@@ -839,3 +839,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-14: "another day" is unclear, so it is asked (the human).
 | 1.149 | When the human defers work, the orchestrator reads the horizon (the human, 2026-11-14): **"tomorrow", "another day", a named day** — near and meant → a task in the queue; **"in the future", "someday we'll improve it"** — not near → no task: it goes where the project keeps deferred work with its trigger (here `docs/NOT_BUILT_YET.md`); **unclear → ask** the human whether to queue a task. Built with 1.148 (task 17), in the orchestrator skill | 2026-11-14 | this row (until built) |
+
+> Replaced 2026-11-15: plan 39 goes once plan 40 is settled (the human).
+| 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143). Next: plan 39, its software architecture (1.135 step 2), by a new Opus session with `/design-plan` — **queued until the human says go** (2026-11-14); its launch prompt is `prompts/PROMPT-architect.md` |
