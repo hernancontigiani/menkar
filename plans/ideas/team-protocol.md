@@ -1,16 +1,26 @@
-# Ideas — one team protocol injected by Menkar, a generic `specialize`, and checking skill loads
+# Ideas — one team block delivered by Menkar, the role's skills stored, a generic `specialize`
 
 > **Status: ideas, not a plan.** Written 2026-11-15 from a conversation with the human, to be
-> continued in another session. Nothing here is decided; every "Proposal" is a recommendation
-> waiting for the human. When accepted, each part becomes a row in `plans/00-STATUS.md` §1 and a
-> numbered plan; this file is then deleted.
+> continued in another session. The human's directions below are dated; everything else is a
+> proposal. When designed, the result becomes rows in `plans/00-STATUS.md` §1 and a numbered plan;
+> this file is then deleted.
 
 Checked against the tree at `66f6666` (2026-11-14), which already holds plan 38's design
 (multi-agent) and its decisions 1.135–1.143.
 
-**The human's direction (2026-11-15):** start the cleanup **now, on `main`, before the
-multi-agent work** — everything about how sessions talk to each other in one isolated place, and a
-generic `specialize` — even though multi-agent itself is not built yet. The trim goes first.
+## The human's directions (2026-11-15)
+
+- **One change, delivered together:** everything about how sessions talk to each other moves to
+  one isolated place, the role's skills are stored per session and named by Menkar, and
+  `specialize` becomes generic. They cannot ship apart: the lines that leave the skills need the
+  place they move to, and that place needs the stored skills to say what to load.
+- **On `main`, before the multi-agent work**, but designed so the communication part can vary per
+  agent (Idea A′).
+- **The role's skills are stored, several allowed, each with a keeper flag** (Idea B).
+- **No check of loaded skills against expected ones**: once Menkar names the skills to load from
+  what is stored, the problem it would catch is solved at the source (see "Not taken").
+- **Open:** how the block reaches a session (MCP `instructions` or the command line; the human
+  leans to MCP), and D10's amendment.
 
 ## Where things stand
 
@@ -42,128 +52,100 @@ generic `specialize` — even though multi-agent itself is not built yet. The tr
 
 ---
 
-## Idea A — Menkar injects the team protocol, in the orchestration mode only
+## Idea A — The team block, written once, delivered by Menkar in the orchestration mode
 
-**Goal:** the information a session needs to work in the team is always in its context, without
-depending on a skill being loaded, and it survives compaction and renew.
+**Goal:** what a session needs to work in the team is always in its context, without depending on
+a skill being loaded or on a handoff being written right, and it survives compaction and renew.
 
-### What the text says
+### What it says
 
-Short (target: under 25 lines), in English, the facts for **this** session filled in by Menkar:
+Short (target: under 25 lines), in English, with the facts for **this** session filled in by Menkar:
 
-- "You are ‹name› in project ‹project›. Your role: ‹role› — load `‹skill›`" (or "you are a worker:
-  your task message says what to load"; or "you are the orchestrator: load `menkar:orchestrator`").
+- "You are ‹name› in project ‹project›. Your role: ‹role›. Load `‹skill›`, `‹skill›`; you keep
+  `‹skill›`; `‹skill›` is read only, its keeper is ‹name›" (from Idea B's stored list); or "you are
+  a worker: your task message says what to load"; or "you are the orchestrator: load
+  `menkar:orchestrator`".
 - "Your parent is ‹parent›; the orchestrator is ‹orchestrator›."
-- The protocol, once: message by name with `SendMessage`, never by id; your report is your last
+- The protocol, once: how to message a session (per agent, Idea A′); your report is your last
   message; a session that did not start you gets it by name too; Menkar's `[Menkar] …` posts are
-  from the app, not a person; renew only with a handoff prompt (who you are, the skill, what is in
-  flight).
+  from the app, not a person; renew only with a handoff prompt (who you are, what is in flight —
+  the skills are no longer the handoff's job, Menkar names them).
+- The context policy that `specialize` copies into every role skill today (Idea C): who decides a
+  renew, the yellow and red marks, distill then renew.
 
-The skills then **point to it** instead of repeating it, and get shorter.
+The skills then **point to it** instead of repeating it, and get shorter. **Only with the
+orchestration mode on** for the project; with it off, nothing is added.
 
-### How it gets in — options
+### How it reaches a session — open
 
 | Option | How | For | Against |
 |---|---|---|---|
-| **1. The MCP server's `instructions`** | `initialize`'s result gains `instructions` (part of MCP's `InitializeResult`); Claude Code puts a server's instructions in the session's system prompt | No new flag; the server already runs per session and knows its pane (`MENKAR_PANE`); a renew starts a new server, so the text is fresh | Today `initialize` returns none (`src/core/control/protocol.ts:309`); fixed at start, so a role or mode changed mid-session shows only after the next renew; Claude Code may cap its length |
-| **2. `--append-system-prompt`** | `buildCommand` adds it, through a file as the first prompt already is (`"$(cat '<copy>')"`) | Under Menkar's control entirely; same freshness as 1 | A new flag on every command; the text is on disk in the prompts' folder |
-| **3. A skill `menkar:team`** | One more skill holding the protocol | Simplest | Must be loaded, which is the problem it solves |
+| **1. The MCP server's `instructions`** | `initialize`'s result gains `instructions` (part of MCP's `InitializeResult`) | Menkar's MCP is already the layer common to every agent (1.129), so the same route can serve them all; no new flag; the server runs per session and knows its pane (`MENKAR_PANE`); a renew starts a new server, so the text is fresh | Today `initialize` returns none (`src/core/control/protocol.ts:309`); fixed at start, so a role changed mid-session shows only after the next renew; an agent may cap or ignore it |
+| **2. The command line** (`--append-system-prompt` for Claude) | `buildCommand` adds it, through a file as the first prompt already is | Under Menkar's control entirely | Claude Code's own flag: each other agent needs its own equivalent, if it has one |
 
-**Proposal:** option 1; option 2 if `instructions` cannot carry it (length, or not shown).
-**Only with the orchestration mode on** for the project; with it off, nothing is added.
-
-Neither option writes under `~/.claude` nor types into a terminal. "What the app needs in the
-sessions it starts goes with `--settings`" is the closest rule: option 2 would be a sibling of it
-(another command-line flag), which is a decision for the human.
-
-### To verify before designing
+**Open (the human, 2026-11-15)**, leaning to option 1 because the command line is specific to
+each CLI. To verify before deciding:
 
 1. That Claude Code 2.1.32x reads `instructions` from a stdio server's `initialize`, puts it in the
-   system prompt, and whether it truncates it (the `claude-cli` consultant, or a test with a real
-   session).
-2. Whether the server can learn, at `initialize`, the session's name, role, parent and orchestrator
-   (it has `MENKAR_PANE`; it asks main for the rest as its tools do).
-3. Whether it survives `/compact` (the system prompt is not summarised; to confirm on a real one).
+   system prompt, and whether it truncates it (the `claude-cli` consultant, or a real session).
+2. Whether Codex, Cursor and OpenCode read an MCP server's `instructions` at all
+   (`plans/ideas/research/agents-compared.md` §1.4 lists their other routes: OpenCode's
+   per-session `instructions`, Codex's `developer_instructions`).
+3. Whether the server can learn, at `initialize`, the session's name, role, skills, parent and
+   orchestrator (it has `MENKAR_PANE`; it asks main for the rest as its tools do).
+4. Whether it survives `/compact` (the system prompt is not summarised; to confirm on a real one).
 
-### Questions for the human
+A smaller question: does a role or skills change (the row menu) need to reach a running session
+before its next renew? If yes, a `[Menkar]` post saying so.
 
-- Option 1 or 2?
-- Does a role change (the row menu's "Role…") need to reach the session before its next renew? If
-  yes, a `[Menkar]` post saying so, since the injected text is fixed at start.
+Neither option writes under `~/.claude` nor types into a terminal.
 
 ---
 
-## Idea A′ — The team block varies by agent (for the multi-agent design)
+## Idea A′ — The communication part varies by agent
 
-**Not to build now; to be designed into multi-agent support.** The part of the team block that
-changes most between coding agents is **how to talk to another session**: a Claude Code session
-uses `SendMessage`; a Codex, Cursor or OpenCode session uses Menkar's `send_message` (plan 38,
-§3.1, decided in 1.143's D2–D3); how each is woken differs too (D1). So the block is **one text
-per agent for the communication part**, plus the parts every agent shares (who you are, your role
-and skills, your parent and the orchestrator, the report is your last message, renew with a
-handoff).
+The part that changes most between coding agents is **how to talk to another session**: a Claude
+Code session uses `SendMessage`; a Codex, Cursor or OpenCode session uses Menkar's `send_message`
+(plan 38 §3.1, 1.143's D2–D3); how each is woken differs too (D1). So the block is the shared part
+plus **one communication text per agent**.
 
-- **Source layout, ready for it:** the shared part and one communication file per agent, e.g.
-  `plugin/team/common.md`, `plugin/team/claude.md` (and later `codex.md`, `cursor.md`,
-  `opencode.md`). Menkar assembles the block for the agent a session runs. With Claude alone
-  today, only `common.md` and `claude.md` exist.
-- **How the block reaches each agent is per agent too**, a natural strategy of 1.135's "per-agent
-  code as strategies": Claude by the MCP `instructions` or `--append-system-prompt`; the others by
-  whatever each offers (per-session `instructions` in OpenCode, `developer_instructions` in Codex,
-  per `plans/ideas/research/agents-compared.md` §1.4 — to confirm per agent).
+- **Source layout, from the start:** `plugin/team/common.md` and `plugin/team/claude.md`; later
+  `codex.md`, `cursor.md`, `opencode.md`. Menkar assembles the block for the agent a session runs.
+  With Claude alone today, only the first two exist; the other files come with multi-agent support.
+- **How the block reaches each agent is per agent too** (Idea A's open question), one of 1.135's
+  per-agent strategies.
 
-### How it meets what plan 38 already decided
+### How it meets plan 38 — open
 
-- **D10 (1.143): "Claude's skill text unchanged, plus per-agent notes for the others."** This idea
-  *changes* Claude's skill text (the communication lines leave the skills). The per-agent notes D10
-  planned become simply the per-agent communication files above: the same aim, one mechanism for
-  every agent. **It amends D10, so it is the human's call**, recorded as an amendment of 1.143.
+- **D10 (1.143): "Claude's skill text unchanged, plus per-agent notes for the others."** This
+  changes Claude's skill text (the communication lines leave the skills), and the per-agent notes
+  D10 planned become the per-agent communication texts above: the same aim, one mechanism for
+  every agent. **An amendment of D10, open (the human, 2026-11-15).**
 - **R10 (a Claude-only user byte-identical):** its baseline is a snapshot of `main` taken before
-  the first multi-agent change and refreshed when `main`'s changes merge into the branch. Doing
-  the cleanup **on `main` first** makes it part of the baseline, so R10 still holds.
-- **§6's rejection of "one agent-neutral skill text":** not reopened. The skills stay Claude's
+  the first multi-agent change and refreshed when `main`'s changes merge into the branch. Done on
+  `main` first, the cleanup is part of the baseline.
+- **§6's rejection of "one agent-neutral skill text"** is not reopened: the skills stay Claude's
   native skills; only the communication lines move out, into a text that *is* per agent.
-- **Who sends what**, unchanged: Claude keeps `SendMessage` (D2); the team block just says it in
-  one place.
+- Claude keeps `SendMessage` (D2); the block just says it in one place.
 
 ---
 
-## Idea B — Check which skill a session loaded against the one expected
+## Idea B — The role's skills, stored per session
 
-**Goal:** know, at least in the log, when an expert works without its skill.
+**Agreed in direction (the human, 2026-11-15):** stored, several allowed, with a keeper flag.
 
-- **What was loaded:** a skill load leaves a mark in the session's transcript, which Menkar already
-  reads, read only. Expected shapes (**not checked on a real transcript yet**): a `tool_use` named
-  `Skill` with `input.skill` (`menkar:worker`, `deploy`), or a user message with
-  `<command-name>/‹skill›</command-name>` when the human typed it. `skillUsage` in `~/.claude.json`
-  is a global count, not per session, so it does not help.
-- **What was expected:** nothing holds it today; a session has a role label, not a skill name.
-  **The human's direction (2026-11-15): store it per session, and allow more than one skill** in
-  case a role needs several. Idea A needs the same value, to write "load ‹skills›".
-  Proposal for its shape, per session in `projects.json` beside the role:
+- **Shape**, per session in `projects.json` beside the role:
   `skills: [{ "name": "deploy", "keeper": true }, { "name": "db-schema", "keeper": false }]`.
-  - **Why `keeper`:** a skill has one keeper (1.119), the expert that distills it. A role with two
-    skills may keep both, or keep one and read another expert's read only, as a per-task worker
-    already does. `menkar:distill` must know which ones it may edit; the injected text says so
-    ("keep `deploy`; read `db-schema`, its keeper is ‹name›").
-  - Set by the human in the row menu ("Role…" gains the skills), by `start_session` (a `skills`
-    argument beside `role`), and by `specialize` at its end (the skill it just wrote, keeper).
-  - Menkar can check that a named skill exists (the plugin's, the project's `.claude/skills/`, the
-    user's) and refuse or warn on a typo.
-  - The simpler alternative, the role label as the skill's name, is ruled out by the human's
-    "more than one".
-- **When to compare:** after a renew, once the first turn ends; and when a task starts (its
-  assignee should load `menkar:worker`). A mismatch is logged with the session's name, role, the
-  expected and the loaded skills. Later, if useful: a mark on the row in the Team view.
-- **Why it still matters if the skill is well written:** a good description makes a skill load when
-  a task in its area arrives, but a renewed expert told "wait for the next task" has nothing to
-  trigger it. Idea A names the skill anyway; this check shows when that was not enough.
-
-### Questions for the human
-
-- Log only, or also a mark in the Team view?
-- The `skills` list's shape above (with `keeper`), and who may set it (the human only, or also
-  `start_session` and `specialize`)?
+- **Why `keeper`:** a skill has one keeper (1.119), the expert that distills it. A role may keep
+  several, or keep one and read another expert's read only, as a per-task worker already does.
+  `menkar:distill` edits only the ones kept; the block says which are which.
+- **Proposed setters** (open): the human in the row menu ("Role…" gains the skills);
+  `start_session` (a `skills` argument beside `role`); `specialize` at its end (the skill it just
+  wrote, as keeper).
+- Menkar can check that a named skill exists (the plugin's, the project's `.claude/skills/`, the
+  user's) and warn on a typo.
+- Two sessions keeping the same skill is refused, as 1.119 already rules out two sessions of one
+  expert.
 
 ---
 
@@ -172,49 +154,51 @@ handoff).
 `specialize` is used **once per role**: it turns what a session knows into a role skill (or splits
 a role); after that, `menkar:distill` keeps the skill current.
 
-**What in it is Menkar's or the team's today:** sending the orchestrator the role's lines and the
-result by name (88, 107), `list_sessions`, the context policy (who decides a renew, the yellow and
-red marks, distill then renew) and the renew handoff (110–119). Worse, `specialize` asks every role
-skill it writes to **carry that policy itself** ("a line your role skill carries for it"), so it is
-copied into each role skill too.
+**What in it is the team's today:** sending the orchestrator the role's lines and the result by
+name (88, 107), `list_sessions`, the context policy (who decides a renew, the yellow and red marks,
+distill then renew) and the renew handoff (110–119). Worse, it asks every role skill it writes to
+**carry that policy itself** ("a line your role skill carries for it"), so it is copied into each
+role skill too.
 
 **Proposal:**
 
 - `specialize` keeps only what binds any project: read what persists, inventory and verify, where
   each item goes, the role and its boundaries, the human's sign-off, writing a short skill.
-- The team's part (tell the orchestrator, the context policy, the handoff) moves to Idea A's
-  injected text, which every session in the mode has anyway; role skills stop carrying it.
+- Its last step records the new skill in the session's stored list (Idea B) instead of telling the
+  session to name it in every handoff.
+- The team's part moves to the block (Idea A); role skills stop carrying it.
 - With the mode off there is no orchestrator, and `specialize` still works on its own.
 
-Note: `SendMessage` is Claude Code's tool, not Menkar's; what is Menkar's (or the team's) is the
-convention of using it by name and what to send.
+`SendMessage` is Claude Code's tool; what is the team's is the convention of using it by name and
+what to send.
 
 ---
 
-## Suggested order
+## Not taken
 
-The human wants the trim first (2026-11-15). The trimmed lines need a place that every session
-reads, so the trim and the block's delivery go together:
+- **Checking which skills a session loaded against the expected ones** (reading `Skill` loads from
+  the transcript and logging a mismatch). The human, 2026-11-15: not worth it once Menkar names the
+  skills to load from the stored list; the cause is removed rather than watched.
+- **Doing the trim before the block's delivery**, or a stopgap `menkar:team` skill: the human,
+  2026-11-15, everything ships together.
 
-1. **Verify** Idea A's three points (one consultation with the `claude-cli` consultant; a real
-   transcript for B). Small, and it decides between MCP `instructions` and
-   `--append-system-prompt`.
-2. **The trim, on `main`** (one plan): the team block's source (`plugin/team/common.md` +
-   `claude.md`), its delivery for Claude in the orchestration mode, the four skills trimmed to
-   point to it, `specialize` made generic (Idea C), and `tests/core/plugin.test.ts` extended (no
-   communication line left in a skill). Done before multi-agent's P0 snapshot, so R10's baseline
-   includes it. Needs the D10 amendment first.
-   - If the verification fails for both deliveries, a stopgap: a `menkar:team` skill that every
-     handoff names, until a delivery works.
-3. **The per-session `skills` list** (Idea B's shape), which the block then names.
-4. **Idea B's check**, reusing that list.
-5. **Idea A′** inside plan 38's architecture step: the per-agent communication files and
-   delivery strategies.
+---
 
-### Questions for the human, all together
+## What the one change holds
 
-1. Amend D10 (1.143) as above: the communication lines leave Claude's skills for a per-agent team
-   block?
-2. Delivery for Claude: MCP `instructions` (recommended) or `--append-system-prompt`?
-3. The `skills` list with `keeper`, and who sets it.
-4. Idea B: log only, or a mark in the Team view too.
+Designed as one plan (`/design-plan`) once the open points are decided:
+
+1. The block's source: `plugin/team/common.md` + `plugin/team/claude.md`.
+2. Its delivery for Claude in the orchestration mode (Idea A's option, once decided).
+3. The per-session `skills` list with `keeper`, its setters, and the block naming it.
+4. The four skills trimmed to point to the block; `specialize` made generic; `distill` editing
+   only kept skills.
+5. `tests/core/plugin.test.ts` extended: no communication line left in a skill.
+6. On `main`, before multi-agent's P0 snapshot.
+
+### Open, for the next session
+
+1. Delivery: MCP `instructions` or the command line (verifications 1–4 above first).
+2. D10's amendment (1.143).
+3. Who may set a session's `skills` (the human only, or also `start_session` and `specialize`).
+4. Whether a role or skills change reaches a running session before its renew.
