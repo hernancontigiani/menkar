@@ -1,533 +1,849 @@
 # Plan 40 — the team block, stored skills, a generic `specialize`
 
-> **Status: written, 2026-11-15, by `designer-40` (task 22). Not yet reviewed** — a Fable 5.2
-> review, then the human. The human's answers of 2026-11-15 (1.154: mock-up C, `maintainer`,
-> Menkar's skills never in the window, Q1–Q3) are folded in. What Claude Code does was measured by
-> `claude-cli` (task 19) and answered by it on 2026-11-15 (§2.3, §2.6).
+> **Status: written 2026-11-15 by `designer-40` (task 22); reviewed by a Fable 5.2 session
+> (`menkar-t26`, task 26) and revised for every finding (task 27; §2.11 says where each went).**
+>
+> - **Folded in:** the human's answers of 2026-11-15 (1.154: mock-up C, `maintainer`, Menkar's
+>   skills never in the window, Q1–Q3), and what `claude-cli` measured (task 19) or answered (§2.3,
+>   §2.6).
+> - **Pending the human, via `set`:**
+>   - **S1:** the skills supported with the mode off through one pointer (§2.8);
+>   - **Q4:** what Menkar does with a Claude Code below the version floor (§2.3);
+>   - **Q5:** another folder's skills in the window (§2.6).
+>
+>   Each is written as recommended and marked where it is used.
+> - **Block 4 waits** on `claude-cli`'s task 28: `--system-prompt-snapshot off` over many requests
+>   (a date change, a git change), a later resume without it, and the flags' version floor (§2.3).
 >
 > **From:** decisions 1.148–1.154 (`plans/00-STATUS.md` §1), the human's ideas
 > `plans/ideas/team-protocol.md` (Ideas A, A′, B, C) and `plans/ideas/research/mcp-instructions.md`.
 >
-> **Ships on `main`, in one commit, before plan 38's P0 snapshot** (the human, 2026-11-15): the
+> **Ships on `main`, in one commit, before plan 38's P0 snapshot** (the human, 2026-11-15). The
 > lines that leave the skills need the block they move to, and the block needs the stored skills.
-> Blocks 1–3 may land in the tree before block 4, but `set` commits nothing until block 4 passes.
+> Blocks 1–3 may land in the tree before block 4; `set` commits nothing until block 5 passes.
 >
-> **Modifies:** decision 1.109's "where it lives" (the context policy leaves `menkar:specialize`
-> and the role skills, 1.152) and 1.83's "Role…" dialog (replaced by "Configure role…"). 1.151
-> amends plan 38's D10; plan 38's file is not edited here (`set` owns it).
+> **Modifies:**
+> - 1.109's "where it lives": the context policy leaves `menkar:specialize` and the role skills
+>   for the block (1.152, 1.154).
+> - 1.84's handoff ("who the session is, the skill to load, what is in flight"): Menkar now says
+>   who and what to load; the handoff keeps what is in flight.
+> - 1.89's row-menu "Role…": replaced by "Configure role…".
+> - 1.151 amends plan 38's D10; plan 38's file is not edited here (`set` owns it).
 
 ## Exit — where each part goes when executed
 
 | Part | Goes to |
 |---|---|
-| The team block: its source, how it is assembled, its file, its delivery for Claude, the posts that carry a change, what a resumed tab sees | `docs/session-control.md`, new section "The team block"; its "What the skills lean on" list is rewritten (the old text verbatim to `docs/history/session-control.md`) |
-| The stored skills: the key in `projects.json`, one maintainer, following ids | `docs/projects.md`, "The orchestration mode's marks" (one bullet added) |
-| "Configure role…" (mock-up C): behaviour, the skills Menkar lists and why only those, not found, maintained elsewhere; the first-time card's new order; the mode switched while sessions run | `docs/orchestration.md`, "Switching it, and the marks" ("Role…" bullet replaced; old text verbatim to `docs/history/orchestration.md`) |
-| What the user reads about roles, skills and the block | `plugin/guide/orchestration-mode.md`, "The marks" and "Skills to load" |
-| What was rejected (MCP `instructions` for Claude, skills set by agents, a loaded-skill check, implicit `menkar:worker` from the parent) | `docs/session-control.md` and `docs/orchestration.md`, their "Rejected" sections |
-| The per-agent parts for Codex, Cursor and OpenCode, and how each receives the block | `docs/NOT_BUILT_YET.md`, a line in "More coding agents: Codex, OpenCode" (trigger: plan 38's P1a) |
-| Rows 1.148–1.152 "this row (until built)", 1.154 "`plans/40-team-block.md` (until built)" | `plans/00-STATUS.md`: each row's "Where it lives" points at the docs above; 1.109's row gets its new home (the block, 1.154 Q1) |
-| `plans/ideas/team-protocol.md` | Deleted on delivery (its own header says so); the research file stays until plan 38 uses it |
+| The team block: source, assembly, file, delivery for Claude, the version floor, the posts and their turn, what a resumed tab sees | `docs/session-control.md`, new section "The team block"; "What the skills lean on" rewritten (old text verbatim to `docs/history/session-control.md`) |
+| The SessionStart records main now also reads (`compact`) | `docs/context.md`, "The hook" ("Main watches the folder for `clear` and `resume` records" amended; old line to `docs/history/context.md`) |
+| `last_reply` skipping a reply to a team post | `docs/session-control.md`, `last_reply`'s bullet (old text to its history) |
+| The stored skills: key, one maintainer, following ids | `docs/projects.md`, "The orchestration mode's marks" (one bullet added) |
+| "Configure role…" (mock-up C): behaviour, which skills it lists and why, not found, maintained elsewhere; the first-time card's order; the mode switched while sessions run | `docs/orchestration.md`, "Switching it, and the marks" ("Role…" bullet replaced; old text verbatim to `docs/history/orchestration.md`) |
+| The hand check on a real Claude Code | `docs/release-checklist.md` (one line) |
+| The version floor | `README.md`, "Install (Ubuntu)" (one line: the orchestration mode needs Claude Code ‹floor› or later), and `docs/session-control.md` |
+| What the user reads about roles, skills and the block | `plugin/guide/orchestration-mode.md`, "The marks", "Tasks" and "Skills to load" |
+| What was rejected (§2.10) | `docs/session-control.md` and `docs/orchestration.md`, their "Rejected" sections |
+| Per-agent team parts and delivery for Codex, Cursor, OpenCode | `docs/NOT_BUILT_YET.md`, "More coding agents: Codex, OpenCode" (trigger: plan 38's P1a) |
+| Rows 1.148–1.152 "this row (until built)", 1.154 "`plans/40-team-block.md` (until built)" | `plans/00-STATUS.md`: each points at the docs above; 1.109's and 1.84's rows amended |
+| `plans/ideas/team-protocol.md` | Deleted on delivery (its header says so) |
 | The rest | `git log` |
 
 ---
 
 ## 1. Goal, and what already exists
 
-**Goal.** Every Claude session of a project in the orchestration mode knows, from its first request
-and after any compaction or renew, who it is in the team, what to load, and how the team talks —
-without depending on another agent writing the right handoff. The team's communication lines are
-written once (`plugin/team/`), the four skills point to it, the role's skills are stored by Menkar
-and set by the human, and `specialize` binds any project. With the mode off nothing changes, to
-the byte.
+**Goal.** Every Claude session of a project in the orchestration mode knows who it is in the team,
+what to load and how the team talks:
+- from its first request, and after any compaction, clear or renew;
+- without depending on another agent writing the right handoff.
 
-**What exists (verified at `543b228`):**
+The communication lines are written once (`plugin/team/`), the four skills point to them, the
+role's skills are stored by Menkar and set by the human, and `specialize` binds any project.
 
-- `buildCommand` (`src/core/command.ts:53`) builds every agent command; Claude-only options sit in
-  `if (claude)` lines after the identity: prompt file, `--add-dir`, `--mcp-config`, `--plugin-dir`,
-  `--settings` (`command.ts:76-81`). Its tests are `tests/core/command.test.ts` (exact strings).
-- `startPaneHeld` (`src/main/workspace.ts:790`) is the one place a pane's command is built; it
-  knows the tab's project (`tabById(tabId)?.project`, :805), the agent and the start.
-- Menkar's files under the cache: `controlPaths()` (`src/core/control/files.ts:52`), with
-  `prompts/` written by `savePrompt` through `writeTextAtomic` (`src/core/control/prompt.ts:45`)
-  and swept after a day.
-- The marks: `Orchestration` (`src/core/projects/model.ts:19`) with `roles` by session id, parsed
-  leniently, kept to members, followed to a new id (`followOrchestration`,
-  `src/core/projects/orchestration.ts:113`), set by `setRole` (:169). `sessionMarks` (:268) feeds
-  `list_sessions`.
-- "Role…": `orchestrationItems` / `roleDialog` (`src/renderer/orchestration.ts:429-471`), action
-  `setRole` (`src/main/workspace.ts:1377`, :2630), strings `orch.role*` (`src/core/i18n/en.ts:75-79`).
-- Posting to a session: `postToSession` / `wakeFrame` (`src/core/control/post.ts`), used by
-  `wakeSession` (`workspace.ts:1810`), Claude panes only, English text read by an agent.
-- The first-time card's `startTeam` (`src/renderer/orchestration.ts:398`) starts a new orchestrator
-  with `orch.firstPrompt` ("Load `menkar:orchestrator`…", `en.ts:117`) **and switches the mode on
-  last** — so with this plan as-is, a new orchestrator would start with no block (fixed in block 4).
-- The plugin (`plugin/`, `--plugin-dir`), its four skills, the guide, and their text rules in
-  `tests/core/plugin.test.ts`; `scripts/check-package.mjs:40-43` requires its files in the .deb;
-  `electron-builder.yml:30` ships the whole `plugin/` folder.
-- E2E: `e2e/fixtures.ts` has a stand-in `claude` that records its arguments (`claude-args.txt`)
-  and a messaging socket (`e2e/session-control.spec.ts:250`, a wake through it).
-- **Where the communication lines are today** (each one leaves, block 3): orchestrator
-  `SKILL.md:47-53, 56-59, 95, 106-107, 199-202`; worker `SKILL.md:39-40, 98-103, 131-134`; distill
-  `SKILL.md:18-19, 70-73, 75-87`; specialize `SKILL.md:78-79, 88-89, 105-119`,
-  `role-skill-contents.md:28-29, 37-38`.
+**With the mode off:**
+- **the command line does not change, to the byte**;
+- the skills reach the same lines through the plugin folder (§2.8, S1 pending the human).
+
+**What exists (verified at `543b228`; `src/`, `plugin/`, `tests/`, `e2e/` unchanged since, per the
+review):**
+
+- **The command.** `buildCommand` (`src/core/command.ts:53`) builds every agent command.
+  - Claude-only options sit in `if (claude)` lines after the identity: prompt file, `--add-dir`,
+    `--mcp-config`, `--plugin-dir`, `--settings` (:76-81).
+  - Its tests are exact strings (`tests/core/command.test.ts`).
+- **Starting a pane.** `startPaneHeld` (`src/main/workspace.ts:790`) builds every pane's command.
+  - It knows the tab's project (:805), the agent and the start.
+  - **Who is a member when the command is built:**
+    - `start_session`'s sessions are members first, with their parent and task (:1637-1643);
+    - so is the first-time card's new orchestrator (:2412-2416);
+    - a session the human starts (`startNewSession`, :2417-2424) and a fork (:2987-2992) start
+      with `sessionId: null` and a `pending`, and join only later (`joinSession`, :1036-1040).
+- **Menkar's files under the cache.** `controlPaths()` (`src/core/control/files.ts:52`).
+  - `prompts/` is written by `savePrompt` through `writeTextAtomic` (`src/core/control/prompt.ts:45`).
+  - It is swept hourly (`src/main/control.ts:95`) of copies older than a day.
+- **The marks.** `Orchestration` (`src/core/projects/model.ts:19`) holds `roles` by session id.
+  - Parsed leniently, kept to members, followed to a new id (`followOrchestration`,
+    `src/core/projects/orchestration.ts:113`), set by `setRole` (:169, trim only).
+  - `sessionMarks` (:268) feeds `list_sessions`, which `src/core/control/files.ts:162-206`
+    prints, with every key even when the mode is off (`role: null`).
+- **"Role…".** `orchestrationItems` and `roleDialog` (`src/renderer/orchestration.ts:429-471`),
+  action `setRole` (`workspace.ts:1377`, :2630), strings `orch.role*` (`src/core/i18n/en.ts:75-79`).
+- **Posting and waking.**
+  - `postToSession` and `wakeFrame` (`src/core/control/post.ts`) append the time after a space
+    (:19).
+  - `wakeSession` (`workspace.ts:1810`) posts to Claude panes only.
+  - A child's working → idle or done wakes its parent ("‹name› finished its turn",
+    `src/core/control/events.ts:12`), batched per parent by `WakeBatcher` (:22).
+- **`last_reply`.** `lastReply` (`src/core/sessions/lastreply.ts:12-40`) returns the last assistant
+  text, read backwards.
+- **SessionStart records.** The hook keeps `startup`, `resume`, `clear`, `compact`
+  (`START_SOURCES`, `src/core/context/statusline.ts:61`); it has no `fork` matcher.
+  - `paneStart` (:220-232) passes only `clear` and `resume`.
+  - `watchPaneStarts` (`src/main/pane-starts.ts`) hands those to `followPaneStart`.
+- **The first-time card's `startTeam`** (`src/renderer/orchestration.ts:398-424`): starts or marks
+  the orchestrator, hands sessions over, saves the cap, and **switches the mode on last**.
+- **The plugin** (`plugin/`, `--plugin-dir`): four skills, the guide, and their text rules in
+  `tests/core/plugin.test.ts`.
+  - `scripts/check-package.mjs:40-43` requires its files in the .deb.
+  - `electron-builder.yml:30` ships the whole folder.
+  - `setting-up.md:10-11` already tells a session how to find the plugin folder ("one level up
+    from `skills/`").
+- **E2E.** A stand-in `claude` records its arguments (`e2e/fixtures.ts`, `claude-args.txt`), and a
+  wake reaches its messaging socket (`e2e/session-control.spec.ts:250`).
 
 ## 2. The design
 
 ### 2.1 The block's text
 
-Three parts, in this order: **the facts** (built by Menkar per session, `src/core/team/block.ts`),
-**the common part** (`plugin/team/common.md`), **the agent's communication part**
-(`plugin/team/claude.md`). English: it is read by an agent, not shown in the UI (as `wakeFrame`).
+Three parts, in this order:
+1. **The facts**, built per session by `teamFacts` (`src/core/team/block.ts`) from a plain input
+   (§2.2).
+2. **The common part**, `plugin/team/common.md`.
+3. **The agent's part**, `plugin/team/claude.md`.
 
-**The facts**, one line each, a line left out when it has nothing to say:
+It is English: read by an agent, not shown in the UI, like `wakeFrame`.
+
+**The facts** — an expert's, in full:
 
 ```
 # Your team in Menkar
-You are packager, a session of the Menkar project "menkar", in orchestration mode. Your role: Packaging. Your parent is set, the orchestrator.
-Load these skills now: `packager`, which you maintain (only you change it, with `menkar:distill`); `claude-cli`, read only (claude-cli maintains it).
+You are `packager`, a session of the Menkar project "menkar", in orchestration mode. Your role: "Packaging". Your parent is `set`, the orchestrator.
+Skills to have loaded (load any that is not): `packager`, which you maintain (only you change it, with `menkar:distill`); `claude-cli`, read only (`claude-cli` maintains it).
 When a session hands you a task, load `menkar:worker` first.
-Your parent decides when you renew; tell it by name when your context passes 90%.
+Your parent decides when you renew; when your context (your row in `list_sessions`) passes 90%, tell it by name.
 ```
 
-Variants of line 2's tail (`teamFacts` chooses, tested case by case):
-- the orchestrator: "You are its orchestrator." and line 3 starts with `menkar:orchestrator`;
-  no `menkar:worker` line, no context line (its skill covers its context);
-- a parent that is the orchestrator: "Your parent is ‹name›, the orchestrator.";
-- another parent: "Your parent is ‹name›; the orchestrator is ‹name›.";
-- loose: "You have no parent; the orchestrator is ‹name›."; no orchestrator marked: "The project
-  has no orchestrator yet.";
-- no role: "Your role:" left out.
+Session names are in backticks, the role and the project in double quotes (a session named `set`
+read as a verb in the first draft). Each line's variants, as exact strings (block 1 asserts each):
 
-Line 3, per stored skill: maintainer → "‹name›, which you maintain (only you change it, with
-`menkar:distill`)" (the parenthesis once, on the first one); read only → "‹name›, read only
-(‹session› maintains it)" or "read only" alone when no session maintains it; not found on disk →
-"‹name› (not found: tell the human)". Line 5 is 1.154's answer to Q1; the percentages are the human's own
-`ring_warn` / `ring_full` settings (`docs/context.md`, "The levels"), read at the block's writing.
+- **Line 2, who.** Always "You are `‹name›`, a session of the Menkar project "‹project›", in
+  orchestration mode.", then:
+  - with no name yet (a session the human started without one): "You are a new session of the
+    Menkar project "‹project›", in orchestration mode.";
+  - with a role: ` Your role: "‹role›".` The role is free text (`start_session`'s `role` is
+    agent-written), so it is made one line, its backticks and quotes removed, cut at 60 characters
+    with "…";
+  - the orchestrator: " You are its orchestrator.";
+  - the parent is the orchestrator: " Your parent is `‹parent›`, the orchestrator.";
+  - another parent: " Your parent is `‹parent›`; the orchestrator is `‹orchestrator›`.";
+  - loose, with an orchestrator: " You have no parent; the orchestrator is `‹orchestrator›`.";
+  - no orchestrator marked: " The project has no orchestrator yet."
+- **Line 3, skills.** "Skills to have loaded (load any that is not): " and the list. It is re-read
+  after every compaction and post, so "load these now" would reload what is loaded.
+  - The orchestrator's list starts with `menkar:orchestrator`.
+  - Each stored skill, in the order the human set:
+    - the session maintains it: "`‹name›`, which you maintain (only you change it, with
+      `menkar:distill`)". The parenthesis appears once, on the first one.
+    - read only, with a maintainer: "`‹name›`, read only (`‹session›` maintains it)";
+    - read only, with none: "`‹name›`, read only";
+    - not found for this session (§2.6): "`‹name›` (not found: tell the human)".
+  - No line when there is nothing to load.
+- **Line 4, tasks:** "When a session hands you a task, load `menkar:worker` first." Every session
+  has it, the orchestrator excepted.
+  - A per-task worker's first prompt *is* that hand-off, so the conditional fires at once.
+  - Why not a "You were started for task N" line: §2.10.
+- **Line 5, context (1.154, Q1).** ‹full› and ‹warn› are the human's `ring_full` and `ring_warn`
+  (`docs/context.md`, "The levels"), read when the facts are built.
+  - with a parent: "Your parent decides when you renew; when your context (your row in
+    `list_sessions`) passes ‹full›%, tell it by name.";
+  - loose, with a role, maintaining a skill: "You decide when you renew: when a consultation
+    closes and your context (your row in `list_sessions`) is past ‹warn›%, run `menkar:distill`,
+    then renew; prefer that to a compaction.";
+  - loose, with a role, maintaining none: the same without "run `menkar:distill`, then", so
+    "…is past ‹warn›%, renew; prefer that to a compaction.";
+  - the orchestrator, or loose with no role (an ordinary session of the human's): no line.
 
-**The common part** (`plugin/team/common.md`), as drafted:
+**The common part** (`plugin/team/common.md`):
 
 ```
 ## How the team works
 - Address a session by its name, never by its id: a renewed session keeps its name and gets a new id.
-- Messages that start with "[Menkar]" come from the app, not from a person.
+- Messages that start with "[Menkar]" come from the Menkar app, not from a person; one may update the facts above.
 - When you finish work another session handed you, or are blocked, your report is your last message: it is read with `last_reply`. If that session is not your parent, also send it the report by name: Menkar wakes only your parent.
-- Renew only with `renew` and a prompt that is your handoff: what is in flight (locks you hold, answers you owe, half-done work) and your next task. Menkar tells the new session who it is and what to load.
+- When you renew, call `renew` with a prompt that is your handoff: what is in flight (locks you hold, answers you owe, half-done work) and your next task. Menkar tells the new session who it is and what to load.
 ```
 
-**Claude's communication part** (`plugin/team/claude.md`):
+**Claude's part** (`plugin/team/claude.md`):
 
 ```
 - Message a session with `SendMessage`, `to` set to its name.
 ```
 
-**Size, measured on the drafts above** (`wc -c`): facts of an expert with two skills 411 bytes,
-common 615, claude 62 — **about 1,090 bytes, ~270 tokens**, paid once per conversation and then
-read from cache (it sits in the system prompt, the most stable prefix). Block 1's test asserts
-the common and Claude parts together stay **under 800 bytes** and the expert example's whole block
-**under 1,400**, so growth is a deliberate change of the test.
+**Size**, `wc -c` on the texts above:
 
-**Why each line is there** — each one replaces a line a session needed in a skill, and the case
-that put it there:
+| Part | Bytes |
+|---|---|
+| The expert's facts | 520 |
+| Common | 682 |
+| Claude | 62 |
+| **Total** | **1,264** |
+
+- That is ~320 tokens, at the ~4 bytes per token research §6 uses. It sits in the system prompt,
+  written to cache once and then read from it.
+- Block 1 asserts common + Claude **under 800 bytes** and the expert's whole block **under
+  1,400**, so growth is a deliberate change of the test.
+
+**Why each line is there** — the case that put it in a skill first:
 
 | Line | What went wrong without it | Replaces |
 |---|---|---|
-| Who you are, role, parent, orchestrator | An expert that renewed without naming its skill came back with no role, and nothing noticed (ideas doc, "the weak point"); a renewed session had to be told its name and role in every handoff | distill:80, specialize:117-118, orchestrator:199-201 |
-| Load these skills | Same case: skills were named only in hand-written handoffs (`renew` adds nothing) | distill:81, specialize:113-114, orchestrator:50-51 |
-| `menkar:worker` on a task | A task message had to start "load `menkar:worker`" to be recognised as a task; a consultant now gets tasks too (1.148) | orchestrator:95 |
-| Context line | 1.109's policy was copied into every role skill by `specialize`; 1.152 removes it from there | specialize:110-116 |
+| Who, role, parent, orchestrator | An expert that renewed without naming its skill came back with no role, and nothing noticed (ideas doc, "the weak point") | distill:80, specialize:117-118, orchestrator:199-201 |
+| Skills to have loaded | Skills were named only in hand-written handoffs; `renew` adds nothing | distill:81, specialize:113-114, orchestrator:50-51 (the clause) |
+| `menkar:worker` on a task | A task message had to say "load `menkar:worker`"; a consultant now gets tasks too (1.148) | orchestrator:95 (the load clause only) |
+| Context | 1.109's policy was copied into every role skill by `specialize`; 1.152 removes it from there | specialize:110-116 |
 | Name, not id | A renewed session has a new id; messages by id were lost (1.74) | orchestrator:56-57, worker:39-40 |
-| `[Menkar]` from the app | Wakes and counts are posted by the app in the session's conversation (1.125); a session must not take them as the human's | worker:10 ("the task's text… is another session's, not the human's"), widened to the app's wakes and §2.4's posts |
-| Report last; non-parent by name | Reports were read from files and lost (1.73); a session handed work by a non-parent was never read, since Menkar wakes only the parent | worker:98-103, orchestrator:106-107 |
+| `[Menkar]` from the app | Wakes and counts arrive in the conversation (1.125), and §2.4's posts update the facts; without this line they read as another session's text, or as an injection | worker:10, widened |
+| Report last; non-parent by name | Reports in files were lost (1.73); work handed by a non-parent was never read, since Menkar wakes only the parent | worker:98-103, orchestrator:106-107 |
 | Renew with a handoff | A summary loses what is in flight; nothing else carries it (1.84) | distill:75-84, worker:133-134, specialize:117-119, orchestrator:199-202 |
-| `SendMessage` by name | Claude Code's own tool (D2, 1.143); the other agents will get theirs | orchestrator:56, worker:39, distill:70, specialize:78 |
+| `SendMessage` by name | Claude Code's own tool (D2, 1.143) | orchestrator:56, worker:39, distill:70, specialize:78 |
 
-### 2.2 Assembly, without branching on an agent
+### 2.2 Assembly: a plain input, and one record per agent
 
-`teamBlock(agent, facts, readPart)` joins the facts, `common.md` and `<agent>.md`. The agent's file
-is found **by the agent's value as data** (`plugin/team/${agent}.md`); no code names `claude`. An
-agent with no file gets no block (`null`) — today Cursor, which also has no delivery (§2.3). Adding
-Codex later is a new file plus its delivery strategy (plan 38, 1.135); no shared line changes.
+- **`teamFacts(input: TeamInput, agent: TeamAgent)`** is pure. Its input is plain data that main
+  builds, not a `Project`, so block 1 does not depend on block 2's types:
+  - **identity:** `project`, `name?`, `role?`;
+  - **place:** `orchestrator` (`'self'` | ‹name› | none), `parent?` with whether it is the
+    orchestrator;
+  - **skills:** each with `name`, `maintainer`, `maintainedBy?` and `found`;
+  - **context:** `warn`, `full`.
+- **Only with the mode on.** Main builds no input when the tab's project is not in the mode, so no
+  file is written and the command is today's (block 4's exact-string tests).
+- **The agent's record (S8).** `TeamAgent` holds what is the agent's:
+  - how a skill is referred to: `skill(name)` and `own(name)` (for Claude, `` `name` `` and
+    `` `menkar:name` ``);
+  - the name of its part file (`claude.md`).
 
-**Only with the mode on.** `teamFacts(project, sessionId, …)` returns `null` when the project's
-mode is off or the session is not a member; then no file is written and **the command line is
-byte-identical to today's** (block 1 and block 4 tests).
+  It is found in a table by the agent's value (`TEAM_AGENTS[agent]`). Only Claude has an entry: an
+  agent with none gets no block (`null`) and no flag, so Cursor is untouched. No line in
+  `src/core/team/` names `'claude'` outside that table (a parsed-source test). Codex later is one
+  entry, one file and its delivery strategy (plan 38, 1.135).
+- **`teamBlock(facts, common, part)`** joins the three texts with a blank line.
 
 ### 2.3 Delivery for Claude
 
-Measured by `claude-cli` on 2.1.325 (task 19, `plans/ideas/research/mcp-instructions.md` §6): the
-file is **read once, at process start**; it is appended at the end of the system prompt and is on
-the very first request; a compaction or a `/clear` rebuilds the prompt with **the text read at
-start**, not the file's current content; a missing file stops Claude before any request
-("Append system prompt file not found"); a `--resume` keeps the recorded text until a compaction
-**unless `--system-prompt-snapshot off`** (documented, 2.1.257+) is passed, which gives the new text
-from the first request after the resume; a `--fork-session` carries the source's recorded text.
+**Measured by `claude-cli` on 2.1.325** (task 19, `plans/ideas/research/mcp-instructions.md` §6):
 
-- **The file:** `<cache>/menkar/control/team/<pane-id>.md` (`controlPaths().team`), written whole
-  through `writeTextAtomic` **before the pane's command is built** (a missing file closes the tab
-  at once). One per start, since Claude reads it only then; swept after a day like the prompts
-  (`sweepTeamFiles`, `PROMPT_KEEP_MS`, through the clock).
-- **The flags:** `buildCommand` gains `teamFile?: string`; for Claude it appends
-  `--append-system-prompt-file <quoted path>` **last**, after `--settings` (measured: last is the
-  safest place; only the positional prompt must stay before `--add-dir`), and for a **resume** also
-  `--system-prompt-snapshot off` before it. Absent, nothing is added.
-- **Why the snapshot flag on resume, rather than a post:** a tab restored after a restart then
-  starts with its current block in the system prompt, where it survives compaction, and nothing
-  is woken. The cost is one cache write of the prefix on the first request when the block changed,
-  which a restart past the cache's lifetime pays anyway (research §6, inferred). It is passed
-  **only when a team file is**, so a project with the mode off keeps today's command to the byte.
+| What | Result |
+|---|---|
+| When the file is read | **Once, at process start** |
+| Where the text goes | Appended to the system prompt, on the very first request |
+| Compaction and `/clear` | Rebuild the prompt with the text read at start, not the file's current content |
+| A missing file | Claude stops before any request ("Append system prompt file not found") |
+| `--resume` | Keeps the recorded text until a compaction |
+| `--resume` with `--system-prompt-snapshot off` | The new text from the first request after the resume (documented, Claude Code 2.1.257+) |
+| `--fork-session` | Carries the source's recorded text |
+
+- **The input at start (B1).** It is built for every Claude pane whose **tab** belongs to a
+  mode-on project, member or not yet:
+  - a member: from the project;
+  - a session not yet a member (the human's "New session", a fork): from the start's own identity,
+    `start.name`, no role, no parent, no skills, and the orchestrator from the project. That is
+    what it will be when it joins, so the join usually changes nothing (§2.4).
+- **The file:** `<cache>/menkar/control/team/<pane-id>.md` (`controlPaths().team`).
+  - It is written whole through `writeTextAtomic` **before the command is built**: a missing file
+    closes the tab at once.
+  - **If it cannot be written**, the pane starts without the team flags, and main logs it with the
+    pane's id. The session then gets the whole block posted on its join or first reachability
+    (§2.4, `held = null`).
+  - It is swept with the prompts, hourly, after a day (`sweepTeamFiles`, `PROMPT_KEEP_MS`, through
+    the clock). Claude reads it only at start.
+- **The flags.** `buildCommand` gains `teamFile?: string`.
+  - For Claude it appends `--append-system-prompt-file <quoted path>` **last**. Measured: last is
+    the safest place; only the positional prompt must stay before `--add-dir`.
+  - For a **resume** it adds `--system-prompt-snapshot off` before it.
+  - Without `teamFile` nothing is added.
+- **Why the snapshot flag on resume, rather than a post.** A tab restored by "Restart now" (1.43)
+  then starts with its current block in the system prompt, where it survives compaction, and
+  nothing is woken.
+  - **Its cost is open (S3).** The rebuild runs on every request. Anything dynamic in Claude's
+    default prompt (the date, git status) would then cost a prefix cache write each time it
+    changes, for the rest of that tab's life (research §6, inferred; 1.134).
+  - **Task 28** (`claude-cli`) measures it over many requests across a date and a git change, and
+    whether a later resume *without* the flag reverts to the old recorded text. **Block 4 starts
+    after its result.**
+  - If the cost is real, the alternative is to pass the flag only when the block differs from the
+    one the session was last started with. That needs a per-session record, and its design then
+    goes to `set` before block 4.
+- **The version floor (S3).** `--system-prompt-snapshot off` needs Claude Code **2.1.257**. Task 28
+  also gives the floor of `--append-system-prompt-file`; the plan uses the higher of the two (‹floor›
+  below).
+  - **Q4 — pending the human, (a) recommended:** main reads `claude --version` once per binary
+    (path and mtime), off the UI path. Below ‹floor›, mode-on panes start **without** the team
+    flags and it logs. One toast per run (`team.oldClaude`, en and es): "Claude Code ‹v› is older
+    than ‹floor›: sessions start without their team instructions. Update Claude Code."
+  - (b) would only document the floor. Without the toast, an old CLI's mode-on tabs close at start
+    with Claude's own error.
+  - `README.md`'s "Install (Ubuntu)" names the floor, and `docs/release-checklist.md` gains the hand
+    check (block 4): on the real `claude` in a mode-on project, a new session's first answer knows
+    its name, role and parent; after "Restart now" a tab whose role changed while Menkar was closed
+    knows the new one.
 - **Why the command line and not MCP `instructions`** (1.150, recorded): MCP instructions reach
-  Claude as a conversation message framed as tool usage, capped at 4,096 characters, and may arrive
-  after the first prompt (research §1, §5).
+  Claude as a conversation message framed as tool usage, capped at 4,096 characters, and may
+  arrive after the first prompt (research §1, §5).
 
 ### 2.4 Keeping a running session's facts current
 
-What a Claude session believes is what its **system prompt was started with**, plus the posts it
-has had since; a compaction or a `/clear` drops the posts (they may be summarised away) and goes
-back to the start text. So main keeps, per Claude pane, **`started`** — the facts in its system
-prompt (from the file written at its start; `null` for a fork, which carries its source's, and for
-a pane started with the mode off) — and **`told`** — what it was last told. The rule:
+**What a session holds.** A Claude session believes what its **system prompt was started with**,
+plus the posts it has had since. A compaction or a `/clear` drops the posts and goes back to the
+start text. So main keeps, per Claude pane:
 
-> Whenever the session's current facts differ from what it holds, Menkar posts them.
+- **`started`** — the block in its system prompt. It comes from the file written at start, or is
+  `null` when the pane started without one: mode off, below the floor, file not written.
+- **`held`** — what it believes now: `started` at start, **`null` for a fork** (it carries its
+  source's block), and the latest text once a post is *delivered*.
 
-- **A change while it runs** (Menkar recomputes every running Claude pane of the project after a
-  `projects.json` change): role and stored skills (1.152), the orchestrator mark and the parent
-  (1.154, Q3). When the facts differ from `told`, it posts them and sets `told`. Unchanged facts
-  post nothing, so saving the dialog unchanged wakes no one.
-- **A compaction or a `/clear`** (the SessionStart record with `source` `compact` or `clear`
-  naming the pane, which main already watches for `clear` and `resume`, `src/main/pane-starts.ts`):
-  `told` goes back to `started`; when the current facts differ, they are posted again.
-- **A fork** (`started` = `null`): the whole block is posted on the pane's first start record.
-- **The mode switched** (1.154, Q2): **on** → every running Claude pane of the project is posted the
-  whole block ("[Menkar] This project is now in orchestration mode. Your team instructions:" + the
-  block); **off** → each pane that holds a block is posted "[Menkar] This project left
-  orchestration mode: the "Your team in Menkar" instructions no longer apply." In both cases the
-  same rule repeats it after a compaction or a clear, since the start text says the opposite.
-- **The post**, through `postToSession` (`wakeFrame`'s time closes it; the counts tail only where
-  it applies today, to the orchestrator):
+**The rule** is a pure function, `teamPost(held, current)` in `src/core/team/posts.ts`:
 
-  ```
-  [Menkar] Your team facts changed; they replace the ones in your instructions:
-  <the facts, without the heading>
-  (10:42:07)
-  ```
+| `held` | `current` | Post |
+|---|---|---|
+| block | null (mode off, or the session left the project) | The leaving line |
+| null | block | The whole block |
+| block | block, other facts | The facts |
+| block | block, same facts | Nothing |
 
-  While `postToSession` answers `'no session'` (the session not yet reachable after a start
-  record), it is retried `TEAM_POST_TRIES` = 5 times, 2 s apart, then logged and dropped.
-- `started`/`told` live in memory with the pane: a restart restarts every pane, and a resume gets
-  the current block from its command (§2.3).
+**When main applies it**, for each running Claude pane of a mode-on project or one that holds a
+block:
+
+- **After a change that can alter facts.** Each is coalesced per pane (below), and none rescans a
+  disk: the `found` of each skill is the one computed at the pane's start or at the last
+  "Configure role…" save.
+  - a `projects.json` change: role, stored skills, the orchestrator mark, the parent (1.152; 1.154
+    Q3), the session leaving the project, the mode switched (1.154 Q2);
+  - a **name** changing in `sessionList` (S4): the session's own, its parent's, the orchestrator's,
+    a maintainer's. Names are Claude's (`/rename`), and the sessions list is where Menkar sees them.
+- **On a SessionStart record naming the pane:**
+  - `compact` or `clear`: `held` = `started`, then the rule;
+  - `resume` in the tab (1.57, S4): the process keeps its start text, but the resumed conversation
+    holds whatever it recorded, so `held` = `null` and the whole block is posted. After its next
+    compaction it goes back to `started`, and the rule posts the facts if they differ.
+  - `paneStart` (`statusline.ts:220`) passes `compact` too; `followPaneStart` still acts only on
+    `clear` and `resume`.
+- **On a pending session's join** (B1): the fork's `held` = `null` posts the whole block; a human's
+  new session posts only if the join changed its facts.
+
+**The posts** go through `postToSession`; `wakeFrame` appends the time after a space, and the
+counts only where they apply today, to the orchestrator:
+
+```
+[Menkar] Team update: your facts are now:
+<the facts, without the heading>
+No reply is needed. (10:42:07)
+```
+
+- **Mode on**, the whole block (Q2): "[Menkar] Team update: this project is now in orchestration
+  mode. Your team instructions:" + the block + "No reply is needed."
+- **Leaving**: "[Menkar] Team update: the "Your team in Menkar" instructions no longer apply to you.
+  No reply is needed."
+- The marker **"[Menkar] Team update:"** is what `last_reply` and the parent's wake recognise
+  (below).
+
+**A post starts a turn (B2).** Each consequence is handled:
+
+- **Coalesced.** A trigger schedules the pane's recompute `TEAM_SETTLE_MS` = 2,000 ms later, and
+  another trigger restarts the wait. One post then carries the latest. The first-time card's mode
+  on, mark and hand-over (§2.7) become one post per pane. A test with fake timers asserts it.
+- **No parent wake for it.**
+  - When a team post is delivered to a pane whose shown state is idle or done, the pane is marked.
+  - Its next working → idle/done is not sent to its parent, and the mark clears.
+  - The mark also clears on any key the human types into that pane. A post to a working session
+    sets no mark: its own turn end wakes the parent as it would anyway.
+  - A test in `tests/core/control/events.test.ts` covers it, or beside the batcher.
+- **`last_reply` skips a reply to a team post.** Reading backwards, an assistant text whose
+  prompting user message contains "[Menkar] Team update:" is passed over, and the search goes on
+  before it. So a worker's report stays its `last_reply` (1.73). Tested in
+  `tests/core/sessions/lastreply.test.ts` with transcript lines.
+- **`held` is set only on `'posted'`.**
+  - `'no session'` (the session not reachable yet after a start or join) is retried
+    `TEAM_POST_TRIES` = 5 times, `TEAM_POST_GAP_MS` = 2,000 ms apart. The constants are exported
+    and asserted.
+  - `'protocol'`, an error, or the last retry is logged with the pane's id, and `held` is
+    unchanged, so the next trigger tries again.
+
+**Three separable pieces (S8).** This holding model is Claude's: Codex has no snapshot flag, and
+OpenCode rewrites its entry (`agents-compared.md` §1.4). So block 4 keeps three pieces apart:
+
+| Piece | What it is | For Claude |
+|---|---|---|
+| (1) What a session holds at start | `started` | From its file and its start kind |
+| (2) How a start delivers | — | The file and the flags |
+| (3) How a change is told | — | The post and its rules |
+
+`teamPost` itself is agent-neutral. `started` and `held` live in memory with the pane: a restart
+restarts every pane, and a resume gets its block from the command (§2.3).
 
 ### 2.5 The skills Menkar stores
 
 - **Shape**, per project in `projects.json`, beside `roles`:
-  `orchestration.skills: { "<session-id>": [{ "name": "packager", "maintainer": true }, { "name": "claude-cli" }] }`
-  — `maintainer` written only while true (1.154 names it so: the session that maintains the skill
-  when it distills); order kept as the human set it.
-- **Only the project's and the user's skills are stored.** Menkar's own skills are never stored and
-  never shown (1.154): the block derives them from the marks (`menkar:orchestrator` for the
-  orchestrator, `menkar:worker` when a session is handed a task, `menkar:distill` named beside a
-  maintained skill). A `menkar:` name in the file is dropped on read, and `setSkills` refuses one.
-- **Read leniently** (`parseOrchestration`): an entry that is not `{ name: non-empty string }` is
-  dropped alone; a repeated name in one session's list keeps the first; **a second maintainer of one
-  name** (a hand-edited file) reads as read only for every session after the first in member order.
-- **Kept to members, followed to a new id, kept with the mode off** — the same three rules as
-  `roles` (`keptOrchestration`, `followOrchestration`; tested beside them).
-- **Set only by the human** (1.152): one action, `configureRole { session, label, skills }`, from
-  the window (§2.6). **`setSkills` refuses** making a session maintainer of a name another session
-  maintains ("‹name› is maintained by ‹session›."); one maintainer per skill (1.119). No MCP tool
-  sets skills; `start_session`'s `role` stays as it is.
-- **`list_sessions`** adds `skills: [{ name, maintainer }]` per session (with the mode on), so the
-  orchestrator can name an expert's skill, read only, in a per-task worker's task
-  (`plugin/skills/orchestrator/workers.md:34-35`).
+  `orchestration.skills: { "<session-id>": [{ "name": "packager", "maintainer": true }, { "name": "claude-cli" }] }`.
+  - `maintainer` is written only while true (1.154).
+  - The order is kept as the human set it.
+- **Only the project's and the user's skills are stored.** Menkar's own skills are never stored or
+  shown (1.154): the block derives them from the marks (§2.1).
+  - A `menkar:` name in the file is dropped on read.
+  - `setSkills` refuses one (`refusal.menkarSkill`).
+- **Read leniently** (`parseOrchestration`):
+  - an entry that is not `{ name: non-empty string }` is dropped alone;
+  - a repeated name in one list keeps the first;
+  - a second maintainer of one name (a hand-edited file) reads as read only for every session
+    after the first in member order.
+- **Kept to members, followed to a new id, kept with the mode off**, as `roles` is.
+- **Set only by the human** (1.152), with one action, `configureRole { session, label, skills }`.
+  - **`setSkills` refuses** making a session maintainer of a name another session maintains
+    (`refusal.maintainedBy`, "‹name› is maintained by ‹session›.", en and es), one maintainer per
+    skill (1.119).
+  - No MCP tool sets skills; `start_session`'s `role` stays.
+- **`list_sessions`** adds `skills: [{ name, maintainer }]` per session, `[]` with the mode off, as
+  `role` is `null` then. With it the orchestrator can name an expert's skill, read only, in a
+  per-task worker's task (`plugin/skills/orchestrator/workers.md:34-35`). It is built in block 4
+  (`sessionMarks` and `src/core/control/files.ts`), not block 2.
 
 ### 2.6 "Configure role…" — mock-up C (1.154)
 
-The human chose **mock-up C** of task 21 (artifact `UApjJwrv7yGBFAtLrK4Y6J`, "One checklist"),
-without its "Menkar" group (1.154). The window, from the top:
+The human chose **mock-up C** of task 21: https://claude.ai/artifact/UApjJwrv7yGBFAtLrK4Y6J,
+"One checklist", without its "Menkar" group (1.154). The executor of block 5 opens it. The window,
+from the top:
 
-- **Heading** "Configure role of ‹name›" (‹name› in the accent colour); it **replaces "Role…"** in
-  the row menu, same place, same condition (mode on), label `orch.configureRole` "Configure role…"
-  / "Configurar rol…".
-- **Role**: today's field and hint (trimmed; empty removes the label).
-- **Skills**, with "‹n› chosen: ‹names›" beside the label, then one bordered list with a filter
-  field ("Filter skills…") on top, scrolling:
-  - **Not found** first, in red, when a stored skill is no longer found: its name struck through,
-    "Not found in this project's or your skills", and a **Remove** button. It stays stored and
-    flagged until the human removes it (1.154); the block names it "(not found: tell the human)".
-  - Then one group per source, heading on the left ("This project", "Yours") and its path on the
-    right (`.claude/skills/`, `~/.claude/skills/`); a project with several folders shows one group
-    per folder holding skills, headed by the folder's name. Each skill is a row with a **checkbox**;
-    the filter hides rows whose name does not contain its text (case ignored), and a group left
-    empty; with none left, "No skill matches."
-  - **Ticking a skill adds it**, read only, and shows on that row the switch **"Maintainer · Read
-    only"** ("Mantiene · Solo lectura"); unticking removes it.
-  - **A skill maintained by another session**: unticked, the row notes "maintained by ‹name›";
-    ticked, "Maintained by ‹name›" in the warning colour and the switch's Maintainer disabled. To
-    move a maintainer the human unsets it on the other session first.
-- **Legend** under the list: "Maintainer: this session is the one that updates it when it
-  distills." / "Read only: it loads it and never edits it."
-- **Cancel · Save** (Save suggested): Save applies label and skills in one `configureRole`
-  action; Cancel and Escape change nothing. After Save, §2.4's post when the session runs and its
-  facts changed.
+- **Heading:** "Configure role of ‹name›", the name in the accent colour.
+  - It **replaces "Role…"** in the row menu: same place, same condition (mode on).
+  - Its label is `orch.configureRole`, "Configure role…" / "Configurar rol…".
+- **Role:** today's field and hint (trimmed; empty removes the label).
+- **Skills:** "‹n› chosen: ‹names›" beside the label, "0 chosen: none" when empty. Below it, one
+  bordered, scrolling list with a filter field ("Filter skills…") on top:
+  - **Not found** first, in red, for a stored skill not found for this session: its name struck
+    through, "Not found in this project's or your skills", and **Remove**.
+    - The mock-up's "was in .claude/skills/" is deliberately not used: Menkar stores the name
+      only.
+    - These rows stay stored and flagged until the human removes them (1.154).
+    - **The filter never hides them.**
+  - **One group per place:** each of the project's folders holding skills, headed by the folder's
+    name with `.claude/skills/` on the right, then "Yours" with `~/.claude/skills/`.
+    - Each skill is a row with a **checkbox**.
+    - The filter hides rows whose name does not contain its text (case ignored), and any group left
+      empty. With none left, it shows "No skill matches.".
+    - The same name in two places shows in each, and ticking one ticks both: what is stored is the
+      name.
+  - **Ticking adds the skill**, read only, and shows on that row the switch **"Maintainer · Read
+    only"** ("Mantiene · Solo lectura"). Unticking removes it.
+  - **A skill maintained by another session:** unticked, the row notes "maintained by ‹name›".
+    Ticked, it shows "Maintained by ‹name›" in the warning colour, and the switch's Maintainer is
+    disabled. To move a maintainer, the human unsets it on the other session first.
+  - **Another folder's skill (S5; Q5, pending the human, (a) recommended).** Claude loads project
+    skills from the session's own folder chain only. A skill found only in another folder of the
+    project shows disabled, noting "not available in ‹session's folder›". (b) would not show other
+    folders' groups.
+- **Legend:** "Maintainer: this session is the one that updates it when it distills." / "Read
+  only: it loads it and never edits it."
+- **Cancel · Save** (Save suggested). Save applies label and skills in one `configureRole` action;
+  Cancel and Escape change nothing. After Save, §2.4 posts to the session if it runs and its facts
+  changed.
 
-**Why only the project's and the user's skills** (1.154): installed plugins' and MCP servers'
-skills are already available to every session, and nobody in the team maintains them; leaving them
-out keeps the list to the ~10–15 skills a project has, which is what makes one checklist workable.
+**Why only the project's and the user's skills** (1.154): installed plugins' and MCP servers' skills
+are available to every session already, and nobody in the team maintains them. Leaving them out
+keeps the list to a project's ~10–15 skills, which is what makes one checklist workable.
 
-**The skills Menkar finds** (`listSkills`, main, async, read only), where Claude Code finds them
-(`claude-cli`, from Claude Code's skills doc, 2026-11-15): a skill's name is its frontmatter
-`name`, else its folder's.
-- The project's: `.claude/skills/<dir>/SKILL.md` in each of the project's folders (1.124's list:
-  its sessions' folders and the ones the human added) **and in each parent up to that folder's
-  repository root** (the nearest parent holding `.git`, a file in a worktree included), as Claude
-  loads them from a session started there. Nested `.claude/skills/` deeper in a repository, which
-  Claude loads only once it touches a file there, are not listed.
-- The user's: `~/.claude/skills/<dir>/SKILL.md`.
-- Each with its source and the frontmatter's `description` (first 200 characters, for the row's
-  tooltip). A name found in several places shows once per source; what is stored is the name,
-  which is what Claude loads.
-- Read with `readdir`/`readFile` only, symlinks followed, a folder unreadable skipped with a log
-  line; nothing under `~/.claude` or the project's folders is written (block 2's test).
+**Found, and where** (`listSkills`, main, async, read only; `claude-cli` from Claude Code's skills
+doc, 2026-11-15). A skill's name is its frontmatter `name`, else its folder's.
+
+- **A project folder's skills:** `.claude/skills/<dir>/SKILL.md` in that folder **and in each
+  parent up to its repository root** (the nearest parent holding `.git`, a directory or a file),
+  as Claude loads them from a session started there.
+  - Nested `.claude/skills/` deeper down load only once Claude touches a file there; they are not
+    listed.
+- **The user's:** `<home>/.claude/skills/<dir>/SKILL.md`, the folder through the paths module, not
+  a literal.
+- **"Found" for a session** = in its own folder's chain, or the user's. It is computed at the pane's
+  start and at each Save, never on an ordinary `projects.json` write.
+- **Each skill carries** its place and the frontmatter's `description`, its first 200 characters,
+  for the row's tooltip.
+- **Read only.** `readdir` and `readFile`, symlinks followed, an unreadable folder skipped with a
+  log line. Nothing under the user's or the project's folders is written (block 2's test).
 
 ### 2.7 The first-time card's order
 
-`startTeam` switches the mode **on first**, then starts or marks the orchestrator, then hands the
-chosen sessions over and saves the cap. If `startNew` is refused, it switches the mode back off
-and shows the refusal as today. So a new orchestrator starts with its block (§2.3). Per 1.154 (Q2), a
-session chosen while running gets the whole block as a post. `orch.firstPrompt` keeps its text:
-the block names `menkar:orchestrator` too, and the duplicate costs nothing.
+- `startTeam` switches the mode **on first**, then starts or marks the orchestrator, then hands the
+  chosen sessions over and saves the cap.
+- If `startNew` is refused, it switches the mode back off and shows the refusal as today.
+- So a new orchestrator starts with its block (§2.3). A running session chosen gets one coalesced
+  post (§2.4).
+- `orch.firstPrompt` keeps its text: the block names `menkar:orchestrator` too, and the duplicate
+  costs nothing.
 
-### 2.8 The skills, trimmed
+### 2.8 The skills, trimmed — what goes, what stays
 
-Per-line edits are block 3's; the principles:
+**The pointer (S1 — pending the human; `set` recommends it).** Each of `orchestrator`, `worker` and
+`distill` names, where it relied on a removed line, one uniform sentence:
 
-- **orchestrator:** the communication lines go (table in §2.1); renewing experts says "have them
-  distill if they learned something, then renew; Menkar names their skills in the new session";
-  its own renew handoff keeps only "what you owe". **1.148:** "A task for each piece of work you
-  delegate" becomes "every request that needs more than a short answer gets a task — to a worker,
-  an expert or a consultant; a short question to a consultant needs none"; a task that waits on
-  something outside (a build, a hosted CI, a release) is set waiting with what it waits on, so
-  working and waiting stay apart. **1.149:** when the human defers work — "tomorrow" or a named day:
-  a task in the queue; "in the future", "someday", "tolerable for now": no task, the project's
-  place for deferred work with its trigger; "another day" or unclear: ask whether to queue a task.
-  These go in `workers.md` if `SKILL.md`'s body would pass 199 lines.
-- **worker:** messaging, report-last and renew-handoff lines go; what it reports keeps its list.
-- **distill:** step 1 "Find your skill" becomes "the skills your team instructions say you
-  maintain; edit only those; a read-only one never"; with none, ask the human. Step 4 drops
-  `SendMessage`. Step 5: the prompt carries what is in flight and the next task; "If your
-  instructions have no team section, also say who you are and the skill to load."
-- **specialize, generic** (1.152): no Menkar, no `menkar:` name, no tool of Menkar's, no
-  `SendMessage`, no orchestrator; no context or renew policy, and `role-skill-contents.md` stops
-  asking role skills to carry one ("It never starts sessions…" and "asks the orchestrator" become
-  "asks whoever coordinates the work"). Its last step: "Ask the human to record this skill as one
-  this session maintains, wherever their tool keeps a session's skills."
-- **The guide:** "The marks" describes "Configure role…"; "Skills to load" says Menkar names them in
-  each session's team instructions, from the marks and the stored skills.
+> How the team talks: the "Your team in Menkar" section of your instructions; if you have none,
+> read `team/common.md` and `team/claude.md` in Menkar's plugin folder (one level up from
+> `skills/`).
+
+That keeps them working with the mode off, where `start_session` still runs
+(`plugin/guide/orchestration-mode.md:153`).
+
+**orchestrator, `SKILL.md`:**
+
+| Lines | What goes | What stays |
+|---|---|---|
+| 47-48 | — | `last_reply` after a renew |
+| 49 | — | "To renew another session, tell it to call `renew`; you renew only yourself" |
+| 50-53 | "with a prompt naming their skill" | "between tasks, have them distill if they learned something, then renew; Menkar names their skills"; a worker goes with its task; a consultant renews itself; past the red mark, a topic, no message (1.109) |
+| 56-57 | "Message sessions with … (`SendMessage`), by name, never by id: a renewed session has a new id and keeps its name" | — (replaced by the pointer) |
+| 57-59 | — | "A name unreachable for a moment may be renewing; look with `list_sessions`…; if it is gone, record what was pending…, don't send it to a guessed name" |
+| 73-75 | "ask it, by name, and ask it to answer by name" | (1.148) "hand it a task when the request needs more than a short answer; a short question needs none" |
+| 88-90 | "A consultant gets no task: ask it, and it raises topics" | (1.148) a task for every request that needs more than a short answer, to a worker, an expert or a consultant; a short question to a consultant needs none; a task waiting on something outside (a build, a hosted CI, a release) is set waiting with what it waits on |
+| 95 | "; load `menkar:worker`" | "This task comes from ‹your name›, the orchestrator. It is task N." The worker relies on it (`worker/SKILL.md:10`) |
+| 106-107 | the whole item 8 | — (the block) |
+| 199-202 | "You are the orchestrator of ‹project›; load `menkar:orchestrator`", then | "what you **owe**: who holds which lock, who waits on your answer, what you promised" |
+
+- **1.149** goes under "The human" in `SKILL.md`, not in `workers.md`, which is read only when
+  handing out, parking or closing (`workers.md:3`):
+  - "tomorrow" or a named day: a task in the queue;
+  - "in the future", "someday", "tolerable for now": no task; it goes to the project's place for
+    deferred work with its trigger;
+  - "another day" or unclear: ask whether to queue a task.
+
+  The body is 198 lines today; the trim frees more than the addition takes, and block 3 asserts
+  the body stays under 200.
+- `setting-up.md:3`: "when you load `menkar:orchestrator`" becomes "when you start as the
+  orchestrator".
+- `workers.md:39`: "keeper" becomes "maintainer".
+
+**worker:**
+- **Description:** "…and make your report your last message" becomes "…and report as your team
+  instructions say".
+- **39-40:** the messaging line goes; the pointer stands in.
+- **70:** "its one keeper" becomes "its one maintainer".
+- **98-103:** the heading "Your report is your last message" becomes "Your report"; the
+  last-message and by-name sentences go. **What a report holds (105-118) stays.**
+- **131-134:** the renew handoff details go. "a worker renews when told to" stays.
+
+**distill:**
+- **Step 1:** "the skills your team instructions say you maintain; edit only those, never a
+  read-only one". With none, ask the human (`menkar:specialize`).
+- **Step 4:** `SendMessage` goes ("send the session that handed you the task, by name, one
+  message: …").
+- **Step 5:** the prompt carries what is in flight and the next task. "If your instructions have no
+  team section, also say who you are and the skill to load."
+
+**specialize, generic (1.152).** No `menkar`, no orchestrator, no tool of Menkar's, no
+`SendMessage`, in any of its files, its description included.
+- **The description:** "use menkar:distill" becomes "use the distill skill".
+- **Step 3:** "by name, with … `SendMessage`" goes.
+- **Step 4:** the orchestrator item goes.
+- **Step 6:** becomes "Ask the human to record this skill as one this session maintains, wherever
+  their tool keeps a session's skills; the distill skill keeps it current from then on."
+- **The policy and renew items of step 6 go.**
+- **`role-skill-contents.md`:**
+  - 28-29: "It never starts sessions or hands out work" goes;
+  - 37-38: "asks the orchestrator for" becomes "asks whoever coordinates the work for".
+
+**The guide:**
+- "The marks" describes "Configure role…".
+- "Tasks", line 100's "Consultants get no tasks" (against 1.148), becomes "Consultants get a task
+  for a request that needs more than a short answer".
+- "Skills to load" says Menkar names each session's skills in its team instructions, from the marks
+  and the stored skills.
 
 ### 2.9 Decided since the first draft
 
-The human's answers (1.154, 2026-11-15), folded in above: **Q1** — the context policy (1.109) is one
-facts line per profile with the human's own percentages (§2.1); **Q2** — switching the mode on
-posts the whole block to each running session of the project, off posts one line (§2.4); **Q3** —
-the orchestrator mark and the parent also trigger the at-once post (§2.4); the window is mock-up C,
-Menkar's own skills never show in it, `keep` is `maintainer`, a stored skill not found stays
-flagged until the human removes it (§2.5, §2.6).
-
-Answered by `claude-cli` (2026-11-15) and used above: the file is read once at start (§2.3,
-§2.4); `--system-prompt-snapshot off` rebuilds a resumed prompt from the current flags (§2.3);
-skills' places and names (§2.6); `Skill` with an unknown name answers "Unknown skill: ‹name›", so a
-stored skill not found is named as such in the block rather than left to fail.
+- **The human, 2026-11-15 (1.154):**
+  - Q1: the context policy is one facts line per profile (§2.1);
+  - Q2: mode on posts the whole block, mode off one line (§2.4);
+  - Q3: the orchestrator mark and the parent trigger the post (§2.4);
+  - mock-up C; Menkar's skills never shown; `maintainer`; a skill not found flagged until removed
+    (§2.5, §2.6).
+- **`claude-cli`, 2026-11-15:**
+  - the file is read once (§2.3);
+  - `--system-prompt-snapshot off` on resume (§2.3);
+  - skills' places and names (§2.6);
+  - `Skill` with an unknown name answers "Unknown skill", hence "(not found: tell the human)".
 
 ### 2.10 Rejected, with why
 
-- **MCP `instructions` for Claude** — a conversation message framed as tool usage, capped at 4,096
-  characters, possibly after the first prompt (1.150, research §1, §5). It may still be another
-  agent's strategy.
-- **Skills set by `start_session` or by `specialize`** — only the human sets them (1.152); an agent
-  that wrote the wrong skill name would mis-role a session silently.
-- **Listing installed plugins' and MCP servers' skills** (1.154) — every session has them already
-  and nobody in the team maintains them; the list stays at a project's ~10–15 skills.
-- **Showing Menkar's own skills in the window** (1.154) — they follow from the marks; storing them
-  would let a session be told to load `menkar:orchestrator` without being the orchestrator.
-- **A check of which skills a session loaded** — the cause is removed at the source (the ideas doc,
-  "Not taken", the human 2026-11-15).
-- **`menkar:worker` implied by having the orchestrator as parent** — an expert does not always work
-  a task, and a consultant now gets tasks without being a child (1.148); "when a session hands you
-  a task" holds for both.
-- **Facts in a template file** — the variants (orchestrator, child, loose, no orchestrator) are
-  logic; one tested function is clearer than placeholders with conditions. The protocol, which has
-  none, stays in files.
-- **A post on every resume, or a "last told" file compared on resume** — `--system-prompt-snapshot
-  off` gives a resumed session its current block in the system prompt, where it outlives a
-  compaction; a post would be summarised away and wakes the session for nothing.
-- **Rewriting the file when the facts change** — Claude reads it once, at start; a compaction and a
-  `/clear` reuse what it read (measured). Only a post reaches a running session.
-- **The snapshot flag on a fork** — not measured; a fork carries its source's recorded block (its
-  name, its role), so it is posted the whole block once it starts (§2.4), which is known to work.
-- **The flag before `--settings`** — measured to work, but last is where nothing can take it as
+- **MCP `instructions` for Claude.** A conversation message framed as tool usage, capped at 4,096
+  characters, possibly after the first prompt (1.150). It may be another agent's strategy.
+- **Skills set by `start_session` or `specialize`.** Only the human sets them (1.152). An agent
+  that wrote a wrong name would mis-role a session silently.
+- **Listing installed plugins' and MCP servers' skills** (1.154): every session has them, and
+  nobody in the team maintains them.
+- **Showing Menkar's skills in the window** (1.154): they follow from the marks. Storing them would
+  let a session be told to load `menkar:orchestrator` without being the orchestrator.
+- **A check of which skills a session loaded.** The cause is removed at the source (the ideas doc,
+  "Not taken").
+- **`menkar:worker` implied by the parent.** An expert does not always work a task, and a
+  consultant now gets tasks without being a child (1.148).
+- **"You were started for task N: load `menkar:worker` now" (review S2).**
+  - A per-task worker's first prompt is the task, so line 4's conditional fires at once.
+  - A task-specific line would change the facts whenever tasks move, posting and starting a turn
+    each time.
+- **Facts in a template file.** The variants are logic; one tested function is clearer. The
+  protocol, which has none, stays in files.
+- **For Claude: a post on every resume, or a stored "last told" file.** The snapshot flag gives a
+  resumed session its block in the system prompt (§2.3, pending task 28's cost).
+- **Rewriting the file on a change.** Claude reads it once (measured).
+- **The snapshot flag on a fork.** Not measured, and a fork must be told it is not its source
+  anyway. The whole block is posted on its join (§2.4).
+- **The flag before `--settings`.** It works (measured), but last is where nothing can take it as
   another option's value.
+- **Making every new session a member before its command (review B1, one option).** `joinSession`
+  decides the project from where the session started (`joinTarget`). Building the input from the
+  tab's project and the start's identity changes no membership rule.
+- **A post with no "No reply is needed" and no `last_reply` filter.** The post's own answer would
+  replace a worker's report (1.73).
+
+### 2.11 Where each review finding went (task 26)
+
+| Finding | Where |
+|---|---|
+| B1 | §2.3 (input at start), §2.4 (join), block 4 e2e |
+| B2 | §2.4 ("A post starts a turn"), blocks 4 and 5 tests |
+| S1 | §2.8's pointer, pending the human |
+| S2 | §2.1 throughout; the per-task worker line rejected in §2.10 |
+| S3 | §2.3: task 28 gates block 4; the floor and Q4; the release checklist |
+| S4 | §2.4: names, in-tab resume, leaving |
+| S5 | §2.6, Q5 pending the human |
+| S6 | §2.8's tables |
+| S7 | §5's files; block 5's post test; the exit's `docs/context.md` |
+| S8 | §2.2's `TeamAgent`, §2.4's three pieces, §2.10's "for Claude" |
+
+**Minor findings:**
+- sizes re-measured (§2.1);
+- the time format (§2.4);
+- 1.89 and 1.84 in the header;
+- §3 updated;
+- "keeper" → "maintainer" (§2.8);
+- i18n keys for the refusals (§2.5);
+- the constants tested (§2.4);
+- a file not written (§2.3);
+- no rescan (§2.4, §2.6);
+- the paths module (§2.6);
+- the mock-up notes (§2.6);
+- chat tabs (§3);
+- the mock-up URL (§2.6).
 
 ## 3. Out of scope
 
-- Delivery to Codex, Cursor and OpenCode and their communication parts (plan 38; `NOT_BUILT_YET.md`).
-- Any change to `start_session`, `renew` or the wake texts other than §2.4's posts.
-- The "Configure role…" layout (task 21 → the human).
-- Editing a skill's text from Menkar; creating skills; showing a skill's body.
+- Delivery to Codex, Cursor and OpenCode, and their parts (plan 38; `NOT_BUILT_YET.md`).
+- **Chat tabs and "Open in Ghostty" get no block**: they are not Menkar's panes' commands.
+- Any change to `start_session`, `renew` or the wake texts other than §2.4's.
+- Editing, creating or showing a skill's text from Menkar.
 - Moving a maintainer in one step.
 - Listing installed plugins' or MCP servers' skills (1.154).
-- `plans/38-multi-agent.md`'s D10 row (1.151 says it is amended; `set` edits that file).
+- `plans/38-multi-agent.md`'s D10 row (`set` edits that file).
 
 ## 4. Do not touch
 
-- `orch.firstPrompt`'s text, `wakeFrame`'s format and the counts tail (1.125).
+- `orch.firstPrompt`'s text; `wakeFrame`'s format and counts tail (1.125).
 - The command line of any session of a project with the mode off, and of any Cursor session.
-- `~/.claude`, the project's `.claude/skills/` and the user's skills: read only.
-- The 200-line limit and the other rules of `tests/core/plugin.test.ts`: extended, never loosened.
-- `docs/history/` lines already there; `plans/38-*`, `plans/27-*`, `plans/28-*`.
+- The user's and the project's skills, and anything under `~/.claude`: read only.
+- `tests/core/plugin.test.ts`'s existing rules: extended, never loosened.
+- `followPaneStart`'s behaviour; `docs/history/` lines already there; `plans/38-*`, `27-*`, `28-*`.
 
 ---
 
 ## 5. Execution blocks
 
-**Parallel:** blocks **1, 2 and 3 share no file** and may run at once (cap 3, 1.153). Block 4 needs
-1 and 2. Block 5 needs 4. Block 6 closes, after 5.
+**Parallel and order:**
+- Blocks **1, 2 and 3 share no file** and may run at once (cap 3, 1.153).
+- Block 4 needs 1, 2 **and task 28's result** (§2.3).
+- Block 5 needs 4.
+- Block 6 closes.
+- S1, Q4 and Q5 must be answered before blocks 3, 4 and 5 respectively.
 
 | Block | Files it owns |
 |---|---|
 | 1 | `plugin/team/common.md`, `plugin/team/claude.md` (new), `src/core/team/block.ts` (new), `tests/core/team/block.test.ts` (new), `scripts/check-package.mjs` |
-| 2 | `src/core/projects/model.ts`, `src/core/projects/orchestration.ts`, `src/core/team/skills.ts` (new), `tests/core/projects/orchestration.test.ts`, `tests/core/team/skills.test.ts` (new) |
+| 2 | `src/core/projects/model.ts`, `src/core/projects/orchestration.ts`, `src/core/team/skills.ts` (new), `tests/core/projects/orchestration.test.ts`, `tests/core/team/skills.test.ts` (new), the paths module (the user's skills folder) |
 | 3 | `plugin/skills/**`, `plugin/guide/orchestration-mode.md`, `tests/core/plugin.test.ts` |
-| 4 | `src/core/command.ts`, `tests/core/command.test.ts`, `src/core/team/posts.ts` (new), `tests/core/team/posts.test.ts` (new), `src/core/control/files.ts`, `src/core/control/prompt.ts` (the sweep), `src/main/pane-starts.ts`, `src/core/context/statusline.ts` (`paneStart`), `src/main/control.ts` (the sweep's call), `e2e/fixtures.ts`, `src/core/control/protocol.ts`, `src/core/control/server.ts` if `list_sessions` is built there, `src/main/workspace.ts`, `src/renderer/orchestration.ts` (`startTeam` only), `e2e/session-control.spec.ts`, `e2e/orchestration.spec.ts`, `docs/session-control.md`, `docs/history/session-control.md` |
-| 5 | `src/renderer/orchestration.ts` (the window), its CSS, the IPC module, `src/main/workspace.ts` (the action), `src/core/i18n/{en,es}.ts`, `e2e/orchestration.spec.ts`, `docs/orchestration.md`, `docs/projects.md`, `docs/history/orchestration.md` |
-| 6 | `plans/00-STATUS.md`, `docs/NOT_BUILT_YET.md`, `plans/ideas/team-protocol.md` (deleted), this plan (deleted) |
+| 4 | Main and core: `src/core/command.ts`, `tests/core/command.test.ts`, `src/core/team/posts.ts` (new), `tests/core/team/posts.test.ts` (new), `src/core/control/files.ts` (`team` path, `list_sessions`), `src/core/control/prompt.ts` (sweep), `src/main/control.ts`, `src/core/control/events.ts` and its test (the post's turn), `src/core/sessions/lastreply.ts` and `tests/core/sessions/lastreply.test.ts`, `src/core/context/statusline.ts` (`paneStart`) and `tests/core/context/statusline.test.ts`, `src/main/pane-starts.ts`, `src/core/projects/orchestration.ts` (`sessionMarks` only), `tests/core/control/server.test.ts`, `src/core/control/protocol.ts`, `src/main/workspace.ts`, `src/renderer/orchestration.ts` (`startTeam` only), `src/core/i18n/{en,es}.ts` (`team.oldClaude`) |
+| 4 | Tests and docs: `e2e/fixtures.ts`, `e2e/session-control.spec.ts`, `e2e/orchestration.spec.ts`, `docs/session-control.md`, `docs/context.md`, their history files, `docs/release-checklist.md`, `README.md` |
+| 5 | `src/renderer/orchestration.ts` (the window), its CSS, the IPC module, `src/main/workspace.ts` (the action, `skills:list`), `src/core/i18n/{en,es}.ts`, `e2e/orchestration.spec.ts`, `docs/orchestration.md`, `docs/projects.md`, their history files |
+| 6 | `plans/00-STATUS.md`, `docs/history/plans/00-STATUS.md`, `docs/NOT_BUILT_YET.md`, `plans/ideas/team-protocol.md` (deleted), this plan (deleted) |
 
-### Block 1 — the block's source and assembly (parallel with 2 and 3)
+### Block 1 — the block's text and assembly (parallel with 2 and 3)
 
 - [ ] Tests first, `tests/core/team/block.test.ts`, each comment naming its decision:
-  - 1.150: `teamFacts` for a project with the mode **off** → `null`; for a non-member → `null`.
-  - The five line-2 variants of §2.1 (orchestrator; parent is the orchestrator; another parent;
-    loose; no orchestrator) and no role — exact strings.
-  - Line 3: maintainer, read only with its maintainer, read only with none, not found; the orchestrator's
-    starts with `menkar:orchestrator`; no line when nothing to load.
-  - `menkar:worker` line present for every session but the orchestrator.
-  - Line 5 (1.154, Q1) per profile, with `ring_warn`/`ring_full` 60/90 and 50/80 (the numbers follow the
-    settings).
-  - `teamBlock('claude', …)` = facts + common + claude, in that order; `teamBlock` of an agent with
-    no part file → `null` (with a fake `readPart`); the source has no string literal `'claude'`
-    (parse with the TypeScript compiler API, as other shape rules do).
-  - Size: `common.md` + `claude.md` under 800 bytes; the §2.1 expert example's block under 1,400.
-- [ ] Write `plugin/team/common.md` and `plugin/team/claude.md` with §2.1's text;
-  `src/core/team/block.ts` (`teamFacts`, `teamBlock`), pure, no Electron, time not read.
+  - every variant of §2.1's lines 2–5 as an exact string: no name; with and without a role; the
+    orchestrator; parent is the orchestrator; another parent; loose; no orchestrator. Line 3's four
+    kinds and its absence. Line 5's four cases with `warn`/`full` at 60/90 and at 50/80;
+  - the role: a newline, a backtick and a quote removed; 61 characters cut to 60 with "…";
+  - names in backticks; the orchestrator's skill list starts with `menkar:orchestrator`;
+  - `teamBlock` = facts, common, part, blank-line separated; `TEAM_AGENTS` has no entry for
+    `'cursor'` (→ `null`);
+  - **a parsed-source test**: no `'claude'` string literal in `src/core/team/` outside
+    `TEAM_AGENTS`, via the TypeScript compiler API;
+  - size: `common.md` + `claude.md` under 800 bytes; §2.1's expert block under 1,400.
+- [ ] `plugin/team/common.md`, `plugin/team/claude.md` (§2.1); `src/core/team/block.ts`
+  (`TeamInput`, `TeamAgent`, `TEAM_AGENTS`, `teamFacts`, `teamBlock`). Pure, no Electron, time not
+  read.
 - [ ] `scripts/check-package.mjs` requires `resources/plugin/team/common.md` and `claude.md`.
-- **Verify:** `npm run ci`; inject a defect once (drop the `menkar:worker` line) and see its test fail.
+- **Verify:** `npm run ci`; drop line 4 once and see its test fail.
 
 ### Block 2 — stored skills and the skills Menkar finds (parallel with 1 and 3)
 
-- [ ] Tests first, in `tests/core/projects/orchestration.test.ts`:
-  - parse: valid entries kept; `{}`/non-string/empty name dropped alone; a repeated name keeps the
-    first; a `menkar:` name dropped; two maintainers of `deploy` → the second member's reads read
-    only.
-  - serialize: `maintainer` only when true; no `skills` key when every list is empty; a project with no
-    skills writes exactly what it writes today (same bytes).
-  - kept to members; followed to a new id (`followOrchestration`); kept with the mode off.
-  - `setSkills`: maintainer of a name another session maintains → refusal naming it; read only of
-    it → accepted; any `menkar:` name → refusal; replaces the list whole.
-  - `sessionMarks` gains `skills` (mode on), `[]` with the mode off.
-- [ ] `tests/core/team/skills.test.ts` on a temporary tree: two project folders and a user folder;
-  names, sources, descriptions; a frontmatter `name` wins over the folder's; a project folder inside a repository also lists the skills of its
-  parents up to the folder holding `.git` (a directory or a file), and nothing above it; a symlinked skill found; an unreadable folder skipped; a
-  folder with no `SKILL.md` ignored; **every file's mtime and the tree's listing unchanged after**
-  (nothing written).
-- [ ] Build: `skills` in `Orchestration`, parse/serialize/keep/follow, `setSkills`;
-  `src/core/team/skills.ts` (`listSkills(places)`, async fs, folders passed in).
-- **Verify:** `npm run ci`; inject a defect (let a second maintainer through) and see it fail.
+- [ ] Tests first, `tests/core/projects/orchestration.test.ts`:
+  - **parse:** valid entries kept; `{}`, a non-string or an empty name dropped alone; a repeated
+    name keeps the first; a `menkar:` name dropped; two maintainers of `deploy`, so the second
+    member's reads read only;
+  - **serialize:** `maintainer` only when true; no `skills` key when every list is empty; a project
+    with no skills writes the same bytes as today;
+  - kept to members; followed to a new id; kept with the mode off;
+  - **`setSkills`:**
+    - maintainer of a name another session maintains → `refusal.maintainedBy` with both names;
+    - read only of it → accepted;
+    - a `menkar:` name → `refusal.menkarSkill`;
+    - the list is replaced whole.
+- [ ] `tests/core/team/skills.test.ts`, on a temporary tree with two project folders, one inside a
+  repository, and a user folder:
+  - names, places and descriptions; a frontmatter `name` wins over the folder's;
+  - the folder inside the repository also lists its parents' skills, up to the folder holding
+    `.git` (a directory, then a file), and nothing above;
+  - a symlinked skill found; an unreadable folder skipped; a folder with no `SKILL.md` ignored;
+  - **every file's mtime and the tree's listing unchanged after**;
+  - `foundFor(folder, listed)` gives that folder's chain plus the user's.
+- [ ] Build `skills` in `Orchestration`: parse, serialize, keep, follow, `setSkills`, the two
+  refusal keys (`en`, `es`). In `src/core/team/skills.ts`: `listSkills(places)` (async fs, places
+  passed in) and `foundFor`; the user's skills folder in the paths module. `sessionMarks` is block
+  4's.
+- **Verify:** `npm run ci`; let a second maintainer through once and see it fail.
 
-### Block 3 — the skills trimmed, `specialize` generic, task 17's rules (parallel with 1 and 2)
+### Block 3 — the skills trimmed, `specialize` generic, task 17's rules (parallel with 1 and 2; after S1's answer)
 
-- [ ] Test first, `tests/core/plugin.test.ts`:
-  - **no communication line in a skill** (any of the four `SKILL.md` and their reference files):
-    no `SendMessage`, no "last message", no "never by (an )?id", no "wakes only", no "load
-    \`menkar:" — the block says these;
-  - **specialize is generic**: its files contain no `/menkar/i`, no `/orchestrat/i`, no
-    `SendMessage`, and no backticked name from `TOOL_NAMES`;
-  - **distill edits only the skills it maintains**: its body matches `/read.only/` and `/maintain/`;
-  - **1.148/1.149**: the orchestrator's files mention a task for a consultant, "waiting" on
-    something outside, and the three horizons (`tomorrow`, `in the future`, `another day`).
-  Adjust the existing test that requires `renew` in distill only if the new text drops it (it
-  should not: step 5 keeps `renew`).
-- [ ] Edit the four skills per §2.8, line by line against §1's list; `role-skill-contents.md`;
-  `where-knowledge-goes.md` if it names Menkar (today it does not). Each `SKILL.md` body stays
-  under 200 lines and keeps "What earns a line here:".
-- [ ] The guide's "The marks" and "Skills to load" (§2.8).
-- **Verify:** `npm run ci`; re-add one `SendMessage` line and see the test fail.
+- [ ] Tests first, `tests/core/plugin.test.ts`:
+  - **no communication line in a skill.** In every `SKILL.md` body and reference file: no
+    `SendMessage`, no "last message", no "never by (an )?id", no "wakes only", no "load
+    \`menkar:". Descriptions too, except that the orchestrator's may name its own skill;
+  - **the pointer** (S1): the sentence of §2.8 in `orchestrator`, `worker` and `distill`;
+  - **specialize is generic.** Its files and description contain no `/menkar/i`, no
+    `/orchestrat/i`, no `SendMessage`, and no backticked name from `TOOL_NAMES`;
+  - **distill edits only what it maintains**: its body matches `/read.only/` and `/maintain/`;
+  - **1.148 and 1.149, on the orchestrator's `SKILL.md` body:** a consultant gets a task; "waiting"
+    on something outside; the three horizons (`tomorrow`, `in the future`, `another day`);
+    `workers.md` holds none of the three;
+  - no "keeper" in any skill or the guide; the guide no longer says "Consultants get no tasks".
+- [ ] Edit per §2.8's tables, and the guide.
+- **Verify:** `npm run ci`, every body under 200 lines; re-add a `SendMessage` line once and see
+  the test fail.
 
-### Block 4 — delivery, posts, the card's order (after 1 and 2)
+### Block 4 — delivery, posts, the card's order (after 1, 2, task 28 and Q4)
 
 - [ ] Tests first:
-  - `command.test.ts`: `teamFile` → `--append-system-prompt-file '<path>'` **last**, for new and
-    fork; for a resume `--system-prompt-snapshot off --append-system-prompt-file '<path>'` last;
-    **without `teamFile`, each of today's exact-string tests passes unchanged** (1.150: mode off is
-    byte-identical, the snapshot flag included); a Cursor command with `teamFile` given gets nothing.
-  - `tests/core/team/posts.test.ts`, the pure rule of §2.4 (`teamPost(started, told, current,
-    event)` → nothing, the facts, the whole block or the leaving line): a change with facts equal
-    to `told` → nothing; different → the facts; a `compact` or `clear` with `told` ≠ `started` and
-    current = `started` → nothing (the start text is right again); current ≠ `started` → the
-    facts; a fork's first start → the whole block; per 1.154 (Q2) mode on with `started` = `null` →
-    the whole block, and again after a compaction; mode off with `started` set → the leaving line.
-  - `sweepTeamFiles`: a day by the clock, at 23:59 and across midnight; a newer file kept.
-  - E2E (`e2e/session-control.spec.ts`, the stand-in `claude`): a project with the mode **off**
-    → `claude-args.txt` has neither flag and no team file is written; **on** → the flag names a file,
-    present when the stand-in starts, whose text is the block for that session; a resume carries
-    `--system-prompt-snapshot off`; a role changed while it runs → one post through the messaging
-    socket with the new facts, saving it unchanged → none; a `compact` start record afterwards → the
-    facts posted again; per 1.154 (Q2), switching the mode on → the whole block posted.
-  - E2E (`e2e/orchestration.spec.ts`): the first-time card with a new orchestrator → its first
-    command carries the flag; a refused start leaves the mode off.
-- [ ] Build: `controlPaths().team`; `teamFile` in `buildCommand`; in `startPaneHeld`, for an agent
-  whose block is not `null`, write the file before building the command and pass it; the pane
-  keeps `started` and `told`; `src/core/team/posts.ts` (`teamPost`); main applies it after
-  `projects.json` changes, mode switches and start records: `paneStart`
-  (`src/core/context/statusline.ts`) today passes only `clear` and `resume` records; it passes
-  every source, `watchPaneStarts` hands each one to the team rule, and `followPaneStart` keeps
-  acting only on `clear` and `resume` (its tests unchanged); `sweepTeamFiles` hourly with the prompts' sweep;
-  `list_sessions`' `skills`; `startTeam`'s order (§2.7). The stand-in `claude` of
-  `e2e/fixtures.ts` gains a way to write a `compact` start record.
-- [ ] `docs/session-control.md`: "The team block" section; "What the skills lean on" rewritten,
-  the old bullets verbatim to `docs/history/session-control.md`; "Rejected" gains MCP
-  `instructions` for Claude.
-- **Verify:** `npm run ci` and `npm run ui-check` (the two specs above pass; the rest unchanged).
+  - **`command.test.ts`:**
+    - `teamFile` puts `--append-system-prompt-file '<path>'` last for new and fork; a resume gets
+      `--system-prompt-snapshot off --append-system-prompt-file '<path>'` last;
+    - **without `teamFile` every existing exact-string test passes unchanged** (1.150);
+    - a Cursor command ignores `teamFile`.
+  - **`posts.test.ts`:** §2.4's table, and the event sequences:
+    - a change → facts; the same change again → nothing;
+    - `compact` with `held` ≠ `started` and current = `started` → nothing; with current ≠ `started`
+      → facts;
+    - a fork's join → the whole block;
+    - an in-tab resume → the whole block, then after a compaction the facts if they differ;
+    - mode on with `started` = `null` → the whole block, and again after a compaction;
+    - mode off → the leaving line;
+    - a session leaving the project → the leaving line;
+    - a rename of its parent → facts.
+  - **The settle:** three triggers within 2,000 ms give one post (fake timers).
+    `TEAM_SETTLE_MS`, `TEAM_POST_TRIES` and `TEAM_POST_GAP_MS` are asserted.
+  - **The post's turn:**
+    - a pane marked by a team post: its next working → idle does not wake the parent; the one
+      after does;
+    - a key typed in between clears the mark;
+    - a post to a working pane sets none.
+  - **`lastreply.test.ts`:** report, then a team post, then "Noted." → the report; a post followed
+    by the human's message and a reply → that reply.
+  - **`statusline.test.ts`:** a `compact` record reads with its pane; `startup` still `null`.
+  - **`server.test.ts`:** `skills` in `list_sessions`, `[]` with the mode off.
+  - **`sweepTeamFiles`:** a day by the clock, at 23:59 and across midnight.
+  - **E2E (`e2e/session-control.spec.ts`)**, with the stand-in `claude` and a `compact` record it
+    can write:
+    - mode **off**: neither flag in `claude-args.txt`, no team file;
+    - **on**: the flag names a file present at start, holding the session's block;
+    - a resume carries `--system-prompt-snapshot off`;
+    - "New session" (the human's) carries the flag, and its block names it;
+    - a fork gets one whole-block post after it joins;
+    - a role change → one post; saving unchanged → none; then a `compact` record → the facts again;
+    - the mode on → one post per running pane, however many changes the card makes;
+    - a team post's turn does not wake the orchestrator;
+    - per Q4 (a), a stand-in reporting an old version → no flags and one toast.
+  - **E2E (`e2e/orchestration.spec.ts`):** the first-time card's new orchestrator carries the flag;
+    a refused start leaves the mode off.
+- [ ] Build:
+  - `controlPaths().team`, `teamFile` in `buildCommand`;
+  - the input at start (§2.3), for members and pending sessions;
+  - the file written before the command, or flags dropped and logged;
+  - `started` and `held` per pane, and `teamPost`;
+  - the triggers: projects, names, start records, join; the settle; the turn mark; the
+    `last_reply` skip;
+  - `paneStart` passing `compact`;
+  - the sweep;
+  - `sessionMarks` and `list_sessions`' `skills`;
+  - `startTeam`'s order;
+  - the version read and Q4.
+  - Keep §2.4's three pieces in separate functions.
+- [ ] Docs:
+  - `docs/session-control.md`: "The team block"; "What the skills lean on" and `last_reply`'s
+    bullet, old text verbatim to the history;
+  - `docs/context.md`: `compact` records read by main;
+  - `docs/release-checklist.md`: §2.3's hand check;
+  - `README.md`, "Install (Ubuntu)": the floor.
+- **Verify:** `npm run ci` and `npm run ui-check`.
 
-### Block 5 — "Configure role…", mock-up C (after 4)
+### Block 5 — "Configure role…", mock-up C (after 4 and Q5)
 
-- [ ] Tests first, e2e (`e2e/orchestration.spec.ts`), mode on, with a project folder holding
-  `.claude/skills/{packager,review-branch,claude-cli}` and a temporary user `~/.claude/skills/`:
-  - the session's menu shows "Configure role…" and no "Role…";
-  - the window lists "This project" and "Yours" and **no `menkar:` skill**;
-  - ticking `packager`, setting it Maintainer, ticking `review-branch` (read only by default) and
-    Save writes `projects.json` as §2.5 (`maintainer: true` on the first only);
-  - with `claude-cli` maintained by another session: its row says "maintained by ‹name›", and once
-    ticked the switch's Maintainer is disabled;
-  - a stored skill deleted on disk shows first under "Not found"; Remove then Save drops it; Cancel
-    writes nothing;
-  - the filter hides non-matching rows and shows "No skill matches." when none is left;
-  - screenshots of the window with a not-found skill and a maintained-elsewhere one, dark and light,
+- [ ] Tests first, e2e in `e2e/orchestration.spec.ts`. The project folder, a git repository,
+  holds `.claude/skills/{packager,review-branch,claude-cli}`, with a second project folder and a
+  temporary user skills folder:
+  - the menu shows "Configure role…" and no "Role…";
+  - one group per folder and "Yours"; **no `menkar:` skill**; "0 chosen: none" at first;
+  - ticking `packager` as Maintainer and `review-branch` (read only by default), then Save, writes
+    §2.5's shape; **the running session gets one post** naming both (1.152, "at once");
+  - with `claude-cli` maintained by another session: "maintained by ‹name›", and Maintainer
+    disabled once ticked;
+  - a stored skill deleted on disk shows under "Not found", and a filter that matches nothing still
+    shows it. Remove, then Save, drops it. Cancel writes nothing;
+  - the second folder's skills: disabled with "not available in …" (per Q5);
+  - the same name in two places: ticking one ticks both;
+  - screenshots, dark and light, of the window with a not-found and a maintained-elsewhere skill,
     to `$MENKAR_FILES`, the session's name first.
-- [ ] Build mock-up C (§2.6): IPC `skills:list` (main runs `listSkills` with the project's folders
-  and `~/.claude/skills`), action `configureRole`, strings in `en.ts` and `es.ts` ("Maintainer ·
-  Read only" / "Mantiene · Solo lectura"; `orch.role*` replaced; `check-i18n` passes),
-  `roleDialog` removed; the dialog's look from Menkar's existing `.dialog` styles.
-- [ ] `docs/orchestration.md` ("Role…" bullet → "Configure role…", the card's order, the mode
-  switched while sessions run; old text verbatim to its history); `docs/projects.md` (the `skills`
-  key).
-- **Verify:** `npm run ci`, `npm run ui-check`, and the screenshots listed in the report.
+- [ ] Build mock-up C (§2.6, the artifact open):
+  - IPC `skills:list`;
+  - the action `configureRole`, which recomputes `found`;
+  - strings in `en.ts` and `es.ts` ("Maintainer · Read only" / "Mantiene · Solo lectura";
+    `orch.role*` replaced; `check-i18n` passes);
+  - `roleDialog` removed; the look from `.dialog`.
+- [ ] Docs: `docs/orchestration.md` (the window, the card's order, the mode switched while sessions
+  run; old text to its history) and `docs/projects.md` (`skills`).
+- **Verify:** `npm run ci`, `npm run ui-check`, the screenshots in the report.
 
 ### Block 6 — close
 
-- [ ] `plans/00-STATUS.md`: rows 1.148–1.152 point at their docs; 1.109's row amended per 1.154 (Q1) (the
-  old cell verbatim to `docs/history/plans/00-STATUS.md`); this plan's §3 row out, its closing note
-  to the history.
-- [ ] `docs/NOT_BUILT_YET.md`, "More coding agents": the per-agent team parts and their delivery,
-  trigger plan 38's P1a.
+- [ ] `plans/00-STATUS.md`:
+  - rows 1.148–1.152 and 1.154 point at their docs;
+  - 1.109's and 1.84's rows amended, old cells verbatim to the history;
+  - this plan's §3 row out, its closing note to the history.
+- [ ] `docs/NOT_BUILT_YET.md`, "More coding agents": the per-agent team parts and how each is
+  told, trigger plan 38's P1a.
 - [ ] Delete `plans/ideas/team-protocol.md` and this plan.
 - **Verify:** `npm run ci` (the history check).
 
