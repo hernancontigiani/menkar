@@ -573,6 +573,121 @@ Measured with marker words. Read in bundle `index.js` (`LocalCursorRulesService`
   `@AGENTS.md`, Cursor would read both files and see the text once plus a bare `@AGENTS.md` line
   (inferred). That is harmless, but worth a look.
 
+## 5b. Team block delivery (decision 1.150)
+
+The question: how Menkar can put a short **team block** (about 25 lines: who the session is, its
+role, parent, orchestrator, skills and the team protocol) into a Cursor session's instructions,
+**per session, with nothing written in the user's config or repository**.
+
+The measurements ran on cursor-agent 2026.11.13-eacade1, 2026-11-15, 10:58–11:15:
+- a throwaway `HOME` (the copy of `auth.json` deleted afterwards) and `--model auto`;
+- 15 short turns in a scratch repository whose `AGENTS.md` and `.cursor/rules/probe.mdc` carry
+  their own marker words, so the user's own instructions are present throughout;
+- a no-op `stop` in the scratch repository's `.cursor/hooks.json`, to read `input_tokens`;
+- each route carrying the same test block: 25 lines, about 3.6 KB, with its own marker word or
+  "probe code". A real block of about 25 short lines would be about a third of that (inferred).
+
+### What the request carries
+
+Every model request carries a `RequestContext` (read, bundle `index.js`, its proto description). The
+fields that matter here are:
+- `rules` (field 2), where `AGENTS.md`, `CLAUDE.md` and `.cursor/rules` go;
+- `mcp_instructions` (field 14, `{server_name, instructions, server_identifier}`);
+- `hooks_additional_context` (field 25);
+- `system_prompt_override` (field 53).
+
+**Cursor's server**, not the CLI, renders these into the prompt. So whether a text ends up in the
+system prompt or in a user-side message **cannot be seen from the client** (unknown). What can be
+measured: it is not part of the transcript, and it is in context before the first answer.
+
+### The routes
+
+| Route | In context? | Before the first answer | Resume | Compaction (`/summarize`) | Cost per request | Measured |
+|---|---|---|---|---|---|---|
+| **A `sessionStart` hook's `additional_context`**, from the per-session `--plugin-dir` plugin | **yes** | yes: the first request waits for it (read: `hooksAdditionalContextPromise` is awaited before the request context is sent) | **kept with the chat**; the hook does not run on `--resume`, and **a changed text is not seen** | **kept** | ≈ +936 tokens for the 3.6 KB block; cached on later requests when the cache hits | yes |
+| **MCP server `instructions`** (Menkar's server, from `initialize`) | **yes** | yes | **kept with the chat; a changed text is not seen**, although the server is restarted and returns the new text | **kept** | ≈ +926 tokens for the same block (including 23 for the tool's listing) | yes |
+| A plugin's `rules/*.mdc` (`alwaysApply: true`) | **no** (0 tokens) | — | — | — | 0 | yes (second time) |
+| `--add-dir <Menkar's folder>` holding `.cursor/rules/*.mdc` and `AGENTS.md` | **no** (+57 tokens, the extra workspace root) | — | — | — | — | yes |
+| The first prompt itself | yes, as a user message in the transcript | yes | in the history | summarized like any message (inferred) | once, then history | inferred |
+| `--system-prompt <file>` (hidden) | — | — | — | — | — | read: "Replace system prompt … (Anysphere/OpenAI team only)"; it **replaces** the prompt; unusable |
+| A `beforeSubmitPrompt` hook's context | — | — | — | — | — | not measured; needs the user's `hooks.json` (item 12, D13) |
+| The project's `.cursor/rules` or `AGENTS.md` | yes | yes | yes | yes | — | rejected: it writes the user's repository |
+
+### Measured details
+
+- **Visibility.** Without tools, the model listed `RULE-CHARLIE AGENTS-ALPHA HOOK-ECHO` with the
+  hook route, and `RULE-CHARLIE AGENTS-ALPHA MCPINST-DELTA` with the MCP route. The plugin rule's
+  and `--add-dir`'s markers were never listed, and the transcripts show no tool call.
+- **Side by side with the user's own instructions:** the project's `AGENTS.md` and `.cursor/rules`
+  stayed in every run, and the block was added beside them. They travel in separate fields
+  (`rules` and the block's own field), so there is no override and no ordering a client controls.
+- **Input tokens on a new chat with "list the markers":**
+
+  | Route | `input_tokens` |
+  |---|---|
+  | none | 9946 |
+  | plugin rule | 9946 |
+  | `--add-dir` | 10003 |
+  | hook | 10882 |
+  | MCP `instructions` | 10872 |
+
+  Later requests in the same chat read the block from the cache when it hits (`cache_read_tokens`
+  10880 and 11776 on resumed turns); under `auto` the cache is not reliable (often 3968).
+- **Resume, clean test.**
+  - A new chat with both routes, codes H-3333 and M-3333, and the first turn "Say OK.", so no code
+    entered the conversation.
+  - Both texts were then changed to H-4444 and M-4444, and the chat resumed with "list every probe
+    code in your context": the answer was **"H-3333, M-3333"**.
+  - Both texts are frozen at the chat's creation, and Menkar's restarted MCP server's new text was
+    ignored. This agrees with the bundle's `_resumedInstructions` (read).
+- **Compaction, clean test.**
+  - New chats with one route each, codes H-6666 and M-6666, and "Say OK. Do not use any tool."
+  - Then `/summarize`. The summary showed no code.
+  - Then "list every probe code": the answers were **"H-6666"** and **"M-6666"**. Both survive a
+    summary.
+- **The hook route needs a new chat.** `sessionStart` runs only when not resuming (read; measured
+  again: no `sessionStart` on `--resume`, including the `create-chat` + `--resume <id>` start).
+  - **A new chat can still get a chosen id:** the hidden `--new-session-id <uuid>` ("Create a new
+    session with a caller-provided ID") started a new chat with that id, and `sessionStart` ran
+    (measured).
+  - Or the chat starts with a plain positional prompt, and Menkar learns its id from
+    `sessionStart`'s own payload (`conversation_id`, measured in the first round).
+  - The plugin's `sessionStart` runs **without** any entry in the user's `hooks.json` (measured in
+    every round). It is not one of the turn hooks of item 12.
+- **The MCP route changes behaviour.** With the block as MCP `instructions`, the model answered
+  "Say OK." by first calling `GetDynamicTools` and the MCP tool, "to check the probe tool
+  instructions". This is the tool-usage framing the Claude research warned of (measured once; the
+  approval card then interrupts the turn).
+- **The block is obeyed.** With either route, the model ended its replies with "probe-session",
+  the session name the block gave it (measured).
+- **Size caps:** rules are cut at 100 KB per file (read). No client-side cap was found for
+  `additional_context` or MCP `instructions` (read; the server may have one, unknown).
+
+### Recommendation
+
+1. **Recommended: a `sessionStart` hook in Menkar's per-session plugin, returning the block as
+   `additional_context`.**
+   - It needs no file of the user's and no `hooks.json` entry.
+   - It is present before the first answer, kept through `/summarize` and resume, outside the
+     transcript, and framed as context rather than tool documentation.
+   - The same plugin folder already carries Menkar's MCP server (§4).
+   - **Cost:** the chat must be new. Menkar starts a session with the hidden `--new-session-id
+     <uuid>`, or with a positional prompt, learning the id from the hook's `conversation_id`. The
+     hidden flag is undocumented and could vanish; the positional start does not depend on it.
+2. **Second best: Menkar's MCP server's `instructions`.**
+   - It has the same visibility, persistence and cost, and does not need a new chat.
+   - It is framed as tool usage, and was measured to nudge the model into calling the tool
+     unprompted.
+3. **For both, a change reaches a running or resumed chat only through a `[Menkar]` post** (1.152).
+   The block is frozen at the chat's creation, and resuming does not refresh it (measured). A
+   renew is a new chat, so it gets the current block.
+
+**Still unknown:**
+- where Cursor's server places each field (system prompt or not);
+- whether a chat created *without* the block gains the MCP `instructions` when resumed with the
+  server present;
+- a real model's adherence over long sessions.
+
 ## 6. agent-deck on Cursor, in short
 
 Read at `9fa44b5`. Cursor is a first-class tool there, launched as `agent` or `cursor agent`.
