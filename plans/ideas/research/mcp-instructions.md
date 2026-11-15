@@ -148,9 +148,50 @@ the end, and needs `set`'s OK.
   use `--append-system-prompt-file` for the conduct lines on Claude only (1.135: one strategy per
   agent).
 
+## 6. Measured: `--append-system-prompt-file` (task 19, decision 1.150)
+
+Measured 2026-11-15 on the installed **2.1.325**, approved by `set`.
+- **Isolation:** a throwaway `HOME` per run, seeded with onboarding done, the folder trusted and a
+  fake key approved. `env -i` with no `XDG_RUNTIME_DIR` and none of the parent session's variables.
+- **Stand-in API:** on 127.0.0.1, `ANTHROPIC_BASE_URL`. It logged every request body and answered
+  with the markers it found in `system`.
+- **Driver:** a Python pty driver.
+- **The block:** 25 lines, 1,525 bytes, tagged `MARKER-A`; a second file tagged `MARKER-B`, the
+  same size.
+- **Cleanup:** every process was stopped by its process group. Nothing touched the human's
+  `~/.claude`.
+- **Files:** scripts, raw screens and request bodies are in the claude-cli session's scratchpad
+  (`p19/`), which is not kept.
+
+| # | Run | Result |
+|---|---|---|
+| 1 | `claude "PROMPT-ONE" --append-system-prompt-file A`, compared with the same run without the flag | **The very first request**, the one that answers the first prompt, carries the block. It is appended at the **end of the last system block**, the one with `cache_control: ephemeral`, after the default prompt. The request grows by **1,554 bytes**, of which **1,527** are in `system` (the file plus a 2-byte separator). That is roughly **380 tokens** at ~4 bytes per token (inferred conversion). |
+| 2 | Session started with A, then `--resume <id> --append-system-prompt-file B`, a prompt, `/compact`, a prompt | After the resume the model gets **A**, the recorded prompt, not B. The compaction's own requests still carry A. The first request **after** `/compact` carries **B**. This matches the doc. |
+| 3 | One running process started with file C (= A); C **rewritten** to D mid-session; prompt, `/compact`, prompt, `/clear`, prompt | **A every time**, after the compaction and after `/clear` too. The file is **read once, at process start**. A rebuild (compaction, `/clear`) uses the text read then, not the file's current content. |
+| 4 | `--resume <src> --fork-session --session-id <new> "PROMPT" --append-system-prompt-file B`, from a session recorded with A | Accepted, no error. The fork carries **A**: the recorded prompt is copied with the conversation. |
+| 5 | Menkar's order: `--session-id … -n … "$(cat prompt)" --add-dir D --mcp-config '<json>' --plugin-dir P --settings S`, then the flag (a) last, (b) between `--add-dir` and `--mcp-config`, (c) before the prompt | All three carry B, and the prompt file's text arrives as the first prompt. In (a) and (b) the plugin's skill is listed. The flag takes exactly one value, and the next `--` option ends `--add-dir`'s list. **Only the positional prompt must stay before `--add-dir` and `--mcp-config`**, as it already does. Last is the safest place. |
+| 6 | The flag with a missing file | Claude Code exits before any request: `Error: Append system prompt file not found: <path>`. A tab would close at once, so Menkar must write the file before building the command. |
+| 7 | `--resume <id> --system-prompt-snapshot off --append-system-prompt-file B`, on a session recorded with A, two prompts | **B on the first request after the resume**, and B again on the second. The system text of the two requests is byte-identical. Apart from the marker, it equals the recorded prompt of the same session, so nothing else in the default prompt changed in this case. |
+
+What follows for Menkar:
+- **A renew** is a new session, so the block applies from its first request.
+- **A resume** (a tab restored after Menkar restarts) keeps the recorded block until a compaction.
+  The exception is a resume with `--system-prompt-snapshot off` (documented in cli-reference,
+  "Requires Claude Code v2.1.257 or later"), which rebuilds from the current flags on every
+  request.
+- **Cost of the snapshot flag** (inferred): the system prompt is the start of the cached prefix. A
+  changed block on resume makes the next request re-write the whole cached prefix, the
+  conversation included, at cache-write price once. After a gap past the cache's TTL that write
+  happens anyway.
+  - The rebuild runs on every request, so anything dynamic in the default prompt that changes
+    within one process would cost a cache write. That did not happen between two requests here.
+- **Rewriting the file under a running session changes nothing** until the process restarts: a
+  rename or role change mid-session needs a renew, a restart, or another channel.
+
 ## Open, and the probe that would settle it (needs `set`'s OK)
 
-Not measured:
+The `--append-system-prompt-file` points were measured in §6. Still not measured, for the MCP
+route:
 - whether a first prompt passed on the command line runs before the instructions arrive;
 - the re-attach after `/compact` and after auto-compaction;
 - a changed text on `--resume`;
