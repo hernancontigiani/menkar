@@ -1,17 +1,15 @@
 # Plan 40 — the team block, stored skills, a generic `specialize`
 
 > **Status: written 2026-11-15 by `designer-40` (task 22); reviewed by a Fable 5.2 session
-> (`menkar-t26`, task 26) and revised for every finding (task 27; §2.11 says where each went).**
+> (`menkar-t26`, task 26, two passes) and revised for every finding (task 27; §2.11 says where
+> each went).**
 >
 > - **Folded in:** the human's answers of 2026-11-15 (1.154: mock-up C, `maintainer`, Menkar's
 >   skills never in the window, Q1–Q3), and what `claude-cli` measured (task 19) or answered (§2.3,
 >   §2.6).
-> - **Pending the human, via `set`:**
->   - **S1:** the skills supported with the mode off through one pointer (§2.8);
->   - **Q4:** what Menkar does with a Claude Code below the version floor (§2.3);
->   - **Q5:** another folder's skills in the window (§2.6).
->
->   Each is written as recommended and marked where it is used.
+> - **Decided by the human (1.157, 2026-11-15):** S1 — the skills stay supported with the mode off
+>   through one pointer (§2.8); Q4 — below the version floor Menkar starts without the team flags
+>   and says so once (§2.3); Q5 — the window lists only the skills the session can load (§2.6).
 > - **Block 4 waits** on `claude-cli`'s task 28: `--system-prompt-snapshot off` over many requests
 >   (a date change, a git change), a later resume without it, and the flags' version floor (§2.3).
 >
@@ -62,7 +60,7 @@ role's skills are stored by Menkar and set by the human, and `specialize` binds 
 
 **With the mode off:**
 - **the command line does not change, to the byte**;
-- the skills reach the same lines through the plugin folder (§2.8, S1 pending the human).
+- the skills reach the same lines through the plugin folder (§2.8, S1, 1.157).
 
 **What exists (verified at `543b228`; `src/`, `plugin/`, `tests/`, `e2e/` unchanged since, per the
 review):**
@@ -262,9 +260,9 @@ read as a verb in the first draft). Each line's variants, as exact strings (bloc
 - **The file:** `<cache>/menkar/control/team/<pane-id>.md` (`controlPaths().team`).
   - It is written whole through `writeTextAtomic` **before the command is built**: a missing file
     closes the tab at once.
-  - **If it cannot be written**, the pane starts without the team flags, and main logs it with the
-    pane's id. The session then gets the whole block posted on its join or first reachability
-    (§2.4, `held = null`).
+  - **If it cannot be written**, the pane starts without the team flags, main logs it with the
+    pane's id, and the pane is **outside the team** for its life: no post reaches it (§2.4), as
+    below the floor. Its skills still reach the protocol through the plugin folder (§2.8).
   - It is swept with the prompts, hourly, after a day (`sweepTeamFiles`, `PROMPT_KEEP_MS`, through
     the clock). Claude reads it only at start.
 - **The flags.** `buildCommand` gains `teamFile?: string`.
@@ -287,12 +285,12 @@ read as a verb in the first draft). Each line's variants, as exact strings (bloc
 - **The version floor (S3).** `--system-prompt-snapshot off` needs Claude Code **2.1.257**. Task 28
   also gives the floor of `--append-system-prompt-file`; the plan uses the higher of the two (‹floor›
   below).
-  - **Q4 — pending the human, (a) recommended:** main reads `claude --version` once per binary
+  - **Q4 (1.157):** main reads `claude --version` once per binary
     (path and mtime), off the UI path. Below ‹floor›, mode-on panes start **without** the team
     flags and it logs. One toast per run (`team.oldClaude`, en and es): "Claude Code ‹v› is older
-    than ‹floor›: sessions start without their team instructions. Update Claude Code."
-  - (b) would only document the floor. Without the toast, an old CLI's mode-on tabs close at start
-    with Claude's own error.
+    than ‹floor›: sessions start without their team instructions. Update Claude Code." Such a pane
+    is outside the team for its life (§2.4): no post either, so the toast is true. Without this,
+    an old CLI's mode-on tabs would close at start with Claude's own error.
   - `README.md`'s "Install (Ubuntu)" names the floor, and `docs/release-checklist.md` gains the hand
     check (block 4): on the real `claude` in a mode-on project, a new session's first answer knows
     its name, role and parent; after "Restart now" a tab whose role changed while Menkar was closed
@@ -322,7 +320,8 @@ start text. So main keeps, per Claude pane:
 | block | block, same facts | Nothing |
 
 **When main applies it**, for each running Claude pane of a mode-on project or one that holds a
-block:
+block — **except a pane outside the team** (started below the floor, or its file not written,
+§2.3), which is never posted:
 
 - **After a change that can alter facts.** Each is coalesced per pane (below), and none rescans a
   disk: the `found` of each skill is the one computed at the pane's start or at the last
@@ -331,10 +330,18 @@ block:
     Q3), the session leaving the project, the mode switched (1.154 Q2);
   - a **name** changing in `sessionList` (S4): the session's own, its parent's, the orchestrator's,
     a maintainer's. Names are Claude's (`/rename`), and the sessions list is where Menkar sees them.
+    **A name is a custom title** (`claude -n`, `/rename`) **or the name Menkar started it with**;
+    Claude's derived title for an unnamed session (`claudeNamed`, `src/core/sessions/service.ts:22`)
+    is not one, so it never posts, and such a session gets line 2's "new session" variant (N4);
+  - the project renamed, and `ring_warn`/`ring_full` changed in Settings (both are in the facts).
 - **On a SessionStart record naming the pane:**
   - `compact` or `clear`: `held` = `started`, then the rule;
-  - `resume` in the tab (1.57, S4): the process keeps its start text, but the resumed conversation
-    holds whatever it recorded, so `held` = `null` and the whole block is posted. After its next
+  - `resume` **whose session id differs from the pane's** — an in-tab `/resume` (1.57, S4), told
+    apart as `followPaneStart` does (its first guard, `from === sessionId`). The record a tab's own
+    `claude --resume` start writes names the pane's session and changes nothing (N1): a restored
+    tab gets its block from the snapshot flag and **no post**. For the in-tab one, the process keeps
+    its start text but the resumed conversation holds whatever it recorded, so `held` = `null` and
+    the whole block is posted. After its next
     compaction it goes back to `started`, and the rule posts the facts if they differ.
   - `paneStart` (`statusline.ts:220`) passes `compact` too; `followPaneStart` still acts only on
     `clear` and `resume`.
@@ -350,28 +357,35 @@ counts only where they apply today, to the orchestrator:
 No reply is needed. (10:42:07)
 ```
 
-- **Mode on**, the whole block (Q2): "[Menkar] Team update: this project is now in orchestration
-  mode. Your team instructions:" + the block + "No reply is needed."
+- **The whole block**, for every case that sends it (the mode switched on, a fork's join, an in-tab
+  resume; N3): "[Menkar] Team update: your team instructions, replacing any earlier ones:" + the
+  block + "No reply is needed."
 - **Leaving**: "[Menkar] Team update: the "Your team in Menkar" instructions no longer apply to you.
   No reply is needed."
 - The marker **"[Menkar] Team update:"** is what `last_reply` and the parent's wake recognise
-  (below).
+  (below), matched **at the start** of the delivered text, as a real transcript records it.
 
 **A post starts a turn (B2).** Each consequence is handled:
 
 - **Coalesced.** A trigger schedules the pane's recompute `TEAM_SETTLE_MS` = 2,000 ms later, and
   another trigger restarts the wait. One post then carries the latest. The first-time card's mode
   on, mark and hand-over (§2.7) become one post per pane. A test with fake timers asserts it.
-- **No parent wake for it.**
-  - When a team post is delivered to a pane whose shown state is idle or done, the pane is marked.
-  - Its next working → idle/done is not sent to its parent, and the mark clears.
-  - The mark also clears on any key the human types into that pane. A post to a working session
-    sets no mark: its own turn end wakes the parent as it would anyway.
-  - A test in `tests/core/control/events.test.ts` covers it, or beside the batcher.
-- **`last_reply` skips a reply to a team post.** Reading backwards, an assistant text whose
-  prompting user message contains "[Menkar] Team update:" is passed over, and the search goes on
-  before it. So a worker's report stays its `last_reply` (1.73). Tested in
-  `tests/core/sessions/lastreply.test.ts` with transcript lines.
+- **One reading decides both, at the turn's end, from the transcript (N2).** `onlyTeamUpdates`
+  (`src/core/sessions/lastreply.ts`, beside `lastReply`, read backwards the same way) answers
+  whether **every user message since the previous assistant turn is a team update**. A real message
+  that arrived before or during that turn (a peer's, the human's) makes it false, since Claude
+  handles both in one turn.
+  - **No parent wake:** at a working → idle/done of a pane that was delivered a team post since its
+    last turn end (a cheap gate, so other turns read nothing), main reads it; true → the "finished
+    its turn" event is not noted for the parent. Read off the UI path, before `WakeBatcher.note`.
+  - **`last_reply`:** a turn for which it is true is passed over, and the search goes on before it,
+    so a worker's report stays its `last_reply` (1.73); a turn that began with a team post and then
+    did real work is returned.
+  - **Tested with real lines:** `tests/core/sessions/lastreply.test.ts` uses transcript lines
+    recorded from a real cross-session message from Menkar (`.claude/rules/ts-tests.md`), which
+    `claude-cli` records with task 28; the cases: report, team update, "Noted." → the report; team
+    update, then a peer's message, one reply → that reply; team update and the human's message →
+    that reply.
 - **`held` is set only on `'posted'`.**
   - `'no session'` (the session not reachable yet after a start or join) is retried
     `TEAM_POST_TRIES` = 5 times, `TEAM_POST_GAP_MS` = 2,000 ms apart. The constants are exported
@@ -435,8 +449,9 @@ from the top:
       only.
     - These rows stay stored and flagged until the human removes them (1.154).
     - **The filter never hides them.**
-  - **One group per place:** each of the project's folders holding skills, headed by the folder's
-    name with `.claude/skills/` on the right, then "Yours" with `~/.claude/skills/`.
+  - **Two groups at most** (1.157): the session's own folder's skills (its folder up to its
+    repository root), headed by the folder's name with `.claude/skills/` on the right, then "Yours"
+    with `~/.claude/skills/`.
     - Each skill is a row with a **checkbox**.
     - The filter hides rows whose name does not contain its text (case ignored), and any group left
       empty. With none left, it shows "No skill matches.".
@@ -447,10 +462,10 @@ from the top:
   - **A skill maintained by another session:** unticked, the row notes "maintained by ‹name›".
     Ticked, it shows "Maintained by ‹name›" in the warning colour, and the switch's Maintainer is
     disabled. To move a maintainer, the human unsets it on the other session first.
-  - **Another folder's skill (S5; Q5, pending the human, (a) recommended).** Claude loads project
-    skills from the session's own folder chain only. A skill found only in another folder of the
-    project shows disabled, noting "not available in ‹session's folder›". (b) would not show other
-    folders' groups.
+  - **Only what the session can load (1.157, Q5).** Claude loads project skills from the
+    session's own folder chain only, so the window shows the session's folder (up to its
+    repository root) and "Yours"; other folders of the project are not shown at all. A stored skill
+    no longer loadable from the session's folder shows under **Not found**.
 - **Legend:** "Maintainer: this session is the one that updates it when it distills." / "Read
   only: it loads it and never edits it."
 - **Cancel · Save** (Save suggested). Save applies label and skills in one `configureRole` action;
@@ -471,8 +486,11 @@ doc, 2026-11-15). A skill's name is its frontmatter `name`, else its folder's.
     listed.
 - **The user's:** `<home>/.claude/skills/<dir>/SKILL.md`, the folder through the paths module, not
   a literal.
-- **"Found" for a session** = in its own folder's chain, or the user's. It is computed at the pane's
-  start and at each Save, never on an ordinary `projects.json` write.
+- **What a session's window lists, and "found" for it,** are the same set: its own folder's chain
+  plus the user's (1.157). Listed when the window opens; "found" for the block is computed at the
+  pane's start and at each Save, never on an ordinary `projects.json` write.
+- **A skill the model cannot invoke** (frontmatter `disable-model-invocation: true`) is not listed:
+  the block could not get it loaded. `claude-cli` confirms the key with task 28.
 - **Each skill carries** its place and the frontmatter's `description`, its first 200 characters,
   for the row's tooltip.
 - **Read only.** `readdir` and `readFile`, symlinks followed, an unreadable folder skipped with a
@@ -490,7 +508,7 @@ doc, 2026-11-15). A skill's name is its frontmatter `name`, else its folder's.
 
 ### 2.8 The skills, trimmed — what goes, what stays
 
-**The pointer (S1 — pending the human; `set` recommends it).** Each of `orchestrator`, `worker` and
+**The pointer (S1, the human, 1.157).** Each of `orchestrator`, `worker` and
 `distill` names, where it relied on a removed line, one uniform sentence:
 
 > How the team talks: the "Your team in Menkar" section of your instructions; if you have none,
@@ -549,13 +567,19 @@ That keeps them working with the mode off, where `start_session` still runs
 `SendMessage`, in any of its files, its description included.
 - **The description:** "use menkar:distill" becomes "use the distill skill".
 - **Step 3:** "by name, with … `SendMessage`" goes.
-- **Step 4:** the orchestrator item goes.
+- **Step 4:** the orchestrator item becomes generic: "If someone coordinates the work, send them
+  the lines of what the role would own, without waiting for an answer to go on: they see the other
+  roles." So `orchestrator/SKILL.md:189-191` (a specializing session sends you its lines) stays
+  true.
+- **Step 2, `SKILL.md:62-66`:** "it asks the orchestrator for them, if the project has one" becomes
+  "it asks whoever coordinates the work for them"; the item "It does not orchestrate…" goes (a
+  team rule, and Menkar refuses `start_session` to others while an orchestrator is marked).
 - **Step 6:** becomes "Ask the human to record this skill as one this session maintains, wherever
   their tool keeps a session's skills; the distill skill keeps it current from then on."
 - **The policy and renew items of step 6 go.**
 - **`role-skill-contents.md`:**
-  - 28-29: "It never starts sessions or hands out work" goes;
-  - 37-38: "asks the orchestrator for" becomes "asks whoever coordinates the work for".
+  - `:18`: "It never starts sessions or hands out work." goes;
+  - `:19`: "asks the orchestrator for" becomes "asks whoever coordinates the work for".
 
 **The guide:**
 - "The marks" describes "Configure role…".
@@ -588,14 +612,18 @@ That keeps them working with the mode off, where `start_session` still runs
   nobody in the team maintains them.
 - **Showing Menkar's skills in the window** (1.154): they follow from the marks. Storing them would
   let a session be told to load `menkar:orchestrator` without being the orchestrator.
+- **Other folders' skills shown disabled in the window** (Q5 (a)): the human chose to show only
+  what the session can load (1.157).
+- **A turn mark set when a post is delivered** (first revision): a real message in the same turn
+  was lost with it; the transcript at the turn's end decides instead (§2.4).
 - **A check of which skills a session loaded.** The cause is removed at the source (the ideas doc,
   "Not taken").
 - **`menkar:worker` implied by the parent.** An expert does not always work a task, and a
   consultant now gets tasks without being a child (1.148).
 - **"You were started for task N: load `menkar:worker` now" (review S2).**
   - A per-task worker's first prompt is the task, so line 4's conditional fires at once.
-  - A task-specific line would change the facts whenever tasks move, posting and starting a turn
-    each time.
+  - The generic line costs no extra variant, and holds for an expert or a consultant handed a
+    task later.
 - **Facts in a template file.** The variants are logic; one tested function is clearer. The
   protocol, which has none, stays in files.
 - **For Claude: a post on every resume, or a stored "last told" file.** The snapshot flag gives a
@@ -617,16 +645,30 @@ That keeps them working with the mode off, where `start_session` still runs
 |---|---|
 | B1 | §2.3 (input at start), §2.4 (join), block 4 e2e |
 | B2 | §2.4 ("A post starts a turn"), blocks 4 and 5 tests |
-| S1 | §2.8's pointer, pending the human |
+| S1 | §2.8's pointer (the human: yes, 1.157) |
 | S2 | §2.1 throughout; the per-task worker line rejected in §2.10 |
 | S3 | §2.3: task 28 gates block 4; the floor and Q4; the release checklist |
 | S4 | §2.4: names, in-tab resume, leaving |
-| S5 | §2.6, Q5 pending the human |
+| S5 | §2.6 (the human chose Q5 (b), 1.157: only the session's own folder and the user's) |
 | S6 | §2.8's tables |
 | S7 | §5's files; block 5's post test; the exit's `docs/context.md` |
 | S8 | §2.2's `TeamAgent`, §2.4's three pieces, §2.10's "for Claude" |
 
-**Minor findings:**
+**Second pass (task 26):**
+
+| Finding | Where |
+|---|---|
+| N1, a tab's own `--resume` posted | §2.4: only a `resume` with another session id; block 4 tests "no post" |
+| N2, the mark swallowing a wake, the skip a report | §2.4: `onlyTeamUpdates` at the turn's end; recorded lines (task 28); marker at the start |
+| N3, the whole block's lead | §2.4: one generic lead |
+| N4, derived titles | §2.4: a name is a custom title or the started name |
+| N5, below the floor or unwritten; "first reachability" | §2.3, §2.4: such a pane is outside the team, never posted; the trigger is gone |
+| N6, §2.8 leftovers | §2.8: `role-skill-contents.md:18-19`, `specialize/SKILL.md:62-66`, step 4 generic |
+| S5's placement | Gone with 1.157's Q5 (b): a stored skill not loadable from the session's folder is "Not found" |
+| Block 2's i18n | §5's table |
+| The two minors left | `disable-model-invocation` skills not listed (§2.6); the project's name and the thresholds trigger (§2.4) |
+
+**First pass, minor findings:**
 - sizes re-measured (§2.1);
 - the time format (§2.4);
 - 1.89 and 1.84 in the header;
@@ -668,12 +710,11 @@ That keeps them working with the mode off, where `start_session` still runs
 - Block 4 needs 1, 2 **and task 28's result** (§2.3).
 - Block 5 needs 4.
 - Block 6 closes.
-- S1, Q4 and Q5 must be answered before blocks 3, 4 and 5 respectively.
 
 | Block | Files it owns |
 |---|---|
 | 1 | `plugin/team/common.md`, `plugin/team/claude.md` (new), `src/core/team/block.ts` (new), `tests/core/team/block.test.ts` (new), `scripts/check-package.mjs` |
-| 2 | `src/core/projects/model.ts`, `src/core/projects/orchestration.ts`, `src/core/team/skills.ts` (new), `tests/core/projects/orchestration.test.ts`, `tests/core/team/skills.test.ts` (new), the paths module (the user's skills folder) |
+| 2 | `src/core/projects/model.ts`, `src/core/projects/orchestration.ts`, `src/core/team/skills.ts` (new), `tests/core/projects/orchestration.test.ts`, `tests/core/team/skills.test.ts` (new), the paths module (the user's skills folder), `src/core/i18n/{en,es}.ts` (the two refusal keys) |
 | 3 | `plugin/skills/**`, `plugin/guide/orchestration-mode.md`, `tests/core/plugin.test.ts` |
 | 4 | Main and core: `src/core/command.ts`, `tests/core/command.test.ts`, `src/core/team/posts.ts` (new), `tests/core/team/posts.test.ts` (new), `src/core/control/files.ts` (`team` path, `list_sessions`), `src/core/control/prompt.ts` (sweep), `src/main/control.ts`, `src/core/control/events.ts` and its test (the post's turn), `src/core/sessions/lastreply.ts` and `tests/core/sessions/lastreply.test.ts`, `src/core/context/statusline.ts` (`paneStart`) and `tests/core/context/statusline.test.ts`, `src/main/pane-starts.ts`, `src/core/projects/orchestration.ts` (`sessionMarks` only), `tests/core/control/server.test.ts`, `src/core/control/protocol.ts`, `src/main/workspace.ts`, `src/renderer/orchestration.ts` (`startTeam` only), `src/core/i18n/{en,es}.ts` (`team.oldClaude`) |
 | 4 | Tests and docs: `e2e/fixtures.ts`, `e2e/session-control.spec.ts`, `e2e/orchestration.spec.ts`, `docs/session-control.md`, `docs/context.md`, their history files, `docs/release-checklist.md`, `README.md` |
@@ -720,7 +761,9 @@ That keeps them working with the mode off, where `start_session` still runs
     `.git` (a directory, then a file), and nothing above;
   - a symlinked skill found; an unreadable folder skipped; a folder with no `SKILL.md` ignored;
   - **every file's mtime and the tree's listing unchanged after**;
-  - `foundFor(folder, listed)` gives that folder's chain plus the user's.
+  - `foundFor(folder, listed)` gives that folder's chain plus the user's, never another project
+    folder's (1.157);
+  - a skill with `disable-model-invocation: true` is not listed.
 - [ ] Build `skills` in `Orchestration`: parse, serialize, keep, follow, `setSkills`, the two
   refusal keys (`en`, `es`). In `src/core/team/skills.ts`: `listSkills(places)` (async fs, places
   passed in) and `foundFor`; the user's skills folder in the paths module. `sessionMarks` is block
@@ -766,12 +809,14 @@ That keeps them working with the mode off, where `start_session` still runs
   - **The settle:** three triggers within 2,000 ms give one post (fake timers).
     `TEAM_SETTLE_MS`, `TEAM_POST_TRIES` and `TEAM_POST_GAP_MS` are asserted.
   - **The post's turn:**
-    - a pane marked by a team post: its next working → idle does not wake the parent; the one
-      after does;
-    - a key typed in between clears the mark;
-    - a post to a working pane sets none.
-  - **`lastreply.test.ts`:** report, then a team post, then "Noted." → the report; a post followed
-    by the human's message and a reply → that reply.
+    - a turn whose user messages since the previous assistant turn are only team updates does
+      not wake the parent; one with a peer's or the human's message too does (N2);
+    - a pane delivered no team post reads no transcript at its turn end (the gate).
+  - **`lastreply.test.ts`**, with the recorded lines (§2.4): report, team update, "Noted." → the
+    report; team update, a peer's message, one reply → that reply; team update, the human's
+    message, a reply → that reply; the marker in the middle of a text does not count.
+  - **`posts.test.ts`, N1:** a `resume` record naming the pane's own session → no post; one naming
+    another session → the whole block.
   - **`statusline.test.ts`:** a `compact` record reads with its pane; `startup` still `null`.
   - **`server.test.ts`:** `skills` in `list_sessions`, `[]` with the mode off.
   - **`sweepTeamFiles`:** a day by the clock, at 23:59 and across midnight.
@@ -779,13 +824,14 @@ That keeps them working with the mode off, where `start_session` still runs
     can write:
     - mode **off**: neither flag in `claude-args.txt`, no team file;
     - **on**: the flag names a file present at start, holding the session's block;
-    - a resume carries `--system-prompt-snapshot off`;
+    - a resume carries `--system-prompt-snapshot off` **and gets no post** (N1);
     - "New session" (the human's) carries the flag, and its block names it;
     - a fork gets one whole-block post after it joins;
     - a role change → one post; saving unchanged → none; then a `compact` record → the facts again;
     - the mode on → one post per running pane, however many changes the card makes;
     - a team post's turn does not wake the orchestrator;
-    - per Q4 (a), a stand-in reporting an old version → no flags and one toast.
+    - per Q4 (1.157), a stand-in reporting an old version → no flags, one toast, and no post on a
+      role change.
   - **E2E (`e2e/orchestration.spec.ts`):** the first-time card's new orchestrator carries the flag;
     a refused start leaves the mode off.
 - [ ] Build:
@@ -793,8 +839,9 @@ That keeps them working with the mode off, where `start_session` still runs
   - the input at start (§2.3), for members and pending sessions;
   - the file written before the command, or flags dropped and logged;
   - `started` and `held` per pane, and `teamPost`;
-  - the triggers: projects, names, start records, join; the settle; the turn mark; the
-    `last_reply` skip;
+  - the triggers: projects, names, the project's name, the ring thresholds, start records (a
+    `resume` only with another session id), join; the settle; `onlyTeamUpdates` for the wake and
+    the `last_reply` skip; panes outside the team never posted;
   - `paneStart` passing `compact`;
   - the sweep;
   - `sessionMarks` and `list_sessions`' `skills`;
@@ -809,20 +856,21 @@ That keeps them working with the mode off, where `start_session` still runs
   - `README.md`, "Install (Ubuntu)": the floor.
 - **Verify:** `npm run ci` and `npm run ui-check`.
 
-### Block 5 — "Configure role…", mock-up C (after 4 and Q5)
+### Block 5 — "Configure role…", mock-up C (after 4)
 
 - [ ] Tests first, e2e in `e2e/orchestration.spec.ts`. The project folder, a git repository,
   holds `.claude/skills/{packager,review-branch,claude-cli}`, with a second project folder and a
   temporary user skills folder:
   - the menu shows "Configure role…" and no "Role…";
-  - one group per folder and "Yours"; **no `menkar:` skill**; "0 chosen: none" at first;
+  - only the session's own folder's group and "Yours" — **the second project folder's skills are
+    not shown** (1.157); **no `menkar:` skill**; "0 chosen: none" at first;
   - ticking `packager` as Maintainer and `review-branch` (read only by default), then Save, writes
     §2.5's shape; **the running session gets one post** naming both (1.152, "at once");
   - with `claude-cli` maintained by another session: "maintained by ‹name›", and Maintainer
     disabled once ticked;
   - a stored skill deleted on disk shows under "Not found", and a filter that matches nothing still
     shows it. Remove, then Save, drops it. Cancel writes nothing;
-  - the second folder's skills: disabled with "not available in …" (per Q5);
+  - a stored skill that exists only in the second folder shows under "Not found" (1.157);
   - the same name in two places: ticking one ticks both;
   - screenshots, dark and light, of the window with a not-found and a maintained-elsewhere skill,
     to `$MENKAR_FILES`, the session's name first.
