@@ -99,3 +99,7 @@ agent: the five facts above, read from its docs, Agent Desk's code and a real se
 > Replaced 2026-11-14: Gemini CLI left out (1.133).
 ### More coding agents: Codex, OpenCode, Gemini CLI
 reconsidered if asked (the human, 2026-11-14). An agent is more than a command: Menkar needs, per agent, how to start
+
+> Replaced 2026-11-15: task flow metrics wanted before the first release (1.156).
+**Trigger:** the human asks for flow metrics, or feels a bottleneck they cannot see. First
+question: which states and reviewers to record, and where the numbers show.

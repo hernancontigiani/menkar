@@ -310,5 +310,5 @@ more tasks created than the short term can take. Long to review: reviews to spee
   state re-entered.
 - **Shown** in the Usage window beside time and tokens, or the Board; where is the human's call.
 
-**Trigger:** the human asks for flow metrics, or feels a bottleneck they cannot see. First
-question: which states and reviewers to record, and where the numbers show.
+**Trigger:** fired — wanted before the first release (1.156, 2026-11-15). First question:
+which states and reviewers to record, and where the numbers show.
