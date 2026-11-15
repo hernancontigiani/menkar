@@ -842,3 +842,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-15: plan 39 goes once plan 40 is settled (the human).
 | 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143). Next: plan 39, its software architecture (1.135 step 2), by a new Opus session with `/design-plan` — **queued until the human says go** (2026-11-14); its launch prompt is `prompts/PROMPT-architect.md` |
+
+> Replaced 2026-11-15: plan 39 written (the architect, task 13).
+| 3 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3) | Being written by the architect (task 13), 2026-11-15; then its Fable 5.2 review, then the human; no implementation until the human says so |

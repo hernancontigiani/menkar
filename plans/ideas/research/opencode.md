@@ -307,6 +307,25 @@ stopped by PID.
     OpenCode asked `tools/list` again at 14:43:39.380 (11 ms), and **the very next model request
     (the step after the call) already listed `menkar_probe_added`** (31 tools, +164 bytes).
 
+## Version and orphans (2026-11-15, for plan 39)
+
+Asked by `menkar-t13`. Throwaway home, opencode v2.3.0, every process mine and stopped by PID.
+
+35. **The version, three ways:** `opencode --version` prints `opencode v2.3.0`; a running server's
+    `GET /api/info` answers `{"version":"2.3.0","pid":…,"urls":[…],…}`; and `GET /openapi.json`
+    lists each route, so `/api/experimental/session/{sessionID}/instructions/entries/{key}` can be
+    checked by presence rather than by version number (all m).
+36. **`opencode serve` outlives its parent.** A Node parent spawned `opencode serve --hostname
+    127.0.0.1 --port <p>`, once with stdin piped and once ignored, and was killed with SIGKILL: both
+    servers were reparented to the user's systemd and **still answered `/api/info` 25 s later**.
+37. **`opencode serve --stdio --port <p>` dies with it.** Spawned with stdin piped and
+    `OPENCODE_PASSWORD` in its environment, it listened on the given port with that password, printed
+    `{"url":"http://127.0.0.1:47933"}` on stdout, and **was gone within 5 s of its parent's
+    SIGKILL** (stdin closed; read, `cli/src/services/standalone.ts:41-80`). In stdio mode it also
+    deletes `OPENCODE_PASSWORD` from its own environment before starting tools and MCP servers
+    (read, `cli/src/server-process.ts:87-90`), which closes the leak of item 10. So Menkar's server
+    is best run as `serve --stdio`, with Menkar's port and password.
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
