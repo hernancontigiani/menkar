@@ -556,6 +556,64 @@ Read in `core/src/agents_md.rs:1-49,270-300` and `config/src/config_toml.rs:76,3
   - Or keep `CLAUDE.md` and pass `-c project_doc_fallback_filenames=["CLAUDE.md"]` to the Codex
     sessions Menkar starts. That would only be for Menkar's own sessions, and it is again a `-c`.
 
+## 5b. Team block delivery (decision 1.150; task 23, 2026-11-15)
+
+The question: which route puts Menkar's per-session team block (~25 lines) into a Codex
+session's instructions, with nothing written in the user's config.
+
+**Setup:**
+- Source: `openai/codex` at tag `rust-v0.169.0` (`d32063f`). The binary: codex-cli 0.169.0.
+- Measured 10:58–11:03 in a throwaway `CODEX_HOME`, with the human's `auth.json` copied in and
+  deleted after, in a private tmux (`-L tbprobe`).
+- Three markers, each in one place:
+  - a 25-line, 1,846-byte block holding `TEAMBLOCK-ALPHA`, passed by `-c developer_instructions`;
+  - an MCP stub whose `initialize` returned `instructions: "MCPINSTR-BRAVO: …"`;
+  - an `AGENTS.md` in the repository holding `AGENTSMD-CHARLIE`.
+- The question asked of the model each time: "Without using any tool: list every capitalised
+  marker of the form WORD-WORD … with where you saw it".
+- Two sessions, 8 short turns in all. Every process was stopped by PID after checking its
+  `CODEX_HOME`, and the home deleted.
+
+### The routes
+
+| Route | Where it lands | Cap | Before the first answer | After compaction | On resume, a changed text | Cost per request | With the user's `AGENTS.md` |
+|---|---|---|---|---|---|---|---|
+| **`-c developer_instructions`** | **the first text of the developer message** of the initial context, before the permissions, skills and tools blocks; no wrapper (m: rollout line 4, `role: developer`) | none in Codex (r); only the OS limit on one argument, 128 KiB on Linux (r) | **yes** (m: the first answer named `TEAMBLOCK-ALPHA` as "developer instructions") | **yes**: the `compacted` record's `replacement_history` carries the developer message again, and the model named the marker after `/compact` (m) | **not seen**: resumed with the block changed to `TEAMBLOCK-DELTA`, the model still answered `ALPHA` and "no marker changed", and `DELTA` was nowhere in the rollout (m). **After the next compaction** the rebuilt context held `DELTA` (m, rollout) | its own size, in the cached prefix: ~1,846 bytes ≈ 450 tokens (i; the token totals of two sessions differ by other context, so the difference was not isolable) | **added**: `AGENTS.md` stays a separate user message ("user-provided AGENTS.md instructions") (m) |
+| MCP server `instructions` (`initialize`) | one line, `- mcp__menkar: <text>`, in the deferred-tools `<tools>` list of the developer message (m) | **250 characters**, inside a tools fragment of at most 4 KiB (r, `core/src/context/world_state/tools.rs:29-30`) | yes, if short (m) | yes (m) | fixed per server start | small | added |
+| `-c instructions` / `-c model_instructions_file` | **replace Codex's base instructions** (the system prompt) (r, `core/src/config/mod.rs:4253-4262`) | — | — | — | — | — | — |
+| `project_doc_fallback_filenames`, `AGENTS.override.md` | a file in the repository, root to cwd (r, §5) | 32 KiB for all project docs | yes | yes | read at start | its size | joins the user's |
+| `$CODEX_HOME/AGENTS.md` | user instructions | — | — | — | — | — | — |
+| A skill (`.agents/skills`, plugins) | only its description is listed; the body loads when the model picks it (r, §4) | — | the description only | — | — | — | — |
+
+**Why each is out:**
+- **Replacing the base instructions** throws away Codex's own system prompt.
+- **A file in the repository, or `$CODEX_HOME/AGENTS.md`,** is a write into the user's repository
+  or the user's config.
+- **A skill** is not loaded until the model chooses it.
+- **MCP `instructions`** are cut at 250 characters, and framed as a tool namespace's description.
+
+**The cost of `-c developer_instructions`:**
+- **It replaces the user's own `developer_instructions`** from `config.toml` for that run: it is a
+  single key, and `-c` wins (r, `config/mod.rs:4266`). Menkar can read the user's value, read-only,
+  and pass both, the user's first. agent-deck merges the same way (its
+  `identity_injection.go`).
+- Like every `-c`, it makes the TUI run embedded, which Menkar's sessions already do for the MCP
+  and `notify`.
+
+### Recommendation
+
+1. **Best: `-c developer_instructions`**, holding the user's own value (if any) followed by the team
+   block.
+   - It is there before the first answer and survives compaction.
+   - It costs its own size in the cached prefix.
+   - It sits as developer-message weight, the nearest Codex has to Claude's
+     `--append-system-prompt`.
+   - **A change reaches a running or resumed session only through a `[Menkar]` post (or at its next
+     compaction)**, as for a resumed Claude session (1.152).
+2. **Second: none per session is good.** The nearest is a short **MCP `instructions` pointer**
+   (≤250 characters): "You are in a Menkar team; call `menkar.team_block` for your role and
+   protocol", served by a tool. It costs a tool call, the model may skip it, and it is weaker.
+
 ## 6. agent-deck on Codex, in short
 
 Read at `651e7fc`. Section by section, what it does and what Menkar may take:
