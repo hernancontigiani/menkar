@@ -14,6 +14,13 @@ export interface Group {
   readonly collapsed?: true
 }
 
+// A skill Menkar names in a session's team instructions (decision 1.152): the project's or the
+// user's, never Menkar's own. One session at most maintains a given name.
+export interface StoredSkill {
+  readonly name: string
+  readonly maintainer?: true
+}
+
 // The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86). Switching the mode off keeps
 // them, so switching it on again finds the team as it was.
 export interface Orchestration {
@@ -22,6 +29,8 @@ export interface Orchestration {
   readonly orchestrator?: string
   // A free label by session id, e.g. "Fabric expert".
   readonly roles?: Readonly<Record<string, string>>
+  // By session id, in the order the human set them.
+  readonly skills?: Readonly<Record<string, readonly StoredSkill[]>>
   // Sessions the human marked as talking with them directly.
   readonly withYou?: readonly string[]
   // Workers stopped while their task waits long, to be resumed with their context (decision 1.118).

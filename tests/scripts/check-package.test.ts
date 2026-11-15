@@ -20,6 +20,8 @@ const good = (): Package => ({
     '/opt/Menkar/resources/apparmor-profile',
     '/opt/Menkar/resources/plugin/.claude-plugin/plugin.json',
     '/opt/Menkar/resources/plugin/guide/orchestration-mode.md',
+    '/opt/Menkar/resources/plugin/team/common.md',
+    '/opt/Menkar/resources/plugin/team/claude.md',
     '/opt/Menkar/resources/plugin/skills/orchestrator/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/worker/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/distill/SKILL.md',
@@ -46,6 +48,10 @@ describe('package:check', () => {
     [
       'a skill of the plugin',
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('worker/SKILL.md')) }),
+    ],
+    [
+      'the team instructions',
+      (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/common.md')) }),
     ],
     [
       'the native pty',

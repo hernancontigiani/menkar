@@ -39,6 +39,8 @@ export function checkPackage(pkg) {
     `${APP}/resources/apparmor-profile`,
     `${APP}/resources/plugin/.claude-plugin/plugin.json`,
     `${APP}/resources/plugin/guide/orchestration-mode.md`,
+    `${APP}/resources/plugin/team/common.md`,
+    `${APP}/resources/plugin/team/claude.md`,
     ...['orchestrator', 'worker', 'distill', 'specialize'].map(
       (skill) => `${APP}/resources/plugin/skills/${skill}/SKILL.md`,
     ),

@@ -77,6 +77,8 @@ export const en = {
   'orch.roleHeading': 'Role of {name}',
   'orch.roleBody': 'A short label, such as “Fabric expert”. Empty removes it.',
   'orch.rolePlaceholder': 'Role',
+  'refusal.maintainedBy': '{name} is maintained by {session}.',
+  'refusal.menkarSkill': "{name} is one of Menkar's own skills, which are not set here.",
   'orch.withYouBadge': 'with you',
   'orch.earlier': '{n} earlier',
   'orch.parked': 'Parked · {n}',

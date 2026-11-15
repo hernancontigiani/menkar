@@ -1,6 +1,8 @@
+import type { Key } from '../i18n'
+import type { Params } from '../i18n/interpolate'
 import { isAbsoluteFolder } from '../orchestration/folders'
 import type { ProjectInfo } from './info'
-import type { Orchestration, Project, Projects } from './model'
+import type { Orchestration, Project, Projects, StoredSkill } from './model'
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -10,19 +12,73 @@ const ids = (value: unknown, members: ReadonlySet<string>): string[] =>
     ? [...new Set(value.filter((x): x is string => typeof x === 'string' && members.has(x)))]
     : []
 
+// Menkar's own skills follow from the marks; storing one would let a session be told to load the
+// orchestrator's skill without being the orchestrator.
+const isMenkarSkill = (name: string) => name.startsWith('menkar:')
+
+const skill = (name: string, maintainer: boolean): StoredSkill =>
+  maintainer ? { name, maintainer: true } : { name }
+
+// One list as the file or the human gave it: an entry it cannot read is dropped alone, and a
+// repeated name keeps the first.
+function skillList(value: unknown): StoredSkill[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const list: StoredSkill[] = []
+  for (const entry of value) {
+    if (!isObject(entry) || typeof entry.name !== 'string') continue
+    const name = entry.name.trim()
+    if (name === '' || isMenkarSkill(name) || seen.has(name)) continue
+    seen.add(name)
+    list.push(skill(name, entry.maintainer === true))
+  }
+  return list
+}
+
+// Members only, in member order, so a name two sessions claim to maintain (a hand-edited file)
+// stays with the first and reads as read only for the rest.
+function keptSkills(
+  skills: Orchestration['skills'],
+  members: readonly string[],
+): Record<string, StoredSkill[]> {
+  const maintained = new Set<string>()
+  const kept: Record<string, StoredSkill[]> = {}
+  for (const id of members) {
+    const list = skills?.[id]
+    if (!list || list.length === 0) continue
+    kept[id] = list.map((s) => {
+      const maintainer = s.maintainer === true && !maintained.has(s.name)
+      if (maintainer) maintained.add(s.name)
+      return skill(s.name, maintainer)
+    })
+  }
+  return kept
+}
+
 // Only what is set, so an untouched project writes nothing and an empty one reads as absent.
 function compact(o: Orchestration): Orchestration | undefined {
   const roles = o.roles && Object.keys(o.roles).length > 0 ? o.roles : undefined
+  const skills = o.skills && Object.keys(o.skills).length > 0 ? o.skills : undefined
   const withYou = o.withYou && o.withYou.length > 0 ? o.withYou : undefined
   const parked = o.parked && o.parked.length > 0 ? o.parked : undefined
   const cap = o.workersCap
   const folders = o.folders && o.folders.length > 0 ? o.folders : undefined
-  if (!o.on && !o.orchestrator && !roles && !withYou && !parked && cap === undefined && !folders)
+  if (
+    !o.on &&
+    !o.orchestrator &&
+    !roles &&
+    !skills &&
+    !withYou &&
+    !parked &&
+    cap === undefined &&
+    !folders
+  )
     return undefined
   return {
     on: o.on,
     ...(o.orchestrator ? { orchestrator: o.orchestrator } : {}),
     ...(roles ? { roles } : {}),
+    ...(skills ? { skills } : {}),
     ...(withYou ? { withYou } : {}),
     ...(parked ? { parked } : {}),
     ...(cap !== undefined ? { workersCap: cap } : {}),
@@ -43,6 +99,7 @@ export function keptOrchestration(
     on: o.on,
     ...(o.orchestrator && set.has(o.orchestrator) ? { orchestrator: o.orchestrator } : {}),
     roles,
+    skills: keptSkills(o.skills, members),
     withYou: ids(o.withYou, set),
     parked: ids(o.parked, set),
     ...(o.workersCap !== undefined ? { workersCap: o.workersCap } : {}),
@@ -64,11 +121,15 @@ export function parseOrchestration(
   if (isObject(value.roles))
     for (const [id, label] of Object.entries(value.roles))
       if (typeof label === 'string' && label.trim() !== '') roles[id] = label
+  const skills: Record<string, StoredSkill[]> = {}
+  if (isObject(value.skills))
+    for (const [id, list] of Object.entries(value.skills)) skills[id] = skillList(list)
   return keptOrchestration(
     {
       on: value.on === true,
       ...(typeof value.orchestrator === 'string' ? { orchestrator: value.orchestrator } : {}),
       roles,
+      skills,
       withYou: ids(value.with_you, new Set(members)),
       parked: ids(value.parked, new Set(members)),
       ...(isCap(value.workers_cap) ? { workersCap: value.workers_cap } : {}),
@@ -93,6 +154,7 @@ export function serializeOrchestration(p: Project): Record<string, unknown> | un
     on: o.on,
     ...(o.orchestrator ? { orchestrator: o.orchestrator } : {}),
     ...(o.roles ? { roles: o.roles } : {}),
+    ...(o.skills ? { skills: o.skills } : {}),
     ...(o.withYou ? { with_you: o.withYou } : {}),
     ...(o.parked ? { parked: o.parked } : {}),
     ...(o.workersCap !== undefined ? { workers_cap: o.workersCap } : {}),
@@ -117,13 +179,16 @@ export function followOrchestration(p: Project, from: string, to: string): Proje
     list?.includes(from) ? [...new Set(list.map((id) => (id === from ? to : id)))] : list
   const { [from]: fromRole, ...others } = o.roles ?? {}
   const roles = fromRole === undefined ? others : { ...others, [to]: fromRole }
-  const { roles: _roles, withYou: _withYou, parked: _parked, ...base } = o
+  const { [from]: fromSkills, ...otherSkills } = o.skills ?? {}
+  const skills = fromSkills === undefined ? otherSkills : { ...otherSkills, [to]: fromSkills }
+  const { roles: _roles, skills: _skills, withYou: _withYou, parked: _parked, ...base } = o
   const withYou = swap(o.withYou)
   const parked = swap(o.parked)
   return withOrchestration(p, {
     ...base,
     ...(o.orchestrator === from ? { orchestrator: to } : {}),
     roles,
+    skills,
     ...(withYou ? { withYou } : {}),
     ...(parked ? { parked } : {}),
   })
@@ -177,6 +242,45 @@ export function setRole(
     const trimmed = label.trim()
     return { ...o, roles: trimmed ? { ...roles, [sessionId]: trimmed } : roles }
   })
+}
+
+export type SkillsResult =
+  | { readonly ok: true; readonly projects: Projects }
+  | { readonly ok: false; readonly refusal: Key; readonly params: Params }
+
+// The human's list for a session (decision 1.152), replacing the one stored. One maintainer per
+// skill (decision 1.119): moving it means unsetting it on the other session first. `nameOf` gives
+// the name a refusal shows for a session id.
+export function setSkills(
+  state: Projects,
+  projectId: string,
+  sessionId: string,
+  skills: readonly StoredSkill[],
+  nameOf: (sessionId: string) => string = (id) => id,
+): SkillsResult {
+  const own = state.projects.find((p) => p.id === projectId)?.orchestration?.skills ?? {}
+  for (const s of skills) {
+    if (isMenkarSkill(s.name.trim()))
+      return { ok: false, refusal: 'refusal.menkarSkill', params: { name: s.name.trim() } }
+    if (s.maintainer !== true) continue
+    const holder = Object.entries(own).find(
+      ([id, list]) =>
+        id !== sessionId && list.some((x) => x.name === s.name.trim() && x.maintainer),
+    )
+    if (holder)
+      return {
+        ok: false,
+        refusal: 'refusal.maintainedBy',
+        params: { name: s.name.trim(), session: nameOf(holder[0]) },
+      }
+  }
+  return {
+    ok: true,
+    projects: change(state, projectId, (o) => ({
+      ...o,
+      skills: { ...o.skills, [sessionId]: skillList(skills) },
+    })),
+  }
 }
 
 export function setWithYou(

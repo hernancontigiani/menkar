@@ -81,6 +81,9 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.roleHeading': 'Rol de {name}',
   'orch.roleBody': 'Una etiqueta corta, como “Experto en Fabric”. Vacía la quita.',
   'orch.rolePlaceholder': 'Rol',
+  'refusal.maintainedBy': '{name} lo mantiene {session}.',
+  'refusal.menkarSkill':
+    '{name} es una de las skills propias de Menkar, que no se configuran aquí.',
   'orch.withYouBadge': 'con vos',
   'orch.earlier': '{n} anteriores',
   'orch.parked': 'Aparcados · {n}',

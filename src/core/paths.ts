@@ -84,6 +84,8 @@ export interface AgentPaths {
   readonly claudeSessions: string
   // Claude Code's user settings: written only by an integration the user turns on or off.
   readonly claudeSettings: string
+  // The user's own skills, listed by "Configure role…" and never written.
+  readonly claudeSkills: string
   readonly cursorProjects: string
 }
 
@@ -94,6 +96,7 @@ export function agentPaths(): AgentPaths {
     claudeConfig: join(home, '.claude.json'),
     claudeSessions: join(home, '.claude', 'sessions'),
     claudeSettings: join(home, '.claude', 'settings.json'),
+    claudeSkills: join(home, '.claude', 'skills'),
     cursorProjects: join(home, '.cursor', 'projects'),
   }
 }

@@ -13,6 +13,7 @@ import {
   setOrchestrator,
   setParked,
   setRole,
+  setSkills,
   setTeamView,
   setTopicsCollapsed,
   setWithYou,
@@ -238,5 +239,133 @@ describe('the parked mark', () => {
   test('a parked session that leaves the project leaves the mark', () => {
     const s = removeMember(setParked(marked(), 'p1', 'A', true), 'A')
     expect(s.projects[0]?.orchestration).not.toHaveProperty('parked')
+  })
+})
+
+// Decisions 1.152 and 1.154: a session's skills are stored by Menkar, each read only or maintained
+// by one session, set only by the human; Menkar's own skills are never stored.
+describe('the stored skills', () => {
+  const withSkills = (skills: unknown) => {
+    const raw = JSON.parse(JSON.stringify(serializeProjects(marked())))
+    raw.projects[0].orchestration.skills = skills
+    return parseProjects(raw).projects[0]?.orchestration?.skills
+  }
+
+  test('valid entries are kept in order; a malformed entry is dropped alone', () => {
+    expect(
+      withSkills({
+        X: [
+          { name: 'packager', maintainer: true },
+          {},
+          { name: 3 },
+          { name: '' },
+          { name: 'claude-cli' },
+        ],
+      }),
+    ).toEqual({ X: [{ name: 'packager', maintainer: true }, { name: 'claude-cli' }] })
+  })
+
+  test('a repeated name keeps the first; a menkar: name is dropped', () => {
+    expect(
+      withSkills({
+        X: [{ name: 'deploy' }, { name: 'deploy', maintainer: true }, { name: 'menkar:worker' }],
+      }),
+    ).toEqual({ X: [{ name: 'deploy' }] })
+  })
+
+  test('two maintainers of one name: the second member in order reads it read only', () => {
+    expect(
+      withSkills({
+        X: [{ name: 'deploy', maintainer: true }],
+        A: [
+          { name: 'deploy', maintainer: true },
+          { name: 'docs', maintainer: true },
+        ],
+      }),
+    ).toEqual({
+      A: [
+        { name: 'deploy', maintainer: true },
+        { name: 'docs', maintainer: true },
+      ],
+      X: [{ name: 'deploy' }],
+    })
+  })
+
+  test('maintainer is written only while true; no skills key when every list is empty', () => {
+    let s = setSkills(marked(), 'p1', 'X', [
+      { name: 'packager', maintainer: true },
+      { name: 'cli' },
+    ])
+    if (!s.ok) throw new Error(s.refusal)
+    const written = serializeProjects(s.projects).projects as Record<string, unknown>[]
+    expect(written[0]?.orchestration).toMatchObject({
+      skills: { X: [{ name: 'packager', maintainer: true }, { name: 'cli' }] },
+    })
+    expect(roundTrip(s.projects).projects[0]?.orchestration?.skills).toEqual({
+      X: [{ name: 'packager', maintainer: true }, { name: 'cli' }],
+    })
+    s = setSkills(s.projects, 'p1', 'X', [])
+    if (!s.ok) throw new Error(s.refusal)
+    const emptied = serializeProjects(s.projects).projects as Record<string, unknown>[]
+    expect(emptied[0]?.orchestration).not.toHaveProperty('skills')
+  })
+
+  test('a project with no skills writes the same bytes as before the key existed', () => {
+    expect(JSON.stringify(serializeProjects(roundTrip(marked())))).toBe(
+      '{"version":1,"current":"p1","projects":[{"id":"p1","name":"Work","members":["O","A","B","X"],"groups":[],"orchestration":{"on":true,"orchestrator":"O","roles":{"X":"Fabric expert"},"with_you":["X"]}}],"windows":[]}',
+    )
+  })
+
+  test('kept to members, followed to a new id, kept with the mode off', () => {
+    const s = setSkills(marked(), 'p1', 'X', [{ name: 'packager', maintainer: true }])
+    if (!s.ok) throw new Error(s.refusal)
+    const followed = followNewId(s.projects, 'X', 'Y')
+    expect(followed.projects[0]?.orchestration?.skills).toEqual({
+      Y: [{ name: 'packager', maintainer: true }],
+    })
+    expect(setMode(followed, 'p1', false).projects[0]?.orchestration?.skills).toEqual({
+      Y: [{ name: 'packager', maintainer: true }],
+    })
+    expect(removeMember(followed, 'Y').projects[0]?.orchestration).not.toHaveProperty('skills')
+    expect(withSkills({ GONE: [{ name: 'packager' }] })).toBeUndefined()
+  })
+
+  test('setSkills refuses a second maintainer, naming the skill and its maintainer', () => {
+    const s = setSkills(marked(), 'p1', 'A', [{ name: 'deploy', maintainer: true }])
+    if (!s.ok) throw new Error(s.refusal)
+    const names: Record<string, string> = { A: 'packager', X: 'fabric' }
+    const refused = setSkills(
+      s.projects,
+      'p1',
+      'X',
+      [{ name: 'deploy', maintainer: true }],
+      (id) => names[id] ?? id,
+    )
+    expect(refused).toEqual({
+      ok: false,
+      refusal: 'refusal.maintainedBy',
+      params: { name: 'deploy', session: 'packager' },
+    })
+    const readOnly = setSkills(s.projects, 'p1', 'X', [{ name: 'deploy' }])
+    expect(readOnly.ok && readOnly.projects.projects[0]?.orchestration?.skills).toEqual({
+      A: [{ name: 'deploy', maintainer: true }],
+      X: [{ name: 'deploy' }],
+    })
+    // Its own maintained skill saved again is no conflict.
+    expect(setSkills(s.projects, 'p1', 'A', [{ name: 'deploy', maintainer: true }]).ok).toBe(true)
+  })
+
+  test('setSkills refuses a menkar: skill and replaces the list whole', () => {
+    expect(setSkills(marked(), 'p1', 'X', [{ name: 'menkar:worker' }])).toEqual({
+      ok: false,
+      refusal: 'refusal.menkarSkill',
+      params: { name: 'menkar:worker' },
+    })
+    const first = setSkills(marked(), 'p1', 'X', [{ name: 'a' }, { name: 'b' }])
+    if (!first.ok) throw new Error(first.refusal)
+    const second = setSkills(first.projects, 'p1', 'X', [{ name: 'c' }])
+    expect(second.ok && second.projects.projects[0]?.orchestration?.skills).toEqual({
+      X: [{ name: 'c' }],
+    })
   })
 })
