@@ -14,9 +14,8 @@ compaction**: a compaction keeps the thread. If you were only asked to save what
 
 ## 1. Find your skill
 
-- It is the skill for your area or role, the one you loaded or were told about when you started.
-- If you have none, use `menkar:specialize` to write one, or ask the session that handed you the
-  task (or the human) where it goes. Do not invent a place.
+- It is the skill your team instructions say you maintain; edit only those, never a read-only one.
+- If you have none, ask the human: `menkar:specialize` writes one. Do not invent a place.
 - Read it whole before changing it, its **admission criterion** first: the skill's own rule for
   what earns a line. If it has none, the base one holds: "if a session that never loads this skill
   still needs it, it is not skill material".
@@ -67,20 +66,22 @@ Leave out:
 ## 4. Send the summary
 
 - Do not commit: the skill may live in a repository you cannot push to.
-- Send the session that handed you the task, **by name** with `SendMessage`, one message: the
-  files you changed, the points you added, fixed or removed (one line each), and the documentation
-  you proposed. Not as your last reply: after a renew it is read only through the previous
-  conversation, and late.
+- Send the session that handed you the task, by name, one message: the files you changed, the
+  points you added, fixed or removed (one line each), and the documentation you proposed. Not as
+  your last reply: after a renew it is read only through the previous conversation, and late.
+- How the team talks: the "Your team in Menkar" section of your instructions; if you have none,
+  read `team/common.md` and `team/claude.md` in Menkar's plugin folder (one level up from
+  `skills/`).
 
 ## 5. Renew with a handoff prompt
 
 Call Menkar's `renew` tool, **always with a prompt**. The prompt is the handoff, and nothing else
 carries it:
 
-- who you are and your role: "You are ‹name›, the ‹area› expert of ‹project›";
-- the skill to load: "load ‹skill›";
 - what is in flight: locks you hold, answers you owe, half-done work;
 - your next task, if you know it; else "wait for the next task".
+
+If your instructions have no team section, also say who you are and the skill to load.
 
 The fresh session keeps your name and your tab. When its next task comes after a gap, it first asks
 the session that hands it what changed: the skill points to the docs, but it doesn't know what

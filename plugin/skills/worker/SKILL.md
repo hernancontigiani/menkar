@@ -1,6 +1,6 @@
 ---
 name: worker
-description: Another session handed you a task in Menkar. Read the task and the project's docs first, stay inside the files the task names, ask instead of inventing what is not defined, run the checks it names, and make your report your last message. Load it when a task says it comes from another session or the orchestrator, or tells you to load it.
+description: Another session handed you a task in Menkar. Read the task and the project's docs first, stay inside the files the task names, ask instead of inventing what is not defined, run the checks it names, and report as your team instructions say. Load it when a task says it comes from another session or the orchestrator, or tells you to load it.
 ---
 
 # Working on a task another session handed you
@@ -36,8 +36,9 @@ When the task names a task number (Menkar's orchestration mode), the human follo
   because it seems reasonable: a guess written into the code looks decided to everyone after you.
 - Ask the session the task names for that area ("for X ask ‹consultant›"). If it names none, ask the
   session that handed you the task.
-- Message sessions by their name with Claude Code's messaging tool (`SendMessage`), never by an id
-  or a ref: a renewed session has a new id and keeps its name.
+- How the team talks: the "Your team in Menkar" section of your instructions; if you have none,
+  read `team/common.md` and `team/claude.md` in Menkar's plugin folder (one level up from
+  `skills/`).
 - While you wait for an answer, do the parts that do not depend on it.
 - When you must fill a gap with your own choice to go on, **label it as yours** in the report: "my
   choice: ‹what›, because ‹why›". An unlabelled choice reads as decided and is the most expensive
@@ -67,7 +68,7 @@ When the task names a task number (Menkar's orchestration mode), the human follo
   work, by path, never another session's files. When neither says, don't commit. Never push unless
   the project's rule or the human says so.
 - **An expert's skill you were told to load is read only**: never edit or distill it; its expert
-  is its one keeper. A lesson for it goes in your report, and the orchestrator hands it on.
+  is its one maintainer. A lesson for it goes in your report, and the orchestrator hands it on.
 - **You don't orchestrate**: never start sessions or hand out work. If part of the task belongs to
   an expert session, ask the orchestrator, by name, to delegate it. Your own subagents are fine for
   research, discovery or review.
@@ -95,12 +96,9 @@ them before opening the app. If `$MENKAR_FILES` is empty or missing, ask where t
 
 At most one short line per step. The reader of your work reads the report, not the narration.
 
-## Your report is your last message
+## Your report
 
-When the task is done, or you are blocked, end with one message that holds the report. It is read
-with `last_reply`, so put nothing after it. **If the session that handed you the task did not start
-you, also send it the report by name** with `SendMessage`: Menkar wakes only the session that
-started you. Write it once, complete:
+When the task is done, or you are blocked, report. Write it once, complete:
 
 - **What changed**: the paths, one line each on what changed there.
 - **Checks**: each one with its result and the relevant output. `last_reply` shows about 20,000
@@ -114,8 +112,8 @@ started you. Write it once, complete:
 - **Decisions needed**: questions only the human or the owner of an area can answer, each with
   concrete options and one recommendation.
 
-If the task asks for the report in a file as well, write the file and say its path in the last
-message.
+If the task asks for the report in a file as well, write the file and say its path in your
+report.
 
 ## When the human talks to you directly
 
@@ -130,5 +128,4 @@ Wait. The session that handed you the task may answer, ask for more, or tell you
 
 - a long-lived expert distills (`menkar:distill`), sends the summary to that session by name, and
   renews;
-- a worker renews when told to, always with a prompt that is its handoff: who it is, what to load,
-  and its next task or what it waits for.
+- a worker renews when told to.

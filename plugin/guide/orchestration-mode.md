@@ -26,9 +26,16 @@ mode is on:
 
 - **Orchestrator**: the session the person talks to. One per project; marking another one moves
   the mark.
-- **Role…**: a free label for what a session is, such as "Fabric expert", "Reviewer" or
-  "Documentation". An empty label removes it. A session with a role under the orchestrator is an
-  expert; a loose one is a consultant (see "Four profiles" below).
+- **Configure role…**: a free label for what a session is, such as "Fabric expert", "Reviewer" or
+  "Documentation", and the skills it loads. An empty label removes it. A session with a role under
+  the orchestrator is an expert; a loose one is a consultant (see "Four profiles" below). The
+  skills are chosen from a list of the ones the session can load: its own repository's
+  (`.claude/skills/`) and yours (`~/.claude/skills/`). Tick a skill to add it, read only, and
+  switch it to **Maintainer** for the one session that updates it when it distills; a skill
+  maintained by another session cannot be switched until that session lets it go. A stored skill
+  no longer found is listed first, under "Not found", until you remove it. Menkar's own skills are
+  not in the list: they follow from the marks. Only you set a session's skills; a change reaches a
+  running session at once.
 - **With you**: the person is talking with this session directly right now. The orchestrator gives
   it no work until the person clears the mark. Menkar never sets it by itself.
 
@@ -97,7 +104,9 @@ A task is a piece of work the orchestrator delegated, so the person can see how 
 **The ★ belongs to a task**, not to a session: the person sets it from the task's right-click (in
 the Work view or the Board), or the orchestrator (`task_star`) when the person asks. A ★ task's topics come
 first, and when several sessions finish at once the orchestrator hears first of those on ★ tasks.
-Consultants get no tasks: they are asked, and raise topics.
+Consultants get a task for a request that needs more than a short answer (a research, a probe, a
+review); a short question needs none. A task that waits on something outside (a build, a release)
+is set waiting, with what it waits on.
 
 ## A worker per task
 
@@ -125,7 +134,7 @@ Consultants get no tasks: they are asked, and raise topics.
 - **An expert may hold several tasks**, one in progress at a time: the orchestrator gives it
   another only while the current one waits on something outside, and never a third. For parallel
   work in its area, the orchestrator starts a worker that reads the expert's skill without
-  changing it; only the expert keeps its skill up to date, with what the workers report.
+  changing it; only the expert, its maintainer, keeps it up to date, with what the workers report.
 
 ## Notifications, read-only tabs and handing sessions over
 
@@ -158,7 +167,10 @@ the mode is on.
 
 ## Skills to load
 
-Menkar ships skills every session it starts can load:
+Menkar ships skills every session it starts can load. In a project with the mode on, Menkar names
+each session's skills in its team instructions (the "Your team in Menkar" section it gives every
+session, with who it is, its role and its parent), from the marks and the skills set with
+"Configure role…", so a session loads them after a renew or a compaction without being told:
 
 - `menkar:orchestrator`: the orchestrator loads it when it starts, and again after a renew or a
   compaction.

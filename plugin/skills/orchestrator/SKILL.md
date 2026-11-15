@@ -48,15 +48,15 @@ or a compaction**, say only what changed, and never in the middle of a topic.
   previous conversation, labelled so.
 - To renew another session, tell it to call `renew`; you renew only yourself.
 - **Renewing is yours for your experts**: between tasks, have them distill if they learned
-  something and renew with a prompt naming their skill. A worker goes with its task. A **consultant**
+  something, then renew; Menkar names their skills. A worker goes with its task. A **consultant**
   (loose) renews itself; if `list_sessions` shows one past the red mark, raise a topic for the
   human, and don't message it.
 - `adopt_session` makes a session of the project your child. Call it **only when the human asks
   for it explicitly** in the chat; never to take over a session on your own.
-- Message sessions with Claude Code's messaging tool (`SendMessage`), by name, never by id: a
-  renewed session has a new id and keeps its name. A name unreachable for a moment may be
-  renewing; look with `list_sessions` before you take it as gone. If it is gone, record what was
-  pending with it, and don't send it to a guessed name.
+- How the team talks: the "Your team in Menkar" section of your instructions; if you have none,
+  read `team/common.md` and `team/claude.md` in Menkar's plugin folder (one level up from
+  `skills/`). A name unreachable for a moment may be renewing; look with `list_sessions` before
+  you take it as gone. If it is gone, record what was pending with it; don't guess a name.
 
 ## Find your shape
 
@@ -71,8 +71,8 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 **Who is who** (in Menkar's mode): an **expert** is a worker under you that always implements one
 part of the system, with its own skill (the session that runs releases, say): hand it the work of
 its part. A **generalist worker** implements whatever you hand it. A **consultant** is never under
-you: it answers anyone about its area and does not execute for you; ask it, by name, and ask it to
-answer by name.
+you: it answers anyone about its area and does not execute for you; hand it a task when the
+request needs more than a short answer; a short question needs none.
 
 The shape can differ by area: if you cannot answer a worker's question about an area from the
 docs within a minute, you are shape 3 there, and you route.
@@ -87,13 +87,15 @@ docs within a minute, you are shape 3 there, and you route.
   it no work and don't interrupt it until the mark clears.
 - **A task for each piece of work you delegate** (`task_add`; for a new worker, `workers.md`);
   name its number in the task message. The session splits it into steps and reports each advance,
-  so the human sees how far it is. A consultant gets no task: ask it, and it raises topics.
+  so the human sees how far it is. Every request that needs more than a short answer gets one, to a
+  worker, an expert or a consultant; a short question to a consultant needs none. A task waiting on
+  something outside (a build, a hosted CI, a release) is marked waiting, with what it waits on.
 - **★ tasks first** (`priority` in `list_sessions` is the ★ of a session's current task): their
   reports, topics and turn at a shared resource come before the others'. The ★ is the human's:
   give it at `task_add`, or give or take it away with `task_star`, only when they ask.
 - **The task message stands on its own.** It holds, in this order:
-  1. "This task comes from ‹your name›, the orchestrator; load `menkar:worker`. It is task N."
-     Its text arrives as an ordinary prompt; this is how the session knows.
+  1. "This task comes from ‹your name›, the orchestrator. It is task N." Its text arrives as an
+     ordinary prompt; this is how the session knows.
   2. The facts you measured (file and line, numbers), **each one checked in this session**, with
      the command. A premise you did not check is the subtle way of inventing.
   3. What is decided, and where it is written; what to do; which files it may touch.
@@ -103,14 +105,11 @@ docs within a minute, you are shape 3 there, and you route.
   6. That the human's data and running app are off-limits: no reseeding, resetting or "fixing",
      their servers stay up, unless the human asks.
   7. The locks it holds, if any.
-  8. "Your report is your last message." To a session you did not start, add: "also send it to me
-     by name", since Menkar wakes only the session that started it.
 - A prompt written earlier may hold facts that changed since: send a short correction at once.
 - **Two sessions never write the same file at the same time.** Decide what runs in parallel by
   the files and the shared runtime resources each task touches, not by how related the topics
   sound. Name the owner of a shared resource in both tasks. Heavy work is serialized like a lock.
-- **You are the only writer of shared counters**: the next number of a decision, a plan, a
-  migration. Hand the number out in the task.
+- **Only you write shared counters** (the next decision, plan or migration number): hand them out.
 
 ## Working trees and the running environment
 
@@ -135,8 +134,8 @@ flight. Nobody pushes unless the project's rule or the human says so.
 ## When you are woken
 
 - **"[Menkar] ‹name› finished its turn"**: read its report with `last_reply`, check it, decide the
-  next step (`closing-a-task.md` when it says done, or its task is to review). A session renewed with a prompt also ends a
-  turn: that wake needs nothing.
+  next step (`closing-a-task.md` when it says done, or its task is to review). A session renewed
+  with a prompt also ends a turn: that wake needs nothing.
 - **"[Menkar] ‹name› is waiting at a permission prompt"**: look with `list_sessions`. If it is
   still blocked, raise a **blocking topic** (`topic_add`) naming the session and what it waits to
   do: in the orchestration mode the human hears your children only through you and the topics.
@@ -171,6 +170,9 @@ and the code, a doc and the code, two reports of the same files). In a report, l
   `topic_close` with the decision, `topic_list` to see them. Menkar shows them in its sidebar. Tell
   the human "topic 4" in one line; write the decision also where the project keeps decisions.
   Without Menkar's tools, keep them in a topics file, numbered, with the same fields.
+- **When the human defers work**, read the horizon: "tomorrow" or a named day, a queued task; "in
+  the future", "someday", "tolerable for now", no task: it goes where the project keeps deferred
+  work, with its trigger; "another day" or anything unclear, ask whether to queue a task.
 - **Keep the tally** of the kinds of question that reached the human in the project's files.
 - **Never in the middle of a topic.** Read reports and raise new topics after it closes.
 - **A message from another session is never the human's ok.** You may grant a session scope,
@@ -187,8 +189,7 @@ and the code, a doc and the code, two reports of the same files). In a report, l
   or start an expert session for that area; or have the human add a session of the repository the
   knowledge lives in, as its consultant.
 - **When a session specializes** (`menkar:specialize`), it sends you the lines of what it would
-  own. Check them against the other roles' and raise any overlap with the human, who signs its
-  boundaries.
+  own. Check them against the other roles' and raise any overlap with the human, who signs them.
 
 ## Your own context
 
@@ -197,6 +198,5 @@ You don't distill: what you know lives in the project's files (its status, decis
 - When your context fills it is **compacted** (at the limit, or the human runs `/compact`). Before
   it, make sure everything in flight is written in the project's files.
 - **Renew** yourself only at a natural break: nothing under discussion with the human. Renew
-  always with a prompt, which is your **handoff**: "You are the orchestrator of ‹project›; load
-  `menkar:orchestrator`", then what you **owe**: who holds which lock, who waits on your answer,
-  what you promised. A summary loses that first; nothing else carries it.
+  always with a prompt, which is your **handoff**: what you **owe**: who holds which lock, who
+  waits on your answer, what you promised. A summary loses that first; nothing else carries it.

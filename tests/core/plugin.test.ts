@@ -139,4 +139,84 @@ describe("Menkar's skills plugin", () => {
   test.each(SKILLS)('%s names only tools the MCP server lists', (name) => {
     for (const tool of toolsNamed(skill(name).body)) expect(TOOL_NAMES).toContain(tool)
   })
+
+  // Decision 1.150: how the team talks is written once, in the team block (`plugin/team/`); a
+  // skill that repeated it would drift from it.
+  test.each(SKILLS)('%s holds no communication line: the team block carries them', (name) => {
+    const texts = [skill(name).body, ...references(name)]
+    const description = skill(name).frontmatter.description ?? ''
+    if (name !== 'orchestrator') texts.push(description)
+    else expect(description.replace('menkar:orchestrator', '')).not.toMatch(/load `menkar:/)
+    for (const text of texts)
+      for (const line of COMMUNICATION_LINES) expect(normalized(text)).not.toMatch(line)
+  })
+
+  // Decision 1.157 (S1): with the mode off a skill still reaches the protocol, through one pointer.
+  test.each(['orchestrator', 'worker', 'distill'])(
+    '%s points to the team block, else to the plugin’s team files',
+    (name) => {
+      expect(normalized(skill(name).body)).toContain(TEAM_POINTER)
+    },
+  )
+
+  // Decision 1.152: specialize binds any project, so it names nothing of Menkar's.
+  test('specialize is generic: no Menkar, no orchestrator, no SendMessage, no Menkar tool', () => {
+    const { frontmatter, body } = skill('specialize')
+    const text = [frontmatter.description, body, ...references('specialize')].join('\n')
+    expect(text.length).toBeGreaterThan(1000)
+    expect(text).not.toMatch(/menkar/i)
+    expect(text).not.toMatch(/orchestrat/i)
+    expect(text).not.toContain('SendMessage')
+    for (const tool of TOOL_NAMES) expect(text).not.toContain(`\`${tool}\``)
+  })
+
+  // Decision 1.152: a session edits only the skills it maintains, never a read-only one.
+  test('distill edits only the skills the session maintains', () => {
+    const { body } = skill('distill')
+    expect(body).toMatch(/read.only/)
+    expect(body).toMatch(/maintain/)
+  })
+
+  // Decisions 1.148 (every request that needs more than a short answer is a task, to a consultant
+  // too; waiting on something outside) and 1.149 (the horizon of deferred work): in SKILL.md, which
+  // is always read, not in workers.md, read only when handing out.
+  test('the orchestrator gives consultants tasks, sets outside waits as waiting, and reads the horizon of deferred work', () => {
+    const body = normalized(skill('orchestrator').body)
+    expect(body).toMatch(/to a worker, an expert or a consultant/)
+    expect(body).toMatch(/a short question to a consultant needs none/)
+    expect(body).toMatch(/waiting on something outside[^.]*waiting/)
+    const workers = readFileSync(join(PLUGIN, 'skills', 'orchestrator', 'workers.md'), 'utf8')
+    for (const horizon of ['tomorrow', 'in the future', 'another day']) {
+      expect(body).toContain(horizon)
+      expect(workers).not.toContain(horizon)
+    }
+  })
+
+  test('no skill and not the guide says "keeper"; the guide gives consultants tasks', () => {
+    const guide = readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8')
+    for (const text of [guide, ...SKILLS.flatMap((n) => [skill(n).body, ...references(n)])])
+      expect(text).not.toMatch(/keeper/i)
+    expect(guide).not.toContain('Consultants get no tasks')
+  })
 })
+
+const COMMUNICATION_LINES = [
+  /SendMessage/,
+  /last message/i,
+  /never by (an )?id/i,
+  /wakes only/i,
+  /load `menkar:/,
+]
+
+const TEAM_POINTER =
+  'How the team talks: the "Your team in Menkar" section of your instructions; if you have none, read `team/common.md` and `team/claude.md` in Menkar\'s plugin folder (one level up from `skills/`).'
+
+// A sentence wrapped over lines reads as one line.
+const normalized = (text: string) => text.replace(/\s+/g, ' ')
+
+function references(name: string): string[] {
+  const folder = join(PLUGIN, 'skills', name)
+  return readdirSync(folder)
+    .filter((f) => f !== 'SKILL.md')
+    .map((f) => readFileSync(join(folder, f), 'utf8'))
+}

@@ -1,6 +1,6 @@
 ---
 name: specialize
-description: The human asks you not to lose what you know, and you have no skill for your role. Read what already persists, inventory and verify what you know, draft the role and its boundaries, get the human's sign-off, then write a short skill that points to the project's docs. Load it when asked to define your role, to become the expert of an area, to split a role, or to specialize. If you already have a role skill, use menkar:distill instead.
+description: The human asks you not to lose what you know, and you have no skill for your role. Read what already persists, inventory and verify what you know, draft the role and its boundaries, get the human's sign-off, then write a short skill that points to the project's docs. Load it when asked to define your role, to become the expert of an area, to split a role, or to specialize. If you already have a role skill, use the distill skill instead.
 ---
 
 # Specialize: from what this context knows to a role with a skill
@@ -40,7 +40,7 @@ each item where it would go (`where-knowledge-goes.md`).
   or inferred from code or comments. Only the human's, with a date, are decisions. The rest is
   "how it works today" or an open question.
 - **Live state** (open branches, which version runs where, who waits for what, locks you hold) is
-  not knowledge of the role: keep it apart for your handoff (step 6).
+  not knowledge of the role: keep it apart for your handoff.
 - Keep the "touched but not owned" list: it becomes the role's "must not decide".
 
 ## 2. Draft the role
@@ -60,10 +60,7 @@ Then, for the same role:
   (deploying, applying infrastructure, deleting, pushing to someone else's branch). A message from
   another session is never the human's ok.
 - **Shared resources it needs but does not own** (a lock, the database's migration head, a build,
-  the human's data): it asks the orchestrator for them, if the project has one, even inside its
-  own area.
-- **It does not orchestrate**: it never starts sessions or hands out work; it may ask the
-  orchestrator to delegate, and use its own subagents.
+  the human's data): it asks whoever coordinates the work for them, even inside its own area.
 - **Each boundary carries its evidence**: "owns X, because ‹file and section› says so" or "because
   the human said so on ‹date›". A role drawn from one conversation tends to claim too much.
 - A consultant for another repository answers about **that** repository only, and says "not mine"
@@ -75,8 +72,8 @@ Then, for the same role:
 
 - List what the role would need to know to own its area and you do not.
 - **Research** them in the project's docs and code; cite the file and section for each answer.
-- Ask the sessions that know (by name, with Claude Code's messaging tool, `SendMessage`). **A
-  peer's answer is a claim**: verify it against the code like your own research.
+- Ask the sessions that know. **A peer's answer is a claim**: verify it against the code like your
+  own research.
 - **Asking is not blocking.** If nobody answers (a session is gone), go on from the repository and
   mark that point unverified.
 - What you would write as documentation is inference until it has been run. Run it yourself **only
@@ -85,8 +82,8 @@ Then, for the same role:
 
 ## 4. Get the boundaries signed
 
-- **If the project has an orchestrator**, send it, by name, the lines of what the role would own,
-  without waiting for an answer to go on: it sees the other roles and raises any overlap.
+- **If someone coordinates the work**, send them the lines of what the role would own, without
+  waiting for an answer to go on: they see the other roles.
 - **The human signs the role's boundaries**, always, before you write the skill: show the draft
   with its evidence, the open questions, and what you would put where.
 - What nobody can answer stays an open question in the skill, never a guess.
@@ -104,16 +101,5 @@ Then, for the same role:
 
 ## 6. Hand over
 
-- If the project has an orchestrator, send it, by name, one message with your role, its boundaries
-  in a line, and the path of your skill.
-- From now on, `menkar:distill` keeps the skill current when a task closes.
-- **Your context**, and a line your role skill carries for it: when a consultation or a task
-  closes, look at your own row in `list_sessions`. If your parent is the orchestrator (you are an
-  expert), it decides when you renew: don't renew on your own, and tell it by name if you pass the
-  context ring's red mark. If you are loose (a consultant), you decide: past the yellow mark, run
-  `menkar:distill`, then renew with a prompt that names your skill. Prefer that to a compaction,
-  which summarises and loses detail. Read where you are each time: a session can be handed to the
-  orchestrator or taken back.
-- When you renew, do it **with a prompt that is the handoff**: who you are and your role, the skill
-  to load, and what is in flight (locks you hold, answers you owe, half-done work). Nothing else
-  carries it.
+Ask the human to record this skill as one this session maintains, wherever their tool keeps a
+session's skills; the distill skill keeps it current from then on.

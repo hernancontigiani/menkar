@@ -36,5 +36,5 @@ Read this when you hand out work, when a task will wait long, and when a task cl
   build), naming the task's number in every message. **Never a third.**
 - **Parallel work in an expert's area**: start a per-task worker that loads the expert's skill
   **read only**, and say so in its task. Never a second session of the expert.
-- **A skill has one keeper**, the named expert: only it distills its skill. A worker's lesson for
-  that skill comes in its report; hand it to the expert, by name.
+- **A skill has one maintainer**, the named expert: only it distills its skill. A worker's lesson
+  for that skill comes in its report; hand it to the expert, by name.

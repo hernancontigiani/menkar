@@ -1,6 +1,6 @@
 # Configuring an orchestration
 
-Read this when you load `menkar:orchestrator` and the project is not configured yet: `list_sessions`
+Read this when you start as the orchestrator and the project is not configured yet: `list_sessions`
 shows no session under you, no session with a role, and `task_list` no task. That tells a new
 orchestration from a renewed one: once configured, sessions are under you, so a renew never lands here.
 
@@ -19,8 +19,8 @@ didn't, one step at a time, and keep what they decide where the project keeps it
    remember it.
 4. **Say what to do in Menkar for each answer**: "Report to the orchestrator" from a row's menu
    for an expert or worker that is ready (not one still in the middle of something with them),
-   "Role…" for a label. The human does these in the sidebar; you never take a session they did
-   not hand you.
+   "Configure role…" for a label and its skills. The human does these in the sidebar; you never
+   take a session they did not hand you.
 5. **Ask for the project's rules** the guide lists under "What a project writes down for its
    orchestrator" (working trees, who commits and pushes, where decisions live, the model for
    generalist workers), and propose where each goes: the project's instructions when the team
