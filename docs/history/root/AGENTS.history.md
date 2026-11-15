@@ -43,3 +43,8 @@ human likes; the features are all of agent-tablet's.
 > Moved 2026-11-14 by decision 1.143: the rules file is `AGENTS.md`, and `CLAUDE.md` holds only
 > `@AGENTS.md`; this history continues here, its first entries written while it was `CLAUDE.md`'s.
 # CLAUDE.md — Menkar
+
+> Replaced 2026-11-15: the cap is three (1.153).
+(`menkar-t<N>`, 1.118) executes it, at most two at once (the project's cap): the sessions' work
+  overlaps too much for more.
+  overlaps too much for more. **`set` decides who executes what** (1.55).
