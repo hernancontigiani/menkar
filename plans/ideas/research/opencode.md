@@ -695,6 +695,69 @@ Read at `9fa44b5`. It checks `opencode --version` once and treats 1.x and 2.x ap
 | Shared service | "one `serve --service` per host … must never be killed with a session" (its CHANGELOG:706) | yes, as a rule |
 | Conductor | not OpenCode | n/a |
 
+## Team block delivery (decision 1.150; 2026-11-15)
+
+Asked by `set` (task 25): the best per-session route for Menkar's ~25-line team block in an
+OpenCode session, with nothing written in the user's config. Source re-read at `a6b15d3`;
+measured on opencode v2.3.0 in a fresh throwaway home (the scratchpad had been cleared and was
+rebuilt), with the stand-in API (PIDs 22523, then 25044) and my own `opencode serve` (PIDs 22621,
+then 26408, the second standing for a resume), all stopped by PID. The stand-in answered OpenCode's
+compaction template with a fixed summary.
+
+**Setup:** one session `ses_teamblock0001`, created through the API, carrying four marked texts at
+once: the repository's own `AGENTS.md` (`PROJECT-AGENTS-3333`), a file named in the server's
+`OPENCODE_CONFIG_CONTENT` `instructions` (`CFG-INSTR-…`), the `instructions` returned by an MCP
+stub's `initialize` (`MCP-INSTR-…`), and a per-session instruction entry put with
+`PUT /api/experimental/session/<id>/instructions/entries/menkar.team {value}` before the first
+prompt (`ENTRY-TEAM-…`). Every model request body was logged.
+
+### The routes
+
+| Route | Per session | Where it lands | Before the first prompt | Changed mid-session | After compaction | After a resume (new server) | Cap |
+|---|---|---|---|---|---|---|---|
+| **Instruction entry** (`PUT …/instructions/entries/<key>`) | **yes** | **system prompt**, last, as `<context key="menkar.team">…</context>` (m) | **yes**, if put before the prompt (m) | a `<system-update>` user message before the next prompt: "The context under "menkar.team" changed and supersedes the previous value" (m) | **system prompt rebuilt with the current value** (m) | **kept**: stored in `instruction_entry`; the system prompt as recorded, changes as a `<system-update>` (m) | 256 KiB per value (r, `schema/src/instruction-entry.ts:30`); key `^[a-z0-9][a-z0-9._-]*$` |
+| `instructions: [file]` in Menkar's server config | no: per server, so per folder for every session on it | system prompt, after `AGENTS.md`, as `Instructions from: <path>` (m) | yes (m) | `<system-update>` "The instructions changed: …" (m; the file is watched) | rebuilt, current (m) | changes as a `<system-update>` (m) | none (r) |
+| MCP `initialize` → `instructions` | no: one connection per folder; the server cannot know the session at `initialize` | system prompt, as `<mcp_instructions><server name="menkar">…` (m) | yes (m) | on reconnect, a `<system-update>` "The following MCP server instructions have changed…" (m, at the resume) | rebuilt (i, as the others) | as left (m) | none seen (r) |
+| `POST …/synthetic {text}` | yes | **a plain user message** in the conversation, unmarked (m) | only if posted before the prompt | a new message | **summarized away** (i: it is conversation) | in the history | — |
+| An agent's `system` (`agents.<id>.system`, config) | per agent, chosen at `session.create {agent}` | **replaces OpenCode's base prompt** (r, `core/src/session/model-request.ts:115-125`) | yes | no | — | — | — |
+| `prompt`/`session.create` fields | — | no system field exists (m, `/openapi.json`) | — | — | — | — | — |
+| A server plugin hook (`session.context`, `model.request`) | yes, by code keyed on the session | wherever the plugin puts it (r) | yes | yes | yes | yes | — |
+
+Notes (m unless marked):
+- **The system prompt is frozen at a session's first request** and reused byte for byte (the
+  provider's cache prefix stays valid). Changes to any instruction source go as one
+  `<system-update>` user message, inserted before the next prompt and kept in the history. After a
+  compaction, the system prompt is rebuilt from the current values and the old updates are
+  summarized: the compaction prompt itself says "The next agent receives current versions of all
+  of these separately".
+- **Order in the system prompt:** OpenCode's base prompt, tools in Code Mode, `<mcp_instructions>`,
+  `<available_skills>`, every `AGENTS.md` (`Instructions from: <path>`), the config
+  `instructions` files, the environment block, then the session's `<context key=…>` entries. All
+  are **added together**; none replaces the user's `AGENTS.md`.
+- **Token cost:** the block's own size in every request, as part of the system prefix: a 25-line
+  block of ~1.5 KB is ~400 tokens (3.5–4 bytes per token, i), cached as a prefix by providers that
+  cache (i). A change costs one `<system-update>` message once, then it is history.
+- **Inside an update, the entry's tags are HTML-escaped** (`&lt;context key="menkar.team"&gt;`), as
+  OpenCode renders them (m); harmless, but the text the model sees differs from the first render.
+- **A session's entries are listed** with `GET …/instructions/entries`, removed with `DELETE`;
+  the route is under `/api/experimental/` (m), so its shape may change between versions.
+
+### Recommendation
+
+1. **The per-session instruction entry**, put by Menkar right after `session.create` and before the
+   TUI submits its `--prompt`: per session, system-prompt weight, there before the first answer,
+   persistent across resume, rebuilt after compaction, updated mid-session with a marked
+   `<system-update>` (which also serves 1.152's "a change reaches a running session at once"
+   without a `[Menkar]` post), no file written anywhere, up to 256 KiB. Its cost: it is an
+   experimental route; a version check belongs in the OpenCode adapter.
+2. **Second best: a file per session named in `instructions`** — but the config is per server, so
+   this needs **a server per session** (~270 MB each, item 30), or one file per folder shared by
+   every session there. Only as a fallback if the entries route disappears.
+
+MCP `instructions` reach the system prompt in OpenCode (unlike Claude, where they are a capped
+conversation message), but one text serves every session of a folder, so they cannot carry who
+the session is.
+
 ## What Menkar would need to build
 
 1. **An agent entry for OpenCode** in `src/core/agents.ts`: command `opencode`; no remote mode;
