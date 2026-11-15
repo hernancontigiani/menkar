@@ -845,3 +845,7 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-15: plan 39 written (the architect, task 13).
 | 3 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3) | Being written by the architect (task 13), 2026-11-15; then its Fable 5.2 review, then the human; no implementation until the human says so |
+
+> Replaced 2026-11-15: plans 40 and 39 progressed.
+| 2 | 40 — the team block (1.150), stored skills and "Configure role…" (1.152), a generic `specialize`, the orchestrator skill's task rules (1.148, 1.149) | Being designed by `designer-40` (task 22), 2026-11-15; ships on `main` before the multi-agent work |
+| 3 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3) | Written by the architect (task 13), 2026-11-15, with 1.155 folded in: P0 (9 blocks, merged to `main`), P1a 7, P1b 6, P2 7, P3 5, a close; next its Fable 5.2 review, then the human; no implementation until the human says so |
