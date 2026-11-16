@@ -7,27 +7,29 @@
 > - **Decided by the human:** 1.155 (Q1–Q4, §2.14), 1.157 P1 (the sandbox installs outside
 >   `/opt/Menkar`), 1.158 (the sandbox duplicates everything it needs), 1.159 (the review's B1, B3,
 >   S6, S7, S11 as recommended; the classifier configurable per agent).
->   **1.160** (Q-a): P0.1 and P0.2 land on `main` right after plan 40 and the .deb for the human's
->   other project, before the branch exists (§2.12). **1.161** (Q-b): the classifier per agent is one
+>   **1.160** (Q-a): P0.1 and P0.2 land on `main` right after the team block (1.150–1.154, 1.157)
+>   and the .deb for the human's other project, before the branch exists (§2.12). **1.161** (Q-b): the classifier per agent is one
 >   block after P3, P4, with all four agents in view; until then only `claude -p` classifies
 >   (§2.17).
 >
 > **From:** plan 38 (`plans/38-multi-agent.md`, the design: what and why), decided as D1–D22 in
 > `plans/00-STATUS.md` 1.137–1.143; 1.135 (strategies, never `if`/`else` on the agent), 1.136 (a
 > branch in its own worktree), 1.142 (the phases; P0 merges to `main` early), 1.150–1.154 and 1.157
-> (plan 40, the team block: its delivery is one more per-agent concern here; D10 amended by 1.151).
+> (the team block, built: `docs/session-control.md`, "The team block"; its delivery is one more
+> per-agent concern here; D10 amended by 1.151).
 > Research: `plans/ideas/research/agents-compared.md` (cited `cmp §n`), `codex.md`, `cursor.md`,
 > `opencode.md`, `mcp-instructions.md` §6–§7 (Claude's flags, measured); the consultants' answers
 > of 2026-11-15 and 2026-11-16 — recorded in their research files or below where they are used.
 >
 > **Plan 38 stays the design; this is how.** Nothing here repeats 38's reasons: it cites them.
 >
-> **Precondition: plan 40 is on `main`, all six blocks.** At this revision its blocks 1–3 are
-> committed (`abe0742`, `0e366f3`): `src/core/team/block.ts` (`TeamInput`, `TeamAgent`,
-> `TEAM_AGENTS`, `teamFacts`, `teamBlock`), `src/core/team/skills.ts` (`listSkills`, `foundFor`),
-> `plugin/team/{common,claude}.md`. Blocks 4–6 (delivery, posts with `started`/`held`, "Configure
-> role…") are not. P0.3 moves what plan 40 built, **read from the tree then**; R10's snapshot
-> (P0.1) is taken after plan 40 is whole.
+> **Precondition, met: the team block is on `main`, whole** (`dd28a29`): `src/core/team/block.ts`
+> (`TeamInput`, `TeamAgent`, `TEAM_AGENTS`, `teamFacts`, `teamBlock`), `src/core/team/skills.ts`
+> (`listSkills`, `foundFor`), `plugin/team/{common,claude}.md`, its delivery and posts with
+> `started`/`held` (`src/main/team.ts`, `src/core/team/posts.ts`) and "Configure role…";
+> described in `docs/session-control.md` ("The team block"), `docs/orchestration.md` and
+> `docs/projects.md`. P0.3 moves what it built, **read from the tree then**; R10's snapshot (P0.1)
+> is taken on that tree.
 
 ## Exit — where each part goes when executed
 
@@ -39,7 +41,7 @@
 | R10's snapshot: what it holds, who refreshes it | `docs/toolchain.md`, same section (P0.1) |
 | The hand checks per phase | `docs/release-checklist.md`, a section per phase (P0.8, P1a.7, P1b.6, P2.7, P3.5) |
 | The readers' rules (incremental reading per agent, SQLite read-only, zstd, rewritten transcripts) | `docs/sessions.md` and `docs/usage.md`, a line each pointing to `docs/agents.md` (P1a, P2, P3) |
-| The team block per agent (plan 40's delivery, generalised) | `docs/session-control.md`, "The team block" gains "Per agent" (P0.3; each phase adds its agent) |
+| The team block per agent (today's Claude delivery, generalised) | `docs/session-control.md`, "The team block" gains "Per agent" (P0.3; each phase adds its agent) |
 | Menkar's `opencode serve`, the proxy | `docs/agents.md`, OpenCode; `docs/session-control.md`'s port rejection amended, the old text to its history (P2.7, plan 38's exit) |
 | The shipped hook and notify programs | `docs/packaging.md` (P1a.4, P3.3) |
 | `smol-toml`, the one new runtime dependency | `docs/toolchain.md`'s dependency list, with its reason (P1a.2) |
@@ -82,8 +84,8 @@ phase: **P0** (Claude and Cursor moved behind the interfaces, no behaviour chang
   property (`src/core/usage/cache.ts:412,417`, `history.ts:290`, the `names.claude` column), and
   **identifiers named after an agent** (`claudeArgs`, `claudeEvents`, `cursorTurn`,
   `src/core/chat/processes.ts:12-13,98-143` ✓; `agentPaths().claude*`; `src/core/context/*`;
-  `src/core/usage/{cache,transcript,files}.ts`; `src/core/control/post.ts`). **Plan 40 adds one
-  per-agent table outside an agent folder**: `TEAM_AGENTS` (`src/core/team/block.ts:33` ✓,
+  `src/core/usage/{cache,transcript,files}.ts`; `src/core/control/post.ts`). **The team block adds
+  one per-agent table outside an agent folder**: `TEAM_AGENTS` (`src/core/team/block.ts:33` ✓,
   `Partial<Record<Agent, TeamAgent>>`, Claude only).
 - **Not agent behaviour, though spelled like it:** xterm's theme key `cursor:` (the caret colour,
   `src/renderer/terminals.ts:66,88` ✓) and the SQL column `claude` (`usage/cache.ts:417`,
@@ -281,7 +283,7 @@ block that adds the interface to `types.ts`.
 | Concern (interface, side) | First in | Claude | Cursor | Codex | OpenCode | Pressure on the seam |
 |---|---|---|---|---|---|---|
 | **Descriptor** (data, core, renderer-safe) | P0.2 | `claude`, ✳, caps: remote, fork, trash, chat, context | `cursor-agent`, ➤, caps: trash, chat | `codex`; caps: context | `opencode`; caps: context | Caps mirror kit nullness (parity test, §2.1); nothing in it says "how" |
-| **Launcher** `plan(start, ctx) → LaunchPlan` (core, pure): `{ words, env, files }` | P0.3 | today's command; plan 40's team flags (§2.5.6) | today's (`--resume`); P3: prompt, `--model`, `--new-session-id`, per-pane `--plugin-dir` | `codex [resume <id>] [-m] [--add-dir] -c notify=… -c mcp_servers.menkar.… -c developer_instructions=… "<prompt>"` (cmp 1.1) | `opencode --server <proxy url> -s <id> --prompt "<p>"`, password in `env` | `LaunchPlan.files` are written before the command (the team file, a per-pane plugin folder, Codex's chained instructions and notify arguments, minor); `ctx` carries the MCP mount, the team block, the prompt file, add-dirs, the pane's base environment |
+| **Launcher** `plan(start, ctx) → LaunchPlan` (core, pure): `{ words, env, files }` | P0.3 | today's command; the team flags (§2.5.6) | today's (`--resume`); P3: prompt, `--model`, `--new-session-id`, per-pane `--plugin-dir` | `codex [resume <id>] [-m] [--add-dir] -c notify=… -c mcp_servers.menkar.… -c developer_instructions=… "<prompt>"` (cmp 1.1) | `opencode --server <proxy url> -s <id> --prompt "<p>"`, password in `env` | `LaunchPlan.files` are written before the command (the team file, a per-pane plugin folder, Codex's chained instructions and notify arguments, minor); `ctx` carries the MCP mount, the team block, the prompt file, add-dirs, the pane's base environment |
 | **Preparer** `prepare(start, ctx) → Promise<Prepared>` (main) | P2.5 | `null` | `null` | `null` | `session.create {id, title, model}`, the instruction entry PUT, the MCP added for the folder (D20) | Only OpenCode makes calls before its command |
 | **SessionCatalog** (core): `find`, `read(found, prev)`, `watchTargets`, `lastReply`, `details`, `exportMarkdown`, `location`, `trash \| null` | P0.4 | JSONL per file, today's reader | **today's reader, moved unchanged** in P0.4; P3: rewritten-JSONL rules (cmp 1.2) | rollouts by date + `session_index.jsonl` names + `.zst` older than 7 days | rows in `opencode.db`: `location` → `null` | `find` returns `Found { id, locator, folder, cwd? }`; only the agent's own catalog interprets `locator` |
 | **UsageSource** (core): `open(paths) → TurnSource { ingest, pending, turnUsage, names, written, turnText, close }` | P1a.6 (Claude's wrapped then) | today's `UsageCache`, its file untouched | P3: the hook log + transcript text | own cache file; `task_started`/`task_complete`, `token_count` | own cache file; rows; cost lines (§2.5) | `UsageHistory.write` takes a `TurnSource`; `runPass` loops the installed agents' sources |
@@ -293,7 +295,7 @@ block that adds the interface to `types.ts`.
 | **McpMount** (core) + caller | P0.6 (its nullness gates `handleControl`) | `--mcp-config`, `MENKAR_PANE` inherited | P3: per-pane `--plugin-dir` folder `…/<pane>/menkar/.mcp.json` | `-c mcp_servers.menkar.{command,args,env}` with `MENKAR_PANE` in `env` | per folder on Menkar's server (1.141); caller from `_meta["ai.opencode/sessionID"]` through the proxy | The server program reads the caller from `MENKAR_PANE` or from a `_meta` key the descriptors list (`callerMetaKeys`) |
 | **Fork** (core): `plan(source, newId) → Start` (B2) | P0.6 | `--resume <src> --fork-session --session-id <id>` | `null` | `null` (38 §7) | `null` (38 §7) | `forkSession` asks it; `null` → no Fork entry (the cap) |
 | **Remote** (main): `live(pane) → boolean`, reading Claude's registry (B2) | P0.5 | `remote-live.ts`'s reader, moved to `src/main/agents/claude/remote.ts` | `null` | `null` | `null` | `remote-live.ts` keeps the loop, asks the kit |
-| **TeamDelivery** (core + main), plan 40's three pieces (§2.5.6) | P0.3 | `part` `claude.md`; `skill`/`own` names; `atStart`: the file and the flags (snapshot off on every resume); `heldAtStart`: new and resume → the block, fork → `null`; `afterCompaction` → `started`; `tell` → a post | P3: `sessionStart` hook's `additional_context`; resume → the recorded (persisted) block; idle facts change waits for the next wake (1.159) | `-c developer_instructions`, chaining the user's own; resume → recorded until compaction; compaction from the rollout's `compacted` item (S7) | instruction entry; `tell` updates the entry, no post | Methods, not a `holds` tag (S2); `skill` names a skill (a name; for Codex a `SKILL.md` path, 1.155 Q1) |
+| **TeamDelivery** (core + main), the team block's three pieces (`docs/session-control.md`, "The team block"; §2.5.6) | P0.3 | `part` `claude.md`; `skill`/`own` names; `atStart`: the file and the flags (snapshot off on every resume); `heldAtStart`: new and resume → the block, fork → `null`; `afterCompaction` → `started`; `tell` → a post | P3: `sessionStart` hook's `additional_context`; resume → the recorded (persisted) block; idle facts change waits for the next wake (1.159) | `-c developer_instructions`, chaining the user's own; resume → recorded until compaction; compaction from the rollout's `compacted` item (S7) | instruction entry; `tell` updates the entry, no post | Methods, not a `holds` tag (S2); `skill` names a skill (a name; for Codex a `SKILL.md` path, 1.155 Q1) |
 | **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | after the first turn, `thread/name/set` (main, D5) | `title` at create | Two methods, not a `kind` (S2) |
 | **EnvRules** (core, data) | P0.3 | today's `SESSION_ENV` | `cursor.md` §1.7, marker `CURSOR_AGENT` | `CODEX_THREAD_ID`, … | `opencode.md` §1.7 | `withoutSessionEnv` applies **every** registered agent's rules |
 | **ContextSource** (core) | P1a.6 | the statusline (today) | `null` (D8) | `token_count` from the rollout tail | `GET …/context` (main) | `null` is a type the sidebar handles |
@@ -371,12 +373,13 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
    agent has it (OpenCode) is appended by its source to a Menkar-owned log in the statusline log's
    format, `usage-<id>.jsonl` in the cache directory, and passed to `buildReport` among
    `statuslineLogs`. Codex's cost is the price table's, marked `~` (D15).
-6. **The team block, per agent** (plan 40, as built and as it builds blocks 4–6). Assembly stays
-   plan 40's (`teamFacts`, `teamBlock`, the part read as data `plugin/team/<part>`); **P0.3 moves
-   `TEAM_AGENTS`' Claude entry into Claude's kit** (`kit.team`, whose `part`, `skill`, `own` are
-   plan 40's `TeamAgent`), and `teamAgent(agent)` becomes `kitOf(agent).team` (`null` → no block).
-   Plan 40's **`started`/`held`** rule (`teamPost(held, current)`, its §2.4) stays agent-neutral;
-   what differs per agent is plan 40's **three separable pieces**, as `TeamDelivery` methods:
+6. **The team block, per agent** (as built: `docs/session-control.md`, "The team block").
+   Assembly stays as built (`teamFacts`, `teamBlock`, the part read as data `plugin/team/<part>`);
+   **P0.3 moves `TEAM_AGENTS`' Claude entry into Claude's kit** (`kit.team`, whose `part`, `skill`,
+   `own` are today's `TeamAgent`), and `teamAgent(agent)` becomes `kitOf(agent).team` (`null` → no block).
+   The **`started`/`held`** rule (`teamPost(held, current)`, that doc's "Keeping a running session
+   current") stays agent-neutral; what differs per agent is that doc's **three pieces kept apart**,
+   as `TeamDelivery` methods:
    - **(1) what a start holds** — `heldAtStart(start, block, recorded) → string | null`: Claude:
      new and resume → the block (resume with `--system-prompt-snapshot off`, on **every** mode-on
      resume, since a later resume without it reverts to the conversation's first block, research
@@ -385,7 +388,7 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
      current)` → Claude: `started`; Codex: `current` if its instructions re-render at compaction,
      else `started` (`codex` to confirm in P1b.5).
    - **(2) how a start delivers** — `atStart(start, block) → LaunchPlan` part: Claude: the file and
-     its flags, below its floor nothing (plan 40, 1.157 Q4; the floor read by the kit's
+     its flags, below its floor nothing (1.157 Q4; the floor read by the kit's
      `versionFloor`, 2.1.267); Codex: `-c developer_instructions` (§2.8); Cursor (P3): the
      `sessionStart` hook's `additional_context`; OpenCode: the instruction entry (Preparer).
    - **(3) how a change is told** — `tell(pane, text) → Promise<'posted' \| 'no session' \|
@@ -395,10 +398,10 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
    - **`recorded`** (Codex, Cursor) is a persisted `held` per session
      (`controlPaths().teamHeld/<session>.txt`, in the flavour's cache, written whole, swept with the
      session), read by `heldAtStart` on a resume. **The compaction signal** that resets `held` to
-     `afterCompaction(…)`: Claude's SessionStart `compact` record (plan 40); Codex's rollout
+     `afterCompaction(…)`: Claude's SessionStart `compact` record (as built); Codex's rollout
      `compacted` item (`codex.md:278`), read by its catalog's tail watch and handed to main as a
      record (S7); Cursor's (P3, from `cursor`); OpenCode needs none.
-   - Plan 40's posts' consequences (the settle, no parent wake and the `last_reply` skip by
+   - The team posts' consequences (the settle, no parent wake and the `last_reply` skip by
      `onlyTeamUpdates`, `held` only on delivery) are shared and hold for every agent whose `tell`
      posts.
 7. **Environment.** `withoutSessionEnv` takes the union of every kit's `EnvRules` (identity always
@@ -445,7 +448,7 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   OpenCode tab and on quit.
 - **`OPENCODE_CONFIG_CONTENT` holds** (S12) only what Menkar's sessions need on its own server,
   merged by OpenCode over the user's config: the server's `permission` defaults left as the user's,
-  the skills paths (plan 40's stored skills), and nothing else at start. Menkar's MCP is **not** in
+  the skills paths (the stored skills, 1.152), and nothing else at start. Menkar's MCP is **not** in
   it: it is added per folder through the API when the first session there enters a mode-on project
   (1.141), so a session of a mode-off project sends exactly the request it sends today (a test
   against the stand-in: a mode-off session's `tools` array and system text equal those of a server
@@ -493,16 +496,17 @@ written to files under the pane's folder and named on the command line by path, 
 
 ### 2.10 Tests
 
-- **R10, the byte snapshot (38 §2)**, P0.1, **taken on `main` after plan 40 is whole and before the
-  branch exists** (B4), in `tests/core/r10.test.ts` with file snapshots under `tests/core/r10/`:
+- **R10, the byte snapshot (38 §2)**, P0.1, **taken on `main` with the team block whole and before
+  the branch exists** (B4), in `tests/core/r10.test.ts` with file snapshots under `tests/core/r10/`:
   - `buildCommand` for Claude: new (with id, name, model, remote, prompt file, add-dir), resume
-    (with remote), fork; each with the mode off and with a team file (plan 40, the snapshot flag on
+    (with remote), fork; each with the mode off and with a team file (the snapshot flag on
     resume); Cursor new and resume (in `tests/core/r10/cursor-*` files);
   - the `--settings` file's bytes;
   - `initialize`'s and `tools/list`'s replies from `answer`;
   - what a Claude session is given of the plugin: `plugin/skills/**`, `plugin/guide/**` and
     `plugin/team/{common,claude}.md` (list and bytes);
-  - plan 40's team block for a fixed `TeamInput` set (each variant of its §2.1) and its post texts;
+  - the team block for a fixed `TeamInput` set (each variant `tests/core/team/block.test.ts`
+    covers) and its post texts;
   - `wakeFrame`'s bytes for a fixed text, id and counts; `WAKE_DELAY_MS`;
   - `withoutSessionEnv` on a fixed environment holding every listed variable and a few of the
     user's;
@@ -560,8 +564,8 @@ Where a facade would be wrong (a test asserts the old shape on purpose), the blo
 
 ### 2.12 The branch, its worktree, and the sandbox (1.136, 1.155 Q3, 1.157 P1, 1.158, 1.159)
 
-**Before the branch exists, on `main`** (B4; **1.160**: right after plan 40 and the .deb for the
-human's other project):
+**Before the branch exists, on `main`** (B4; **1.160**: right after the team block and the .deb for
+the human's other project):
 - **P0.1** — R10's snapshot and the CI guard (§2.10), the test baseline (below) — committed on
   `main` by `set`.
 - **P0.2** — ids, descriptors, the registries' skeleton and the rules with `ALLOWED` seeded (1.160):
@@ -668,7 +672,7 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
 - **1.155 (2026-11-15):**
   - **Q1** — A Codex session loads a skill by **reading its `SKILL.md`**; the team block names each
     skill by absolute path through `kit.team.skill` (Menkar's from the plugin folder, the stored
-    ones from `FoundSkill.place`, plan 40's `listSkills`). → P1b.5.
+    ones from `FoundSkill.place`, `listSkills`, `src/core/team/skills.ts`). → P1b.5.
   - **Q2** — The first-time card shows an **agent choice only when two or more agents are
     installed**, defaulting to `last_agent`; its place by mock-up in P1b.6. "Ask an agent" starts the
     focused agent pane's agent, else `last_agent`. → P1b.6.
@@ -683,7 +687,7 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
   session not found keeps its tab, one line), S6 (Cursor's prompt text only while the classifier is
   on), S7 (an idle Cursor's facts change waits for the next wake), S11 (the classifier off in the
   sandbox); **the classifier configurable per agent** (§2.17).
-- **1.160** — P0.1 and P0.2 on `main` right after plan 40 and the .deb for the human's other
+- **1.160** — P0.1 and P0.2 on `main` right after the team block and the .deb for the human's other
   project, before the branch (§2.12).
 - **1.161** — the classifier per agent is one block after P3 (P4), with all four agents in view;
   until then only `claude -p` classifies (§2.17).
@@ -732,7 +736,7 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
 | S11 sandbox details | §2.12: flavour from the branch, `MENKAR_FLAVOR`, classifier off, Cursor's leftovers |
 | S12 OpenCode's config | §2.7 |
 | Minors | P1a.2 screenshot (glyph); P2.2/P2.7 e2e ownership; P2.4 creates the kit's `index.ts`; P1b.1's fallback; P0.0's container (§2.12); the packaging rule (1.157 P1); the branch cap (§2.12); P3.4's `stop` never waits (§2.9); `LaunchPlan.files` for Codex (§2.8); `session_agents` at bind (§2.4) |
-| Plan 40 alignment | Header; §2.5.6 (`started`/`held`, the three pieces, `TEAM_AGENTS` into kits, floor 2.1.267, snapshot off on every resume); §2.10 (the block in R10); P0.3 |
+| Team block alignment | Header; §2.5.6 (`started`/`held`, the three pieces, `TEAM_AGENTS` into kits, floor 2.1.267, snapshot off on every resume); §2.10 (the block in R10); P0.3 |
 
 ### 2.17 The classifier per agent (1.159, 1.161)
 
@@ -772,7 +776,7 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
 - Loading agents dynamically; more than the four agents; Pi, Gemini, Antigravity (1.133).
 - `AGENTS.md`'s D17 rewording and `docs/agents.md`'s integration text are written by the phases as
   plan 38's exit says; this plan adds only the architecture section.
-- Plan 40's own blocks 4–6: built by plan 40, on `main`, before P0.1.
+- The team block's delivery, posts and "Configure role…": built on `main` before P0.1 (`dd28a29`).
 
 ## 4. Do not touch
 
@@ -782,7 +786,7 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
   except the consented items and D17's declared writes; the human's own Menkar, config and sessions
   (tests use temporary homes; the consultants use throwaway homes).
 - `HISTORY_VERSION`, the history's tables, Claude's `usage-cache` schema and file.
-- `wakeFrame`'s format, `WAKE_DELAY_MS`, the counts tail; plan 40's block text and post texts.
+- `wakeFrame`'s format, `WAKE_DELAY_MS`, the counts tail; the team block's text and post texts.
 - `main`'s tree from the branch's sessions: they work in the worktree only.
 
 ---
@@ -799,10 +803,10 @@ P0's blocks run in turn.
 
 | Block | Files it owns | After |
 |---|---|---|
-| P0.1 (on `main`) | `tests/core/r10.test.ts`, `tests/core/r10/**`, `e2e/r10.spec.ts`, `e2e/fixtures.ts` (the Cursor stand-in records argv and env), `scripts/ci.mjs` (the R10 step, `CI=1`), `scripts/check-test-integrity.mjs` (the merge-base default), `tests/scripts/check-test-integrity.test.ts`, `docs/toolchain.md` | Plan 40 whole on `main` and the .deb for the human's other project (1.160) |
+| P0.1 (on `main`) | `tests/core/r10.test.ts`, `tests/core/r10/**`, `e2e/r10.spec.ts`, `e2e/fixtures.ts` (the Cursor stand-in records argv and env), `scripts/ci.mjs` (the R10 step, `CI=1`), `scripts/check-test-integrity.mjs` (the merge-base default), `tests/scripts/check-test-integrity.test.ts`, `docs/toolchain.md` | The team block whole on `main` and the .deb for the human's other project (1.160) |
 | P0.2 (on `main`, 1.160) | `src/core/agents/{ids,types,descriptors,registry}.ts`, `src/core/agents/{claude,cursor}/{descriptor,index}.ts`, `src/main/agents/registry.ts`, `src/main/agents/{claude,cursor}/index.ts`, `scripts/check-code-rules.mjs`, `tests/scripts/check-code-rules.test.ts`, `tests/core/agents/{ids,parity}.test.ts`, `docs/toolchain.md` (the rules' rows) | P0.1 |
 | P0.0 (branch) | `src/core/flavor.ts` (new), `src/core/paths.ts`, `electron.vite.config.ts` (the define and its resolver), `electron-builder.sandbox.yml` (new), `scripts/package.mjs`, `scripts/check-package.mjs`, `tests/data/package/**` (sandbox variant), `src/core/context/settings.ts` (`chainedCommand`), the integrations page's offer, `src/core/sessionenv.ts` (`MENKAR_FLAVOR`), `src/core/state.ts` (`started_sessions`), the sandbox's refusals in `src/main/workspace.ts`, `src/core/i18n/{en,es}.ts` (the title, the refusals), `docs/packaging.md`, `tests/core/flavor.test.ts` | P0.2, the branch created |
-| P0.3 | `src/core/command.ts` (facade), `src/core/agents/{claude,cursor}/{launch,mcp,team,env}.ts`, `src/core/sessionenv.ts` (facade over the union), `src/core/team/block.ts` (`TEAM_AGENTS` → the kits; `teamAgent` → `kitOf(…).team`), plan 40's delivery code in main, `src/main/workspace.ts` (`startPaneHeld` only), `tests/core/agents/{claude,cursor}/launch.test.ts`, `docs/session-control.md` ("Per agent") | P0.0 |
+| P0.3 | `src/core/command.ts` (facade), `src/core/agents/{claude,cursor}/{launch,mcp,team,env}.ts`, `src/core/sessionenv.ts` (facade over the union), `src/core/team/block.ts` (`TEAM_AGENTS` → the kits; `teamAgent` → `kitOf(…).team`), the team delivery code in main (`src/main/team.ts`), `src/main/workspace.ts` (`startPaneHeld` only), `tests/core/agents/{claude,cursor}/launch.test.ts`, `docs/session-control.md` ("Per agent") | P0.0 |
 | P0.4 | `src/core/sessions/**` (facades), `src/core/agents/{claude,cursor}/catalog.ts`, `src/core/agents/shared/jsonl.ts`, `src/main/workspace.ts` (details, export, lastReply, location, trash), `tests/core/agents/contract/catalog.test.ts`, `tests/data/agents/{claude,cursor}/**` | P0.3 |
 | P0.5 | `src/core/agentstate/detect.ts` (facade), `src/core/agents/{claude,cursor}/state.ts`, `src/core/agentstate/notify.ts`, `src/main/panes.ts`, `src/main/remote-live.ts`, `src/main/agents/claude/remote.ts`, `src/main/agentstate.ts`, `tests/core/agents/contract/state.test.ts` | P0.4 |
 | P0.6 | `src/main/workspace.ts` (the rest, `dropUnknownSessions`), `src/main/agents/{claude,cursor}/waker.ts`, `src/core/agents/{claude,cursor}/{ids,fork}.ts`, `src/core/state.ts` (`session_agents`), `src/core/i18n/{en,es}.ts` (the two restore lines), `e2e/unknown-agent.spec.ts` (new) | P0.5 |
@@ -812,7 +816,7 @@ P0's blocks run in turn.
 #### P0.1 — R10's snapshot, its guard, and the baseline (on `main`, before the branch)
 
 - [ ] Tests: `tests/core/r10.test.ts` and `e2e/r10.spec.ts` exactly as §2.10 lists, the assembly
-  rows included (S9). Run once on `main` (plan 40 whole), which writes the snapshots;
+  rows included (S9). Run once on `main` (the team block whole), which writes the snapshots;
   `set` commits them on `main`.
 - [ ] `scripts/check-test-integrity.mjs`: default baseline `git merge-base main HEAD`; its test.
 - [ ] `scripts/ci.mjs`: Vitest with `CI=1`; the "R10 unchanged" step (skipped when HEAD is `main`).
@@ -869,18 +873,18 @@ P0's blocks run in turn.
 - [ ] Tests first: `launch.test.ts` per agent, the `LaunchPlan` for each start kind, the team
   delivery's three methods for Claude (§2.5.6: snapshot off on every mode-on resume; below 2.1.267
   no team flags; fork holds `null`); **R10's command, settings, team-block and environment
-  snapshots unchanged**; plan 40's tests unchanged.
+  snapshots unchanged**; the team block's tests (`tests/core/team/**`) unchanged.
 - [ ] Move `buildCommand`'s body into the two Launchers; `buildCommand` stays as the facade.
   `startPaneHeld` builds `ctx` once and asks the kit — the `spec.agent === 'claude'` lines there go.
-  `TEAM_AGENTS`' entry moves into Claude's kit (`kit.team`); `teamAgent` asks the registry; plan
-  40's delivery and `tell` code in main asks `pane.kit.team`. `sessionenv.ts` keeps `SESSION_ENV`
+  `TEAM_AGENTS`' entry moves into Claude's kit (`kit.team`); `teamAgent` asks the registry; the
+  team delivery and `tell` code in main asks `pane.kit.team`. `sessionenv.ts` keeps `SESSION_ENV`
   as Claude's `EnvRules`. The `TeamDelivery`, `Launcher`, `McpMount`, `EnvRules` and `Namer.atStart`
   interfaces enter `types.ts`.
 - [ ] `docs/session-control.md`, "The team block": "Per agent" (the three pieces, Claude's
   implementation).
 - [ ] Lower this block's `ALLOWED` counts.
-- **Verify:** `npm run ci`, `npm run ui-check` (sessions start, plan 40's specs, R10's assembly
-  spec).
+- **Verify:** `npm run ci`, `npm run ui-check` (sessions start, the team block's specs, R10's
+  assembly spec).
 
 #### P0.4 — the session catalog
 
@@ -1032,10 +1036,10 @@ P0's blocks run in turn.
   `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),
   the compaction signal from the rollout's `compacted` item (S7), `tell` through its waker; skills
   per **Q1** (`kit.team.skill` → the `SKILL.md`'s absolute path from `FoundSkill.place`; Menkar's
-  from the plugin folder; not-found as plan 40 names it). Tests: plan 40's rule cases with Codex's
-  methods (resume with facts unchanged → no post; changed → one post once wakeable; compaction);
-  the skills line for the orchestrator, a worker with one stored skill, a not-found skill; Claude's
-  block bytes unchanged (R10). **Verify:** `npm run ci`.
+  from the plugin folder; not-found as the block names it today). Tests: the `teamPost` rule cases
+  with Codex's methods (resume with facts unchanged → no post; changed → one post once wakeable;
+  compaction); the skills line for the orchestrator, a worker with one stored skill, a not-found
+  skill; Claude's block bytes unchanged (R10). **Verify:** `npm run ci`.
 - **P1b.6** — The first-time card per **Q2**: the agent choice only with two or more agents
   installed, default `last_agent` — a mock-up for the human first, then built — and the Cursor
   warning of 38 "Mixed projects"; "Ask an agent" per Q2. Tests: one agent installed → the card as

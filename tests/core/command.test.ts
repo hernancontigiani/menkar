@@ -184,7 +184,7 @@ describe('command lines', () => {
     })
   })
 
-  // Plan 40 (decisions 1.150, 1.157): the team block reaches Claude as a file appended to its
+  // Decisions 1.150, 1.157: the team block reaches Claude as a file appended to its
   // system prompt, last on the line; a resume also rebuilds it rather than keep the recorded one.
   describe('the team block', () => {
     const teamFile = '/cache/menkar/control/team/p 1.md'

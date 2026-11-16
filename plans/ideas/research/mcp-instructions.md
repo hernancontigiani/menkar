@@ -1,7 +1,8 @@
 # MCP `instructions` versus `--append-system-prompt` in Claude Code
 
-Date: 2026-11-15. Written by `claude-cli` (task 18) for `plans/ideas/team-protocol.md` Idea A, "How
-it reaches a session". Nothing here is decided.
+Date: 2026-11-15. Written by `claude-cli` (task 18) for the team block's open question, how it
+reaches a session. Decided since by 1.150 (`--append-system-prompt-file` for Claude); what was
+built is `docs/session-control.md`, "The team block".
 
 **Sources and marks.** Claude Code **2.1.325** (`~/.local/bin/claude`).
 - **read-doc**: code.claude.com/docs/en/`mcp.md` and `cli-reference.md`, fetched 2026-11-15.
@@ -57,7 +58,7 @@ the end, and needs `set`'s OK.
   added and removed servers. So the text is sent once per conversation, not on every turn.
 - **The cut** (read-doc, mcp.md §"Tool search for MCP server authors"): "Server instructions … 4,096
   characters", and "Claude sees only the text before the cut". `CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`
-  (2.1.280+) changes it, but it is the user's environment variable. Idea A's target of under 25
+  (2.1.280+) changes it, but it is the user's environment variable. The team block's target of under 25
   lines is far below 4,096 characters.
 - **With tool search on**, which is the case for Menkar's deferred tools (read-doc, mcp.md §"Scale
   with MCP tool search"): "Only tool names and server instructions load at session start". The

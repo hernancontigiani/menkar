@@ -241,7 +241,7 @@ test('the card: "A new session" starts a tab named as typed, marked orchestrator
     expect(existsSync(told.exec(args())?.[1] ?? '')).toBe(true)
     const id = /--session-id (\S+) -n lead/.exec(args())?.[1]
     await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: id })
-    // Plan 40: the mode goes on first, so the orchestrator starts with its team block.
+    // The mode goes on first, so the orchestrator starts with its team block.
     expect(args()).toMatch(/ --append-system-prompt-file \S+\n$/)
     expect(teamTexts(home).find((f) => f.id === id)?.text).toContain(
       'You are `lead`, a session of the Menkar project "Client work", in orchestration mode. You are its orchestrator.',
@@ -282,7 +282,7 @@ test('the card: a new orchestrator refused its start (its folder gone) leaves th
   }
 })
 
-// Plan 40 (1.154 Q2): switching the mode on posts the whole block to each running session of the
+// 1.154 Q2: switching the mode on posts the whole block to each running session of the
 // project, once, however many changes the card makes (the mode, the mark, the hand-over).
 test('the card: switching the mode on with two sessions running posts each one its whole block once', async () => {
   let home = ''
@@ -1277,7 +1277,7 @@ test('the card in a short window with 20 more sessions: it fits, its buttons sta
   }
 })
 
-// Plan 40, block 5: "Configure role…", mock-up C (decisions 1.154, 1.157). A team whose `app`
+// "Configure role…", mock-up C (decisions 1.154, 1.157). A team whose `app`
 // folder is a repository with four skills, a second repository `lib` with one, and the user's own
 // skills, one of them named like Menkar's.
 const ROLE = {

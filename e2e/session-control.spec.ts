@@ -423,7 +423,7 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Wo
   }
 })
 
-// ---------------------------------------------------------------- plan 40: the team block
+// ---------------------------------------------------------------- the team block
 
 const act = (page: Page, action: Record<string, unknown>) =>
   page.evaluate(

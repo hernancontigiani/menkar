@@ -1,4 +1,4 @@
-// Plan 40: what main hands `teamFacts` for a pane, read from the project's marks. Only with the
+// What main hands `teamFacts` for a pane, read from the project's marks. Only with the
 // mode on; a session not yet a member gets the identity it started with; a name is a custom title
 // or the name Menkar started it with, never Claude's derived title.
 import { expect, test } from 'vitest'

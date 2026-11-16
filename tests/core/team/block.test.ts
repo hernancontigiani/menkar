@@ -46,7 +46,7 @@ const input = (over: Over = {}): TeamInput => {
 
 const lines = (over: Over = {}) => teamFacts(input(over), claude()).split('\n')
 
-// The expert of plan 40 §2.1, in full: the case the sizes were measured on.
+// A full expert, the case the sizes below were measured on.
 const EXPERT: TeamInput = input({
   role: 'Packaging',
   skills: [
@@ -62,7 +62,7 @@ When a session hands you a task, load \`menkar:worker\` first.
 Your parent decides when you renew; when your context (your row in \`list_sessions\`) passes 90%, tell it by name.`
 
 describe('the facts', () => {
-  test("the expert's facts are plan 40's, to the byte", () => {
+  test("the expert's facts, to the byte", () => {
     expect(teamFacts(EXPERT, claude())).toBe(EXPERT_FACTS)
   })
 
@@ -239,7 +239,7 @@ describe('the block', () => {
     expect(claude().part).toBe('claude.md')
   })
 
-  // Plan 40 §2.1: growth of what every request carries is a deliberate change of this test.
+  // Growth of what every request carries is a deliberate change of this test.
   test('common and Claude parts are under 800 bytes, the expert block under 1,400', () => {
     const parts = Buffer.byteLength(common()) + Buffer.byteLength(claudePart())
     expect(parts).toBeGreaterThan(0)

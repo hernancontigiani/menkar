@@ -26,7 +26,7 @@ import { claudeVersion, TEAM_FLOOR, teamFlagsAllowed } from '../core/team/versio
 import { skillsPluginDir } from './control'
 import { addNotice } from './projects'
 
-// Main's side of the team block (plan 40): (1) what a pane's session holds from its start, (2) how
+// Main's side of the team block: (1) what a pane's session holds from its start, (2) how
 // a start delivers it for Claude (a file and two flags), (3) how a change is told (a post). What a
 // session's facts are is the window's state: `setTeamSource` gives it.
 

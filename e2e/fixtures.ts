@@ -21,7 +21,7 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away. Each answer is printed as
 // "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the terminal for the cursor's
 // position (CSI 6n) as it starts, as Claude Code queries its terminal.
-// The team block (plan 40): --version prints FAKE_CLAUDE_VERSION (2.1.325 by default) and exits;
+// The team block: --version prints FAKE_CLAUDE_VERSION (2.1.325 by default) and exits;
 // --append-system-prompt-file is read at start, as Claude Code reads it, into claude-team.jsonl, and
 // a missing one stops it with Claude Code's error. With FAKE_CLAUDE_SOCKET set, unless a registry
 // entry already names its session, it publishes a messaging socket as Claude Code does (an entry

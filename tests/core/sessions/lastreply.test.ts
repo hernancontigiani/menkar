@@ -1,4 +1,4 @@
-// Plan 40 (N2): a turn opened only by Menkar's team updates is Menkar's own doing. last_reply
+// A turn opened only by Menkar's team updates is Menkar's own doing. last_reply
 // passes over it, so a worker's report stays its last reply (1.73), and it wakes no parent. The
 // peer lines are the shape Claude Code 2.1.325 recorded for a message Menkar sent (task 28, run
 // 11), anonymised: ids, pid, times and folder replaced.

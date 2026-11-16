@@ -1,4 +1,4 @@
-// Plan 40, Q4 (decision 1.157): the team flags need Claude Code 2.1.267 or later, the version that
+// Decision 1.157 (Q4): the team flags need Claude Code 2.1.267 or later, the version that
 // adds --system-prompt-snapshot (its docs say 2.1.257; the changelog's later one is the safe floor).
 // An older CLI given an unknown flag exits at once, so below the floor no flag is passed.
 import { expect, test } from 'vitest'

@@ -111,7 +111,7 @@ describe('waking a parent', () => {
   })
 })
 
-// Plan 40 (N2): a team post starts a turn. A turn opened only by team updates wakes no parent;
+// A team post starts a turn. A turn opened only by team updates wakes no parent;
 // one that also had a peer's or the human's message does. The transcript is read only for a pane
 // that was delivered a team post since its last turn end.
 describe("a team post's turn", () => {

@@ -1,4 +1,4 @@
-// Plan 40 §2.4: what a running session holds of its team block, and what Menkar posts so it
+// What a running session holds of its team block, and what Menkar posts so it
 // believes the current facts. A compaction or a clear goes back to the start text; a fork and an
 // in-tab resume hold none of their own; a tab's own resume keeps the block the snapshot flag gave.
 import { existsSync, utimesSync } from 'node:fs'

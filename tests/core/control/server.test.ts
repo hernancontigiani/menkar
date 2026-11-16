@@ -242,7 +242,7 @@ describe('list_sessions', () => {
     state = setOrchestrator(setMode(state, 'work', true), 'work', 'o1')
     state = setRole(state, 'work', 'e1', 'Fabric expert')
     state = setWithYou(state, 'work', 'w1', true)
-    // Plan 40: the skills the human set, so the orchestrator can name an expert's in a task.
+    // The skills the human set, so the orchestrator can name an expert's in a task.
     const withSkills = setSkills(state, 'work', 'e1', [
       { name: 'fabric', maintainer: true },
       { name: 'claude-cli' },
