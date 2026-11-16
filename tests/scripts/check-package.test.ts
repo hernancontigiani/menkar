@@ -186,7 +186,9 @@ describe('the sandbox package', () => {
     const { files } = listing(sandboxData('files.txt'))
     return {
       version: '0.1.0',
-      control: ' Package: menkar-sandbox\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n',
+      control:
+        ' Package: menkar-sandbox\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n' +
+        ' Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0, libasound2t64 | libasound2\n',
       files,
       postinst: sandboxData('postinst'),
       profile: sandboxData('apparmor-profile'),
