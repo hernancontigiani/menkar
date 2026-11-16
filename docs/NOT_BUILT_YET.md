@@ -328,8 +328,10 @@ event (a worker finished, a PR is ready), spending context and tokens, and the h
 a pile instead of one summary. With the state: while away, the orchestrator writes events to topics
 and the status file instead of the chat and goes on with what does not depend on the human; on
 return, a `[Menkar] The human is back` post, and the orchestrator answers with one summary of what
-happened and what awaits a decision. Whether a new blocking topic still notifies while away is the
-human's call. Related: the "with you" mark (1.78) is per session; this is the human's own, per
+happened and what awaits a decision — first **a preliminary summary of a few lines** (how many
+things happened, which await a decision), and from it the human chooses to go through them one by
+one or to read the full summary the orchestrator prepared (the human, 2026-11-16). Whether a new
+blocking topic still notifies while away is the human's call. Related: the "with you" mark (1.78) is per session; this is the human's own, per
 project or global.
 
 **Trigger:** the human asks to build it. First question: per project or global, where the switch

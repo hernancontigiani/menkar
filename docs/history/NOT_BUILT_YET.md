@@ -103,3 +103,8 @@ reconsidered if asked (the human, 2026-11-14). An agent is more than a command: 
 > Replaced 2026-11-15: task flow metrics wanted before the first release (1.156).
 **Trigger:** the human asks for flow metrics, or feels a bottleneck they cannot see. First
 question: which states and reviewers to record, and where the numbers show.
+
+> Replaced 2026-11-16: the return gets a short preliminary summary first.
+happened and what awaits a decision. Whether a new blocking topic still notifies while away is the
+human's call.
+human's call. Related: the "with you" mark (1.78) is per session; this is the human's own, per
