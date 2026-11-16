@@ -32,8 +32,7 @@ Read, in this order, and **touch nothing until you are done**:
   conceptual dependency.
 - **Deciding who executes what** (1.55, amended by 1.118 on 2026-11-13): you start a worker per
   task with `start_session { task }` (`menkar-t<N>`); the human does not choose. This project's cap
-  is two workers at once: a third was weighed and rejected before, since the sessions' work
-  overlapped too much. Never two workers on one file at once. Park a worker whose task waits long
+  is three workers at once (1.153). Never two workers on one file at once. Park a worker whose task waits long
   and resume it when the wait ends; a closed task's worker is hidden by Menkar. `packager` (expert)
   builds the .deb; `claude-cli` (consultant) answers about Claude Code.
 - **Writing the execution session's `prompts/PROMPT-<topic>.md`** (gitignored and one-shot, so what

@@ -67,6 +67,9 @@ test('a key with other modifiers is not the row: Ctrl+S is not Ctrl+Shift+S, Ctr
   expect(matchShortcut('prefix', event('N', { shiftKey: true }))).toBe('prefixAddExisting')
   expect(matchShortcut('prefix', event('n', {}))).toBe('prefixNextTab')
   expect(matchShortcut('prefix', event('%', { shiftKey: true }))).toBe('splitRight')
+  // Away or here (decision 1.167); A with Shift is not it.
+  expect(matchShortcut('prefix', event('a', {}))).toBe('away')
+  expect(matchShortcut('prefix', event('A', { shiftKey: true }))).toBeNull()
   // Ctrl+` by its place, on any layout.
   expect(matchShortcut('window', { ...event('º', { ctrlKey: true }), code: 'Backquote' })).toBe(
     'drawer',

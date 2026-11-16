@@ -5,6 +5,7 @@ import type { Key } from '../core/i18n'
 import type { Params } from '../core/i18n/interpolate'
 import type { ReviewWait, TaskState } from '../core/orchestration/taskState'
 import type { SettingsSection } from '../core/preferences'
+import type { PresenceView } from '../core/presence'
 import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Details } from '../core/sessions/transcript'
@@ -137,12 +138,15 @@ export interface WindowState {
   readonly doneToday: readonly DoneView[]
   // The orchestration mode's guide, shipped with Menkar (decision 1.90).
   readonly guidePath: string
+  readonly presence: PresenceView
 }
 
 export type Action =
   // With `ask`, a project another window holds is not brought forward: the answer is 'held'.
   | { readonly type: 'switchProject'; readonly project: string; readonly ask?: boolean }
   | { readonly type: 'bringProject'; readonly project: string }
+  // The human away or here; without `away`, the other one (Ctrl+B a).
+  | { readonly type: 'setPresence'; readonly away?: boolean }
   | { readonly type: 'createProject'; readonly name: string }
   | { readonly type: 'renameProject'; readonly project: string; readonly name: string }
   | { readonly type: 'deleteProject'; readonly project: string }

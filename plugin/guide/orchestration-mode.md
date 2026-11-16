@@ -160,6 +160,26 @@ is set waiting, with what it waits on.
   `adopt_session`, which the orchestrator calls only when the person asks for it. Nothing
   restarts; only who is woken changes.
 
+## Away or here
+
+When you step out (a meeting, a couple of hours), set yourself **away**: with the chip at the
+sidebar's foot, "● Here · Set me away…", or with `Ctrl+B a`. The chip shows only while some
+project has the mode on, and the state is the whole app's, not a project's. While away, a thin amber banner sits under the header of every window, "Away since
+‹time›", with "I'm back". Quitting forgets it: Menkar always opens with you here.
+
+- **It concerns the orchestrators only.** Each running one hears "[Menkar] The human is away": it
+  writes each event to a topic or the status file instead of a chat summary, goes on with what
+  does not depend on you, and a new blocking topic waits for your return. A topic raised meanwhile
+  makes no sound, toast or desktop notice and is not replayed: it waits in Topics. The sessions'
+  own desktop notifications are not silenced.
+- **Coming back**: "I'm back" on the banner or on the chip, or `Ctrl+B a`. The running
+  orchestrators hear "[Menkar] The human is back" and answer first with a short preliminary
+  summary (how many things happened, which await a decision); then you go through them one by
+  one or read the full summary.
+- **Writing to an orchestrator while away** (from Remote Control, say) does not clear it by
+  itself: the orchestrator asks whether you are back, and only on an explicit yes clears it with
+  `human_back`.
+
 ## Who may start sessions
 
 With the mode on and an orchestrator marked, **only the orchestrator** starts sessions with

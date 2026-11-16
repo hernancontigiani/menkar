@@ -26,6 +26,12 @@ export function formatTimestamp(value: string | undefined): string {
   return formatTime(ms)
 }
 
+// Local `HH:MM` of a moment in milliseconds.
+export function formatClock(ms: number): string {
+  const d = new Date(ms)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 // Local `YYYY-MM-DD HH:MM` of a moment in milliseconds.
 export function formatTime(ms: number): string {
   const d = new Date(ms)

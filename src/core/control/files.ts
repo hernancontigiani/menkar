@@ -27,6 +27,7 @@ export const TOOL_NAMES = [
   'task_list',
   'task_star',
   'set_workers_cap',
+  'human_back',
   'park_session',
   'resume_session',
 ] as const

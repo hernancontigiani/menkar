@@ -39,6 +39,7 @@ const PATHS: Readonly<Record<string, string>> = {
   list: '<circle cx="3" cy="4.5" r="0.7"/><circle cx="3" cy="8" r="0.7"/><circle cx="3" cy="11.5" r="0.7"/><line x1="6" y1="4.5" x2="13.5" y2="4.5"/><line x1="6" y1="8" x2="13.5" y2="8"/><line x1="6" y1="11.5" x2="13.5" y2="11.5"/>',
   up: '<polyline points="4,10 8,6 12,10"/>',
   team: '<circle cx="5.5" cy="5.5" r="2"/><circle cx="11" cy="6.5" r="1.6"/><path d="M1.8 13.5c0-2.2 1.7-3.8 3.7-3.8s3.7 1.6 3.7 3.8"/><path d="M9.6 10.2c.4-.2.9-.3 1.4-.3 1.7 0 3 1.3 3 3.1"/>',
+  moon: '<path d="M13 10.3A5.5 5.5 0 0 1 5.7 3 5.5 5.5 0 1 0 13 10.3z"/>',
   trayIn:
     '<path d="M2 9.5v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3"/><line x1="8" y1="2" x2="8" y2="9.5"/><polyline points="5,6.5 8,9.5 11,6.5"/>',
 }

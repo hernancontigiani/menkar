@@ -81,6 +81,17 @@ import {
   workerTeam,
 } from '../core/orchestration/workers'
 import { agentPaths } from '../core/paths'
+import {
+  backTool,
+  HERE,
+  type Presence,
+  type PresenceView,
+  postRecipients,
+  presenceAsked,
+  presencePost,
+  presenceView,
+  topicNoticeNow,
+} from '../core/presence'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
 import {
   bringProject,
@@ -552,6 +563,7 @@ function stateFor(windowId: string): WindowState | undefined {
     tasks: tasksView(w.shown),
     doneToday: doneTodayView(w.shown),
     guidePath: join(skillsPluginDir(), 'guide', 'orchestration-mode.md'),
+    presence: presenceNow(),
   }
 }
 
@@ -1265,6 +1277,8 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return taskFor(request.tool, project, sessionId, request.args)
     case 'set_workers_cap':
       return capFor(project, sessionId, request.args)
+    case 'human_back':
+      return backFor(project, sessionId)
     case 'park_session':
       return parkFor(project, sessionId, request.args.name)
     case 'resume_session':
@@ -1421,6 +1435,40 @@ function capFor(
   return { ok: result.ok, text: result.text }
 }
 
+function backFor(project: Project, sessionId: string): ControlAnswer {
+  const result = backTool(workerTeam(project).orchestrator, sessionId, presence)
+  if (result.clear) askPresence(false, sessionId)
+  return { ok: result.ok, text: result.text }
+}
+
+// ---------------------------------------------------------------- the human's presence
+
+// In memory only: a quit forgets it, and every start is "here".
+let presence: Presence = HERE
+
+const modesOn = () => projects.projects.map((p) => orchestrationInfo(p).on)
+
+function presenceNow(): PresenceView {
+  return presenceView(presence, modesOn())
+}
+
+// The chip, the banner, the shortcut and human_back all come here. The orchestrator that
+// cleared it is not told what it just did.
+function askPresence(away: boolean, clearedBy?: string): void {
+  const before = presence
+  presence = presenceAsked(presence, away, now(), modesOn())
+  const text = presencePost(before, presence)
+  if (text) {
+    const orchestrators = projects.projects.flatMap((p) => {
+      const id = workerTeam(p).orchestrator
+      return id ? [{ sessionId: id, running: paneOfSession(id)?.terminal.running === true }] : []
+    })
+    for (const id of postRecipients(orchestrators, clearedBy)) void wakeSession(id, text)
+    log.info('the human is now', { away: presence.away })
+  }
+  push()
+}
+
 function sessionsForNames(projectId: string) {
   return projectSessions(projectId).map((id) => ({
     id,
@@ -1573,7 +1621,7 @@ function noticeTopics(project: Project, before: Topics, after: Topics): void {
   for (const topic of topicsOf(after, project.id)) {
     const was = old.find((x) => x.number === topic.number)
     if (was === topic) continue
-    const notice = topicNotice(was, topic, discussing)
+    const notice = topicNoticeNow(presence, topicNotice(was, topic, discussing))
     if (!notice) continue
     notifyTopic({
       project: project.id,
@@ -2779,6 +2827,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'setWorkersCap':
       projects = setWorkersCap(projects, action.project, action.cap)
       changed({ projects: true })
+      return {}
+    case 'setPresence':
+      askPresence(action.away ?? !presence.away)
       return {}
     case 'addProjectFolder':
       if (!isAbsoluteFolder(action.folder) || !(await isFolder(action.folder))) return {}

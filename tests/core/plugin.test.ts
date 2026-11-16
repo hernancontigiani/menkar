@@ -82,6 +82,16 @@ describe("Menkar's skills plugin", () => {
     expect(toolsNamed(skill('distill').body)).toContain('renew')
   })
 
+  // Decision 1.167: the human's away state is cleared by the orchestrator alone, which the skill
+  // and the guide both say; a worker is never told of the tool.
+  test('the orchestrator and the guide name human_back; the worker does not', () => {
+    expect(toolsNamed(skill('orchestrator').body)).toContain('human_back')
+    expect(toolsNamed(skill('worker').body)).not.toContain('human_back')
+    const guide = readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8')
+    expect(toolsNamed(guide)).toContain('human_back')
+    expect(TOOL_NAMES).toContain('human_back')
+  })
+
   // Decision 1.90: the orchestration mode's guide ships in the plugin, readable by any session.
   test('the guide names the four topic tools, only tools the server lists, and no project of this repository', () => {
     const guide = readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8')
