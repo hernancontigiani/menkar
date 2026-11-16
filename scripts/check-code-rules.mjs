@@ -71,10 +71,6 @@ export const ALLOWED = {
     'agent-identifier': { count: 2, reason: 'moved in P0.7' },
     'agent-literal': { count: 1, reason: 'moved in P0.7' },
   },
-  'src/core/command.ts': {
-    'agent-identifier': { count: 1, reason: 'moved in P0.3' },
-    'agent-literal': { count: 1, reason: 'moved in P0.3' },
-  },
   'src/core/context/files.ts': {
     'agent-identifier': { count: 1, reason: 'moved in P0.7' },
   },
@@ -127,13 +123,11 @@ export const ALLOWED = {
   'src/core/sessions/transcript.ts': {
     'agent-literal': { count: 4, reason: 'moved in P0.4' },
   },
-  'src/core/team/block.ts': {
-    'agent-property': { count: 1, reason: 'moved in P0.3' },
-  },
   'src/core/team/version.ts': {
     'agent-identifier': {
       count: 1,
-      reason: "moved in P0.3: the kit's version floor (not in that block's file list yet)",
+      reason:
+        'permanent: tests/core/team/version.test.ts imports claudeVersion/TEAM_FLOOR/teamFlagsAllowed from it, and tests/core/team/** stays unchanged',
     },
   },
   'src/core/usage/cache.ts': {
@@ -181,8 +175,8 @@ export const ALLOWED = {
   },
   'src/main/workspace.ts': {
     'agent-literal': {
-      count: 25,
-      reason: 'moved in P0.3 (startPaneHeld), P0.4 (the catalog) and P0.6 (the rest)',
+      count: 22,
+      reason: 'moved in P0.4 (the catalog), P0.5 (pane.remote) and P0.6 (the rest)',
     },
     'agent-property': { count: 2, reason: 'moved in P0.6: installedAgents from the registry' },
   },

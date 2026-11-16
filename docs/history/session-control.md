@@ -145,3 +145,12 @@ and the wake order.
 > Left on 2026-11-16: `task_review` says whom a task in To review waits on, and the orchestrator may change it (decision 1.164).
     - `task_review { number, note }`: the assignee only; to review.
     child, no role) whose current task is waiting (`mayPark`). Once the worker's turn is over — its
+
+## The team block
+
+> Left on 2026-11-16: the team block's delivery per agent is asked of the agent's kit (plan 39, P0.3).
+  is the one without the team, to the byte. An agent with no entry in `TEAM_AGENTS` (Cursor) gets
+  - `buildCommand`'s `teamFile` appends `--append-system-prompt-file '<path>'` **last**; a resume
+- **Three pieces kept apart,** so another agent can bring its own: what a session holds at start
+  (`teamAtStart`), how a start delivers (the file and the flags), how a change is told (`teamPost`
+  and its triggers). `teamPost` itself is agent-neutral.

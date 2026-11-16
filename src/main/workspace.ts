@@ -5,8 +5,9 @@ import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { AGENT_COMMANDS } from '../core/agents'
+import { kitOf } from '../core/agents/registry'
 import { now } from '../core/clock'
-import { buildCommand, mcpConfig, type Start } from '../core/command'
+import { commandLine, mcpConfig, type Start } from '../core/command'
 import { PANE_ENV, type PaneStartSource } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { WakeBatcher, wakesParent } from '../core/control/events'
@@ -191,9 +192,10 @@ import type {
   TopicView,
   WindowState,
 } from '../shared/workspace'
+import { mainKitOf } from './agents/registry'
 import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
-import { contextReading, sessionSettingsFile, trackContext } from './context'
+import { contextReading, trackContext } from './context'
 import {
   type ControlHandlers,
   mcpServerScript,
@@ -916,35 +918,40 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
           log.warn('a project files folder could not be made', { project: projectId, error })
           return null
         })
+  // The SessionStart hook names the pane, so a clear can be followed (followClear).
+  let env: Readonly<Record<string, string>> = {
+    [PANE_ENV]: id,
+    ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}),
+    ...paneFlavorEnv(),
+  }
   if (spec.agent !== 'shell' && spec.start) {
     const cliName = AGENT_COMMANDS[spec.agent]
     const cli = await findOnPath(cliName)
     if (cli === null) messages.push(appMessage(tag, t('terminal.notFound', { cli: cliName })))
     else {
-      const settingsFile = spec.agent === 'claude' ? await sessionSettingsFile() : undefined
+      const settings = await mainKitOf(spec.agent).settings?.()
       const start = spec.start
       const teamFile = await startTeam({
         pane: id,
         agent: spec.agent,
         cli,
         cwd: spec.cwd,
-        fork: start.kind === 'fork',
+        start,
         input: (found) => startInput(projectId, spec.sessionId, start, found),
       })
-      command = buildCommand(spec.agent, spec.start, {
+      const plan = kitOf(spec.agent).launch.plan(start, {
         cli,
-        ...(settingsFile ? { settings: settingsFile } : {}),
-        ...(spec.agent === 'claude' && spec.remote ? { remoteControl: spec.remote } : {}),
+        env,
+        ...(settings ? { settings } : {}),
+        ...(spec.remote ? { remoteControl: spec.remote } : {}),
         ...(filesFolder ? { addDirs: [filesFolder] } : {}),
-        ...(spec.agent === 'claude'
-          ? {
-              mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
-              pluginDir: skillsPluginDir(),
-            }
-          : {}),
+        mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
+        pluginDir: skillsPluginDir(),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
         ...(teamFile ? { teamFile } : {}),
       })
+      command = commandLine(plan)
+      env = plan.env
     }
   }
   const size = { cols: 80, rows: 24 }
@@ -956,12 +963,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       messages,
       folderGone: (cwd) => appMessage(tag, t('terminal.folderGone', { cwd })),
       ...(command ? { command } : {}),
-      // The SessionStart hook names the pane, so a clear can be followed (followClear).
-      env: {
-        [PANE_ENV]: id,
-        ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}),
-        ...paneFlavorEnv(),
-      },
+      env,
     },
     {
       data: (data, end) => {

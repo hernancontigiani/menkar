@@ -1,15 +1,16 @@
 import { execFile } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { kitOf } from '../core/agents/registry'
+import type { VersionFloor } from '../core/agents/types'
+import type { Start } from '../core/command'
 import { controlPaths, writeTextAtomic } from '../core/control/files'
-import { type PostOutcome, postToSession } from '../core/control/post'
+import type { PostOutcome } from '../core/control/post'
 import { log } from '../core/log'
 import type { WorkCounts } from '../core/orchestration/counts'
 import { agentPaths } from '../core/paths'
 import type { Agent } from '../core/sessions/lines'
 import type { TeamAgent, TeamInput } from '../core/team/block'
-import { teamAgent } from '../core/team/block'
 import { teamText } from '../core/team/input'
 import {
   afterStartRecord,
@@ -18,16 +19,15 @@ import {
   postWithTries,
   TeamSettle,
   type TeamText,
-  teamAtStart,
   teamPost,
 } from '../core/team/posts'
 import { foundFor, listSkills } from '../core/team/skills'
-import { claudeVersion, TEAM_FLOOR, teamFlagsAllowed } from '../core/team/version'
+import { mainKitOf } from './agents/registry'
 import { skillsPluginDir } from './control'
 import { addNotice } from './projects'
 
-// Main's side of the team block: (1) what a pane's session holds from its start, (2) how
-// a start delivers it for Claude (a file and two flags), (3) how a change is told (a post). What a
+// Main's side of the team block: (1) what a pane's session holds from its start, (2) the file a
+// start delivers, (3) telling a change; what differs per agent is asked of its kit. What a
 // session's facts are is the window's state: `setTeamSource` gives it.
 
 export interface TeamSource {
@@ -85,19 +85,20 @@ const VERSION_WAIT_MS = 5000
 const versions = new Map<string, Promise<string | null>>()
 let toldOld = false
 
-function versionOf(cli: string): Promise<string | null> {
+function versionOf(cli: string, floor: VersionFloor): Promise<string | null> {
   return new Promise((resolve) => {
     execFile(cli, ['--version'], { timeout: VERSION_WAIT_MS }, (error, stdout) => {
       if (error) {
         log.warn('the agent CLI did not say its version', { cli, error })
         resolve(null)
-      } else resolve(claudeVersion(stdout))
+      } else resolve(floor.read(stdout))
     })
   })
 }
 
 // Read once per binary, by its path and mtime: an update replaces the file.
-async function flagsAllowed(cli: string): Promise<boolean> {
+async function flagsAllowed(cli: string, floor: VersionFloor | null): Promise<boolean> {
+  if (!floor) return true
   let key = cli
   try {
     key = `${cli}\0${(await stat(cli)).mtimeMs}`
@@ -106,15 +107,15 @@ async function flagsAllowed(cli: string): Promise<boolean> {
   }
   let read = versions.get(key)
   if (!read) {
-    read = versionOf(cli)
+    read = versionOf(cli, floor)
     versions.set(key, read)
   }
   const version = await read
   if (version === null) return false
-  if (teamFlagsAllowed(version)) return true
+  if (floor.accepts(version)) return true
   if (!toldOld) {
     toldOld = true
-    addNotice({ key: 'team.oldClaude', params: { version, floor: TEAM_FLOOR } })
+    addNotice({ key: floor.notice, params: { version, floor: floor.version } })
   }
   return false
 }
@@ -126,7 +127,7 @@ export interface TeamStart {
   readonly agent: Agent
   readonly cli: string
   readonly cwd: string | null
-  readonly fork: boolean
+  readonly start: Start
   // The input, null when the tab's project is not in the mode.
   readonly input: (found: (skill: string) => boolean) => TeamInput | null
 }
@@ -140,21 +141,23 @@ async function foundSkills(cwd: string | null): Promise<Set<string>> {
 // The file the command names, written before the command is built: a missing one stops Claude at
 // once. Undefined when the pane starts without the team.
 export async function startTeam(start: TeamStart): Promise<string | undefined> {
-  const agent = teamAgent(start.agent)
+  const agent = kitOf(start.agent).team
   if (!agent) return undefined
   const found = await foundSkills(start.cwd)
   const input = start.input((skill) => found.has(skill))
-  const keep = (team: PaneTeam, outside: boolean) =>
+  const keep = (started: TeamText | null, outside: boolean) => {
+    const team: PaneTeam = { started, held: agent.heldAtStart(start.start, started) }
     held.set(start.pane, { team, outside, found, posted: false, posting: false, again: false })
+  }
   if (!input) {
-    keep(teamAtStart(null, start.fork), false)
+    keep(null, false)
     return undefined
   }
-  if (!(await flagsAllowed(start.cli))) {
+  if (!(await flagsAllowed(start.cli, agent.floor))) {
     log.warn('a pane starts without its team block: the agent CLI is too old', {
       pane: start.pane,
     })
-    keep(teamAtStart(null, start.fork), true)
+    keep(null, true)
     return undefined
   }
   try {
@@ -162,14 +165,14 @@ export async function startTeam(start: TeamStart): Promise<string | undefined> {
     const text = teamText(input, agent, common, part)
     const dir = controlPaths().team
     await writeTextAtomic(dir, `${start.pane}.md`, text.block)
-    keep(teamAtStart(text, start.fork), false)
+    keep(text, false)
     return join(dir, `${start.pane}.md`)
   } catch (error) {
     log.warn('a pane starts without its team block: its file was not written', {
       pane: start.pane,
       error,
     })
-    keep(teamAtStart(null, start.fork), true)
+    keep(null, true)
     return undefined
   }
 }
@@ -222,8 +225,9 @@ async function recompute(pane: string): Promise<void> {
     return
   }
   const session = s.session(pane)
-  const agent = session ? teamAgent(session.agent) : null
-  if (!session || !agent) return
+  const agent = session ? kitOf(session.agent).team : null
+  const teller = session ? mainKitOf(session.agent).team : null
+  if (!session || !agent || !teller) return
   const found = h.found
   const input = s.input(pane, (skill) => found.has(skill))
   let current: TeamText | null = null
@@ -237,14 +241,7 @@ async function recompute(pane: string): Promise<void> {
   let outcome: PostOutcome | 'error' = 'error'
   try {
     outcome = await postWithTries(
-      () =>
-        postToSession(
-          agentPaths().claudeSessions,
-          session.sessionId,
-          text,
-          randomUUID(),
-          s.counts(session.sessionId),
-        ),
+      () => teller.tell(session.sessionId, text, s.counts(session.sessionId)),
       sleep,
     )
   } catch (error) {

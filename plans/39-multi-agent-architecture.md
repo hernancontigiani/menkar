@@ -1142,3 +1142,23 @@ P0's blocks run in turn.
 ## 6. Execution log
 
 *(Written by the sessions that execute it.)*
+
+### P0.3 (`menkar-t56`, task 56, 2026-11-16)
+
+- **Decided by set, 2026-11-16:** the main kit holds `settings: (() => Promise<string>) | null`
+  (Claude: `sessionSettingsFile`; Cursor: `null`), so no settings file is written on a Cursor-only
+  start, as before.
+- **Decided by set, 2026-11-16:** `pane.remote`'s `spec.agent === 'claude'` line in
+  `startPaneHeld` stays for P0.5 (`mainKit.remote`); `src/main/workspace.ts`'s `agent-literal`
+  count went 25 → 22, its reason now naming P0.5.
+- **Decided by set, 2026-11-16:** `src/core/team/version.ts` stays (its test imports
+  `claudeVersion`, `TEAM_FLOOR`, `teamFlagsAllowed` and `tests/core/team/**` stays unchanged);
+  Claude's kit imports it as its `floor`. Its `ALLOWED` entry is kept as permanent with that
+  reason — P0.7's `docs/agents.md` lists it.
+- **Deviations:** `LaunchPlan` has no `files` member and `TeamDelivery` no `afterCompaction` yet:
+  neither has a producer or an answer that differs in P0 (no abstraction without a consumer); they
+  enter with Codex (P1a, P1b.5). The team file is still written by main before the Launcher is
+  asked, so a failed write still leaves the pane outside the team. `heldAtStart` takes
+  `(start, block)`: the `recorded` argument enters with the first agent that keeps one (Codex).
+- `MainAgentKit` and `MainTeamDelivery` are declared in `src/main/agents/types.ts` (new); the
+  `SESSION_ENV` export of `src/core/sessionenv.ts` is now the union of every kit's `EnvRules`.
