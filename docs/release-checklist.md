@@ -75,6 +75,17 @@ Open a Markdown file with headings, a code block, a table and a local image; `Ct
 **Passes when** it renders readably at your screen's scale in both a light and a dark theme, and
 nothing is fetched from the network (a remote image is not loaded).
 
+## 8b. The team block on the real Claude Code
+
+In a project with the orchestration mode on, start a session with `start_session` (a role and a
+parent) and ask it who it is. Give another running session a new role, ask it, then restart
+Menkar ("Restart now") and ask its restored tab again.
+
+**Passes when** the new session's first answer knows its name, role and parent without being told;
+the running session knows its new role at once, and its restored tab still knows it after the
+restart; the command line of a session of a project with the mode off carries no
+`--append-system-prompt-file`.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in

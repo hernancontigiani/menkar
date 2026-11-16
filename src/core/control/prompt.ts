@@ -49,17 +49,21 @@ export async function savePrompt(id: string, text: string): Promise<string> {
 }
 
 // Copies older than a day are deleted: the session they started read them long ago.
-export async function sweepPrompts(now: number): Promise<void> {
-  const { prompts } = controlPaths()
+export const sweepPrompts = (now: number): Promise<void> => sweep(controlPaths().prompts, now)
+
+// A pane's team file is read by Claude at its start only.
+export const sweepTeamFiles = (now: number): Promise<void> => sweep(controlPaths().team, now)
+
+async function sweep(dir: string, now: number): Promise<void> {
   let names: string[]
   try {
-    names = await readdir(prompts)
+    names = await readdir(dir)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
     throw error
   }
   for (const name of names) {
-    const path = join(prompts, name)
+    const path = join(dir, name)
     const { mtimeMs } = await stat(path)
     if (now - mtimeMs > PROMPT_KEEP_MS) await unlink(path)
   }

@@ -83,6 +83,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     off the marks read null and false: off is the ordinary Menkar (`sessionMarks`,
     `sessionsAnswer`). A snapshot an older Menkar wrote, without
     them, reads the same.
+    Each session also carries `skills`, `[{ name, maintainer }]` as the human stored them for it
+    (decision 1.152), `[]` with the mode off, so the orchestrator can name an expert's skill, read
+    only, in a worker's task.
   - **`last_reply { name }`:** the last text a session of the caller's project replied. It is read
     from the end of its transcript (`src/core/sessions/lastreply.ts`, read only, in chunks, never
     the whole file) and cut to its first `REPLY_MAX_CHARS` with a note. When the session has not
@@ -91,6 +94,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     worker's report outlives the renew that follows it.
     When two sessions of the project share the name (a stopped one kept it), the one with a tab is
     read, else the most recently active (`sessionOfProject`, 2026-11-12).
+    A turn opened only by Menkar's team updates (below, "The team block") is passed over and the
+    search goes on before it, so a worker's report stays its last reply; a turn a team update
+    opened that also had a peer's or the human's message is returned (2026-11-16).
   - **`topic_add { title, context, blocking?, task? }`, `topic_update { number, title?, context?,
     blocking?, status? }`, `topic_close { number, decision }`, `topic_list { all? }`:** the
     project's topics for the human (`docs/orchestration.md`), kept by main in `topics.json`. Any
@@ -242,16 +248,93 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - no session's or project's name of this repository;
   - every tool written in backticks is one the MCP server lists.
 - **What the skills lean on in Menkar:**
-  - renewing always with a prompt that is the handoff: who the session is, the skill to load, what
-    is in flight (1.84);
+  - the team block (below): who the session is, what to load, and how the team talks. The
+    `orchestrator`, `worker` and `distill` skills point to it in one sentence, and, for a session
+    with no block (the mode off), to `team/common.md` and `team/claude.md` in the plugin folder;
+  - renewing with a prompt that is the handoff of what is in flight; Menkar's block says who the
+    new session is and what it loads (1.84, amended 2026-11-16);
   - `last_reply` reading the previous conversation when a session has not replied since its renew;
-  - the report also sent by name when the session handing the task did not start the worker, since
-    a wake reaches only the parent;
   - screenshots and long outputs in `$MENKAR_FILES`.
 - **What Claude Code writes on its own for a plugin**, in `~/.claude.json`:
   `pluginUsage["menkar@inline"]` on each start and `skillUsage["menkar:<skill>"]` when one is
   used. Menkar writes nothing under `~/.claude`. The skills' texts, once loaded, are part of the
   session's transcript like any other message.
+
+## The team block
+
+What a Claude session of a project in the orchestration mode needs to work in the team (decisions
+1.150–1.154, 1.157), written once and delivered by Menkar, not by a handoff another agent writes.
+
+- **Its text,** English, read by an agent: three parts joined by a blank line (`teamBlock`).
+  - **The facts,** built per session by `teamFacts` (`src/core/team/block.ts`) from a plain
+    `TeamInput` (`teamInput`, `src/core/team/input.ts`): who it is, its role, its parent and the
+    orchestrator, the skills to have loaded (`menkar:orchestrator` for the orchestrator, then the
+    stored ones: maintained, read only with their maintainer, or not found), `menkar:worker` when
+    a task is handed to it, and when to renew, with the human's `ring_warn`/`ring_full`.
+  - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`.
+    `package:check` requires both in the .deb.
+  - **A name** in the facts is a custom title or the name Menkar started the session with; Claude's
+    derived title is not one, so it never changes the facts. A session with none reads as "a new
+    session"; another session with none is called by its id's first eight characters.
+- **Only with the mode on.** With it off no input is built, no file is written and the command line
+  is the one without the team, to the byte. An agent with no entry in `TEAM_AGENTS` (Cursor) gets
+  nothing.
+- **The input at start** is built for every Claude pane whose tab belongs to a mode-on project: a
+  member from the project; a session not yet a member (the human's new session, a fork) from the
+  identity it starts with, with no role, parent or skills. That is what it will be once it joins.
+  Which stored skills it can load is read when it starts (`listSkills` on its folder and the
+  user's skills, `foundFor`).
+- **Delivery for Claude** (measured on 2.1.325):
+  - The block is written to `<cache>/menkar/control/team/<pane-id>.md` (`controlPaths().team`)
+    through `writeTextAtomic` **before** the command is built: Claude stops at once on a missing
+    file. Files older than a day are swept hourly with the prompt copies (`sweepTeamFiles`).
+  - `buildCommand`'s `teamFile` appends `--append-system-prompt-file '<path>'` **last**; a resume
+    puts `--system-prompt-snapshot off` before it, on **every** resume of a mode-on tab. Claude
+    reads the file once, at start; a compaction or `/clear` rebuilds the prompt from that text.
+  - **Why the snapshot flag on every resume:** without it a resumed conversation keeps the block
+    recorded when it began until its next compaction, and a later resume without it falls back to
+    that first text even after one with it. With it, the `system` text stayed byte-identical over
+    12 requests across a branch, a commit and a new file: the date and the git status live in the
+    messages, not in `system`. Its only cost is one cache write on the first request after a
+    resume whose block changed.
+  - **If the file cannot be written** the pane starts without the flags, the pane's id is logged,
+    and the pane is outside the team for its life: never posted.
+- **The version floor: Claude Code 2.1.267.** `--system-prompt-snapshot` is in the changelog at
+  2.1.267 and in the CLI reference at 2.1.257; the later one is the floor (`TEAM_FLOOR`,
+  `src/core/team/version.ts`). `--append-system-prompt-file` exists by 2.1.69. An older CLI given
+  an unknown option exits at once, so main reads `claude --version` once per binary (path and
+  mtime, off the UI path) and, below the floor or when it says no version, starts
+  mode-on panes without the flags, logs it, and the pane is outside the team. Below the floor one
+  toast per run says so (`team.oldClaude`).
+- **Keeping a running session current** (`src/core/team/posts.ts`, `src/main/team.ts`). Per Claude
+  pane main keeps `started` (the block its system prompt started with, null without one) and `held`
+  (what it believes now: `started`, null for a fork, which carries its source's, then the latest
+  delivered post). `teamPost(held, current)`: a block and now none → the leaving line; none and now
+  a block → the whole block; other facts → the facts; the same facts → nothing.
+  - **What triggers a recompute:** a `projects.json` change (role, stored skills, the orchestrator
+    mark, a parent, the session leaving the project, the mode switched, the project's name), a
+    change in the sessions list (names) or the settings (the ring thresholds), a pending session's
+    join, and a SessionStart record naming the pane: `compact` and `clear` set `held` back to
+    `started`; a `resume` naming **another** session (an in-tab `/resume`) sets it to null; the
+    record a tab's own `--resume` start writes names the pane's session and changes nothing.
+  - **Coalesced:** each trigger restarts the pane's `TEAM_SETTLE_MS` wait, so a burst (the
+    first-time card's mode, mark and hand-over) is one post carrying the latest. No disk is rescanned
+    by a recompute.
+  - **Posted** through `postToSession` (`wakeFrame`'s time, and the counts to the orchestrator):
+    "[Menkar] Team update: your facts are now: …", "… your team instructions, replacing any earlier
+    ones: …" or "… the "Your team in Menkar" instructions no longer apply to you.", each ending "No
+    reply is needed." `held` changes only on `'posted'`; `'no session'` is tried
+    `TEAM_POST_TRIES` times `TEAM_POST_GAP_MS` apart; anything else is logged and the next trigger
+    tries again.
+- **A post starts a turn.** At a working → idle/done of a pane delivered a team post since its last
+  turn end, main reads its transcript (`onlyTeamUpdates`, beside `lastReply`): when every message
+  that opened the turn is a team update, its parent is not woken (`wakesParent`). A pane delivered
+  no team post reads nothing. A team update is a user line with `origin.kind` `peer` and
+  `origin.from` `menkar` whose delivered text (after the line Claude Code puts before a peer's)
+  **starts** with "[Menkar] Team update:", as Claude Code 2.1.325 records it.
+- **Three pieces kept apart,** so another agent can bring its own: what a session holds at start
+  (`teamAtStart`), how a start delivers (the file and the flags), how a change is told (`teamPost`
+  and its triggers). `teamPost` itself is agent-neutral.
 
 ## Measured on Claude Code 2.1.322 (2026-11-11, a throwaway home, a local stand-in for the API)
 
@@ -313,3 +396,20 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
 - **Installing the skills into `~/.claude/skills`:** a write under `~/.claude`, which is the human's
   decision, and a copy that goes stale with every Menkar update.
 - **Folders named `menkar-orchestrator`, …:** they would read `menkar:menkar-orchestrator`.
+- **MCP `instructions` for the team block:** a conversation message framed as tool usage, capped
+  at 4,096 characters, which may arrive after the first prompt (1.150). It may be another agent's
+  way.
+- **A post on every resume, or a stored "last told" file:** the snapshot flag gives a resumed
+  session its current block in the system prompt.
+- **Rewriting the team file on a change:** Claude reads it once, at start.
+- **The snapshot flag on a fork:** not measured, and a fork must be told it is not its source
+  anyway; the whole block is posted when it joins.
+- **The team flag before `--settings`:** it works, but last is where no option can take it for its
+  value.
+- **Making every new session a member before its command:** the project a session joins is decided
+  where it started; building the input from the tab's project and the start's identity changes no
+  membership rule.
+- **A turn mark set when a post is delivered:** a real message in the same turn was lost with it;
+  the transcript at the turn's end decides.
+- **A post with no "No reply is needed" and no `last_reply` filter:** the post's own answer would
+  replace a worker's report (1.73).

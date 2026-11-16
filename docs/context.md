@@ -42,8 +42,10 @@ Integrations page are still `docs/spec/context.md` until they are built.
   - **The record.** The hook writes `<cache>/session-starts/<id>.json` (`session_id`, `source`,
     `at`, `pane`). It is not under `sessions/`, which main watches for readings. `pane` is
     `MENKAR_PANE`, which every agent pane's pty carries and the hook inherits through Claude Code
-    (measured, 2.1.322); null outside Menkar. Main watches the folder for `clear` and `resume`
-    records naming a live pane, so the tab follows the pane's new session (`docs/sessions.md`).
+    (measured, 2.1.322); null outside Menkar. Main watches the folder for `clear`, `resume` and
+    `compact` records naming a live pane. On `clear` and `resume` the tab follows the pane's new
+    session (`docs/sessions.md`); on any of the three the pane's team block is looked at again
+    (`docs/session-control.md`, "The team block", 2026-11-16).
   - **The baseline.** On its next run the statusline sees a record it has not used and keeps a
     baseline in `<cache>/cost-baselines/<id>.json` (`baseline_usd`, `start_at`): 0 after
     `startup` and after `clear`, the current total after `compact`. A resume leaves it, so the

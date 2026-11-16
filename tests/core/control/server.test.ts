@@ -19,6 +19,7 @@ import {
   setMode,
   setOrchestrator,
   setRole,
+  setSkills,
   setWithYou,
 } from '../../../src/core/projects/orchestration'
 import { project, projects } from '../../factories/projects'
@@ -222,7 +223,7 @@ describe('list_sessions', () => {
     })
     const answer = await serverContext('p2').call('list_sessions', {})
     expect(answer.ok).toBe(true)
-    const off = { role: null, orchestrator: false, priority: false, with_you: false }
+    const off = { role: null, orchestrator: false, priority: false, with_you: false, skills: [] }
     expect(JSON.parse(answer.text)).toEqual({
       project: 'Work',
       orchestration: false,
@@ -241,6 +242,13 @@ describe('list_sessions', () => {
     state = setOrchestrator(setMode(state, 'work', true), 'work', 'o1')
     state = setRole(state, 'work', 'e1', 'Fabric expert')
     state = setWithYou(state, 'work', 'w1', true)
+    // Plan 40: the skills the human set, so the orchestrator can name an expert's in a task.
+    const withSkills = setSkills(state, 'work', 'e1', [
+      { name: 'fabric', maintainer: true },
+      { name: 'claude-cli' },
+    ])
+    if (!withSkills.ok) throw new Error('skills refused')
+    state = withSkills.projects
     const session = (id: string, pane: string, p = state.projects[0]) => ({
       name: id,
       id,
@@ -271,6 +279,7 @@ describe('list_sessions', () => {
           orchestrator: true,
           priority: false,
           with_you: false,
+          skills: [],
         },
         {
           name: 'e1',
@@ -280,6 +289,10 @@ describe('list_sessions', () => {
           orchestrator: false,
           priority: true,
           with_you: false,
+          skills: [
+            { name: 'fabric', maintainer: true },
+            { name: 'claude-cli', maintainer: false },
+          ],
         },
         {
           name: 'w1',
@@ -289,6 +302,7 @@ describe('list_sessions', () => {
           orchestrator: false,
           priority: false,
           with_you: true,
+          skills: [],
         },
       ],
     })
@@ -299,6 +313,7 @@ describe('list_sessions', () => {
       orchestrator: false,
       priority: false,
       withYou: false,
+      skills: [],
     })
     // A snapshot an older Menkar wrote, without the fields: the mode reads as off.
     await writeAtomic(controlPaths().snapshots, 'work.json', {
@@ -319,6 +334,7 @@ describe('list_sessions', () => {
           orchestrator: false,
           priority: false,
           with_you: false,
+          skills: [],
         },
       ],
     })

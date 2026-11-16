@@ -2,7 +2,7 @@
 // Claude Code calls them. renew (1.70) ends the session once its turn is over and starts a fresh
 // one in the same tab, the old one its earlier conversation; start_session opens a session after
 // the caller's tab without taking the focus; list_sessions and last_reply address sessions by name.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
@@ -26,7 +26,13 @@ interface Saved {
 // its orchestrator (decision 1.92).
 const OLD_WORKER = '0b1d0b1d-0000-4000-8000-000000000001'
 
-async function open(options: { stoppedWorker?: boolean; orchestrated?: boolean } = {}) {
+async function open(
+  options: {
+    stoppedWorker?: boolean
+    orchestrated?: boolean
+    env?: Readonly<Record<string, string>>
+  } = {},
+) {
   let root = ''
   let home = ''
   const launched = await launchApp({
@@ -138,7 +144,7 @@ async function open(options: { stoppedWorker?: boolean; orchestrated?: boolean }
         state,
         JSON.stringify({ ...JSON.parse(readFileSync(state, 'utf8')), remote_control: [SESSION] }),
       )
-      return env
+      return { ...env, ...options.env }
     },
   })
   const page = launched.window
@@ -159,7 +165,21 @@ async function open(options: { stoppedWorker?: boolean; orchestrated?: boolean }
     existsSync(join(root, 'config', 'menkar', 'tasks.json'))
       ? JSON.parse(readFileSync(join(root, 'config', 'menkar', 'tasks.json'), 'utf8'))
       : { projects: {} }
-  return { launched, page, saved, argLines, remote, root, tasksSaved }
+  const jsonLines = <T>(name: string): T[] =>
+    existsSync(join(home, name))
+      ? readFileSync(join(home, name), 'utf8')
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line) as T)
+      : []
+  // What each stand-in read from its --append-system-prompt-file at start, and what reached its
+  // messaging socket.
+  const teamFiles = () => jsonLines<{ id: string; file: string; text: string }>('claude-team.jsonl')
+  const posts = (id: string) =>
+    jsonLines<{ id: string; content: string }>('claude-posts.jsonl')
+      .filter((p) => p.id === id)
+      .map((p) => p.content)
+  return { launched, page, saved, argLines, remote, root, tasksSaved, teamFiles, posts, home }
 }
 
 const said = (page: Page, text: string) =>
@@ -213,6 +233,19 @@ test('start_session opens the new session right after the caller’s tab without
     await said(page, 'The project has no group called "no such group".')
     await expect(page.locator('.tab')).toHaveCount(2)
 
+    // list_sessions reads the snapshot main writes once changes settle: wait for it to hold
+    // the worker, as an agent told "try again in a moment" would.
+    const snapshot = join(
+      launched.root,
+      'cache',
+      'menkar',
+      'control',
+      'snapshot',
+      `${CLIENT_WORK}.json`,
+    )
+    await expect
+      .poll(() => (existsSync(snapshot) ? readFileSync(snapshot, 'utf8') : ''))
+      .toContain('"name":"worker"')
     await page.keyboard.type('LISTS')
     await said(page, '"name": "worker"')
     await said(page, '"parent": "api"')
@@ -385,6 +418,192 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Wo
     await page.keyboard.type('STAR1')
     await said(page, "TOOL task_star: Only the orchestrator sets a task's ★, when the person asks.")
     expect(starOf()).toBe(false)
+  } finally {
+    await launched.close()
+  }
+})
+
+// ---------------------------------------------------------------- plan 40: the team block
+
+const act = (page: Page, action: Record<string, unknown>) =>
+  page.evaluate(
+    (a) =>
+      (
+        globalThis as unknown as { menkar: { window: { act(x: unknown): Promise<unknown> } } }
+      ).menkar.window.act(a),
+    action,
+  )
+
+// What reaches the orchestrator's socket (the test's, as its registry entry names it).
+async function orchestratorPosts(root: string): Promise<{ posted: () => string[]; close(): void }> {
+  const lines: string[] = []
+  const server = createServer((connection) => {
+    let data = ''
+    connection.on('data', (d) => {
+      data += d
+    })
+    connection.on('end', () => lines.push(...data.split('\n').filter(Boolean)))
+  })
+  await new Promise<void>((resolve) => server.listen(join(root, 'parent.sock'), resolve))
+  return {
+    posted: () => lines.map((line) => JSON.parse(line).message.content as string),
+    close: () => server.close(),
+  }
+}
+
+const teamDir = (root: string) => join(root, 'cache', 'menkar', 'control', 'team')
+// Longer than a settle (2 s) and a wake's batch (3 s): what has not come by then does not come.
+const QUIET_MS = 6000
+const FLAG = /--append-system-prompt-file (\S+)$/
+
+test('the team block, mode off: neither flag on the command line, no team file', async () => {
+  const { launched, argLines, root } = await open()
+  try {
+    expect(argLines()[0]).toContain(`--resume ${SESSION}`)
+    expect(argLines()[0]).not.toContain('--append-system-prompt-file')
+    expect(argLines()[0]).not.toContain('--system-prompt-snapshot')
+    expect(existsSync(teamDir(root)) ? readdirSync(teamDir(root)) : []).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('the team block, mode on: a resume rebuilds it and gets no post; the human’s new session and a fork carry it; the fork, once it joins, gets the whole block once', async () => {
+  const { launched, page, argLines, root, teamFiles, posts } = await open({
+    orchestrated: true,
+    env: { FAKE_CLAUDE_START_HOOK: '1', FAKE_CLAUDE_SOCKET: '1' },
+  })
+  const orchestrator = await orchestratorPosts(root)
+  try {
+    // The restored tab: the snapshot flag before the file, both last.
+    expect(argLines()[0]).toMatch(
+      new RegExp(
+        `^--resume ${SESSION} .* --system-prompt-snapshot off --append-system-prompt-file \\S+$`,
+      ),
+    )
+    const own = teamFiles().find((f) => f.id === SESSION)
+    expect(own?.file).toBe(FLAG.exec(argLines()[0] ?? '')?.[1])
+    expect(own?.text).toContain(
+      'You are `api`, a session of the Menkar project "Client work", in orchestration mode. You are its orchestrator.',
+    )
+    expect(own?.text).toContain(
+      'Skills to have loaded (load any that is not): `menkar:orchestrator`.',
+    )
+    expect(own?.text).toContain('## How the team works')
+    expect(own?.text).toContain('`SendMessage`')
+    // N1: the record its own --resume start wrote names its session: nothing is posted.
+    await page.waitForTimeout(QUIET_MS)
+    expect(orchestrator.posted().filter((p) => p.includes('Team update'))).toEqual([])
+
+    await act(page, {
+      type: 'startNew',
+      agent: 'claude',
+      folder: join(root, 'home', 'work'),
+      name: 'scratch',
+    })
+    await expect.poll(() => argLines().length).toBe(2)
+    const scratch = /--session-id (\S+) -n scratch/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    expect(argLines()[1]).toMatch(FLAG)
+    expect(argLines()[1]).not.toContain('--system-prompt-snapshot')
+    expect(teamFiles().find((f) => f.id === scratch)?.text).toContain(
+      'You are `scratch`, a session of the Menkar project "Client work", in orchestration mode. You have no parent; the orchestrator is `api`.',
+    )
+
+    await act(page, { type: 'forkSession', session: SESSION })
+    await expect.poll(() => argLines().length).toBe(3)
+    const fork = /--fork-session --session-id (\S+)/.exec(argLines()[2] ?? '')?.[1] ?? ''
+    expect(argLines()[2]).toMatch(FLAG)
+    expect(argLines()[2]).not.toContain('--system-prompt-snapshot')
+    await expect
+      .poll(() => posts(fork), { timeout: 20_000 })
+      .toEqual([
+        expect.stringMatching(
+          /^\[Menkar\] Team update: your team instructions, replacing any earlier ones:\n# Your team in Menkar\nYou are a new session of the Menkar project "Client work", in orchestration mode\. You have no parent; the orchestrator is `api`\.\n[\s\S]*No reply is needed\. \(\d{2}:\d{2}:\d{2}\)$/,
+        ),
+      ])
+    // The human's session joined with the facts it started with: nothing to tell it.
+    await page.waitForTimeout(QUIET_MS)
+    expect(posts(scratch)).toEqual([])
+    expect(posts(fork)).toHaveLength(1)
+  } finally {
+    orchestrator.close()
+    await launched.close()
+  }
+})
+
+test('the team block: a role change is one post, saving it unchanged none, a compaction posts the facts again; a turn that only answered it wakes no parent, a typed one does', async () => {
+  const { launched, page, argLines, root, posts } = await open({
+    orchestrated: true,
+    env: { FAKE_CLAUDE_TEAM_TURN: '1', FAKE_CLAUDE_SOCKET: '1' },
+  })
+  const orchestrator = await orchestratorPosts(root)
+  const finished = () => orchestrator.posted().filter((p) => p.includes('worker finished its turn'))
+  const ROLE =
+    /^\[Menkar\] Team update: your facts are now:\nYou are `worker`, a session of the Menkar project "Client work", in orchestration mode\. Your role: "Reviewer"\. Your parent is `api`, the orchestrator\.\n/
+  try {
+    await page.keyboard.type('SPAWN1')
+    await said(page, 'TOOL start_session: Started "worker"')
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+) -n worker/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await act(page, { type: 'setRole', session: worker, label: 'Reviewer' })
+    await expect
+      .poll(() => posts(worker), { timeout: 15_000 })
+      .toEqual([expect.stringMatching(ROLE)])
+    // The stand-in answers it in a turn of its own, which tells the orchestrator nothing.
+    await page.waitForTimeout(QUIET_MS)
+    expect(finished()).toEqual([])
+
+    await act(page, { type: 'setRole', session: worker, label: 'Reviewer' })
+    await page.waitForTimeout(QUIET_MS)
+    expect(posts(worker)).toHaveLength(1)
+
+    await page.locator('.tab').nth(1).click()
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in idle')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await page.locator('.xterm:visible').click()
+    // Back to the start text, which had no role: the facts again.
+    await page.keyboard.type('COMPACT')
+    await expect
+      .poll(() => posts(worker), { timeout: 15_000 })
+      .toEqual([expect.stringMatching(ROLE), expect.stringMatching(ROLE)])
+    await page.waitForTimeout(QUIET_MS)
+    expect(finished()).toEqual([])
+
+    await page.keyboard.type('TURN')
+    await expect.poll(finished, { timeout: 15_000 }).toHaveLength(1)
+  } finally {
+    orchestrator.close()
+    await launched.close()
+  }
+})
+
+test('the team block, Claude Code older than 2.1.267: no flags, one toast, no post on a role change', async () => {
+  const { launched, page, argLines, posts } = await open({
+    orchestrated: true,
+    env: { FAKE_CLAUDE_VERSION: '2.1.266', FAKE_CLAUDE_SOCKET: '1' },
+  })
+  const toast = page.locator('.toast', {
+    hasText:
+      'Claude Code 2.1.266 is older than 2.1.267: sessions start without their team instructions. Update Claude Code.',
+  })
+  try {
+    expect(argLines()[0]).not.toContain('--append-system-prompt-file')
+    expect(argLines()[0]).not.toContain('--system-prompt-snapshot')
+    await expect(toast).toHaveCount(1)
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('SPAWN1')
+    await said(page, 'TOOL start_session: Started "worker"')
+    await expect.poll(() => argLines().length).toBe(2)
+    expect(argLines()[1]).not.toContain('--append-system-prompt-file')
+    const worker = /--session-id (\S+) -n worker/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await act(page, { type: 'setRole', session: worker, label: 'Reviewer' })
+    await page.waitForTimeout(QUIET_MS)
+    expect(posts(worker)).toEqual([])
+    await expect(toast).toHaveCount(1)
+    const files = process.env.MENKAR_FILES
+    if (files) await page.screenshot({ path: join(files, 'menkar-t33-old-claude-toast.png') })
   } finally {
     await launched.close()
   }

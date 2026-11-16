@@ -31,6 +31,9 @@ export interface CommandOptions {
   readonly mcpConfig?: string
   // Menkar's skills plugin folder (`--plugin-dir`, Claude Code only).
   readonly pluginDir?: string
+  // The session's team block, appended to its system prompt (Claude Code only). A missing file
+  // stops Claude before its first request, so it is written before the command is built.
+  readonly teamFile?: string
 }
 
 // Menkar's MCP server for Claude Code: Electron's own binary runs the script as plain Node, as it
@@ -79,5 +82,11 @@ export function buildCommand(agent: Agent, start: Start, options: CommandOptions
   if (claude && options.mcpConfig) words.push('--mcp-config', shellQuote(options.mcpConfig))
   if (claude && options.pluginDir) words.push('--plugin-dir', shellQuote(options.pluginDir))
   if (claude && options.settings) words.push('--settings', shellQuote(options.settings))
+  // Last, where no option can take it for its value. A resume would otherwise keep the block
+  // recorded when the conversation began, until its next compaction.
+  if (claude && options.teamFile) {
+    if (start.kind === 'resume') words.push('--system-prompt-snapshot', 'off')
+    words.push('--append-system-prompt-file', shellQuote(options.teamFile))
+  }
   return `${words.join(' ')} && exit\n`
 }

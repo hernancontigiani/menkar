@@ -215,11 +215,13 @@ export function recordSessionStart(
   writeAtomically(join(dir, `${id}.json`), dir, JSON.stringify(entry))
 }
 
-// A hook record telling that the session in a Menkar pane now runs under another id: a clear's new
-// one, or the one an in-session resume picked.
+export type PaneStartSource = 'clear' | 'resume' | 'compact'
+
+// A hook record telling that the session in a Menkar pane now runs under another id (a clear's new
+// one, or the one an in-session resume picked), or that it compacted.
 export function paneStart(
   text: string,
-): { pane: string; sessionId: string; source: 'clear' | 'resume' } | null {
+): { pane: string; sessionId: string; source: PaneStartSource } | null {
   let value: unknown
   try {
     value = JSON.parse(text)
@@ -228,7 +230,7 @@ export function paneStart(
   }
   if (!isObject(value)) return null
   const { pane, session_id: sessionId, source } = value
-  if (source !== 'clear' && source !== 'resume') return null
+  if (source !== 'clear' && source !== 'resume' && source !== 'compact') return null
   return typeof pane === 'string' && pane !== '' && validId(sessionId)
     ? { pane, sessionId, source }
     : null

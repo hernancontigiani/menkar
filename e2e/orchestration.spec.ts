@@ -236,6 +236,94 @@ test('the card: "A new session" starts a tab named as typed, marked orchestrator
     expect(existsSync(told.exec(args())?.[1] ?? '')).toBe(true)
     const id = /--session-id (\S+) -n lead/.exec(args())?.[1]
     await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: id })
+    // Plan 40: the mode goes on first, so the orchestrator starts with its team block.
+    expect(args()).toMatch(/ --append-system-prompt-file \S+\n$/)
+    expect(teamTexts(home).find((f) => f.id === id)?.text).toContain(
+      'You are `lead`, a session of the Menkar project "Client work", in orchestration mode. You are its orchestrator.',
+    )
+  } finally {
+    await launched.close()
+  }
+})
+
+const jsonLines = <T>(home: string, name: string): T[] =>
+  existsSync(join(home, name))
+    ? readFileSync(join(home, name), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line) as T)
+    : []
+// What each stand-in read from its team file at start, and what reached its messaging socket.
+const teamTexts = (home: string) =>
+  jsonLines<{ id: string; text: string }>(home, 'claude-team.jsonl')
+const postsTo = (home: string, id: string) =>
+  jsonLines<{ id: string; content: string }>(home, 'claude-posts.jsonl')
+    .filter((p) => p.id === id)
+    .map((p) => p.content)
+
+test('the card: a new orchestrator refused its start (its folder gone) leaves the mode off', async () => {
+  const { launched, page, home } = await launch()
+  try {
+    await page.locator('#orchestration-switch').click()
+    await card(page).locator('.card-choice', { hasText: 'A new session' }).click()
+    await card(page).locator('.card-name').fill('lead')
+    for (const folder of ['api', 'web']) rmSync(join(home, 'work', folder), { recursive: true })
+    await cardButton(page, 'Start').click()
+    await expect(page.locator('.toast').first()).toBeVisible()
+    await expect.poll(async () => (await shown(page))?.on).toBe(false)
+    expect(existsSync(join(home, 'claude-args.txt'))).toBe(false)
+  } finally {
+    await launched.close()
+  }
+})
+
+// Plan 40 (1.154 Q2): switching the mode on posts the whole block to each running session of the
+// project, once, however many changes the card makes (the mode, the mark, the hand-over).
+test('the card: switching the mode on with two sessions running posts each one its whole block once', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return { ...clientWork(dirs, { tabs: [['login'], ['api']] }), FAKE_CLAUDE_SOCKET: '1' }
+    },
+  })
+  const page = launched.window
+  const argLines = () =>
+    existsSync(join(home, 'claude-args.txt'))
+      ? readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n')
+      : []
+  try {
+    await expect.poll(() => argLines().length).toBe(2)
+    for (const line of argLines()) expect(line).not.toContain('--append-system-prompt-file')
+    await page.locator('#orchestration-switch').click()
+    await card(page).locator('.card-choice', { hasText: 'login fix' }).click()
+    await cardButton(page, 'Start').click()
+    await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: CLIENT.login })
+    const whole = (who: string) =>
+      new RegExp(
+        `^\\[Menkar\\] Team update: your team instructions, replacing any earlier ones:\\n# Your team in Menkar\\nYou are ${who}`,
+      )
+    await expect
+      .poll(() => postsTo(home, CLIENT.login), { timeout: 15_000 })
+      .toEqual([
+        expect.stringMatching(
+          whole(
+            '`login fix`, a session of the Menkar project "Client work", in orchestration mode\\. You are its orchestrator\\.',
+          ),
+        ),
+      ])
+    await expect
+      .poll(() => postsTo(home, CLIENT.api), { timeout: 15_000 })
+      .toEqual([
+        expect.stringMatching(
+          whole(
+            '`api review`, a session of the Menkar project "Client work", in orchestration mode\\. Your parent is `login fix`, the orchestrator\\.',
+          ),
+        ),
+      ])
+    await page.waitForTimeout(6000)
+    expect(postsTo(home, CLIENT.login)).toHaveLength(1)
+    expect(postsTo(home, CLIENT.api)).toHaveLength(1)
   } finally {
     await launched.close()
   }

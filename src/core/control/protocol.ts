@@ -70,7 +70,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'list_sessions',
     description:
-      'Lists the sessions of your Menkar project: name, id, shown state (working, blocked, idle, done), context used, parent, and whether it has a tab.',
+      'Lists the sessions of your Menkar project: name, id, shown state (working, blocked, idle, done), context used, parent, and whether it has a tab; in the orchestration mode also its role, marks and the skills the human set for it.',
     inputSchema: { type: 'object', properties: {} },
   },
   {

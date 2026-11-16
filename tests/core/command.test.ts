@@ -183,4 +183,35 @@ describe('command lines', () => {
       ).toBe('/bin/c --resume r1 && exit\n')
     })
   })
+
+  // Plan 40 (decisions 1.150, 1.157): the team block reaches Claude as a file appended to its
+  // system prompt, last on the line; a resume also rebuilds it rather than keep the recorded one.
+  describe('the team block', () => {
+    const teamFile = '/cache/menkar/control/team/p 1.md'
+    const all = { ...opts, mcpConfig: '{"a":1}', pluginDir: '/p' }
+    const tail = `--mcp-config '{"a":1}' --plugin-dir /p --settings ${SETTINGS}`
+    test.each([
+      [{ kind: 'new', id: 'n1', name: 'w1' } as const, '--session-id n1 -n w1', ''],
+      [
+        { kind: 'fork', source: 's1', id: 'f1' } as const,
+        '--resume s1 --fork-session --session-id f1',
+        '',
+      ],
+      [{ kind: 'resume', id: 'r1' } as const, '--resume r1', '--system-prompt-snapshot off '],
+    ])('%o carries the file last', (start, identity, snapshot) => {
+      expect(buildCommand('claude', start, { ...all, teamFile })).toBe(
+        `${CLI} ${identity} ${tail} ${snapshot}--append-system-prompt-file '${teamFile}' && exit\n`,
+      )
+    })
+    test('without the file the line is the one without the team', () => {
+      expect(buildCommand('claude', { kind: 'resume', id: 'r1' }, all)).toBe(
+        `${CLI} --resume r1 ${tail} && exit\n`,
+      )
+    })
+    test('Cursor ignores it', () => {
+      expect(
+        buildCommand('cursor', { kind: 'resume', id: 'r1' }, { cli: '/bin/c', teamFile }),
+      ).toBe('/bin/c --resume r1 && exit\n')
+    })
+  })
 })

@@ -375,14 +375,20 @@ export function sessionMarks(
   readonly orchestrator: boolean
   readonly priority: boolean
   readonly withYou: boolean
+  readonly skills: readonly { readonly name: string; readonly maintainer: boolean }[]
 } {
   const o = keptOrchestration(p.orchestration, p.members)
-  if (!o?.on) return { role: null, orchestrator: false, priority: false, withYou: false }
+  if (!o?.on)
+    return { role: null, orchestrator: false, priority: false, withYou: false, skills: [] }
   return {
     role: o.roles?.[sessionId] ?? null,
     orchestrator: o.orchestrator === sessionId,
     priority: onStarredTask,
     withYou: o.withYou?.includes(sessionId) ?? false,
+    skills: (o.skills?.[sessionId] ?? []).map((s) => ({
+      name: s.name,
+      maintainer: s.maintainer === true,
+    })),
   }
 }
 

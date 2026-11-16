@@ -63,3 +63,16 @@ export class WakeBatcher {
     this.pending.clear()
   }
 }
+
+// A turn Menkar's own team post opened answers nothing the parent waits on. The transcript is
+// read only when the pane was delivered such a post since its last turn end.
+export async function wakesParent(
+  previous: ShownState,
+  next: ShownState,
+  postedSinceTurnEnd: boolean,
+  onlyTeamUpdates: () => Promise<boolean>,
+): Promise<boolean> {
+  const turnEnd = previous === 'working' && (next === 'idle' || next === 'done')
+  if (!turnEnd || !postedSinceTurnEnd) return true
+  return !(await onlyTeamUpdates())
+}

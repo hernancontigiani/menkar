@@ -405,8 +405,11 @@ async function startTeam(
   guide: string,
   cap: number | null,
 ): Promise<void> {
+  if (pick === NEW && !folder) return
+  // On first, so a new orchestrator starts with its team block, and a running session chosen hears
+  // of the whole change in one post.
+  await act({ type: 'setOrchestrationMode', project: p.id, on: true })
   if (pick === NEW) {
-    if (!folder) return
     const { refusal } = await act({
       type: 'startNew',
       agent: 'claude',
@@ -415,12 +418,14 @@ async function startTeam(
       prompt: t('orch.firstPrompt', { name: p.name, guide }),
       orchestrator: true,
     })
-    if (refusal) return toast(translate(refusal))
+    if (refusal) {
+      await act({ type: 'setOrchestrationMode', project: p.id, on: false })
+      return toast(translate(refusal))
+    }
   } else await act({ type: 'setOrchestrator', session: pick, on: true })
   // A new orchestrator is marked as it starts, so it exists by now.
   if (managed.length > 0) await act({ type: 'setManaged', sessions: managed, on: true })
   if (cap !== p.orchestration.workersCap) await act({ type: 'setWorkersCap', project: p.id, cap })
-  await act({ type: 'setOrchestrationMode', project: p.id, on: true })
 }
 
 const checked = (on: boolean, label: string) => `${on ? '✓ ' : ''}${label}`

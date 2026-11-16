@@ -84,6 +84,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'refusal.maintainedBy': '{name} lo mantiene {session}.',
   'refusal.menkarSkill':
     '{name} es una de las skills propias de Menkar, que no se configuran aquí.',
+  'team.oldClaude':
+    'Claude Code {version} es anterior a {floor}: las sesiones empiezan sin sus instrucciones de equipo. Actualizá Claude Code.',
   'orch.withYouBadge': 'con vos',
   'orch.earlier': '{n} anteriores',
   'orch.parked': 'Aparcados · {n}',

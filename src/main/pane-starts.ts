@@ -1,13 +1,14 @@
 import { type FSWatcher, mkdirSync, watch } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { paneStart, sessionStartsDir } from '../core/context/statusline'
+import { type PaneStartSource, paneStart, sessionStartsDir } from '../core/context/statusline'
 import { log } from '../core/log'
 
 // The SessionStart hook of every claude Menkar starts writes a record naming the pane it runs in.
-// A clear or an in-session resume gives that pane's session another id, which the pane follows.
+// A clear or an in-session resume gives that pane's session another id, which the pane follows; a
+// compaction leaves the id and rebuilds the session's team block from its start text.
 export function watchPaneStarts(
-  follow: (pane: string, sessionId: string, source: 'clear' | 'resume') => void,
+  follow: (pane: string, sessionId: string, source: PaneStartSource) => void,
 ): () => void {
   const dir = sessionStartsDir()
   mkdirSync(dir, { recursive: true })

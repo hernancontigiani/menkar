@@ -21,6 +21,9 @@ sudo apt install ./release/menkar_0.1.0_amd64.deb
 Before calling it the first version, go through `docs/release-checklist.md`: the checks only a
 person on a real desktop can make.
 
+The orchestration mode needs **Claude Code 2.1.267 or later**: with an older one its sessions start
+without their team instructions, and Menkar says so once.
+
 It installs the app under `/opt/Menkar`, a **Menkar** launcher with its icon, and the `menkar`
 command (`/usr/bin/menkar`). Run from a terminal, `menkar` (and `menkar open <file>…`) starts the
 app on its own and gives the terminal back at once, as `code` does; closing the terminal leaves

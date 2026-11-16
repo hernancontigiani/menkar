@@ -79,6 +79,8 @@ export const en = {
   'orch.rolePlaceholder': 'Role',
   'refusal.maintainedBy': '{name} is maintained by {session}.',
   'refusal.menkarSkill': "{name} is one of Menkar's own skills, which are not set here.",
+  'team.oldClaude':
+    'Claude Code {version} is older than {floor}: sessions start without their team instructions. Update Claude Code.',
   'orch.withYouBadge': 'with you',
   'orch.earlier': '{n} earlier',
   'orch.parked': 'Parked · {n}',

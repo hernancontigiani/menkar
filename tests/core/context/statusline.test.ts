@@ -267,9 +267,11 @@ test('a clear starts the new id’s count at nothing, and its record names the M
   expect(outside.pane).toBeNull()
 })
 
-test('the app reads a clear or a resume record as its pane, new id and source, and nothing else as one', () => {
+test('the app reads a clear, a resume or a compact record as its pane, id and source, and nothing else as one', () => {
   const d = dirs()
   hook(d, { session_id: 'after', source: 'clear' }, { [PANE_ENV]: 'pane7' })
+  // Plan 40: a compaction rebuilds the team block from the start text, which main follows.
+  hook(d, { session_id: 'squeezed', source: 'compact' }, { [PANE_ENV]: 'pane9' })
   hook(d, { session_id: 'picked', source: 'resume' }, { [PANE_ENV]: 'pane7' })
   hook(d, { session_id: 'plain', source: 'clear' })
   hook(d, { session_id: 'started', source: 'startup' }, { [PANE_ENV]: 'pane8' })
@@ -277,6 +279,7 @@ test('the app reads a clear or a resume record as its pane, new id and source, a
     paneStart(readFileSync(join(d.cache, 'session-starts', `${id}.json`), 'utf8'))
   expect(read('after')).toEqual({ pane: 'pane7', sessionId: 'after', source: 'clear' })
   expect(read('picked')).toEqual({ pane: 'pane7', sessionId: 'picked', source: 'resume' })
+  expect(read('squeezed')).toEqual({ pane: 'pane9', sessionId: 'squeezed', source: 'compact' })
   expect(read('plain')).toBeNull()
   expect(read('started')).toBeNull()
   expect(paneStart('{"source":"clear","pane":"p","session_id":"../x"}')).toBeNull()

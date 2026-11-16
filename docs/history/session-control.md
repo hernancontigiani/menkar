@@ -126,3 +126,11 @@ and the wake order.
 > Left on 2026-11-14: `start_session` gained `folder` (decision 1.124).
     loose?, role? }`:** a new Claude session in the caller's project, in a tab right after the
     caller's, not selected. The caller becomes its parent, unless `loose` is true.
+
+## The skills plugin
+
+> Left on 2026-11-16: the team block says who a session is and how the team talks; the skills point to it (decisions 1.150–1.152).
+  - renewing always with a prompt that is the handoff: who the session is, the skill to load, what
+    is in flight (1.84);
+  - the report also sent by name when the session handing the task did not start the worker, since
+    a wake reaches only the parent;

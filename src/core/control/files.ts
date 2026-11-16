@@ -60,6 +60,8 @@ export function controlPaths() {
     snapshots: join(root, 'snapshot'),
     turnEnds: join(root, 'turn-ends'),
     prompts: join(root, 'prompts'),
+    // Each pane's team block, by pane id: Claude reads it once, at start.
+    team: join(root, 'team'),
   }
 }
 
@@ -173,6 +175,7 @@ export interface SnapshotSession {
   readonly orchestrator?: boolean
   readonly priority?: boolean
   readonly withYou?: boolean
+  readonly skills?: readonly { readonly name: string; readonly maintainer: boolean }[]
 }
 
 export interface Snapshot {
@@ -198,6 +201,7 @@ export function sessionsAnswer(snapshot: Snapshot): string {
         orchestrator: s.orchestrator === true,
         priority: s.priority === true,
         with_you: s.withYou === true,
+        skills: s.skills ?? [],
       })),
     },
     null,

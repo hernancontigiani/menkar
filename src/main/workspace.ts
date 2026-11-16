@@ -7,9 +7,9 @@ import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from '
 import { AGENT_COMMANDS } from '../core/agents'
 import { now } from '../core/clock'
 import { buildCommand, mcpConfig, type Start } from '../core/command'
-import { PANE_ENV } from '../core/context/statusline'
+import { PANE_ENV, type PaneStartSource } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
-import { WakeBatcher } from '../core/control/events'
+import { WakeBatcher, wakesParent } from '../core/control/events'
 import {
   type ControlAnswer,
   type ControlRequest,
@@ -157,10 +157,11 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
-import { lastReply } from '../core/sessions/lastreply'
+import { lastReply, onlyTeamUpdates } from '../core/sessions/lastreply'
 import { details, exportMarkdown, safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
+import { teamInput } from '../core/team/input'
 import type {
   Action,
   ActionResult,
@@ -217,6 +218,15 @@ import { currentNotices, currentProjects, dismissNotice, setProjects } from './p
 import { sessions } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
 import { currentTasks, setTasks } from './tasks'
+import {
+  forgetTeam,
+  setTeamSource,
+  startTeam,
+  teamChanged,
+  teamPaneChanged,
+  teamStartRecord,
+  teamTurnEnded,
+} from './team'
 import { appMessage, Terminal } from './terminal'
 import { currentTopics, setTopics, topicsNow } from './topics'
 import { sessionTokens } from './usage'
@@ -285,6 +295,11 @@ const sessionInfo = (id: string) => sessionList.find((s) => s.id === id)
 // The name a session another one started has until its transcript gives Claude's.
 const startedNames = new Map<string, string>()
 const sessionName = (id: string) => sessionInfo(id)?.name ?? startedNames.get(id) ?? id.slice(0, 8)
+// A name of its own: Claude's custom title, or the one Menkar started it with; not a derived title.
+const ownName = (id: string): string | undefined => {
+  const info = sessionInfo(id)
+  return info?.claudeNamed ? info.name : startedNames.get(id)
+}
 const agentName = (agent: PaneAgent) => (agent === 'cursor' ? t('agent.cursor') : t('agent.claude'))
 
 function windowOfTab(tabId: string): LayoutWindow | undefined {
@@ -688,6 +703,7 @@ function changed(options: { projects?: boolean } = {}): void {
   push()
   publishSnapshots()
   if (options.projects) {
+    teamChanged()
     clearTimeout(saveTimer)
     saveTimer = undefined
     saveProjectsNow()
@@ -778,6 +794,76 @@ const releaseStart = (tabId: string) => {
   else startingTabs.delete(tabId)
 }
 
+const teamContext = () => ({ warn: settings.ring_warn, full: settings.ring_full })
+
+// Names and the ring thresholds are in the team facts. The sessions list changes with every
+// transcript write: only a change of these restarts the panes' settle, or a busy team would keep
+// putting a post off.
+let teamFactsKey = ''
+function teamFactsMayChange(): void {
+  const key = JSON.stringify([
+    settings.ring_warn,
+    settings.ring_full,
+    sessionList.flatMap((s) => (s.claudeNamed ? [s.id, s.name] : [])),
+  ])
+  if (key === teamFactsKey) return
+  teamFactsKey = key
+  teamChanged()
+}
+
+// The team input a pane starts with, from its tab's project. A session not yet a member (the
+// human's new one, a fork) gets the identity it starts with: what it will be once it joins.
+function startInput(
+  projectId: string | undefined,
+  sessionId: string | null,
+  start: Start,
+  found: (skill: string) => boolean,
+) {
+  const p = projects.projects.find((x) => x.id === projectId)
+  if (!p) return null
+  const id = sessionId ?? start.id
+  const member = id && p.members.includes(id) ? id : null
+  const startName = start.kind === 'new' ? start.name : undefined
+  return teamInput({
+    project: p,
+    session: member,
+    ...(startName ? { startName } : {}),
+    named: ownName,
+    found,
+    context: teamContext(),
+  })
+}
+
+setTeamSource({
+  input: (paneId, found) => {
+    const sessionId = panes.get(paneId)?.sessionId
+    const p = sessionId ? projectOf(projects, sessionId) : undefined
+    if (!sessionId || !p) return null
+    return teamInput({
+      project: p,
+      session: sessionId,
+      named: ownName,
+      found,
+      context: teamContext(),
+    })
+  },
+  session: (paneId) => {
+    const pane = panes.get(paneId)
+    return pane?.sessionId && pane.agent !== 'shell'
+      ? { agent: pane.agent, sessionId: pane.sessionId }
+      : null
+  },
+  counts: (sessionId) => {
+    const project = projectOf(projects, sessionId)
+    return postCounts(
+      project ? orchestrationInfo(project) : undefined,
+      sessionId,
+      project ? topicsOf(currentTopics(), project.id) : [],
+      project ? tasksOf(currentTasks(), project.id) : [],
+    )
+  },
+})
+
 async function startPane(tabId: string, spec: PaneSpec): Promise<void> {
   holdStart(tabId)
   try {
@@ -816,6 +902,15 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     if (cli === null) messages.push(appMessage(tag, t('terminal.notFound', { cli: cliName })))
     else {
       const settingsFile = spec.agent === 'claude' ? await sessionSettingsFile() : undefined
+      const start = spec.start
+      const teamFile = await startTeam({
+        pane: id,
+        agent: spec.agent,
+        cli,
+        cwd: spec.cwd,
+        fork: start.kind === 'fork',
+        input: (found) => startInput(projectId, spec.sessionId, start, found),
+      })
       command = buildCommand(spec.agent, spec.start, {
         cli,
         ...(settingsFile ? { settings: settingsFile } : {}),
@@ -828,6 +923,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
             }
           : {}),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
+        ...(teamFile ? { teamFile } : {}),
       })
     }
   }
@@ -904,6 +1000,7 @@ function onPaneExit(paneId: string): void {
   const pane = panes.get(paneId)
   if (!pane) return
   panes.delete(paneId)
+  forgetTeam(paneId)
   pane.handle?.close()
   // A pane hung up to renew its session: its tab stays, already re-keyed, for the new one.
   const renewed = renewing.get(paneId)
@@ -1039,6 +1136,7 @@ function joinSession(pane: Pane, sessionId: string): void {
   pane.pending = undefined
   projects = addMember(projects, joinTarget(projects, pending.startedIn), sessionId)
   pane.sessionId = sessionId
+  teamPaneChanged(pane.id)
   if (panes.has(pane.id)) {
     tabLabels.delete(pane.tabId)
     replaceTab(pane.tabId, (tab) =>
@@ -1802,9 +1900,23 @@ const wakes = new WakeBatcher(
 
 onShownChange((paneId, sessionId, previous, next) => {
   if (!sessionId || panes.get(paneId)?.agent !== 'claude') return
-  const project = projectOf(projects, sessionId)
-  const parent = project ? keptParents(project)[sessionId] : undefined
-  wakes.note(parent ?? null, sessionId, sessionName(sessionId), previous, next)
+  const turnEnd = previous === 'working' && (next === 'idle' || next === 'done')
+  const posted = turnEnd && teamTurnEnded(paneId)
+  const file = sessionInfo(sessionId)?.file
+  void wakesParent(previous, next, posted, async () => (file ? onlyTeamUpdates(file) : false))
+    .catch((error: unknown) => {
+      log.warn('a turn could not be read; its parent is woken', { pane: paneId, error })
+      return true
+    })
+    .then((wake) => {
+      if (!wake) {
+        log.info('a turn that only answered team updates woke no parent', { pane: paneId })
+        return
+      }
+      const project = projectOf(projects, sessionId)
+      const parent = project ? keptParents(project)[sessionId] : undefined
+      wakes.note(parent ?? null, sessionId, sessionName(sessionId), previous, next)
+    })
 })
 
 async function wakeSession(parent: string, text: string): Promise<void> {
@@ -1845,12 +1957,10 @@ const inSomeTab = (sessionId: string) =>
 // `/clear` (decision 1.56) and an in-session `/resume` (1.57) give the session in a pane another
 // id, and the tab follows it. After a clear the new session takes the old one's place in its
 // project; a resumed one joins the tab's project. The session left stays a stopped row.
-export function followPaneStart(
-  paneId: string,
-  sessionId: string,
-  source: 'clear' | 'resume',
-): void {
+export function followPaneStart(paneId: string, sessionId: string, source: PaneStartSource): void {
   const pane = panes.get(paneId)
+  teamStartRecord(paneId, source, pane?.sessionId === sessionId)
+  if (source === 'compact') return
   const from = pane?.sessionId
   const tab = pane ? tabById(pane.tabId) : undefined
   if (!pane || pane.agent !== 'claude' || !from || from === sessionId || tab?.kind !== 'session')
@@ -2297,6 +2407,7 @@ export async function startWorkspace(): Promise<void> {
       remoteIds = new Set(remoteControlList(state))
       mutedIds = new Set(mutedList(state))
       push()
+      teamFactsMayChange()
     })
   })
   layout = reopen(projects, { reopenTabs: settings.reopen_tabs, isFile, newId })

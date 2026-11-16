@@ -38,3 +38,9 @@
   counts on across resumes. The cost since is the total minus a baseline, with no transcript read.
   - **"total"** is the bar's only word. The bar is not translated: the statusline runs inside
     Claude Code, and reads none of the app's settings.
+
+## The shape
+
+> Left on 2026-11-16: main also reads `compact` records, for the team block (decision 1.150).
+    (measured, 2.1.322); null outside Menkar. Main watches the folder for `clear` and `resume`
+    records naming a live pane, so the tab follows the pane's new session (`docs/sessions.md`).

@@ -21,9 +21,21 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away. Each answer is printed as
 // "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the terminal for the cursor's
 // position (CSI 6n) as it starts, as Claude Code queries its terminal.
+// The team block (plan 40): --version prints FAKE_CLAUDE_VERSION (2.1.325 by default) and exits;
+// --append-system-prompt-file is read at start, as Claude Code reads it, into claude-team.jsonl, and
+// a missing one stops it with Claude Code's error. With FAKE_CLAUDE_SOCKET set, unless a registry
+// entry already names its session, it publishes a messaging socket as Claude Code does (an entry
+// Remote Control's state also reads), and what arrives there goes to claude-posts.jsonl; with FAKE_CLAUDE_TEAM_TURN set, a team update starts a turn that writes the
+// update and a "Noted." to its transcript, as Claude Code records them. TURN is a turn the human
+// typed; COMPACT runs the "compact" hook; FAKE_CLAUDE_START_HOOK runs the "resume" hook of a
+// --resume start, as Claude Code does.
 const FAKE_CLAUDE = `#!/usr/bin/env node
-const fs = require('node:fs'), path = require('node:path')
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os')
 const args = process.argv.slice(2)
+if (args[0] === '--version') {
+  process.stdout.write((process.env.FAKE_CLAUDE_VERSION || '2.1.325') + ' (Claude Code)\\n')
+  process.exit(0)
+}
 fs.appendFileSync(path.join(process.env.HOME, 'claude-args.txt'), args.join(' ') + '\\n')
 fs.writeFileSync(path.join(process.env.HOME, 'claude-pid.txt'), String(process.pid))
 fs.writeFileSync(path.join(process.env.HOME, 'claude-env.json'), JSON.stringify(process.env))
@@ -50,6 +62,65 @@ function sessionStart(source, id, transcript) {
 }
 const ownId = at >= 0 ? args[at + 1] : args.includes('--resume') ? args[args.indexOf('--resume') + 1] : null
 if (ownId && process.env.FAKE_CLAUDE_QUERY === ownId) process.stdout.write('\\x1b[6n')
+const teamAt = args.indexOf('--append-system-prompt-file')
+if (teamAt >= 0) {
+  const file = args[teamAt + 1]
+  if (!fs.existsSync(file)) {
+    process.stderr.write('Error: Append system prompt file not found: ' + file + '\\r\\n')
+    process.exit(1)
+  }
+  fs.appendFileSync(path.join(process.env.HOME, 'claude-team.jsonl'), JSON.stringify({ id: ownId, file, text: fs.readFileSync(file, 'utf8') }) + '\\n')
+}
+const transcriptOf = (id) => path.join(folder, id + '.jsonl')
+const record = (lines) => fs.appendFileSync(transcriptOf(ownId), lines.map((l) => JSON.stringify(l)).join('\\n') + '\\n')
+// A turn: the working footer, then the transcript's lines, then the screen cleared.
+function turn(lines) {
+  process.stdout.write('esc to interrupt\\r\\n')
+  setTimeout(() => {
+    // Claude Code has answered every earlier message by then; the stand-in's first prompt had none.
+    const kinds = fs.readFileSync(transcriptOf(ownId), 'utf8').split('\\n').filter(Boolean).map((l) => JSON.parse(l).type)
+    const last = kinds.filter((k) => k === 'user' || k === 'assistant').pop()
+    if (last === 'user') lines = [{ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Started.' }] } }, ...lines]
+    record(lines)
+    process.stdout.write('\\x1b[2J\\x1b[Hstand-in idle\\r\\n')
+  }, 1500)
+}
+const registry = path.join(process.env.HOME, '.claude', 'sessions')
+const taken = ownId && fs.existsSync(registry) && fs.readdirSync(registry).some((n) => {
+  try {
+    const entry = JSON.parse(fs.readFileSync(path.join(registry, n), 'utf8'))
+    if (entry.sessionId !== ownId) return false
+    if (entry.pid === 4242) return true // a test's own entry: its socket is the test's
+    process.kill(entry.pid, 0)
+    return true
+  } catch { return false }
+})
+if (ownId && process.env.FAKE_CLAUDE_SOCKET && !taken) {
+  const socket = path.join(os.tmpdir(), 'mk-' + process.pid + '.sock')
+  require('node:net').createServer((c) => {
+    let data = ''
+    c.on('data', (d) => { data += d })
+    c.on('end', () => {
+      for (const line of data.split('\\n').filter(Boolean)) {
+        const content = JSON.parse(line).message.content
+        fs.appendFileSync(path.join(process.env.HOME, 'claude-posts.jsonl'), JSON.stringify({ id: ownId, content }) + '\\n')
+        if (process.env.FAKE_CLAUDE_TEAM_TURN && content.startsWith('[Menkar] Team update:'))
+          turn([
+            { type: 'user', isMeta: true, origin: { kind: 'peer', from: 'menkar' }, message: { role: 'user', content: 'Another Claude session sent a message:\\n' + content + '\\n\\nThis came from another Claude session.' } },
+            { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Noted.' }] } },
+          ])
+      }
+    })
+  }).listen(socket).unref()
+  fs.mkdirSync(registry, { recursive: true })
+  fs.writeFileSync(path.join(registry, process.pid + '.json'), JSON.stringify({ pid: process.pid, sessionId: ownId, messagingSocketPath: socket, peerProtocol: 1 }))
+  for (const signal of ['SIGHUP', 'SIGTERM']) process.on(signal, () => process.exit(129))
+  process.on('exit', () => {
+    for (const file of [path.join(registry, process.pid + '.json'), socket]) try { fs.unlinkSync(file) } catch {}
+  })
+}
+if (process.env.FAKE_CLAUDE_START_HOOK && args.includes('--resume') && !args.includes('--fork-session'))
+  sessionStart('resume', ownId, transcriptOf(ownId))
 function callTool(name, toolArgs, endsTurn) {
   const server = JSON.parse(args[args.indexOf('--mcp-config') + 1]).mcpServers.menkar
   const child = require('node:child_process').spawn(server.command, server.args, {
@@ -94,6 +165,18 @@ process.stdin.on('data', (d) => {
     fs.writeFileSync(transcript, JSON.stringify({ type: 'user', cwd: process.cwd(), message: { content: 'after the clear' } }) + '\\n')
     sessionStart('clear', '${CLEARED_SESSION}', transcript)
     process.stdout.write('stand-in cleared\\r\\n')
+  }
+  if (typed.endsWith('COMPACT')) {
+    typed = ''
+    sessionStart('compact', ownId, transcriptOf(ownId))
+    process.stdout.write('stand-in compacted\\r\\n')
+  }
+  if (typed.endsWith('TURN')) {
+    typed = ''
+    turn([
+      { type: 'user', message: { role: 'user', content: 'a question typed by the human' } },
+      { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'An answer.' }] } },
+    ])
   }
   if (typed.endsWith('RESUME')) {
     typed = ''

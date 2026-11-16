@@ -10,7 +10,7 @@ import {
   type Snapshot,
   writeAtomic,
 } from '../core/control/files'
-import { sweepPrompts } from '../core/control/prompt'
+import { sweepPrompts, sweepTeamFiles } from '../core/control/prompt'
 import { RequestQueue } from '../core/control/requests'
 import { log } from '../core/log'
 import { pluginFolder } from '../core/paths'
@@ -91,8 +91,10 @@ export async function startControl(handlers: ControlHandlers): Promise<void> {
     pass()
     turnEnds()
   }, PASS_MS)
-  const sweep = () =>
+  const sweep = () => {
     sweepPrompts(now()).catch((error: unknown) => log.warn('prompt copies not swept', { error }))
+    sweepTeamFiles(now()).catch((error: unknown) => log.warn('team files not swept', { error }))
+  }
   void sweep()
   const sweeper = setInterval(sweep, SWEEP_MS)
   pass()

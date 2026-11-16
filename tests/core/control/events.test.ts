@@ -1,7 +1,12 @@
 // what wakes a parent. A child entering `blocked`, or leaving `working` for
 // `idle` or `done`, is an event; per parent they wait 3 s and go together in one message.
 import { describe, expect, test } from 'vitest'
-import { WAKE_DELAY_MS, WakeBatcher, wakeEvent } from '../../../src/core/control/events'
+import {
+  WAKE_DELAY_MS,
+  WakeBatcher,
+  wakeEvent,
+  wakesParent,
+} from '../../../src/core/control/events'
 import { addTask, emptyTasks, onStarredTask, tasksOf } from '../../../src/core/orchestration/tasks'
 
 function fakeTimers() {
@@ -103,5 +108,39 @@ describe('waking a parent', () => {
     batcher.note('orch', 'a1', 'api', 'idle', 'idle')
     clock.advance(WAKE_DELAY_MS * 2)
     expect(sent).toEqual([])
+  })
+})
+
+// Plan 40 (N2): a team post starts a turn. A turn opened only by team updates wakes no parent;
+// one that also had a peer's or the human's message does. The transcript is read only for a pane
+// that was delivered a team post since its last turn end.
+describe("a team post's turn", () => {
+  const reads = (only: boolean) => {
+    const calls: number[] = []
+    return {
+      calls,
+      read: async () => {
+        calls.push(1)
+        return only
+      },
+    }
+  }
+  test('only team updates since the last turn → no wake', async () => {
+    const r = reads(true)
+    expect(await wakesParent('working', 'idle', true, r.read)).toBe(false)
+    expect(await wakesParent('working', 'done', true, r.read)).toBe(false)
+  })
+  test("a peer's or the human's message too → the wake", async () => {
+    expect(await wakesParent('working', 'idle', true, reads(false).read)).toBe(true)
+  })
+  test('a pane delivered no team post reads nothing', async () => {
+    const r = reads(true)
+    expect(await wakesParent('working', 'idle', false, r.read)).toBe(true)
+    expect(r.calls).toEqual([])
+  })
+  test('a permission prompt always wakes, unread', async () => {
+    const r = reads(true)
+    expect(await wakesParent('working', 'blocked', true, r.read)).toBe(true)
+    expect(r.calls).toEqual([])
   })
 })
