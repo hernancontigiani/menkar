@@ -67,6 +67,10 @@ export interface Project {
   readonly teamView?: true
   // The Work view's Consultants section shows its heading alone.
   readonly consultantsCollapsed?: true
+  // The Team view's orchestrator shows its row alone, its children folded into it (decision 1.171).
+  readonly orchestratorCollapsed?: true
+  // The Team view's Others section shows its heading alone.
+  readonly othersCollapsed?: true
   // The Work view's Done today section, folded unless this is set.
   readonly doneTodayOpen?: true
   // The Board panel shown (decision 1.126).

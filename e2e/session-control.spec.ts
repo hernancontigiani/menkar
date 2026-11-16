@@ -632,7 +632,12 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
           }
       }
     }
-    await expect.poll(() => backPosts(socket.posted), { timeout: 15_000 }).toBe(3)
+    // Back then away within a wake's batch is one post, the latest (decision 1.173); with
+    // screenshots between them they may fall in two.
+    const presencePosts = () => socket.posted().filter((p) => /^\[Menkar\] The human is /.test(p))
+    await expect
+      .poll(() => presencePosts().at(-1), { timeout: 15_000 })
+      .toMatch(/^\[Menkar\] The human is away/)
   } finally {
     socket.close()
     await launched.close()
@@ -784,7 +789,7 @@ test('the team block, mode on: a resume rebuilds it and gets no post; the humanâ
   }
 })
 
-test('the team block: a role change is one post, saving it unchanged none, a compaction posts the facts again; a turn that only answered it wakes no parent, a typed one does', async () => {
+test('the team block: a role change is one post, saving it unchanged none, a compaction posts the facts again; a turn that only answered it wakes no parent, nor one its report to the parent closed; a typed one does', async () => {
   const { launched, page, argLines, root, posts } = await open({
     orchestrated: true,
     env: { FAKE_CLAUDE_TEAM_TURN: '1', FAKE_CLAUDE_SOCKET: '1' },
@@ -821,6 +826,12 @@ test('the team block: a role change is one post, saving it unchanged none, a com
     await expect
       .poll(() => posts(worker), { timeout: 15_000 })
       .toEqual([expect.stringMatching(ROLE), expect.stringMatching(ROLE)])
+    await page.waitForTimeout(QUIET_MS)
+    expect(finished()).toEqual([])
+
+    // Decision 1.173: one notice per report.
+    await page.keyboard.type('REPORT')
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in idle')
     await page.waitForTimeout(QUIET_MS)
     expect(finished()).toEqual([])
 

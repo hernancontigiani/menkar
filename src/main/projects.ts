@@ -52,6 +52,8 @@ export function projectsSnapshot(): ProjectsSnapshot {
       topicsCollapsed: p.topicsCollapsed === true,
       teamView: p.teamView === true,
       consultantsCollapsed: p.consultantsCollapsed === true,
+      orchestratorCollapsed: p.orchestratorCollapsed === true,
+      othersCollapsed: p.othersCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
       board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
     })),

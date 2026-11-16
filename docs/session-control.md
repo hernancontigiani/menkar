@@ -206,10 +206,26 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **The event:** a child's shown state entering `blocked` ("‹name› is waiting at a permission
     prompt"), or leaving `working` for `idle` or `done` ("‹name› finished its turn"). It comes from
     `onShownChange` in `src/main/agentstate.ts`.
-  - **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, events wait until no
-    new one has come for `WAKE_DELAY_MS`, a child keeps only its latest, and all go in one message.
-    In it, the events of children whose current task has the ★ come first; otherwise they keep the
-    order the children first spoke in (decisions 1.78 and 1.114).
+  - **One wake per report** (decision 1.173, 2026-11-16): a turn the child closed with a report to
+    its parent ends without "finished its turn". At the turn end main reads the child's own
+    transcript back to the turn's first message (`reportClosedTurn`,
+    `src/core/sessions/lastreply.ts`): the turn closed with a report when, among the SendMessage
+    calls after its last other tool call, one went to the parent's current name (a "‹name› [ref]"
+    counts) and its `toolUseResult.success` is true. An early "may I…?" followed by more work
+    still lets the turn's end wake the parent. A permission prompt always wakes. Claude Code
+    2.1.325 records `to` as the model typed it and no resolved session, so **not covered**: a `to`
+    given as an agentId, or a name the parent no longer has (it renamed); those turns still wake
+    it. The parent's own transcript was not used: an incoming message is written there only when
+    the parent drains it, so a busy parent shows nothing yet, and the earlier `enqueue` record does
+    not name the sender.
+  - **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, posts wait until no
+    new one has come for `WAKE_DELAY_MS`, and all go in one message, joined by "; ". A child keeps
+    only its latest event. The human's own posts to the orchestrator (`post`, below) join it, keyed
+    (`presence`, `control:‹session›`, `topic:‹n›`) so the latest of a key wins: away then back
+    within the wait leaves "The human is back". In the message the human's posts come first, then
+    the events of children whose current task has the ★, then the rest, each in the order they
+    first came (decisions 1.78, 1.114 and 1.173). `forget` drops a pending post the parent no
+    longer needs: the orchestrator that called `human_back` is not told the human was away.
   - **The post** (`postToSession`, `post.ts`):
     - Main finds the parent's process in Claude Code's registry, `~/.claude/sessions/<pid>.json`,
       read only, by `sessionId`, and requires `peerProtocol` 1.
@@ -230,9 +246,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       it. Posts to other sessions have no counts.
     - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
-- **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]
-  The human wants to discuss topic N" (a double-click on a topic), "[Menkar] The human took control
-  of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab's banner, decision 1.101).
+- **The human's own posts to the orchestrator** go through the same batch (decision 1.173):
+  "The human wants to discuss topic N" (a double-click on a topic), "The human took control of
+  ‹name›" and "The human handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The
+  human is away: …" or "The human is back" (`docs/orchestration.md`). Team updates stay apart:
+  they have their own settle, and a turn they alone opened is recognised by the post starting
+  with "[Menkar] Team update:".
 
 ## The skills plugin
 

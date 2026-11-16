@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
   color_scheme: 'system',
   font: '',
   scrollback: 10_000,
-  sidebar_width: 250,
+  sidebar_width: 300,
   reopen_tabs: true,
   new_session_dir: '',
   show_folder_path: false,
@@ -71,8 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
   files_trash_days: 30,
 }
 
-export const SIDEBAR_MIN_WIDTH = 180
-export const SIDEBAR_SAVE_MIN_WIDTH = 150
+export const SIDEBAR_MIN_WIDTH = 270
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -94,7 +93,11 @@ export function parseSettings(value: unknown): Settings {
     color_scheme: str('color_scheme', DEFAULT_SETTINGS.color_scheme),
     font: str('font', DEFAULT_SETTINGS.font),
     scrollback: int('scrollback', DEFAULT_SETTINGS.scrollback),
-    sidebar_width: int('sidebar_width', DEFAULT_SETTINGS.sidebar_width),
+    // A width saved under an earlier, lower minimum opens at today's.
+    sidebar_width: Math.max(
+      SIDEBAR_MIN_WIDTH,
+      int('sidebar_width', DEFAULT_SETTINGS.sidebar_width),
+    ),
     reopen_tabs:
       typeof raw.reopen_tabs === 'boolean' ? raw.reopen_tabs : DEFAULT_SETTINGS.reopen_tabs,
     new_session_dir: str('new_session_dir', DEFAULT_SETTINGS.new_session_dir),

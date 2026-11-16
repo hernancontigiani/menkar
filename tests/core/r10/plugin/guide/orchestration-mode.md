@@ -48,7 +48,8 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
 1. **Counts**: open topics, tasks in progress, tasks waiting.
 2. **Awaiting you** — the topics: the open ones, the one being discussed first (the current one,
    with a green dot), then those of a ★ task, then blocking ones (with a red mark), then the rest by
-   number, so the top one is the one to take. A click unfolds its context, who
+   number, so the top one is the one to take. The first five show, then "N more…", which a
+   click unfolds. A click on a topic unfolds its context, who
    raised it and its status. The list is read only: a topic is discussed in the orchestrator's
    chat, and closed there. Everything that waits on the person is a topic.
 3. **Tasks**: the open tasks, ★ first: title, who has it, its steps ("3/5") and its latest note,
@@ -61,6 +62,9 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
 (those without a tab folded into one "earlier" row a click unfolds), the **Consultants** (every
 loose session with a role), and **Others** with their groups as in the ordinary list. Each
 session's row shows its current task and step under its name, and the ★ while that task has it.
+Three triangles fold, each kept per project: the orchestrator's (its row then stands for everyone
+under it, with how many and the most urgent state, red while one waits at a permission prompt),
+Consultants' and Others'.
 
 **The Board**, a panel under the header opened and closed with the **Board** button beside the
 Orchestration switch, shows every topic and task in columns: **Awaiting you** (the topics), Queued, In progress, Waiting,

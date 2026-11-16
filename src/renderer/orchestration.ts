@@ -1,4 +1,5 @@
 import { membersFolders, type ProjectFolder, presentFolders } from '../core/orchestration/folders'
+import { topicsFolded } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
 import { recentFolders } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
@@ -698,8 +699,9 @@ async function roleWindow(info: SessionInfo): Promise<void> {
   })
 }
 
-// Per window and not saved: the topics whose context is unfolded.
+// Per window and not saved: the topics whose context is unfolded, and whether "N more" was.
 const unfoldedTopics = new Set<number>()
+let allTopicsShown = false
 
 // At the top of the sidebar while the mode is on (decision 1.89, mock A1): read only, the
 // discussion happens in the orchestrator's chat (1.86).
@@ -721,7 +723,19 @@ export function topicsSection(s: WindowState, collapsed: boolean): HTMLElement[]
   if (collapsed) return [head]
   if (s.topics.length === 0)
     return [head, el('div', { class: 'topics-empty dim' }, t('orch.noTopics'))]
-  return [head, ...s.topics.map(topicRow)]
+  const { rows, more } = topicsFolded(s.topics, allTopicsShown)
+  if (more === 0) return [head, ...rows.map(topicRow)]
+  const moreRow = el(
+    'button',
+    { class: 'topic-more dim', 'data-key': 'topics-more' },
+    t('orch.topicsMore', { n: more }),
+  )
+  moreRow.addEventListener('click', () => {
+    allTopicsShown = true
+    const now = currentState()
+    if (now) render(now)
+  })
+  return [head, ...rows.map(topicRow), moreRow]
 }
 
 function topicRow(topic: TopicView): HTMLElement {

@@ -123,7 +123,8 @@ built and why.
   ★) is read and dropped, never written: the ★ belongs to tasks now (decision 1.114, 2026-11-13).
   Beside it, `topics_collapsed` when the Topics section shows its heading alone, and the Work
   view's choices (decision 1.112): `team_view` when the sidebar shows Team, `consultants_collapsed`
-  and `done_today_open`, each written only while true.
+  and `done_today_open`, and the Team view's folds (decision 1.171): `orchestrator_collapsed` and
+  `others_collapsed`, each written only while true.
 - **The Board panel** (decision 1.126, 2026-11-14; `setBoard`): `board_open` while it is open,
   written only while true and cleared when the mode goes off, and `board_height`, its last height
   in pixels, written only once dragged or picked (Default size removes it). Read leniently: a

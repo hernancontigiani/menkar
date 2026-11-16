@@ -100,6 +100,55 @@ describe('waking a parent', () => {
     ])
   })
 
+  // Decision 1.173: the human's own posts join the batch, first; the latest per key wins.
+  test("the human's posts go in the same message, before ★ children and the rest", () => {
+    const sent: [string, string][] = []
+    const clock = fakeTimers()
+    const batcher = new WakeBatcher(
+      (parent, text) => sent.push([parent, text]),
+      clock.timers,
+      (child) => child === 'b1',
+    )
+    batcher.note('orch', 'a1', 'A', 'working', 'done')
+    batcher.post('orch', 'presence', 'The human is away')
+    batcher.note('orch', 'b1', 'B', 'working', 'done')
+    batcher.post('orch', 'topic:4', 'The human wants to discuss topic 4')
+    batcher.post('orch', 'presence', 'The human is back')
+    clock.advance(WAKE_DELAY_MS - 1)
+    expect(sent).toEqual([])
+    clock.advance(1)
+    expect(sent).toEqual([
+      [
+        'orch',
+        'The human wants to discuss topic 4; The human is back; B finished its turn; A finished its turn',
+      ],
+    ])
+  })
+
+  test("a human's post alone goes after the same wait", () => {
+    const sent: [string, string][] = []
+    const clock = fakeTimers()
+    const batcher = new WakeBatcher((parent, text) => sent.push([parent, text]), clock.timers)
+    batcher.post('orch', 'control:w1', 'The human took control of w1')
+    batcher.post('orch', 'control:w1', 'The human handed w1 back')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent).toEqual([['orch', 'The human handed w1 back']])
+  })
+
+  // human_back: the orchestrator that cleared it is not told it was away a moment ago.
+  test('a forgotten post is not sent; the rest of the message still goes', () => {
+    const sent: [string, string][] = []
+    const clock = fakeTimers()
+    const batcher = new WakeBatcher((parent, text) => sent.push([parent, text]), clock.timers)
+    batcher.post('orch', 'presence', 'The human is away')
+    batcher.forget('orch', 'presence')
+    batcher.post('other', 'presence', 'The human is away')
+    batcher.forget('other', 'presence')
+    batcher.note('other', 'a1', 'A', 'working', 'done')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent).toEqual([['other', 'A finished its turn']])
+  })
+
   test('no parent, or a transition that is no event, sends nothing', () => {
     const sent: unknown[] = []
     const clock = fakeTimers()
@@ -125,22 +174,52 @@ describe("a team post's turn", () => {
       },
     }
   }
+  const noReport = async () => false
   test('only team updates since the last turn → no wake', async () => {
     const r = reads(true)
-    expect(await wakesParent('working', 'idle', true, r.read)).toBe(false)
-    expect(await wakesParent('working', 'done', true, r.read)).toBe(false)
+    expect(await wakesParent('working', 'idle', true, r.read, noReport)).toBe(false)
+    expect(await wakesParent('working', 'done', true, r.read, noReport)).toBe(false)
   })
   test("a peer's or the human's message too → the wake", async () => {
-    expect(await wakesParent('working', 'idle', true, reads(false).read)).toBe(true)
+    expect(await wakesParent('working', 'idle', true, reads(false).read, noReport)).toBe(true)
   })
   test('a pane delivered no team post reads nothing', async () => {
     const r = reads(true)
-    expect(await wakesParent('working', 'idle', false, r.read)).toBe(true)
+    expect(await wakesParent('working', 'idle', false, r.read, noReport)).toBe(true)
     expect(r.calls).toEqual([])
   })
   test('a permission prompt always wakes, unread', async () => {
     const r = reads(true)
-    expect(await wakesParent('working', 'blocked', true, r.read)).toBe(true)
+    const report = reads(true)
+    expect(await wakesParent('working', 'blocked', true, r.read, report.read)).toBe(true)
     expect(r.calls).toEqual([])
+    expect(report.calls).toEqual([])
+  })
+})
+
+// Decision 1.173: one notice per report. A turn the child's report to its parent closed ends
+// without "finished its turn".
+describe('a turn closed by a report', () => {
+  test('the report closed the turn → no wake', async () => {
+    expect(
+      await wakesParent(
+        'working',
+        'idle',
+        false,
+        async () => false,
+        async () => true,
+      ),
+    ).toBe(false)
+  })
+  test('no report → the wake', async () => {
+    expect(
+      await wakesParent(
+        'working',
+        'done',
+        false,
+        async () => false,
+        async () => false,
+      ),
+    ).toBe(true)
   })
 })

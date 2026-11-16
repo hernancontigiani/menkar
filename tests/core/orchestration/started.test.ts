@@ -56,6 +56,8 @@ describe('starting a session with loose and role', () => {
       topicsCollapsed: false,
       teamView: false,
       consultantsCollapsed: false,
+      orchestratorCollapsed: false,
+      othersCollapsed: false,
       doneTodayOpen: false,
       board: { open: false, height: null },
     }

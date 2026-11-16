@@ -9,12 +9,18 @@ import {
   showAllHeight,
 } from '../../../src/core/orchestration/board'
 
-const sizes = { bar: 24, heading: 16, card: 50, gap: 6, padding: 18 }
+const sizes = { bar: 24, heading: 16, card: 50, gap: 6, padding: 18, scrollbar: 0 }
 
 describe('the Board panel’s heights', () => {
   test('the default fits the bar, a heading and two cards with their gaps, whatever the window', () => {
     expect(defaultBoardHeight(sizes)).toBe(24 + 18 + 16 + 2 * (6 + 50))
     expect(defaultBoardHeight({ ...sizes, card: 60 })).toBe(24 + 18 + 16 + 2 * (6 + 60))
+  })
+
+  // The columns keep a minimum width: on a narrow right-hand area the panel scrolls sideways, and
+  // its scrollbar must not cover the second card.
+  test('a sideways scrollbar of 14 px adds 14 px to the default', () => {
+    expect(defaultBoardHeight({ ...sizes, scrollbar: 14 })).toBe(defaultBoardHeight(sizes) + 14)
   })
 
   test('Show all fits every card, at most 70 % of the right-hand area', () => {

@@ -325,7 +325,13 @@ export function removeFolder(state: Projects, projectId: string, path: string): 
   }))
 }
 
-type Flag = 'topicsCollapsed' | 'teamView' | 'consultantsCollapsed' | 'doneTodayOpen'
+type Flag =
+  | 'topicsCollapsed'
+  | 'teamView'
+  | 'consultantsCollapsed'
+  | 'orchestratorCollapsed'
+  | 'othersCollapsed'
+  | 'doneTodayOpen'
 
 // A project's flag, written only while true.
 function setFlag(state: Projects, projectId: string, flag: Flag, on: boolean): Projects {
@@ -347,6 +353,12 @@ export const setTeamView = (state: Projects, projectId: string, team: boolean) =
 
 export const setConsultantsCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
   setFlag(state, projectId, 'consultantsCollapsed', collapsed)
+
+export const setOrchestratorCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
+  setFlag(state, projectId, 'orchestratorCollapsed', collapsed)
+
+export const setOthersCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
+  setFlag(state, projectId, 'othersCollapsed', collapsed)
 
 export const setDoneTodayOpen = (state: Projects, projectId: string, open: boolean) =>
   setFlag(state, projectId, 'doneTodayOpen', open)

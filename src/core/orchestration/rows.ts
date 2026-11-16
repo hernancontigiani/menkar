@@ -11,6 +11,9 @@ export type ModeRow =
       readonly section: string | null
       // Under the orchestrator's "Parked" row.
       readonly parked?: true
+      // The orchestrator's row while anyone is under it (decision 1.171): everyone under it, and
+      // whether they are folded into its row.
+      readonly fold?: { readonly ids: readonly string[]; readonly folded: boolean }
     }
   // A top row's children without a tab, folded into one row until a click unfolds them.
   | {
@@ -22,7 +25,11 @@ export type ModeRow =
   // The orchestrator's parked workers (decision 1.120), folded into one row until a click unfolds
   // them; they are not among its "earlier" children.
   | { readonly kind: 'parked'; readonly ids: readonly string[]; readonly open: boolean }
-  | { readonly kind: 'heading'; readonly heading: 'consultants' | 'others' }
+  | {
+      readonly kind: 'heading'
+      readonly heading: 'consultants' | 'others'
+      readonly collapsed?: true
+    }
   | { readonly kind: 'group'; readonly name: string; readonly collapsed: boolean }
   | { readonly kind: 'noGroup' }
 
@@ -96,19 +103,37 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
     ]
   }
 
+  function orchestratorRows(id: string): ModeRow[] {
+    const ids = children.get(id) ?? []
+    if (ids.length === 0) return withChildren(id, null)
+    const folded = project.orchestratorCollapsed
+    const top: ModeRow = { kind: 'session', id, depth: 0, section: null, fold: { ids, folded } }
+    return folded ? [top] : [top, ...withChildren(id, null).slice(1)]
+  }
+
   // A loose session with a role label is a consultant (decision 1.107); a labelled child is an
   // expert and stays nested under the orchestrator.
   const consultants = tops.filter((id) => id !== orchestrator && o.roles[id] !== undefined)
   const team = new Set([...(orchestrator ? [orchestrator] : []), ...consultants])
   const others = tops.filter((id) => !team.has(id))
 
-  const rows: ModeRow[] = orchestrator ? withChildren(orchestrator, null) : []
+  const rows: ModeRow[] = orchestrator ? orchestratorRows(orchestrator) : []
   if (consultants.length > 0) {
-    rows.push({ kind: 'heading', heading: 'consultants' })
-    for (const id of consultants) rows.push(...withChildren(id, null))
+    rows.push({
+      kind: 'heading',
+      heading: 'consultants',
+      ...(project.consultantsCollapsed ? { collapsed: true as const } : {}),
+    })
+    if (!project.consultantsCollapsed)
+      for (const id of consultants) rows.push(...withChildren(id, null))
   }
   if (others.length === 0) return rows
-  rows.push({ kind: 'heading', heading: 'others' })
+  rows.push({
+    kind: 'heading',
+    heading: 'others',
+    ...(project.othersCollapsed ? { collapsed: true as const } : {}),
+  })
+  if (project.othersCollapsed) return rows
   const othersSet = new Set(others)
   const grouped = new Set<string>()
   let groupsShown = 0
@@ -124,4 +149,16 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
   if (loose.length > 0 && groupsShown > 0) rows.push({ kind: 'noGroup' })
   for (const id of loose) rows.push(...withChildren(id, ''))
   return rows
+}
+
+export const TOPICS_SHOWN = 5
+
+// The sidebar's "Awaiting you", in `shownTopics`' order: the first few, the rest behind "N more"
+// until it is unfolded.
+export function topicsFolded<T>(
+  shown: readonly T[],
+  unfolded: boolean,
+): { readonly rows: readonly T[]; readonly more: number } {
+  if (unfolded || shown.length <= TOPICS_SHOWN) return { rows: shown, more: 0 }
+  return { rows: shown.slice(0, TOPICS_SHOWN), more: shown.length - TOPICS_SHOWN }
 }

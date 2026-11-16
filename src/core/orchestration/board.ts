@@ -9,6 +9,8 @@ export interface BoardSizes {
   readonly gap: number
   // The columns' and the panel's vertical padding, together.
   readonly padding: number
+  // The panel's sideways scrollbar, 0 while the columns fit at their minimum width.
+  readonly scrollbar: number
 }
 
 export const DEFAULT_CARDS = 2
@@ -16,7 +18,7 @@ export const SHOW_ALL_SHARE = 0.7
 export const MIN_PANE_ROWS = 6
 
 export function defaultBoardHeight(s: BoardSizes): number {
-  return s.bar + s.padding + s.heading + DEFAULT_CARDS * (s.gap + s.card)
+  return s.bar + s.padding + s.heading + DEFAULT_CARDS * (s.gap + s.card) + s.scrollbar
 }
 
 // `area` is the right-hand area's height under the header.

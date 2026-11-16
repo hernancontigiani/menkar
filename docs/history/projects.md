@@ -110,3 +110,8 @@ keeps how they are built and why.
 - **It follows new ids:** `followNewId` and `followResume` give the new id the old one's role,
   orchestrator mark and "with you" (`followOrchestration`), as they give it the old one's place;
   the old id keeps none. Its tasks follow too, in `tasks.json` (`docs/orchestration.md`).
+
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+> Left on 2026-11-16: the Team view's folds are saved beside them (decision 1.171).
+  and `done_today_open`, each written only while true.

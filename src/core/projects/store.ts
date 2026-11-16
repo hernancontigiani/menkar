@@ -75,6 +75,8 @@ export function parseProjects(value: unknown): Projects {
       topics_collapsed,
       team_view,
       consultants_collapsed,
+      orchestrator_collapsed,
+      others_collapsed,
       done_today_open,
       board_open,
       board_height,
@@ -136,6 +138,8 @@ export function parseProjects(value: unknown): Projects {
       ...(topics_collapsed === true ? { topicsCollapsed: true as const } : {}),
       ...(team_view === true ? { teamView: true as const } : {}),
       ...(consultants_collapsed === true ? { consultantsCollapsed: true as const } : {}),
+      ...(orchestrator_collapsed === true ? { orchestratorCollapsed: true as const } : {}),
+      ...(others_collapsed === true ? { othersCollapsed: true as const } : {}),
       ...(done_today_open === true ? { doneTodayOpen: true as const } : {}),
       ...(board_open === true ? { boardOpen: true as const } : {}),
       ...(isBoardHeight(board_height) ? { boardHeight: Math.round(board_height) } : {}),
@@ -155,8 +159,8 @@ export function parseProjects(value: unknown): Projects {
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
 // keys, then id, name, members, groups, and hidden, the files keys, earlier, parents, orchestration
-// and topics_collapsed, team_view, consultants_collapsed, done_today_open, board_open and
-// board_height when any. A group writes name, color, members,
+// and topics_collapsed, team_view, consultants_collapsed, orchestrator_collapsed, others_collapsed,
+// done_today_open, board_open and board_height when any. A group writes name, color, members,
 // then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
@@ -195,6 +199,8 @@ function orchestrationKeys(p: Project): Record<string, unknown> {
     ...(p.topicsCollapsed ? { topics_collapsed: true } : {}),
     ...(p.teamView ? { team_view: true } : {}),
     ...(p.consultantsCollapsed ? { consultants_collapsed: true } : {}),
+    ...(p.orchestratorCollapsed ? { orchestrator_collapsed: true } : {}),
+    ...(p.othersCollapsed ? { others_collapsed: true } : {}),
     ...(p.doneTodayOpen ? { done_today_open: true } : {}),
     ...(p.boardOpen ? { board_open: true } : {}),
     ...(p.boardHeight !== undefined ? { board_height: p.boardHeight } : {}),

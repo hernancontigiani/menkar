@@ -567,9 +567,6 @@ for (const scheme of ['dark', 'light'] as const)
       const current = page.locator('.topic-row[data-topic="3"]')
       await expect(current.locator('.topic-current')).toHaveCount(1)
       await expect(current.locator('.topic-blocking')).toHaveCount(1)
-      const green = await current
-        .locator('.topic-current')
-        .evaluate((node) => getComputedStyle(node).backgroundColor)
       const expected = await page.evaluate(() => {
         const probe = document.createElement('span')
         probe.style.background = 'var(--green)'
@@ -578,7 +575,15 @@ for (const scheme of ['dark', 'light'] as const)
         probe.remove()
         return color
       })
-      expect(green).toBe(expected)
+      // A render may replace the row between finding the dot and reading it, and a dot no longer in
+      // the page has no computed colour: read it until the attached one answers.
+      await expect
+        .poll(() =>
+          current
+            .locator('.topic-current')
+            .evaluate((node) => (node.isConnected ? getComputedStyle(node).backgroundColor : '')),
+        )
+        .toBe(expected)
       await shot(page, `current-topic-${scheme}.png`)
     } finally {
       await launched.close()
@@ -653,7 +658,7 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await expect(page.locator('.tab')).toHaveCount(1)
     await page.locator('.topic-row[data-topic="1"]').dblclick()
     await expect.poll(() => statusOf(1)).toBe('discussing')
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(4000)
     expect(posted()).toEqual([expect.stringMatching(DISCUSS_3)])
   } finally {
     server.close()
@@ -743,6 +748,18 @@ test("Ctrl+` in the orchestrator's tab asks which of the team's folders; the las
   }
 })
 
+// The stand-in agent in that session's pane is up. Only the panes a test types into are waited on:
+// with several apps starting at once, a shell the test never uses may still be starting.
+const agentReady = async (page: Page, session: string) => {
+  const pane = await paneOf(page, session)
+  await expect
+    .poll(() => page.locator(`.pane[data-pane="${pane}"] .xterm-rows`).textContent(), {
+      timeout: 15_000,
+    })
+    .toContain('stand-in claude ready')
+  return pane
+}
+
 const paneOf = (page: Page, session: string) =>
   page.evaluate(async (id) => {
     const s = await (globalThis as unknown as PageGlobals).menkar.window.state()
@@ -778,9 +795,8 @@ test('Mute in the row menu: the row shows the muted speaker; a blocked state rai
   const page = launched.window
   try {
     await expect(page.locator('.tab')).toHaveCount(3)
-    await expect
-      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
-      .toEqual(Array(3).fill(expect.stringContaining('stand-in claude ready')))
+    const login = await agentReady(page, CLIENT.login)
+    const api = await agentReady(page, CLIENT.api)
     const items = await rowMenu(page, CLIENT.login)
     await items.filter({ hasText: /^Mute$/ }).click()
     await expect(page.locator(`.row[data-session="${CLIENT.login}"] .muted-icon`)).toHaveCount(1)
@@ -792,7 +808,7 @@ test('Mute in the row menu: the row shows the muted speaker; a blocked state rai
     await page.keyboard.press('Escape')
 
     await page.locator('.tab').nth(2).click()
-    await typeInto(page, await paneOf(page, CLIENT.login), 'ASK')
+    await typeInto(page, login, 'ASK')
     await expect
       .poll(() => page.locator(`.row[data-session="${CLIENT.login}"] .dot`).getAttribute('class'), {
         timeout: 10_000,
@@ -804,7 +820,7 @@ test('Mute in the row menu: the row shows the muted speaker; a blocked state rai
     await expect(page.locator('.toast')).toHaveCount(0)
 
     // The same blocked state in a session not muted notifies.
-    await typeInto(page, await paneOf(page, CLIENT.api), 'ASK')
+    await typeInto(page, api, 'ASK')
     await expect.poll(() => sounds(root).length, { timeout: 10_000 }).toBe(1)
     await expect(page.locator('.toast')).toContainText('api review')
   } finally {
@@ -830,10 +846,7 @@ test('a new topic raises a toast "Topic N"; with one discussing, a toast and no 
   const page = launched.window
   try {
     await expect(page.locator('.tab')).toHaveCount(2)
-    await expect
-      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
-      .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
-    const orch = await paneOf(page, TEAM.orch)
+    const orch = await agentReady(page, TEAM.orch)
     await typeInto(page, orch, 'TOPIC')
     await expect(page.locator('.toast')).toContainText('Item 4: Pick a port', { timeout: 15_000 })
     await expect.poll(() => sounds(root).length).toBe(1)
@@ -993,15 +1006,12 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
     // At a permission prompt, even handed back, the tab takes keys while it waits.
     await page.keyboard.type('ASK')
     await banner.locator('button', { hasText: 'Back to reporting to the orchestrator' }).click()
-    await expect
-      .poll(socket.posted, { timeout: 15_000 })
-      .toContainEqual(
-        expect.stringMatching(
-          new RegExp(
-            `^\\[Menkar\\] The human handed login worker back \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
-          ),
-        ),
-      )
+    await expect.poll(socket.posted, { timeout: 15_000 }).toContainEqual(
+      expect.stringMatching(
+        // The prompt that follows may join it, after the human's own news (decision 1.173).
+        /^\[Menkar\] The human handed login worker back(; [^(]+)? \(\d{2}:\d{2}:\d{2}\) · \d+ topics? · \d+ working · \d+ waiting$/,
+      ),
+    )
     await expect(banner).toContainText('Waiting for your permission', { timeout: 10_000 })
     await expect(banner).toHaveClass(/warning/)
     await page.locator('.tab-body:not(.hidden) .xterm').click()

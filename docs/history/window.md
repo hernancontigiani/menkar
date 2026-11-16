@@ -127,3 +127,9 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 
 > Left on 2026-11-12: an e2e asserts a maximize main asked for through its log (decision 1.98).
   human's check on a real desktop.
+
+## The frame (2026-11-09)
+
+> Left on 2026-11-16: the sidebar starts at 300 px and stops at 270 px; a width saved below it opens at 270 (decision 1.172).
+- **The sidebar** starts at 250 px and stops at 180 px; a double click on the divider puts it back
+  at 250 and saves that. A width saved before is kept (2026-11-10).

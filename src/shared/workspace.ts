@@ -201,6 +201,8 @@ export type Action =
   // The Work view (decisions 1.112, 1.115), saved per project.
   | { readonly type: 'setTeamView'; readonly team: boolean }
   | { readonly type: 'setConsultantsCollapsed'; readonly collapsed: boolean }
+  | { readonly type: 'setOrchestratorCollapsed'; readonly collapsed: boolean }
+  | { readonly type: 'setOthersCollapsed'; readonly collapsed: boolean }
   | { readonly type: 'setDoneTodayOpen'; readonly open: boolean }
   // The shown project's Board panel (decision 1.126): `height` null goes back to the default.
   | { readonly type: 'setBoard'; readonly open?: boolean; readonly height?: number | null }

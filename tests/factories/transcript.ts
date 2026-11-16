@@ -6,7 +6,9 @@ export type Line = Record<string, unknown>
 export const ID = '1b4e28ba-2fa1-11d2-883f-0016d3cca427'
 export const ID2 = '9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f'
 
-type Block = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input?: unknown }
+type Block =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; name: string; input?: unknown; id?: string }
 
 export const text = (value: string): Block => ({ type: 'text', text: value })
 export const toolUse = (name: string, input: unknown = {}): Block => ({
@@ -21,6 +23,23 @@ export function user(content: string | Block[] | Line[], extra: Line = {}): Line
 
 export function toolResult(): Line {
   return user([{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'ok' }])
+}
+
+// A SendMessage call and its result, as Claude Code 2.1.325 records them: `to` as the model typed
+// it, and `toolUseResult` beside the result block.
+export const sendMessage = (to: string, id: string): Block => ({
+  type: 'tool_use',
+  id,
+  name: 'SendMessage',
+  input: { to, summary: 's', message: 'm' },
+})
+
+export function sendResult(id: string, success: boolean): Line {
+  return user([{ type: 'tool_result', tool_use_id: id, content: '{}' }], {
+    toolUseResult: success
+      ? { success: true, message: 'sent', display: 'sent', msg_id: 'm1' }
+      : { success: false, message: 'Not sent' },
+  })
 }
 
 export function assistant(content: string | Block[], extra: Line = {}): Line {

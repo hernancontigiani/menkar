@@ -25,6 +25,8 @@ const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
   topicsCollapsed: false,
   teamView: false,
   consultantsCollapsed: false,
+  orchestratorCollapsed: false,
+  othersCollapsed: false,
   doneTodayOpen: false,
   board: { open: false, height: null },
   ...over,
@@ -39,10 +41,13 @@ const view = (over: Partial<Parameters<typeof modeRows>[1]> = {}) => ({
 
 const short = (rows: ReturnType<typeof modeRows>) =>
   rows.map((r) => {
-    if (r.kind === 'session') return r.depth === 1 ? `  ${r.id}` : r.id
+    if (r.kind === 'session') {
+      const fold = r.fold?.folded ? ` folded(${r.fold.ids.length})` : ''
+      return r.depth === 1 ? `  ${r.id}` : `${r.id}${fold}`
+    }
     if (r.kind === 'earlier') return `earlier(${r.ids.length})${r.open ? ' open' : ''}`
     if (r.kind === 'parked') return `parked(${r.ids.length})${r.open ? ' open' : ''}`
-    if (r.kind === 'heading') return `heading ${r.heading}`
+    if (r.kind === 'heading') return `heading ${r.heading}${r.collapsed ? ' collapsed' : ''}`
     if (r.kind === 'group') return `group ${r.name}${r.collapsed ? ' collapsed' : ''}`
     return 'no group'
   })
@@ -176,5 +181,59 @@ describe('parked workers', () => {
     expect(
       short(modeRows(parked(), view({ open: new Set(['O', 'W1', 'W2']) }))).slice(0, 4),
     ).toEqual(['O', '  W1', '  W2', 'earlier(1)'])
+  })
+})
+
+// Decision 1.171: in the Team view the orchestrator's group, Consultants and Others fold, each saved
+// per project.
+describe('folding the Team view', () => {
+  test('the orchestrator folded: its row alone, standing for all 3 under it (tab, earlier, parked)', () => {
+    const p = info({
+      orchestratorCollapsed: true,
+      orchestration: { ...info().orchestration, parked: ['W3'] },
+    })
+    const rows = modeRows(p, view({ unfolded: new Set(['O']), parkedOpen: true }))
+    expect(short(rows).slice(0, 3)).toEqual(['O folded(3)', 'heading consultants', 'E'])
+    const top = rows[0]
+    expect(top?.kind === 'session' && top.fold?.ids).toEqual(['W1', 'W2', 'W3'])
+    const unfolded = modeRows(info(), view())[0]
+    expect(unfolded?.kind === 'session' && unfolded.fold).toEqual({
+      ids: ['W1', 'W2', 'W3'],
+      folded: false,
+    })
+  })
+
+  test('an orchestrator with no one under it has nothing to fold', () => {
+    const p = info({ parents: {}, orchestratorCollapsed: true })
+    const rows = modeRows(p, view())
+    expect(short(rows).slice(0, 2)).toEqual(['O', 'heading consultants'])
+    expect(rows[0]).not.toHaveProperty('fold')
+  })
+
+  test('Consultants folded: its heading alone, with E and its children', () => {
+    const p = info({ consultantsCollapsed: true, parents: { W1: 'O', W2: 'E' } })
+    expect(short(modeRows(p, view({ open: new Set(['O', 'W1', 'W2']) })))).toEqual([
+      'O',
+      '  W1',
+      'heading consultants collapsed',
+      'heading others',
+      'group G',
+      'G1',
+      'G2',
+      'no group',
+      'W3',
+      'S',
+    ])
+  })
+
+  test('Others folded: its heading alone, groups and loose rows hidden', () => {
+    expect(short(modeRows(info({ othersCollapsed: true }), view()))).toEqual([
+      'O',
+      '  W1',
+      'earlier(2)',
+      'heading consultants',
+      'E',
+      'heading others collapsed',
+    ])
   })
 })

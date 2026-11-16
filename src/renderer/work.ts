@@ -226,7 +226,9 @@ function foldHeading(
 
 // The loose sessions with a role label (decision 1.107), as the Team view lists them.
 function consultantIds(project: ProjectInfo, listed: readonly string[], open: readonly string[]) {
-  const rows = modeRows(project, { listed, open: new Set(open), unfolded: new Set() })
+  // The Team view's folds hide rows; the Work view lists its consultants whatever they are.
+  const unfolded = { ...project, consultantsCollapsed: false, othersCollapsed: false }
+  const rows = modeRows(unfolded, { listed, open: new Set(open), unfolded: new Set() })
   const ids: string[] = []
   let inConsultants = false
   for (const r of rows as readonly ModeRow[]) {
