@@ -14,7 +14,7 @@ What earns a line here: it changes what an orchestrating session does, and it ho
 project. What Menkar's tool descriptions or the project's docs already say is not repeated.
 
 Four files beside this one hold detail; read each when its moment comes:
-- `setting-up.md`: first, when `list_sessions` shows no session under you, no role and no task.
+- `setting-up.md`: first, with no role and no task yet, or a first prompt calling it new.
 - `locks-and-environment.md`: before you grant a verification, a build or anything heavy, or when
   a check fails in a part nobody touched.
 - `closing-a-task.md`: when a worker reports a task done.

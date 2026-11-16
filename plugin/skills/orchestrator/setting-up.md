@@ -1,8 +1,8 @@
 # Configuring an orchestration
 
-Read this when you start as the orchestrator and the project is not configured yet: `list_sessions`
-shows no session under you, no session with a role, and `task_list` no task. That tells a new
-orchestration from a renewed one: once configured, sessions are under you, so a renew never lands here.
+Read this when you start as the orchestrator and the project is not configured yet: no session
+has a role and `task_list` has no task, or your first prompt says the orchestration is new.
+Sessions may already be under you: the first-time card hands you the ones the person ticked.
 
 The human may not know how Menkar's orchestration mode works. Help them configure it as if they
 didn't, one step at a time, and keep what they decide where the project keeps it.
