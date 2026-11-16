@@ -36,6 +36,7 @@ import {
   membersFolders,
   missingFolders,
   type ProjectFolder,
+  presentFolders,
   startFolder,
 } from '../core/orchestration/folders'
 import { mayStart } from '../core/orchestration/mayStart'
@@ -1849,6 +1850,7 @@ async function checkFolders(): Promise<void> {
       if (gone.join('\n') !== goneFolders.join('\n')) {
         goneFolders = gone
         push()
+        publishSnapshots()
       }
     } while (checkFoldersAgain)
   } finally {
@@ -1914,6 +1916,7 @@ function snapshotOf(projectId: string): Snapshot {
   return {
     project: { id: projectId, name: p?.name ?? '' },
     orchestration: p ? orchestrationInfo(p).on : false,
+    folders: p ? presentFolders(foldersOfProject(p), goneFolders) : [],
     sessions: projectSessions(projectId).map((id) => {
       const parent = parents[id]
       return {
@@ -1925,6 +1928,7 @@ function snapshotOf(projectId: string): Snapshot {
         parent: parent ? sessionName(parent) : null,
         tab: inSomeTab(id),
         pane: paneOfSession(id)?.id ?? null,
+        folder: sessionFolder(id),
       }
     }),
   }

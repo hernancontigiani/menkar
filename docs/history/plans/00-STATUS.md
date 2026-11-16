@@ -895,3 +895,6 @@ icon (right-click) or an "Orchestration settings…" item".
 > hand check on the real Claude Code (`docs/release-checklist.md`, 8b). How it works is in
 > `docs/session-control.md` ("The team block"), `docs/orchestration.md`, `docs/projects.md` and
 > `docs/context.md`; the per-agent parts are deferred in `docs/NOT_BUILT_YET.md` (plan 38's P1a).
+
+> Replaced 2026-11-16: 1.163 built (task 39).
+| 1.163 | `list_sessions` gives **each session's folder** and the **project's folders** (its sessions' folders and the ones the human added, 1.124), so the orchestrator knows where `start_session { folder }` may start a worker without a refused call (the human, 2026-11-16, topic 31, from ccai's first start). Not built yet | 2026-11-16 | this row (until built) |

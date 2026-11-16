@@ -86,6 +86,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     Each session also carries `skills`, `[{ name, maintainer }]` as the human stored them for it
     (decision 1.152), `[]` with the mode off, so the orchestrator can name an expert's skill, read
     only, in a worker's task.
+    Each session carries its `folder` (where its pane runs, else the one its transcript records;
+    null when neither is known), and the answer the project's `folders` (decision 1.163): its
+    sessions' folders and the ones the human added, minus those gone from disk — what
+    `start_session { folder }` accepts, so the orchestrator starts a worker in another repository
+    without a refused call. Both are there with the mode on and off; a snapshot an older Menkar
+    wrote reads as null and `[]`.
   - **`last_reply { name }`:** the last text a session of the caller's project replied. It is read
     from the end of its transcript (`src/core/sessions/lastreply.ts`, read only, in chunks, never
     the whole file) and cut to its first `REPLY_MAX_CHARS` with a note. When the session has not

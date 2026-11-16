@@ -176,11 +176,15 @@ export interface SnapshotSession {
   readonly priority?: boolean
   readonly withYou?: boolean
   readonly skills?: readonly { readonly name: string; readonly maintainer: boolean }[]
+  // Its working folder; an older Menkar wrote none.
+  readonly folder?: string | null
 }
 
 export interface Snapshot {
   readonly project: { readonly id: string; readonly name: string }
   readonly orchestration?: boolean
+  // Where start_session { folder } may start a session; an older Menkar wrote none.
+  readonly folders?: readonly string[]
   readonly sessions: readonly SnapshotSession[]
 }
 
@@ -190,6 +194,7 @@ export function sessionsAnswer(snapshot: Snapshot): string {
     {
       project: snapshot.project.name,
       orchestration: snapshot.orchestration === true,
+      folders: snapshot.folders ?? [],
       sessions: snapshot.sessions.map((s) => ({
         name: s.name,
         id: s.id,
@@ -202,6 +207,7 @@ export function sessionsAnswer(snapshot: Snapshot): string {
         priority: s.priority === true,
         with_you: s.withYou === true,
         skills: s.skills ?? [],
+        folder: s.folder ?? null,
       })),
     },
     null,

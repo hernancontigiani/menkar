@@ -15,6 +15,11 @@ import { callMenkar, controlPaths, writeAtomic } from '../../../src/core/control
 import { answer, TOOL_NAMES } from '../../../src/core/control/protocol'
 import { serverContext } from '../../../src/core/control/server'
 import {
+  membersFolders,
+  presentFolders,
+  startFolder,
+} from '../../../src/core/orchestration/folders'
+import {
   sessionMarks,
   setMode,
   setOrchestrator,
@@ -223,10 +228,18 @@ describe('list_sessions', () => {
     })
     const answer = await serverContext('p2').call('list_sessions', {})
     expect(answer.ok).toBe(true)
-    const off = { role: null, orchestrator: false, priority: false, with_you: false, skills: [] }
+    const off = {
+      role: null,
+      orchestrator: false,
+      priority: false,
+      with_you: false,
+      skills: [],
+      folder: null,
+    }
     expect(JSON.parse(answer.text)).toEqual({
       project: 'Work',
       orchestration: false,
+      folders: [],
       sessions: [
         { name: 'orch', id: 'o1', state: 'idle', context: 41, parent: null, tab: true, ...off },
         { name: 'api', id: 'a1', state: 'blocked', context: 7, parent: 'o1', tab: true, ...off },
@@ -266,10 +279,11 @@ describe('list_sessions', () => {
       orchestration: true,
       sessions: [session('o1', 'p1'), session('e1', 'p2'), session('w1', 'p3')],
     })
-    const plain = { state: 'idle', context: null, parent: null, tab: true }
+    const plain = { state: 'idle', context: null, parent: null, tab: true, folder: null }
     expect(JSON.parse((await serverContext('p1').call('list_sessions', {})).text)).toEqual({
       project: 'Work',
       orchestration: true,
+      folders: [],
       sessions: [
         {
           name: 'o1',
@@ -325,6 +339,7 @@ describe('list_sessions', () => {
     expect(JSON.parse((await serverContext('p1').call('list_sessions', {})).text)).toEqual({
       project: 'Work',
       orchestration: false,
+      folders: [],
       sessions: [
         {
           name: 'o1',
@@ -339,4 +354,44 @@ describe('list_sessions', () => {
       ],
     })
   })
+
+  // Decision 1.163: where start_session { folder } may start a worker, so it is not refused.
+  test.each([false, true])(
+    'each session carries its folder and the project its folders, the mode on: %s',
+    async (mode) => {
+      aliveNow()
+      const sessions = [
+        { id: 'o1', cwd: '/work/app' },
+        { id: 'w1', cwd: '/work/api/' },
+        { id: 'w2', cwd: null },
+      ]
+      const all = membersFolders(['o1', 'w1', 'w2'], sessions, new Map([['w2', '/work/gone']]), [
+        '/work/docs',
+      ])
+      const folders = presentFolders(all, ['/work/gone'])
+      await writeAtomic(controlPaths().snapshots, 'work.json', {
+        project: { id: 'work', name: 'Work' },
+        orchestration: mode,
+        folders,
+        sessions: sessions.map((s, i) => ({
+          name: s.id,
+          id: s.id,
+          state: 'idle',
+          context: null,
+          parent: null,
+          tab: true,
+          pane: `p${i}`,
+          folder: s.cwd,
+        })),
+      })
+      const answer = JSON.parse((await serverContext('p0').call('list_sessions', {})).text) as {
+        folders: string[]
+        sessions: { folder: string | null }[]
+      }
+      expect(answer.folders).toEqual(['/work/api', '/work/app', '/work/docs'])
+      const known = all.map((f) => f.path)
+      for (const folder of answer.folders) expect(startFolder(folder, known)).toEqual({ folder })
+      expect(answer.sessions.map((s) => s.folder)).toEqual(['/work/app', '/work/api/', null])
+    },
+  )
 })
