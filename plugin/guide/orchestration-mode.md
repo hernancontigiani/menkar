@@ -129,8 +129,9 @@ is set waiting, with what it waits on.
   project menu, while the mode is on), or ask the orchestrator, which then uses `set_workers_cap`. At the limit the
   orchestrator leaves the next task queued until a worker finishes. Experts, consultants and
   parked workers don't count.
-- Only the orchestrator's own workers are parked, counted or hidden: a session you started, an
-  expert and a consultant never are.
+- A session under the orchestrator with no role is a worker, whoever started it: it counts, may
+  be parked, and is hidden when its task closes. Experts (a role) and consultants never are, so
+  the sessions handed in at setup are each made an expert or kept as a worker with the person.
 - **An expert may hold several tasks**, one in progress at a time: the orchestrator gives it
   another only while the current one waits on something outside, and never a third. For parallel
   work in its area, the orchestrator starts a worker that reads the expert's skill without

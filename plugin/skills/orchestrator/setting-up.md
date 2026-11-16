@@ -16,7 +16,8 @@ didn't, one step at a time, and keep what they decide where the project keeps it
    one by one: what each one does, whether it has
    work in flight with them, and which profile fits — an expert or a generalist worker (under
    you), or a consultant (loose). Explain a profile in a line when you ask; don't assume they
-   remember it.
+   remember it. Until the person decides, a session under you with no role counts as a worker:
+   start no worker of your own before this step is done, and give none of them a task unasked.
 4. **Say what to do in Menkar for each answer**: "Report to the orchestrator" from a row's menu
    for an expert or worker that is ready (not one still in the middle of something with them),
    "Configure role…" for a label and its skills. The human does these in the sidebar; you never

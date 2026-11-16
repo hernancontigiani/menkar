@@ -222,3 +222,8 @@ status, per window. Empty, it says "No open topics".
 
 > Left on 2026-11-16: consultants get a task for a request that needs more than a short answer (1.148).
 - **Tasks for consultants**: a consultation is a conversation, not a ticket (1.115).
+
+> Replaced 2026-11-16: a session under the orchestrator with no role counts as a worker, whoever started it (1.162).
+- **Who is a worker** (`isWorker`): with the mode on, a child of the orchestrator with no role
+  label. Experts (a label), consultants (loose) and sessions the human started are never parked,
+  counted or hidden by Menkar.

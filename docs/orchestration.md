@@ -370,8 +370,10 @@ each task, parks it while its task waits long, resumes it with its context, and 
 away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; main applies them.
 
 - **Who is a worker** (`isWorker`): with the mode on, a child of the orchestrator with no role
-  label. Experts (a label), consultants (loose) and sessions the human started are never parked,
-  counted or hidden by Menkar.
+  label, whoever started it — the sessions handed in with the first-time card or "Report to the
+  orchestrator" included (1.162). Experts (a label) and consultants (loose) are never parked,
+  counted or hidden by Menkar; at setup the orchestrator goes through each handed-in session with
+  the human, who gives it a role or keeps it a worker.
 - **Its name** (`workerName`): `start_session { task }` names the session `<project>-t<N>` — the
   project's name lowercased, every run of other characters one dash — and assigns it the task
   (`assignTask`). Names are unique across the machine, so the project is in them. A given name must
