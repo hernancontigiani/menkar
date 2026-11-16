@@ -318,3 +318,19 @@ more tasks created than the short term can take. Long to review: reviews to spee
 
 **Trigger:** fired — wanted before the first release (1.156, 2026-11-15). First question:
 which states and reviewers to record, and where the numbers show.
+
+### The human's presence: away or here
+
+The human's idea, relayed by another project's orchestrator (2026-11-16): a state the human sets
+when they go into a meeting or out for a couple of hours — **away** — and clears when they return.
+Today an orchestrator does not know whether anyone reads its chat: it keeps writing a summary per
+event (a worker finished, a PR is ready), spending context and tokens, and the human comes back to
+a pile instead of one summary. With the state: while away, the orchestrator writes events to topics
+and the status file instead of the chat and goes on with what does not depend on the human; on
+return, a `[Menkar] The human is back` post, and the orchestrator answers with one summary of what
+happened and what awaits a decision. Whether a new blocking topic still notifies while away is the
+human's call. Related: the "with you" mark (1.78) is per session; this is the human's own, per
+project or global.
+
+**Trigger:** the human asks to build it. First question: per project or global, where the switch
+sits (the header, the tray), and whether Remote Control activity counts as "here".
