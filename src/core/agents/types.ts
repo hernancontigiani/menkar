@@ -1,8 +1,11 @@
 import type { Start } from '../command'
 import type { Key } from '../i18n'
+import type { Badge, Details, Head } from '../sessions/details'
+import type { DiscoveredSession } from '../sessions/scanner'
 import type { TeamAgent } from '../team/block'
 import type { TeamText } from '../team/posts'
 import type { AgentId } from './ids'
+import type { Names, ReadRange } from './shared/jsonl'
 
 export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context'
 
@@ -77,10 +80,72 @@ export interface TeamDelivery extends TeamAgent {
   readonly floor: VersionFloor | null
 }
 
+// A session an agent's catalog found. Only that agent's catalog interprets `locator`.
+export interface Found {
+  readonly agent: AgentId
+  readonly id: string
+  readonly locator: string
+  // Where the session's files are, for a session that names no cwd.
+  readonly folder: string
+  readonly cwd?: string
+}
+
+// Reads found sessions, keeping what it needs to read each one again cheaply.
+export interface SessionReader {
+  read(found: Found): Promise<DiscoveredSession | null>
+  // Forgets every session but these.
+  retain(locators: ReadonlySet<string>): void
+}
+
+export interface Titles {
+  readonly names: Names
+  readonly laterCwd: string | null
+}
+
+// The titles a transcript writes, and a cwd past its head, read from each slice of whole lines.
+export interface TitleReading {
+  slice(chunk: Buffer, complete: number, prev: Titles): Titles
+}
+
+// How an agent whose sessions are JSONL transcripts reads their lines.
+export interface TranscriptReading {
+  head(text: string): Head
+  // Whether reading more of the head could still change what it gave.
+  headFinal(head: Head): boolean
+  // `tail` is the file's last bytes; `fromStart` says whether that is the whole file.
+  badge(tail: string, fromStart: boolean): Badge
+  // Null when the agent writes no titles in its transcripts.
+  readonly titles: TitleReading | null
+  details(text: string): Details
+  exportMarkdown(name: string, id: string, text: string): string
+}
+
+// Removing a session: the file a trash or a delete removes.
+export interface SessionTrash {
+  target(locator: string): string
+}
+
+export interface SessionCatalog {
+  // Where the agent keeps its sessions.
+  root(): string
+  find(root: string): Promise<Found[]>
+  reader(read: ReadRange): SessionReader
+  // The directories whose changes can mean a session appeared or changed.
+  watchTargets(root: string): Promise<string[]>
+  readonly lastReply: ((locator: string) => Promise<string | null>) | null
+  details(locator: string): Promise<Details>
+  exportMarkdown(name: string, id: string, locator: string): Promise<string>
+  // The file to show in its folder; null when the session is not a file.
+  location(locator: string): string | null
+  readonly trash: SessionTrash | null
+  readonly transcript: TranscriptReading | null
+}
+
 export interface AgentKit {
   readonly launch: Launcher
   readonly mcp: McpMount | null
   readonly namer: Namer
   readonly team: TeamDelivery | null
   readonly env: EnvRules | null
+  readonly catalog: SessionCatalog
 }

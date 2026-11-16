@@ -1,112 +1,21 @@
-import { type Agent, cursorUserText, type Line, messageText, parseLine, role } from './lines'
+import { kitOf } from '../agents/registry'
+import type { TranscriptReading } from '../agents/types'
+import type { Details } from './details'
+import type { Agent } from './lines'
+
+export type { Details, RecentMessage } from './details'
+
+// The agent's transcript reading, for an agent whose sessions are JSONL transcripts.
+export function transcriptOf(agent: Agent): TranscriptReading {
+  const transcript = kitOf(agent).catalog.transcript
+  if (!transcript) throw new Error(`the agent ${agent} keeps no transcripts`)
+  return transcript
+}
 
 // What the session menus read from a whole transcript: details and export. Pure functions
 // over the file's text; the caller reads it off the UI path.
-
-const lines = (file: string) =>
-  file
-    .split('\n')
-    .flatMap((raw) => (raw ? [parseLine(raw)].filter((l): l is Line => l !== null) : []))
-
-const field = (value: unknown, key: string): unknown =>
-  typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined
-
-const blocks = (line: Line): unknown[] => {
-  const content = field(line.message, 'content')
-  return Array.isArray(content) ? content : []
-}
-
-const toolUses = (line: Line) => blocks(line).filter((b) => field(b, 'type') === 'tool_use')
-
-// A message the user typed: text, trimmed, not empty and not injected (`<…>`).
-function typed(line: Line, agent: Agent): string | null {
-  if (role(line, agent) !== 'user') return null
-  const raw = messageText(line)
-  const text = (agent === 'cursor' && raw !== null ? cursorUserText(raw) : raw)?.trim()
-  return text && !text.startsWith('<') ? text : null
-}
-
-export interface RecentMessage {
-  readonly fromUser: boolean
-  readonly text: string
-}
-
-export interface Details {
-  readonly user: number
-  readonly assistant: number
-  readonly toolCalls: number
-  readonly models: readonly string[]
-  readonly created: string | null
-  readonly lastActivity: string | null
-  readonly cwd: string | null
-  // [server, count], most used first.
-  readonly mcpUsed: ReadonlyArray<readonly [string, number]>
-  readonly recent: readonly RecentMessage[]
-}
-
-const RECENT = 12
-const RECENT_CHARS = 500
-
 export function details(file: string, agent: Agent): Details {
-  let user = 0
-  let assistant = 0
-  let toolCalls = 0
-  let created: string | null = null
-  let lastActivity: string | null = null
-  let cwd: string | null = null
-  const models = new Set<string>()
-  const mcp = new Map<string, number>()
-  const recent: RecentMessage[] = []
-  for (const line of lines(file)) {
-    if (cwd === null && typeof line.cwd === 'string') cwd = line.cwd
-    if (agent === 'claude' && typeof line.timestamp === 'string') {
-      created ??= line.timestamp
-      lastActivity = line.timestamp
-    }
-    const kind = role(line, agent)
-    if (agent === 'cursor') {
-      if (kind === 'user') user += 1
-      if (kind === 'assistant') assistant += 1
-      const text = messageText(line)
-      if ((kind === 'user' || kind === 'assistant') && text) {
-        recent.push({
-          fromUser: kind === 'user',
-          text: kind === 'user' ? cursorUserText(text).trim() : text,
-        })
-      }
-      continue
-    }
-    const userText = typed(line, agent)
-    if (userText !== null) {
-      user += 1
-      recent.push({ fromUser: true, text: userText.replace(/\s+/g, ' ').slice(0, RECENT_CHARS) })
-    }
-    if (kind === 'assistant') {
-      assistant += 1
-      const model = field(line.message, 'model')
-      if (typeof model === 'string' && !model.startsWith('<')) models.add(model)
-      const text = messageText(line)
-      if (text)
-        recent.push({ fromUser: false, text: text.replace(/\s+/g, ' ').slice(0, RECENT_CHARS) })
-      for (const use of toolUses(line)) {
-        toolCalls += 1
-        const name = field(use, 'name')
-        const server = typeof name === 'string' ? /^mcp__(.+?)__/.exec(name)?.[1] : undefined
-        if (server) mcp.set(server, (mcp.get(server) ?? 0) + 1)
-      }
-    }
-  }
-  return {
-    user,
-    assistant,
-    toolCalls,
-    models: [...models].sort(),
-    created,
-    lastActivity,
-    cwd,
-    mcpUsed: [...mcp].sort((a, b) => b[1] - a[1]),
-    recent: recent.slice(-RECENT),
-  }
+  return transcriptOf(agent).details(file)
 }
 
 // The name with every character that is not a letter, digit, space, `-` or `_` replaced by `_`.
@@ -116,29 +25,5 @@ export function safeFileName(name: string): string {
 }
 
 export function exportMarkdown(name: string, id: string, file: string, agent: Agent): string {
-  const all = lines(file)
-  const d = details(file, agent)
-  const header = [`# ${name}`, '', `- **Session:** \`${id}\``]
-  if (d.cwd) header.push(`- **Project:** \`${d.cwd}\``)
-  if (d.created) header.push(`- **Created:** ${d.created}`)
-  if (d.lastActivity) header.push(`- **Last activity:** ${d.lastActivity}`)
-  const agentName = agent === 'claude' ? 'Claude' : 'Cursor'
-  const turns: string[] = []
-  for (const line of all) {
-    const userText = typed(line, agent)
-    if (userText !== null) {
-      turns.push(`### You\n\n${userText}`)
-      continue
-    }
-    if (role(line, agent) !== 'assistant') continue
-    const text = messageText(line)?.trim() ?? ''
-    const tools = toolUses(line).map((use) => `\`${String(field(use, 'name'))}\``)
-    if (!text && tools.length === 0) continue
-    const parts = [`### ${agentName}`]
-    if (text) parts.push(text)
-    if (tools.length > 0) parts.push(`*Used ${tools.join(', ')}*`)
-    turns.push(parts.join('\n\n'))
-  }
-  const bodyText = turns.length > 0 ? turns.join('\n\n') : '_No messages._'
-  return `${header.join('\n')}\n\n---\n\n${bodyText}\n`
+  return transcriptOf(agent).exportMarkdown(name, id, file)
 }

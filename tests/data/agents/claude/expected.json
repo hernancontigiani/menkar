@@ -1,0 +1,88 @@
+{
+  "root": ".claude/projects",
+  "watched": [
+    ".claude/projects",
+    ".claude/projects/-home-demo-api",
+    ".claude/projects/-home-demo-web"
+  ],
+  "sessions": [
+    {
+      "id": "1b4e28ba-2fa1-11d2-883f-0016d3cca427",
+      "agent": "claude",
+      "folder": ".claude/projects/-home-demo-api",
+      "cwd": "/home/demo/api",
+      "preview": "fix the login bug",
+      "badge": "waiting",
+      "customTitle": "Login fix",
+      "aiTitle": "Fixing login",
+      "size": 912,
+      "lastReply": "Shall I apply it?",
+      "details": {
+        "user": 1,
+        "assistant": 2,
+        "toolCalls": 1,
+        "models": ["claude-sonnet-4-5"],
+        "created": "2026-01-02T10:00:00.000Z",
+        "lastActivity": "2026-01-02T10:00:09.000Z",
+        "cwd": "/home/demo/api",
+        "mcpUsed": [["menkar", 1]],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "fix the login bug"
+          },
+          {
+            "fromUser": false,
+            "text": "Looking."
+          },
+          {
+            "fromUser": false,
+            "text": "Shall I apply it?"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `1b4e28ba-2fa1-11d2-883f-0016d3cca427`\n- **Project:** `/home/demo/api`\n- **Created:** 2026-01-02T10:00:00.000Z\n- **Last activity:** 2026-01-02T10:00:09.000Z\n\n---\n\n### You\n\nfix   the login bug\n\n### Claude\n\nLooking.\n\n*Used `mcp__menkar__task_list`*\n\n### Claude\n\nShall I apply it?\n",
+      "location": ".claude/projects/-home-demo-api/1b4e28ba-2fa1-11d2-883f-0016d3cca427.jsonl",
+      "trash": ".claude/projects/-home-demo-api/1b4e28ba-2fa1-11d2-883f-0016d3cca427.jsonl"
+    },
+    {
+      "id": "9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f",
+      "agent": "claude",
+      "folder": ".claude/projects/-home-demo-web",
+      "cwd": "/home/demo/web",
+      "preview": "style the header",
+      "badge": "interrupted",
+      "customTitle": null,
+      "aiTitle": null,
+      "size": 593,
+      "lastReply": "Done.",
+      "details": {
+        "user": 2,
+        "assistant": 1,
+        "toolCalls": 0,
+        "models": ["claude-opus-4-1"],
+        "created": "2026-01-03T09:00:00.000Z",
+        "lastActivity": "2026-01-03T09:00:05.000Z",
+        "cwd": "/home/demo/web",
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "style the header"
+          },
+          {
+            "fromUser": false,
+            "text": "Done."
+          },
+          {
+            "fromUser": true,
+            "text": "[Request interrupted by user]"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f`\n- **Project:** `/home/demo/web`\n- **Created:** 2026-01-03T09:00:00.000Z\n- **Last activity:** 2026-01-03T09:00:05.000Z\n\n---\n\n### You\n\nstyle the header\n\n### Claude\n\nDone.\n\n### You\n\n[Request interrupted by user]\n",
+      "location": ".claude/projects/-home-demo-web/9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f.jsonl",
+      "trash": ".claude/projects/-home-demo-web/9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f.jsonl"
+    }
+  ]
+}

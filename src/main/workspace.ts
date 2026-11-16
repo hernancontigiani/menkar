@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
@@ -173,8 +173,8 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
-import { lastReply, onlyTeamUpdates } from '../core/sessions/lastreply'
-import { details, exportMarkdown, safeFileName } from '../core/sessions/transcript'
+import { onlyTeamUpdates } from '../core/sessions/lastreply'
+import { safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
 import { teamInput } from '../core/team/input'
@@ -1954,12 +1954,14 @@ async function lastReplyFor(projectId: string, named: unknown): Promise<ControlA
   return 'refusal' in answer ? refuse(answer.refusal) : { ok: true, text: answer.text }
 }
 
-// A Claude session's last reply, or null when it has none (or no transcript yet).
+// A session's last reply, or null when it has none (or no transcript yet, or its agent's catalog
+// reads none).
 async function replyOf(sessionId: string): Promise<string | null> {
   const info = sessionInfo(sessionId)
-  if (!info || info.agent !== 'claude') return null
+  const read = info ? kitOf(info.agent).catalog.lastReply : null
+  if (!info || !read) return null
   try {
-    return await lastReply(info.file)
+    return await read(info.file)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     return null
@@ -3278,11 +3280,11 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const info = sessionInfo(action.session)
       if (!info) return {}
       const [read, tokens] = await Promise.all([
-        readFile(info.file, 'utf8'),
+        kitOf(info.agent).catalog.details(info.file),
         sessionTokens(info.id),
       ])
       return {
-        details: details(read, info.agent),
+        details: read,
         ...(tokens
           ? { tokens: { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead } }
           : {}),
@@ -3299,7 +3301,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       try {
         await writeFile(
           target.filePath,
-          exportMarkdown(info.name, info.id, await readFile(info.file, 'utf8'), info.agent),
+          await kitOf(info.agent).catalog.exportMarkdown(info.name, info.id, info.file),
           'utf8',
         )
       } catch (error) {
@@ -3310,28 +3312,31 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'revealTranscript': {
       const info = sessionInfo(action.session)
-      if (info) shell.showItemInFolder(info.file)
+      const place = info ? kitOf(info.agent).catalog.location(info.file) : null
+      if (place) shell.showItemInFolder(place)
       return {}
     }
     case 'trashSession':
     case 'deleteSession': {
-      // The only writes under ~/.claude, each started and confirmed by the user: the .jsonl alone;
-      // its sibling directory (subagents/, tool-results/) stays.
+      // The only writes in an agent's data, each started and confirmed by the user: the file its
+      // catalog names.
       const info = sessionInfo(action.session)
       if (!info) return { refusal: 'sessions.gone' }
+      const failed =
+        action.type === 'trashSession' ? 'sessions.trashFailed' : 'sessions.deleteFailed'
+      const trash = kitOf(info.agent).catalog.trash
+      if (!trash) return { refusal: failed }
+      const target = trash.target(info.file)
       try {
-        if (action.type === 'trashSession') await shell.trashItem(info.file)
-        else await unlink(info.file)
+        if (action.type === 'trashSession') await shell.trashItem(target)
+        else await unlink(target)
       } catch (error) {
         log.error('a transcript could not be removed', {
-          path: info.file,
+          path: target,
           action: action.type,
           error,
         })
-        return {
-          refusal:
-            action.type === 'trashSession' ? 'sessions.trashFailed' : 'sessions.deleteFailed',
-        }
+        return { refusal: failed }
       }
       const pane = paneOfSession(action.session)
       if (pane) await runAction(contents, { type: 'stopSession', session: action.session })

@@ -126,8 +126,8 @@ is shown as written; none is `—`).
   across windows; a pane alone leaves a two-pane tab. New skips to the name step when the
   remembered folder still exists. A segmented picker at the top of New chooses the agent; one that
   is not on the PATH is greyed out and off, saying so, and Claude Code is chosen when installed.
-- **Details and export** read the whole transcript in main and use
-  `src/core/sessions/transcript.ts`. Details' Tokens row is left out until it can come from the
+- **Details and export** read the whole transcript through the session's agent catalog
+  (`src/core/agents/<id>/catalog.ts`). Details' Tokens row is left out until it can come from the
   usage module, as the spec asks.
 - **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only
   the `.jsonl` goes; its sibling directory stays. An e2e asserts every other file under `~/.claude`

@@ -13,7 +13,7 @@ const PAIRS: Readonly<
 > = {
   remote: { block: 'P0.5', concern: null },
   fork: { block: 'P0.6', concern: null },
-  trash: { block: 'P0.4', concern: null },
+  trash: { block: 'P0.4', concern: (id) => kitOf(id).catalog.trash },
   chat: { block: 'P0.7', concern: null },
   context: { block: 'P1a.6', concern: null },
 }

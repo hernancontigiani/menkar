@@ -87,41 +87,20 @@ export const ALLOWED = {
     'agent-identifier': {
       count: 12,
       reason:
-        "moved in P0.4: the agents' roots become each catalog's (not in that block's file list yet)",
+        "P0.7 or later: tests/core/paths.test.ts asserts claudeProjects; the other members belong to other blocks' files",
     },
   },
-  'src/core/sessions/badges.ts': {
-    'agent-literal': { count: 2, reason: 'moved in P0.4' },
-  },
-  'src/core/sessions/cursor.ts': {
-    'agent-identifier': { count: 1, reason: 'moved in P0.4' },
-  },
-  'src/core/sessions/head.ts': {
-    'agent-literal': { count: 2, reason: 'moved in P0.4' },
-  },
   'src/core/sessions/info.ts': {
-    'agent-identifier': { count: 1, reason: 'moved in P0.4' },
-  },
-  'src/core/sessions/lines.ts': {
-    'agent-identifier': { count: 1, reason: 'moved in P0.4' },
-    'agent-literal': { count: 3, reason: 'moved in P0.4' },
-  },
-  'src/core/sessions/names.ts': {
-    'agent-identifier': { count: 1, reason: 'moved in P0.4' },
-    'agent-literal': { count: 1, reason: 'moved in P0.4' },
-  },
-  'src/core/sessions/scanner.ts': {
-    'agent-identifier': { count: 4, reason: 'moved in P0.4' },
-    'agent-literal': { count: 4, reason: 'moved in P0.4' },
-    'agent-property': { count: 4, reason: 'moved in P0.4' },
+    'agent-identifier': {
+      count: 1,
+      reason: 'moved in P0.7: SessionInfo.claudeNamed is read by the renderer and main',
+    },
   },
   'src/core/sessions/service.ts': {
-    'agent-identifier': { count: 6, reason: 'moved in P0.4' },
-    'agent-literal': { count: 1, reason: 'moved in P0.4' },
-    'agent-property': { count: 2, reason: 'moved in P0.4' },
-  },
-  'src/core/sessions/transcript.ts': {
-    'agent-literal': { count: 4, reason: 'moved in P0.4' },
+    'agent-identifier': {
+      count: 1,
+      reason: 'moved in P0.7: SessionInfo.claudeNamed is read by the renderer and main',
+    },
   },
   'src/core/team/version.ts': {
     'agent-identifier': {
@@ -157,7 +136,7 @@ export const ALLOWED = {
   'src/core/usage/pass.ts': {
     'agent-identifier': {
       count: 2,
-      reason: "moved in P0.4: the roots by agent (not in that block's file list yet)",
+      reason: "P1a.6: TurnSource replaces PassPaths' root",
     },
   },
   'src/main/panes.ts': {
@@ -166,17 +145,10 @@ export const ALLOWED = {
   'src/main/remote-live.ts': {
     'agent-literal': { count: 2, reason: 'moved in P0.5' },
   },
-  'src/main/sessions.ts': {
-    'agent-identifier': {
-      count: 2,
-      reason:
-        "moved in P0.4: the watched roots ask the catalogs (not in that block's file list yet)",
-    },
-  },
   'src/main/workspace.ts': {
     'agent-literal': {
-      count: 22,
-      reason: 'moved in P0.4 (the catalog), P0.5 (pane.remote) and P0.6 (the rest)',
+      count: 21,
+      reason: 'moved in P0.5 (pane.remote) and P0.6 (the rest)',
     },
     'agent-property': { count: 2, reason: 'moved in P0.6: installedAgents from the registry' },
   },

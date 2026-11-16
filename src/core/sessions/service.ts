@@ -1,13 +1,19 @@
 import { type FSWatcher, watch } from 'node:fs'
-import { readdir, stat } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import { AGENT_COMMANDS } from '../agents'
+import { descriptorOf } from '../agents/descriptors'
+import { AGENT_IDS } from '../agents/ids'
+import { kitOf } from '../agents/registry'
 import { log } from '../log'
 import { loadState, type State, saveState, setHidden } from '../state'
 import type { SessionInfo } from './info'
 import { onPath } from './installed'
-import { sessionName } from './names'
-import { type DiscoveredSession, type Installed, type Roots, SessionScanner } from './scanner'
+import { sessionName, titled } from './names'
+import {
+  type DiscoveredSession,
+  type Installed,
+  type Roots,
+  rootOf,
+  SessionScanner,
+} from './scanner'
 
 export const RESCAN_DEBOUNCE_MS = 2000
 
@@ -19,7 +25,7 @@ export function toInfo(session: DiscoveredSession, state: State): SessionInfo {
     agent: session.agent,
     id: session.id,
     name: sessionName(session, state.names[session.id]),
-    claudeNamed: session.agent === 'claude' && session.customTitle !== null,
+    claudeNamed: titled(session.agent) && session.customTitle !== null,
     file: session.file,
     folder: session.folder,
     cwd: session.cwd,
@@ -81,64 +87,29 @@ export class Coalescer {
 }
 
 export interface ServiceOptions {
-  readonly roots: () => Roots
+  // Where each agent's sessions are; by default, where its catalog keeps them.
+  readonly roots?: () => Roots
   readonly installed?: () => Promise<Installed>
   readonly debounceMs?: number
 }
 
 async function installedAgents(): Promise<Installed> {
-  const [claude, cursor] = await Promise.all([
-    onPath(AGENT_COMMANDS.claude),
-    onPath(AGENT_COMMANDS.cursor),
-  ])
-  return { claude, cursor }
+  const found = await Promise.all(
+    AGENT_IDS.map(async (id) => [id, await onPath(descriptorOf(id).command)] as const),
+  )
+  return Object.fromEntries(found)
 }
 
-async function subdirs(dir: string): Promise<string[]> {
-  try {
-    return (await readdir(dir, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => join(dir, entry.name))
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES') return []
-    throw error
-  }
-}
-
-// The directories whose changes matter: for Claude the projects directory and each folder in it;
-// for Cursor the projects directory, each folder in it and each agent-transcripts inside those.
-// Not recursive: a session's subagents/ and tool-results/ churn constantly and are not sessions.
-// A projects directory that does not exist yet (the agent installed after Menkar started) is
-// stood in for by its nearest existing ancestor, whose change event reveals it appearing.
-async function nearestExisting(dir: string): Promise<string> {
-  let current = dir
-  for (;;) {
-    try {
-      if ((await stat(current)).isDirectory()) return current
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
-      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
-    }
-    const parent = dirname(current)
-    if (parent === current) return current
-    current = parent
-  }
-}
-
+// The directories whose changes matter, each agent's as its catalog says, every agent's whether
+// installed or not: one installed later is seen appearing.
 export async function watchedDirs(roots: Roots): Promise<string[]> {
-  const claudeFolders = await subdirs(roots.claudeProjects)
-  const cursorFolders = await subdirs(roots.cursorProjects)
-  const cursorTranscripts = (await Promise.all(cursorFolders.map(subdirs)))
-    .flat()
-    .filter((dir) => dir.endsWith('/agent-transcripts'))
-  return [
-    await nearestExisting(roots.claudeProjects),
-    ...claudeFolders,
-    await nearestExisting(roots.cursorProjects),
-    ...cursorFolders,
-    ...cursorTranscripts,
-  ]
+  const dirs = await Promise.all(
+    AGENT_IDS.map((id) => {
+      const catalog = kitOf(id).catalog
+      return catalog.watchTargets(rootOf(roots, id, catalog))
+    }),
+  )
+  return dirs.flat()
 }
 
 export class SessionsService {
@@ -240,7 +211,7 @@ export class SessionsService {
 
   async #scan(): Promise<void> {
     if (this.#stopped) return
-    const roots = this.#options.roots()
+    const roots = this.#options.roots?.() ?? {}
     const installed = await (this.#options.installed ?? installedAgents)()
     this.#discovered = await this.#scanner.scan(roots, installed)
     this.#scanned = true

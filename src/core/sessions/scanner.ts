@@ -1,21 +1,17 @@
-import { type Dirent, statSync } from 'node:fs'
-import { open, readdir, stat } from 'node:fs/promises'
-import { join } from 'node:path'
-import { type Badge, badgeOf, TAIL_BYTES } from './badges'
-import { cursorCwd } from './cursor'
-import { HEAD_BYTES, HEAD_LINES, readHead } from './head'
-import { type Agent, parseLine } from './lines'
-import { applyNameLines, emptyNames, type Names } from './names'
+import { AGENT_IDS, type AgentId } from '../agents/ids'
+import { kitOf } from '../agents/registry'
+import { type ReadRange, readRange } from '../agents/shared/jsonl'
+import type { SessionCatalog, SessionReader } from '../agents/types'
+import type { Badge } from './details'
+import type { Agent } from './lines'
+import type { Names } from './names'
 
-export interface Roots {
-  readonly claudeProjects: string
-  readonly cursorProjects: string
-}
+export { firstCwd, nameLines, type ReadRange, readRange } from '../agents/shared/jsonl'
 
-export interface Installed {
-  readonly claude: boolean
-  readonly cursor: boolean
-}
+// Where each agent's sessions are, when not where its catalog keeps them.
+export type Roots = Partial<Readonly<Record<`${AgentId}Projects`, string>>>
+
+export type Installed = Partial<Readonly<Record<AgentId, boolean>>>
 
 export interface DiscoveredSession extends Names {
   readonly agent: Agent
@@ -30,260 +26,41 @@ export interface DiscoveredSession extends Names {
   readonly size: number
 }
 
-export type ReadRange = (path: string, start: number, end: number) => Promise<Buffer>
-
-// Opened read-only, never written: the transcripts belong to the agents.
-export const readRange: ReadRange = async (path, start, end) => {
-  const handle = await open(path, 'r')
-  try {
-    const buffer = Buffer.alloc(Math.max(0, end - start))
-    let done = 0
-    while (done < buffer.length) {
-      const { bytesRead } = await handle.read(buffer, done, buffer.length - done, start + done)
-      if (bytesRead === 0) break
-      done += bytesRead
-    }
-    return buffer.subarray(0, done)
-  } finally {
-    await handle.close()
-  }
-}
-
-const UUID_JSONL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/
-const NEWLINE = 0x0a
-// Names are read in slices this size, so a first scan of a large transcript never holds it whole.
-const NAME_SLICE = 4 * 1024 * 1024
-const NAME_MARK = Buffer.from('-title"')
-
-// Only the lines of `chunk[0, complete)` that can be name lines, as text: decoding a whole
-// transcript to find them cost seconds on a large history, searching its bytes a fraction.
-// The same lines `applyNameLines` would look at, in the same order.
-export function nameLines(chunk: Buffer, complete: number): string {
-  const lines: string[] = []
-  let from = 0
-  while (from < complete) {
-    const hit = chunk.indexOf(NAME_MARK, from)
-    if (hit === -1 || hit >= complete) break
-    const start = chunk.lastIndexOf(10, hit) + 1
-    const newline = chunk.indexOf(10, hit)
-    const end = newline === -1 || newline > complete ? complete : newline
-    lines.push(chunk.toString('utf8', start, end))
-    from = end + 1
-  }
-  return lines.length > 0 ? `${lines.join('\n')}\n` : ''
-}
-
-const CWD_MARK = Buffer.from('"cwd":"')
-
-// The first line of `chunk[0, complete)` with a cwd of its own. A file-history snapshot can push it
-// past the head (450 KB of backed-up files before it), and a backed-up file can hold a "cwd" of
-// its own, so only a line's top-level one counts.
-export function firstCwd(chunk: Buffer, complete: number): string | null {
-  let from = 0
-  while (from < complete) {
-    const hit = chunk.indexOf(CWD_MARK, from)
-    if (hit === -1 || hit >= complete) return null
-    const start = chunk.lastIndexOf(10, hit) + 1
-    const newline = chunk.indexOf(10, hit)
-    const end = newline === -1 || newline > complete ? complete : newline
-    const cwd = parseLine(chunk.toString('utf8', start, end))?.cwd
-    if (typeof cwd === 'string') return cwd
-    from = end + 1
-  }
-  return null
-}
-
-interface Found {
-  readonly agent: Agent
-  readonly id: string
-  readonly file: string
-  readonly folder: string
-  readonly cwd?: string
-}
-
-interface FileState {
-  ino: number
-  offset: number
-  names: Names
-  headFinal: boolean
-  cwd: string | null
-  // The first cwd anywhere in the file, for one the head does not reach.
-  laterCwd: string | null
-  preview: string
-  badge: Badge
-  tailSize: number
-  tailMtime: number
-}
-
-async function entries(dir: string): Promise<Dirent[]> {
-  try {
-    return await readdir(dir, { withFileTypes: true })
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR') return []
-    throw error
-  }
-}
-
-function isDir(path: string): boolean {
-  try {
-    return statSync(path).isDirectory()
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES') return false
-    throw error
-  }
-}
-
-async function claudeTranscripts(projects: string): Promise<Found[]> {
-  const found: Found[] = []
-  for (const folder of await entries(projects)) {
-    if (!folder.isDirectory()) continue
-    const dir = join(projects, folder.name)
-    for (const file of await entries(dir)) {
-      if (file.isFile() && UUID_JSONL.test(file.name)) {
-        found.push({
-          agent: 'claude',
-          id: file.name.slice(0, -'.jsonl'.length),
-          file: join(dir, file.name),
-          folder: dir,
-        })
-      }
-    }
-  }
-  return found
-}
-
-async function cursorTranscripts(projects: string): Promise<Found[]> {
-  const found: Found[] = []
-  for (const folder of await entries(projects)) {
-    if (!folder.isDirectory()) continue
-    const transcripts = join(projects, folder.name, 'agent-transcripts')
-    let cwd: string | undefined
-    for (const session of await entries(transcripts)) {
-      if (!session.isDirectory()) continue
-      const dir = join(transcripts, session.name)
-      const jsonls = (await entries(dir))
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.jsonl'))
-        .map((entry) => entry.name)
-        .sort()
-      const name = jsonls.includes(`${session.name}.jsonl`) ? `${session.name}.jsonl` : jsonls[0]
-      if (name === undefined) continue
-      cwd ??= cursorCwd(folder.name, isDir)
-      found.push({ agent: 'cursor', id: session.name, file: join(dir, name), folder: dir, cwd })
-    }
-  }
-  return found
-}
-
-function completeUpTo(buffer: Buffer): number {
-  const last = buffer.lastIndexOf(NEWLINE)
-  return last === -1 ? 0 : last + 1
-}
+export const rootOf = (roots: Roots, id: AgentId, catalog: SessionCatalog): string =>
+  roots[`${id}Projects`] ?? catalog.root()
 
 export class SessionScanner {
   readonly #read: ReadRange
-  readonly #files = new Map<string, FileState>()
+  readonly #readers = new Map<AgentId, SessionReader>()
 
   constructor(read: ReadRange = readRange) {
     this.#read = read
   }
 
   async scan(roots: Roots, installed: Installed): Promise<DiscoveredSession[]> {
-    const found = [
-      ...(installed.claude ? await claudeTranscripts(roots.claudeProjects) : []),
-      ...(installed.cursor ? await cursorTranscripts(roots.cursorProjects) : []),
-    ]
     const sessions: DiscoveredSession[] = []
-    const seen = new Set<string>()
-    for (const item of found) {
-      const session = await this.#scanFile(item)
-      if (session) {
-        sessions.push(session)
-        seen.add(item.file)
+    for (const id of AGENT_IDS) {
+      if (!installed[id]) {
+        this.#readers.delete(id)
+        continue
       }
-    }
-    for (const file of this.#files.keys()) {
-      if (!seen.has(file)) this.#files.delete(file)
+      const catalog = kitOf(id).catalog
+      const found = await catalog.find(rootOf(roots, id, catalog))
+      let reader = this.#readers.get(id)
+      if (!reader) {
+        reader = catalog.reader(this.#read)
+        this.#readers.set(id, reader)
+      }
+      const seen = new Set<string>()
+      for (const item of found) {
+        const session = await reader.read(item)
+        if (session) {
+          sessions.push(session)
+          seen.add(item.locator)
+        }
+      }
+      reader.retain(seen)
     }
     return sessions.sort((a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id))
-  }
-
-  async #scanFile(item: Found): Promise<DiscoveredSession | null> {
-    let info: Awaited<ReturnType<typeof stat>>
-    try {
-      info = await stat(item.file)
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
-      throw error
-    }
-    if (info.size === 0) return null
-    let state = this.#files.get(item.file)
-    if (!state || state.ino !== info.ino || info.size < state.offset) {
-      state = {
-        ino: info.ino,
-        offset: 0,
-        names: emptyNames(),
-        headFinal: false,
-        cwd: null,
-        laterCwd: null,
-        preview: '',
-        badge: null,
-        tailSize: -1,
-        tailMtime: -1,
-      }
-      this.#files.set(item.file, state)
-    }
-
-    if (item.agent === 'claude') {
-      while (state.offset < info.size) {
-        const end = Math.min(info.size, state.offset + NAME_SLICE)
-        const chunk = await this.#read(item.file, state.offset, end)
-        const complete = completeUpTo(chunk)
-        if (complete === 0) {
-          // A slice with no newline: either the unfinished last line, or one line longer than
-          // a slice, which no name line ever is; skip past it only when more follows.
-          if (end === info.size) break
-          state.offset = end
-          continue
-        }
-        state.names = applyNameLines(state.names, nameLines(chunk, complete))
-        state.laterCwd ??= firstCwd(chunk, complete)
-        state.offset += complete
-      }
-    }
-
-    if (!state.headFinal) {
-      const headEnd = Math.min(info.size, HEAD_BYTES)
-      const head = (await this.#read(item.file, 0, headEnd)).toString('utf8')
-      const read = readHead(head, item.agent)
-      state.cwd = read.cwd
-      state.preview = read.preview
-      const windowFull = headEnd === HEAD_BYTES || head.split('\n').length > HEAD_LINES
-      state.headFinal =
-        windowFull || (read.preview !== '' && (read.cwd !== null || item.agent === 'cursor'))
-    }
-
-    if (state.tailSize !== info.size || state.tailMtime !== info.mtimeMs) {
-      const start = Math.max(0, info.size - TAIL_BYTES)
-      const tail = (await this.#read(item.file, start, info.size)).toString('utf8')
-      state.badge = badgeOf(tail, item.agent, start === 0)
-      state.tailSize = info.size
-      state.tailMtime = info.mtimeMs
-    }
-
-    return {
-      agent: item.agent,
-      id: item.id,
-      file: item.file,
-      folder: item.folder,
-      cwd: item.cwd ?? state.cwd ?? state.laterCwd,
-      preview: state.preview,
-      badge: state.badge,
-      customTitle: state.names.customTitle,
-      aiTitle: state.names.aiTitle,
-      mtimeMs: info.mtimeMs,
-      size: info.size,
-    }
   }
 }

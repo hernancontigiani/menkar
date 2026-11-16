@@ -1,18 +1,12 @@
 import { BrowserWindow } from 'electron'
 import { flavorFacts } from '../core/flavor'
 import { log } from '../core/log'
-import { agentPaths } from '../core/paths'
 import type { SessionInfo } from '../core/sessions/info'
 import { SessionsService } from '../core/sessions/service'
 import { startedSessions, withStarted } from '../core/state'
 
 // One scan and one set of watches serve every window.
-export const sessions = new SessionsService({
-  roots: () => {
-    const paths = agentPaths()
-    return { claudeProjects: paths.claudeProjects, cursorProjects: paths.cursorProjects }
-  },
-})
+export const sessions = new SessionsService({})
 
 // What the sandbox started, kept in memory beside state.json so the guard asks synchronously.
 let started: ReadonlySet<string> = new Set()

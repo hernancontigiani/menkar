@@ -1,14 +1,15 @@
-import type { Badge } from './badges'
-import type { Agent } from './lines'
+import type { AgentId } from '../agents/ids'
+import type { Badge } from './details'
 
 // What the renderer receives for a session. Types only, with no Node import, because the
 // renderer's compile sees this file through the IPC module.
 export interface SessionInfo {
-  readonly agent: Agent
+  readonly agent: AgentId
   readonly id: string
   readonly name: string
   // Claude named it (`-n`, `/rename`): the app does not rename it.
   readonly claudeNamed: boolean
+  // Where the agent keeps the session; only its catalog reads it.
   readonly file: string
   readonly folder: string
   readonly cwd: string | null

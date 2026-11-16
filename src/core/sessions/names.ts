@@ -1,37 +1,8 @@
-import { type Agent, chunkLines, parseLine } from './lines'
+import { kitOf } from '../agents/registry'
+import type { Names } from '../agents/shared/jsonl'
+import type { Agent } from './lines'
 
-export interface Names {
-  readonly customTitle: string | null
-  readonly aiTitle: string | null
-}
-
-export const emptyNames = (): Names => ({ customTitle: null, aiTitle: null })
-
-// `complete` holds whole lines only; the last one wins for each kind, trimmed, and a blank one
-// does not replace what was there.
-export function applyNameLines(names: Names, complete: string): Names {
-  let { customTitle, aiTitle } = names
-  for (const raw of chunkLines(complete, true)) {
-    // Cheap filter first: a transcript is mostly lines that are neither.
-    if (!raw.includes('-title"')) continue
-    const line = parseLine(raw)
-    if (!line) continue
-    if (
-      line.type === 'custom-title' &&
-      typeof line.customTitle === 'string' &&
-      line.customTitle.trim()
-    ) {
-      customTitle = line.customTitle.trim()
-    } else if (
-      line.type === 'ai-title' &&
-      typeof line.aiTitle === 'string' &&
-      line.aiTitle.trim()
-    ) {
-      aiTitle = line.aiTitle.trim()
-    }
-  }
-  return { customTitle, aiTitle }
-}
+export { applyNameLines, emptyNames, type Names } from '../agents/shared/jsonl'
 
 export interface Nameable extends Names {
   readonly agent: Agent
@@ -39,12 +10,15 @@ export interface Nameable extends Names {
   readonly preview: string
 }
 
+// The titles count only for an agent that writes them in its transcripts.
+export const titled = (agent: Agent) => (kitOf(agent).catalog.transcript?.titles ?? null) !== null
+
 export function sessionName(session: Nameable, appName: string | undefined): string {
-  const claude = session.agent === 'claude'
+  const own = titled(session.agent)
   return (
-    (claude ? session.customTitle : null) ||
+    (own ? session.customTitle : null) ||
     appName?.trim() ||
-    (claude ? session.aiTitle : null) ||
+    (own ? session.aiTitle : null) ||
     session.preview ||
     session.id.slice(0, 8)
   )

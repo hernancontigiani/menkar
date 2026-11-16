@@ -1162,3 +1162,57 @@ P0's blocks run in turn.
   `(start, block)`: the `recorded` argument enters with the first agent that keeps one (Codex).
 - `MainAgentKit` and `MainTeamDelivery` are declared in `src/main/agents/types.ts` (new); the
   `SESSION_ENV` export of `src/core/sessionenv.ts` is now the union of every kit's `EnvRules`.
+
+### P0.4 (`menkar-t58`, task 58, 2026-11-16)
+
+- **Decided by set, 2026-11-16 — the fixtures' premise corrected:** the plan said
+  `tests/data/agents/<id>/` would be "copied from today's test fixtures"; none existed
+  (`tests/core/sessions/*` build transcripts at run time with `tests/factories/transcript.ts`). They
+  are synthetic files in the factories' shapes, a `home/` tree per agent plus `expected.json`,
+  copied into a temporary HOME by `tests/core/agents/contract/catalog.test.ts`. `expected.json` was
+  written by the readers as they were **before** the move, so the contract asserts no behaviour
+  change; later phases extend these files with real recordings.
+- **Decided by set, 2026-11-16:** `AgentPaths` keeps `claudeProjects` and `cursorProjects`
+  (`tests/core/paths.test.ts` asserts the first); each catalog's `root()` reads `agentPaths()`, so
+  paths stay resolved in the paths module only. `src/core/paths.ts` keeps its count of 12.
+- **Decided by set, 2026-11-16:** `PassPaths` keeps `claudeProjects` (the usage and classifier
+  tests build it literally); `src/core/usage/pass.ts` is untouched, its count 2 with the reason
+  "P1a.6: TurnSource replaces PassPaths' root".
+- **Decided by set, 2026-11-16:** `SessionCatalog` has `transcript: TranscriptReading | null` (head,
+  `headFinal`, badge, `titles`, details and export over text) — how a JSONL agent reads its lines,
+  null for a SQLite one later. The facades `readHead`, `badgeOf`, `details`, `exportMarkdown` and
+  `sessionName` go through `kitOf(agent).catalog.transcript`; whether Claude's titles count is
+  `transcript.titles !== null`, the same test `toInfo`'s `claudeNamed` uses.
+- **Decided by set, 2026-11-16:** `read(found, prev)` became a stateful `reader(read)` per catalog
+  (`SessionReader`: `read(found)`, `retain(locators)`), one per agent in the scanner; Claude's and
+  Cursor's are the same shared `JsonlReader` (`agents/shared/jsonl.ts`) fed by each agent's
+  `TranscriptReading` — today's incremental logic, unchanged.
+- **Decided by set, 2026-11-16:** the facades' old `Roots` shape is
+  `Partial<Record<\`${AgentId}Projects\`, string>>`; a missing key means the catalog's own root, so
+  `src/main/sessions.ts` passes no roots. Left for later blocks, as they use `SessionInfo.file`
+  outside P0.4's list: `src/main/workspace.ts` `trackContext(id, info.file)` (context, P1a.6) and
+  `onlyTeamUpdates(file)` in `onShownChange` (P0.6).
+- **Decided by set, 2026-11-16:** `Details`, `RecentMessage`, `Badge` and `Head` live in the
+  Node-free `src/core/sessions/details.ts`, and `src/shared/workspace.ts`'s one `Details` import
+  points at it: the renderer's `tsc` has no Node types and type-checks every file it reaches, and
+  `transcript.ts`, now a facade over the registry, reaches `node:fs`. `src/core/sessions/info.ts`
+  takes `AgentId` from `ids.ts` for the same reason.
+- **Decided by set, 2026-11-16:** `tests/core/agents/parity.test.ts`'s `trash` pair names its
+  concern, `kitOf(id).catalog.trash`.
+- **My choices:** agent-neutral reading helpers several catalogs can use (`parseLine`,
+  `messageText`, the name and cwd byte scans, `applyNameLines`, `dashedPath`, the directory
+  helpers, `markdownExport`) are in `agents/shared/jsonl.ts`, so the facades the tests import
+  (`sessions/{lines,names,scanner,cursor}.ts`) re-export them without importing an agent folder;
+  `cursorCwd` is that re-export's alias of `dashedPath`. `sessions/lastreply.ts` stays where it is
+  (no agent named in it) and is Claude's `catalog.lastReply`; Cursor's is `null`, as `replyOf`
+  answered before. A catalog whose `trash` is `null` answers a trash or delete with the existing
+  "could not" refusal (no such agent yet).
+- **`ALLOWED`:** the entries of `sessions/{badges,cursor,head,lines,names,scanner,transcript}.ts`
+  and `src/main/sessions.ts` are gone; `sessions/service.ts` 9 → 1 and `sessions/info.ts` 1, both
+  `claudeNamed` (P0.7, read by the renderer and main); `src/main/workspace.ts`'s `agent-literal`
+  22 → 21, its reason now P0.5 and P0.6.
+- **Decided by set, 2026-11-16:** `docs/sessions.md`'s "Details and export" sentence now names the
+  agent's catalog; the old lines went verbatim to `docs/history/sessions.md`.
+- **CI on 2026-11-16:** every step green except "R10 unchanged", because `main` moved to `7e8add4`
+  (task 51, five plugin snapshots). The branch's R10 files are byte-equal to the merge base
+  `fbbf0e5`, and the step clears when `main` is merged in.
