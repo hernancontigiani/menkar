@@ -243,3 +243,15 @@ else is edited there.
 
 > Left on 2026-11-16: a worker whose task is in To review waiting on a PR is parked too (decision 1.164).
   is waiting. Once its turn is over (its shown state idle or done, or the Stop hook's record)
+
+## The data
+
+> Left on 2026-11-16: the discussing topic, the current one, comes first (decision 1.169).
+  - **The order shown** (`shownTopics`), in the sidebar and in `topic_list` (decisions 1.100 and
+    1.114, which amend 1.77's): open and discussing only, those of a ★ task first, then blocking
+    ones, then the rest by number, so the top topic is the one to take.
+
+## The sidebar in the mode
+
+> Left on 2026-11-16: a topic row shows a green dot while it is discussing (decision 1.169).
+number, the title, a red mark when blocking. A click unfolds its context, who raised it and its

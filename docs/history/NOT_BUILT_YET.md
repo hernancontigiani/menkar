@@ -129,3 +129,9 @@ project or global.
 **Trigger:** the human asks to build it. First question: per project or global, where the switch
 sits (the header, the tray), and whether Remote Control activity counts as "here".
 
+
+> Corrected 2026-11-16: Claude Code answers a silent turn with a reminder that starts another turn; it does not refuse it (read by the Claude Code consultant).
+reach the orchestrator outside the human's chat. Measured by it the same day: Claude Code's harness refuses a turn with no visible
+text ("Your previous response had no visible output"), so the skill alone cannot make it silent; a
+minimal "·" is the stopgap. A third idea from ccai's human (2026-11-16): hide, fold or filter in the orchestrator's
+model invisibly but only with the human's next prompt; the empty-turn refusal is switched per model,

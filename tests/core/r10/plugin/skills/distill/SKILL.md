@@ -15,10 +15,10 @@ compaction**: a compaction keeps the thread. If you were only asked to save what
 ## 1. Find your skill
 
 - It is the skill your team instructions say you maintain; edit only those, never a read-only one.
-- If you have none, ask the human: `menkar:specialize` writes one. Do not invent a place.
+- If you have none, or yours has no role (its boundaries) or no admission criterion, it goes
+  through `menkar:specialize` first, with the human, which adds them. Do not invent a place.
 - Read it whole before changing it, its **admission criterion** first: the skill's own rule for
-  what earns a line. If it has none, the base one holds: "if a session that never loads this skill
-  still needs it, it is not skill material".
+  what earns a line.
 
 ## 2. Decide what goes where
 

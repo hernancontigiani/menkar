@@ -26,9 +26,10 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   - **A closed topic stays,** with its decision.
   - A topic may name the **`task`** it belongs to, by number (`topic_add`'s `task`, refused when
     the project has no such task).
-  - **The order shown** (`shownTopics`), in the sidebar and in `topic_list` (decisions 1.100 and
-    1.114, which amend 1.77's): open and discussing only, those of a ★ task first, then blocking
-    ones, then the rest by number, so the top topic is the one to take.
+  - **The order shown** (`shownTopics`), in the sidebar and in `topic_list` (decisions 1.100,
+    1.114 and 1.169, which amend 1.77's): open and discussing only, the discussing one first (the
+    current one, 1.169), then those of a ★ task, then blocking ones, then the rest by number, so
+    the top topic is the one to take.
   - **`seen`**, written only once true: the human unfolded the topic or double-clicked it. A topic
     written before it reads as not seen.
 - **Main keeps the topics** (`src/main/topics.ts`), loaded at start and written in the background on
@@ -194,7 +195,8 @@ view, collapsible like Files
 and saved (`topics_collapsed`), headed "Awaiting you · N", so it says whose turn it is (1.146, the
 human, 2026-11-14: only the label the user sees; "topic" stays the thing's name for agents, tools and
 code). A row: ★ when its task has the ★, the
-number, the title, a red mark when blocking. A click unfolds its context, who raised it and its
+number, the title, a green dot while it is discussing (the current topic, decision 1.169, the
+human, 2026-11-16) and a red mark when blocking; a blocking topic being discussed shows both. A click unfolds its context, who raised it and its
 status, per window. Empty, it says "Nothing awaits you".
 
 **A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the

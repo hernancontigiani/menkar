@@ -328,16 +328,16 @@ order of the topics the orchestrator sets** (today ★, blocking, number), and *
 to talk with the orchestrator** where the human does not see what goes on behind.
 ccai's orchestrator adds (2026-11-16): `[Menkar] … finished its turn` wakes arrive as turns of the
 human's chat; if a turn must still end with some text, Menkar could hide it, or those wakes could
-reach the orchestrator outside the human's chat. Measured by it the same day: Claude Code's harness refuses a turn with no visible
-text ("Your previous response had no visible output"), so the skill alone cannot make it silent; a
-minimal "·" is the stopgap. A third idea from ccai's human (2026-11-16): hide, fold or filter in the orchestrator's
+reach the orchestrator outside the human's chat. Seen by it the same day: Claude Code answers a turn with no visible text with a
+reminder ("Your previous response had no visible output") that starts another turn, so the skill
+alone cannot make it silent; a minimal "·" is the stopgap. A third idea from ccai's human (2026-11-16): hide, fold or filter in the orchestrator's
 chat the messages other sessions send it (`Another Claude session sent a message: …`, both
 Menkar's events and workers' cross-session messages), which Claude Code draws, not Menkar; or
 deliver the events by another channel. Asked of the Claude Code consultant (2026-11-16, 2.1.325): no setting folds or
 hides peer messages in the TUI (`crossSessionInbound` only accepts, holds or refuses delivery); a
 plugin monitor wakes with a one-line event instead of a prompt row, but was rejected before
 (`docs/session-control.md`, Rejected); a `UserPromptSubmit` hook's `additionalContext` reaches the
-model invisibly but only with the human's next prompt; the empty-turn refusal is switched per model,
+model invisibly but only with the human's next prompt; the empty-turn reminder is switched per model,
 not by the user. The levers left are posting fewer, coalesced events and deferring the rest to the
 human's next prompt.
 

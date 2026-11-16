@@ -163,14 +163,22 @@ export function topicNotice(
   return null
 }
 
-// Open and discussing ones, those of a ★ task first, then blocking ones, then by number, so the
-// top one is the one to take. `all` adds the closed ones, in the same order.
+// Open and discussing ones: the one being discussed first (the current one), then those of a ★
+// task, then blocking ones, then by number, so the top one is the one to take. `all` adds the
+// closed ones, in the same order.
 export function shownTopics(
   starred: ReadonlySet<number>,
   list: readonly Topic[],
   all = false,
 ): Topic[] {
-  const rank = (x: Topic) => (x.task !== undefined && starred.has(x.task) ? 0 : x.blocking ? 1 : 2)
+  const rank = (x: Topic) =>
+    x.status === 'discussing'
+      ? 0
+      : x.task !== undefined && starred.has(x.task)
+        ? 1
+        : x.blocking
+          ? 2
+          : 3
   return list
     .filter((x) => all || x.status !== 'closed')
     .sort((a, b) => rank(a) - rank(b) || a.number - b.number)

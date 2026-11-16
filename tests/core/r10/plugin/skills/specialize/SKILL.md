@@ -1,6 +1,6 @@
 ---
 name: specialize
-description: The human asks you not to lose what you know, and you have no skill for your role. Read what already persists, inventory and verify what you know, draft the role and its boundaries, get the human's sign-off, then write a short skill that points to the project's docs. Load it when asked to define your role, to become the expert of an area, to split a role, or to specialize. If you already have a role skill, use the distill skill instead.
+description: The human asks you not to lose what you know, and you have no skill for your role. Read what already persists, inventory and verify what you know, draft the role and its boundaries, get the human's sign-off, then write a short skill that points to the project's docs. Load it when asked to define your role, to become the expert of an area, to split a role, or to specialize. If you already have a role skill, use the distill skill instead only if it has its boundaries and admission criterion; one written without them gets them here, merged into at step 0.
 ---
 
 # Specialize: from what this context knows to a role with a skill
@@ -26,6 +26,8 @@ duplicate or contradict it:
 - **the skills that exist**, the project's and the user's. For each one whose area touches yours,
   decide with the human: merge into it, or write the frontier between the two (what each one
   takes) into both. Two skills claiming the same work cost every session that loads them.
+- **Your own role skill, written without its boundaries or an admission criterion**: merge into it;
+  these steps add them.
 
 ## 1. Inventory what you know, and check it
 
