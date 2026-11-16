@@ -6,4 +6,11 @@ export interface Package {
   profile: string
   desktop: string
 }
-export function checkPackage(pkg: Package): string[]
+export function checkPackage(pkg: Package, flavour?: 'menkar' | 'sandbox'): string[]
+export const FLAVOURS: Readonly<
+  Record<
+    'menkar' | 'sandbox',
+    { name: string; app: string; release: string; builderConfig: string }
+  >
+>
+export function sharedPaths(sandbox: string[], menkar: string[], directories: string[]): string[]

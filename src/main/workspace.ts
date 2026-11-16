@@ -24,6 +24,7 @@ import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
 import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalPathExists } from '../core/files/exists'
+import { paneFlavorEnv, refusalFor } from '../core/flavor'
 import { type Key, t } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
@@ -220,7 +221,7 @@ import {
   undoBring,
 } from './project-files'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
-import { sessions } from './sessions'
+import { noteStarted, sessions, shownSessions, startedIds } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
 import { currentTasks, setTasks } from './tasks'
 import {
@@ -529,7 +530,7 @@ function stateFor(windowId: string): WindowState | undefined {
     heldElsewhere,
     tabs: w.tabs.map(tabView),
     selectedTab: shownTab(w),
-    sessions: sessionList,
+    sessions: shownSessions(sessionList),
     running: [...panes.values()]
       .filter((p) => p.sessionId && p.terminal.running)
       .map((p) => p.sessionId as string),
@@ -944,7 +945,11 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       folderGone: (cwd) => appMessage(tag, t('terminal.folderGone', { cwd })),
       ...(command ? { command } : {}),
       // The SessionStart hook names the pane, so a clear can be followed (followClear).
-      env: { [PANE_ENV]: id, ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}) },
+      env: {
+        [PANE_ENV]: id,
+        ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}),
+        ...paneFlavorEnv(),
+      },
     },
     {
       data: (data, end) => {
@@ -968,6 +973,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     cwd: spec.cwd,
     remote: spec.agent === 'claude' && spec.remote !== undefined,
   }
+  if (spec.sessionId) noteStarted(spec.sessionId)
   const self = pane
   if (spec.agent !== 'shell') {
     self.handle = registerAgentPane(id, spec.agent, size, {
@@ -1143,6 +1149,7 @@ function joinSession(pane: Pane, sessionId: string): void {
   pane.pending = undefined
   projects = addMember(projects, joinTarget(projects, pending.startedIn), sessionId)
   pane.sessionId = sessionId
+  noteStarted(sessionId)
   teamPaneChanged(pane.id)
   if (panes.has(pane.id)) {
     tabLabels.delete(pane.tabId)
@@ -2052,6 +2059,7 @@ export function followPaneStart(paneId: string, sessionId: string, source: PaneS
   followTaskAssignee(from, sessionId)
   void followSessionModel(from, sessionId)
   pane.sessionId = sessionId
+  noteStarted(sessionId)
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
 }
@@ -2066,6 +2074,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
   projects = next
   layout = followNewIdInLayout(layout, from, to)
   pane.sessionId = to
+  noteStarted(to)
   tabLabels.delete(pane.tabId)
   if (remoteIds.has(from)) {
     remoteIds.delete(from)
@@ -2608,6 +2617,8 @@ function newSessionPending(windowId: string, folder: string, expectedId: string 
 }
 
 export async function runAction(contents: WebContents, action: Action): Promise<ActionResult> {
+  const refusal = refusalFor(action, startedIds())
+  if (refusal) return { refusal }
   const windowId = windowIdOf(contents)
   if (!windowId) return {}
   const w = layout.windows.find((x) => x.id === windowId)

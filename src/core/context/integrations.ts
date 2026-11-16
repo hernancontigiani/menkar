@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileStamp, now } from '../clock'
+import { flavorFacts } from '../flavor'
 import { t } from '../i18n'
 import { agentPaths } from '../paths'
 import { contextFiles } from './files'
@@ -22,6 +23,12 @@ import type { RetentionStatus } from './types'
 
 // A change refused; its message is our own sentence for the user.
 export class IntegrationError extends Error {}
+
+// The sandbox never writes ~/.claude/settings.json by any path: the daily Menkar's pieces are there.
+function refuseUnoffered(): void {
+  if (!flavorFacts().offersSettingsFileItems)
+    throw new IntegrationError(t('integrations.managedByMenkar'))
+}
 
 async function readSettings(): Promise<JsonObject> {
   const path = agentPaths().claudeSettings
@@ -83,6 +90,7 @@ export async function statuslineInstalled(): Promise<boolean> {
 }
 
 export async function installStatusline(statuslineCommand: string): Promise<void> {
+  refuseUnoffered()
   const path = agentPaths().claudeSettings
   const settings = await readSettings()
   const ours = statuslineObject(statuslineCommand)
@@ -101,6 +109,7 @@ export async function installStatusline(statuslineCommand: string): Promise<void
 }
 
 export async function removeStatusline(statuslineCommand: string): Promise<void> {
+  refuseUnoffered()
   const path = agentPaths().claudeSettings
   const record = await readRecord()
   const entry = record.statusline
@@ -136,6 +145,7 @@ export async function retentionInstalled(): Promise<boolean> {
 
 // A larger value the user already set is kept: turning retention on never shortens it.
 export async function installRetention(): Promise<void> {
+  refuseUnoffered()
   const path = agentPaths().claudeSettings
   const settings = await readSettings()
   if (await retentionInstalled()) return
@@ -151,6 +161,7 @@ export async function installRetention(): Promise<void> {
 }
 
 export async function removeRetention(): Promise<void> {
+  refuseUnoffered()
   const path = agentPaths().claudeSettings
   const record = await readRecord()
   const entry = record.retention

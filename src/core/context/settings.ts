@@ -108,7 +108,18 @@ export async function chainedCommand(ownCommand: string): Promise<string | null>
   }
   if (!isJsonObject(candidate) || jsonEqual(candidate, statuslineObject(ownCommand))) return null
   const command = candidate.command
-  return typeof command === 'string' && command.trim() !== '' ? command : null
+  return typeof command === 'string' && command.trim() !== '' && !isMenkarStatusline(command)
+    ? command
+    : null
+}
+
+// Any Menkar's statusline, of either flavour, installed or a development build: chaining to it
+// would log this Menkar's sessions into the other's files, or run the two in a loop.
+function isMenkarStatusline(command: string): boolean {
+  return (
+    /(^|\s)ELECTRON_RUN_AS_NODE=1\s/.test(command) &&
+    /\/out\/main\/statusline\.js'?(\s|$)/.test(command)
+  )
 }
 
 // Writes the two files a Claude session Menkar starts needs — its `--settings` file holding

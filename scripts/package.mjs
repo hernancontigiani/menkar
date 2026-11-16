@@ -3,7 +3,8 @@
 // name keeps only the app's version (release/menkar_0.1.0_amd64.deb), so the install command never
 // changes. Run after `electron-vite build`.
 import { execFileSync } from 'node:child_process'
-import { resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -26,17 +27,62 @@ export function debianRevision({ count, hash, dirty, now }) {
 /** @param {string[]} args */
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim()
 
+/**
+ * The flavour to package: the one the app's code in out/ was built as (`built`, which
+ * electron.vite.config.ts writes to out/main/flavor.txt), and `--flavour` when given only as a
+ * check of it. A package whose code is the other flavour's would install under one name and write
+ * into the other's directories.
+ * @param {string[]} argv
+ * @param {string | null} built
+ * @returns {'menkar' | 'sandbox'}
+ */
+export function packageFlavour(argv, built) {
+  if (built !== 'menkar' && built !== 'sandbox')
+    throw new Error('out/ holds no built flavour; run `electron-vite build` first')
+  const at = argv.indexOf('--flavour')
+  if (at === -1) return built
+  const asked = argv[at + 1]
+  if (asked !== 'menkar' && asked !== 'sandbox')
+    throw new Error(`--flavour is ${asked ?? 'missing its value'}; it is menkar or sandbox`)
+  if (asked !== built)
+    throw new Error(
+      `--flavour ${asked}, but out/ was built as ${built}: build with MENKAR_FLAVOR_BUILD=${asked}`,
+    )
+  return asked
+}
+
+/** The electron-builder config each flavour builds with. */
+export const BUILDER_CONFIG = {
+  menkar: 'electron-builder.yml',
+  sandbox: 'electron-builder.sandbox.yml',
+}
+
 function main() {
+  let built = null
+  try {
+    built = readFileSync(join(ROOT, 'out', 'main', 'flavor.txt'), 'utf8').trim()
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error
+  }
+  const flavour = packageFlavour(process.argv.slice(2), built)
   const revision = debianRevision({
     count: Number(git('rev-list', '--count', 'HEAD')),
     hash: git('rev-parse', '--short=8', 'HEAD'),
     dirty: git('status', '--porcelain') !== '',
     now: new Date(),
   })
-  console.log(`package: Debian revision ${revision}`)
+  console.log(`package: ${flavour}, Debian revision ${revision}`)
   execFileSync(
     'npx',
-    ['electron-builder', '--linux', 'deb', '--x64', `-c.buildNumber=${revision}`],
+    [
+      'electron-builder',
+      '--linux',
+      'deb',
+      '--x64',
+      '--config',
+      BUILDER_CONFIG[flavour],
+      `-c.buildNumber=${revision}`,
+    ],
     { cwd: ROOT, stdio: 'inherit' },
   )
 }

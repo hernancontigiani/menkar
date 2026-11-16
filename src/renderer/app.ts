@@ -13,6 +13,7 @@ import { relativeTime } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
 import { DEFAULT_SETTINGS, SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, ActionResult, TabView, TaskView, WindowState } from '../shared/workspace'
+import { appName } from './about'
 import { openAddSession } from './addsession'
 import { boardFrame, renderBoard, sizeBoard } from './board'
 import { mountChat } from './chat'
@@ -233,12 +234,7 @@ export function buildFrame(): void {
         usage,
         modeSwitch(),
         boardButton(),
-        el(
-          'div',
-          { class: 'title' },
-          titleStar(),
-          el('span', { class: 'title-text' }, t('window.title')),
-        ),
+        el('div', { class: 'title' }, titleStar(), el('span', { class: 'title-text' }, appName())),
       ),
       ...boardFrame(),
       el('div', { id: 'tab-strip' }),

@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { resolve as resolvePath } from 'node:path'
 import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain, Menu } from 'electron'
 import { terminalPathExists } from '../core/files/exists'
+import { flavorFacts } from '../core/flavor'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
 import { cliArguments, DETACHED, shouldDetach } from '../core/launch'
 import { addSink, log, openFileSink } from '../core/log'
@@ -19,7 +20,7 @@ import { watchPaneStarts } from './pane-starts'
 import { registerPreferencesIpc, setStartLanguage } from './preferences'
 import { projectsSnapshot, startProjects } from './projects'
 import { allReaped, reaping } from './reap'
-import { broadcastSessions, sessions } from './sessions'
+import { broadcastSessions, sessions, sessionsForWindows } from './sessions'
 import { startPhase } from './startup'
 import { startTasks } from './tasks'
 import { startTopics } from './topics'
@@ -81,7 +82,7 @@ on('panes:reveal', (_event, { paneId }) => revealPane(paneId))
 let language = chooseLanguage(undefined, [])
 
 handle('i18n:catalog', () => ({ language, messages: catalog(language) }))
-handle('sessions:list', () => sessions.list())
+handle('sessions:list', () => sessionsForWindows())
 handle('sessions:set-hidden', async (_event, { ids, hidden }) => {
   await sessions.setHidden(ids, hidden)
   return undefined
@@ -181,7 +182,7 @@ const openFiles =
 if (startedDetached()) app.exit(0)
 else if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
 else if (command[0] === 'open' && openFiles.length === 0) {
-  process.stderr.write('Usage: menkar open <file> [<file>…]\n')
+  process.stderr.write(`Usage: ${flavorFacts().command} open <file> [<file>…]\n`)
   app.exit(2)
 } else if (!app.requestSingleInstanceLock({ files: openFiles })) {
   // Another Menkar runs: it got the files (or comes forward); this one ends.

@@ -1,3 +1,5 @@
+import { FLAVOR_ENV } from './flavor'
+
 // The variables that describe a running Claude Code session, by what they say. Claude Code sets
 // them for the processes it starts: a hook, a tool's command, an MCP server. A Menkar started from
 // one of those (a terminal inside Claude Code) would hand them to every agent it starts, and an
@@ -36,7 +38,8 @@ export const SESSION_ENV = {
   ide: ['CLAUDE_CODE_SSE_PORT'],
 } as const
 
-const DENIED: ReadonlySet<string> = new Set(Object.values(SESSION_ENV).flat())
+// A Menkar of either flavour started from the other's pane must not pass that flavour on.
+const DENIED: ReadonlySet<string> = new Set([...Object.values(SESSION_ENV).flat(), FLAVOR_ENV])
 
 export function withoutSessionEnv(
   env: Readonly<Record<string, string | undefined>>,

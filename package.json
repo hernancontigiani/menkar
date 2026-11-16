@@ -20,9 +20,10 @@
     "check:code-rules": "node scripts/check-code-rules.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
     "ci": "node scripts/ci.mjs",
-    "ui-check": "electron-vite build && xvfb-run -a env MENKAR_E2E_XVFB=1 playwright test",
+    "ui-check": "MENKAR_FLAVOR_BUILD=menkar electron-vite build && xvfb-run -a env MENKAR_E2E_XVFB=1 playwright test",
     "package": "electron-vite build && node scripts/package.mjs",
     "package:check": "node scripts/check-package.mjs",
+    "package:sandbox": "MENKAR_FLAVOR_BUILD=sandbox electron-vite build && node scripts/package.mjs --flavour sandbox",
     "package:smoke": "MENKAR_E2E_EXECUTABLE=release/linux-unpacked/menkar xvfb-run -a env MENKAR_E2E_XVFB=1 playwright test"
   },
   "devDependencies": {

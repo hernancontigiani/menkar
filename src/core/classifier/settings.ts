@@ -1,3 +1,4 @@
+import { flavorFacts } from '../flavor'
 import type { RunResult } from './run'
 
 // The two settings of the classification, under `settings` in state.json: when the switch was last
@@ -12,6 +13,7 @@ function settingsOf(rest: Rest): Record<string, unknown> {
 }
 
 export function classifySince(rest: Rest): number | null {
+  if (!flavorFacts().classifies) return null
   const since = settingsOf(rest).classify_since
   return typeof since === 'number' && Number.isFinite(since) ? since : null
 }

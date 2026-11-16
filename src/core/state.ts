@@ -54,3 +54,17 @@ export function loadState(): Promise<State> {
 export function saveState(state: State): Promise<void> {
   return writeJson(statePath(), { ...state.rest, names: state.names, hidden: state.hidden })
 }
+
+// The sessions the sandbox started, or that bound in its panes: the only ones it acts on.
+const STARTED = 'started_sessions'
+
+export function startedSessions(state: State): ReadonlySet<string> {
+  const value = state.rest[STARTED]
+  return new Set(Array.isArray(value) ? value.filter((id) => typeof id === 'string') : [])
+}
+
+export function withStarted(state: State, id: string): State {
+  const started = startedSessions(state)
+  if (started.has(id)) return state
+  return { ...state, rest: { ...state.rest, [STARTED]: [...started, id].sort() } }
+}

@@ -1,4 +1,5 @@
 import '@xterm/xterm/css/xterm.css'
+import { appName } from './about'
 import './style.css'
 import './turning.css'
 import './segmented.css'
@@ -18,7 +19,7 @@ import {
 } from './app'
 import { isMarkdown } from './editor'
 import { openFileDialog } from './fileopen'
-import { loadCatalog, t } from './i18n'
+import { loadCatalog } from './i18n'
 import { dropComposition, watchKeyboardLayout, withLayout } from './keyboard-layout'
 import { beginPrefix, endPrefix, prefixWaiting, setPrefixHandlers, startsPrefix } from './keys'
 import { goToAgent, projectSwitcher, quickSwitcher } from './switcher'
@@ -26,7 +27,7 @@ import { setAppKeyFilter } from './terminals'
 import { dialogOpen, toast } from './ui'
 
 await loadCatalog()
-document.title = t('window.title')
+document.title = appName()
 buildFrame()
 
 const WINDOW_ACTIONS: Record<ShortcutOf<'window'>, () => void> = {
@@ -123,4 +124,4 @@ window.menkar.window.onState(render)
 window.menkar.window.onConfirmClose((names) => void confirmClose(names))
 const initial = await window.menkar.window.state()
 if (initial) render(initial)
-else toast(t('window.title'))
+else toast(appName())

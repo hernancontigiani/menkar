@@ -1,8 +1,31 @@
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { defineConfig } from 'electron-vite'
+import { resolveBuildFlavor } from './src/core/flavor'
+
+// Which Menkar this build is (src/core/flavor.ts): the branch decides unless MENKAR_FLAVOR_BUILD
+// says, so a build in the multi-agent worktree is a sandbox by default.
+const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+  cwd: import.meta.dirname,
+  encoding: 'utf8',
+}).trim()
+const flavor = resolveBuildFlavor(process.env.MENKAR_FLAVOR_BUILD, branch)
+const define = { __MENKAR_FLAVOR__: JSON.stringify(flavor) }
+// out/main/flavor.txt: what scripts/package.mjs reads, so a package never holds the other
+// flavour's code.
+const flavorFile = {
+  name: 'menkar-flavor',
+  generateBundle(this: {
+    emitFile(file: { type: 'asset'; fileName: string; source: string }): string
+  }) {
+    this.emitFile({ type: 'asset', fileName: 'flavor.txt', source: `${flavor}\n` })
+  },
+}
 
 export default defineConfig({
   main: {
+    define,
+    plugins: [flavorFile],
     build: {
       rollupOptions: {
         input: {
@@ -20,6 +43,7 @@ export default defineConfig({
     },
   },
   preload: {
+    define,
     build: {
       rollupOptions: {
         input: resolve('src/preload/index.ts'),
@@ -29,6 +53,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    define,
     root: resolve('src/renderer'),
     build: {
       rollupOptions: {
