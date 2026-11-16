@@ -1,3 +1,4 @@
+import { REVIEW_WAITERS } from '../orchestration/taskState'
 import { type ControlAnswer, TOOL_NAMES, type ToolName } from './files'
 
 export { TOOL_NAMES }
@@ -193,14 +194,23 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'task_review',
     description:
-      'Says a task assigned to you is done and ready for the orchestrator to review; only the orchestrator closes it. Only its assignee.',
+      "Says a task assigned to you is done and ready for the orchestrator to review; only the orchestrator closes it. Only its assignee, who says whom it waits on: the orchestrator by default, the human, or a PR's approval or merge. The orchestrator may call it on a task in To review to change only whom it waits on.",
     inputSchema: {
       type: 'object',
       properties: {
         number: { type: 'integer', description: "The task's number." },
-        note: { type: 'string', description: 'One line: what to look at.' },
+        note: {
+          type: 'string',
+          description: "One line: what to look at. The assignee's is required.",
+        },
+        waiting_on: {
+          type: 'string',
+          enum: [...REVIEW_WAITERS],
+          description: 'Whom it waits on; omitted, the orchestrator.',
+        },
+        waiting_note: { type: 'string', description: "One line beside it, e.g. the PR's number." },
       },
-      required: ['number', 'note'],
+      required: ['number'],
     },
   },
   {
@@ -257,7 +267,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'park_session',
     description:
-      'Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as closing its tab does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting.',
+      'Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as closing its tab does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting, or in To review waiting on a PR.',
     inputSchema: {
       type: 'object',
       properties: { name: { type: 'string', description: "The worker's name." } },

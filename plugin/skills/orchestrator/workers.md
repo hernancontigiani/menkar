@@ -22,6 +22,10 @@ Read this when you hand out work, when a task will wait long, and when a task cl
 - **When a task will wait long** (a PR under review, an answer that takes days), have its worker
   report it waiting (`task_progress` with `waiting_on`), then `park_session` it: Menkar hangs it up
   after its turn, keeping its transcript. It shows under "Parked" in the Team view.
+- **A task done but waiting on a PR**: the worker hands it to review with `task_review`,
+  `waiting_on` `pr-approval` (or `pr-merge` once approved) and the PR's number as its note
+  (waiting_note). After your own review, change it with `task_review` on that task as the PR
+  moves; then park its worker. One waiting on you or the human is not parked.
 - **When the wait ends** (the human tells you the PR got feedback), `resume_session` it by name,
   with a prompt saying what came back. It resumes its own conversation, not a new one.
 - Only a worker you started, with no role, is parked. Experts, consultants and sessions the human

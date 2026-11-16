@@ -50,6 +50,7 @@ import {
   followTasks,
   onStarredTask,
   openTasks,
+  parkingTask,
   setTaskStar,
   starredTasks,
   type Task,
@@ -607,6 +608,7 @@ function tasksView(projectId: string): TasksView {
     step: x.step,
     note: x.note,
     ...(x.waitingOn !== undefined ? { waitingOn: x.waitingOn } : {}),
+    ...(x.reviewWait !== undefined ? { reviewWait: x.reviewWait } : {}),
   })
   const closed = closedOn(list, now())
   const current: Record<string, number> = {}
@@ -1328,7 +1330,7 @@ function parkFor(project: Project, caller: string, named: unknown): ControlAnswe
   if (typeof named !== 'string' || !named.trim()) return refuse('Name the worker to park.')
   const found = sessionOfProject(named.trim(), sessionsForNames(project.id))
   if ('refusal' in found) return refuse(found.refusal)
-  const current = currentTask(tasksOf(currentTasks(), project.id), found.id)
+  const current = parkingTask(tasksOf(currentTasks(), project.id), found.id)
   const refusal = mayPark(workerTeam(project), caller, found.id, current)
   if (refusal) return refuse(refusal)
   const pane = paneOfSession(found.id)

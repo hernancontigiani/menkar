@@ -1,0 +1,1 @@
+/home/demo/.local/bin/cursor-agent --resume 1b4e28ba-2fa1-11d2-883f-0016d3cca427 && exit

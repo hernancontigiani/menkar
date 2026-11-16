@@ -14,11 +14,14 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { callMenkar, controlPaths, writeAtomic } from '../../../src/core/control/files'
 import { answer, TOOL_NAMES } from '../../../src/core/control/protocol'
 import { serverContext } from '../../../src/core/control/server'
+import { en } from '../../../src/core/i18n/en'
+import { es } from '../../../src/core/i18n/es'
 import {
   membersFolders,
   presentFolders,
   startFolder,
 } from '../../../src/core/orchestration/folders'
+import { REVIEW_WAITER_LABELS, REVIEW_WAITERS } from '../../../src/core/orchestration/taskState'
 import {
   sessionMarks,
   setMode,
@@ -105,6 +108,22 @@ describe('the protocol', () => {
     const start = reply.result.tools.find((t) => t.name === 'start_session')
     expect(start?.inputSchema.properties.model).toMatchObject({ type: 'string' })
     expect(start?.inputSchema.required).toBeUndefined()
+  })
+
+  // Decision 1.164: whom a task in To review waits on crosses agent → app (this enum) and app →
+  // window (a label each, in every catalog).
+  test("task_review's waiting_on offers exactly the values the app keeps, and each has its label", async () => {
+    const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
+      result: { tools: { name: string; inputSchema: { properties: Record<string, unknown> } }[] }
+    }
+    const review = reply.result.tools.find((t) => t.name === 'task_review')
+    expect(review?.inputSchema.properties.waiting_on).toMatchObject({ enum: [...REVIEW_WAITERS] })
+    expect(REVIEW_WAITERS.length).toBe(4)
+    expect(Object.keys(REVIEW_WAITER_LABELS).sort()).toEqual([...REVIEW_WAITERS].sort())
+    for (const key of Object.values(REVIEW_WAITER_LABELS).filter((k) => k !== null)) {
+      expect(en[key]).toBeTruthy()
+      expect(es[key]).toBeTruthy()
+    }
   })
 
   test('a call goes to Menkar with its arguments, and its answer comes back as text', async () => {

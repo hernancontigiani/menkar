@@ -45,6 +45,13 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   - **States:** `queued` (added) → `in progress` (steps set; step n of m) → `waiting` (on a topic
     or a session, named) → `to review` (the assignee says it is done) → `done` or `dropped`, which
     only the orchestrator sets, after reviewing, so "done" always means reviewed.
+  - **Whom a task in To review waits on** (decision 1.164, the human, 2026-11-16):
+    `review_wait: { on, note }`, present exactly while the task is `to review`. `on` is
+    `orchestrator` (the default), `human`, `pr-approval` or `pr-merge`; `note` is one line beside
+    it, such as the PR's number. The assignee says it with `task_review`; the orchestrator changes
+    it after its own review, by calling `task_review` on the task in To review. A change stamps
+    `updated` as any other does, so the flow metrics (deferred, 1.156) can read it later. A task an
+    older file left in To review without it reads as waiting on the orchestrator.
   - **A session's current task** (`currentTask`): its task in progress or waiting, else its oldest
     queued one.
   - **One in progress per assignee** (decision 1.119): `task_steps`, or `task_progress` without
@@ -168,7 +175,8 @@ nested under it with its label; a **generalist** worker, under it without a labe
 1. **The orchestrator**, then its children with a tab, indented; its children without a tab fold
    into one "N earlier" row a click unfolds (per window, not saved). Its parked workers fold apart,
    after it, into a "Parked · N" row; unfolded (per window, not saved), each parked worker with
-   "waiting on …" from its current task (decision 1.120; `modeRows`).
+   "waiting on …" from its current task, else from its task in To review (decisions 1.120, 1.164;
+   `modeRows`).
 2. **"Consultants"**: every session with a role label that is not the orchestrator and not
    nested, each with its own children as in 1.
 3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
@@ -227,8 +235,10 @@ Columns (`boardElement`, `src/renderer/work.ts`): **Topics** (the open ones, in 
 **Queued** · **In progress** · **Waiting** · **To review** · **Done**: today's closed tasks, newest
 first, and the older ones folded under "Done before · N" (per window, not saved); a dropped task is
 struck through. A task card: its number, ★, title, the assignee with its state dot, `3/5` and the
-step segments, the note. A click selects the assignee's tab; the right-click sets the ★; nothing
-else is edited there.
+step segments, the note. The note line starts with what the task waits on, as in the Work view's
+task rows: a waiting task's `waiting_on`, and a task in To review's `review_wait` unless it waits on
+the orchestrator ("waiting on PR approval #436 · PR open", decision 1.164). A click selects the
+assignee's tab; the right-click sets the ★; nothing else is edited there.
 A card's title, topic or task, is clamped to two lines with an ellipsis and whole in its tooltip,
 so no card outgrows the probe (decision 1.145, the human, 2026-11-14).
 A done task shows `N/N` and every segment done, whatever step its worker last reported; a dropped
@@ -381,7 +391,9 @@ away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; ma
   (`untakenRefusal`): moving it would lose the context its session keeps. `task_add` may leave the
   assignee out for this.
 - **Parking** (`park_session`, `mayPark`): only the orchestrator, for a worker whose current task
-  is waiting. Once its turn is over (its shown state idle or done, or the Stop hook's record)
+  is waiting, or whose task is in To review waiting on a PR (`pr-approval` or `pr-merge`,
+  `parkingTask`; decision 1.164); one waiting on the orchestrator or the human is refused. Once its
+  turn is over (its shown state idle or done, or the Stop hook's record)
   Menkar stops it as closing its tab does, never mid-turn and never by typing, and
   marks it `parked` in `projects.json`. The mark follows a new id and leaves with the member.
 - **Resuming** (`resume_session`): only the orchestrator, a parked or stopped Claude Code session of

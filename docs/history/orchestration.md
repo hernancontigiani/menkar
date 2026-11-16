@@ -227,3 +227,19 @@ status, per window. Empty, it says "No open topics".
 - **Who is a worker** (`isWorker`): with the mode on, a child of the orchestrator with no role
   label. Experts (a label), consultants (loose) and sessions the human started are never parked,
   counted or hidden by Menkar.
+
+## The sidebar in the mode
+
+> Left on 2026-11-16: a parked worker's "waiting on …" also comes from its task in To review (decision 1.164).
+   "waiting on …" from its current task (decision 1.120; `modeRows`).
+
+## The Board
+
+> Left on 2026-11-16: a task card's note line says whom a task in To review waits on (decision 1.164).
+step segments, the note. A click selects the assignee's tab; the right-click sets the ★; nothing
+else is edited there.
+
+## Workers per task
+
+> Left on 2026-11-16: a worker whose task is in To review waiting on a PR is parked too (decision 1.164).
+  is waiting. Once its turn is over (its shown state idle or done, or the Stop hook's record)

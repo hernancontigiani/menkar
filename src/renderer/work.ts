@@ -153,9 +153,25 @@ export function taskMenu(node: HTMLElement, task: TaskView): void {
   })
 }
 
+// What a waiting task waits on, or one in To review when not on the orchestrator (decision 1.164).
+export function waitsOn(task: TaskView): string {
+  if (task.state === 'waiting') return task.waitingOn ?? ''
+  const wait = task.state === 'to review' ? task.reviewWait : undefined
+  const label = !wait
+    ? ''
+    : wait.on === 'human'
+      ? t('task.waitsOnHuman')
+      : wait.on === 'pr-approval'
+        ? t('task.waitsOnPrApproval')
+        : wait.on === 'pr-merge'
+          ? t('task.waitsOnPrMerge')
+          : ''
+  return label ? [label, wait?.note].filter(Boolean).join(' ') : ''
+}
+
 function taskRow(task: TaskView): HTMLElement {
-  const note =
-    task.state === 'waiting' && task.waitingOn ? t('work.waitingOn', { on: task.waitingOn }) : ''
+  const on = waitsOn(task)
+  const note = on ? t('work.waitingOn', { on }) : ''
   const node = el(
     'button',
     {
@@ -372,8 +388,8 @@ export function boardElement(s: WindowState, rerender: () => void): HTMLElement 
 }
 
 export function taskCard(task: TaskView): HTMLElement {
-  const note =
-    task.state === 'waiting' && task.waitingOn ? t('work.waitingOn', { on: task.waitingOn }) : ''
+  const on = waitsOn(task)
+  const note = on ? t('work.waitingOn', { on }) : ''
   const node = el(
     'button',
     {

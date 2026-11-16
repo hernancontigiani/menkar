@@ -1,0 +1,13 @@
+guide/orchestration-mode.md
+skills/distill/SKILL.md
+skills/orchestrator/SKILL.md
+skills/orchestrator/closing-a-task.md
+skills/orchestrator/locks-and-environment.md
+skills/orchestrator/setting-up.md
+skills/orchestrator/workers.md
+skills/specialize/SKILL.md
+skills/specialize/role-skill-contents.md
+skills/specialize/where-knowledge-goes.md
+skills/worker/SKILL.md
+team/claude.md
+team/common.md

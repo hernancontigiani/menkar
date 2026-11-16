@@ -3,7 +3,7 @@
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
 import type { Params } from '../core/i18n/interpolate'
-import type { TaskState } from '../core/orchestration/taskState'
+import type { ReviewWait, TaskState } from '../core/orchestration/taskState'
 import type { SettingsSection } from '../core/preferences'
 import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
@@ -77,6 +77,7 @@ export interface TaskView {
   readonly step: number
   readonly note: string
   readonly waitingOn?: string
+  readonly reviewWait?: ReviewWait
 }
 
 // "Done today" (decision 1.115): a topic closed or a task done since local midnight.

@@ -139,3 +139,9 @@ and the wake order.
 
 > Left on 2026-11-16: "keeper" is "maintainer" (plan 40).
     is read only, its lesson goes in the report (one keeper per skill, 1.119).
+
+## The shape
+
+> Left on 2026-11-16: `task_review` says whom a task in To review waits on, and the orchestrator may change it (decision 1.164).
+    - `task_review { number, note }`: the assignee only; to review.
+    child, no role) whose current task is waiting (`mayPark`). Once the worker's turn is over — its

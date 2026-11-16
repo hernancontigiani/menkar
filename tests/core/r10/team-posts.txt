@@ -1,0 +1,28 @@
+=== a block, now none ===
+Team update: the "Your team in Menkar" instructions no longer apply to you. No reply is needed.
+
+=== none, now a block ===
+Team update: your team instructions, replacing any earlier ones:
+# Your team in Menkar
+You are `packager`, a session of the Menkar project "menkar", in orchestration mode. Your parent is `set`, the orchestrator.
+When a session hands you a task, load `menkar:worker` first.
+Your parent decides when you renew; when your context (your row in `list_sessions`) passes 90%, tell it by name.
+
+## How the team works
+- Address a session by its name, never by its id: a renewed session keeps its name and gets a new id.
+- Messages that start with "[Menkar]" come from the Menkar app, not from a person; one may update the facts above.
+- When you finish work another session handed you, or are blocked, your report is your last message: it is read with `last_reply`. If that session is not your parent, also send it the report by name: Menkar wakes only your parent.
+- When you renew, call `renew` with a prompt that is your handoff: what is in flight (locks you hold, answers you owe, half-done work) and your next task. Menkar tells the new session who it is and what to load.
+
+- Message a session with `SendMessage`, `to` set to its name.
+No reply is needed.
+
+=== a block, other facts ===
+Team update: your facts are now:
+You are `packager`, a session of the Menkar project "menkar", in orchestration mode. Your role: "Release". Your parent is `set`, the orchestrator.
+When a session hands you a task, load `menkar:worker` first.
+Your parent decides when you renew; when your context (your row in `list_sessions`) passes 90%, tell it by name.
+No reply is needed.
+
+=== a block, the same facts ===
+null

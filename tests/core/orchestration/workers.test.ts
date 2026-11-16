@@ -142,6 +142,25 @@ describe('parking', () => {
     expect(mayPark({ ...team, orchestrator: null }, 'O', 'W', task('waiting'))).not.toBeNull()
   })
 
+  // Decision 1.164: a task in To review waiting on a PR parks its worker; one waiting on the
+  // orchestrator or the human does not.
+  test.each([
+    ['pr-approval', null],
+    ['pr-merge', null],
+    [
+      'human',
+      'Park a worker in To review only while its task waits on a PR: report it with task_review, waiting_on pr-approval or pr-merge.',
+    ],
+    [
+      'orchestrator',
+      'Park a worker in To review only while its task waits on a PR: report it with task_review, waiting_on pr-approval or pr-merge.',
+    ],
+  ] as const)('to review waiting on %s → %j', (on, expected) => {
+    expect(
+      mayPark(team, 'O', 'W', { ...task('to review'), reviewWait: { on, note: '#436' } }),
+    ).toBe(expected)
+  })
+
   test('an expert, a consultant and a session the human started are never parked', () => {
     for (const id of ['E', 'C', 'H'])
       expect(mayPark(team, 'O', id, task('waiting', id))).toBe(

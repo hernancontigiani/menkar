@@ -53,7 +53,7 @@ import {
   toast,
   unsavedQuestion,
 } from './ui'
-import { boardButton, syncBoardButton, teamTaskLine, viewSwitch, workView } from './work'
+import { boardButton, syncBoardButton, teamTaskLine, viewSwitch, waitsOn, workView } from './work'
 
 let state: WindowState | undefined
 // Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
@@ -763,7 +763,11 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
         nested: r.depth === 1,
         dragged: r.section !== null,
       })
-      const waits = r.parked ? currentTaskOf(r.id)?.waitingOn : undefined
+      const parkedOn = r.parked
+        ? (currentTaskOf(r.id) ??
+          state?.tasks.open.find((x) => x.assignee === r.id && x.state === 'to review'))
+        : undefined
+      const waits = parkedOn ? waitsOn(parkedOn) : ''
       if (waits)
         node
           .querySelector('.text')

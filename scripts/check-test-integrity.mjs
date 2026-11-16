@@ -15,7 +15,6 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const BASELINE = process.env.MENKAR_TEST_BASELINE ?? 'main'
 const SUITES = ['tests', 'e2e']
 const TEST_FILE = /\.(test|spec)\.ts$/
 // Members of `test` that take a function and are not a test: hooks, groups and steps.
@@ -90,6 +89,20 @@ function git(...args) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 }
 
+/**
+ * What the suite is compared against: an explicit MENKAR_TEST_BASELINE, else the commit where HEAD
+ * left `main` — HEAD itself on `main`. On a branch that merged `main`, `main` would report each
+ * test line `main` removed and the merge brought in; the merge base reports only the branch's own.
+ * @param {Readonly<Record<string, string | undefined>>} env
+ * @param {string} cwd
+ * @returns {string}
+ */
+export function baseline(env, cwd) {
+  const explicit = env.MENKAR_TEST_BASELINE
+  if (explicit !== undefined) return explicit
+  return execFileSync('git', ['merge-base', 'main', 'HEAD'], { cwd, encoding: 'utf8' }).trim()
+}
+
 /** @param {string} dir @returns {string[]} */
 function filesOnDisk(dir) {
   /** @type {string[]} */
@@ -110,8 +123,10 @@ function filesOnDisk(dir) {
 }
 
 function main() {
+  let BASELINE = process.env.MENKAR_TEST_BASELINE ?? 'the merge base of main and HEAD'
   let base
   try {
+    BASELINE = baseline(process.env, ROOT)
     base = git('rev-parse', '--verify', `${BASELINE}^{commit}`).trim()
   } catch (error) {
     console.error(`✗ check-test-integrity: no baseline '${BASELINE}' to compare against`)

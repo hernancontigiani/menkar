@@ -1,0 +1,10 @@
+watched:
+<tmp>/claude
+<tmp>/claude/-home-demo-api
+<tmp>/claude/-home-demo-web
+<tmp>/cursor
+<tmp>/cursor/home-demo-api
+<tmp>/cursor/home-demo-api/agent-transcripts
+scanned:
+claude 1b4e28ba-2fa1-11d2-883f-0016d3cca427 <tmp>/claude/-home-demo-api/1b4e28ba-2fa1-11d2-883f-0016d3cca427.jsonl
+claude 9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f <tmp>/claude/-home-demo-web/9c2d5f10-3e4b-4c5d-8e6f-7a8b9c0d1e2f.jsonl

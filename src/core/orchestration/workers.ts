@@ -1,6 +1,7 @@
 import type { Project } from '../projects/model'
 import { isCap, orchestrationInfo } from '../projects/orchestration'
 import { keptParents, type Parents } from '../projects/parents'
+import { waitsOnPr } from './taskState'
 import type { Task } from './tasks'
 
 // Per project, so two projects' `t42` never collide: cross-session messages go by name across the
@@ -97,6 +98,10 @@ export function mayPark(
     return "Only this project's orchestrator parks a session."
   if (!isWorker(team, target))
     return 'Only a worker you started, with no role, is parked: experts, consultants and sessions the human started never are.'
+  if (current?.state === 'to review')
+    return current.reviewWait !== undefined && waitsOnPr(current.reviewWait.on)
+      ? null
+      : 'Park a worker in To review only while its task waits on a PR: report it with task_review, waiting_on pr-approval or pr-merge.'
   if (current?.state !== 'waiting')
     return 'Park a worker only while its task is waiting: report it waiting first (task_progress with waiting_on).'
   return null

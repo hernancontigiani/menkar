@@ -127,7 +127,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     - One in progress per assignee (decision 1.119): `task_steps`, or `task_progress` without
       `waiting_on`, while another of the assignee's tasks is in progress is refused ("Finish or
       wait on task N first.").
-    - `task_review { number, note }`: the assignee only; to review.
+    - `task_review { number, note?, waiting_on?, waiting_note? }`: the assignee, with its `note`,
+      hands the task to review; `waiting_on` is whom it waits on there, `orchestrator` (the default
+      when omitted), `human`, `pr-approval` or `pr-merge`, and `waiting_note` one line beside it
+      (the PR's number). The orchestrator, after its own review, calls it on a task in To review to
+      change only those two, and its `note` if it gives one; refused on a task in another state or
+      without `waiting_on` (decision 1.164).
     - `task_close { number, outcome }`: the orchestrator only, with the mode on; `done` or
       `dropped`. A closed task takes no more reports ("Task N is closed.").
     - `task_list { all? }`: anyone; the open tasks, ★ first, each with its steps and the current one
@@ -141,7 +146,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     other caller ("Only the orchestrator can adopt a session.") and with the mode off; the
     orchestrator's skill calls it only when the human asks explicitly.
   - **`park_session { name }`** (decisions 1.118, 1.120): the orchestrator only, for a worker (its
-    child, no role) whose current task is waiting (`mayPark`). Once the worker's turn is over — its
+    child, no role) whose current task is waiting, or whose task is in To review waiting on a PR
+    (`mayPark`, decision 1.164). Once the worker's turn is over — its
     shown state idle or done, or the Stop hook's record — Menkar stops it as
     closing its tab does, never mid-turn, and marks it parked (`orchestration.parked`).
   - **`resume_session { name, prompt? }`** (decision 1.118): the orchestrator only, with the mode on;

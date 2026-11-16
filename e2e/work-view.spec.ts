@@ -45,6 +45,7 @@ interface SeedTask {
   step?: number
   note?: string
   waiting_on?: string
+  review_wait?: { on: string; note?: string }
   closed?: string
 }
 
@@ -418,6 +419,61 @@ test('the Board panel: toggled from the header (pressed), under the header and o
     await expect
       .poll(() => saved(root, 'projects.json').projects[0])
       .not.toHaveProperty('board_open')
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.164: a task in To review says whom it waits on, on the note line as a waiting task
+// does, unless it waits on the orchestrator (the default).
+const IN_REVIEW: SeedTask[] = [
+  {
+    number: 1,
+    title: 'Login fix',
+    assignee: TEAM.w1,
+    state: 'to review',
+    steps: ['a', 'b', 'c'],
+    step: 3,
+    note: 'PR open',
+    review_wait: { on: 'pr-approval', note: '#436' },
+  },
+  {
+    number: 2,
+    title: 'Docs pass',
+    assignee: TEAM.w2,
+    state: 'to review',
+    steps: ['a', 'b', 'c'],
+    step: 3,
+    note: 'read it',
+    review_wait: { on: 'human' },
+  },
+  {
+    number: 3,
+    title: 'Icon fix',
+    assignee: TEAM.w2,
+    state: 'to review',
+    steps: ['a', 'b', 'c'],
+    step: 3,
+    note: 'try it',
+  },
+]
+
+test('a task in To review says whom it waits on, on the card and in the Work view: "waiting on PR approval #436", "waiting on the human"; the orchestrator says nothing (screenshot)', async () => {
+  const { launched, page } = await open(IN_REVIEW)
+  try {
+    const row = (n: number) => page.locator(`#session-list .task-row[data-task="${n}"] .task-note`)
+    await expect(row(1)).toHaveText('waiting on PR approval #436 · PR open')
+    await expect(row(2)).toHaveText('waiting on the human · read it')
+    await expect(row(3)).toHaveText('try it')
+    await page.locator('#board-button').click()
+    const card = (n: number) =>
+      columnOf(page, 'to-review').locator(`.task-card[data-task="${n}"] .card-note`)
+    await expect(card(1)).toHaveText('waiting on PR approval #436 · PR open')
+    await expect(card(2)).toHaveText('waiting on the human · read it')
+    await expect(card(3)).toHaveText('try it')
+    const files = process.env.MENKAR_FILES
+    if (files)
+      await page.screenshot({ path: join(files, 'menkar-t43-to-review-waiting-on-pr.png') })
   } finally {
     await launched.close()
   }

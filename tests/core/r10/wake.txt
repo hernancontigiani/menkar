@@ -1,0 +1,3 @@
+{"type":"user","message":{"content":"[Menkar] `worker` finished a turn. (09:30:05)"},"from":"menkar","msg_id":"msg-1"}
+{"type":"user","message":{"content":"[Menkar] `worker` finished a turn. (09:30:05) · 1 topic · 2 working · 0 waiting"},"from":"menkar","msg_id":"msg-2"}
+WAKE_DELAY_MS 3000

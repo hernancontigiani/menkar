@@ -1,0 +1,7 @@
+bash
+electron
+electron gpu-process
+electron renderer
+electron utility network.mojom.NetworkService
+electron zygote
+node claude

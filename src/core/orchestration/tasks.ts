@@ -2,9 +2,16 @@ import { basename } from 'node:path'
 import { readJsonReport, UnreadableShape, writeJson } from '../jsonstate'
 import { tasksPath } from '../paths'
 import { localDay, midnight } from '../usage/periods'
-import { TASK_STATES, type TaskState } from './taskState'
+import {
+  REVIEW_WAITERS,
+  type ReviewWait,
+  type ReviewWaiter,
+  TASK_STATES,
+  type TaskState,
+  waitsOnPr,
+} from './taskState'
 
-export type { TaskState }
+export type { ReviewWait, TaskState }
 
 export interface Task {
   // Per project, never reused.
@@ -21,6 +28,8 @@ export interface Task {
   // The latest report, one line.
   readonly note: string
   readonly waitingOn?: string
+  // Present exactly while the task is to review.
+  readonly reviewWait?: ReviewWait
   readonly created: string
   readonly updated: string
   readonly closed?: string
@@ -109,7 +118,7 @@ function change(
 }
 
 const notWaiting = (task: Task): Task => {
-  const { waitingOn: _, ...rest } = task
+  const { waitingOn: _, reviewWait: __, ...rest } = task
   return rest
 }
 
@@ -196,6 +205,15 @@ export function currentTask(list: readonly Task[], sessionId: string): Task | un
   )
 }
 
+// The task parking judges a session by: its current one, else one of its tasks in To review, a
+// PR wait first.
+export function parkingTask(list: readonly Task[], sessionId: string): Task | undefined {
+  const current = currentTask(list, sessionId)
+  if (current) return current
+  const review = list.filter((x) => x.assignee === sessionId && x.state === 'to review')
+  return review.find((x) => x.reviewWait !== undefined && waitsOnPr(x.reviewWait.on)) ?? review[0]
+}
+
 // Whether the session's current task has the ★: its row shows it, and its wakes come first.
 export function onStarredTask(list: readonly Task[], sessionId: string): boolean {
   return currentTask(list, sessionId)?.star === true
@@ -235,6 +253,7 @@ function parseTask(value: unknown): Task | null {
   const { number, title, assignee, star, state, steps, step, note, created, updated, closed } =
     value
   const waitingOn = value.waiting_on
+  const wait = isObject(value.review_wait) ? value.review_wait : {}
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
   if (typeof title !== 'string') return null
   if (assignee !== undefined && typeof assignee !== 'string') return null
@@ -251,6 +270,14 @@ function parseTask(value: unknown): Task | null {
     step: Math.max(0, Math.min(at, lines.length)),
     note: typeof note === 'string' ? note : '',
     ...(typeof waitingOn === 'string' && known === 'waiting' ? { waitingOn } : {}),
+    ...(known === 'to review'
+      ? {
+          reviewWait: {
+            on: REVIEW_WAITERS.find((x) => x === wait.on) ?? 'orchestrator',
+            note: typeof wait.note === 'string' ? wait.note : '',
+          },
+        }
+      : {}),
     created: typeof created === 'string' ? created : '',
     updated: typeof updated === 'string' ? updated : '',
     ...(typeof closed === 'string' ? { closed } : {}),
@@ -286,9 +313,10 @@ export function serializeTasks(t: Tasks): Record<string, unknown> {
   for (const [id, p] of Object.entries(t.projects))
     projects[id] = {
       next: p.next,
-      tasks: p.tasks.map(({ waitingOn, ...x }) => ({
+      tasks: p.tasks.map(({ waitingOn, reviewWait, ...x }) => ({
         ...x,
         ...(waitingOn !== undefined ? { waiting_on: waitingOn } : {}),
+        ...(reviewWait !== undefined ? { review_wait: reviewWait } : {}),
       })),
     }
   return { ...t.rest, version: TASKS_VERSION, projects }
@@ -412,6 +440,8 @@ export function taskTool(
       ? { ok: true, text: `Task ${number} closed as ${outcome}.`, tasks: done.tasks }
       : refuse(closed)
   }
+  if (tool === 'task_review' && call.caller !== task.assignee && call.caller === call.orchestrator)
+    return reviewWaitChange(args, task, edit)
   if (call.caller !== task.assignee) return refuse(NOT_ASSIGNEE)
   if (!isOpen(task)) return refuse(closed)
   // Decision 1.119: one in progress per assignee. A report that leaves this task waiting, or hands
@@ -437,11 +467,15 @@ export function taskTool(
   if (task.steps.length === 0) return refuse("Set the task's steps first, with task_steps.")
   if (!text('note')) return refuse('Give a one-line note of where the task is.')
   const note = text('note').split('\n')[0] ?? ''
-  if (tool === 'task_review')
+  if (tool === 'task_review') {
+    const wait = reviewWaitArgs(args, { on: 'orchestrator', note: '' })
+    if ('refusal' in wait) return refuse(wait.refusal)
+    const on = wait.on === 'orchestrator' ? '' : `, waiting on ${waitText(wait)}`
     return edit(
-      (x) => ({ ...notWaiting(x), state: 'to review', note }),
-      `Task ${number} is to review: the orchestrator closes it.`,
+      (x) => ({ ...notWaiting(x), state: 'to review', note, reviewWait: wait }),
+      `Task ${number} is to review${on}: the orchestrator closes it.`,
     )
+  }
   const step = args.step
   if (
     step !== undefined &&
@@ -463,6 +497,61 @@ export function taskTool(
   )
 }
 
+const waitText = (w: ReviewWait): string => (w.note ? `${w.on} ${w.note}` : w.on)
+
+// waiting_on and waiting_note over what the task waits on now.
+function reviewWaitArgs(
+  args: Readonly<Record<string, unknown>>,
+  now: ReviewWait,
+): ReviewWait | { readonly refusal: string } {
+  const on = args.waiting_on
+  let waiter: ReviewWaiter = now.on
+  if (on !== undefined) {
+    const known = REVIEW_WAITERS.find((x) => x === on)
+    if (!known) return { refusal: `waiting_on must be one of ${REVIEW_WAITERS.join(', ')}.` }
+    waiter = known
+  }
+  const note = args.waiting_note
+  if (note !== undefined && typeof note !== 'string')
+    return { refusal: 'waiting_note must be one line of text.' }
+  return {
+    on: waiter,
+    note:
+      typeof note === 'string'
+        ? (note.trim().split('\n')[0] ?? '')
+        : on === undefined
+          ? now.note
+          : '',
+  }
+}
+
+// The orchestrator, after its own review, changes whom a task in To review waits on (1.164).
+function reviewWaitChange(
+  args: Readonly<Record<string, unknown>>,
+  task: Task,
+  edit: (
+    next: (x: Task) => Task,
+    answer: string,
+  ) => { readonly ok: boolean; readonly text: string; readonly tasks?: Tasks },
+): { readonly ok: boolean; readonly text: string; readonly tasks?: Tasks } {
+  if (args.waiting_on === undefined)
+    return {
+      ok: false,
+      text: 'The orchestrator changes only whom a task in To review waits on: give waiting_on.',
+    }
+  if (task.state !== 'to review')
+    return { ok: false, text: `Task ${task.number} is ${task.state}, not to review.` }
+  const wait = reviewWaitArgs(args, task.reviewWait ?? { on: 'orchestrator', note: '' })
+  if ('refusal' in wait) return { ok: false, text: wait.refusal }
+  if (args.note !== undefined && typeof args.note !== 'string')
+    return { ok: false, text: 'note must be one line of text.' }
+  const note = typeof args.note === 'string' ? (args.note.trim().split('\n')[0] ?? '') : ''
+  return edit(
+    (x) => ({ ...x, reviewWait: wait, ...(note ? { note } : {}) }),
+    `Task ${task.number} is to review, waiting on ${waitText(wait)}.`,
+  )
+}
+
 function taskLines(x: Task, nameOf: (id: string) => string): string {
   const assignee = x.assignee === undefined ? 'unassigned' : nameOf(x.assignee)
   const star = x.star ? '★ ' : ''
@@ -475,6 +564,9 @@ function taskLines(x: Task, nameOf: (id: string) => string): string {
     assignee,
     where,
     ...(x.waitingOn !== undefined ? [`on ${x.waitingOn}`] : []),
+    ...(x.reviewWait !== undefined && x.reviewWait.on !== 'orchestrator'
+      ? [`on ${waitText(x.reviewWait)}`]
+      : []),
     ...(x.note ? [x.note] : []),
   ]
   const steps = isOpen(x)

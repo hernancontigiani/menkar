@@ -30,6 +30,7 @@ async function open(
   options: {
     stoppedWorker?: boolean
     orchestrated?: boolean
+    cap?: number
     env?: Readonly<Record<string, string>>
   } = {},
 ) {
@@ -95,7 +96,14 @@ async function open(
                   }
                 : {}),
               ...(options.orchestrated
-                ? { orchestration: { on: true, orchestrator: SESSION }, team_view: true }
+                ? {
+                    orchestration: {
+                      on: true,
+                      orchestrator: SESSION,
+                      ...(options.cap !== undefined ? { workers_cap: options.cap } : {}),
+                    },
+                    team_view: true,
+                  }
                 : {}),
             },
           ],
@@ -368,6 +376,61 @@ test('a worker per task: started for task 1 as "client-work-t1"; parked while it
     await expect(page.locator('.tab')).toHaveCount(1)
     await expect.poll(() => saved().projects[0]?.hidden).toEqual([worker])
     await expect(page.locator(`.row[data-session="${worker}"]`)).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.164: a worker whose task is in To review waiting on a PR is parked, and stops counting
+// toward the cap: with a cap of 1, task 2's worker starts once task 1's is parked.
+test('a worker in To review waiting on a PR: its card says "waiting on PR approval #436", it is parked, and task 2\'s worker starts under a cap of 1 (screenshot)', async () => {
+  const { launched, page, saved, argLines, tasksSaved } = await open({ orchestrated: true, cap: 1 })
+  try {
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 1 added.')
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 2 added.')
+    await page.keyboard.type('WORKT')
+    await said(page, 'TOOL start_session: Started "client-work-t1" in a tab after yours for task 1')
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await page.keyboard.type('SECONDW')
+    await said(page, 'TOOL start_session: This project runs at most 1 workers at once')
+
+    await page.locator('.tab').nth(1).click()
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('STEPS')
+    await said(page, 'TOOL task_steps: Task 1 has 3 steps')
+    await page.keyboard.type('REVIEWPR')
+    await said(page, 'TOOL task_review: Task 1 is to review, waiting on pr-approval #436')
+    await expect
+      .poll(
+        () =>
+          (tasksSaved().projects[CLIENT_WORK]?.tasks[0] as { review_wait?: unknown })?.review_wait,
+      )
+      .toEqual({ on: 'pr-approval', note: '#436' })
+    await page.locator('#board-button').click()
+    await expect(
+      page.locator('#board-panel [data-column="to-review"] .task-card[data-task="1"] .card-note'),
+    ).toHaveText('waiting on PR approval #436 · PR open')
+    const files = process.env.MENKAR_FILES
+    if (files) await page.screenshot({ path: join(files, 'menkar-t43-board-pr-wait.png') })
+    await page.locator('#board-button').click()
+
+    await page.locator('.tab').first().click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('PARK')
+    await said(page, 'TOOL park_session: "client-work-t1" will be parked once its turn is over')
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect.poll(() => saved().projects[0]?.orchestration?.parked).toEqual([worker])
+
+    await page.keyboard.type('SECONDW')
+    await said(page, 'TOOL start_session: Started "client-work-t2" in a tab after yours for task 2')
+    await expect(page.locator('.tab')).toHaveCount(2)
   } finally {
     await launched.close()
   }

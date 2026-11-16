@@ -18,9 +18,10 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // worker's last reply; TOPIC raises a topic "Pick a port". A worker per task (decision 1.118):
 // TASKADD adds an unassigned task, WORKT starts its worker, STEPS and WAITS (which ends the turn)
 // report on task 1, PARK parks "client-work-t1", WAKEW resumes it with a prompt, CLOSE1 closes
-// task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away. Each answer is printed as
-// "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the terminal for the cursor's
-// position (CSI 6n) as it starts, as Claude Code queries its terminal.
+// task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away; REVIEWPR (which ends the
+// turn) hands task 1 to review waiting on PR approval #436, SECONDW starts task 2's worker.
+// Each answer is printed as "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the
+// terminal for the cursor's position (CSI 6n) as it starts, as Claude Code queries its terminal.
 // The team block: --version prints FAKE_CLAUDE_VERSION (2.1.325 by default) and exits;
 // --append-system-prompt-file is read at start, as Claude Code reads it, into claude-team.jsonl, and
 // a missing one stops it with Claude Code's error. With FAKE_CLAUDE_SOCKET set, unless a registry
@@ -62,6 +63,8 @@ function sessionStart(source, id, transcript) {
 }
 const ownId = at >= 0 ? args[at + 1] : args.includes('--resume') ? args[args.indexOf('--resume') + 1] : null
 if (ownId && process.env.FAKE_CLAUDE_QUERY === ownId) process.stdout.write('\\x1b[6n')
+// A test's injected defect: a socket listening on loopback, as no process of the app may have.
+if (process.env.FAKE_CLAUDE_LISTEN) require('node:net').createServer().listen(0, '127.0.0.1').unref()
 const teamAt = args.indexOf('--append-system-prompt-file')
 if (teamAt >= 0) {
   const file = args[teamAt + 1]
@@ -200,6 +203,8 @@ process.stdin.on('data', (d) => {
     CLOSE1: ['task_close', { number: 1, outcome: 'done' }],
     STAR1: ['task_star', { number: 1, star: true }],
     DROPSTAR: ['task_star', { number: 1, star: false }],
+    REVIEWPR: ['task_review', { number: 1, note: 'PR open', waiting_on: 'pr-approval', waiting_note: '#436' }, true],
+    SECONDW: ['start_session', { task: 2, prompt: 'fix the docs' }],
   }
   for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
     if (!typed.endsWith(word)) continue
@@ -212,6 +217,28 @@ process.stdin.on('data', (d) => {
   }
 })
 `
+
+// A stand-in `cursor-agent` (never the real one): it records its arguments and its environment, as
+// the stand-in claude does, and stays in the foreground until it reads EXIT0.
+const FAKE_CURSOR = `#!/usr/bin/env node
+const fs = require('node:fs'), path = require('node:path')
+fs.appendFileSync(path.join(process.env.HOME, 'cursor-args.txt'), process.argv.slice(2).join(' ') + '\\n')
+fs.writeFileSync(path.join(process.env.HOME, 'cursor-env.json'), JSON.stringify(process.env))
+process.stdout.write('stand-in cursor-agent ready\\r\\n')
+if (process.stdin.isTTY) process.stdin.setRawMode(true)
+let typed = ''
+process.stdin.on('data', (d) => {
+  typed += d.toString()
+  if (typed.includes('EXIT0')) process.exit(0)
+})
+`
+
+// Puts the stand-in `cursor-agent` in `bin`, beside the stand-in claude.
+export function cursorStandIn(bin: string): void {
+  mkdirSync(bin, { recursive: true })
+  writeFileSync(join(bin, 'cursor-agent'), FAKE_CURSOR)
+  chmodSync(join(bin, 'cursor-agent'), 0o755)
+}
 
 // The colours these tests assert are Catppuccin's, as the old "Default" theme gave them: Mocha
 // unless the scheme is light, with the terminals in the theme's colours too. A test about the

@@ -94,7 +94,10 @@ A task is a piece of work the orchestrator delegated, so the person can see how 
 - `task_steps`: the session splits it into 3 to 7 short steps; it goes **in progress** at step 1.
 - `task_progress`: the session reports each advance, the step it is at and a one-line note; with
   what it waits on (a topic, a session) it is **waiting**.
-- `task_review`: the session says it is done; it is **to review**.
+- `task_review`: the session says it is done; it is **to review**. It says whom the task waits on
+  there: the orchestrator (the default), the person, or a pull request's approval or merge, with a
+  note such as the PR's number. The card shows it ("waiting on PR approval #436"); the
+  orchestrator changes it after its own review, with the same tool.
 - `task_close`: only the orchestrator, after reviewing it, closes it as **done** or **dropped**, so
   "done" always means reviewed. A review that is the person's (a change to try) reaches them as a
   topic.
@@ -115,7 +118,8 @@ is set waiting, with what it waits on.
   ("menkar-t42") and gives it the task. Names are unique across the computer, so two projects'
   workers never collide.
 - **Parked**: when a task will wait long (a pull request under review), the orchestrator parks its
-  worker with `park_session`. Once its turn is over, Menkar closes its tab and keeps its
+  worker with `park_session`: a task waiting on something, or one in To review waiting on a PR's
+  approval or merge. Once its turn is over, Menkar closes its tab and keeps its
   conversation. The Team view shows parked workers apart, in a folded "Parked · N" row under the
   orchestrator, each with what its task waits on. When the wait ends (tell the orchestrator what
   came back), it resumes the same worker with `resume_session`, with its whole context.

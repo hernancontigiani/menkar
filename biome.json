@@ -13,7 +13,8 @@
       "scripts/**",
       "*.json",
       "*.ts",
-      "!package-lock.json"
+      "!package-lock.json",
+      "!tests/core/r10/**"
     ]
   },
   "formatter": {

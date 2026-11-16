@@ -74,17 +74,18 @@ what neither says: why each piece, and what was rejected.
 |---|---|
 | `scripts/check-code-rules.mjs` | No `Date.now()` / `new Date()` outside `src/core/clock.ts` (in `src/` and `tests/`); nothing under `src/core/` imports `electron` or a file outside `src/core/`; no `any` without a `biome-ignore` reason on its line or the one above |
 | `scripts/check-i18n.mjs` | Every `t()` key under `src/` is in the English catalog, and no translation has a key English lacks (`docs/foundations.md`) |
-| `scripts/check-test-integrity.mjs` | Against `main` (or `MENKAR_TEST_BASELINE`): the number of test declarations in `tests/` and `e2e/` never goes down, and no `expect(` line is removed or rewritten. No override |
+| `scripts/check-test-integrity.mjs` | Against the merge base of `main` and `HEAD` (or `MENKAR_TEST_BASELINE`): the number of test declarations in `tests/` and `e2e/` never goes down, and no `expect(` line is removed or rewritten. No override |
+| `scripts/ci.mjs`, its "R10 unchanged" step | Off `main`, every file under `tests/core/r10/` holds `main`'s bytes, none missing and none added ("A long-lived branch", below) |
 | `scripts/check-flaky.mjs` | A row of `e2e/FLAKY.md` whose date has passed fails the run |
 | `scripts/nothing-lost.mjs` | Every line that left a decision document since `HEAD` is in its history under `docs/history/`, and no history lost a line |
 
 The first two parse the sources with the TypeScript compiler API rather than grep, so a mention
 inside a comment or a string does not count and one split over two lines does.
 
-The test-integrity check compares against `main`, so on `main` itself it measures the uncommitted
-work against the last commit. It writes both sides to temporary directories and diffs those:
-`git diff <ref>` sees only tracked files, and a session's new tests are untracked until `set`
-commits them.
+The test-integrity check compares against the merge base of `main` and `HEAD`, so on `main` itself
+it measures the uncommitted work against the last commit. It writes both sides to temporary
+directories and diffs those: `git diff <ref>` sees only tracked files, and a session's new tests
+are untracked until `set` commits them.
 
 `npm run ci` stops at the first red step. While a test-integrity failure is accepted but not yet
 committed, the steps after it do not run: run `node scripts/check-flaky.mjs` and
@@ -95,6 +96,61 @@ plan 34 only the full run caught a new popover icon taking the place of the butt
 clicks. Specs write their screenshots to `/tmp/menkar-shots/` only; a worker copies its own into
 `$MENKAR_FILES` by hand, because a spec that wrote there would fill the human's folder whenever a
 Menkar session runs it (2026-11-12).
+
+## A long-lived branch (1.136, 1.160)
+
+The multi-agent work is built on a branch that lives for weeks, `multi-agent`, in its own worktree
+(`/home/hernan/git/menkar-multi-agent`), created by `set` from `main`. These rules hold while it
+exists; they leave for their history when it merges for good.
+
+- **Nobody checks out another branch in the shared tree.** The worktree has its own
+  `node_modules` (`npm ci`, which rebuilds node-pty for Electron), `out/`, `release/` and
+  `test-results/`.
+- **One full `npm run ui-check` at a time across both trees**: they share the machine's CPU, and a
+  session asks `set` before starting one while the other tree runs one.
+- **Fixes flow in, never out.** A fix lands on `main` (and ships); `set` merges `main` into the
+  branch. The branch's first phase merges into `main` early, with its own .deb, and the branch goes
+  on from there.
+- **The test-integrity baseline is the merge base** (`git merge-base main HEAD`), unless
+  `MENKAR_TEST_BASELINE` names one. On `main` that is `HEAD`. On a branch that merged `main`, `main`
+  itself would report each test line `main` removed and the merge brought in; the merge base
+  reports only the lines the branch removed. `tests/scripts/check-test-integrity.test.ts` holds both
+  cases.
+
+### R10: what Claude and Cursor sessions get, byte for byte (2026-11-16)
+
+Before any of it moves behind per-agent code, what Menkar gives the sessions it starts is recorded
+under `tests/core/r10/`:
+
+- **`tests/core/r10.test.ts`** (Vitest, file snapshots beside it): `buildCommand` for Claude new,
+  resume and fork and for Cursor new and resume (`cursor-*`), each with the mode off and with a
+  team file; the `--settings` file; the MCP server's `initialize` and `tools/list` replies; the
+  plugin a Claude session is given (`plugin/skills/`, `plugin/guide/`, `plugin/team/common.md` and
+  `claude.md`: the list and each file); the team block for every variant its own tests cover, at two
+  ring thresholds, and its posts; `wakeFrame` and `WAKE_DELAY_MS`; `withoutSessionEnv` on a fixed
+  environment; the folders watched and the sessions scanned with Claude alone and with Claude and
+  Cursor; the usage cache directory's files after a pass.
+- **`e2e/r10.spec.ts`** (expected bytes in `tests/core/r10/e2e/`): `startPaneHeld`'s assembly as
+  the stand-ins record it, argv and environment, for Claude new, resume, fork and Remote Control and
+  Cursor new and resume, the mode off and on. The environment is written as what the pane sets and
+  what it strips relative to the main process's own; the run's paths, the pane's id and new
+  session ids are placeholders. And, with the stand-in `claude` alone on the PATH, the set of the
+  app's descendant processes and that none of them listens on TCP, Playwright's own two ports
+  (the inspector and Chromium's DevTools) aside. A missing expected file fails; it is written only
+  with `MENKAR_R10_WRITE=1`.
+
+R10's files are left out of Biome (`biome.json`): they are recorded bytes, and a formatter would
+rewrite the JSON and Markdown among them.
+
+**R10 is written on `main` only, and guarded byte for byte.** `npm run ci` runs Vitest with
+`CI=1`: Vitest 5.1.0 then writes no missing snapshot and fails on it instead (checked 2026-11-16).
+Its "R10 unchanged" step compares every file under `tests/core/r10/` with `main`'s and fails on a
+difference, a missing file or an added one; on `main` it compares nothing. So a change that alters
+what a session gets is made on `main`, where `set` refreshes the files (`npx vitest run -u
+tests/core/r10.test.ts`; `MENKAR_R10_WRITE=1` after deleting the e2e file that changed) and commits
+them with the change, and reaches the branch with the next merge. The one planned exception, the
+`cursor-*` files rewritten on the branch when Cursor's own phase changes its command, is not built:
+that phase adds it to the step.
 
 ## Rejected
 

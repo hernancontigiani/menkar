@@ -27,7 +27,8 @@ When the task names a task number (Menkar's orchestration mode), the human follo
 - Once you have read it, split it into 3 to 7 short steps with `task_steps`.
 - At each advance, `task_progress` with the step you are at and a one-line note; while you wait on
   something, give its waiting_on argument ("topic 4", or a session's name).
-- When it is done, `task_review` with a one-line note of what to look at, before your report.
+- When it is done, `task_review` with a one-line note of what to look at, before your report;
+  if it then waits on a pull request, say so in it: waiting on pr-approval or pr-merge, and the PR.
   Never close it: the orchestrator closes it after reviewing.
 
 ## Never invent what is not defined

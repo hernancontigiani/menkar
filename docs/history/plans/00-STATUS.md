@@ -898,3 +898,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-16: 1.163 built (task 39).
 | 1.163 | `list_sessions` gives **each session's folder** and the **project's folders** (its sessions' folders and the ones the human added, 1.124), so the orchestrator knows where `start_session { folder }` may start a worker without a refused call (the human, 2026-11-16, topic 31, from ccai's first start). Not built yet | 2026-11-16 | this row (until built) |
+
+> Replaced 2026-11-16: 1.164 built (task 43).
+| 1.164 | **Whom a task under review waits on**, built now, ahead of the flow metrics (the human, 2026-11-16, prioritised for the other project, where tasks sit in "To review" for long waiting on a pull request): a task in To review carries who it waits on — **the orchestrator** (the default), **the human**, **a PR's approval**, **a PR's merge** — with its note (the PR); the assignee sets it with `task_review`, and the orchestrator can change it after its own review; the card shows it as the waiting tasks' note line already does; **a worker whose task is in To review waiting on a PR can be parked** (it then stops counting toward the cap). The column stays one. The time-per-state metrics stay deferred (1.156) and will read this field | 2026-11-16 | this row (until built) |

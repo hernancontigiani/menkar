@@ -17,6 +17,7 @@ import {
   loadTasks,
   onStarredTask,
   openTasks,
+  parkingTask,
   parseTasks,
   saveTasks,
   serializeTasks,
@@ -428,5 +429,137 @@ describe('a task without an assignee', () => {
     expect(assignTask(t, 'p1', 1, 'W', LATER, (id) => names[id] ?? id)).toEqual({
       refusal: 'Task 1 is closed.',
     })
+  })
+})
+
+// Decision 1.164: a task in To review carries whom it waits on, the orchestrator by default; its
+// assignee says it with task_review, and the orchestrator may change it after its own review.
+describe('whom a task in To review waits on', () => {
+  const inReview = (args: Record<string, unknown> = {}) => {
+    let t = add(emptyTasks(), 'Release 0.2')
+    t = taskTool('task_steps', { number: 1, steps: ['a', 'b', 'c'] }, call(t, 'W')).tasks ?? t
+    const review = taskTool('task_review', { number: 1, note: 'PR open', ...args }, call(t, 'W'))
+    return { review, t: review.tasks ?? t }
+  }
+
+  test('task_review without waiting_on → the orchestrator, with no note', () => {
+    const { t } = inReview()
+    expect(tasksOf(t, 'p1')[0]?.reviewWait).toEqual({ on: 'orchestrator', note: '' })
+  })
+
+  test('task_review with waiting_on pr-approval and its note → kept, and task_list shows it', () => {
+    const { review, t } = inReview({ waiting_on: 'pr-approval', waiting_note: '#436' })
+    expect(review).toMatchObject({
+      ok: true,
+      text: 'Task 1 is to review, waiting on pr-approval #436: the orchestrator closes it.',
+    })
+    expect(tasksOf(t, 'p1')[0]).toMatchObject({
+      state: 'to review',
+      note: 'PR open',
+      reviewWait: { on: 'pr-approval', note: '#436' },
+    })
+    expect(taskTool('task_list', {}, call(t, 'V')).text.split('\n')[0]).toBe(
+      '1. Release 0.2 · b1 · to review 1/3 · on pr-approval #436 · PR open',
+    )
+  })
+
+  test('the orchestrator changes it on a task in To review; the note stays unless it gives one', () => {
+    const { t } = inReview()
+    const changed = taskTool(
+      'task_review',
+      { number: 1, waiting_on: 'pr-merge', waiting_note: '#436' },
+      { ...call(t, 'O'), at: LATER },
+    )
+    expect(changed).toMatchObject({
+      ok: true,
+      text: 'Task 1 is to review, waiting on pr-merge #436.',
+    })
+    expect(tasksOf(changed.tasks ?? t, 'p1')[0]).toMatchObject({
+      note: 'PR open',
+      updated: LATER,
+      reviewWait: { on: 'pr-merge', note: '#436' },
+    })
+    const human = taskTool(
+      'task_review',
+      { number: 1, waiting_on: 'human', note: 'try it on the desktop' },
+      call(changed.tasks ?? t, 'O'),
+    )
+    expect(tasksOf(human.tasks ?? t, 'p1')[0]).toMatchObject({
+      note: 'try it on the desktop',
+      reviewWait: { on: 'human', note: '' },
+    })
+  })
+
+  test('refused: a value it cannot be, a note that is not text, another session, the orchestrator on a task not in To review or without waiting_on', () => {
+    expect(inReview({ waiting_on: 'github' }).review).toEqual({
+      ok: false,
+      text: 'waiting_on must be one of orchestrator, human, pr-approval, pr-merge.',
+    })
+    expect(inReview({ waiting_on: 'human', waiting_note: 436 }).review).toEqual({
+      ok: false,
+      text: 'waiting_note must be one line of text.',
+    })
+    const { t } = inReview()
+    expect(taskTool('task_review', { number: 1, waiting_on: 'human' }, call(t, 'V'))).toEqual({
+      ok: false,
+      text: 'Only the session the task is assigned to reports on it.',
+    })
+    expect(taskTool('task_review', { number: 1, note: 'n' }, call(t, 'O'))).toEqual({
+      ok: false,
+      text: 'The orchestrator changes only whom a task in To review waits on: give waiting_on.',
+    })
+    const back =
+      taskTool('task_progress', { number: 1, note: 'one more fix' }, call(t, 'W')).tasks ?? t
+    expect(tasksOf(back, 'p1')[0]?.reviewWait).toBeUndefined()
+    expect(taskTool('task_review', { number: 1, waiting_on: 'human' }, call(back, 'O'))).toEqual({
+      ok: false,
+      text: 'Task 1 is in progress, not to review.',
+    })
+    expect(taskTool('task_review', { number: 1, waiting_on: 'human' }, call(t, 'O', null)).ok).toBe(
+      false,
+    )
+  })
+
+  test('the file keeps it; an old file reads a task in To review as waiting on the orchestrator, and a bad value leniently', () => {
+    const { t } = inReview({ waiting_on: 'pr-merge', waiting_note: '#9' })
+    const raw = serializeTasks(t) as {
+      projects: Record<string, { tasks: Record<string, unknown>[] }>
+    }
+    expect(raw.projects.p1?.tasks[0]?.review_wait).toEqual({ on: 'pr-merge', note: '#9' })
+    expect(parseTasks(JSON.parse(JSON.stringify(raw)))).toEqual(t)
+    const old = (wait: unknown, state = 'to review') =>
+      tasksOf(
+        parseTasks({
+          version: 1,
+          projects: {
+            p1: {
+              next: 2,
+              tasks: [
+                {
+                  number: 1,
+                  title: 'x',
+                  state,
+                  steps: ['a', 'b', 'c'],
+                  step: 3,
+                  ...(wait === undefined ? {} : { review_wait: wait }),
+                },
+              ],
+            },
+          },
+        }),
+        'p1',
+      )[0]?.reviewWait
+    expect(old(undefined)).toEqual({ on: 'orchestrator', note: '' })
+    expect(old({ on: 'github', note: 7 })).toEqual({ on: 'orchestrator', note: '' })
+    expect(old({ on: 'human' })).toEqual({ on: 'human', note: '' })
+    expect(old({ on: 'human', note: '' }, 'in progress')).toBeUndefined()
+  })
+
+  test("parking's task: the current one, else the one in To review", () => {
+    const { t } = inReview({ waiting_on: 'pr-approval' })
+    expect(parkingTask(tasksOf(t, 'p1'), 'W')?.number).toBe(1)
+    const more = add(t, 'next')
+    expect(parkingTask(tasksOf(more, 'p1'), 'W')?.number).toBe(2)
+    expect(parkingTask(tasksOf(t, 'p1'), 'nobody')).toBeUndefined()
   })
 })

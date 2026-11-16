@@ -1,0 +1,62 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs'"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs' session-start"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs' session-start"
+          }
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs' session-start"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs' session-start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs' turn-end"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__menkar"
+    ]
+  },
+  "crossSessionInbound": "accept"
+}
