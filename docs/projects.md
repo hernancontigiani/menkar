@@ -132,14 +132,25 @@ built and why.
   the project's folders, each once (`addFolder`, `removeFolder`); written only while one is left.
   Read leniently: an entry that is not an absolute path is dropped alone, a value that is not a
   list is dropped. The project's other folders are its sessions' and are never written.
+- **`orchestration.skills`** (decisions 1.152, 1.154, 2026-11-15): per session id, the skills the
+  human set for it in "Configure role…" (`setSkills`), in the order set:
+  `{ "<id>": [{ "name": "packager", "maintainer": true }, { "name": "claude-cli" }] }`.
+  `maintainer` is written only while true, and a name has **one maintainer** across the project:
+  `setSkills` refuses a second (`refusal.maintainedBy`). Only the project's and the user's skills
+  are stored: a `menkar:` name is refused (`refusal.menkarSkill`) and dropped on read, since
+  Menkar's own follow from the marks. Read leniently: an entry that is not `{ name: non-empty
+  text }` is dropped alone, a repeated name keeps the first, and a name two sessions claim to
+  maintain (a hand-edited file) stays maintained by the first in member order only. A stored name
+  no longer found is kept until the human removes it. No `skills` key while every list is empty.
 - **Switching the mode off keeps every mark** (`on: false` with the rest), so switching it on finds
   the team as it was.
 - **What always holds** (`keptOrchestration`): every id is a member. A member leaving the project
   (`leave`, so also `removeMember` and `forgetSession`) takes its marks with it; the orchestrator
   leaving leaves none.
 - **It follows new ids:** `followNewId` and `followResume` give the new id the old one's role,
-  orchestrator mark and "with you" (`followOrchestration`), as they give it the old one's place;
-  the old id keeps none. Its tasks follow too, in `tasks.json` (`docs/orchestration.md`).
+  stored skills, orchestrator mark and "with you" (`followOrchestration`), as they give it the old
+  one's place; the old id keeps none. Its tasks follow too, in `tasks.json`
+  (`docs/orchestration.md`).
 - In `projects.json` it sits after `parents`, snake_case like the other keys, written only when
   something is set, and is read leniently: a key of the wrong type is dropped alone, an id that is
   not a member is dropped, an orchestrator that is not a member leaves none, a label that is not

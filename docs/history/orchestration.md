@@ -190,3 +190,25 @@ in every window** (`closeBoards`; the human, 2026-11-13), so nothing of the mode
 > Left on 2026-11-14: the Topics section's label says whose turn it is, "Awaiting you · N" (decision 1.146).
 and saved (`topics_collapsed`), headed "Topics · N". A row: ★ when its task has the ★, the
 status, per window. Empty, it says "No open topics".
+
+## Switching it, and the marks
+
+> Left on 2026-11-16: "Role…" became "Configure role…", which also sets the stored skills (decisions 1.152, 1.154, 1.157).
+- **The row menu**, only while the mode is on, after "Group ▸", in a block of its own: "Orchestrator"
+  (marking one unmarks the previous), "Role…" (one text field; empty removes the label), "With
+  you" — each with ✓ when set (`orchestrationItems`, `src/renderer/orchestration.ts`). The row menu
+  has no "Priority": the ★ is a task's (decision 1.114).
+
+## Switching it, and the marks
+
+> Left on 2026-11-16: the first-time card switches the mode on first (plan 40).
+  - **Start** marks the chosen session, or starts the new one through `startNew` with a first
+    prompt telling it to load `menkar:orchestrator`, that the project's orchestration is new, and to
+    read the guide at its absolute path first (2026-11-13), marked as it starts; then it switches
+    the mode on. **Not now** leaves it off.
+
+## Handing sessions to the orchestrator
+
+> Left on 2026-11-16: "Role…" became "Configure role…".
+  one with a label sits under "Consultants". No tool changes an existing session's role: that stays
+  the human's, from the row menu's "Role…".

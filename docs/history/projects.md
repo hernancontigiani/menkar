@@ -103,3 +103,10 @@ keeps how they are built and why.
 
 > Left on 2026-11-14: the Board is a panel, not a tab; a saved Board tab is dropped (decision 1.126).
   (joined panes), file tabs and Board tab (`{ board: true }`, reopened once per project) (`tabs`),
+
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+> Left on 2026-11-16: the stored skills follow new ids too (plan 40).
+- **It follows new ids:** `followNewId` and `followResume` give the new id the old one's role,
+  orchestrator mark and "with you" (`followOrchestration`), as they give it the old one's place;
+  the old id keeps none. Its tasks follow too, in `tasks.json` (`docs/orchestration.md`).

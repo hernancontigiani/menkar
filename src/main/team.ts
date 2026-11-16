@@ -43,8 +43,9 @@ interface Held {
   team: PaneTeam
   // Started below the floor or without its file: never posted, for its life.
   readonly outside: boolean
-  // The stored skills it can load, as found at its start: a recompute rescans no disk.
-  readonly found: ReadonlySet<string>
+  // The stored skills it can load, as found at its start or at the last "Configure role…" save: a
+  // recompute rescans no disk.
+  found: ReadonlySet<string>
   // A post was delivered since its last turn end: that turn end reads its transcript.
   posted: boolean
   posting: boolean
@@ -171,6 +172,16 @@ export async function startTeam(start: TeamStart): Promise<string | undefined> {
     keep(teamAtStart(null, start.fork), true)
     return undefined
   }
+}
+
+// "Configure role…" saved: what the pane's session can load is found again, then recomputed.
+export async function teamFoundChanged(pane: string, cwd: string | null): Promise<void> {
+  if (!held.has(pane)) return
+  const found = await foundSkills(cwd)
+  const h = held.get(pane)
+  if (!h) return
+  h.found = found
+  settle.trigger(pane)
 }
 
 export function forgetTeam(pane: string): void {

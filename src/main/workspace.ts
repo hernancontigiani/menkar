@@ -134,6 +134,7 @@ import {
   setOrchestrator,
   setParked,
   setRole,
+  setSkills,
   setTeamView,
   setTopicsCollapsed,
   setWithYou,
@@ -162,6 +163,8 @@ import { details, exportMarkdown, safeFileName } from '../core/sessions/transcri
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
 import { teamInput } from '../core/team/input'
+import { type FoundSkill, listSkills } from '../core/team/skills'
+import type { RoleSkills } from '../shared/ipc'
 import type {
   Action,
   ActionResult,
@@ -223,6 +226,7 @@ import {
   setTeamSource,
   startTeam,
   teamChanged,
+  teamFoundChanged,
   teamPaneChanged,
   teamStartRecord,
   teamTurnEnded,
@@ -1460,6 +1464,60 @@ function adoptFor(projectId: string, caller: string, named: unknown): ControlAns
     ok: true,
     text: `"${named.trim()}" is now your child: Menkar wakes you when it waits or ends its turn.`,
   }
+}
+
+// The folder a session starts in: its pane's while it runs, else the one its transcript records.
+const sessionFolder = (id: string) => paneOfSession(id)?.cwd ?? sessionInfo(id)?.cwd ?? null
+
+// Menkar's own skills follow from the marks and never show in the window (decision 1.154).
+const roleSkill = (s: FoundSkill) =>
+  s.name.startsWith('menkar:') ? [] : [{ name: s.name, description: s.description }]
+
+// What "Configure role…" lists for a session (decision 1.157): only what it can load, its folder's
+// chain and the user's. Read when the window opens.
+export async function roleSkills(sessionId: string): Promise<RoleSkills | null> {
+  const project = projectOf(projects, sessionId)
+  if (!project) return null
+  const folder = sessionFolder(sessionId)
+  const listed = await listSkills({
+    folders: folder ? [folder] : [],
+    user: agentPaths().claudeSkills,
+  })
+  const o = project.orchestration
+  const maintainedBy: Record<string, string> = {}
+  for (const [id, list] of Object.entries(o?.skills ?? {}))
+    if (id !== sessionId)
+      for (const s of list) if (s.maintainer) maintainedBy[s.name] = sessionName(id)
+  return {
+    label: o?.roles?.[sessionId] ?? '',
+    folder: folder
+      ? { name: basename(folder), skills: (listed.folders[folder] ?? []).flatMap(roleSkill) }
+      : null,
+    user: listed.user.flatMap(roleSkill),
+    stored: o?.skills?.[sessionId] ?? [],
+    maintainedBy,
+  }
+}
+
+// Label and skills in one change; what the session can load is found again for the block.
+async function configureRole(
+  action: Extract<Action, { type: 'configureRole' }>,
+): Promise<ActionResult> {
+  const project = projectOf(projects, action.session)
+  if (!project) return {}
+  const result = setSkills(
+    setRole(projects, project.id, action.session, action.label),
+    project.id,
+    action.session,
+    action.skills,
+    sessionName,
+  )
+  if (!result.ok) return { refusal: result.refusal, refusalParams: result.params }
+  const pane = paneOfSession(action.session)
+  if (pane) await teamFoundChanged(pane.id, pane.cwd)
+  projects = result.projects
+  changed({ projects: true })
+  return {}
 }
 
 type MarkAction = Extract<Action, { type: 'setOrchestrator' | 'setRole' | 'setWithYou' }>
@@ -2737,6 +2795,8 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       }
       return {}
     }
+    case 'configureRole':
+      return configureRole(action)
     case 'setOrchestrator':
     case 'setRole':
     case 'setWithYou': {

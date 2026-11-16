@@ -57,7 +57,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
         role: {
           type: 'string',
           description:
-            "The role label it is born with, as the human's Role… sets it; no tool changes it later.",
+            "The role label it is born with, as the human's Configure role… sets it; no tool changes it later.",
         },
         folder: {
           type: 'string',

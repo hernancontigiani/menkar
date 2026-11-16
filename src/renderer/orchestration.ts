@@ -430,7 +430,7 @@ async function startTeam(
 
 const checked = (on: boolean, label: string) => `${on ? '✓ ' : ''}${label}`
 
-// After "Group ▸", only while the mode is on: Orchestrator, Role…, With you.
+// After "Group ▸", only while the mode is on: Orchestrator, Configure role…, With you.
 export function orchestrationItems(info: SessionInfo, project: ProjectInfo): MenuEntry[] {
   const o = project.orchestration
   if (!o.on) return []
@@ -452,7 +452,7 @@ export function orchestrationItems(info: SessionInfo, project: ProjectInfo): Men
       label: checked(isOrchestrator, t('orch.orchestrator')),
       run: () => void act({ type: 'setOrchestrator', session: info.id, on: !isOrchestrator }),
     },
-    { label: t('orch.role'), run: () => void roleDialog(info, o.roles[info.id] ?? '') },
+    { label: t('orch.configureRole'), run: () => void roleWindow(info) },
     {
       label: checked(withYou, t('orch.withYou')),
       run: () => void act({ type: 'setWithYou', session: info.id, on: !withYou }),
@@ -461,18 +461,241 @@ export function orchestrationItems(info: SessionInfo, project: ProjectInfo): Men
   ]
 }
 
-async function roleDialog(info: SessionInfo, current: string): Promise<void> {
-  const answer = await showDialog({
-    heading: t('orch.roleHeading', { name: info.name }),
-    body: t('orch.roleBody'),
-    entry: { value: current, placeholder: t('orch.rolePlaceholder') },
-    buttons: [
-      { label: t('dialog.cancel'), value: 'cancel' },
-      { label: t('dialog.save'), value: 'save', style: 'suggested' },
-    ],
-    defaultValue: 'save',
+interface Choice {
+  readonly name: string
+  maintainer: boolean
+}
+
+// "Configure role…", mock-up C (decisions 1.154, 1.157): one checklist of the skills the session
+// can load, grouped by where they are, with a filter. Ticking adds a skill read only and shows its
+// switch on its line; a stored skill not found stays first, flagged, until removed. Nothing is
+// saved before Save.
+async function roleWindow(info: SessionInfo): Promise<void> {
+  const offer = await window.menkar.projects.roleSkills(info.id)
+  if (!offer) return
+  const chosen: Choice[] = offer.stored.map((s) => ({ name: s.name, maintainer: !!s.maintainer }))
+  const groups = [
+    ...(offer.folder
+      ? [{ name: offer.folder.name, place: '.claude/skills/', skills: offer.folder.skills }]
+      : []),
+    { name: t('orch.roleYours'), place: '~/.claude/skills/', skills: offer.user },
+  ]
+  const found = new Set(groups.flatMap((g) => g.skills.map((s) => s.name)))
+  const choiceOf = (name: string) => chosen.find((c) => c.name === name)
+
+  const label = el('input', {
+    type: 'text',
+    class: 'role-label',
+    placeholder: t('orch.rolePlaceholder'),
+    'aria-label': t('orch.roleLabel'),
   })
-  if (answer.value === 'save') await act({ type: 'setRole', session: info.id, label: answer.text })
+  label.value = offer.label
+  const filter = el('input', {
+    type: 'text',
+    class: 'skill-filter',
+    placeholder: t('orch.roleFilter'),
+    'aria-label': t('orch.roleFilter'),
+  })
+  const sum = el('span', { class: 'chosen-sum dim' })
+  const list = el('div', { class: 'skill-list' })
+
+  const toggle = (name: string, on: boolean) => {
+    const i = chosen.findIndex((c) => c.name === name)
+    if (on && i < 0) chosen.push({ name, maintainer: false })
+    if (!on && i >= 0) chosen.splice(i, 1)
+    draw()
+  }
+  const modeSwitch = (choice: Choice, lockedBy: string | undefined) => {
+    const option = (text: string, maintainer: boolean) => {
+      const node = el('button', { 'aria-pressed': String(choice.maintainer === maintainer) }, text)
+      if (maintainer && lockedBy) node.disabled = true
+      node.addEventListener('click', () => {
+        choice.maintainer = maintainer
+        draw()
+      })
+      return node
+    }
+    return el(
+      'div',
+      { class: 'segmented skill-mode', role: 'group' },
+      option(t('orch.roleMaintainer'), true),
+      option(t('orch.roleReadOnly'), false),
+    )
+  }
+  const skillLine = (skill: { name: string; description: string }) => {
+    const choice = choiceOf(skill.name)
+    const by = offer.maintainedBy[skill.name]
+    const box = el('input', { type: 'checkbox' })
+    box.checked = !!choice
+    box.addEventListener('change', () => toggle(skill.name, box.checked))
+    const note = !by
+      ? null
+      : choice
+        ? el('span', { class: 'skill-lock' }, t('orch.roleMaintainedBy', { name: by }))
+        : el('span', { class: 'skill-note dim' }, t('orch.roleMaintainedByNote', { name: by }))
+    return el(
+      'div',
+      {
+        class: `skill-row${choice ? ' on' : ''}`,
+        'data-skill': skill.name,
+        title: skill.description || undefined,
+      },
+      el(
+        'label',
+        { class: 'skill-check' },
+        box,
+        el('span', { class: 'skill-info' }, el('span', { class: 'skill-name' }, skill.name), note),
+      ),
+      choice ? modeSwitch(choice, by) : null,
+    )
+  }
+  const missingLine = (choice: Choice) => {
+    const remove = el('button', { class: 'skill-remove' }, t('orch.roleRemove'))
+    remove.addEventListener('click', () => toggle(choice.name, false))
+    return el(
+      'div',
+      { class: 'skill-row missing', 'data-skill': choice.name },
+      el(
+        'span',
+        { class: 'skill-info' },
+        el('span', { class: 'skill-name' }, choice.name),
+        el('span', { class: 'skill-note' }, t('orch.roleNotFoundNote')),
+      ),
+      remove,
+    )
+  }
+  const groupHead = (name: string, place?: string) =>
+    el(
+      'div',
+      { class: `skill-group${place ? '' : ' missing'}` },
+      el('span', { class: 'skill-group-name' }, name),
+      place ? el('span', { class: 'skill-group-place' }, place) : null,
+    )
+
+  const controls = (row: Element) => [...row.querySelectorAll<HTMLElement>('input, button')]
+  const focusedControl = () => {
+    const focused = document.activeElement
+    const row =
+      focused instanceof HTMLElement && list.contains(focused) && focused.closest('.skill-row')
+    if (!row || !(focused instanceof HTMLElement)) return null
+    return {
+      row: [...list.querySelectorAll('.skill-row')].indexOf(row),
+      control: controls(row).indexOf(focused),
+    }
+  }
+  const controlAt = (at: { row: number; control: number }) => {
+    const row = list.querySelectorAll('.skill-row')[at.row]
+    const node = row ? controls(row)[at.control] : undefined
+    return node && !(node as HTMLButtonElement).disabled ? node : undefined
+  }
+
+  function draw(): void {
+    const names = chosen.filter((c) => found.has(c.name)).map((c) => c.name)
+    sum.textContent = t('orch.roleChosen', {
+      n: names.length,
+      names: names.length > 0 ? names.join(', ') : t('orch.roleChosenNone'),
+    })
+    const q = filter.value.trim().toLowerCase()
+    const rows: HTMLElement[] = []
+    // The filter never hides what is not found: it waits for the human to remove it.
+    const missing = chosen.filter((c) => !found.has(c.name))
+    if (missing.length > 0)
+      rows.push(groupHead(t('orch.roleNotFound')), ...missing.map(missingLine))
+    let shown = 0
+    for (const g of groups) {
+      const skills = g.skills.filter((s) => s.name.toLowerCase().includes(q))
+      if (skills.length === 0) continue
+      shown += skills.length
+      rows.push(groupHead(g.name, g.place), ...skills.map(skillLine))
+    }
+    if (shown === 0) rows.push(el('div', { class: 'skill-none dim' }, t('orch.roleNoMatch')))
+    // Redrawing replaces the control that had focus; the same one in the new list takes it, so the
+    // keys (Escape among them) still reach the window.
+    const at = focusedControl()
+    list.replaceChildren(...rows)
+    if (at) (controlAt(at) ?? filter).focus()
+  }
+  filter.addEventListener('input', draw)
+  draw()
+
+  const [before, after] = t('orch.roleHeading', { name: '\u0000' }).split('\u0000')
+  return new Promise((resolve) => {
+    dialogOpened()
+    const close = () => {
+      dialogClosed()
+      scrim.remove()
+      resolve()
+    }
+    const cancel = el('button', {}, t('dialog.cancel'))
+    const save = el('button', { class: 'suggested-text' }, t('dialog.save'))
+    cancel.addEventListener('click', close)
+    save.addEventListener('click', async () => {
+      const { refusal, refusalParams } = await act({
+        type: 'configureRole',
+        session: info.id,
+        label: label.value,
+        skills: chosen.map((c) =>
+          c.maintainer ? { name: c.name, maintainer: true } : { name: c.name },
+        ),
+      })
+      if (refusal) return toast(translate(refusal, refusalParams))
+      close()
+    })
+    const dialog = el(
+      'div',
+      { class: 'dialog role-window', role: 'alertdialog' },
+      el(
+        'div',
+        { class: 'message' },
+        el(
+          'div',
+          { class: 'heading' },
+          before ?? '',
+          el('span', { class: 'who' }, info.name),
+          after ?? '',
+        ),
+        el(
+          'label',
+          { class: 'role-field' },
+          el('span', { class: 'role-field-label' }, t('orch.roleLabel')),
+          label,
+          el('span', { class: 'role-hint dim' }, t('orch.roleBody')),
+        ),
+        el(
+          'div',
+          { class: 'role-field' },
+          el(
+            'div',
+            { class: 'role-skills-head' },
+            el('span', { class: 'role-field-label' }, t('orch.roleSkills')),
+            sum,
+          ),
+          el(
+            'div',
+            { class: 'skill-picker' },
+            el('div', { class: 'skill-filter-box' }, filter),
+            list,
+          ),
+          el(
+            'div',
+            { class: 'role-legend dim' },
+            el('span', {}, t('orch.roleLegendMaintainer')),
+            el('span', {}, t('orch.roleLegendReadOnly')),
+          ),
+        ),
+      ),
+      el('div', { class: 'responses' }, cancel, save),
+    )
+    const scrim = el('div', { class: 'scrim' }, dialog)
+    scrim.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close()
+      }
+    })
+    document.body.append(scrim)
+    label.focus()
+  })
 }
 
 // Per window and not saved: the topics whose context is unfolded.

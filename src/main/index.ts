@@ -34,6 +34,7 @@ import {
   paneResize,
   paneTyped,
   revealPane,
+  roleSkills,
   runAction,
   startWorkspace,
   windowState,
@@ -86,6 +87,7 @@ handle('sessions:set-hidden', async (_event, { ids, hidden }) => {
   return undefined
 })
 handle('projects:get', () => projectsSnapshot())
+handle('skills:list', (_event, { session }) => roleSkills(session))
 
 // Before `ready`: Chromium opens its profile at startup. Windows and macOS keep Electron's default,
 // already a per-app folder of the platform.

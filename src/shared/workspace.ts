@@ -2,6 +2,7 @@
 // window's renderer. Types only.
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
+import type { Params } from '../core/i18n/interpolate'
 import type { TaskState } from '../core/orchestration/taskState'
 import type { SettingsSection } from '../core/preferences'
 import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
@@ -182,6 +183,13 @@ export type Action =
   | { readonly type: 'removeProjectFolder'; readonly project: string; readonly folder: string }
   | { readonly type: 'setOrchestrator'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setRole'; readonly session: string; readonly label: string }
+  // "Configure role…" (decision 1.154): the label and the stored skills, saved together.
+  | {
+      readonly type: 'configureRole'
+      readonly session: string
+      readonly label: string
+      readonly skills: readonly RoleSkillChoice[]
+    }
   | { readonly type: 'setTaskStar'; readonly number: number; readonly on: boolean }
   | { readonly type: 'setWithYou'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setTopicsCollapsed'; readonly collapsed: boolean }
@@ -325,8 +333,16 @@ export interface TabEntry {
   readonly panes: readonly string[]
 }
 
+// A skill stored for a session, as the projects model holds it; spelled here because the renderer
+// cannot import that model, which uses Node.
+export interface RoleSkillChoice {
+  readonly name: string
+  readonly maintainer?: true
+}
+
 export interface ActionResult {
   readonly refusal?: Key
+  readonly refusalParams?: Params
   readonly brought?: { readonly undo: string; readonly names: readonly string[] }
   readonly incoming?: readonly IncomingFile[]
   readonly value?: string | null

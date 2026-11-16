@@ -26,6 +26,7 @@ const api: MenkarApi = {
   },
   projects: {
     get: () => ipcRenderer.invoke('projects:get'),
+    roleSkills: (session) => ipcRenderer.invoke('skills:list', { session }),
   },
   sessions: {
     list: () => ipcRenderer.invoke('sessions:list'),

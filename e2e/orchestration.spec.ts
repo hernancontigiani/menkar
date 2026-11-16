@@ -1,5 +1,5 @@
 // Plan 34: the orchestration mode. Switched from the header (1.91) and from the project popover
-// (1.89); the row menu's block — Orchestrator, Role…, With you — only while it is on;
+// (1.89); the row menu's block — Orchestrator, Configure role…, With you — only while it is on;
 // switching it off keeps every mark (1.77).
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
 import { launchApp } from './app'
-import { CLIENT, clientWork, prepare } from './fixtures'
+import { CLIENT, catppuccin, clientWork, prepare } from './fixtures'
 
 type PageGlobals = { menkar: MenkarApi }
 
@@ -112,7 +112,11 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
     const labels = await items.allTextContents()
     const group = labels.findIndex((l) => l.startsWith('Group'))
     // Decision 1.114: the ★ belongs to tasks, so the row menu has no "Priority".
-    expect(labels.slice(group + 1, group + 4)).toEqual(['Orchestrator', 'Role…', 'With you'])
+    expect(labels.slice(group + 1, group + 4)).toEqual([
+      'Orchestrator',
+      'Configure role…',
+      'With you',
+    ])
     expect(labels).not.toContain('Priority')
     await items.filter({ hasText: /^Orchestrator$/ }).click()
     await expect.poll(async () => (await shown(page))?.orchestrator).toBe(CLIENT.login)
@@ -121,9 +125,10 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
     await (await rowMenu(page, CLIENT.api)).filter({ hasText: /^Orchestrator$/ }).click()
     await expect.poll(async () => (await shown(page))?.orchestrator).toBe(CLIENT.api)
 
-    await (await rowMenu(page, CLIENT.long)).filter({ hasText: 'Role…' }).click()
-    await page.locator('[role="alertdialog"] input').fill('Fabric expert')
-    await page.locator('[role="alertdialog"] button', { hasText: 'Save' }).click()
+    await (await rowMenu(page, CLIENT.long)).filter({ hasText: 'Configure role…' }).click()
+    await page.locator('.role-window .role-label').fill('Fabric expert')
+    await page.locator('.role-window .responses button', { hasText: 'Save' }).click()
+    await expect(page.locator('.role-window')).toHaveCount(0)
     await (await rowMenu(page, CLIENT.login)).filter({ hasText: /^With you$/ }).click()
     const marks = {
       on: true,
@@ -1267,6 +1272,299 @@ test('the card in a short window with 20 more sessions: it fits, its buttons sta
     await expect(card(page)).toHaveCount(0)
     await expect.poll(() => shown(page)).toMatchObject({ on: true, orchestrator: CLIENT.long })
     await expect.poll(() => parents(page)).not.toHaveProperty(CLIENT.login)
+  } finally {
+    await launched.close()
+  }
+})
+
+// Plan 40, block 5: "Configure role…", mock-up C (decisions 1.154, 1.157). A team whose `app`
+// folder is a repository with four skills, a second repository `lib` with one, and the user's own
+// skills, one of them named like Menkar's.
+const ROLE = {
+  orch: 'e0e0e0e0-0000-4000-8000-0000000000e1',
+  expert: 'e0e0e0e0-0000-4000-8000-0000000000e2',
+  keeper: 'e0e0e0e0-0000-4000-8000-0000000000e3',
+  libber: 'e0e0e0e0-0000-4000-8000-0000000000e4',
+} as const
+const ROLE_NAMES: Record<keyof typeof ROLE, string> = {
+  orch: 'orchestrator',
+  expert: 'packager',
+  keeper: 'claude-cli',
+  libber: 'lib worker',
+}
+const ROLE_PROJECT = 'eeeeeeeeeeee'
+
+function skillAt(skills: string, dir: string, name = dir): void {
+  mkdirSync(join(skills, dir), { recursive: true })
+  writeFileSync(
+    join(skills, dir, 'SKILL.md'),
+    `---\nname: ${name}\ndescription: What ${name} is for.\n---\n\nBody.\n`,
+  )
+}
+
+function roleTeam(
+  dirs: { readonly root: string; readonly home: string },
+  scheme: 'dark' | 'light' = 'dark',
+): Record<string, string> {
+  const env = prepare(dirs)
+  const app = join(dirs.home, 'work', 'app')
+  const lib = join(dirs.home, 'work', 'lib')
+  for (const repo of [app, lib]) mkdirSync(join(repo, '.git'), { recursive: true })
+  for (const dir of ['packager', 'review-branch', 'claude-cli', 'compact-safe'])
+    skillAt(join(app, '.claude', 'skills'), dir)
+  skillAt(join(lib, '.claude', 'skills'), 'lib-only')
+  const user = join(dirs.home, '.claude', 'skills')
+  skillAt(user, 'compact-safe')
+  skillAt(user, 'commit-style')
+  skillAt(user, 'sneaky', 'menkar:sneaky')
+  for (const key of Object.keys(ROLE) as (keyof typeof ROLE)[]) {
+    const cwd = key === 'libber' ? lib : app
+    const transcripts = join(dirs.home, '.claude', 'projects', cwd.replace(/[^A-Za-z0-9]/g, '-'))
+    mkdirSync(transcripts, { recursive: true })
+    writeFileSync(
+      join(transcripts, `${ROLE[key]}.jsonl`),
+      `${[
+        { type: 'custom-title', customTitle: ROLE_NAMES[key] },
+        { type: 'user', cwd, message: { content: `work as ${key}` } },
+      ]
+        .map((l) => JSON.stringify(l))
+        .join('\n')}\n`,
+    )
+  }
+  const config = join(dirs.root, 'config', 'menkar')
+  writeFileSync(
+    join(config, 'projects.json'),
+    JSON.stringify({
+      version: 1,
+      current: ROLE_PROJECT,
+      projects: [
+        {
+          id: ROLE_PROJECT,
+          name: 'Roles',
+          members: Object.values(ROLE),
+          groups: [],
+          parents: { [ROLE.expert]: ROLE.orch },
+          team_view: true,
+          orchestration: {
+            on: true,
+            orchestrator: ROLE.orch,
+            roles: { [ROLE.expert]: 'Packaging' },
+            skills: {
+              // Deleted on disk, and found only in another repository: both "Not found".
+              [ROLE.expert]: [{ name: 'gone-skill', maintainer: true }, { name: 'lib-only' }],
+              [ROLE.keeper]: [{ name: 'claude-cli', maintainer: true }],
+            },
+          },
+        },
+      ],
+      windows: [
+        {
+          current: ROLE_PROJECT,
+          tabs: { [ROLE_PROJECT]: [{ panes: [ROLE.expert], orientation: 'horizontal' }] },
+        },
+      ],
+    }),
+  )
+  writeFileSync(
+    join(config, 'state.json'),
+    JSON.stringify({
+      settings: {
+        color_scheme: scheme,
+        terminal_theme: catppuccin(scheme),
+        terminal_colors: 'theme',
+      },
+    }),
+  )
+  return { ...env, FAKE_CLAUDE_SOCKET: '1' }
+}
+
+const roleWindow = (page: Page) => page.locator('.role-window')
+const skillRow = (page: Page, name: string) =>
+  roleWindow(page).locator(`.skill-row[data-skill="${name}"]`)
+const openRole = async (page: Page) => {
+  await (await rowMenu(page, ROLE.expert)).filter({ hasText: 'Configure role…' }).click()
+  await expect(roleWindow(page)).toBeVisible()
+}
+const rolePressed = (row: ReturnType<typeof skillRow>, label: string) =>
+  row.locator('.segmented button', { hasText: label })
+
+test('Configure role… (mock-up C): only the session’s repository and the user’s skills, never Menkar’s; Not found first and never filtered; maintained elsewhere is read only; the same name ticks both; Cancel writes nothing (screenshot)', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      return roleTeam(dirs)
+    },
+  })
+  const page = launched.window
+  const projectsFile = () => readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8')
+  try {
+    const labels = await (await rowMenu(page, ROLE.expert)).allTextContents()
+    expect(labels).toContain('Configure role…')
+    expect(labels).not.toContain('Role…')
+    await page.keyboard.press('Escape')
+    const before = projectsFile()
+    await openRole(page)
+    await expect(roleWindow(page).locator('.heading')).toHaveText('Configure role of packager')
+    await expect(roleWindow(page).locator('.role-label')).toHaveValue('Packaging')
+    await expect(roleWindow(page).locator('.chosen-sum')).toHaveText('0 chosen: none')
+    // Decision 1.157: the session's own repository, then the user's; `lib` is another one.
+    await expect(roleWindow(page).locator('.skill-group-name')).toHaveText([
+      'Not found',
+      'app',
+      'Yours',
+    ])
+    await expect(roleWindow(page).locator('.skill-group-place')).toHaveText([
+      '.claude/skills/',
+      '~/.claude/skills/',
+    ])
+    const names = await roleWindow(page).locator('.skill-row .skill-name').allTextContents()
+    expect(names).toEqual([
+      'gone-skill',
+      'lib-only',
+      'claude-cli',
+      'compact-safe',
+      'packager',
+      'review-branch',
+      'commit-style',
+      'compact-safe',
+    ])
+    // Decision 1.154: Menkar's own skills never show, even one so named in the user's folder.
+    expect(names.join(' ')).not.toContain('menkar:')
+    for (const gone of ['gone-skill', 'lib-only']) {
+      await expect(skillRow(page, gone)).toHaveClass(/missing/)
+      await expect(skillRow(page, gone).locator('button', { hasText: 'Remove' })).toBeVisible()
+      await expect(skillRow(page, gone)).toContainText("Not found in this project's or your skills")
+    }
+
+    // The filter: case ignored, empty groups hidden, and the not-found rows always shown.
+    const filter = roleWindow(page).locator('.skill-filter')
+    await filter.fill('PACK')
+    await expect(roleWindow(page).locator('.skill-group-name')).toHaveText(['Not found', 'app'])
+    await expect(roleWindow(page).locator('.skill-row:not(.missing)')).toHaveCount(1)
+    await filter.fill('zzz')
+    await expect(roleWindow(page).locator('.skill-none')).toHaveText('No skill matches.')
+    await expect(roleWindow(page).locator('.skill-row.missing')).toHaveCount(2)
+    await filter.fill('')
+
+    // Maintained by another session: noted unticked; ticked, its Maintainer is disabled.
+    const cli = skillRow(page, 'claude-cli')
+    await expect(cli).toContainText('maintained by claude-cli')
+    await cli.locator('input[type="checkbox"]').check()
+    await expect(cli.locator('.skill-lock')).toHaveText('Maintained by claude-cli')
+    await expect(rolePressed(cli, 'Maintainer')).toBeDisabled()
+    await expect(rolePressed(cli, 'Read only')).toHaveAttribute('aria-pressed', 'true')
+
+    // Decision 1.154: ticking adds it read only and shows its switch on that line.
+    const packager = skillRow(page, 'packager')
+    await expect(rolePressed(packager, 'Maintainer')).toHaveCount(0)
+    await packager.locator('input[type="checkbox"]').check()
+    await expect(rolePressed(packager, 'Read only')).toHaveAttribute('aria-pressed', 'true')
+    await rolePressed(packager, 'Maintainer').click()
+    await expect(rolePressed(packager, 'Maintainer')).toHaveAttribute('aria-pressed', 'true')
+
+    // What is stored is the name: the same name in two places is ticked in both.
+    const both = skillRow(page, 'compact-safe')
+    await expect(both).toHaveCount(2)
+    await both.first().locator('input[type="checkbox"]').check()
+    await expect(both.nth(1).locator('input[type="checkbox"]')).toBeChecked()
+    await expect(roleWindow(page).locator('.chosen-sum')).toHaveText(
+      '3 chosen: claude-cli, packager, compact-safe',
+    )
+    await shot(page, 'configure-role-dark.png')
+
+    await roleWindow(page).locator('.responses button', { hasText: 'Cancel' }).click()
+    await expect(roleWindow(page)).toHaveCount(0)
+    expect(projectsFile()).toBe(before)
+    // Escape changes nothing either.
+    await openRole(page)
+    await skillRow(page, 'packager').locator('input[type="checkbox"]').check()
+    await page.keyboard.press('Escape')
+    await expect(roleWindow(page)).toHaveCount(0)
+    expect(projectsFile()).toBe(before)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('Configure role…: Remove and Save drop the not-found skills, a Maintainer and a read-only skill are stored as written, and the running session gets one post naming them, a skill made since its start found again', async () => {
+  let root = ''
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      home = dirs.home
+      return roleTeam(dirs)
+    },
+  })
+  const page = launched.window
+  const stored = () =>
+    JSON.parse(readFileSync(join(root, 'config', 'menkar', 'projects.json'), 'utf8')).projects[0]
+      .orchestration
+  try {
+    await expect.poll(() => teamTexts(home).length).toBe(1)
+    // Made after the pane started: Save finds it again, so the block does not call it not found.
+    skillAt(join(home, 'work', 'app', '.claude', 'skills'), 'late-skill')
+    await openRole(page)
+    for (const gone of ['gone-skill', 'lib-only'])
+      await skillRow(page, gone).locator('button', { hasText: 'Remove' }).click()
+    await expect(roleWindow(page).locator('.skill-row.missing')).toHaveCount(0)
+    await expect(roleWindow(page).locator('.skill-group-name')).toHaveText(['app', 'Yours'])
+    await skillRow(page, 'packager').locator('input[type="checkbox"]').check()
+    await rolePressed(skillRow(page, 'packager'), 'Maintainer').click()
+    await skillRow(page, 'review-branch').locator('input[type="checkbox"]').check()
+    await skillRow(page, 'late-skill').locator('input[type="checkbox"]').check()
+    await roleWindow(page).locator('.role-label').fill('Packaging expert')
+    await roleWindow(page).locator('.responses button', { hasText: 'Save' }).click()
+    await expect(roleWindow(page)).toHaveCount(0)
+    await expect
+      .poll(() => stored())
+      .toMatchObject({
+        roles: { [ROLE.expert]: 'Packaging expert' },
+        skills: {
+          [ROLE.expert]: [
+            { name: 'packager', maintainer: true },
+            { name: 'review-branch' },
+            { name: 'late-skill' },
+          ],
+          [ROLE.keeper]: [{ name: 'claude-cli', maintainer: true }],
+        },
+      })
+    // Decision 1.152: the session hears of it at once, in one post.
+    await expect
+      .poll(() => postsTo(home, ROLE.expert), { timeout: 15_000 })
+      .toEqual([
+        expect.stringContaining(
+          'Your role: "Packaging expert". Your parent is `orchestrator`, the orchestrator.\nSkills to have loaded (load any that is not): `packager`, which you maintain (only you change it, with `menkar:distill`); `review-branch`, read only; `late-skill`, read only.',
+        ),
+      ])
+    await page.waitForTimeout(6000)
+    expect(postsTo(home, ROLE.expert)).toHaveLength(1)
+    // Reopened, the window shows what was saved.
+    await openRole(page)
+    await expect(roleWindow(page).locator('.chosen-sum')).toHaveText(
+      '3 chosen: packager, review-branch, late-skill',
+    )
+    await expect(rolePressed(skillRow(page, 'packager'), 'Maintainer')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  } finally {
+    await launched.close()
+  }
+})
+
+test('Configure role… in the light scheme, with skills ticked, one maintained elsewhere and two not found (screenshot)', async () => {
+  const launched = await launchApp({ prepare: (dirs) => roleTeam(dirs, 'light') })
+  const page = launched.window
+  try {
+    await openRole(page)
+    await skillRow(page, 'claude-cli').locator('input[type="checkbox"]').check()
+    await skillRow(page, 'packager').locator('input[type="checkbox"]').check()
+    await rolePressed(skillRow(page, 'packager'), 'Maintainer').click()
+    await skillRow(page, 'review-branch').locator('input[type="checkbox"]').check()
+    await expect(rolePressed(skillRow(page, 'claude-cli'), 'Maintainer')).toBeDisabled()
+    await shot(page, 'configure-role-light.png')
   } finally {
     await launched.close()
   }

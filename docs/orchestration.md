@@ -71,18 +71,52 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
 - **The header's switch**, "Orchestration", right of Usage, for the project the window shows; **the
   project popover's team icon** per project, lit when on. Both are `setOrchestrationMode`.
 - **The row menu**, only while the mode is on, after "Group ▸", in a block of its own: "Orchestrator"
-  (marking one unmarks the previous), "Role…" (one text field; empty removes the label), "With
-  you" — each with ✓ when set (`orchestrationItems`, `src/renderer/orchestration.ts`). The row menu
-  has no "Priority": the ★ is a task's (decision 1.114).
+  (marking one unmarks the previous), "Configure role…" (below) and "With you" — the first and the
+  last with ✓ when set (`orchestrationItems`, `src/renderer/orchestration.ts`). The row menu has no
+  "Priority": the ★ is a task's (decision 1.114).
+- **"Configure role…"** (`roleWindow`; decisions 1.152, 1.154, 1.157, 2026-11-15; mock-up C) sets a
+  session's role label and the skills Menkar stores for it (`docs/projects.md`), the only place
+  that sets them: no tool does. "Configure role of ‹name›", then:
+  - **Role**: one text field, trimmed; empty removes the label.
+  - **Skills**: "‹n› chosen: ‹names›" beside the label, then one scrolling checklist with "Filter
+    skills…" on top. **Not found** comes first, in red: a stored skill the session cannot load, its
+    name struck through, "Not found in this project's or your skills" and **Remove**; it stays
+    stored and flagged until removed, and the filter never hides it. Then at most two groups: the
+    session's folder's skills, headed by the folder's name with `.claude/skills/`, and "Yours" with
+    `~/.claude/skills/`. The filter hides rows whose name does not contain its text (case ignored)
+    and any group left empty, and says "No skill matches." when none is left. The same name in
+    both groups is one skill: ticking one ticks both, since what is stored is the name.
+  - **Ticking adds a skill read only** and shows on its line the switch "Maintainer · Read only";
+    unticking removes it. A skill another session maintains says "maintained by ‹name›" unticked,
+    and once ticked "Maintained by ‹name›" in the warning colour, its Maintainer disabled: one
+    maintainer per skill (1.119), and moving it means unsetting it on the other session first.
+  - A legend says what Maintainer and Read only mean; **Save** applies the label and the skills in
+    one `configureRole` action, **Cancel** and Escape change nothing.
+  - **What is listed is what the session can load** (`roleSkills`, `src/main/workspace.ts`, from
+    `listSkills`, `src/core/team/skills.ts`, read when the window opens): its folder's
+    `.claude/skills/` and each parent's up to the repository root, and the user's. Another
+    repository of the same project is not listed, since a session cannot load it; a skill stored
+    from there shows under Not found. **Menkar's own skills never show**: they follow from the
+    marks. Installed plugins' and MCP servers' skills are not listed: every session has them, and
+    nobody in the team maintains them, so the list stays a project's ten or so.
+  - **After Save** the skills the session can load are found again (`teamFoundChanged`,
+    `src/main/team.ts`) and, if it runs and its facts changed, it gets one team update
+    (`docs/session-control.md`, "The team block").
+- **The mode switched while sessions run**: on, each running Claude session of the project gets its
+  whole team block in one post; off, one line saying the instructions no longer apply
+  (`docs/session-control.md`, "The team block").
 - **The first-time card** (`firstTimeCard`): switching on a project with no orchestrator marked opens
   it instead. It says what the mode is and what an orchestrator is, and asks "Who orchestrates?":
   one radio per listed session (with a tab first, then by name) and "A new session" (a name,
   "orchestrator" by default, and a folder among the project's folders — the list `Ctrl+\``
   offers — or, with none, the recent folders Add session offers).
-  - **Start** marks the chosen session, or starts the new one through `startNew` with a first
-    prompt telling it to load `menkar:orchestrator`, that the project's orchestration is new, and to
-    read the guide at its absolute path first (2026-11-13), marked as it starts; then it switches
-    the mode on. **Not now** leaves it off.
+  - **Start** switches the mode on first, so a new orchestrator starts with its team block and a
+    running session chosen hears of the whole change in one post (`startTeam`); then it marks the
+    chosen session, or starts the new one through `startNew` with a first prompt telling it to
+    load `menkar:orchestrator`, that the project's orchestration is new, and to read the guide at
+    its absolute path first (2026-11-13), marked as it starts; then it hands the chosen sessions
+    over and saves the cap. A refused start switches the mode back off and shows the refusal.
+    **Not now** leaves it off.
   - **Open the guide** opens `plugin/guide/orchestration-mode.md` in a Menkar file tab, read only
     (files under the plugin folder get `files.readOnlyMenkar` from the file check), and hides the
     card (decision 1.94, mock G1). Closing that tab brings the card back with what had been chosen
@@ -327,7 +361,7 @@ turns read only):
   parent, so the new session is a consultant (1.107): no wakes to its caller, no read-only tab. With
   `role` it is born with that label (`placeStarted`, `src/core/orchestration/started.ts`); a loose
   one with a label sits under "Consultants". No tool changes an existing session's role: that stays
-  the human's, from the row menu's "Role…".
+  the human's, from the row menu's "Configure role…".
 
 ## Workers per task
 
@@ -405,3 +439,11 @@ away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; ma
   `t42` would collide.
 - **An Orchestration section in Settings** (1.120's first form): orchestration settings belong to
   the project, not the app (1.122).
+- **Listing installed plugins' and MCP servers' skills in "Configure role…"** (1.154): every
+  session has them, and nobody in the team maintains them.
+- **Showing Menkar's own skills there** (1.154): they follow from the marks; storing one would let
+  a session be told to load `menkar:orchestrator` without being the orchestrator.
+- **Other repositories' skills shown disabled there** (1.157, Q5 (a)): the human chose to show only
+  what the session can load.
+- **Skills set by `start_session` or `specialize`**: only the human sets them (1.152); an agent that
+  wrote a wrong name would mis-role a session silently.

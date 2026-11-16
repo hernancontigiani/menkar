@@ -1567,6 +1567,158 @@ select option {
 .orch-card .responses button {
   font-size: 9pt;
 }
+/* "Configure role…" (mock-up C): the dialog's look, wider, one checklist of skills with a filter. */
+.dialog.role-window {
+  width: 520px;
+  max-width: calc(100vw - 32px);
+}
+.role-window .message {
+  text-align: left;
+  gap: 14px;
+}
+.role-window .heading {
+  text-align: center;
+}
+.role-window .heading .who {
+  color: var(--accent);
+}
+.role-window .role-field {
+  display: grid;
+  gap: 5px;
+}
+.role-window .role-field-label {
+  font-weight: 700;
+}
+.role-window .role-hint,
+.role-window .role-legend {
+  font-size: 9pt;
+}
+.role-window .role-legend {
+  display: grid;
+  gap: 2px;
+}
+.role-window .role-skills-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.role-window .chosen-sum {
+  font-size: 9pt;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.role-window .skill-picker {
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  border-radius: 6px;
+  background: var(--mantle);
+}
+.role-window .skill-filter-box {
+  padding: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 9%, transparent);
+}
+.role-window .skill-filter {
+  width: 100%;
+}
+.role-window .skill-list {
+  max-height: min(330px, calc(100vh - 380px));
+  min-height: 90px;
+  overflow-y: auto;
+  padding: 4px 0 6px;
+}
+.role-window .skill-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 11px 3px;
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.role-window .skill-group.missing {
+  color: var(--destructive);
+  opacity: 1;
+}
+.role-window .skill-group-place {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.role-window .skill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 2px 8px 2px 9px;
+}
+.role-window .skill-row:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+.role-window .skill-row.on {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.role-window .skill-row.on .skill-name {
+  font-weight: 700;
+}
+.role-window .skill-row.missing {
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  padding-left: 11px;
+}
+.role-window .skill-row.missing .skill-name {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.role-window .skill-row.missing .skill-note {
+  color: var(--destructive);
+}
+.role-window .skill-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.role-window .skill-check input {
+  accent-color: var(--accent);
+  margin: 0;
+  flex: none;
+}
+.role-window .skill-info {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.role-window .skill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.role-window .skill-note,
+.role-window .skill-lock {
+  font-size: 9pt;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.role-window .skill-lock {
+  color: var(--yellow);
+}
+.role-window .skill-mode > button {
+  font-size: 9pt;
+  padding: 2px 7px;
+}
+.role-window .skill-remove {
+  font-size: 9pt;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.role-window .skill-none {
+  padding: 10px 11px;
+  font-size: 9pt;
+}
 /* "Workers at once" in the first-time card and the project's orchestration settings. */
 .cap-field {
   display: grid;

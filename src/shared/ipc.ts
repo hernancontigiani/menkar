@@ -12,7 +12,7 @@ import type { ProjectsSnapshot } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Settings } from '../core/settings'
 import type { UsageView, UsageWhich } from '../core/usage/nodes'
-import type { Action, ActionResult, FileUpdate, WindowState } from './workspace'
+import type { Action, ActionResult, FileUpdate, RoleSkillChoice, WindowState } from './workspace'
 
 export type { ProjectsSnapshot, SessionInfo }
 
@@ -56,6 +56,21 @@ export type RestartAnswer =
   | { readonly restarting: true }
   | { readonly restarting: false; readonly unsaved: readonly string[] }
   | { readonly restarting: false; readonly notSaved: string; readonly refusal: Key }
+
+// What "Configure role…" offers a session (decisions 1.154, 1.157): the skills it can load — its
+// folder's, up to the repository root, and the user's —, what is stored for it, and which names
+// another session maintains (by that session's name).
+export interface RoleSkill {
+  readonly name: string
+  readonly description: string
+}
+export interface RoleSkills {
+  readonly label: string
+  readonly folder: { readonly name: string; readonly skills: readonly RoleSkill[] } | null
+  readonly user: readonly RoleSkill[]
+  readonly stored: readonly RoleSkillChoice[]
+  readonly maintainedBy: Readonly<Record<string, string>>
+}
 
 // Renderer → main, answered.
 export interface InvokeChannels {
@@ -117,6 +132,8 @@ export interface InvokeChannels {
   'i18n:catalog': { request: undefined; response: Catalog }
   'sessions:list': { request: undefined; response: readonly SessionInfo[] }
   'projects:get': { request: undefined; response: ProjectsSnapshot }
+  // Null when the session is in no project.
+  'skills:list': { request: { session: string }; response: RoleSkills | null }
   'sessions:set-hidden': {
     request: { ids: readonly string[]; hidden: boolean }
     response: undefined
@@ -182,6 +199,7 @@ export interface MenkarApi {
   }
   readonly projects: {
     get(): Promise<ProjectsSnapshot>
+    roleSkills(session: string): Promise<RoleSkills | null>
   }
   readonly sessions: {
     list(): Promise<readonly SessionInfo[]>
