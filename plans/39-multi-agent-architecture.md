@@ -7,8 +7,9 @@
 > - **Decided by the human:** 1.155 (Q1–Q4, §2.14), 1.157 P1 (the sandbox installs outside
 >   `/opt/Menkar`), 1.158 (the sandbox duplicates everything it needs), 1.159 (the review's B1, B3,
 >   S6, S7, S11 as recommended; the classifier configurable per agent).
-> - **Pending the human, via `set`, written as recommended:** **Q-a** — P0.1 and P0.2 land on
->   `main` before the branch exists (§2.12); **Q-b** — where the classifier per agent is built
+>   **1.160** (Q-a): P0.1 and P0.2 land on `main` right after plan 40 and the .deb for the human's
+>   other project, before the branch exists (§2.12). **1.161** (Q-b): the classifier per agent is one
+>   block after P3, P4, with all four agents in view; until then only `claude -p` classifies
 >   (§2.17).
 >
 > **From:** plan 38 (`plans/38-multi-agent.md`, the design: what and why), decided as D1–D22 in
@@ -43,7 +44,7 @@
 | The shipped hook and notify programs | `docs/packaging.md` (P1a.4, P3.3) |
 | `smol-toml`, the one new runtime dependency | `docs/toolchain.md`'s dependency list, with its reason (P1a.2) |
 | The engines floor (`>=22.15.0`, for zlib's zstd under Vitest) | `package.json` and `docs/toolchain.md` (P1a.3) |
-| The classifier per agent (1.159) | `docs/classifier.md`, "Which agent classifies" (the block of §2.17); D19's text amended, old to its history |
+| The classifier per agent (1.159, 1.161) | `docs/classifier.md`, "Which agent classifies" (P4); D19's text amended, old to its history |
 | 1.155, 1.157 P1, 1.158, 1.159: their "where it lives" | `plans/00-STATUS.md`: each points at `docs/agents.md`, `docs/sessions.md`, `docs/toolchain.md` and `docs/packaging.md` (the sandbox), `docs/classifier.md` |
 | The sandbox flavour: what differs, what is still shared and how it is kept safe (§2.12) | `docs/toolchain.md`, "A long-lived branch"; the package side to `docs/packaging.md`, "The sandbox package" (P0.0) |
 | What is deferred (§3) | `docs/NOT_BUILT_YET.md`, each with its trigger (close block) |
@@ -299,7 +300,7 @@ block that adds the interface to `types.ts`.
 | **IntegrationItems** (core + main) | P3.1 | statusline, retention (today, not moved in P0) | D13 hooks, D7 allow entries | none | none | Items greyed when the CLI is not found (1.140) |
 | **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5), `queue_1.sqlite` rows | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
 | **ChatStrategy** (core + main) | P0.7 | today's variant | today's two | `null` | `null` | Today's `VARIANTS` and `AGENT_CLIS` move into the kits |
-| **Classifier** (core + main, §2.17) | the block of §2.17 | `claude -p` with a model | where feasible | where feasible | where feasible | `null` where the agent cannot classify |
+| **Classifier** (core + main, §2.17) | P4 | `claude -p` with a model | where feasible | where feasible | where feasible | `null` where the agent cannot classify |
 
 **Codex's late id, OpenCode's server-held sessions, SQLite stores and Cursor's consent-gated hooks
 each land on one seam above and none forces a branch in shared code**: the late id on IdBinding,
@@ -559,10 +560,11 @@ Where a facade would be wrong (a test asserts the old shape on purpose), the blo
 
 ### 2.12 The branch, its worktree, and the sandbox (1.136, 1.155 Q3, 1.157 P1, 1.158, 1.159)
 
-**Before the branch exists, on `main`** (B4; Q-a pending the human, recommended):
+**Before the branch exists, on `main`** (B4; **1.160**: right after plan 40 and the .deb for the
+human's other project):
 - **P0.1** — R10's snapshot and the CI guard (§2.10), the test baseline (below) — committed on
   `main` by `set`.
-- **P0.2** — ids, descriptors, the registries' skeleton and the rules with `ALLOWED` seeded (Q-a):
+- **P0.2** — ids, descriptors, the registries' skeleton and the rules with `ALLOWED` seeded (1.160):
   from then on no new name check can enter `main` while the branch lives (a new one fails the
   count). Nothing runs differently: types, data and a check.
 - Then `set` creates the branch from that `main`.
@@ -681,6 +683,10 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
   session not found keeps its tab, one line), S6 (Cursor's prompt text only while the classifier is
   on), S7 (an idle Cursor's facts change waits for the next wake), S11 (the classifier off in the
   sandbox); **the classifier configurable per agent** (§2.17).
+- **1.160** — P0.1 and P0.2 on `main` right after plan 40 and the .deb for the human's other
+  project, before the branch (§2.12).
+- **1.161** — the classifier per agent is one block after P3 (P4), with all four agents in view;
+  until then only `claude -p` classifies (§2.17).
 
 ### 2.15 Decisions the code must hold, and their tests
 
@@ -703,7 +709,7 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
 | 1.155 Q3, 1.158: the sandbox cannot touch the human's Menkar | P0.0's tests: disjoint directories, files folder and package paths; `Package: menkar-sandbox`; no chaining to a Menkar statusline; no `~/.claude/settings.json` item offered; the flavour resolver's three cases; `MENKAR_FLAVOR` stripped and set |
 | 1.159 B1: the sandbox refuses others' sessions | P0.0's test: a session found but not in `started_sessions` → resume, add, trash, delete refused; the agent's home unchanged |
 | D6: the user's `notify` chained | P1a.4: a fixture `config.toml` with `notify = ["x"]` → the program runs `x` with Codex's argument; with a profile override → the profile's |
-| 1.159: the classifier configurable per agent | §2.17's block tests |
+| 1.159, 1.161: the classifier configurable per agent, after P3 | P4.1's tests |
 
 ### 2.16 Where each review finding went (task 29 → task 34)
 
@@ -721,14 +727,14 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
 | S6 readers | §2.6: Cursor's reader moved unchanged; zstd streamed; `openAgentDb`'s third state; R9's sidecars; prompt text per 1.159 |
 | S7 team block per agent | §2.5.6: compaction signals, Cursor idle waits (1.159); §2.9: team parts in the package |
 | S8 D3's trigger | §2.3 Messaging; §2.15's snapshots |
-| S9 R10 and `startPaneHeld` | §2.10: the assembly e2e; P0.2 on `main` (Q-a) |
+| S9 R10 and `startPaneHeld` | §2.10: the assembly e2e; P0.2 on `main` (1.160) |
 | S10 facade types | §2.11 |
 | S11 sandbox details | §2.12: flavour from the branch, `MENKAR_FLAVOR`, classifier off, Cursor's leftovers |
 | S12 OpenCode's config | §2.7 |
 | Minors | P1a.2 screenshot (glyph); P2.2/P2.7 e2e ownership; P2.4 creates the kit's `index.ts`; P1b.1's fallback; P0.0's container (§2.12); the packaging rule (1.157 P1); the branch cap (§2.12); P3.4's `stop` never waits (§2.9); `LaunchPlan.files` for Codex (§2.8); `session_agents` at bind (§2.4) |
 | Plan 40 alignment | Header; §2.5.6 (`started`/`held`, the three pieces, `TEAM_AGENTS` into kits, floor 2.1.267, snapshot off on every resume); §2.10 (the block in R10); P0.3 |
 
-### 2.17 The classifier per agent (1.159; Q-b pending the human, recommended)
+### 2.17 The classifier per agent (1.159, 1.161)
 
 - **Today:** `claude -p` with Haiku classifies every turn; D19 classifies non-Claude turns only when
   `claude` is installed. **1.159** makes it configurable per agent: a user without Claude Code, or
@@ -737,16 +743,16 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
   with a chosen model and return its text:
   `run(prompt, model, cwd) → Promise<string>` (main), `models() → readonly string[]` (the ones
   offered, data). Claude's is today's `claude -p` (moved in P0.7, `kitOf(CLASSIFIER_AGENT)` until
-  this block). Candidates (each agent's consultant confirms in the block): Codex `codex exec -m`,
+  P4). Candidates (each agent's consultant confirms in the block): Codex `codex exec -m`,
   OpenCode `opencode run -m`, Cursor `cursor-agent -p --model`.
 - **The setting**: "Classify turns with ‹agent› · ‹model›", offered among the installed agents whose
   `Classifier` is not `null`; default Claude with Haiku when installed (today), else the first
   installed one that can, else off. **Its place in Settings is the human's, from a mock-up** in the
   block. `CLASSIFIER_AGENT` is replaced by the setting, and the `agent-default` rule's mention of it
   goes.
-- **Where (Q-b, recommended):** its own block, **P1a.8**, right after Codex lands as a session, with
-  Claude's and Codex's classifiers; P2 and P3 each add their agent's in their own block if feasible.
-  (b) would build it once after P3.
+- **Where (1.161):** one block, **P4**, after P3, with the four agents in view. **Until then only
+  `claude -p` classifies**, as D19 says: non-Claude turns only when `claude` is installed, else
+  unclassified and said in the Usage window. No phase before P4 adds a `Classifier`.
 - **The sandbox:** the setting is hidden and the classifier off (1.159, S11).
 - **D19's text** in `docs/classifier.md` and plan 38 is amended (old text to its history).
 - **Evaluation:** `npm run classify:eval` (the existing one) runs per agent and model chosen; a
@@ -793,8 +799,8 @@ P0's blocks run in turn.
 
 | Block | Files it owns | After |
 |---|---|---|
-| P0.1 (on `main`) | `tests/core/r10.test.ts`, `tests/core/r10/**`, `e2e/r10.spec.ts`, `e2e/fixtures.ts` (the Cursor stand-in records argv and env), `scripts/ci.mjs` (the R10 step, `CI=1`), `scripts/check-test-integrity.mjs` (the merge-base default), `tests/scripts/check-test-integrity.test.ts`, `docs/toolchain.md` | Plan 40 whole on `main` |
-| P0.2 (on `main`, Q-a) | `src/core/agents/{ids,types,descriptors,registry}.ts`, `src/core/agents/{claude,cursor}/{descriptor,index}.ts`, `src/main/agents/registry.ts`, `src/main/agents/{claude,cursor}/index.ts`, `scripts/check-code-rules.mjs`, `tests/scripts/check-code-rules.test.ts`, `tests/core/agents/{ids,parity}.test.ts`, `docs/toolchain.md` (the rules' rows) | P0.1 |
+| P0.1 (on `main`) | `tests/core/r10.test.ts`, `tests/core/r10/**`, `e2e/r10.spec.ts`, `e2e/fixtures.ts` (the Cursor stand-in records argv and env), `scripts/ci.mjs` (the R10 step, `CI=1`), `scripts/check-test-integrity.mjs` (the merge-base default), `tests/scripts/check-test-integrity.test.ts`, `docs/toolchain.md` | Plan 40 whole on `main` and the .deb for the human's other project (1.160) |
+| P0.2 (on `main`, 1.160) | `src/core/agents/{ids,types,descriptors,registry}.ts`, `src/core/agents/{claude,cursor}/{descriptor,index}.ts`, `src/main/agents/registry.ts`, `src/main/agents/{claude,cursor}/index.ts`, `scripts/check-code-rules.mjs`, `tests/scripts/check-code-rules.test.ts`, `tests/core/agents/{ids,parity}.test.ts`, `docs/toolchain.md` (the rules' rows) | P0.1 |
 | P0.0 (branch) | `src/core/flavor.ts` (new), `src/core/paths.ts`, `electron.vite.config.ts` (the define and its resolver), `electron-builder.sandbox.yml` (new), `scripts/package.mjs`, `scripts/check-package.mjs`, `tests/data/package/**` (sandbox variant), `src/core/context/settings.ts` (`chainedCommand`), the integrations page's offer, `src/core/sessionenv.ts` (`MENKAR_FLAVOR`), `src/core/state.ts` (`started_sessions`), the sandbox's refusals in `src/main/workspace.ts`, `src/core/i18n/{en,es}.ts` (the title, the refusals), `docs/packaging.md`, `tests/core/flavor.test.ts` | P0.2, the branch created |
 | P0.3 | `src/core/command.ts` (facade), `src/core/agents/{claude,cursor}/{launch,mcp,team,env}.ts`, `src/core/sessionenv.ts` (facade over the union), `src/core/team/block.ts` (`TEAM_AGENTS` → the kits; `teamAgent` → `kitOf(…).team`), plan 40's delivery code in main, `src/main/workspace.ts` (`startPaneHeld` only), `tests/core/agents/{claude,cursor}/launch.test.ts`, `docs/session-control.md` ("Per agent") | P0.0 |
 | P0.4 | `src/core/sessions/**` (facades), `src/core/agents/{claude,cursor}/catalog.ts`, `src/core/agents/shared/jsonl.ts`, `src/main/workspace.ts` (details, export, lastReply, location, trash), `tests/core/agents/contract/catalog.test.ts`, `tests/data/agents/{claude,cursor}/**` | P0.3 |
@@ -816,7 +822,7 @@ P0's blocks run in turn.
   deleted → Vitest under `CI=1` fails; on a scratch branch, one snapshot byte changed → the R10 step
   fails; a dummy listening socket under a test flag → the spec fails.
 
-#### P0.2 — ids, descriptors, registries, and the rules (on `main`, Q-a)
+#### P0.2 — ids, descriptors, registries, and the rules (on `main`, 1.160)
 
 - [ ] Tests first: `ids.test.ts` (`parseAgentId` of each id, `''`, `'gemini'`, a number → `null`;
   `AGENT_IDS` order = Claude then Cursor); `check-code-rules.test.ts` (§2.15's first row, each rule
@@ -954,7 +960,6 @@ P0's blocks run in turn.
 | P1a.5 | `src/core/agents/codex/state.ts`, state fixtures | P1a.4 |
 | P1a.6 | `src/core/agents/codex/{usage,context}.ts`, `src/core/agents/claude/usage.ts` (today's cache wrapped as a `TurnSource`), `src/core/usage/{pass,history}.ts`, `src/core/usage/prices.ts` (OpenAI rows), `src/core/classifier/**` (`turnText`) | P1a.5 |
 | P1a.7 | `e2e/codex.spec.ts`, `docs/agents.md` (Codex), `docs/sessions.md`, `docs/usage.md`, `docs/release-checklist.md` | P1a.6 |
-| P1a.8 (Q-b) | §2.17: `src/core/agents/{claude,codex}/classifier.ts`, `src/main/classifier*`, the setting (Settings page, i18n), `docs/classifier.md` | P1a.7 |
 
 - **P1a.1** — Stand-in and fixtures (rollouts, one `.zst`, `session_index.jsonl`, a `state_5.sqlite`
   copy, `notify` with codex's JSON argument, the title thread's extra notify with no rollout, a
@@ -983,17 +988,12 @@ P0's blocks run in turn.
 - **P1a.6** — Usage: Claude's cache wrapped as its `TurnSource` (bytes unchanged); Codex's in
   `usage-cache-codex.sqlite`, a turn per user message, tokens from `token_count`, uuids
   `codex:<turn id>`; `runPass` loops sources; OpenAI rows in `prices.ts` (D15); context from the
-  rollout tail; the classifier's `turnText` (D19 until P1a.8). Tests: the contract's tokens per
+  rollout tail; the classifier's `turnText` (D19, until P4). Tests: the contract's tokens per
   turn; a midnight-spanning turn counted on its opening day; a `.zst` replacing an ingested `.jsonl`
   not re-counted; Claude's cache file untouched (R10). **Verify:** `npm run ci`, `npm run ui-check`
   (Usage with a Codex session; screenshot).
 - **P1a.7** — Gate: `e2e/codex.spec.ts`; docs; release-checklist "Codex as a session"; `codex`'s
   real check. **Verify:** `npm run ci`, `npm run ui-check` whole, R10.
-- **P1a.8** — The classifier per agent (§2.17, Q-b): a mock-up of the setting for the human first;
-  Claude's `Classifier` moved, Codex's built after `codex` confirms `codex exec -m` returns plain
-  text; the setting; `classify:eval` per agent; D19's text amended. Tests: the default with and
-  without `claude`; an agent with `Classifier` `null` not offered; the sandbox hides it. **Verify:**
-  `npm run ci`, `npm run ui-check` (screenshots of the setting).
 
 ### P1b — the orchestration bridge, with Codex (R5–R8)
 
@@ -1053,7 +1053,7 @@ P0's blocks run in turn.
 | P2.3 | `src/main/agents/opencode/proxy.ts`, caller resolution in `src/main/workspace.ts` | P2.2 |
 | P2.4 | `src/core/agents/opencode/{descriptor,catalog,env,ids,index}.ts` (it **creates** the kit's `index.ts`), `src/main/agents/opencode/index.ts`, registries | P2.1 (parallel with P2.2 and P2.3: P2.5 wires the server into the kit) |
 | P2.5 | `src/core/agents/opencode/{launch,state,mcp,team}.ts`, `src/main/agents/opencode/{prepare,waker,events}.ts`, `plugin/team/opencode.md`, `scripts/check-package.mjs` | P2.3, P2.4 |
-| P2.6 | `src/core/agents/opencode/{usage,context}.ts`, its classifier if feasible (§2.17) | P2.5 |
+| P2.6 | `src/core/agents/opencode/{usage,context}.ts` | P2.5 |
 | P2.7 | `e2e/opencode.spec.ts` (alone and as a worker), docs (`agents.md`, `session-control.md` port amendment + history), release-checklist | P2.6 |
 
 - **P2.1** — The stand-in server and TUI and an `opencode.db` fixture in WAL mode (the three states
@@ -1071,8 +1071,8 @@ P0's blocks run in turn.
   when the mode is on (D20, 1.141), `OPENCODE_CONFIG_CONTENT` (§2.7, S12: a mode-off session's
   request unchanged), team delivery (`tell` = the entry PUT), the two-servers warning (D9).
   **Verify:** `npm run ci`, `npm run ui-check`.
-- **P2.6** — Usage (a turn per user message, D9; cost lines to `usage-opencode.jsonl`), context, and
-  `opencode run -m` as its classifier if `opencode` confirms it (§2.17). **Verify:** `npm run ci`.
+- **P2.6** — Usage (a turn per user message, D9; cost lines to `usage-opencode.jsonl`) and context.
+  **Verify:** `npm run ci`.
 - **P2.7** — Gate: e2e; `opencode`'s real check; docs; release-checklist. **Verify:** `npm run ci`,
   `npm run ui-check` whole, R10.
 
@@ -1096,13 +1096,30 @@ P0's blocks run in turn.
   rewritten-transcript reader (§2.6, its own fixture); the trust prompt. R10's Cursor rows
   refreshed, `set` signing the diff. **Verify:** `npm run ci`, `npm run ui-check`.
 - **P3.3** — The hook program (§2.9: own flavour only, prompt text only while the classifier is
-  on, `stop` never waits), records, Cursor's usage source; D21's test; its classifier if feasible
-  (§2.17). **Verify:** `npm run ci`.
+  on, `stop` never waits), records, Cursor's usage source; D21's test. **Verify:** `npm run ci`.
 - **P3.4** — Waker (D1) and team `tell` (1.159, S7: an idle session's facts change held until the
   next wake); names per D22. Tests: each branch with the stand-in, a draft never lost. **Verify:**
   `npm run ci`, `npm run ui-check`.
 - **P3.5** — Gate: e2e (Cursor worker of a Claude orchestrator, with and without the items);
   `cursor`'s real check; docs; release-checklist. **Verify:** `npm run ci`, `npm run ui-check` whole.
+
+### P4 — the classifier per agent (1.159, 1.161; after P3)
+
+| Block | Files it owns | After |
+|---|---|---|
+| P4.1 | `src/core/agents/{claude,codex,opencode,cursor}/classifier.ts`, the `Classifier` interface in `types.ts`, `src/core/classifier/**` (runs through the chosen kit), `src/core/agents/ids.ts` (`CLASSIFIER_AGENT` removed), `scripts/check-code-rules.mjs` (`agent-default`'s mention of it), the setting (Settings page, `src/core/settings.ts`, i18n), `scripts/classify-eval.mjs` (per agent and model), `docs/classifier.md` | P3 |
+
+- **P4.1** — Before code: each consultant (`codex`, `opencode`, `cursor`) confirms in a throwaway
+  home whether its CLI runs a one-shot prompt with a chosen model and returns plain text (`codex
+  exec -m`, `opencode run -m`, `cursor-agent -p --model`); an agent that cannot keeps `Classifier`
+  `null`. Then: a mock-up of the setting for the human, its place their choice; the setting (§2.17:
+  offered among installed agents whose `Classifier` is not `null`; default Claude with Haiku when
+  installed, else the first that can, else off); `classify:eval` per agent and model, a model
+  offered only once its accuracy is recorded; D19's text amended (old to its history); hidden in
+  the sandbox. Tests: the default with and without `claude`; an agent with `Classifier` `null` not
+  offered; a turn classified through Codex's stand-in; the sandbox hides it; Claude's classifier
+  bytes and prompts unchanged (R10). **Verify:** `npm run ci`, `npm run ui-check` (screenshots of
+  the setting, light and dark).
 
 ### Close (when the human calls the branch validated)
 
@@ -1112,7 +1129,7 @@ P0's blocks run in turn.
 - [ ] Plan 38's exit (its header) completed: `docs/agents.md` whole, `README.md`, `AGENTS.md`'s D17
   rewording (old text to `docs/history/root/AGENTS.history.md`), `docs/preferences.md`,
   `docs/NOT_BUILT_YET.md` (38 §7 and §3 here, each with its trigger); STATUS rows 1.137–1.143,
-  1.155, 1.157 P1, 1.158 and 1.159 point at their docs.
+  1.155, 1.157 P1, 1.158–1.161 point at their docs.
 - [ ] Delete `plans/38-multi-agent.md` and this plan, their §3 rows to the history.
 - **Verify:** `npm run ci` (the history check).
 
