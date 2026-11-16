@@ -184,6 +184,7 @@ export const SHORTCUTS = [
   },
   { id: 'prefixSidebar', group: 'prefix', chords: after('b'), description: 'shortcut.sidebar' },
   { id: 'prefixSettings', group: 'prefix', chords: after('s'), description: 'shortcut.settings' },
+  { id: 'away', group: 'prefix', chords: after('a'), description: 'shortcut.away' },
   { id: 'help', group: 'prefix', chords: after('?'), description: 'shortcut.help' },
   { id: 'sendCtrlB', group: 'prefix', chords: [ctrl('b')], description: 'shortcut.sendCtrlB' },
   // The quick switcher and Go to agent.

@@ -6,8 +6,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
+import { SIDEBAR_MIN_WIDTH } from '../src/core/settings'
 import { launchApp, savedState, terminalText } from './app'
-import { prepare, SESSION } from './fixtures'
+import { catppuccin, prepare, SESSION } from './fixtures'
 
 const CLIENT_WORK = 'aaaaaaaaaaaa'
 
@@ -31,6 +32,7 @@ async function open(
     stoppedWorker?: boolean
     orchestrated?: boolean
     cap?: number
+    language?: string
     env?: Readonly<Record<string, string>>
   } = {},
 ) {
@@ -150,7 +152,13 @@ async function open(
       const state = join(dirs.root, 'config', 'menkar', 'state.json')
       writeFileSync(
         state,
-        JSON.stringify({ ...JSON.parse(readFileSync(state, 'utf8')), remote_control: [SESSION] }),
+        JSON.stringify(
+          (() => {
+            const saved = JSON.parse(readFileSync(state, 'utf8'))
+            if (options.language) saved.settings = { ...saved.settings, language: options.language }
+            return { ...saved, remote_control: [SESSION] }
+          })(),
+        ),
       )
       return { ...env, ...options.env }
     },
@@ -481,6 +489,188 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Wo
     await page.keyboard.type('STAR1')
     await said(page, "TOOL task_star: Only the orchestrator sets a task's ★, when the person asks.")
     expect(starOf()).toBe(false)
+  } finally {
+    await launched.close()
+  }
+})
+
+// ---------------------------------------------------------------- the human's presence (1.167)
+
+const banner = (page: Page) => page.locator('#away-banner')
+const chip = (page: Page) => page.locator('#presence-chip')
+const SIDEBAR_MIN = SIDEBAR_MIN_WIDTH
+// One line, nothing clipped: every part on the chip's first line and inside it.
+const chipFits = (page: Page) =>
+  chip(page).evaluate((node) => {
+    const box = node.getBoundingClientRect()
+    const parts = [...node.children].map((c) => c.getBoundingClientRect())
+    const middle = (r: DOMRect) => (r.top + r.bottom) / 2
+    const line = middle(box)
+    return (
+      parts.length === 3 &&
+      node.scrollWidth <= node.clientWidth &&
+      parts.every(
+        (r) =>
+          Math.abs(middle(r) - line) < 3 &&
+          r.height < 24 &&
+          r.left >= box.left &&
+          r.right <= box.right,
+      )
+    )
+  })
+const setScheme = (page: Page, scheme: 'dark' | 'light') =>
+  page.evaluate(
+    async ([s, theme]) => {
+      const prefs = (
+        globalThis as unknown as {
+          menkar: { preferences: { set(k: string, v: string): Promise<unknown> } }
+        }
+      ).menkar.preferences
+      await prefs.set('color_scheme', s)
+      await prefs.set('terminal_theme', theme)
+    },
+    [scheme, catppuccin(scheme)] as const,
+  )
+const backPosts = (posted: () => string[]) =>
+  posted().filter((p) => p.startsWith('[Menkar] The human is back')).length
+
+test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears it; the orchestrator hears both, and human_back clears it with no post to itself (screenshots)", async () => {
+  const { launched, page, root } = await open({ orchestrated: true, env: { MENKAR_LOG: 'info' } })
+  const socket = await orchestratorPosts(root)
+  const log = join(root, 'cache', 'menkar', 'menkar.log')
+  const sounds = () =>
+    (existsSync(log) ? readFileSync(log, 'utf8') : '')
+      .split('\n')
+      .filter((l) => l.includes('sound played'))
+  const topicToasts = (p: Page) => p.locator('.toast', { hasText: 'Pick a port' })
+  const files = process.env.MENKAR_FILES
+  try {
+    await expect(banner(page)).toBeHidden()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('a')
+    await expect(banner(page)).toBeVisible()
+    await expect(banner(page)).toContainText(/Away since \d\d:\d\d/)
+    await expect
+      .poll(socket.posted, { timeout: 15_000 })
+      .toContainEqual(expect.stringMatching(/^\[Menkar\] The human is away/))
+
+    // A topic raised while away waits in the sidebar: no toast, no sound, nothing replayed later.
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('TOPIC')
+    await said(page, 'TOOL topic_add:')
+    await expect(page.locator('.topic-row', { hasText: 'Pick a port' })).toBeVisible()
+    await page.waitForTimeout(2000)
+    await expect(topicToasts(page)).toHaveCount(0)
+    expect(sounds()).toEqual([])
+
+    const opened = launched.app.waitForEvent('window')
+    await act(page, { type: 'newWindowWithProject', name: 'Other' })
+    const other = await opened
+    await expect(banner(other)).toBeVisible()
+    if (files) {
+      for (const scheme of ['dark', 'light'] as const) {
+        await setScheme(page, scheme)
+        await expect
+          .poll(() => page.evaluate(() => document.documentElement.style.colorScheme))
+          .toBe(scheme)
+        await page.screenshot({ path: join(files, `menkar-t48-away-banner-${scheme}.png`) })
+      }
+    }
+
+    await other.locator('#away-back').click()
+    await expect(banner(other)).toBeHidden()
+    await expect(banner(page)).toBeHidden()
+    await expect.poll(() => backPosts(socket.posted), { timeout: 15_000 }).toBe(1)
+    await page.waitForTimeout(1000)
+    await expect(topicToasts(page)).toHaveCount(0)
+    await expect(topicToasts(other)).toHaveCount(0)
+    expect(sounds()).toEqual([])
+
+    // Away again, and the orchestrator itself clears it on the human's word.
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('a')
+    await expect(banner(page)).toBeVisible()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('HUMANBACK')
+    await said(page, 'TOOL human_back: The human is marked back.')
+    await expect(banner(page)).toBeHidden()
+    await expect(banner(other)).toBeHidden()
+    await page.waitForTimeout(QUIET_MS)
+    expect(backPosts(socket.posted)).toBe(1)
+
+    // The chip at the sidebar's foot sets and clears it too, in every window.
+    await expect(chip(page)).toHaveText(/Here.*Set me away…/)
+    await expect(chip(other)).toBeVisible()
+    await chip(page).click()
+    await expect(banner(page)).toBeVisible()
+    await expect(banner(other)).toBeVisible()
+    await expect(chip(other)).toHaveText(/Away.*I'm back/)
+    await chip(other).click()
+    await expect(banner(page)).toBeHidden()
+    await expect(chip(page)).toHaveText(/Here.*Set me away…/)
+    await expect.poll(() => backPosts(socket.posted), { timeout: 15_000 }).toBe(2)
+
+    // Screenshots at the default width and the minimum, both states, both schemes.
+    await page.bringToFront()
+    for (const width of [250, SIDEBAR_MIN]) {
+      await act(page, { type: 'setSidebarWidth', width })
+      for (const away of [false, true]) {
+        await act(page, { type: 'setPresence', away })
+        await expect(banner(page)).toBeVisible({ visible: away })
+        await expect.poll(() => chipFits(page)).toBe(true)
+        if (files)
+          for (const scheme of ['dark', 'light'] as const) {
+            await setScheme(page, scheme)
+            await expect
+              .poll(() => page.evaluate(() => document.documentElement.style.colorScheme))
+              .toBe(scheme)
+            const state = away ? 'away' : 'here'
+            await page.screenshot({
+              path: join(files, `menkar-t48-chip-${state}-${scheme}-${width}.png`),
+            })
+          }
+      }
+    }
+    await expect.poll(() => backPosts(socket.posted), { timeout: 15_000 }).toBe(3)
+  } finally {
+    socket.close()
+    await launched.close()
+  }
+})
+
+test('with the orchestration mode off: human_back is refused, no chip, Ctrl+B a sets nothing', async () => {
+  const { launched, page } = await open()
+  try {
+    await page.keyboard.type('HUMANBACK')
+    await said(page, 'TOOL human_back: The orchestration mode is off in this project.')
+    await expect(chip(page)).toBeHidden()
+    await page.locator('.xterm').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('a')
+    await page.waitForTimeout(1000)
+    await expect(banner(page)).toBeHidden()
+    await expect(chip(page)).toBeHidden()
+  } finally {
+    await launched.close()
+  }
+})
+
+// The longer Spanish strings too: at the sidebar's narrowest the chip keeps one line, unclipped.
+test('the chip keeps one line at the narrowest sidebar, in Spanish (screenshots)', async () => {
+  const { launched, page } = await open({ orchestrated: true, language: 'es' })
+  const files = process.env.MENKAR_FILES
+  try {
+    await act(page, { type: 'setSidebarWidth', width: SIDEBAR_MIN })
+    for (const away of [false, true]) {
+      await act(page, { type: 'setPresence', away })
+      await expect(chip(page)).toHaveText(away ? /Ausente.*Ya volví/ : /Aquí.*Ausentarme…/)
+      await expect.poll(() => chipFits(page)).toBe(true)
+      if (files)
+        await page.screenshot({
+          path: join(files, `menkar-t48-chip-${away ? 'away' : 'here'}-dark-180-es.png`),
+        })
+    }
   } finally {
     await launched.close()
   }

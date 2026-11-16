@@ -417,6 +417,29 @@ away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; ma
   rest — another task only while the current one waits outside, never a third, a skill's one
   maintainer — is the orchestrator's and the worker's skills.
 
+## The human's presence
+
+Decisions 1.165, 1.167 and 1.170 (the human, 2026-11-16). The human sets themselves **away** when
+they step out; the state is the user's own, for the whole app, and concerns the orchestrators only.
+What the user sees and how the orchestrator acts on it is in the guide; the rules are pure, in
+`src/core/presence.ts`, and main holds the state (`askPresence`, `src/main/workspace.ts`).
+
+- **Held in memory, never saved**: every start is "here", so opening Menkar counts as returning.
+  Going away twice keeps the first time (`since`, shown as "Away since HH:MM", `formatClock`).
+- **Set away only while some project has the mode on** (`presenceAsked`); coming back always works.
+  The chip at the sidebar's foot (`chipShown`) shows while some project has the mode on, and also
+  while away, so it can always be cleared if the modes were turned off meanwhile.
+- **Three ways in**, all through `askPresence`: the chip, `Ctrl+B a` (`setPresence` with no value
+  toggles) and the banner's "I'm back"; and `human_back`, the orchestrator's tool
+  (`docs/session-control.md`). The window state carries `presence`; every window draws the banner
+  under its header and the chip from it.
+- **The posts**: a change posts `[Menkar] The human is away: …` or `[Menkar] The human is back`
+  (`presencePost`) through `wakeSession` to each project's running orchestrator, minus the one
+  that called `human_back` (`postRecipients`).
+- **Topics while away** (`topicNoticeNow`): a topic notice raises nothing — no sound, toast,
+  desktop notice or tray entry — and nothing is replayed on return; the topic waits in Topics.
+  The sessions' own notifications are not silenced.
+
 ## Rejected
 
 - **A panel beside the orchestrator's tab** (1.77's first form): it repeated the team the sidebar

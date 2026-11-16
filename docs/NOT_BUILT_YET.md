@@ -319,20 +319,35 @@ more tasks created than the short term can take. Long to review: reviews to spee
 **Trigger:** fired — wanted before the first release (1.156, 2026-11-15). First question:
 which states and reviewers to record, and where the numbers show.
 
-### The human's presence: away or here
+### The orchestrator's conversation, apart from the events
 
-The human's idea, relayed by another project's orchestrator (2026-11-16): a state the human sets
-when they go into a meeting or out for a couple of hours — **away** — and clears when they return.
-Today an orchestrator does not know whether anyone reads its chat: it keeps writing a summary per
-event (a worker finished, a PR is ready), spending context and tokens, and the human comes back to
-a pile instead of one summary. With the state: while away, the orchestrator writes events to topics
-and the status file instead of the chat and goes on with what does not depend on the human; on
-return, a `[Menkar] The human is back` post, and the orchestrator answers with one summary of what
-happened and what awaits a decision — first **a preliminary summary of a few lines** (how many
-things happened, which await a decision), and from it the human chooses to go through them one by
-one or to read the full summary the orchestrator prepared (the human, 2026-11-16). Whether a new
-blocking topic still notifies while away is the human's call. Related: the "with you" mark (1.78) is per session; this is the human's own, per
-project or global.
+From ccai's human, relayed by its orchestrator (2026-11-16): the chat with an orchestrator mixes the
+conversation with the human and the noise of the events (`[Menkar] … finished its turn`), and each
+event wakes it and tends to produce visible text. Two ideas, beyond the current topic (1.169): **an
+order of the topics the orchestrator sets** (today ★, blocking, number), and **a separate interface
+to talk with the orchestrator** where the human does not see what goes on behind.
+ccai's orchestrator adds (2026-11-16): `[Menkar] … finished its turn` wakes arrive as turns of the
+human's chat; if a turn must still end with some text, Menkar could hide it, or those wakes could
+reach the orchestrator outside the human's chat. Measured by it the same day: Claude Code's harness refuses a turn with no visible
+text ("Your previous response had no visible output"), so the skill alone cannot make it silent; a
+minimal "·" is the stopgap. A third idea from ccai's human (2026-11-16): hide, fold or filter in the orchestrator's
+chat the messages other sessions send it (`Another Claude session sent a message: …`, both
+Menkar's events and workers' cross-session messages), which Claude Code draws, not Menkar; or
+deliver the events by another channel. Asked of the Claude Code consultant (2026-11-16, 2.1.325): no setting folds or
+hides peer messages in the TUI (`crossSessionInbound` only accepts, holds or refuses delivery); a
+plugin monitor wakes with a one-line event instead of a prompt row, but was rejected before
+(`docs/session-control.md`, Rejected); a `UserPromptSubmit` hook's `additionalContext` reaches the
+model invisibly but only with the human's next prompt; the empty-turn refusal is switched per model,
+not by the user. The levers left are posting fewer, coalesced events and deferring the rest to the
+human's next prompt.
 
-**Trigger:** the human asks to build it. First question: per project or global, where the switch
-sits (the header, the tray), and whether Remote Control activity counts as "here".
+**Trigger:** the human finds the current topic (1.169) and the skill's silence on events not
+enough. First question: what the separate interface shows, and where.
+
+### A profile menu at the sidebar's foot
+
+The human, 2026-11-16 (1.170): the presence chip at the sidebar's foot is the person's own spot;
+later it may open a drop-down of the human's profile, with "Set me away" beside other options.
+
+**Trigger:** a second setting or action that concerns the person themselves. First question: what
+else goes in it, and whether the chip's click still toggles away or opens the menu.

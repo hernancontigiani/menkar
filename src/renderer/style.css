@@ -2119,3 +2119,78 @@ select option {
 .board-card .step-segments {
   max-width: none;
 }
+
+/* ---------------------------------------------------------------- away */
+/* The human is away: one thin strip under both headers, the sidebar's half only its color. */
+.away-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 2px 8px 2px 12px;
+  background: color-mix(in srgb, var(--yellow) 24%, var(--bg));
+  color: var(--fg);
+}
+.away-banner[hidden] {
+  display: none;
+}
+.away-banner .icon {
+  color: var(--yellow);
+}
+.away-banner .bar-text {
+  flex: 1;
+}
+#away-back {
+  font-weight: 700;
+  padding: 1px 10px;
+  border-radius: var(--control-radius);
+  border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  background: transparent;
+  color: var(--fg);
+}
+#away-back:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+/* The human's presence at the sidebar's foot, like a chat app's status; a click toggles it. */
+#presence-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 8px 0;
+  padding: 6px 8px;
+  border-radius: var(--control-radius);
+  white-space: nowrap;
+  text-align: left;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+#presence-chip[hidden] {
+  display: none;
+}
+#presence-chip:hover {
+  background: color-mix(in srgb, var(--fg) 11%, transparent);
+}
+#presence-chip.away {
+  background: color-mix(in srgb, var(--yellow) 30%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yellow) 75%, transparent);
+}
+#presence-chip .presence-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--green);
+}
+#presence-chip.away .presence-dot {
+  background: var(--yellow);
+}
+#presence-chip .presence-state {
+  font-weight: 700;
+}
+/* Smaller, so both states keep one line at the sidebar's narrowest. */
+#presence-chip .presence-action {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.65;
+}

@@ -27,6 +27,10 @@ category is Development.
   app itself stays `0.1.0` (About, `package.json`), and so does the file name,
   `release/menkar_0.1.0_amd64.deb`, so the install command never changes. Read a build's version
   with `dpkg-deb -f release/menkar_0.1.0_amd64.deb Version`.
+- **`Depends`** is electron-builder's own list plus `libasound2t64 | libasound2` (2026-11-16):
+  Electron links `libasound.so.2`, which electron-builder does not list, and on a system without a
+  desktop sound stack the app died at start with "libasound.so.2: cannot open shared object file"
+  (seen in a minimal Ubuntu 24.04 container). `package:check` fails a package without it.
 - **`publish: null`**: no update feed and no `app-update.yml` in the package. Nothing leaves the
   machine.
 - `build/icons/512x512.png` is **provisional**, drawn for Menkar (a prompt and a star) until the

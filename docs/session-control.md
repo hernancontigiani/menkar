@@ -160,6 +160,10 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **`set_workers_cap { cap }`** (decision 1.123): the orchestrator only, with the mode on; a whole
     number from 1, or null or absent for any number (`capTool`). The orchestrator's skill calls it
     only when the human asks explicitly.
+  - **`human_back {}`** (decision 1.167): the orchestrator only, with the mode on, and only when
+    the human has said explicitly that they are back; it clears the human's away state as "I'm
+    back" does, and the other running orchestrators get "The human is back", the caller not
+    (`backTool`, `src/core/presence.ts`).
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.

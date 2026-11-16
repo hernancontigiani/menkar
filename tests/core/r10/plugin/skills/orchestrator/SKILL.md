@@ -63,16 +63,14 @@ or a compaction**, say only what changed, and never in the middle of a topic.
 1. **You are also the expert.** A small team: you design, hand the work to a couple of generalist
    workers, and review it. Workers rarely talk to the human.
 2. **A manager with expertise, beside a few experts.** Workers come and go per task; one or two
-   experts stay. The human sometimes works with an expert directly, and the expert tells you what
-   came out of it.
+   experts stay; one may work with the human directly and tell you what came out of it.
 3. **A manager without the expertise, beside experts and consultants.** You organise the work and
    the order; you send a worker's question to the consultant who owns that area.
 
 **Who is who** (in Menkar's mode): an **expert** is a worker under you that always implements one
 part of the system, with its own skill (the session that runs releases, say): hand it the work of
 its part. A **generalist worker** implements whatever you hand it. A **consultant** is never under
-you: it answers anyone about its area and does not execute for you; hand it a task when the
-request needs more than a short answer; a short question needs none.
+you: it answers anyone about its area and does not execute for you.
 
 The shape can differ by area: if you cannot answer a worker's question about an area from the
 docs within a minute, you are shape 3 there, and you route.
@@ -120,10 +118,9 @@ Follow the project's rule on working trees (its `CLAUDE.md` or memory); do not c
 - **Worktrees**: the running environment is a shared resource with **one owner at a time**.
   Sessions work in their worktree until they need to validate visually; then they take their turn,
   ★ tasks first, and check their branch out where the environment runs.
-- **Before a turn passes**, the shared state must match what the next branch expects (migrations of
-  the leaving branch rolled back, for example). That is the one change to the running environment
-  you allow without the human, and only with the procedure the project documents; with none, ask
-  the human.
+- **Before a turn passes**, the shared state must match what the next branch expects (say, the
+  leaving branch's migrations rolled back): the one change to the running environment you allow
+  without the human, only with the procedure the project documents; with none, ask the human.
 
 ## Commits
 
@@ -140,9 +137,13 @@ flight. Nobody pushes unless the project's rule or the human says so.
   still blocked, raise a **blocking topic** (`topic_add`) naming the session and what it waits to
   do: in the orchestration mode the human hears your children only through you and the topics.
   You cannot approve it, and you never ask the session to work around it.
-- **"[Menkar] The human took control of ‹name›"**: the human is working in it now. Give it no
-  work and send it nothing until it is handed back.
-- **"[Menkar] The human handed ‹name› back"**: it is yours again; you may give it work.
+- **"[Menkar] The human took control of ‹name›"**: give it no work and send it nothing until
+  **"[Menkar] The human handed ‹name› back"**; then it is yours again.
+- **"[Menkar] The human is away"**: until they are back, write events to topics or the status
+  file, not a chat summary each; go on with what does not depend on them; a new blocking topic
+  waits. Ask whoever writes to you meanwhile whether they are back; only on an explicit yes, call
+  `human_back`. On **"[Menkar] The human is back"**, first a preliminary summary of a few lines
+  (how many events, which await a decision), then one by one or in full, as the human chooses.
 
 Several events can arrive in one message; handle each.
 
@@ -167,8 +168,7 @@ and the code, a doc and the code, two reports of the same files). In a report, l
   project keeps decisions.
 - **Keep open questions as topics**, not in the chat: `topic_add` with a context the human can
   decide from (blocking when work waits on it), `topic_update` when it is being discussed,
-  `topic_close` with the decision, `topic_list` to see them. Menkar shows them in its sidebar. Tell
-  the human "topic 4" in one line; write the decision also where the project keeps decisions.
+  `topic_close` with the decision, `topic_list` to see them. Tell the human "topic 4" in one line.
   Without Menkar's tools, keep them in a topics file, numbered, with the same fields.
 - **When the human defers work**, read the horizon: "tomorrow" or a named day, a queued task; "in
   the future", "someday", "tolerable for now", no task: it goes where the project keeps deferred

@@ -202,6 +202,7 @@ const PREFIX_ACTIONS: Record<ShortcutOf<'prefix'>, (event: KeyboardEvent) => voi
   },
   prefixSidebar: toggleSidebar,
   prefixSettings: () => handlers?.preferences(),
+  away: () => void act({ type: 'setPresence' }),
   help: showHelp,
   sendCtrlB: () => {
     const tab = selectedTab()

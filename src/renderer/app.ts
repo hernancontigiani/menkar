@@ -2,11 +2,12 @@ import type { AgentStates } from '../core/agentstate/shown'
 import { faceBadge, groupState, rollup, type ShownState } from '../core/agentstate/shown'
 import { now } from '../core/clock'
 import type { Reading } from '../core/context/types'
-import { formatTime } from '../core/format'
+import { formatClock, formatTime } from '../core/format'
 import type { Key } from '../core/i18n'
 import { presentFolders } from '../core/orchestration/folders'
 import { bannerOf } from '../core/orchestration/readonly'
 import { type ModeRow, modeRows } from '../core/orchestration/rows'
+import { chipShown } from '../core/presence'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import { relativeTime } from '../core/sessions/history'
@@ -200,6 +201,10 @@ export function buildFrame(): void {
     t('header.usage'),
   )
   usage.addEventListener('click', () => void act({ type: 'openUsage' }))
+  const presenceChip = el('button', { id: 'presence-chip', hidden: '' })
+  presenceChip.addEventListener('click', () => {
+    if (state) void act({ type: 'setPresence', away: !state.presence.away })
+  })
   const addSession = el('button', { id: 'add-session' }, t('sidebar.addSession'))
   addSession.addEventListener('click', () => openAddSession('existing'))
 
@@ -216,10 +221,12 @@ export function buildFrame(): void {
       'aside',
       { id: 'sidebar' },
       el('div', { class: 'sidebar-header' }, projectButton, settings),
+      el('div', { id: 'away-side', class: 'away-banner', hidden: '' }),
       el('div', { id: 'view-switch' }),
       el('div', { id: 'topics-section' }),
       el('div', { id: 'session-list' }),
       el('div', { id: 'files-section' }),
+      presenceChip,
       addSession,
     ),
     divider,
@@ -236,6 +243,7 @@ export function buildFrame(): void {
         boardButton(),
         el('div', { class: 'title' }, titleStar(), el('span', { class: 'title-text' }, appName())),
       ),
+      awayBanner(),
       ...boardFrame(),
       el('div', { id: 'tab-strip' }),
       el('div', { id: 'tab-content' }),
@@ -334,7 +342,38 @@ export function render(next: WindowState): void {
   renderStrip(next)
   renderContent(next)
   renderNotices(next)
+  renderAway(next)
   syncTitleBar()
+}
+
+// While the human is away, an amber strip under the header, across the sidebar and the content.
+function awayBanner(): HTMLElement {
+  const back = el('button', { id: 'away-back' }, t('presence.back'))
+  back.addEventListener('click', () => void act({ type: 'setPresence', away: false }))
+  return el(
+    'div',
+    { id: 'away-banner', class: 'away-banner', role: 'status', hidden: '' },
+    icon('moon'),
+    el('span', { class: 'bar-text' }),
+    back,
+  )
+}
+
+function renderAway(s: WindowState): void {
+  const { away, since } = s.presence
+  const banner = $('away-banner')
+  banner.hidden = !away
+  $('away-side').hidden = !away
+  const text = away && since !== null ? t('presence.awaySince', { time: formatClock(since) }) : ''
+  banner.querySelector('.bar-text')?.replaceChildren(text)
+  const chip = $('presence-chip')
+  chip.hidden = !chipShown(s.presence)
+  chip.classList.toggle('away', away)
+  chip.replaceChildren(
+    el('span', { class: 'presence-dot' }),
+    el('span', { class: 'presence-state' }, away ? t('presence.away') : t('presence.here')),
+    el('span', { class: 'presence-action' }, away ? t('presence.back') : t('presence.setAway')),
+  )
 }
 
 // The window buttons the system draws over the header take the header's colors and height: as
