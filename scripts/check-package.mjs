@@ -23,6 +23,11 @@ export function checkPackage(pkg) {
   if (field('Package') !== 'menkar')
     problems.push(`control: Package is ${field('Package')}, not menkar`)
   if (field('Architecture') !== 'amd64') problems.push('control: Architecture is not amd64')
+  const depends = (field('Depends') ?? '').split(',').map((d) => d.trim())
+  if (!depends.includes('libasound2t64 | libasound2'))
+    problems.push(
+      'control: Depends lacks libasound2t64 | libasound2 (the app cannot start without it)',
+    )
   const revision = new RegExp(
     `^${pkg.version.replaceAll('.', '\\.')}-\\d+\\.g[0-9a-f]{7,}(\\.dirty\\.\\d{14})?$`,
   )

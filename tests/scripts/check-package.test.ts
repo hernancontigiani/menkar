@@ -12,7 +12,9 @@ const data = (name: string) => readFileSync(join(__dirname, '..', 'data', 'packa
 
 const good = (): Package => ({
   version: '0.1.0',
-  control: ' Package: menkar\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n',
+  control:
+    ' Package: menkar\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n' +
+    ' Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0, libasound2t64 | libasound2\n',
   files: [
     '/opt/Menkar/menkar',
     '/opt/Menkar/chrome-sandbox',
@@ -97,6 +99,10 @@ describe('package:check', () => {
     [
       'its build revision (apt would see a rebuild as the same version)',
       (p: Package) => ({ ...p, control: p.control.replace('0.1.0-12.gabcdef12', '0.1.0') }),
+    ],
+    [
+      'its sound library (Electron does not start without libasound.so.2)',
+      (p: Package) => ({ ...p, control: p.control.replace(', libasound2t64 | libasound2', '') }),
     ],
     [
       "the app's version",
