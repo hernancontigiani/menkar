@@ -940,3 +940,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-16: plan 39's state (P0.3, P0.4 committed on the branch).
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **Being built** (2026-11-16): P0.1 and P0.2 committed on `main` (3cbe1e4, 635caa0); branch `multi-agent` in its worktree `/home/hernan/git/menkar-multi-agent` (its own `node_modules`); P0.0 (the sandbox) committed there (32c27d6). Next: P0.3, then P0.4–P0.8 in turn, on the branch; `main`'s fixes are merged into the branch by `set` before each block; P0 merges into `main` at P0.8 |
+
+> Replaced 2026-11-16: tasks 60 and 57 first; the next .deb waits for them.
+| 3 | Background workers and one peek tab (1.176) with the single sidebar view (1.177) | Decided 2026-11-16; needs a plan (task 60): mock-ups of 1.177 first, then `/design-plan`; amends `AGENTS.md`'s rule that a session runs only while it has a tab |
