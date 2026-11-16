@@ -11,7 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { SESSION_ENV } from '../src/core/sessionenv'
 import { type LaunchedApp, launchApp } from './app'
@@ -113,6 +113,20 @@ async function open(
   return { launched, home: () => home }
 }
 
+// A packaged build runs from its own folder: its binary, its asar and its plugin stand where the
+// dev build has Electron, `out/` and `plugin/`, so one set of expected files holds for both runs.
+function packagedToDev(): [string, string][] {
+  const executable = process.env.MENKAR_E2E_EXECUTABLE
+  if (!executable) return []
+  const binary = resolve(executable)
+  const resources = join(dirname(binary), 'resources')
+  return [
+    [join(resources, 'app.asar', 'out'), join(REPO, 'out')],
+    [join(resources, 'plugin'), join(REPO, 'plugin')],
+    [binary, join(REPO, 'node_modules', 'electron', 'dist', 'electron')],
+  ]
+}
+
 // The argv and the environment a stand-in recorded, with what varies per run as placeholders.
 function recorded(
   launched: LaunchedApp,
@@ -123,6 +137,7 @@ function recorded(
 ): string {
   const pane = env.MENKAR_PANE ?? '<no pane>'
   const placeholders: [string, string][] = [
+    ...packagedToDev(),
     [launched.root, '<root>'],
     [REPO, '<repo>'],
     [pane, '<pane>'],
