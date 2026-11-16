@@ -191,7 +191,7 @@
 | Order | Plan | State |
 |---|---|---|
 | 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143). Next: plan 39, its software architecture (1.135 step 2), by a new Opus session with `/design-plan` — **launched once plan 40's open questions are settled** (the human, 2026-11-15), with task 20 (how each agent receives the team block) as its research, then its Fable review; **no multi-agent implementation** until the human says so; its launch prompt is `prompts/PROMPT-architect.md` |
-| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3) | Written and reviewed by Fable 5.2, every finding folded in (2026-11-16, §2.16); Q-a (P0.1 and P0.2 on `main` before the branch) and Q-b (the per-agent classifier as P1a.8) wait for the human; P0 waits for the human's go (plan 40 is on `main`) |
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **Being built** (2026-11-16): P0.1 and P0.2 committed on `main` (3cbe1e4, 635caa0); branch `multi-agent` in its worktree `/home/hernan/git/menkar-multi-agent` (its own `node_modules`); P0.0 (the sandbox) committed there (32c27d6). Next: P0.3, then P0.4–P0.8 in turn, on the branch; `main`'s fixes are merged into the branch by `set` before each block; P0 merges into `main` at P0.8 |
 
 ## 4. Next plan number
 
