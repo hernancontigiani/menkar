@@ -356,6 +356,7 @@ const TEAM_PROJECT = 'dddddddddddd'
 function team(
   dirs: { readonly root: string; readonly home: string },
   split = false,
+  look: { readonly scheme?: 'dark' | 'light'; readonly discussing?: number } = {},
 ): Record<string, string> {
   const env = prepare(dirs)
   for (const key of Object.keys(TEAM) as (keyof typeof TEAM)[]) {
@@ -422,7 +423,7 @@ function team(
     from,
     blocking,
     ...(task ? { task } : {}),
-    status: 'open',
+    status: number === look.discussing ? 'discussing' : 'open',
     created: '2026-11-12T10:00:00.000-03:00',
     updated: '2026-11-12T10:00:00.000-03:00',
   })
@@ -467,6 +468,17 @@ function team(
       },
     }),
   )
+  if (look.scheme === 'light')
+    writeFileSync(
+      join(config, 'state.json'),
+      JSON.stringify({
+        settings: {
+          color_scheme: 'light',
+          terminal_theme: catppuccin('light'),
+          terminal_colors: 'theme',
+        },
+      }),
+    )
   return env
 }
 
@@ -536,6 +548,42 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await launched.close()
   }
 })
+
+// Decision 1.169: the topic being discussed is the current one: first, before the ★ task's topic
+// and the blocking one, with a green dot; a blocking one discussed keeps its red mark too.
+for (const scheme of ['dark', 'light'] as const)
+  test(`the discussing topic comes first with a green dot, the red blocking mark kept (${scheme}, screenshot)`, async () => {
+    const launched = await launchApp({
+      prepare: (dirs) => team(dirs, false, { scheme, discussing: 3 }),
+    })
+    const page = launched.window
+    try {
+      await expect(page.locator('.topic-row')).toHaveText([
+        '3Deploy key missing',
+        '★2Schema of the orders table',
+        '1Release date',
+      ])
+      await expect(page.locator('.topic-current')).toHaveCount(1)
+      const current = page.locator('.topic-row[data-topic="3"]')
+      await expect(current.locator('.topic-current')).toHaveCount(1)
+      await expect(current.locator('.topic-blocking')).toHaveCount(1)
+      const green = await current
+        .locator('.topic-current')
+        .evaluate((node) => getComputedStyle(node).backgroundColor)
+      const expected = await page.evaluate(() => {
+        const probe = document.createElement('span')
+        probe.style.background = 'var(--green)'
+        document.body.append(probe)
+        const color = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return color
+      })
+      expect(green).toBe(expected)
+      await shot(page, `current-topic-${scheme}.png`)
+    } finally {
+      await launched.close()
+    }
+  })
 
 // Decision 1.96: a double-click on a topic sets it to "discussing", selects the orchestrator's tab
 // and posts to the orchestrator through Claude Code's messaging, as the wakes do.

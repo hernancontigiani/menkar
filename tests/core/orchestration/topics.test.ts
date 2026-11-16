@@ -95,6 +95,16 @@ describe('topics', () => {
     expect(shownTopics(none, topicsOf(t, 'p1')).map((x) => x.number)).toEqual([3, 1, 2, 4])
   })
 
+  // Decision 1.169: the topic being discussed is the current one and comes first, before a ★
+  // task's topic and a blocking one, in the section and in topic_list alike.
+  test('the discussing topic comes first: 1 (★ task), 2 (blocking), 3 discussing → 3, 1, 2', () => {
+    let t = add(emptyTopics(), 'A', 'one', false, 'p1', 5)
+    t = add(t, 'A', 'two', true)
+    t = add(t, 'A', 'three')
+    t = updateTopic(t, 'p1', 3, { status: 'discussing' }, LATER)?.topics ?? t
+    expect(shownTopics(new Set([5]), topicsOf(t, 'p1')).map((x) => x.number)).toEqual([3, 1, 2])
+  })
+
   // Decision 1.103: a new topic notifies as a blocked session does, without sound while another is
   // being discussed; a change notifies only when the topic becomes blocking.
   test('which topic events notify: new → sound; new while one is discussing → notice, no sound; text change → none; becomes blocking → notice', () => {
@@ -226,6 +236,17 @@ describe('the topic tools', () => {
     expect(topicTool('topic_list', { all: true }, call(c.topics ?? t)).text).toContain(
       'closed · decision: tomorrow',
     )
+  })
+
+  test('topic_list puts the discussing topic first: 1 (★ task 2), 2 (blocking), 3 discussing → 3, 1, 2', () => {
+    let t = add(emptyTopics(), 'A', 'one', false, 'p1', 2)
+    t = add(t, 'A', 'two', true)
+    t = add(t, 'A', 'three')
+    t = updateTopic(t, 'p1', 3, { status: 'discussing' }, LATER)?.topics ?? t
+    const heads = topicTool('topic_list', {}, call(t))
+      .text.split('\n')
+      .flatMap((line) => line.match(/^(\d+)\. /)?.[1] ?? [])
+    expect(heads).toEqual(['3', '1', '2'])
   })
 
   // A topic may name the task it belongs to (decision 1.114), so a ★ task's topics come first.

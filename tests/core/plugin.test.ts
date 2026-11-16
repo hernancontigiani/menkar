@@ -202,6 +202,50 @@ describe("Menkar's skills plugin", () => {
     }
   })
 
+  // Decision 1.169: the chat with the human is scarce; one topic at a time, the current one set to
+  // discussing when taken up and the next made current on closing it; an event that needs nothing ends its
+  // turn with a bare "·", since Claude Code answers a turn with no visible text by starting another.
+  test('the orchestrator keeps the chat scarce, ends an empty event with "·", and takes one topic at a time', () => {
+    const body = normalized(skill('orchestrator').body)
+    expect(body).toMatch(/chat with the human is scarce/)
+    expect(body).toMatch(/only when you need them now, inside the topic under discussion/)
+    expect(body).toMatch(/needs nothing from them[^.]*no summary[^.]*"·"/)
+    expect(body).toMatch(/One topic at a time/)
+    expect(body).toMatch(/`topic_update` to discussing/)
+    expect(body).toMatch(/show it once/)
+    expect(body).toMatch(/`topic_close`[^.;]*then make the next one current/)
+  })
+
+  // Decision 1.174: distill is for a role skill with its boundaries and admission criterion; one
+  // written without them goes through specialize first, which adds them, merging at step 0.
+  test('a role skill without boundaries or a criterion goes through specialize, merged into at step 0; distill sends it there', () => {
+    const specialize = skill('specialize')
+    const description = normalized(specialize.frontmatter.description ?? '')
+    expect(description).toMatch(
+      /use the distill skill instead only if it has its boundaries and admission criterion/,
+    )
+    expect(description).toMatch(/one written without them[^.]*merge[^.]*step 0/)
+    const step0 = normalized(specialize.body.split('## 1.')[0] ?? '')
+    expect(step0).toMatch(/your own role skill[^.]*without (its )?boundaries[^.]*merge into it/i)
+    const step1 = normalized(skill('distill').body.split('## 2.')[0] ?? '')
+    expect(step1).toMatch(/no role[^.]*or no admission criterion[^.]*`menkar:specialize` first/)
+    expect(step1).not.toMatch(/the base one holds/)
+  })
+
+  // Where the orchestrator's own status file lives is the project's to write down, and never the
+  // files folder, which the human cleans by hand.
+  test("the guide asks the project where the orchestrator's status file lives; never in $MENKAR_FILES", () => {
+    const guide = normalized(readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8'))
+    const writesDown = guide.split('## What a project writes down for its orchestrator')[1] ?? ''
+    expect(writesDown.split('## ')[0]).toMatch(/where the orchestrator keeps its own status file/)
+    const locks = normalized(
+      readFileSync(join(PLUGIN, 'skills', 'orchestrator', 'locks-and-environment.md'), 'utf8'),
+    )
+    expect(locks).toMatch(
+      /Never in Menkar's files folder \(`\$MENKAR_FILES`\), which the human cleans by hand/,
+    )
+  })
+
   test('no skill and not the guide says "keeper"; the guide gives consultants tasks', () => {
     const guide = readFileSync(join(PLUGIN, 'guide', 'orchestration-mode.md'), 'utf8')
     for (const text of [guide, ...SKILLS.flatMap((n) => [skill(n).body, ...references(n)])])

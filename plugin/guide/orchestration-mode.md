@@ -46,8 +46,9 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
 **Work** is what waits on the person and how far the work is, from the top:
 
 1. **Counts**: open topics, tasks in progress, tasks waiting.
-2. **Awaiting you** — the topics: the open ones, those of a ★ task first, then blocking ones (with a red mark),
-   then the rest by number, so the top one is the one to take. A click unfolds its context, who
+2. **Awaiting you** — the topics: the open ones, the one being discussed first (the current one,
+   with a green dot), then those of a ★ task, then blocking ones (with a red mark), then the rest by
+   number, so the top one is the one to take. A click unfolds its context, who
    raised it and its status. The list is read only: a topic is discussed in the orchestrator's
    chat, and closed there. Everything that waits on the person is a topic.
 3. **Tasks**: the open tasks, ★ first: title, who has it, its steps ("3/5") and its latest note,
@@ -76,7 +77,8 @@ every session Menkar starts has:
   blocked on it. Menkar records who raised it and gives it the next number of the project; numbers
   are never reused.
 - `topic_update`: changes its title, context, whether it blocks, or its status (open or
-  discussing).
+  discussing). The topic being discussed is the current one: the orchestrator sets it when it takes
+  the topic up, and on closing it sets the next.
 - `topic_close`: closes it with the decision taken. A closed topic keeps its decision, so "what did
   we decide on topic 7?" has an answer.
 - `topic_list`: the open topics in the order the sidebar shows them; with `all`, the closed ones
@@ -270,7 +272,9 @@ orchestrates (which experts, which model for workers) may go in the memory when 
 the repository do not orchestrate:
 
 - whether sessions share one working tree or use worktrees, and who commits and pushes;
-- where the project keeps its decisions;
+- where the project keeps its decisions, and where the orchestrator keeps its own status file
+  (the locks it granted, its queues, what it owes): in the repository or the memory, never in
+  Menkar's files folder, which the human cleans by hand;
 - the experts and consultants and their areas, if their own skills and roles do not say it;
 - the model generalist workers run on;
 - how the project's environment is started, seeded and migrated, if workers verify against it.

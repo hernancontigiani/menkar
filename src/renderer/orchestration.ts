@@ -737,6 +737,9 @@ function topicRow(topic: TopicView): HTMLElement {
     topic.star ? el('span', { class: 'priority-star' }, '★') : null,
     el('span', { class: 'topic-number dim' }, String(topic.number)),
     el('span', { class: 'topic-title' }, topic.title),
+    topic.status === 'discussing'
+      ? el('span', { class: 'topic-current', title: t('orch.discussing') })
+      : null,
     topic.blocking ? el('span', { class: 'topic-blocking', title: t('orch.blocking') }) : null,
   )
   const node = el('div', { class: 'topic' }, line)

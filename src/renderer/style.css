@@ -1477,12 +1477,16 @@ select option {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.topic-current,
 .topic-blocking {
   flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--red);
+}
+.topic-current {
+  background: var(--green);
 }
 .topic-detail {
   padding: 0 4px 6px 22px;
