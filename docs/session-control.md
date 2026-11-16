@@ -231,7 +231,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     message.
   - The orchestrator's `workers.md` (decisions 1.118–1.120, 1.123): a worker per task, parking and
     resuming, the cap, experts with several tasks; the worker's skill: an expert's skill it loads
-    is read only, its lesson goes in the report (one keeper per skill, 1.119).
+    is read only, its lesson goes in the report (one maintainer per skill, 1.119).
   - **distill:** keeping a specialist's skill current when its task is closed, then renewing.
   - **specialize:** turning what a session knows into a role with a skill of its own.
 - **How a session gets it:** every Claude command Menkar builds carries `--plugin-dir <plugin>`
@@ -413,3 +413,12 @@ What a Claude session of a project in the orchestration mode needs to work in th
   the transcript at the turn's end decides.
 - **A post with no "No reply is needed" and no `last_reply` filter:** the post's own answer would
   replace a worker's report (1.73).
+- **A check of which skills a session loaded:** the cause, a handoff that forgot to name them, is
+  removed at the source: Menkar names them in the team block.
+- **`menkar:worker` implied by the parent:** an expert does not always work a task, and a
+  consultant gets tasks without being a child (1.148).
+- **"You were started for task N: load `menkar:worker` now":** a per-task worker's first prompt is
+  its task, so the block's "when a session hands you a task" line applies at once, and it also
+  holds for an expert or a consultant handed a task later.
+- **The team facts in a template file:** their variants are logic, clearer as one tested function
+  (`teamFacts`); the protocol, which has none, stays in files.

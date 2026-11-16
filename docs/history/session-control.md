@@ -134,3 +134,8 @@ and the wake order.
     is in flight (1.84);
   - the report also sent by name when the session handing the task did not start the worker, since
     a wake reaches only the parent;
+
+## The skills plugin
+
+> Left on 2026-11-16: "keeper" is "maintainer" (plan 40).
+    is read only, its lesson goes in the report (one keeper per skill, 1.119).

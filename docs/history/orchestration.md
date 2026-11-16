@@ -212,3 +212,13 @@ status, per window. Empty, it says "No open topics".
 > Left on 2026-11-16: "Role…" became "Configure role…".
   one with a label sits under "Consultants". No tool changes an existing session's role: that stays
   the human's, from the row menu's "Role…".
+
+## Workers per task
+
+> Left on 2026-11-16: "keeper" is "maintainer" (plan 40).
+  keeper — is the orchestrator's and the worker's skills.
+
+## Rejected
+
+> Left on 2026-11-16: consultants get a task for a request that needs more than a short answer (1.148).
+- **Tasks for consultants**: a consultation is a conversation, not a ticket (1.115).

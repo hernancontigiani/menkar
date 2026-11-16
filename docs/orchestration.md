@@ -401,7 +401,7 @@ away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; ma
   Orchestration settings belong to the project, so Settings has no Orchestration section.
 - **Experts with several tasks** (decision 1.119): one in progress, enforced by the task tools; the
   rest — another task only while the current one waits outside, never a third, a skill's one
-  keeper — is the orchestrator's and the worker's skills.
+  maintainer — is the orchestrator's and the worker's skills.
 
 ## Rejected
 
@@ -421,7 +421,6 @@ away when its task closes. Pure rules in `src/core/orchestration/workers.ts`; ma
   steps planned says where it is (the human, 2026-11-13).
 - **The assignee marking its own task done**: "Done today" would mean unreviewed (1.113).
 - **A separate "Waiting on you" section**: everything waiting on the human is a topic (1.115).
-- **Tasks for consultants**: a consultation is a conversation, not a ticket (1.115).
 - **Reported states** (`set_waiting`): in the mode a worker waits only on the orchestrator, and the
   human's questions go as topics (`docs/NOT_BUILT_YET.md`).
 - **Muting loose sessions in the mode** (1.99's first form): nothing would ever tell the human about

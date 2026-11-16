@@ -198,6 +198,12 @@ agent that runs in a terminal fits.
   `--resume [chatId]` with a prompt is not confirmed); and how to wake it (the entry below).
 - **The variables a running agent sets for its children** must not reach the agents Menkar starts
   (`src/core/sessionenv.ts` holds Claude Code's, 1.75): find each new agent's.
+- **The team block for each agent** (decision 1.150, 2026-11-16). Only Claude Code has an entry
+  in `TEAM_AGENTS` (`src/core/team/block.ts`) and a part, `plugin/team/claude.md`; any other agent
+  gets no block and no flag. Each one needs its own communication part (how it messages a session
+  by name), how it refers to a skill, and how it is told: how a start delivers the block (Claude's
+  `--append-system-prompt-file`; Codex has no snapshot flag, OpenCode rewrites its entry) and how
+  a change reaches it while it runs. Trigger: plan 38's P1a, Codex first.
 
 **Trigger:** fired for Codex (1.127, 2026-11-14: before 1.0, inside the orchestration mode). First question, per
 agent: the five facts above, read from its docs, agent-deck's code and a real session, before
