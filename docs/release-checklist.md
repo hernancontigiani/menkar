@@ -86,6 +86,22 @@ the running session knows its new role at once, and its restored tab still knows
 restart; the command line of a session of a project with the mode off carries no
 `--append-system-prompt-file`.
 
+## 8c. Agents moved behind their kits (P0)
+
+Every agent concern (starting, transcripts, state, waking, the MCP, chat) moved behind one kit per
+agent, with no change meant for the user (decision 1.142).
+
+In the daily Menkar: a day of work with Claude and Cursor sessions as usual. Start a new session,
+resume one, fork one, turn Remote Control on, use the orchestration mode with the team block, let
+a worker wake its orchestrator, open Usage.
+
+In Menkar Sandbox, installed beside it: name projects with a `sandbox-` prefix (1.159). Its
+launcher, header and About say "Menkar Sandbox", with the amber icon (1.166).
+
+**Passes when** each of those behaves as it did before in the daily Menkar; in the sandbox, no
+daily session is offered for resume, trash or delete, the classifier is absent, and nothing it
+does shows up in the daily Menkar's projects or sessions.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in
