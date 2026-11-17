@@ -14,7 +14,7 @@ directories:
 extraMetadata:
   desktopName: menkar-sandbox.desktop
 linux:
-  # Its own icon, a copy of Menkar's until one of its own is chosen.
+  # Its own icon: Menkar's star, dark, on an amber tile, drawn from menkar-sandbox.svg beside it.
   icon: build/icons-sandbox
   desktop:
     entry:

@@ -25,7 +25,7 @@ import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
 import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalPathExists } from '../core/files/exists'
-import { paneFlavorEnv, refusalFor } from '../core/flavor'
+import { flavorFacts, paneFlavorEnv, refusalFor } from '../core/flavor'
 import { type Key, t, translate } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
@@ -2249,7 +2249,7 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   const window = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
-    title: t('window.title'),
+    title: translate(flavorFacts().titleKey),
     backgroundColor: '#1e1e2e',
     show: false,
     // The header is the title bar; the system draws only its window buttons, over the header's

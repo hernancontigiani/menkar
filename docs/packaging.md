@@ -124,8 +124,10 @@ human's daily Menkar (1.155 Q3) and duplicates everything it needs to run on its
 - **Outside `/opt/Menkar`, as the human allowed (1.157 P1):** `/usr/bin/menkar-sandbox` and
   `/etc/apparmor.d/menkar-sandbox`, plus its launcher and icon under `/usr/share`. Each package's
   post-remove unloads only its own profile.
-- **Its own icon** (1.166): `build/icons-sandbox/`, a copy of Menkar's until the human picks a
-  variant from a mock-up.
+- **Its own icon** (1.166, variant A): Menkar's star, dark (`#1e1e2e`), on an amber tile
+  (`#f5a524`) instead of the dark one. `build/icons-sandbox/menkar-sandbox.svg` is its source and
+  `512x512.png` is rendered from it (Playwright's Chromium, a screenshot of the SVG at 512 px with a
+  transparent background); a change to the SVG is rendered again by hand.
 - **What the flavour changes in the app:** its state directories (`menkar-sandbox` under the XDG
   config, cache and data homes, so its own state, records, logs, usage history and single-instance
   lock), its files folder (`~/Menkar-sandbox`), its name wherever the app shows one ("Menkar
