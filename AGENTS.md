@@ -54,6 +54,7 @@ what matters from being lost when a plan is deleted.
 | `docs/orchestration.md` | The orchestration mode: its marks, topics and tasks, the Work and Team views, the Board, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
 | `docs/release-checklist.md` | Cutting a release: what the human checks on a real desktop before a build is called a version |
 | `docs/agents.md` | Adding or changing a coding agent: its kit, its descriptor, the registries, and the rule that keeps agent names out of shared code |
+| `docs/agent-versions.md` | Checking a coding agent's new version, or which one Menkar is validated with |
 
 ## Product rules the code must hold
 
