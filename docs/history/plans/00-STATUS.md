@@ -943,3 +943,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-16: tasks 60 and 57 first; the next .deb waits for them.
 | 3 | Background workers and one peek tab (1.176) with the single sidebar view (1.177) | Decided 2026-11-16; needs a plan (task 60): mock-ups of 1.177 first, then `/design-plan`; amends `AGENTS.md`'s rule that a session runs only while it has a tab |
+
+> Replaced 2026-11-17: 1.177's rows keep everything the Team view's rows have.
+| 1.177 | **One sidebar view in the orchestration mode, no Work/Team switch** (the human, 2026-11-16, topic 46, option a with their notes; so background workers (1.176) are found without knowing a Team view exists): in order (1) "Awaiting you", at most 5 topics and "N more" (1.171); (2) **Tasks, at most 5** (today 6) with "See all (N) →" opening the Board, as now; (3) **the orchestrator, folded by default**, its row showing how many are under it and the worst state's dot (1.171), unfolded showing its workers with their task and step as the Team view does; (4) Consultants; (5) Others; (6) Done today, folded. The three count tiles go. Mock-ups first; designed in the same plan as 1.176. Not built yet | 2026-11-16 | this row (until built) |
