@@ -47,8 +47,8 @@ The agent's consultant:
 
 1. **Reads the changelog** from the row's version to the new one. A line that touches a flag,
    setting, hook, screen or file Menkar uses is a check to run, or a topic.
-2. **Runs the checks in a throwaway home**: a `HOME` (and the agent's config directory) under the
-   session's scratchpad, a stand-in API on 127.0.0.1, a fresh environment with none of the parent
+2. **Runs the checks in a throwaway home** (the agent's folder under `scripts/agent-probes/`): a
+   `HOME` (and the agent's config directory) of its own, a stand-in API on 127.0.0.1, a fresh environment with none of the parent
    session's variables, every process stopped by its PID or process group. The human's own home,
    sessions and sockets are never touched.
 3. **Updates the row**: the version and date, and each item it re-measured. An item it did not
@@ -56,8 +56,7 @@ The agent's consultant:
 4. **Brings what is new, deprecated or broken as a topic** through the orchestrator, `set`, with
    the measured case. A regression that blocks sessions goes first.
 
-**Where the checks live — open.** Today the harness is rebuilt each time in a scratchpad, and
-scratchpads are wiped. The proposal, pending `set`'s go-ahead: keep each agent's harness in the
-repository, `scripts/agent-probes/<agent>/` (for Claude Code: the stand-in API, the pty driver, and
-the screen replay that runs main's `detectState` over captured bytes), run by hand and outside
-`npm run ci`.
+**Where the checks live** (`set`, 2026-11-17): in the repository, `scripts/agent-probes/<agent>/`,
+run by hand and outside `npm run ci`. Claude Code's are `scripts/agent-probes/claude/` (`all.mjs`
+runs them; its `README.md` says what each checks and what it leaves behind). A check the row relies
+on that has no script yet is run by hand and then added there.
