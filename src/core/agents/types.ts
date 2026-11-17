@@ -27,8 +27,6 @@ export interface LaunchContext {
   readonly env: Readonly<Record<string, string>>
   readonly settings?: string
   readonly remoteControl?: string
-  // Folders the agent may read and write besides its own.
-  readonly addDirs?: readonly string[]
   // A file holding the session's first prompt, read by the shell.
   readonly promptFile?: string
   // Menkar's MCP server, as `--mcp-config` JSON.

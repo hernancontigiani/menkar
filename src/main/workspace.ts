@@ -222,6 +222,7 @@ import {
   chooseIncoming,
   dragProjectFile,
   ensureFolder,
+  ensurePrivateFolder,
   filesOf,
   incomingFolder,
   newestIncoming,
@@ -913,7 +914,8 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   const tag = t('terminal.tag')
   const messages: string[] = []
   let command: string | undefined
-  // The tab's project files folder (decision 1.51), made first so --add-dir names one that exists.
+  // The tab's project files folder (decision 1.51), made first so the --settings file names one that
+  // exists.
   const projectId = tabById(tabId)?.project
   const filesFolder =
     spec.agent === 'shell' || !projectId
@@ -922,10 +924,19 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
           log.warn('a project files folder could not be made', { project: projectId, error })
           return null
         })
+  // Its private folder (decision 1.175), read through MENKAR_PRIVATE, never a working directory.
+  const privateFolder =
+    filesFolder && projectId
+      ? await ensurePrivateFolder(projectId).catch((error: unknown) => {
+          log.warn('a project private folder could not be made', { project: projectId, error })
+          return null
+        })
+      : null
   // The SessionStart hook names the pane, so a clear can be followed (followClear).
   let env: Readonly<Record<string, string>> = {
     [PANE_ENV]: id,
     ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}),
+    ...(privateFolder ? { MENKAR_PRIVATE: privateFolder } : {}),
     ...paneFlavorEnv(),
   }
   if (spec.agent !== 'shell' && spec.start) {
@@ -933,7 +944,9 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     const cli = await findOnPath(cliName)
     if (cli === null) messages.push(appMessage(tag, t('terminal.notFound', { cli: cliName })))
     else {
-      const settings = await mainKitOf(spec.agent).settings?.()
+      const settings = await mainKitOf(spec.agent).settings?.(
+        filesFolder && projectId ? { id: projectId, folder: filesFolder } : undefined,
+      )
       const start = spec.start
       const teamFile = await startTeam({
         pane: id,
@@ -948,7 +961,6 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         env,
         ...(settings ? { settings } : {}),
         ...(spec.remote ? { remoteControl: spec.remote } : {}),
-        ...(filesFolder ? { addDirs: [filesFolder] } : {}),
         mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
         pluginDir: skillsPluginDir(),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),

@@ -14,7 +14,6 @@ const FULL: LaunchContext = {
   env: ENV,
   settings: '/c/menkar/claude-settings.json',
   remoteControl: 'demo api',
-  addDirs: ['/h/Menkar/demo'],
   promptFile: '/c/menkar/prompts/p.txt',
   mcpConfig: '{"a":1}',
   pluginDir: '/opt/Menkar/resources/plugin',
@@ -25,8 +24,6 @@ const RESUME: Start = { kind: 'resume', id: 'r1' }
 const FORK: Start = { kind: 'fork', source: 's1', id: 'f1' }
 const TAIL = [
   `"$(cat '/c/menkar/prompts/p.txt')"`,
-  '--add-dir',
-  '/h/Menkar/demo',
   '--mcp-config',
   `'{"a":1}'`,
   '--plugin-dir',

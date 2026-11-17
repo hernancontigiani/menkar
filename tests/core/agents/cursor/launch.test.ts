@@ -12,7 +12,6 @@ const FULL: LaunchContext = {
   env: ENV,
   settings: '/c/menkar/claude-settings.json',
   remoteControl: 'demo api',
-  addDirs: ['/h/Menkar/demo'],
   promptFile: '/c/menkar/prompts/p.txt',
   mcpConfig: '{"a":1}',
   pluginDir: '/opt/Menkar/resources/plugin',

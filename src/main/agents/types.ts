@@ -25,7 +25,9 @@ export interface Remote {
 export interface MainAgentKit {
   // The settings file the agent's sessions are started with, written when it changed; null when
   // the agent takes none.
-  readonly settings: (() => Promise<string>) | null
+  readonly settings:
+    | ((project?: { readonly id: string; readonly folder: string }) => Promise<string>)
+    | null
   readonly team: MainTeamDelivery | null
   readonly remote: Remote | null
 }

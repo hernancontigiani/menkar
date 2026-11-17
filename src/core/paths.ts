@@ -64,6 +64,18 @@ export function projectFilesFolder(root: string, folderName: string): string {
   return join(root, folderName, 'files')
 }
 
+// Beside it, what the project keeps unversioned and must not lose: the human deletes from the
+// files folder freely, and its trash timer never looks here.
+export function projectPrivateFolder(root: string, folderName: string): string {
+  return join(root, folderName, 'private')
+}
+
+// The `--settings` file of a project's Claude sessions: the shared one plus the project's files
+// folder. Rebuilt before each start, so it lives in the cache.
+export function projectSessionSettingsFile(projectId: string): string {
+  return join(appDirs().cache, 'claude-settings', `${projectId}.json`)
+}
+
 // Menkar's skills plugin: an extra resource beside app.asar when packaged, since `claude` cannot
 // read inside the archive; the repository's own folder in development.
 export function pluginFolder(app: {

@@ -212,7 +212,7 @@ test('renew: once the turn ends, a fresh session with the same name and the prom
     expect(fresh).not.toBe(SESSION)
     // The prompt reached the command through its file, whole: the shell read it.
     expect(argLines()[1]).toContain(
-      `--session-id ${fresh} -n api --remote-control=api carry on from the notes --add-dir`,
+      `--session-id ${fresh} -n api --remote-control=api carry on from the notes --mcp-config`,
     )
     await expect.poll(() => saved().projects[0]?.members).toEqual([fresh, SESSION])
     expect(saved().projects[0]?.earlier).toEqual({ [fresh]: [SESSION] })

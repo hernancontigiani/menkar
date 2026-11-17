@@ -13,8 +13,9 @@ part nobody touched.
 - A session releases a lock with an explicit message to you; you never assume it is free because
   the session went quiet.
 - **Write the lock state where it survives a renew** (the project's status file or a small locks
-  file): who holds what, since when, for which task. Your memory of it does not survive. Never in
-  Menkar's files folder (`$MENKAR_FILES`), which the human cleans by hand.
+  file): who holds what, since when, for which task. Your memory of it does not survive. Propose
+  to the human to version it in the project's repository; if they decline, keep it in
+  `$MENKAR_PRIVATE`. Never in Menkar's files folder (`$MENKAR_FILES`), which the human cleans by hand.
 
 ## Hidden shared resources
 

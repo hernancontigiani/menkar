@@ -16,9 +16,13 @@ export function statuslineCommand(): string {
 }
 
 // The path every `claude` Menkar starts carries as `--settings <path>`, written (when it changed)
-// before it is returned. Cursor's commands carry no such flag.
-export function sessionSettingsFile(): Promise<string> {
-  return writeSessionSettings(statuslineCommand())
+// before it is returned; a project's session gets its project's own, granting its files folder.
+// Cursor's commands carry no such flag.
+export function sessionSettingsFile(project?: {
+  readonly id: string
+  readonly folder: string
+}): Promise<string> {
+  return writeSessionSettings(statuslineCommand(), project)
 }
 
 const tracker = new ReadingTracker()

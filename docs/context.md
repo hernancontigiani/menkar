@@ -15,7 +15,10 @@ Integrations page are still `docs/spec/context.md` until they are built.
 - **`--settings`** (`src/main/context.ts` `sessionSettingsFile()`): before each Claude command, the
   app rewrites `<config>/claude-settings.json` (Menkar's statusline) and
   `<config>/chained-statusline.json` (the user's own command, or null), each only when its content
-  changed. Nothing is written under `~/.claude` for this.
+  changed. A session in a project is given instead `<cache>/claude-settings/<project id>.json`:
+  the same settings plus `permissions.additionalDirectories` naming the project's files folder
+  (2026-11-17; why not `--add-dir`: `docs/project-files.md`). Nothing is written under `~/.claude`
+  for this.
 - **What the `--settings` file holds for Menkar's MCP server** (2026-11-11; the server, the
   files and why are in `docs/session-control.md`). Three keys besides the statusline and the
   SessionStart hooks (`writeSessionSettings`, `turnEndHooks` in `settings.ts`):

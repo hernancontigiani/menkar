@@ -74,50 +74,31 @@ describe('command lines', () => {
     )
   })
 
-  describe('the project files folder (decision 1.51)', () => {
-    const dirs = { ...opts, addDirs: ['/h/Menkar/p/files'] }
-    test.each<[string, Parameters<typeof buildCommand>[1], string]>([
-      ['new', { kind: 'new', id: 'n1' }, '--session-id n1'],
-      ['resume', { kind: 'resume', id: 'r1' }, '--resume r1'],
-      [
-        'fork',
-        { kind: 'fork', source: 's', id: 'f1' },
-        '--resume s --fork-session --session-id f1',
-      ],
-    ])('a %s Claude session gets --add-dir before --settings', (_, start, identity) => {
-      expect(buildCommand('claude', start, dirs)).toBe(
-        `${CLI} ${identity} --add-dir /h/Menkar/p/files --settings ${SETTINGS} && exit\n`,
-      )
-    })
-
-    test('a path with a space is quoted; Cursor gets no --add-dir', () => {
-      expect(
-        buildCommand(
-          'claude',
-          { kind: 'resume', id: 'r1' },
-          { cli: CLI, addDirs: ['/h/My Files'] },
-        ),
-      ).toBe(`${CLI} --resume r1 --add-dir '/h/My Files' && exit\n`)
-      expect(buildCommand('cursor', { kind: 'resume', id: 'r1' }, { ...dirs, cli: '/bin/c' })).toBe(
-        '/bin/c --resume r1 && exit\n',
-      )
-    })
+  // Claude Code 2.1.326 stops a session at a trust dialog for each --add-dir, "No, exit" by default;
+  // the project's folder goes in the --settings file instead.
+  test('the command line never carries --add-dir', () => {
+    for (const start of [
+      { kind: 'new', id: 'n1' },
+      { kind: 'resume', id: 'r1' },
+      { kind: 'fork', source: 's', id: 'f1' },
+    ] as const)
+      expect(buildCommand('claude', start, opts)).not.toContain('--add-dir')
   })
 
   // a prompt Menkar starts a session with is read from a file by the shell,
   // never interpolated into the line, so nothing in it needs quoting.
   describe('a first prompt from a file', () => {
-    // --add-dir and --mcp-config take every word up to the next option (measured on 2.1.322: a
-    // prompt after --add-dir never reached the session), so the prompt comes right after the identity.
-    test('it goes as "$(cat \'<file>\')" right after the identity, before --add-dir and --settings', () => {
+    // --mcp-config takes every word up to the next option (measured on 2.1.322 with --add-dir, which
+    // did the same), so the prompt comes right after the identity.
+    test('it goes as "$(cat \'<file>\')" right after the identity, before --mcp-config and --settings', () => {
       expect(
         buildCommand(
           'claude',
           { kind: 'new', id: 'n1', name: 'w' },
-          { ...opts, addDirs: ['/h/f'], promptFile: '/c/p 1.md' },
+          { ...opts, mcpConfig: '{"a":1}', promptFile: '/c/p 1.md' },
         ),
       ).toBe(
-        `${CLI} --session-id n1 -n w "$(cat '/c/p 1.md')" --add-dir /h/f --settings ${SETTINGS} && exit\n`,
+        `${CLI} --session-id n1 -n w "$(cat '/c/p 1.md')" --mcp-config '{"a":1}' --settings ${SETTINGS} && exit\n`,
       )
       expect(
         buildCommand('claude', { kind: 'new', id: 'n1' }, { ...opts, promptFile: "/c/it's.md" }),
@@ -134,7 +115,7 @@ describe('command lines', () => {
   // Plan 31, decision 1: Menkar's MCP server reaches every Claude session it starts as inline JSON,
   // beside the user's own servers (no --strict-mcp-config).
   describe("Menkar's MCP server", () => {
-    test('--mcp-config takes the JSON as one word, after --add-dir, before --settings', () => {
+    test('--mcp-config takes the JSON as one word, before --settings', () => {
       const json = mcpConfig('/opt/Menkar/menkar', '/opt/Menkar/resources/mcp-server.js')
       expect(JSON.parse(json)).toEqual({
         mcpServers: {
@@ -147,14 +128,8 @@ describe('command lines', () => {
         },
       })
       expect(
-        buildCommand(
-          'claude',
-          { kind: 'resume', id: 'r1' },
-          { ...opts, addDirs: ['/h/f'], mcpConfig: '{"a":1}' },
-        ),
-      ).toBe(
-        `${CLI} --resume r1 --add-dir /h/f --mcp-config '{"a":1}' --settings ${SETTINGS} && exit\n`,
-      )
+        buildCommand('claude', { kind: 'resume', id: 'r1' }, { ...opts, mcpConfig: '{"a":1}' }),
+      ).toBe(`${CLI} --resume r1 --mcp-config '{"a":1}' --settings ${SETTINGS} && exit\n`)
       expect(
         buildCommand('cursor', { kind: 'resume', id: 'r1' }, { cli: '/bin/c', mcpConfig: '{}' }),
       ).toBe('/bin/c --resume r1 && exit\n')

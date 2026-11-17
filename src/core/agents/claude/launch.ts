@@ -24,10 +24,9 @@ export const launch: Launcher = {
         break
     }
     const words = args.map(shellQuote)
-    // Before --add-dir, which takes every word up to the next option: after it the prompt would be
-    // read as one more folder. Double quotes keep it one argument whatever it holds.
+    // Before --mcp-config, which takes every word up to the next option: after it the prompt would be
+    // read as one more value. Double quotes keep it one argument whatever it holds.
     if (ctx.promptFile) words.push(`"$(cat '${ctx.promptFile.replaceAll("'", `'"'"'`)}')"`)
-    for (const dir of ctx.addDirs ?? []) words.push('--add-dir', shellQuote(dir))
     words.push(...mcp.words(ctx))
     if (ctx.settings) words.push('--settings', shellQuote(ctx.settings))
     if (ctx.teamFile) words.push(...team.atStart(start, ctx.teamFile))
