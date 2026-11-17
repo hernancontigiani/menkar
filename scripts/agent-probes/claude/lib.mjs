@@ -140,7 +140,7 @@ export async function runClaude(
   run,
   api,
   args,
-  { seconds = 20, cols = 120, rows = 40, keys = [] },
+  { seconds = 20, cols = 120, rows = 40, keys = [], extraEnv = {} },
 ) {
   const quoted = [claudeBinary(), ...args].map((a) => `'${a.replaceAll("'", `'"'"'`)}'`).join(' ')
   const child = spawn(
@@ -158,6 +158,7 @@ export async function runClaude(
         ANTHROPIC_API_KEY: FAKE_KEY,
         ANTHROPIC_BASE_URL: `http://127.0.0.1:${api.port}`,
         DISABLE_AUTOUPDATER: '1',
+        ...extraEnv,
       },
     },
   )
