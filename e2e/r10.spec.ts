@@ -57,10 +57,9 @@ const INHERITED: Readonly<Record<string, string>> = {
   R10_USER_VARIABLE: 'kept',
   SHLVL: '1',
   ...Object.fromEntries(
-    ['TERM', 'COLORTERM', 'FORCE_HYPERLINK', 'MENKAR_PANE', 'MENKAR_FILES'].map((k) => [
-      k,
-      'outer',
-    ]),
+    ['TERM', 'COLORTERM', 'FORCE_HYPERLINK', 'MENKAR_PANE', 'MENKAR_FILES', 'MENKAR_PRIVATE'].map(
+      (k) => [k, 'outer'],
+    ),
   ),
 }
 

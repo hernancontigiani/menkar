@@ -1,9 +1,10 @@
-argv: --session-id <new-id> -n r10 remote --remote-control=r10 remote the first prompt --add-dir <root>/home/Menkar/Client work/files --mcp-config {"mcpServers":{"menkar":{"type":"stdio","command":"<repo>/node_modules/electron/dist/electron","args":["<repo>/out/main/mcp-server.js"],"env":{"ELECTRON_RUN_AS_NODE":"1"}}}} --plugin-dir <repo>/plugin --settings <root>/config/menkar/claude-settings.json
+argv: --session-id <new-id> -n r10 remote --remote-control=r10 remote the first prompt --mcp-config {"mcpServers":{"menkar":{"type":"stdio","command":"<repo>/node_modules/electron/dist/electron","args":["<repo>/out/main/mcp-server.js"],"env":{"ELECTRON_RUN_AS_NODE":"1"}}}} --plugin-dir <repo>/plugin --settings <root>/cache/menkar/claude-settings/aaaaaaaaaaaa.json
 set:
 COLORTERM=truecolor
 FORCE_HYPERLINK=1
 MENKAR_FILES=<root>/home/Menkar/Client work/files
 MENKAR_PANE=<pane>
+MENKAR_PRIVATE=<root>/home/Menkar/Client work/private
 TERM=xterm-256color
 removed:
 AI_AGENT

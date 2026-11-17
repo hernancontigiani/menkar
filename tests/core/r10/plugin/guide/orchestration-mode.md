@@ -277,8 +277,10 @@ the repository do not orchestrate:
 
 - whether sessions share one working tree or use worktrees, and who commits and pushes;
 - where the project keeps its decisions, and where the orchestrator keeps its own status file
-  (the locks it granted, its queues, what it owes): in the repository or the memory, never in
-  Menkar's files folder, which the human cleans by hand;
+  (the locks it granted, its queues, what it owes): versioned in the repository, which the
+  orchestrator proposes since it survives a change of computer; if the human declines, in the
+  project's private folder, `$MENKAR_PRIVATE`; never in Menkar's files folder, which the human
+  cleans by hand;
 - the experts and consultants and their areas, if their own skills and roles do not say it;
 - the model generalist workers run on;
 - how the project's environment is started, seeded and migrated, if workers verify against it.

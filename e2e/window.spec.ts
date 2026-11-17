@@ -58,7 +58,7 @@ test('TRM-2, PRJ-27, TRM-53 opening a member resumes it once; opening it again s
       .poll(() => args(home))
       .toMatch(
         new RegExp(
-          `^--resume ${SESSION} --add-dir \\S+/Menkar/Client work/files --mcp-config \\{.+\\} --plugin-dir \\S+/plugin --settings \\S+claude-settings\\.json\\n$`,
+          `^--resume ${SESSION} --mcp-config \\{.+\\} --plugin-dir \\S+/plugin --settings \\S+/claude-settings/\\S+\\.json\\n$`,
         ),
       )
     // Plan 33: the plugin folder exists and holds Menkar's four skills.
@@ -102,7 +102,7 @@ test('TRM-1, 1.16 a new session starts with its id and name, and joins the proje
     await expect
       .poll(() => args(home))
       .toMatch(
-        /^--session-id [0-9a-f-]{36} -n checkout flow --add-dir \S+\/Menkar\/Client work\/files --mcp-config \{.+\} --plugin-dir \S+\/plugin --settings \S+\n$/,
+        /^--session-id [0-9a-f-]{36} -n checkout flow --mcp-config \{.+\} --plugin-dir \S+\/plugin --settings \S+\n$/,
       )
     await expect
       .poll(async () => (await snapshot(page)).projects[0]?.members.length, { timeout: 15_000 })

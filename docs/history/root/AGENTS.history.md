@@ -48,3 +48,6 @@ human likes; the features are all of agent-tablet's.
 (`menkar-t<N>`, 1.118) executes it, at most two at once (the project's cap): the sessions' work
   overlaps too much for more.
   overlaps too much for more. **`set` decides who executes what** (1.55).
+
+> Replaced 2026-11-17: the files folder reaches Claude through --settings, not --add-dir (task 57).
+| `docs/project-files.md` | The per-project files folder, the sidebar's Files section, bringing a file in, or `--add-dir` |

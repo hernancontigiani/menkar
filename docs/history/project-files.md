@@ -26,3 +26,16 @@
 
 > Left on 2026-11-11: ⬇ became Add (decision 1.62).
 - ⬇ shows, as Settings says (`files_bring`), the system's file chooser in the incoming folder
+
+## The title
+
+> Left on 2026-11-17: `--add-dir` was dropped for the --settings file's additional directory.
+# Project files — a folder per project, the sidebar's Files section, `--add-dir`
+
+## The sessions Menkar starts
+
+> Left on 2026-11-17: Claude Code 2.1.326's trust dialog on `--add-dir`; the folder goes in `permissions.additionalDirectories`.
+- **Every agent pane** (Claude Code or Cursor) of a project gets `MENKAR_FILES=<project folder>` in
+  its environment, beside the pane's own id, and the folder is made before it starts. **A Claude
+  Code session** also gets `--add-dir <project folder>`, after its identity and before
+  `--settings`; Cursor has no such flag. It is a command-line flag, never a settings write.

@@ -1,4 +1,4 @@
-# Project files — a folder per project, the sidebar's Files section, `--add-dir`
+# Project files — a folder per project, the sidebar's Files section, the sessions' access to it
 
 Each project has a folder of its own for the files that come in (from Slack, mail, the browser)
 and go out (what an agent generates to share), outside every repository (decisions 1.51, 1.58,
@@ -92,8 +92,23 @@ the renderer draws the section and names files, never paths.
 
 - **Every agent pane** (Claude Code or Cursor) of a project gets `MENKAR_FILES=<project folder>` in
   its environment, beside the pane's own id, and the folder is made before it starts. **A Claude
-  Code session** also gets `--add-dir <project folder>`, after its identity and before
-  `--settings`; Cursor has no such flag. It is a command-line flag, never a settings write.
+  Code session** also gets the folder as a working directory, read and written with no prompt,
+  through `permissions.additionalDirectories` in the `--settings` file Menkar passes it: a file per
+  project, `<cache>/claude-settings/<project id>.json` (`projectSessionSettingsFile`), the shared
+  settings plus that one key (`writeSessionSettings` in `src/core/context/settings.ts`). A session
+  with no project gets the shared file. Cursor has no such setting. Never a write to
+  `~/.claude.json` or `~/.claude/settings.json`.
+- **Why not `--add-dir`** (2026-11-17, measured on Claude Code 2.1.326): each `--add-dir` stops the
+  session at a dialog ("Adding a new directory … trust?") whose default answer is "No, exit", and
+  "Yes" persists nothing, so every start would stop there. The setting gives the same access with
+  no dialog; the only loss is that `<files>/.claude/skills/` is not loaded, which Menkar never
+  relied on.
+- **Every agent pane** of a project also gets `MENKAR_PRIVATE=<root>/<project>/private`, made
+  before it starts like the files folder (decision 1.175, 2026-11-16). It holds what the project or
+  its orchestrator keeps unversioned and must not lose (an orchestrator's status file, when the
+  human declines keeping it in the repository). It is not the files folder: it is not shown in the
+  sidebar's Files, the trash timer never looks in it, and it is not a working directory of the
+  session; the agent reads it through the variable.
 - Making the agent write its outputs there is the user's instruction or a repository's
   `CLAUDE.md`, not Menkar's.
 

@@ -11,7 +11,7 @@ import { clashFree, insideFolder, safeFolderName, uniqueFolderName } from '../co
 import { moveExclusive } from '../core/files/move'
 import { DAY_MS, filesToTrash } from '../core/files/trash'
 import { log } from '../core/log'
-import { filesRoot, projectFilesFolder } from '../core/paths'
+import { filesRoot, projectFilesFolder, projectPrivateFolder } from '../core/paths'
 import type { Project } from '../core/projects/model'
 import type { Settings } from '../core/settings'
 import type { ProjectFile } from '../shared/workspace'
@@ -99,6 +99,16 @@ export async function ensureFolder(projectId: string): Promise<string | null> {
     log.info('a project files folder was made', { project: projectId, folder })
     need().named(projectId, name)
   }
+  return folder
+}
+
+// The project's private folder, beside its files folder, made when first needed. Called after
+// ensureFolder, which chose the project's folder name.
+export async function ensurePrivateFolder(projectId: string): Promise<string | null> {
+  const name = project(projectId)?.filesFolder
+  if (!name) return null
+  const folder = projectPrivateFolder(root(), name)
+  await mkdir(folder, { recursive: true })
   return folder
 }
 

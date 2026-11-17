@@ -44,3 +44,11 @@
 > Left on 2026-11-16: main also reads `compact` records, for the team block (decision 1.150).
     (measured, 2.1.322); null outside Menkar. Main watches the folder for `clear` and `resume`
     records naming a live pane, so the tab follows the pane's new session (`docs/sessions.md`).
+
+## `--settings`
+
+> Left on 2026-11-17: a session in a project gets a per-project file in the cache.
+- **`--settings`** (`src/main/context.ts` `sessionSettingsFile()`): before each Claude command, the
+  app rewrites `<config>/claude-settings.json` (Menkar's statusline) and
+  `<config>/chained-statusline.json` (the user's own command, or null), each only when its content
+  changed. Nothing is written under `~/.claude` for this.

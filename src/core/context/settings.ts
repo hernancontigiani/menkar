@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { agentPaths } from '../paths'
+import { agentPaths, projectSessionSettingsFile } from '../paths'
 import { contextFiles } from './files'
 import { SESSION_START_ARG, START_SOURCES, TURN_END_ARG } from './statusline'
 
@@ -112,33 +112,43 @@ export async function chainedCommand(ownCommand: string): Promise<string | null>
 }
 
 // Writes the two files a Claude session Menkar starts needs — its `--settings` file holding
-// Menkar's statusline, its hooks and its MCP rules, and the command that statusline chains to — each only when it changed, and
-// returns the path to pass as `--settings <path>`. Called before each Claude command line runs, so
-// a statusline that moved, or a changed own statusline, heals on the next command.
-export async function writeSessionSettings(statuslineCommand: string): Promise<string> {
+// Menkar's statusline, its hooks and its MCP rules, and the command that statusline chains to — each
+// only when it changed, and returns the path to pass as `--settings <path>`. Called before each
+// Claude command line runs, so a statusline that moved, or a changed own statusline, heals on the
+// next command. A project's session gets a file of its own that also grants its files folder:
+// `--add-dir` would stop the session at a trust dialog whose default answer exits.
+export async function writeSessionSettings(
+  statuslineCommand: string,
+  project?: { readonly id: string; readonly folder: string },
+): Promise<string> {
+  // Menkar's own MCP tools run without a prompt: they only act on Menkar's tabs.
+  const allow = ['mcp__menkar']
+  const base: JsonObject = {
+    statusLine: statuslineObject(statuslineCommand),
+    hooks: { ...sessionStartHooks(statuslineCommand), ...turnEndHooks(statuslineCommand) },
+    permissions: { allow },
+    // Menkar wakes a session it started through Claude Code's messaging; without this a
+    // session that bypasses prompts would hold each message behind a card.
+    crossSessionInbound: 'accept',
+  }
+  const asText = (value: JsonObject) => `${JSON.stringify(value, null, 2)}\n`
   const settings = contextFiles.claudeSettings()
-  await writeIfChanged(
-    settings,
-    `${JSON.stringify(
-      {
-        statusLine: statuslineObject(statuslineCommand),
-        hooks: { ...sessionStartHooks(statuslineCommand), ...turnEndHooks(statuslineCommand) },
-        // Menkar's own MCP tools run without a prompt: they only act on Menkar's tabs.
-        permissions: { allow: ['mcp__menkar'] },
-        // Menkar wakes a session it started through Claude Code's messaging; without this a
-        // session that bypasses prompts would hold each message behind a card.
-        crossSessionInbound: 'accept',
-      },
-      null,
-      2,
-    )}\n`,
-  )
+  await writeIfChanged(settings, asText(base))
   const chained = await chainedCommand(statuslineCommand)
   await writeIfChanged(
     contextFiles.chainedStatusline(),
     `{"command": ${JSON.stringify(chained)}}\n`,
   )
-  return settings
+  if (!project) return settings
+  const own = projectSessionSettingsFile(project.id)
+  await writeIfChanged(
+    own,
+    asText({
+      ...base,
+      permissions: { allow, additionalDirectories: [project.folder] },
+    }),
+  )
+  return own
 }
 
 // A POSIX shell word: the value in single quotes, any single quote closed, escaped and reopened.

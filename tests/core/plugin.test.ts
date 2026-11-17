@@ -244,6 +244,13 @@ describe("Menkar's skills plugin", () => {
     expect(locks).toMatch(
       /Never in Menkar's files folder \(`\$MENKAR_FILES`\), which the human cleans by hand/,
     )
+    // Decision 1.175: plan A, the repository; plan B, the private folder.
+    expect(locks).toMatch(
+      /version it in the project's repository; if they decline[^.]*`\$MENKAR_PRIVATE`/,
+    )
+    expect(normalized(writesDown)).toMatch(
+      /versioned in the repository[^.]*if the human declines[^.;]*`\$MENKAR_PRIVATE`/,
+    )
   })
 
   test('no skill and not the guide says "keeper"; the guide gives consultants tasks', () => {

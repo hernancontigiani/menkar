@@ -173,6 +173,11 @@ test('a file not modified for 40 days, with 30 days set, goes to the trash after
       const when = new Date(Date.now() - 40 * 24 * 3600 * 1000)
       utimesSync(old, when, when)
       writeFileSync(join(set.d.folder, 'new.log'), 'n')
+      // Decision 1.175: the private folder beside it is never the timer's.
+      const kept = join(set.d.folder, '..', 'private')
+      mkdirSync(kept, { recursive: true })
+      writeFileSync(join(kept, 'STATUS.md'), 's')
+      utimesSync(join(kept, 'STATUS.md'), when, when)
       // The folder's name was saved when it was made.
       const file = join(dirs.root, 'config', 'menkar', 'projects.json')
       const json = JSON.parse(readFileSync(file, 'utf8'))
@@ -193,7 +198,7 @@ test('a file not modified for 40 days, with 30 days set, goes to the trash after
   }
 })
 
-test('a Claude session started in a project gets --add-dir and MENKAR_FILES naming the project’s folder, which exists', async () => {
+test('a Claude session started in a project gets MENKAR_FILES and its --settings file’s additional directory naming the project’s folder, never --add-dir; MENKAR_PRIVATE names its private folder, not a working directory; both exist', async () => {
   let d: Dirs | undefined
   const launched = await launchApp({
     prepare: (dirs) => {
@@ -203,7 +208,9 @@ test('a Claude session started in a project gets --add-dir and MENKAR_FILES nami
       writeFileSync(
         join(dirs.root, 'bin', 'claude'),
         `#!/usr/bin/env node
-process.stdout.write('FILES=' + process.env.MENKAR_FILES + '\\r\\nARGS=' + process.argv.slice(2).join(' ') + '\\r\\n')
+const args = process.argv.slice(2)
+const settings = JSON.parse(require('node:fs').readFileSync(args[args.indexOf('--settings') + 1], 'utf8'))
+process.stdout.write('FILES=' + process.env.MENKAR_FILES + '\\r\\nPRIVATE=' + process.env.MENKAR_PRIVATE + '\\r\\nDIRS=' + JSON.stringify(settings.permissions.additionalDirectories) + '\\r\\nADD_DIR=' + args.includes('--add-dir') + '\\r\\n')
 setInterval(() => {}, 1000)
 `,
       )
@@ -217,8 +224,12 @@ setInterval(() => {}, 1000)
     await act(page, { type: 'openSession', session: CLIENT.login })
     const rows = page.locator('.xterm-rows')
     await expect(rows).toContainText(`FILES=${dirs.folder}`)
-    await expect(rows).toContainText(`--add-dir ${dirs.folder}`)
+    await expect(rows).toContainText(`DIRS=${JSON.stringify([dirs.folder])}`)
+    await expect(rows).toContainText('ADD_DIR=false')
     expect(existsSync(dirs.folder)).toBe(true)
+    const kept = join(dirs.filesRoot, PROJECT, 'private')
+    await expect(rows).toContainText(`PRIVATE=${kept}`)
+    expect(existsSync(kept)).toBe(true)
   } finally {
     await launched.close()
   }

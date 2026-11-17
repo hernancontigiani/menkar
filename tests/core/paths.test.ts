@@ -8,6 +8,7 @@ import {
   filesRoot,
   pluginFolder,
   projectFilesFolder,
+  projectPrivateFolder,
 } from '../../src/core/paths'
 
 describe('paths', () => {
@@ -69,6 +70,10 @@ test("decision 1.58: the Menkar folder is ~/Menkar under the test's HOME unless 
   expect(filesRoot('')).toBe(join(homedir(), 'Menkar'))
   expect(filesRoot('/srv/shared')).toBe('/srv/shared')
   expect(projectFilesFolder('/h/Menkar', 'Guardian AI')).toBe('/h/Menkar/Guardian AI/files')
+})
+
+test("decision 1.175: a project's private folder is <root>/<name>/private, the files folder's sibling", () => {
+  expect(projectPrivateFolder('/h/Menkar', 'Guardian AI')).toBe('/h/Menkar/Guardian AI/private')
 })
 
 test("plan 33, decision 7: the skills plugin is the resources folder's when packaged, the repository's in development", () => {

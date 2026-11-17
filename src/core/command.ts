@@ -23,8 +23,6 @@ export interface CommandOptions {
   // The app's settings file for Claude Code (`--settings`), when the integration provides one.
   readonly settings?: string
   readonly remoteControl?: string
-  // Folders the agent may read and write besides its own (`--add-dir`, Claude Code only).
-  readonly addDirs?: readonly string[]
   // A file holding the session's first prompt, read by the shell (Claude Code only).
   readonly promptFile?: string
   // Menkar's MCP server as `--mcp-config` JSON (Claude Code only).
@@ -74,11 +72,10 @@ export function buildCommand(agent: Agent, start: Start, options: CommandOptions
       break
   }
   const words = args.map(shellQuote)
-  // Before --add-dir, which takes every word up to the next option: after it the prompt would be
-  // read as one more folder. Double quotes keep it one argument whatever it holds.
+  // Before --mcp-config, which takes every word up to the next option: after it the prompt would be
+  // read as one more value. Double quotes keep it one argument whatever it holds.
   if (claude && options.promptFile)
     words.push(`"$(cat '${options.promptFile.replaceAll("'", `'"'"'`)}')"`)
-  if (claude) for (const dir of options.addDirs ?? []) words.push('--add-dir', shellQuote(dir))
   if (claude && options.mcpConfig) words.push('--mcp-config', shellQuote(options.mcpConfig))
   if (claude && options.pluginDir) words.push('--plugin-dir', shellQuote(options.pluginDir))
   if (claude && options.settings) words.push('--settings', shellQuote(options.settings))

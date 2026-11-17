@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { beforeEach, expect, test } from 'vitest'
 import { contextFiles } from '../../../src/core/context/files'
 import { shellQuote, writeSessionSettings } from '../../../src/core/context/settings'
-import { agentPaths } from '../../../src/core/paths'
+import { agentPaths, appDirs, projectSessionSettingsFile } from '../../../src/core/paths'
 
 const COMMAND = "ELECTRON_RUN_AS_NODE=1 '/opt/Menkar/menkar' '/opt/Menkar/statusline.js'"
 
@@ -19,6 +19,7 @@ function userSettings(content: string | null) {
 
 beforeEach(() => {
   rmSync(contextFiles.claudeSettings(), { force: true })
+  rmSync(projectSessionSettingsFile('p1'), { force: true })
   rmSync(contextFiles.chainedStatusline(), { force: true })
   rmSync(contextFiles.integrationsRecord(), { force: true })
   userSettings(null)
@@ -106,4 +107,33 @@ test.each([
   ["/tmp/it's", `'/tmp/it'"'"'s'`],
 ])('a path is quoted for the shell only when it needs it: %s', (path, quoted) => {
   expect(shellQuote(path)).toBe(quoted)
+})
+
+// Claude Code 2.1.326 stops at a trust dialog for each --add-dir; a folder in
+// permissions.additionalDirectories of the --settings file is a working directory with no dialog.
+test("a project's session gets its own file in the cache: the base settings with its files folder as an additional directory", async () => {
+  const base = await writeSessionSettings(COMMAND)
+  const baseText = readFileSync(base, 'utf8')
+  const path = await writeSessionSettings(COMMAND, { id: 'p1', folder: '/h/Menkar/P/files' })
+  expect(path).toBe(projectSessionSettingsFile('p1'))
+  expect(path.startsWith(`${appDirs().cache}/`)).toBe(true)
+  const expected = JSON.parse(baseText)
+  expected.permissions.additionalDirectories = ['/h/Menkar/P/files']
+  expect(readFileSync(path, 'utf8')).toBe(`${JSON.stringify(expected, null, 2)}\n`)
+  expect(readFileSync(base, 'utf8')).toBe(baseText)
+  expect(JSON.parse(baseText).permissions.additionalDirectories).toBeUndefined()
+})
+
+test("each project's file names only its own folder, and a rename of the folder rewrites it", async () => {
+  const p1 = await writeSessionSettings(COMMAND, { id: 'p1', folder: '/h/Menkar/P/files' })
+  const p2 = await writeSessionSettings(COMMAND, { id: 'p2', folder: '/h/Menkar/Q/files' })
+  expect(p1).not.toBe(p2)
+  expect(JSON.parse(readFileSync(p2, 'utf8')).permissions.additionalDirectories).toEqual([
+    '/h/Menkar/Q/files',
+  ])
+  await writeSessionSettings(COMMAND, { id: 'p1', folder: '/h/Menkar/P2/files' })
+  expect(JSON.parse(readFileSync(p1, 'utf8')).permissions.additionalDirectories).toEqual([
+    '/h/Menkar/P2/files',
+  ])
+  rmSync(p2, { force: true })
 })

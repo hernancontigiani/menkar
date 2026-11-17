@@ -2,6 +2,7 @@
 // outside project folders is ever chosen.
 import { describe, expect, test } from 'vitest'
 import { DAY_MS, filesToTrash, type TrashListing } from '../../../src/core/files/trash'
+import { projectFilesFolder, projectPrivateFolder } from '../../../src/core/paths'
 
 const NOW = new Date(2026, 10, 11, 0, 0, 30).getTime()
 const P = '/h/Menkar/P/files'
@@ -73,5 +74,24 @@ describe('the trash timer', () => {
       new Set(),
     )
     expect(chosen).toEqual([])
+  })
+
+  // Decision 1.175: the private folder holds what an orchestrator keeps, never temporary.
+  test("a project's private folder, beside its files folder, is never trashed in", () => {
+    const files = projectFilesFolder('/h/Menkar', 'P')
+    const kept = projectPrivateFolder('/h/Menkar', 'P')
+    const chosen = filesToTrash(
+      {
+        ...listing([
+          { path: `${kept}/STATUS.md`, file: true, mtimeMs: old },
+          { path: `${files}/old.pdf`, file: true, mtimeMs: old },
+        ]),
+        folders: [files],
+      },
+      NOW,
+      30,
+      new Set(),
+    )
+    expect(chosen).toEqual([`${files}/old.pdf`])
   })
 })
