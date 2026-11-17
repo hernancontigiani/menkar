@@ -955,3 +955,6 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-17: plan 41 being designed; task 57 landed.
 | 3 | Background workers and one peek tab (1.176) with the single sidebar view (1.177) | Decided 2026-11-16; needs a plan (task 60, ★): mock-ups of 1.177 first, then `/design-plan`; amends `AGENTS.md`'s rule that a session runs only while it has a tab. **Priority** (the human, 2026-11-16): tasks 60 and 57 (`$MENKAR_PRIVATE`, 1.175) come first, and **the next .deb is built only once both are in** |
+
+> Replaced 2026-11-17: a .deb before plan 41, for the --add-dir fix.
+| 3 | 41 — background workers and one peek tab (1.176) with the single sidebar view (1.177) | **Being designed** (2026-11-17) by `menkar-t60` (task 60, ★), from its approved mock-ups; amends `AGENTS.md`'s rule that a session runs only while it has a tab. **Priority** (the human, 2026-11-16): the next .deb is built only once plan 41 is in (task 57 landed, 4dc515a) |
