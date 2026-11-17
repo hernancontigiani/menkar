@@ -147,6 +147,8 @@ import {
   setDoneTodayOpen,
   setMode,
   setOrchestrator,
+  setOrchestratorCollapsed,
+  setOthersCollapsed,
   setParked,
   setRole,
   setSkills,
@@ -173,7 +175,7 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
-import { onlyTeamUpdates } from '../core/sessions/lastreply'
+import { onlyTeamUpdates, reportClosedTurn } from '../core/sessions/lastreply'
 import { safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { setAppName } from '../core/state'
@@ -537,6 +539,8 @@ function stateFor(windowId: string): WindowState | undefined {
       topicsCollapsed: p.topicsCollapsed === true,
       teamView: p.teamView === true,
       consultantsCollapsed: p.consultantsCollapsed === true,
+      orchestratorCollapsed: p.orchestratorCollapsed === true,
+      othersCollapsed: p.othersCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
       board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
     })),
@@ -1472,7 +1476,8 @@ function askPresence(away: boolean, clearedBy?: string): void {
       const id = workerTeam(p).orchestrator
       return id ? [{ sessionId: id, running: paneOfSession(id)?.terminal.running === true }] : []
     })
-    for (const id of postRecipients(orchestrators, clearedBy)) void wakeSession(id, text)
+    for (const id of postRecipients(orchestrators, clearedBy)) wakes.post(id, 'presence', text)
+    if (clearedBy) wakes.forget(clearedBy, 'presence')
     log.info('the human is now', { away: presence.away })
   }
   push()
@@ -2008,7 +2013,8 @@ setSnapshotSource(publishSnapshots)
 
 // Waking a parent: a session another started waits at a prompt or ends its
 // turn, and its parent hears of it through Claude Code's messaging, a few seconds later and
-// together with its other children's news. Never typed into the parent's terminal.
+// together with its other children's news and the human's own. Never typed into the parent's
+// terminal.
 const wakes = new WakeBatcher(
   (parent, text) => void wakeSession(parent, text),
   {
@@ -2025,20 +2031,28 @@ onShownChange((paneId, sessionId, previous, next) => {
   if (!sessionId || panes.get(paneId)?.agent !== 'claude') return
   const turnEnd = previous === 'working' && (next === 'idle' || next === 'done')
   const posted = turnEnd && teamTurnEnded(paneId)
+  const project = projectOf(projects, sessionId)
+  const parent = project ? keptParents(project)[sessionId] : undefined
+  if (!parent) return
   const file = sessionInfo(sessionId)?.file
-  void wakesParent(previous, next, posted, async () => (file ? onlyTeamUpdates(file) : false))
+  const parentName = sessionName(parent)
+  void wakesParent(
+    previous,
+    next,
+    posted,
+    async () => (file ? onlyTeamUpdates(file) : false),
+    async () => (file ? reportClosedTurn(file, parentName) : false),
+  )
     .catch((error: unknown) => {
       log.warn('a turn could not be read; its parent is woken', { pane: paneId, error })
       return true
     })
     .then((wake) => {
       if (!wake) {
-        log.info('a turn that only answered team updates woke no parent', { pane: paneId })
+        log.info('a turn its parent already knows of woke no parent', { pane: paneId })
         return
       }
-      const project = projectOf(projects, sessionId)
-      const parent = project ? keptParents(project)[sessionId] : undefined
-      wakes.note(parent ?? null, sessionId, sessionName(sessionId), previous, next)
+      wakes.note(parent, sessionId, sessionName(sessionId), previous, next)
     })
 })
 
@@ -2888,8 +2902,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed({ projects: true })
       const name = sessionName(action.session)
       if (paneOfSession(orchestrator)?.agent === 'claude')
-        void wakeSession(
+        wakes.post(
           orchestrator,
+          `control:${action.session}`,
           action.type === 'takeControl'
             ? `The human took control of ${name}`
             : `The human handed ${name} back`,
@@ -2921,6 +2936,14 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'setConsultantsCollapsed':
       projects = setConsultantsCollapsed(projects, w.shown, action.collapsed)
+      changed({ projects: true })
+      return {}
+    case 'setOrchestratorCollapsed':
+      projects = setOrchestratorCollapsed(projects, w.shown, action.collapsed)
+      changed({ projects: true })
+      return {}
+    case 'setOthersCollapsed':
+      projects = setOthersCollapsed(projects, w.shown, action.collapsed)
       changed({ projects: true })
       return {}
     case 'setDoneTodayOpen':
@@ -2957,7 +2980,11 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const tab = pane ? w.tabs.find((x) => x.id === pane.tabId) : undefined
       if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })
       if (orchestrator && pane?.agent === 'claude')
-        void wakeSession(orchestrator, `The human wants to discuss topic ${action.number}`)
+        wakes.post(
+          orchestrator,
+          `topic:${action.number}`,
+          `The human wants to discuss topic ${action.number}`,
+        )
       notifySeen()
       changed()
       return {}

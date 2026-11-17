@@ -6,11 +6,13 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { lastReply, onlyTeamUpdates } from '../../../src/core/sessions/lastreply'
+import { lastReply, onlyTeamUpdates, reportClosedTurn } from '../../../src/core/sessions/lastreply'
 import {
   assistant,
   jsonl,
   type Line,
+  sendMessage,
+  sendResult,
   text,
   toolResult,
   toolUse,
@@ -168,5 +170,68 @@ describe('last_reply over team updates', () => {
   test('a transcript that is only a team update and its answer has no reply', async () => {
     const file = transcript([...update(), assistant([text('Noted.')])])
     expect(await lastReply(file)).toBeNull()
+  })
+})
+
+// Decision 1.173: one notice per report. A turn whose last tool calls include a SendMessage that
+// reached the parent closed with that report, and wakes no parent; an earlier "may I…?" does not.
+describe('a turn the report closes', () => {
+  const ask = () => [user('do block 4'), assistant([toolUse('Bash')]), toolResult()]
+  test.each([
+    ['the report to the parent closes the turn', ['set'], true, true],
+    ['addressed with its ref', ['set [15c83e]'], true, true],
+    ['a report to another session only', ['claude-cli'], true, false],
+    ['a send that failed', ['set'], false, false],
+    ['to another session, then the parent', ['claude-cli', 'set'], true, true],
+  ] as const)('%s', async (_, tos, success, expected) => {
+    const sends = tos.flatMap((to, i) => [
+      assistant([sendMessage(to, `s${i}`)]),
+      sendResult(`s${i}`, success),
+    ])
+    const file = transcript([...ask(), ...sends, assistant([text('Sent.')])])
+    expect(await reportClosedTurn(file, 'set')).toBe(expected)
+  })
+
+  test('"may I…?" to the parent, then more work → the turn end still wakes', async () => {
+    const file = transcript([
+      ...ask(),
+      assistant([sendMessage('set', 's1')]),
+      sendResult('s1', true),
+      assistant([toolUse('Edit')]),
+      toolResult(),
+      assistant([text('Done.')]),
+    ])
+    expect(await reportClosedTurn(file, 'set')).toBe(false)
+  })
+
+  test('a report in an earlier turn does not close this one', async () => {
+    const file = transcript([
+      ...ask(),
+      assistant([sendMessage('set', 's1')]),
+      sendResult('s1', true),
+      assistant([text(REPORT)]),
+      user('one more thing'),
+      assistant([text('Done.')]),
+    ])
+    expect(await reportClosedTurn(file, 'set')).toBe(false)
+  })
+
+  test('one message with a tool call, then the report → the report closes the turn', async () => {
+    const file = transcript([
+      ...ask(),
+      assistant([toolUse('Bash'), sendMessage('set', 's1')]),
+      toolResult(),
+      sendResult('s1', true),
+    ])
+    expect(await reportClosedTurn(file, 'set')).toBe(true)
+  })
+
+  test('a name that only starts like the parent’s is another session', async () => {
+    const file = transcript([
+      ...ask(),
+      assistant([sendMessage('settle', 's1')]),
+      sendResult('s1', true),
+    ])
+    expect(await reportClosedTurn(file, 'set')).toBe(false)
   })
 })

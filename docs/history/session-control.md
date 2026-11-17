@@ -154,3 +154,12 @@ and the wake order.
 - **Three pieces kept apart,** so another agent can bring its own: what a session holds at start
   (`teamAtStart`), how a start delivers (the file and the flags), how a change is told (`teamPost`
   and its triggers). `teamPost` itself is agent-neutral.
+
+> Replaced 2026-11-16: tasks 52 and 54 (1.171–1.173).
+- **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, events wait until no
+new one has come for `WAKE_DELAY_MS`, a child keeps only its latest, and all go in one message.
+In it, the events of children whose current task has the ★ come first; otherwise they keep the
+order the children first spoke in (decisions 1.78 and 1.114).
+- **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]
+The human wants to discuss topic N" (a double-click on a topic), "[Menkar] The human took control
+of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab's banner, decision 1.101).

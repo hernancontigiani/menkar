@@ -11,7 +11,9 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
 
 - **Marks, per project in `projects.json`:** `orchestration` — on, the orchestrator, roles,
   "with you", `parked`, `workers_cap` (decision 1.118) and the added `folders` (decision 1.124) — and `topics_collapsed`, `team_view`,
-  `consultants_collapsed` and `done_today_open`. How they are read, kept and followed through a `/clear`, a
+  `consultants_collapsed`, `orchestrator_collapsed`, `others_collapsed` and `done_today_open`,
+  each written only while true. `consultants_collapsed` folds Consultants in both views, Work and
+  Team: one key for the same sessions (`set`'s choice, 2026-11-16). How they are read, kept and followed through a `/clear`, a
   resume or a session leaving is in `docs/projects.md` ("The orchestration mode's marks").
 - **Topics, in `topics.json` in the config directory** (`topicsPath` in `src/core/paths.ts`;
   `src/core/orchestration/topics.ts`), a file of their own: agents write topics often, and a broken
@@ -157,9 +159,13 @@ for Team; `set`'s choice, 2026-11-13). Off, neither shows and the sidebar is the
    by default**, its unfolding saved (`done_today_open`).
 
 **Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) — a wake,
-"The human wants to discuss topic N", "took control of", "handed … back" — ends, after its time,
-with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2 topics · 1
-working · 1 waiting`. The human follows the orchestrator from a phone through Remote Control, where
+"The human wants to discuss topic N", "took control of", "handed … back", away or back — ends,
+after its time, with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2
+topics · 1 working · 1 waiting`. **They are few** (decision 1.173, the human, 2026-11-16): every
+post is a line in the human's chat with the orchestrator. A worker whose turn ends with its report
+to the orchestrator gets no "finished its turn" for it, and everything arriving within
+`WAKE_DELAY_MS` goes in one post, the human's own news first (`docs/session-control.md`, waking a
+parent). The human follows the orchestrator from a phone through Remote Control, where
 the statusline does not show and the posts do. `postCounts` gives them only for the orchestrator of
 a project with the mode on, from the same `workCounts` as the tiles; posts to any other session are
 unchanged.
@@ -172,6 +178,16 @@ otherwise, through the same code as before.
 own: the **orchestrator**; an **expert**, a session under the orchestrator with a role label, shown
 nested under it with its label; a **generalist** worker, under it without a label; a
 **consultant**, a loose session with a label, under "Consultants".
+
+**Three folds, each saved per project** (decision 1.171, the human, 2026-11-16), a triangle each:
+
+- **The orchestrator's group** (`orchestrator_collapsed`): the triangle sits on the orchestrator's
+  row, in its left padding, while anyone is under it. Folded, every child is hidden — with a tab,
+  earlier and parked alike — and the row shows how many sessions are under it and the dot of the
+  most urgent state among those running (`groupState`, as a collapsed group's), red when one waits
+  at a permission prompt; with none running, the stopped dot.
+- **Consultants** (`consultants_collapsed`, shared with the Work view) and **Others**
+  (`others_collapsed`): folded, the heading alone.
 
 1. **The orchestrator**, then its children with a tab, indented; its children without a tab fold
    into one "N earlier" row a click unfolds (per window, not saved). Its parked workers fold apart,
@@ -198,6 +214,10 @@ code). A row: ★ when its task has the ★, the
 number, the title, a green dot while it is discussing (the current topic, decision 1.169, the
 human, 2026-11-16) and a red mark when blocking; a blocking topic being discussed shows both. A click unfolds its context, who raised it and its
 status, per window. Empty, it says "Nothing awaits you".
+**At most 5 topics** (`TOPICS_SHOWN`, `topicsFolded` in `src/core/orchestration/rows.ts`; decision
+1.171, the human, 2026-11-16), in both views, then a "N more…" row as Files has; a click unfolds
+the rest, per window, not saved. The current topic comes first in the order, so it is always among
+the 5.
 
 **A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the
 orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N",

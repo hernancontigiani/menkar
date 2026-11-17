@@ -32,6 +32,8 @@ export interface ProjectInfo {
   readonly topicsCollapsed: boolean
   readonly teamView: boolean
   readonly consultantsCollapsed: boolean
+  readonly orchestratorCollapsed: boolean
+  readonly othersCollapsed: boolean
   readonly doneTodayOpen: boolean
   // The Board panel (decision 1.126); a null height is the default one.
   readonly board: { readonly open: boolean; readonly height: number | null }

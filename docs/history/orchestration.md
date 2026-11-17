@@ -255,3 +255,13 @@ else is edited there.
 
 > Left on 2026-11-16: a topic row shows a green dot while it is discussing (decision 1.169).
 number, the title, a red mark when blocking. A click unfolds its context, who raised it and its
+
+## The data
+
+> Left on 2026-11-16: the Team view's folds are saved beside them, and Consultants' fold is one key for both views (decision 1.171).
+  `consultants_collapsed` and `done_today_open`. How they are read, kept and followed through a `/clear`, a
+
+> Replaced 2026-11-16: tasks 52 and 54 (1.171–1.173).
+"The human wants to discuss topic N", "took control of", "handed … back" — ends, after its time,
+with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2 topics · 1
+working · 1 waiting`. The human follows the orchestrator from a phone through Remote Control, where

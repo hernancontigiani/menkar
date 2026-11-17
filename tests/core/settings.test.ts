@@ -3,6 +3,7 @@ import { validSetting } from '../../src/core/preferences'
 import {
   DEFAULT_SETTINGS,
   parseSettings,
+  SIDEBAR_MIN_WIDTH,
   settingsOf,
   UI_SCALES,
   withSetting,
@@ -17,7 +18,7 @@ describe('settings', () => {
       terminal_theme: 'VS Code',
       terminal_colors: 'ubuntu',
       scrollback: 10_000,
-      sidebar_width: 250,
+      sidebar_width: 300,
       reopen_tabs: true,
       last_agent: '',
     })
@@ -47,6 +48,15 @@ describe('settings', () => {
       settings: { ui_style: 'classic', zoom: 2, sidebar_width: 420 },
       x: 1,
     })
+  })
+
+  // Decision 1.172: the sidebar stops at 270 px, and a width saved below it opens at 270.
+  test('a saved sidebar width of 150, 180 or 250 opens at 270; 270 and 420 are kept', () => {
+    expect(SIDEBAR_MIN_WIDTH).toBe(270)
+    for (const saved of [150, 180, 250, 269])
+      expect(parseSettings({ sidebar_width: saved }).sidebar_width).toBe(270)
+    for (const saved of [270, 420])
+      expect(parseSettings({ sidebar_width: saved }).sidebar_width).toBe(saved)
   })
 
   test("PRF-3 the language is the system's and both notifications are on until set", () => {

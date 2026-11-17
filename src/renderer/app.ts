@@ -620,8 +620,9 @@ function filesSection(s: WindowState, project: ProjectInfo): HTMLElement[] {
       class: `files-toggle dim${collapsed ? ' collapsed' : ''}`,
       'aria-expanded': String(!collapsed),
       'aria-label': collapsed ? t('files.expand') : t('files.collapse'),
+      title: t('files.heading', { n: s.files.items.length }),
     },
-    t('files.heading', { n: s.files.items.length }),
+    el('span', { class: 'files-label' }, t('files.heading', { n: s.files.items.length })),
   )
   toggle.addEventListener('click', () => void act({ type: 'collapseFiles', collapsed: !collapsed }))
   const bring = el(
@@ -807,6 +808,7 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
         node
           .querySelector('.text')
           ?.append(el('div', { class: 'parked-on dim' }, t('orch.parkedOn', { on: waits })))
+      if (r.fold) teamFold(node, r.fold, v)
       return [node]
     }
     case 'parked': {
@@ -841,14 +843,27 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
       })
       return [node]
     }
-    case 'heading':
-      return [
-        el(
-          'div',
-          { class: 'group-heading team-heading dim' },
-          r.heading === 'consultants' ? t('orch.consultants') : t('orch.others'),
-        ),
-      ]
+    case 'heading': {
+      const node = el(
+        'button',
+        {
+          class: `group-heading team-heading dim${r.collapsed ? ' folded' : ''}`,
+          'data-heading': r.heading,
+          'aria-expanded': String(!r.collapsed),
+          'aria-label': r.collapsed ? t('orch.sectionExpand') : t('orch.sectionCollapse'),
+        },
+        r.heading === 'consultants' ? t('orch.consultants') : t('orch.others'),
+      )
+      node.addEventListener('click', () => {
+        const collapsed = !r.collapsed
+        void act(
+          r.heading === 'consultants'
+            ? { type: 'setConsultantsCollapsed', collapsed }
+            : { type: 'setOthersCollapsed', collapsed },
+        )
+      })
+      return [node]
+    }
     case 'noGroup':
       return [el('div', { class: 'group-heading dim' }, t('sidebar.noGroup'))]
     case 'group': {
@@ -871,6 +886,44 @@ function modeItem(r: ModeRow, project: ProjectInfo, v: ModeListView): HTMLElemen
       ]
     }
   }
+}
+
+// The orchestrator's triangle (decision 1.171); folded, its row stands for everyone under it: how
+// many, and the most urgent state among those running, red when one waits at a prompt.
+function teamFold(
+  node: HTMLElement,
+  fold: { readonly ids: readonly string[]; readonly folded: boolean },
+  v: ModeListView,
+): void {
+  const toggle = el(
+    'button',
+    {
+      class: `team-fold${fold.folded ? ' folded' : ''}`,
+      'aria-expanded': String(!fold.folded),
+      'aria-label': fold.folded ? t('orch.teamUnfold') : t('orch.teamFold'),
+    },
+    fold.folded ? '▸' : '▾',
+  )
+  toggle.addEventListener('click', (event) => {
+    event.stopPropagation()
+    void act({ type: 'setOrchestratorCollapsed', collapsed: !fold.folded })
+  })
+  toggle.addEventListener('dblclick', (event) => event.stopPropagation())
+  node.prepend(toggle)
+  if (!fold.folded) return
+  node.classList.add('team-folded')
+  if (fold.ids.some((id) => v.selected.has(id))) node.classList.add('contains-selected')
+  const running = fold.ids.filter((id) => v.running.has(id))
+  node
+    .querySelector('.text')
+    ?.after(
+      el(
+        'span',
+        { class: 'team-count dim', title: t('orch.teamFolded', { n: fold.ids.length }) },
+        String(fold.ids.length),
+      ),
+      stateDot(groupState(running.map(runningState)) ?? 'stopped'),
+    )
 }
 
 // A row's text in the orchestration mode: ★ and "with you" beside the name, the role label under

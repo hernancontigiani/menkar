@@ -294,8 +294,13 @@ session) takes the newest session of that folder modified since the tab started,
   saved) is a switch at the foot of Add session → Existing.
 - **Closing tabs from a tab's menu**: Close, Close other tabs, Close all tabs, none of them asking
   (decision 1.34, 2026-11-10).
-- **The sidebar** starts at 250 px and stops at 180 px; a double click on the divider puts it back
-  at 250 and saves that. A width saved before is kept (2026-11-10).
+- **The sidebar** starts at 300 px and stops at 270 px (`SIDEBAR_MIN_WIDTH`; decision 1.172, the
+  human, 2026-11-16): 270 is the narrowest at which nothing breaks in Spanish, so the Settings
+  button keeps its word. A double click on the divider puts it back at 300 and saves that. A width
+  saved before is kept (2026-11-10), and one saved below 270 opens at 270. At 270 nothing in the
+  sidebar's top rows, the Topics and Files headings or the presence chip wraps or is clipped, in
+  English or Spanish, and the project's name reads whole; the Files heading shortens with "…"
+  instead of wrapping, should a count grow.
 - **The sidebar's foot** holds the shown project's Files section (`docs/project-files.md`).
 - Every segmented control (Add session's Existing / New, Usage's rows) shares
   one style (2026-11-09): a bordered group with a line between segments; the unchosen segments a

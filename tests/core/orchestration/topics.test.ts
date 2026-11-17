@@ -5,6 +5,7 @@ process.env.TZ = 'America/Argentina/Buenos_Aires'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { beforeEach, describe, expect, test } from 'vitest'
+import { TOPICS_SHOWN, topicsFolded } from '../../../src/core/orchestration/rows'
 import {
   addTopic,
   closedTopicsToday,
@@ -103,6 +104,21 @@ describe('topics', () => {
     t = add(t, 'A', 'three')
     t = updateTopic(t, 'p1', 3, { status: 'discussing' }, LATER)?.topics ?? t
     expect(shownTopics(new Set([5]), topicsOf(t, 'p1')).map((x) => x.number)).toEqual([3, 1, 2])
+  })
+
+  // Decision 1.171: at most 5 topics, then "N more" unfolding the rest; the current one is first,
+  // so it is always among the 5.
+  test('8 topics, 7 discussing: folded shows 7, 1, 2, 3, 4 and "3 more"; unfolded, all 8', () => {
+    let t = emptyTopics()
+    for (let i = 1; i <= 8; i++) t = add(t, 'A', `t${i}`)
+    t = updateTopic(t, 'p1', 7, { status: 'discussing' }, LATER)?.topics ?? t
+    const shown = shownTopics(none, topicsOf(t, 'p1'))
+    expect(TOPICS_SHOWN).toBe(5)
+    const folded = topicsFolded(shown, false)
+    expect(folded.rows.map((x) => x.number)).toEqual([7, 1, 2, 3, 4])
+    expect(folded.more).toBe(3)
+    expect(topicsFolded(shown, true)).toEqual({ rows: shown, more: 0 })
+    expect(topicsFolded(shown.slice(0, 5), false)).toEqual({ rows: shown.slice(0, 5), more: 0 })
   })
 
   // Decision 1.103: a new topic notifies as a blocked session does, without sound while another is

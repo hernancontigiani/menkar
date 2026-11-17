@@ -125,7 +125,7 @@ test('LOOK-6 F9 hides the sidebar and shows it again; the toggle follows', async
     await page.locator('#toggle-sidebar').click()
     await expect(page.locator('#sidebar')).toBeVisible()
     expect(await page.locator('#sidebar').evaluate((n) => n.getBoundingClientRect().width)).toBe(
-      250,
+      300,
     )
   } finally {
     await launched.close()
@@ -228,7 +228,7 @@ async function dragDivider(page: Page, to: number): Promise<void> {
   await page.mouse.up()
 }
 
-test('LOOK-8, LOOK-9, LOOK-11 the divider: 420 px is saved and restored; it stops at 180; hidden at quit, it comes back shown at the saved width', async () => {
+test('LOOK-8, LOOK-9, LOOK-11 the divider: 420 px is saved and restored; it stops at 270 (decision 1.172); hidden at quit, it comes back shown at the saved width', async () => {
   let root = ''
   let launched = await launchApp({
     prepare: (dirs) => {
@@ -240,7 +240,7 @@ test('LOOK-8, LOOK-9, LOOK-11 the divider: 420 px is saved and restored; it stop
     const page = launched.window
     await expect(page.locator('#session-list .row')).toHaveCount(3)
     await dragDivider(page, 40)
-    expect((await box(page, '#sidebar')).width).toBe(180)
+    expect((await box(page, '#sidebar')).width).toBe(270)
     await dragDivider(page, 420)
     expect((await box(page, '#sidebar')).width).toBe(420)
     const statePath = join(root, 'config', 'menkar', 'state.json')
@@ -278,7 +278,7 @@ test('LOOK-10 widening the window keeps the sidebar and grows the content', asyn
       if (win && b) win.setContentBounds({ ...b, width: 1600 })
     })
     await expect.poll(async () => (await box(page, '#content')).width).toBe(before.width + 320)
-    expect((await box(page, '#sidebar')).width).toBe(250)
+    expect((await box(page, '#sidebar')).width).toBe(300)
   } finally {
     await launched.close()
   }
@@ -1104,7 +1104,7 @@ test('LOOK-61 (decision 1.21) a stopped session’s row has no ring; once it run
   }
 })
 
-test('LOOK-70 (decision 1.34) the sidebar starts at 250 px, stops at 180, and a double click on the divider puts it back at 250', async () => {
+test('LOOK-70 (decisions 1.34, 1.172) the sidebar starts at 300 px, stops at 270, and a double click on the divider puts it back at 300', async () => {
   let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
@@ -1115,18 +1115,18 @@ test('LOOK-70 (decision 1.34) the sidebar starts at 250 px, stops at 180, and a 
   try {
     const page = launched.window
     await expect(page.locator('#session-list .row')).toHaveCount(3)
-    expect((await box(page, '#sidebar')).width).toBe(250)
+    expect((await box(page, '#sidebar')).width).toBe(300)
     await dragDivider(page, 40)
-    expect((await box(page, '#sidebar')).width).toBe(180)
+    expect((await box(page, '#sidebar')).width).toBe(270)
     const statePath = join(root, 'config', 'menkar', 'state.json')
     await expect
       .poll(() => JSON.parse(readFileSync(statePath, 'utf8')).settings?.sidebar_width)
-      .toBe(180)
+      .toBe(270)
     await page.locator('#divider').dblclick()
-    expect((await box(page, '#sidebar')).width).toBe(250)
+    expect((await box(page, '#sidebar')).width).toBe(300)
     await expect
       .poll(() => JSON.parse(readFileSync(statePath, 'utf8')).settings?.sidebar_width)
-      .toBe(250)
+      .toBe(300)
   } finally {
     await launched.close()
   }

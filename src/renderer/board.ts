@@ -146,6 +146,7 @@ function boardSizes() {
       px(boardStyle?.paddingBottom ?? '') +
       px(columnStyle?.paddingTop ?? '') +
       px(columnStyle?.paddingBottom ?? ''),
+    scrollbar: board ? board.offsetHeight - board.clientHeight : 0,
   }
 }
 
@@ -177,8 +178,9 @@ function showAllPixels(): number {
     const cards = column.querySelector<HTMLElement>('.board-cards')?.scrollHeight ?? 0
     tallest = Math.max(tallest, heading + sizes.gap + cards)
   }
-  const scrollbar = board ? board.offsetHeight - board.clientHeight : 0
-  return Math.ceil(showAllHeight(sizes.bar + sizes.padding + tallest + scrollbar, areaHeight()))
+  return Math.ceil(
+    showAllHeight(sizes.bar + sizes.padding + tallest + sizes.scrollbar, areaHeight()),
+  )
 }
 
 export function sizeBoard(): void {

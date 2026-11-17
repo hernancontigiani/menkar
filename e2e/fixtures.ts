@@ -29,7 +29,7 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // entry already names its session, it publishes a messaging socket as Claude Code does (an entry
 // Remote Control's state also reads), and what arrives there goes to claude-posts.jsonl; with FAKE_CLAUDE_TEAM_TURN set, a team update starts a turn that writes the
 // update and a "Noted." to its transcript, as Claude Code records them. TURN is a turn the human
-// typed; COMPACT runs the "compact" hook; FAKE_CLAUDE_START_HOOK runs the "resume" hook of a
+// typed; REPORT one that ends with a SendMessage to "api" that Claude Code says was sent; COMPACT runs the "compact" hook; FAKE_CLAUDE_START_HOOK runs the "resume" hook of a
 // --resume start, as Claude Code does.
 const FAKE_CLAUDE = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os')
@@ -174,6 +174,15 @@ process.stdin.on('data', (d) => {
     typed = ''
     sessionStart('compact', ownId, transcriptOf(ownId))
     process.stdout.write('stand-in compacted\\r\\n')
+  }
+  if (typed.endsWith('REPORT')) {
+    typed = ''
+    turn([
+      { type: 'user', message: { role: 'user', content: 'report when done' } },
+      { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_r1', name: 'SendMessage', input: { to: 'api', summary: 'report', message: 'Done.' } }] } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_r1', content: 'sent' }] }, toolUseResult: { success: true, message: 'sent', display: 'sent', msg_id: 'm1' } },
+      { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Reported.' }] } },
+    ])
   }
   if (typed.endsWith('TURN')) {
     typed = ''

@@ -1,12 +1,13 @@
 // Plan 36: the orchestration mode's Work view (decisions 1.112, 1.115), the ★ on tasks (1.114),
 // tasks in the Team view and the Board panel (1.116, 1.126), on a seeded team with tasks.json and
 // topics.json.
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
+import { SIDEBAR_MIN_WIDTH } from '../src/core/settings'
 import { launchApp } from './app'
-import { prepare } from './fixtures'
+import { catppuccin, prepare } from './fixtures'
 
 const SHOTS = '/tmp/menkar-shots'
 const PROJECT = 'eeeeeeeeeeee'
@@ -101,12 +102,34 @@ const BASE_TASKS: SeedTask[] = [
   },
 ]
 
+// What some tests add to the seed: open topics after the base ones (the last one discussing), the
+// language, and files in the project's files folder.
+interface SeedMore {
+  readonly topics?: number
+  readonly language?: string
+  readonly files?: number
+}
+
 function seed(
   dirs: { readonly root: string; readonly home: string },
   tasks: SeedTask[],
   teamView = false,
+  more: SeedMore = {},
 ) {
   const env = prepare(dirs)
+  if (more.language) {
+    const state = join(dirs.root, 'config', 'menkar', 'state.json')
+    const saved = JSON.parse(readFileSync(state, 'utf8'))
+    writeFileSync(
+      state,
+      JSON.stringify({ ...saved, settings: { ...saved.settings, language: more.language } }),
+    )
+  }
+  if (more.files) {
+    const folder = join(dirs.home, 'Menkar', 'team', 'files')
+    mkdirSync(folder, { recursive: true })
+    for (let i = 1; i <= more.files; i++) writeFileSync(join(folder, `note-${i}.md`), `${i}`)
+  }
   for (const key of Object.keys(TEAM) as (keyof typeof TEAM)[]) {
     const cwd = join(dirs.home, 'work', 'app')
     mkdirSync(cwd, { recursive: true })
@@ -136,6 +159,7 @@ function seed(
           groups: [],
           parents: { [TEAM.w1]: TEAM.orch, [TEAM.w2]: TEAM.orch },
           ...(teamView ? { team_view: true } : {}),
+          ...(more.files ? { files_folder: 'team' } : {}),
           orchestration: {
             on: true,
             orchestrator: TEAM.orch,
@@ -176,11 +200,18 @@ function seed(
       version: 1,
       projects: {
         [PROJECT]: {
-          next: 4,
+          next: 4 + (more.topics ?? 0),
           topics: [
             topic(1, 'Name of the docs section', { task: 1 }),
             topic(2, 'Deploy key missing', { blocking: true }),
             topic(3, 'Release date', { status: 'closed', decision: 'Friday', updated: nowIso() }),
+            ...Array.from({ length: more.topics ?? 0 }, (_, i) =>
+              topic(
+                4 + i,
+                `Question ${4 + i}`,
+                i === (more.topics ?? 0) - 1 ? { status: 'discussing' } : {},
+              ),
+            ),
           ],
         },
       },
@@ -213,12 +244,12 @@ const saved = (root: string, file: string) =>
   JSON.parse(readFileSync(join(root, 'config', 'menkar', file), 'utf8'))
 
 // `profile`: a previous run's root, whose config is carried over, as a restart would find it.
-async function open(tasks = BASE_TASKS, teamView = false, profile?: string) {
+async function open(tasks = BASE_TASKS, teamView = false, profile?: string, more: SeedMore = {}) {
   let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
       root = dirs.root
-      const env = seed(dirs, tasks, teamView)
+      const env = seed(dirs, tasks, teamView, more)
       if (profile)
         cpSync(join(profile, 'config'), join(dirs.root, 'config'), {
           recursive: true,
@@ -689,3 +720,219 @@ test('a title of three lines or more is clamped to two on the Board, whole in it
     await launched.close()
   }
 })
+
+// ---------------------------------------------------------------- decisions 1.171 and 1.172
+
+const act = (page: Page, action: Record<string, unknown>) =>
+  page.evaluate(
+    (a) =>
+      (
+        globalThis as unknown as { menkar: { window: { act(x: unknown): Promise<unknown> } } }
+      ).menkar.window.act(a),
+    action,
+  )
+
+const setScheme = async (page: Page, scheme: 'dark' | 'light') => {
+  await page.evaluate(
+    async ([s, theme]) => {
+      const prefs = (
+        globalThis as unknown as {
+          menkar: { preferences: { set(k: string, v: string): Promise<unknown> } }
+        }
+      ).menkar.preferences
+      await prefs.set('color_scheme', s)
+      await prefs.set('terminal_theme', theme)
+    },
+    [scheme, catppuccin(scheme)] as const,
+  )
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.style.colorScheme))
+    .toBe(scheme)
+}
+
+// Each scheme's screenshot into the project's files folder, when the run has one.
+async function filesShots(page: Page, name: (scheme: string) => string): Promise<void> {
+  const files = process.env.MENKAR_FILES
+  if (!files) return
+  for (const scheme of ['dark', 'light'] as const) {
+    await setScheme(page, scheme)
+    await page.screenshot({ path: join(files, name(scheme)) })
+  }
+  await setScheme(page, 'dark')
+}
+
+const typeInto = (page: Page, session: string, data: string) =>
+  page.evaluate(
+    async ([id, text]) => {
+      const m = (
+        globalThis as unknown as {
+          menkar: {
+            window: {
+              state(): Promise<{
+                tabs: { panes: { id: string; sessionId: string | null }[] }[]
+              } | null>
+            }
+            panes: { input(pane: string, text: string): unknown }
+          }
+        }
+      ).menkar
+      const s = await m.window.state()
+      const pane = s?.tabs.flatMap((tab) => tab.panes).find((p) => p.sessionId === id)?.id ?? ''
+      return m.panes.input(pane, text)
+    },
+    [session, data] as const,
+  )
+
+const row = (page: Page, key: keyof typeof TEAM) =>
+  page.locator(`#session-list .row[data-session="${TEAM[key]}"]`)
+
+test('the Team view folds the orchestrator’s group (its count and the worst dot, red at a prompt), Consultants and Others, each saved per project and kept after a restart (screenshots)', async () => {
+  const first = await open(BASE_TASKS, true)
+  const { page, root } = first
+  // The config as the quit leaves it; closing removes the run's own directory.
+  const profile = mkdtempSync(join(tmpdir(), 'menkar-e2e-profile-'))
+  try {
+    await expect(row(page, 'w1')).toBeVisible()
+    await expect(page.locator('.xterm-rows').first()).toContainText('stand-in claude ready', {
+      timeout: 15_000,
+    })
+    await typeInto(page, TEAM.w1, 'ASK')
+    await expect
+      .poll(() => row(page, 'w1').locator('.dot').first().getAttribute('class'), {
+        timeout: 10_000,
+      })
+      .toContain('blocked')
+
+    const orch = row(page, 'orch')
+    await orch.locator('.team-fold').click()
+    await expect
+      .poll(() => saved(root, 'projects.json').projects[0].orchestrator_collapsed)
+      .toBe(true)
+    await expect(row(page, 'w1')).toHaveCount(0)
+    await expect(page.locator('.earlier-row')).toHaveCount(0)
+    await expect(orch.locator('.team-count')).toHaveText('2')
+    await expect(orch.locator('.team-count + .dot')).toHaveClass(/blocked/)
+
+    await page.locator('[data-heading="consultants"]').click()
+    await expect
+      .poll(() => saved(root, 'projects.json').projects[0].consultants_collapsed)
+      .toBe(true)
+    await expect(row(page, 'expert')).toHaveCount(0)
+    await page.locator('[data-heading="others"]').click()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].others_collapsed).toBe(true)
+    await expect(row(page, 'plain')).toHaveCount(0)
+    await expect(page.locator('[data-heading="others"]')).toHaveAttribute('aria-expanded', 'false')
+    await filesShots(page, (scheme) => `menkar-t52-team-folded-${scheme}.png`)
+    cpSync(join(root, 'config'), join(profile, 'config'), { recursive: true })
+  } finally {
+    await first.launched.close()
+  }
+
+  const again = await open(BASE_TASKS, true, profile)
+  try {
+    const page2 = again.page
+    await expect(row(page2, 'orch').locator('.team-count')).toHaveText('2')
+    await expect(row(page2, 'w1')).toHaveCount(0)
+    await expect(row(page2, 'expert')).toHaveCount(0)
+    await expect(row(page2, 'plain')).toHaveCount(0)
+    // Unfolded again, every row is back and no key is left.
+    await row(page2, 'orch').locator('.team-fold').click()
+    await page2.locator('[data-heading="consultants"]').click()
+    await page2.locator('[data-heading="others"]').click()
+    await expect(row(page2, 'w1')).toBeVisible()
+    await expect(row(page2, 'expert')).toBeVisible()
+    await expect(row(page2, 'plain')).toBeVisible()
+    await expect(row(page2, 'orch').locator('.team-count')).toHaveCount(0)
+    await expect
+      .poll(() => Object.keys(saved(again.root, 'projects.json').projects[0]))
+      .not.toContain('others_collapsed')
+    const keys = Object.keys(saved(again.root, 'projects.json').projects[0])
+    for (const key of ['orchestrator_collapsed', 'consultants_collapsed', 'others_collapsed'])
+      expect(keys).not.toContain(key)
+  } finally {
+    await again.launched.close()
+    rmSync(profile, { recursive: true, force: true })
+  }
+})
+
+const topicNumbers = (page: Page) =>
+  page.locator('.topic-row').evaluateAll((ns) => ns.map((n) => n.getAttribute('data-topic')))
+
+test('"Awaiting you" shows 5 topics, the current one first, then "N more…", in the Team and the Work view; a click unfolds the rest (screenshots)', async () => {
+  // Topics 1, 2 (blocking) and 4–13 open, 13 discussing: 12 in all.
+  const { launched, page } = await open(BASE_TASKS, true, undefined, { topics: 10 })
+  try {
+    await expect(page.locator('.topics-toggle')).toHaveText('Awaiting you · 12')
+    await expect.poll(() => topicNumbers(page)).toEqual(['13', '2', '1', '4', '5'])
+    await expect(page.locator('.topic-more')).toHaveText('7 more…')
+    await filesShots(page, (scheme) => `menkar-t52-topics-more-${scheme}.png`)
+
+    await page.locator('#view-switch .view-work').click()
+    await expect.poll(() => topicNumbers(page)).toEqual(['13', '2', '1', '4', '5'])
+    await expect(page.locator('.topic-more')).toHaveText('7 more…')
+    await page.locator('.topic-more').click()
+    await expect(page.locator('.topic-row')).toHaveCount(12)
+    await expect(page.locator('.topic-more')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+// One line each and nothing clipped: every line box of its text on one row and inside it.
+const oneLine = (page: Page, selector: string) =>
+  page.locator(selector).evaluate((node) => {
+    const box = node.getBoundingClientRect()
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0)
+    const middle = (r: DOMRect) => (r.top + r.bottom) / 2
+    const line = rects[0] ? middle(rects[0]) : 0
+    return {
+      lines: rects.length > 0 && rects.every((r) => Math.abs(middle(r) - line) < 4),
+      clipped: node.scrollWidth > node.clientWidth + 1 || box.right > window.innerWidth,
+    }
+  })
+
+for (const language of ['en', 'es'] as const)
+  test(`at the narrowest sidebar, 270 px, nothing wraps or is clipped in its top rows and headings; the Files heading shortens with "…" (${language}, screenshot)`, async () => {
+    const { launched, page } = await open(BASE_TASKS, false, undefined, {
+      topics: 10,
+      files: 54,
+      language,
+    })
+    try {
+      expect(SIDEBAR_MIN_WIDTH).toBe(270)
+      await act(page, { type: 'setSidebarWidth', width: SIDEBAR_MIN_WIDTH })
+      await expect.poll(async () => (await page.locator('#sidebar').boundingBox())?.width).toBe(270)
+      const awaiting = language === 'es' ? 'Pendientes tuyos · 12' : 'Awaiting you · 12'
+      await expect(page.locator('.topics-heading .topics-toggle').first()).toHaveText(awaiting)
+      await expect(page.locator('.files-label')).toHaveText(
+        language === 'es' ? 'Archivos · 54' : 'Files · 54',
+      )
+      await expect(page.locator('#presence-chip')).toBeVisible()
+      for (const selector of [
+        '.sidebar-header',
+        '#view-switch',
+        '.work-topics .topics-toggle',
+        '.files-heading',
+        '#presence-chip',
+      ])
+        expect({ selector, ...(await oneLine(page, selector)) }).toEqual({
+          selector,
+          lines: true,
+          clipped: false,
+        })
+      // The project's name reads whole, not shortened to a letter or two.
+      expect(
+        await page
+          .locator('#project-button .project-name')
+          .evaluate((n) => n.scrollWidth <= n.clientWidth),
+      ).toBe(true)
+      // The label may shorten, on its one line, but never pushes its heading's buttons out.
+      expect(await oneLine(page, '.files-label')).toMatchObject({ lines: true })
+      const files = process.env.MENKAR_FILES
+      if (files) await page.screenshot({ path: join(files, `menkar-t52-min-270-${language}.png`) })
+    } finally {
+      await launched.close()
+    }
+  })

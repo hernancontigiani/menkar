@@ -1,8 +1,8 @@
 import type { ShownState } from '../agentstate/shown'
 
 // What wakes a parent: a child it started waiting at a permission prompt, or ending
-// its turn. A parent hears of its children together, once they have been quiet a few seconds, so a
-// child that blocks and finishes in a breath costs it one message, not two.
+// its turn, and the human's own news for the orchestrator. A parent hears of them together, once
+// they have been quiet a few seconds: every post is a line in the human's chat with it.
 
 export const WAKE_DELAY_MS = 3000
 
@@ -20,8 +20,12 @@ export interface Timers {
 }
 
 export class WakeBatcher {
-  // Per parent, each child's latest event, in the order the children first spoke.
-  private readonly pending = new Map<string, { events: Map<string, string>; timer: unknown }>()
+  // Per parent, the human's latest post per key and each child's latest event, each in the order
+  // they first came.
+  private readonly pending = new Map<
+    string,
+    { human: Map<string, string>; events: Map<string, string>; timer: unknown }
+  >()
 
   constructor(
     private readonly send: (parent: string, text: string) => void,
@@ -39,10 +43,23 @@ export class WakeBatcher {
   ): void {
     if (!parent) return
     const event = wakeEvent(name, previous, next)
-    if (!event) return
-    const entry = this.pending.get(parent) ?? { events: new Map<string, string>(), timer: null }
-    entry.events.delete(child)
-    entry.events.set(child, event)
+    if (event) this.add(parent, 'events', child, event)
+  }
+
+  // The human's own news ("The human is back"): a later post of the same key replaces it.
+  post(parent: string, key: string, text: string): void {
+    this.add(parent, 'human', key, text)
+  }
+
+  // A post the parent no longer needs: it did, or learnt, what the post would tell it.
+  forget(parent: string, key: string): void {
+    this.pending.get(parent)?.human.delete(key)
+  }
+
+  private add(parent: string, kind: 'human' | 'events', key: string, text: string): void {
+    const entry = this.pending.get(parent) ?? { human: new Map(), events: new Map(), timer: null }
+    entry[kind].delete(key)
+    entry[kind].set(key, text)
     if (entry.timer !== null) this.timers.clear(entry.timer)
     entry.timer = this.timers.set(() => this.flush(parent), WAKE_DELAY_MS)
     this.pending.set(parent, entry)
@@ -51,11 +68,12 @@ export class WakeBatcher {
   private flush(parent: string): void {
     const entry = this.pending.get(parent)
     this.pending.delete(parent)
-    if (!entry || entry.events.size === 0) return
+    if (!entry) return
     const events = [...entry.events.entries()]
     const first = events.filter(([child]) => this.isStarred(child))
     const rest = events.filter(([child]) => !this.isStarred(child))
-    this.send(parent, [...first, ...rest].map(([, text]) => text).join('; '))
+    const texts = [...entry.human.values(), ...[...first, ...rest].map(([, text]) => text)]
+    if (texts.length > 0) this.send(parent, texts.join('; '))
   }
 
   dispose(): void {
@@ -64,15 +82,18 @@ export class WakeBatcher {
   }
 }
 
-// A turn Menkar's own team post opened answers nothing the parent waits on. The transcript is
-// read only when the pane was delivered such a post since its last turn end.
+// A turn Menkar's own team post opened answers nothing the parent waits on, and one the child's
+// report to its parent closed has told it already. The team check reads the transcript only when
+// the pane was delivered such a post since its last turn end.
 export async function wakesParent(
   previous: ShownState,
   next: ShownState,
   postedSinceTurnEnd: boolean,
   onlyTeamUpdates: () => Promise<boolean>,
+  reportClosedTurn: () => Promise<boolean>,
 ): Promise<boolean> {
   const turnEnd = previous === 'working' && (next === 'idle' || next === 'done')
-  if (!turnEnd || !postedSinceTurnEnd) return true
-  return !(await onlyTeamUpdates())
+  if (!turnEnd) return true
+  if (postedSinceTurnEnd && (await onlyTeamUpdates())) return false
+  return !(await reportClosedTurn())
 }

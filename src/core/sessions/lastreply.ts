@@ -117,3 +117,32 @@ export async function lastReply(file: string): Promise<string | null> {
 export async function onlyTeamUpdates(file: string): Promise<boolean> {
   return onlyUpdates(await new Reader(backwards(file)).openers())
 }
+
+// A peer's name as the model typed it, "set" or "set [15c83e]".
+const bareName = (to: unknown) =>
+  typeof to === 'string' ? to.replace(/\s*\[[^\]]*\]\s*$/, '').trim() : null
+
+// Whether the transcript's last turn closed with a report to the parent: among the SendMessage
+// calls after the turn's last other tool call, one to `parent` that Claude Code says was sent. A
+// message sent earlier in the turn ("may I…?") is followed by more work, whose end the parent
+// still needs to hear of. Claude Code records `to` as typed and no resolved session, so the parent
+// is known only by the name it has now.
+export async function reportClosedTurn(file: string, parent: string): Promise<boolean> {
+  const sent = new Set<string>()
+  for await (const line of backwards(file)) {
+    if (opener(line)) return false
+    for (const block of [...blocks(line)].reverse()) {
+      const type = field(block, 'type')
+      if (type === 'tool_result' && field(line.toolUseResult, 'success') === true) {
+        const id = field(block, 'tool_use_id')
+        if (typeof id === 'string') sent.add(id)
+      }
+      if (type !== 'tool_use') continue
+      if (field(block, 'name') !== 'SendMessage') return false
+      const id = field(block, 'id')
+      const to = bareName(field(field(block, 'input'), 'to'))
+      if (to === parent && typeof id === 'string' && sent.has(id)) return true
+    }
+  }
+  return false
+}
