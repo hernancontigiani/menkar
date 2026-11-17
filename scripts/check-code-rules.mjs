@@ -42,15 +42,8 @@ export const ALLOWED = {
       reason: "moved in P0.7: removed, its commands are the descriptors'",
     },
   },
-  'src/core/agentstate/detect.ts': {
-    'agent-identifier': { count: 8, reason: 'moved in P0.5' },
-    'agent-literal': { count: 2, reason: 'moved in P0.5' },
-  },
   'src/core/agentstate/mirror.ts': {
     'agent-identifier': { count: 1, reason: "permanent: the terminal's cursor row, not the agent" },
-  },
-  'src/core/agentstate/notify.ts': {
-    'agent-property': { count: 2, reason: 'moved in P0.5' },
   },
   'src/core/chat/processes.ts': {
     'agent-identifier': { count: 2, reason: 'moved in P0.7' },
@@ -139,17 +132,8 @@ export const ALLOWED = {
       reason: "P1a.6: TurnSource replaces PassPaths' root",
     },
   },
-  'src/main/panes.ts': {
-    'agent-literal': { count: 4, reason: 'moved in P0.5' },
-  },
-  'src/main/remote-live.ts': {
-    'agent-literal': { count: 2, reason: 'moved in P0.5' },
-  },
   'src/main/workspace.ts': {
-    'agent-literal': {
-      count: 21,
-      reason: 'moved in P0.5 (pane.remote) and P0.6 (the rest)',
-    },
+    'agent-literal': { count: 20, reason: 'moved in P0.6' },
     'agent-property': { count: 2, reason: 'moved in P0.6: installedAgents from the registry' },
   },
   'src/renderer/addsession.ts': {

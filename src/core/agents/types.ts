@@ -1,3 +1,4 @@
+import type { RawState } from '../agentstate/raw'
 import type { Start } from '../command'
 import type { Key } from '../i18n'
 import type { Badge, Details, Head } from '../sessions/details'
@@ -141,6 +142,11 @@ export interface SessionCatalog {
   readonly transcript: TranscriptReading | null
 }
 
+// What the agent is doing, read from the title it set and the text on its screen.
+export interface StateRules {
+  detect(title: string, screen: string): RawState
+}
+
 export interface AgentKit {
   readonly launch: Launcher
   readonly mcp: McpMount | null
@@ -148,4 +154,5 @@ export interface AgentKit {
   readonly team: TeamDelivery | null
   readonly env: EnvRules | null
   readonly catalog: SessionCatalog
+  readonly state: StateRules
 }

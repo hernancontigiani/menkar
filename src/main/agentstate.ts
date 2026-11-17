@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { BrowserWindow, Notification, shell, type WebContents } from 'electron'
-import { AGENT_NAMES, notifySettings, plan } from '../core/agentstate/notify'
+import { descriptorOf } from '../core/agents/descriptors'
+import { notifySettings, plan } from '../core/agentstate/notify'
 import {
   type AgentStates,
   afterSeen,
@@ -12,7 +13,7 @@ import {
 } from '../core/agentstate/shown'
 import { NotificationTray } from '../core/agentstate/tray'
 import { PaneWatcher } from '../core/agentstate/watch'
-import { t } from '../core/i18n'
+import { t, translate } from '../core/i18n'
 import { log } from '../core/log'
 import { mutedList } from '../core/mute'
 import { closeStaleTopicNotices, topicKey } from '../core/orchestration/notices'
@@ -100,7 +101,7 @@ async function notify(pane: AgentPane, state: 'blocked' | 'done'): Promise<void>
   const what = plan(state, pane.windowFocused(), settings)
   if (what.sound !== null) playSound(what.sound)
   if (what.show === null) return
-  const agent = AGENT_NAMES[pane.provider] ?? pane.provider
+  const agent = translate(descriptorOf(pane.provider).label)
   const text =
     state === 'blocked'
       ? t('agentState.needsInput', { agent })

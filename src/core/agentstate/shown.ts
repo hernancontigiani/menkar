@@ -1,5 +1,5 @@
 import type { BridgeState } from '../remote/live'
-import type { RawState } from './detect'
+import type { RawState } from './raw'
 
 // What a pane shows on top of what its agent is doing: "done" when it finished while nobody was
 // looking, until someone looks.

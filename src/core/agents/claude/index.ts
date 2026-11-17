@@ -3,6 +3,7 @@ import { catalog } from './catalog'
 import { env } from './env'
 import { launch, namer } from './launch'
 import { mcp } from './mcp'
+import { state } from './state'
 import { team } from './team'
 
-export const kit: AgentKit = { launch, mcp, namer, team, env, catalog }
+export const kit: AgentKit = { launch, mcp, namer, team, env, catalog, state }

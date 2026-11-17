@@ -162,8 +162,10 @@ is shown as written; none is `—`).
     only. Its shape, as of Claude Code 2.1.319: `{"pid":…, "sessionId":"…", "procStart":"…",
     "status":"idle", …, "bridgeSessionId":"session_…"}`. `bridgeSessionId` is a string while a
     bridge is connected, `null` after a disconnect, and absent in a process that never had one.
-  - **How it is read** (`src/core/remote/live.ts`, `src/main/remote-live.ts`): the agent is found
-    as the descendant of the pane's shell named `claude` (or a `node …/claude` script), by
+  - **How it is read** (`src/core/remote/live.ts` and Claude's main kit,
+    `src/main/agents/claude/remote.ts`; the watch and the poll in `src/main/remote-live.ts`): the
+    agent is found as the descendant of the pane's shell named `claude` (or a `node …/claude`
+    script), by
     `/proc/<pid>/task/*/children` and `cmdline`; its file must match its pid, its session (once
     the pane knows it) and its start time (`/proc/<pid>/stat`, field 22), so a reused pid is not
     taken for it. The folder is watched (250 ms debounce) and polled every 5 s, since a watch can

@@ -11,7 +11,7 @@ import { mainKitOf } from '../../../src/main/agents/registry'
 const PAIRS: Readonly<
   Record<AgentCap, { block: string; concern: ((id: AgentId) => unknown) | null }>
 > = {
-  remote: { block: 'P0.5', concern: null },
+  remote: { block: 'P0.5', concern: (id) => mainKitOf(id).remote },
   fork: { block: 'P0.6', concern: null },
   trash: { block: 'P0.4', concern: (id) => kitOf(id).catalog.trash },
   chat: { block: 'P0.7', concern: null },

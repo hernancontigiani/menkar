@@ -1,0 +1,92 @@
+[
+  {
+    "name": "run this command with its choices",
+    "title": "",
+    "screen": "Run this command?\nnpm test\nRun (once) (y)",
+    "state": "blocked"
+  },
+  {
+    "name": "an allow line ending in (y)",
+    "title": "",
+    "screen": "  → Allow write to src/a.ts (y)",
+    "state": "blocked"
+  },
+  {
+    "name": "a running line is not an allow line",
+    "title": "",
+    "screen": "running npm test (y)",
+    "state": "idle"
+  },
+  {
+    "name": "keep (n)",
+    "title": "",
+    "screen": "Keep (n)",
+    "state": "blocked"
+  },
+  {
+    "name": "write to this file with proceed",
+    "title": "",
+    "screen": "Write to this file?\nProceed (y)",
+    "state": "blocked"
+  },
+  {
+    "name": "a Braille spinner before an -ing word",
+    "title": "",
+    "screen": "⠙ Generating",
+    "state": "working"
+  },
+  {
+    "name": "a spinner before a past tense",
+    "title": "",
+    "screen": "⠙ Generated",
+    "state": "idle"
+  },
+  {
+    "name": "ctrl+c to stop in the last six lines",
+    "title": "",
+    "screen": "ctrl+c to stop\na\nb\nc\nd\ne",
+    "state": "working"
+  },
+  {
+    "name": "ctrl+c to stop above the last six lines",
+    "title": "",
+    "screen": "ctrl+c to stop\na\nb\nc\nd\ne\nf",
+    "state": "idle"
+  },
+  {
+    "name": "background tasks",
+    "title": "",
+    "screen": "3 background tasks",
+    "state": "working"
+  },
+  {
+    "name": "zero background tasks",
+    "title": "",
+    "screen": "0 background tasks",
+    "state": "idle"
+  },
+  {
+    "name": "the title is not read",
+    "title": "⠋ Busy",
+    "screen": "",
+    "state": "idle"
+  },
+  {
+    "name": "Claude's question is not Cursor's",
+    "title": "",
+    "screen": "Do you want to proceed?\n❯ 1. Yes",
+    "state": "idle"
+  },
+  {
+    "name": "a prompt as the 10th line from the bottom",
+    "title": "",
+    "screen": "Keep (n)\n1\n2\n3\n4\n5\n6\n7\n8\n9",
+    "state": "blocked"
+  },
+  {
+    "name": "a prompt as the 11th line from the bottom",
+    "title": "",
+    "screen": "Keep (n)\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10",
+    "state": "idle"
+  }
+]

@@ -65,3 +65,9 @@ without `state.json` and `projects.json` is the first start that imports agent-t
 > Left on 2026-11-16: details and export read through the session's agent catalog (plan 39, P0.4).
 - **Details and export** read the whole transcript in main and use
   `src/core/sessions/transcript.ts`. Details' Tokens row is left out until it can come from the
+
+## Remote Control, and the details' tokens
+
+> Left on 2026-11-17: each agent's state rules and Remote Control reading are its kit's (plan 39, P0.5).
+  - **How it is read** (`src/core/remote/live.ts`, `src/main/remote-live.ts`): the agent is found
+    as the descendant of the pane's shell named `claude` (or a `node …/claude` script), by

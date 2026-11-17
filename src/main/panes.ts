@@ -1,10 +1,11 @@
+import type { AgentId } from '../core/agents/ids'
 import { ScreenMirror } from '../core/agentstate/mirror'
 
 // The agent panes alive in any window, for the agent-state module: each gets its screen mirror
 // before its first byte, sees every write and resize, and the mirror is disposed after onClose.
 export interface AgentPane {
   readonly id: string
-  readonly provider: 'claude' | 'cursor'
+  readonly provider: AgentId
   sessionId(): string | null
   readonly mirror: ScreenMirror
   // The agent still owns the pty's foreground (it is not back at the shell).
@@ -59,7 +60,7 @@ export interface PaneHandle {
 
 export function registerAgentPane(
   id: string,
-  provider: 'claude' | 'cursor',
+  provider: AgentId,
   size: { cols: number; rows: number },
   where: PaneWhereabouts,
 ): PaneHandle {

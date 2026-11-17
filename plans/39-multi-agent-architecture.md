@@ -1216,3 +1216,42 @@ P0's blocks run in turn.
 - **CI on 2026-11-16:** every step green except "R10 unchanged", because `main` moved to `7e8add4`
   (task 51, five plugin snapshots). The branch's R10 files are byte-equal to the merge base
   `fbbf0e5`, and the step clears when `main` is merged in.
+
+### P0.5 (`menkar-t61`, task 61, 2026-11-17)
+
+- **Decided by set, 2026-11-17:** `bottom` and the splitlines `LINE_BREAK` both agents' rules use
+  live in `src/core/agents/shared/screen.ts`, so no import cycle runs detect → registry → a kit's
+  `state.ts` → detect.
+- **Decided by set, 2026-11-17:** the state contract's fixtures are
+  `tests/data/agents/<id>/screens.json` (name, title, screen, expected raw state), checked against
+  the rules as they were before the move (the facade alone, on the unmoved `detect.ts`), with the
+  edge of each line window (Claude's 14 and 3, Cursor's 10) so a moved count fails the contract.
+- **Decided by set, 2026-11-17:** Claude's `remote.live` is tested in
+  `tests/main/agents/claude/remote.test.ts` with a temporary HOME holding a registry `<pid>.json`
+  and a real throwaway process running a script named `claude`, killed by its process group in the
+  teardown.
+- **Decided by set, 2026-11-17 — §2.3 corrected:** Remote is `live(pane) → Promise<BridgeState>`
+  (`'on' | 'off' | 'unknown'`), not `boolean`: 'unknown' makes the icon fall back to the app's own
+  list, and a boolean would lose it. It also has `folder()`, the registry folder the loop watches.
+  `Remote` and `RemotePane` are in `src/main/agents/types.ts`.
+- **Decided by set, 2026-11-17:** `tests/core/agents/parity.test.ts`'s `remote` pair is
+  `mainKitOf(id).remote`, as P0.4 filled `trash`.
+- **Decided by set, 2026-11-17 — P0.4's trap again:** `src/core/agentstate/shown.ts` (reached by
+  the renderer's `tsc`) imported `RawState` from `detect.ts`, now a facade over the registry that
+  reaches `node:fs`. `RAW_STATES` and `RawState` live in the Node-free `src/core/agentstate/raw.ts`,
+  re-exported by `detect.ts`; `shown.ts`'s one import line points at it, as P0.4's `details.ts` did.
+- **Decided by set, 2026-11-17:** `AGENT_NAMES` (`agentstate/notify.ts`) is gone; a notification
+  names its agent with the descriptor's label through `translate(key)`, a new export of
+  `src/core/i18n.ts`, the twin of the renderer's (`check-i18n` takes only a literal in `t()`). A test
+  asserts every descriptor's label key is in `en` and in `es` themselves, and that both read
+  'Claude Code' and 'Cursor', the names shown before.
+- **Decided by set, 2026-11-17:** `docs/agent-state.md` (the shape, the background pill) and
+  `docs/sessions.md` (Remote Control, how it is read) name the kits now; the old lines went verbatim
+  to their histories.
+- `detectState(provider: string, …)` keeps its signature: it parses the id (`parseAgentId`) and an
+  unknown one is idle, as before; `src/core/agentstate/watch.ts` is unchanged. `StateRules` is
+  `state` in every kit (never `null`: every agent has rules). The loop in `remote-live.ts` resolves
+  the kits' folders on each watch attempt, as `agentPaths()` was read before.
+- **`ALLOWED`:** the entries of `agentstate/{detect,notify}.ts`, `src/main/panes.ts` and
+  `src/main/remote-live.ts` are gone; `src/main/workspace.ts`'s `agent-literal` 21 → 20, its reason
+  now P0.6 alone (`pane.remote` asks `mainKitOf(spec.agent).remote`).

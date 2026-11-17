@@ -989,7 +989,8 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     handle: undefined,
     pending: spec.pending,
     cwd: spec.cwd,
-    remote: spec.agent === 'claude' && spec.remote !== undefined,
+    remote:
+      spec.agent !== 'shell' && mainKitOf(spec.agent).remote !== null && spec.remote !== undefined,
   }
   if (spec.sessionId) noteStarted(spec.sessionId)
   const self = pane

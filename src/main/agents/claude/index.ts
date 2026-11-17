@@ -3,6 +3,7 @@ import { postToSession } from '../../../core/control/post'
 import { agentPaths } from '../../../core/paths'
 import { sessionSettingsFile } from '../../context'
 import type { MainAgentKit } from '../types'
+import { remote } from './remote'
 
 export const mainKit: MainAgentKit = {
   settings: sessionSettingsFile,
@@ -10,4 +11,5 @@ export const mainKit: MainAgentKit = {
     tell: (sessionId, text, counts) =>
       postToSession(agentPaths().claudeSessions, sessionId, text, randomUUID(), counts),
   },
+  remote,
 }
