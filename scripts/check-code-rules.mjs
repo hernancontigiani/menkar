@@ -132,10 +132,6 @@ export const ALLOWED = {
       reason: "P1a.6: TurnSource replaces PassPaths' root",
     },
   },
-  'src/main/workspace.ts': {
-    'agent-literal': { count: 20, reason: 'moved in P0.6' },
-    'agent-property': { count: 2, reason: 'moved in P0.6: installedAgents from the registry' },
-  },
   'src/renderer/addsession.ts': {
     'agent-literal': { count: 12, reason: 'moved in P0.7' },
   },

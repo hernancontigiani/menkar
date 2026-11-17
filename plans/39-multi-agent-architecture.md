@@ -1255,3 +1255,54 @@ P0's blocks run in turn.
 - **`ALLOWED`:** the entries of `agentstate/{detect,notify}.ts`, `src/main/panes.ts` and
   `src/main/remote-live.ts` are gone; `src/main/workspace.ts`'s `agent-literal` 21 → 20, its reason
   now P0.6 alone (`pane.remote` asks `mainKitOf(spec.agent).remote`).
+
+### P0.6 (`menkar-t64`, task 64, 2026-11-17)
+
+- **Decided by set, 2026-11-17 — files beyond §5's row:** `src/core/agents/types.ts` and
+  `src/core/agents/{claude,cursor}/index.ts` (`ids`, `follow`, `fork`), `src/main/agents/types.ts`
+  and `src/main/agents/{claude,cursor}/index.ts` (`Waker`), `src/core/agents/registry.ts`
+  (`isDefault`, §2.4's "the registry's"), `tests/core/agents/parity.test.ts` (the `fork` pair,
+  `kitOf(id).fork`), `src/core/agents/{claude,cursor}/catalog.ts` (`turnEnd`, below), and the new
+  test files beside each piece.
+- **Decided by set, 2026-11-17 — a child's turn end (gap A):** `onShownChange` gated a *child's*
+  turn end waking its parent on Claude, and read the child's transcript with `onlyTeamUpdates` and
+  `reportClosedTurn`. That is the child's catalog's concern, not the parent's waker:
+  `SessionCatalog.turnEnd: { onlyTeamUpdates, reportedTo } | null` (Claude's from
+  `sessions/lastreply.ts`, Cursor's `null`); `onShownChange` returns when it is `null`, and the
+  catalog interprets the locator, so P0.4's `onlyTeamUpdates(file)` leftover is gone.
+  `reportClosedTurn` stays in `lastreply.ts` and is Claude's `turnEnd.reportedTo`.
+- **Decided by set, 2026-11-17 — "restored and not started" (gap B):** every pane runs a shell, so
+  a kept pane is a plain shell pane holding the session id (agent `'shell'`: no state detection, no
+  team delivery), with the line written above it, as the "CLI not found" path does
+  (`PaneSpec.notice`). The saved tab and the member stay as they were; closing the shell closes the
+  tab, as any pane's exit does.
+- **Decided by set, 2026-11-17 (gap C):** `agentName('shell')` answers the default agent's label, as
+  before (the quit list names a running shell split "Claude Code"); the fix is task 67.
+- **Decided by set, 2026-11-17 (gap D):** IdBinding enters as `ids.newId()` and
+  `follow.classify(source)`; `isRealId` waits for Codex, its first consumer.
+- **Decided by set, 2026-11-17 (gap E):** `start_session` starts `DEFAULT_AGENT` and "Ask an agent"
+  (a file tab's) too; a renew restarts the pane's own agent. Renew's and `start_session`'s ids stay
+  `randomUUID()` (P1b.2's provisional ids own them); `startNew`'s and a fork's come from
+  `kit.ids.newId()`.
+- **`session_agents`** lives in `src/core/state.ts` (`sessionAgents`, `withSessionAgent`, which
+  returns the same state when nothing changes, so main skips the write), with the restore rule
+  `restoreOf(found, named)` → `resume` / `missing` / `unsupported` / `unnamed`, read by both
+  `dropUnknownSessions` (keeps all but `unnamed`) and `resumeSpec` (`unnamed` resumes as
+  `DEFAULT_AGENT`, as `?? 'claude'` did). Main writes it at a pane's start with a session (not for
+  a kept pane) and when a pending session joins, never for the default agent (`isDefault`), and
+  forgets it on trash and delete. `dropUnknownSessions` reads it from the state after the first
+  scan, so a slow state load cannot drop a tab it names.
+- **`Waker`** (`src/main/agents/types.ts`): `wake(sessionId, text, counts) → Promise<PostOutcome>`,
+  `PostOutcome` being the existing type. Claude's (`src/main/agents/claude/waker.ts`) is the post
+  `wakeSession` made; Claude's `team.tell` is the same function. Cursor's main kit has `waker:
+  null`, so no `src/main/agents/cursor/waker.ts` exists yet (P3.4 adds it). The wake batcher's
+  human posts (presence, control, topic) are gated on the orchestrator's pane having a waker.
+- **`follow.classify`** for Claude: `clear` → `clear`, `resume` → `resume`, `compact` → `null`;
+  `followPaneStart`'s own `compact` early return went with it (the team record is still noted
+  first). The two restore lines are `terminal.restoreMissing` and `terminal.restoreUnsupported`,
+  after `[menkar]`, the tag every app line has.
+- **`ALLOWED`:** `src/main/workspace.ts`'s entry is gone (agent-literal 20 and agent-property 2 →
+  0). `AGENT_COMMANDS[spec.agent]` in `startPaneHeld` stays (P0.7 removes `src/core/agents.ts`).
+- **The e2e's Claude-start case** waits for the new session to join before reading `state.json`:
+  a new Claude session's id binds late (a `Pending`), and a fixed wait passed with `isDefault`
+  broken.

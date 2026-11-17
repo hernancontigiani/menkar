@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { agentPaths } from '../../paths'
 import type { Badge, Details, Head, RecentMessage } from '../../sessions/details'
-import { lastReply } from '../../sessions/lastreply'
+import { lastReply, onlyTeamUpdates, reportClosedTurn } from '../../sessions/lastreply'
 import {
   applyNameLines,
   chunkLines,
@@ -175,4 +175,5 @@ export const catalog: SessionCatalog = {
   // The .jsonl alone: its sibling directory (subagents/, tool-results/) stays.
   trash: { target: (locator) => locator },
   transcript,
+  turnEnd: { onlyTeamUpdates, reportedTo: reportClosedTurn },
 }

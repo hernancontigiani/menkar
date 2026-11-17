@@ -1,5 +1,6 @@
 import type { RawState } from '../agentstate/raw'
 import type { Start } from '../command'
+import type { PaneStartSource } from '../context/statusline'
 import type { Key } from '../i18n'
 import type { Badge, Details, Head } from '../sessions/details'
 import type { DiscoveredSession } from '../sessions/scanner'
@@ -138,6 +139,31 @@ export interface SessionCatalog {
   location(locator: string): string | null
   readonly trash: SessionTrash | null
   readonly transcript: TranscriptReading | null
+  // What a worker's closed turn says to its parent; null when the agent's turns are not read.
+  readonly turnEnd: TurnEndReading | null
+}
+
+// A session's last turn, read when it ends: whether it only took team updates, and whether it
+// closed by sending its report to the parent itself.
+export interface TurnEndReading {
+  onlyTeamUpdates(locator: string): Promise<boolean>
+  reportedTo(locator: string, parentName: string): Promise<boolean>
+}
+
+// The ids of a new session's start.
+export interface SessionIds {
+  // The id a new session is started with; null when the agent picks its own.
+  newId(): string | null
+}
+
+// How a pane's session changing id is followed; null when the agent tells Menkar of no such change.
+export interface PaneFollow {
+  // A clear gives the pane a new session in the old one's place; a resume, another session.
+  classify(source: PaneStartSource): 'clear' | 'resume' | null
+}
+
+export interface Fork {
+  plan(source: string, id: string): Start
 }
 
 // What the agent is doing, read from the title it set and the text on its screen.
@@ -153,4 +179,7 @@ export interface AgentKit {
   readonly env: EnvRules | null
   readonly catalog: SessionCatalog
   readonly state: StateRules
+  readonly ids: SessionIds
+  readonly follow: PaneFollow | null
+  readonly fork: Fork | null
 }

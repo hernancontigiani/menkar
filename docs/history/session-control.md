@@ -163,3 +163,8 @@ order the children first spoke in (decisions 1.78 and 1.114).
 - **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]
 The human wants to discuss topic N" (a double-click on a topic), "[Menkar] The human took control
 of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab's banner, decision 1.101).
+
+## The shape
+
+> Left on 2026-11-17: waking is asked of the parent's agent's kit (plan 39, P0.6).
+    - A parent with no Claude tab, or no entry in the registry, is logged and not woken.

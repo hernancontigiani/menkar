@@ -22,6 +22,11 @@ export interface Remote {
   live(pane: RemotePane): Promise<BridgeState>
 }
 
+// How a session is woken with a line of Menkar's while it runs.
+export interface Waker {
+  wake(sessionId: string, text: string, counts: WorkCounts | undefined): Promise<PostOutcome>
+}
+
 export interface MainAgentKit {
   // The settings file the agent's sessions are started with, written when it changed; null when
   // the agent takes none.
@@ -30,4 +35,5 @@ export interface MainAgentKit {
     | null
   readonly team: MainTeamDelivery | null
   readonly remote: Remote | null
+  readonly waker: Waker | null
 }

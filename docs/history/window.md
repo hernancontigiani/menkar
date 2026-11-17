@@ -133,3 +133,9 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 > Left on 2026-11-16: the sidebar starts at 300 px and stops at 270 px; a width saved below it opens at 270 (decision 1.172).
 - **The sidebar** starts at 250 px and stops at 180 px; a double click on the divider puts it back
   at 250 and saves that. A width saved before is kept (2026-11-10).
+
+## The start (plan 25, 2026-11-10)
+
+> Left on 2026-11-17: a saved tab keeps the sessions `session_agents` names (plan 39, P0.6).
+  first scan ends, so an empty list never reads as "no sessions". When the scan ends, a saved tab
+  whose sessions are all gone is dropped, and the shown project's saved tabs start (decision 1.32).

@@ -244,7 +244,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       `wakeSession` passes them in (`postCounts`, `src/core/orchestration/counts.ts`, the tiles'
       own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
       it. Posts to other sessions have no counts.
-    - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
+    - A parent whose tab's agent has no waker (`mainKit.waker`, Claude's alone today), or no entry
+      in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
 - **The human's own posts to the orchestrator** go through the same batch (decision 1.173):
   "The human wants to discuss topic N" (a double-click on a topic), "The human took control of

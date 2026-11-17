@@ -34,6 +34,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'drawer.pickPlaceholder': 'Filtrar carpetas',
   'drawer.divider': 'Arrastrá para cambiar el alto de la shell; Ctrl+` la oculta',
   'terminal.notFound': 'aviso: no se encontró `{cli}` en el PATH — se abre una shell sola',
+  'terminal.restoreMissing':
+    'No se encontró esta sesión: puede que su agente ({agent}) esté desinstalado o que sus archivos ya no estén.',
+  'terminal.restoreUnsupported':
+    'Esta versión de Menkar no admite el agente de esta sesión ({agent}).',
   'tab.fork': '{name} (fork)',
   'tab.tooltipSession': '{folder} — {id}',
   'tab.tooltipNew': 'nueva sesión de {agent} — {cwd}',

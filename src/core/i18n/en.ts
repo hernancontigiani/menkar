@@ -32,6 +32,10 @@ export const en = {
   'drawer.pickPlaceholder': 'Filter folders',
   'drawer.divider': 'Drag to resize the shell; Ctrl+` hides it',
   'terminal.notFound': 'warning: `{cli}` not found in PATH — starting a plain shell',
+  'terminal.restoreMissing':
+    'This session was not found: its agent ({agent}) may be uninstalled or its files gone.',
+  'terminal.restoreUnsupported':
+    "This session's agent ({agent}) is not supported by this version of Menkar.",
   'tab.fork': '{name} (fork)',
   'tab.tooltipSession': '{folder} — {id}',
   'tab.tooltipNew': 'new {agent} session — {cwd}',
