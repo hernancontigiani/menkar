@@ -97,6 +97,42 @@ test('CHT-6, CHT-13, CHT-15, CHT-16, CHT-32, CHT-35 a Claude chat: tab, message,
   }
 })
 
+// 1.135: the row menu asks the session's agent's descriptor, so a Cursor row keeps today's menu.
+test('a row menu follows its agent: Claude Code has Fork and Remote control, Cursor neither', async () => {
+  const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = withStandins(log)(dirs)
+      withCursorSession(dirs)
+      const projects = join(dirs.root, 'config', 'menkar', 'projects.json')
+      const saved = JSON.parse(readFileSync(projects, 'utf8'))
+      saved.projects[0].members.push(CURSOR_CHAT)
+      writeFileSync(projects, JSON.stringify(saved))
+      return env
+    },
+  })
+  const page = launched.window
+  const menuOf = async (session: string) => {
+    await page.locator(`.row[data-session="${session}"]`).click({ button: 'right' })
+    const items = page.locator('.menu-item')
+    await expect(items.first()).toBeVisible()
+    const labels = await items.allTextContents()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.menu-item')).toHaveCount(0)
+    return labels
+  }
+  try {
+    const has = (labels: string[], label: string) => labels.some((l) => l.includes(label))
+    const claude = await menuOf(SESSION)
+    expect([has(claude, 'Fork session'), has(claude, 'Remote control')]).toEqual([true, true])
+    const cursor = await menuOf(CURSOR_CHAT)
+    expect(has(cursor, 'Rename…')).toBe(true)
+    expect([has(cursor, 'Fork session'), has(cursor, 'Remote control')]).toEqual([false, false])
+  } finally {
+    await launched.close()
+  }
+})
+
 test('CHT-9, CHT-39, CHT-40, CHT-41 Continue in chat; the chat tab is not saved, not asked about, and ends on close', async () => {
   const log = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'menkar-chat-e2e-'))
   let root = ''

@@ -51,3 +51,6 @@ human likes; the features are all of agent-tablet's.
 
 > Replaced 2026-11-17: the files folder reaches Claude through --settings, not --add-dir (task 57).
 | `docs/project-files.md` | The per-project files folder, the sidebar's Files section, bringing a file in, or `--add-dir` |
+
+> Replaced 2026-11-17: the per-agent rule names its check (plan 39, P0.7).
+  cannot break another's (1.135). How it is organised is the multi-agent architecture's to decide.

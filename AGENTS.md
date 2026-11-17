@@ -53,6 +53,7 @@ what matters from being lost when a plan is deleted.
 | `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, waking a session, or the skills plugin |
 | `docs/orchestration.md` | The orchestration mode: its marks, topics and tasks, the Work and Team views, the Board, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
 | `docs/release-checklist.md` | Cutting a release: what the human checks on a real desktop before a build is called a version |
+| `docs/agents.md` | Adding or changing a coding agent: its kit, its descriptor, the registries, and the rule that keeps agent names out of shared code |
 
 ## Product rules the code must hold
 
@@ -105,7 +106,8 @@ Each one is broken by an ordinary-looking line of code.
 - **What differs per coding agent lives behind one interface per concern, one implementation per
   agent** (starting, transcripts, state, waking, the MCP's mounting…), chosen once from the session's
   agent: shared code never branches on an agent's name, and a change to one agent's implementation
-  cannot break another's (1.135). How it is organised is the multi-agent architecture's to decide.
+  cannot break another's (1.135), enforced by `scripts/check-code-rules.mjs`. How it is organised
+  is the multi-agent architecture's to decide.
 - **IPC is typed once**: one module declares every channel and its payload, imported by main,
   preload and renderer. `contextIsolation` on, `nodeIntegration` off, `sandbox` on for the renderer.
 - **Never block the main process or the renderer.** Reading transcripts, scanning folders and SQLite

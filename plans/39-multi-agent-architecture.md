@@ -1306,3 +1306,52 @@ P0's blocks run in turn.
 - **The e2e's Claude-start case** waits for the new session to join before reading `state.json`:
   a new Claude session's id binds late (a `Pending`), and a fixed wait passed with `isDefault`
   broken.
+
+### P0.7 (`menkar-t71`, task 71, 2026-11-17)
+
+- **Decided by set, 2026-11-17 — files beyond §5's row:** `src/core/agents/types.ts`,
+  `src/core/agents/{claude,cursor}/{index,descriptor}.ts` and the new `{claude,cursor}/chat.ts`,
+  `tests/core/agents/parity.test.ts`, and `src/main/workspace.ts:959` only
+  (`AGENT_COMMANDS[spec.agent]` → `descriptorOf(spec.agent).command`), so `src/core/agents.ts` is
+  deleted. Also `docs/chat.md` and `docs/NOT_BUILT_YET.md` (lines this block made false, old ones
+  to their histories) and `AGENTS.md`'s table row for `docs/agents.md`.
+- **Decided by set, 2026-11-17 — test-pinned names (§2.11 against §2.2's "move or rename"):** names
+  the tests import stay where they are, as `ALLOWED` entries whose reason is "tests import it by
+  this name (§2.11, P0 rewrites no test); moves into its agent's folder with its test after P0.8":
+  `chat/protocol.ts` (`claudeArgs`, `cursorArgs`, `claudeEvents`, `cursorEvents`),
+  `chat/processes.ts` (`cursorTurn`, now an alias of `sendChat`), `classifier/run.ts`
+  (`findClaude`, `claudeCall`), `context/files.ts` (`contextFiles.claudeSettings`),
+  `context/integrations.ts` (`CLAUDE_DEFAULT_CLEANUP_DAYS`), `files/check.ts` (`isClaudeData`),
+  `sessions/{info,service}.ts` (`claudeNamed`). **One follow-up after P0.8 merges**: move each with
+  its test and drop its entry (listed in `docs/agents.md` too). Unpinned locals were renamed
+  (`startClaude` → Claude's `chat.open`, `claudeDir`/`claudeJson`, the usage cache's `claude`
+  variable and property → `given`, `claudeSwitch` → `settingsSwitch`).
+- **Decided by set, 2026-11-17 — chat variants are renderer data:** each descriptor holds its
+  `chat: readonly ChatVariant[]` (today's bytes); `variants.ts` keeps `VARIANTS`, `variantsFor`,
+  `variantOf` as facades over `DESCRIPTORS`, `ChatAgent = AgentId`; `AGENT_CLIS` and `AGENT_NAMES`
+  are gone (the descriptor's command and label). The kit's `chat: ChatStrategy | null`
+  (`open(chat, env)`, `send(chat, text, env)`) replaces the `variant.transport` switches in
+  `startChat` and `chat:send`; `transport` stays in the data. Parity: `chat` ⇔ `kit.chat`, and a
+  non-empty list.
+- **Decided by set, 2026-11-17:** the descriptor gains `namedAtStart` (Add session's
+  `newSession.needName`), with a parity row against `kit.namer.atStart('x') !== null`.
+- **Decided by set, 2026-11-17:** `classifier/input.ts`'s `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
+  is a permanent entry ("Claude Code's own variable; only `claude -p` classifies until P4");
+  `usage/pass.ts` keeps "P1a.6"; `paths.ts` keeps its reason ("P0.7 or later" now reads "after
+  P0.8"). The classifier's CLI is `descriptorOf(CLASSIFIER_AGENT).command` (§2.3's
+  "`kitOf(CLASSIFIER_AGENT)`": the command is the descriptor's).
+- **The renderer's `tsc` trap again:** the descriptor's types (`AgentCap`, `AgentDescriptor`,
+  `ChatVariant`, `VariantKey`) live in `descriptors.ts`, re-exported by `types.ts`, which reaches
+  Node; the renderer now imports `descriptors.ts` and `ids.ts`.
+- **An import cycle found by the suite:** a kit's `chat.ts` importing `sessionenv.ts` ran
+  `kitOf` before the registry existed (`sessionenv.ts` reads every kit's `EnvRules` at load), so
+  `processes.ts` passes `withoutSessionEnv(process.env)` in, computed when it was before; the
+  chats' shared machinery (`Chat`, `findOnPath`, the sink, `follow`) moved to the new
+  `chat/session.ts`, which imports no registry. `processes.ts` re-exports what the tests import.
+- **`ALLOWED`** holds 16 files: `agentstate/mirror.ts` 1, `renderer/terminals.ts` 2,
+  `usage/cache.ts` 2 and `usage/history.ts` 1 (the SQL column), `team/version.ts` 1,
+  `classifier/input.ts` 1 (permanent); `usage/pass.ts` 2 (P1a.6), `paths.ts` 12; and the pinned
+  names above (`chat/protocol.ts` 4, `chat/processes.ts` 1, `classifier/run.ts` 2,
+  `context/files.ts` 1, `context/integrations.ts` 1, `files/check.ts` 1, `sessions/info.ts` 1,
+  `sessions/service.ts` 1). No renderer or `src/shared/` file has a hit.
+- The quit list's `agentName('shell')` is untouched (task 67).

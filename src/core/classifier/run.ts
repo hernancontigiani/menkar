@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { accessSync, constants, mkdirSync, statSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
+import { descriptorOf } from '../agents/descriptors'
+import { CLASSIFIER_AGENT } from '../agents/ids'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import type { UsageCache } from '../usage/cache'
@@ -33,7 +35,7 @@ export function classifierFolder(): string {
 export function findClaude(path = process.env.PATH ?? ''): string | null {
   for (const dir of path.split(delimiter)) {
     if (!dir) continue
-    const candidate = join(dir, 'claude')
+    const candidate = join(dir, descriptorOf(CLASSIFIER_AGENT).command)
     try {
       if (statSync(candidate).isFile()) {
         accessSync(candidate, constants.X_OK)

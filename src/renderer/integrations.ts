@@ -111,7 +111,7 @@ function group(title: string | null, description: string | null, ...rows: HTMLEl
 
 // A switch over one piece of ~/.claude/settings.json: a refused change shows our sentence, then the
 // switch shows what the files say.
-async function claudeSwitch(
+async function settingsSwitch(
   key: string,
   read: () => Promise<{ on: boolean }>,
   write: (on: boolean) => Promise<{ on: boolean; error: string | null }>,
@@ -134,7 +134,7 @@ const settingsFileDescription = () =>
     : t('integrations.managedByMenkar')
 
 export async function statuslineSection(): Promise<HTMLElement> {
-  const input = await claudeSwitch('statusline', prefs.statusline, prefs.setStatusline)
+  const input = await settingsSwitch('statusline', prefs.statusline, prefs.setStatusline)
   return el(
     'div',
     {},
@@ -170,7 +170,7 @@ export async function retentionSection(): Promise<HTMLElement> {
     now.textContent = retentionText(read.status)
     return read
   }
-  const input = await claudeSwitch('retention', show, async (on) => {
+  const input = await settingsSwitch('retention', show, async (on) => {
     const result = await prefs.setRetention(on)
     await show()
     return result

@@ -1,3 +1,4 @@
+import { descriptorOf } from '../core/agents/descriptors'
 import type { AgentStates } from '../core/agentstate/shown'
 import { faceBadge, groupState, rollup, type ShownState } from '../core/agentstate/shown'
 import { now } from '../core/clock'
@@ -1066,7 +1067,7 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       label: t('row.stop'),
       run: () => void act({ type: 'stopSession', session: info.id }),
     })
-  if (info.agent === 'claude') entries.push(remoteItem(info.id))
+  if (descriptorOf(info.agent).caps.remote) entries.push(remoteItem(info.id))
   const muted = state?.muted.includes(info.id) ?? false
   entries.push({
     label: muted ? t('row.unmute') : t('row.mute'),
@@ -1086,7 +1087,7 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
   entries.push(...orchestrationItems(info, project))
   entries.push('separator')
   entries.push({ label: t('row.rename'), run: () => void renameSessionDialog(info) })
-  if (info.agent === 'claude')
+  if (descriptorOf(info.agent).caps.fork)
     entries.push({
       label: t('row.fork'),
       run: () => void act({ type: 'forkSession', session: info.id }),
@@ -1947,7 +1948,8 @@ function remoteItem(sessionId: string): MenuItem {
 function remoteTabItems(tab: TabView): MenuEntry[] {
   const sessions = tab.panes.filter((p) => p.sessionId !== null)
   const only = sessions.length === 1 ? sessions[0] : undefined
-  if (tab.kind !== 'session' || !only?.sessionId || only.agent !== 'claude') return []
+  if (tab.kind !== 'session' || !only?.sessionId || only.agent === 'shell') return []
+  if (!descriptorOf(only.agent).caps.remote) return []
   return ['separator', remoteItem(only.sessionId)]
 }
 

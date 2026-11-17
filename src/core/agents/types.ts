@@ -1,4 +1,5 @@
 import type { RawState } from '../agentstate/raw'
+import type { Chat } from '../chat/session'
 import type { Start } from '../command'
 import type { PaneStartSource } from '../context/statusline'
 import type { Key } from '../i18n'
@@ -9,16 +10,7 @@ import type { TeamText } from '../team/posts'
 import type { AgentId } from './ids'
 import type { Names, ReadRange } from './shared/jsonl'
 
-export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context'
-
-export interface AgentDescriptor {
-  readonly id: AgentId
-  // The CLI's name on the PATH.
-  readonly command: string
-  readonly label: Key
-  readonly glyph: string
-  readonly caps: Readonly<Record<AgentCap, boolean>>
-}
+export type { AgentCap, AgentDescriptor, ChatVariant, VariantKey } from './descriptors'
 
 // Everything main can offer a start; each agent's Launcher takes what its CLI understands.
 export interface LaunchContext {
@@ -171,6 +163,13 @@ export interface StateRules {
   detect(title: string, screen: string): RawState
 }
 
+// A chat tab's process: what opening the tab starts, and how a message reaches the agent.
+// `env` is what the process is started with: the app's, without what a session would inherit.
+export interface ChatStrategy {
+  open(chat: Chat, env: NodeJS.ProcessEnv): void
+  send(chat: Chat, text: string, env: NodeJS.ProcessEnv): void
+}
+
 export interface AgentKit {
   readonly launch: Launcher
   readonly mcp: McpMount | null
@@ -182,4 +181,5 @@ export interface AgentKit {
   readonly ids: SessionIds
   readonly follow: PaneFollow | null
   readonly fork: Fork | null
+  readonly chat: ChatStrategy | null
 }

@@ -282,14 +282,14 @@ export class UsageCache {
   private keepName(entry: Record<string, unknown>, sessionId: string): void {
     const found = nameOf(entry)
     if (found === null) return
-    const claude = found.given ? 1 : 0
+    const given = found.given ? 1 : 0
     const current = this.db.raw
       .prepare('SELECT claude FROM names WHERE session_id = ?')
       .get(sessionId)
-    if (current === undefined || claude >= num(current, 'claude')) {
+    if (current === undefined || given >= num(current, 'claude')) {
       this.db.raw
         .prepare('INSERT OR REPLACE INTO names VALUES (?, ?, ?)')
-        .run(sessionId, found.name, claude)
+        .run(sessionId, found.name, given)
     }
   }
 
@@ -409,12 +409,12 @@ export class UsageCache {
   }
 
   // Claude's name for each of these sessions it has one for, and whether it was given (1).
-  names(sessions: Iterable<string>): Map<string, { name: string; claude: number }> {
-    const found = new Map<string, { name: string; claude: number }>()
+  names(sessions: Iterable<string>): Map<string, { name: string; given: number }> {
+    const found = new Map<string, { name: string; given: number }>()
     const select = this.db.raw.prepare('SELECT name, claude FROM names WHERE session_id = ?')
     for (const sessionId of sessions) {
       const row = select.get(sessionId)
-      if (row) found.set(sessionId, { name: str(row, 'name'), claude: num(row, 'claude') })
+      if (row) found.set(sessionId, { name: str(row, 'name'), given: num(row, 'claude') })
     }
     return found
   }

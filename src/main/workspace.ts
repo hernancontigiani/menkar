@@ -4,7 +4,6 @@ import { stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
-import { AGENT_COMMANDS } from '../core/agents'
 import { descriptorOf } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { isDefault, kitOf } from '../core/agents/registry'
@@ -956,7 +955,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     ...paneFlavorEnv(),
   }
   if (spec.agent !== 'shell' && spec.start) {
-    const cliName = AGENT_COMMANDS[spec.agent]
+    const cliName = descriptorOf(spec.agent).command
     const cli = await findOnPath(cliName)
     if (cli === null) messages.push(appMessage(tag, t('terminal.notFound', { cli: cliName })))
     else {

@@ -1,5 +1,6 @@
 import type { AgentKit } from '../types'
 import { catalog } from './catalog'
+import { chat } from './chat'
 import { env } from './env'
 import { fork } from './fork'
 import { follow, ids } from './ids'
@@ -19,4 +20,5 @@ export const kit: AgentKit = {
   ids,
   follow,
   fork,
+  chat,
 }
