@@ -697,11 +697,16 @@ export class UsageHistory {
     const args = (...values: number[]) => (project === undefined ? values : [...values, project])
     const messages = this.prepared(
       db,
-      `SELECT uuid AS u, session_id AS s, opened AS d FROM turns WHERE origin = 'human'` +
-        ` AND opened >= ? AND opened < ?${scoped} ORDER BY opened, uuid`,
+      'SELECT uuid AS u, session_id AS s, opened AS d, project_id AS p FROM turns' +
+        ` WHERE origin = 'human' AND opened >= ? AND opened < ?${scoped} ORDER BY opened, uuid`,
     )
       .all(...args(low, high))
-      .map((r) => ({ uuid: String(r.u), sessionId: String(r.s), at: num(r, 'd') }))
+      .map((r) => ({
+        uuid: String(r.u),
+        sessionId: String(r.s),
+        at: num(r, 'd'),
+        project: nullableStr(r, 'p'),
+      }))
     const actions = this.prepared(
       db,
       `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${sqlList(ACTION_KINDS)}` +

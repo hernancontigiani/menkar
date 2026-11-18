@@ -5,7 +5,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { batchPath, type TaskStateEvent } from '../../../src/core/usage/activity'
-import { type TaskStateRow, taskFlow } from '../../../src/core/usage/flow'
+import { flowTable, type TaskStateRow, taskFlow } from '../../../src/core/usage/flow'
 import { UsageHistory } from '../../../src/core/usage/history'
 import type { FlowFigure, TaskFlow } from '../../../src/core/usage/nodes'
 import { periodBounds } from '../../../src/core/usage/periods'
@@ -165,6 +165,112 @@ describe('taskFlow', () => {
     const flow = taskFlow([row(1, hm(9, 0), 'to review')], DAY, hm(10, 0))
     expect(state(flow, 'to review')).toEqual(figure(1, 60 * MIN, 60 * MIN))
     expect(waiter(flow, 'to review', null)).toEqual(figure(1, 60 * MIN, 60 * MIN))
+  })
+})
+
+describe("the flow's counts and table", () => {
+  // The flow's counts and its baseline's date: each task counted by its state at the window's end
+  // or now, whichever comes first, so done + dropped + open = tasks.
+  test('done 1, dropped 1, open 1; a task done after the window ends counts open', () => {
+    const rows = [
+      row(1, hm(9, 0), 'in progress'),
+      row(1, hm(10, 0), 'done'),
+      row(2, hm(9, 0), 'waiting', { waitKind: 'topic' }),
+      row(2, hm(9, 30), 'dropped'),
+      row(3, hm(9, 0), 'in progress'),
+      row(4, hm(9, 0), 'queued'),
+      row(4, hm(12, 0), 'done'),
+    ]
+    const flow = taskFlow(rows, { start: hm(0, 0), end: hm(11, 0) }, hm(13, 0))
+    expect([flow.tasks, flow.done, flow.dropped, flow.open]).toEqual([4, 1, 1, 2])
+    expect(flow.done + flow.dropped + flow.open).toBe(flow.tasks)
+    // now before the window's end: task 4 is still queued at now
+    const early = taskFlow(rows, DAY, hm(11, 0))
+    expect([early.tasks, early.done, early.dropped, early.open]).toEqual([4, 1, 1, 2])
+    const late = taskFlow(rows, DAY, hm(13, 0))
+    expect([late.tasks, late.done, late.dropped, late.open]).toEqual([4, 2, 1, 1])
+  })
+
+  test("the baseline's date is the earliest that marked a task; none marked is null", () => {
+    const nov = (day: number, hour: number) => new Date(2026, 10, day, hour).getTime() / 1000
+    const week = { start: nov(10, 0), end: nov(17, 0) }
+    const rows = [
+      row(1, nov(11, 9), 'in progress', { baseline: true }),
+      row(2, nov(11, 8), 'waiting', { waitKind: 'topic', baseline: true }),
+      row(3, nov(12, 9), 'queued'),
+      // a baseline before the window marks nothing
+      row(4, nov(9, 9), 'queued', { baseline: true }),
+    ]
+    const flow = taskFlow(rows, week, nov(17, 0))
+    expect(flow.sinceBaseline).toBe(2)
+    expect(flow.baselineAt).toBe(nov(11, 8))
+    expect(taskFlow(rows.slice(2), week, nov(17, 0)).baselineAt).toBeNull()
+    expect(taskFlow([], week, nov(17, 0))).toMatchObject({
+      tasks: 0,
+      done: 0,
+      dropped: 0,
+      open: 0,
+      baselineAt: null,
+    })
+  })
+
+  const label = (r: ReturnType<typeof flowTable>[number]) =>
+    r.kind === 'state' ? r.state : `${r.state}/${r.waiter}`
+
+  // The flow table lists to review's four waiters always, and waiting's topic and session.
+  test('to review always lists its four waiters, waiting its topic and session; other and none only when they hold a task', () => {
+    const rows = [
+      row(1, hm(9, 0), 'to review', { waitKind: 'orchestrator' }),
+      row(2, hm(9, 0), 'waiting', { waitKind: 'topic' }),
+      row(2, hm(10, 0), 'queued'),
+    ]
+    const table = flowTable(taskFlow(rows, DAY, hm(11, 0)))
+    expect(table.map(label)).toEqual([
+      'queued',
+      'in progress',
+      'waiting',
+      'waiting/topic',
+      'waiting/session',
+      'to review',
+      'to review/orchestrator',
+      'to review/human',
+      'to review/pr-approval',
+      'to review/pr-merge',
+    ])
+    const review = table.filter((r) => r.kind === 'waiter' && r.state === 'to review')
+    expect(review.map((r) => r.figure.tasks)).toEqual([1, 0, 0, 0])
+
+    const unsaid = flowTable(
+      taskFlow(
+        [row(3, hm(9, 0), 'waiting'), row(4, hm(9, 0), 'waiting', { waitKind: 'other' })],
+        DAY,
+        hm(10, 0),
+      ),
+    )
+    expect(unsaid.filter((r) => r.state === 'waiting').map(label)).toEqual([
+      'waiting',
+      'waiting/topic',
+      'waiting/session',
+      'waiting/other',
+      'waiting/null',
+    ])
+  })
+
+  test('shares: the largest state is 1, the others its fraction; all zero is 0', () => {
+    const rows = [
+      row(1, hm(9, 0), 'queued'),
+      row(1, hm(9, 30), 'in progress'),
+      row(1, hm(11, 30), 'to review', { waitKind: 'human' }),
+    ]
+    const table = flowTable(taskFlow(rows, DAY, hm(12, 0)))
+    const share = (name: string) => table.find((r) => label(r) === name)?.share
+    expect(share('in progress')).toBe(1)
+    expect(share('queued')).toBe(0.25)
+    expect(share('to review')).toBe(0.25)
+    expect(share('to review/human')).toBe(0.25)
+    expect(share('to review/pr-merge')).toBe(0)
+    expect(share('waiting')).toBe(0)
+    expect(flowTable(taskFlow([], DAY, hm(12, 0))).every((r) => r.share === 0)).toBe(true)
   })
 })
 

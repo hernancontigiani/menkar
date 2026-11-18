@@ -15,6 +15,8 @@ export type PresenceKind = 'away' | 'back' | 'app_start'
 export interface HumanAction {
   readonly at: number
   readonly kind: ActionKind
+  // a message's project; null when its turn has none
+  readonly project?: string | null
 }
 
 // What the history holds for one reading, as `UsageHistory.humanActions` returns it.
@@ -24,6 +26,7 @@ export interface ActivityRows {
     readonly uuid: string
     readonly sessionId: string
     readonly at: number
+    readonly project: string | null
   }[]
   readonly actions: readonly {
     readonly at: number
@@ -44,6 +47,7 @@ export interface Burst {
   readonly end: number
   readonly messages: number
   readonly prompts: number
+  readonly byProject: ActivityBurst['byProject']
 }
 
 const byTime = <T extends { at: number }>(list: readonly T[]): T[] =>
@@ -77,7 +81,7 @@ export function humanActionsOf(rows: ActivityRows): HumanAction[] {
   }
   const actions: HumanAction[] = [...rows.actions]
   for (const m of rows.messages)
-    if (!prompted.has(m.uuid)) actions.push({ at: m.at, kind: 'message' })
+    if (!prompted.has(m.uuid)) actions.push({ at: m.at, kind: 'message', project: m.project })
   return byTime(actions)
 }
 
@@ -92,7 +96,23 @@ export function bursts(
   gap: number = BURST_GAP_SECONDS,
 ): Burst[] {
   const found: Burst[] = []
-  let current: { start: number; end: number; messages: number; prompts: number } | null = null
+  interface Open {
+    start: number
+    end: number
+    messages: number
+    prompts: number
+    projects: Map<string | null, number>
+  }
+  let current: Open | null = null
+  const close = (b: Open): Burst => ({
+    start: b.start,
+    end: b.end,
+    messages: b.messages,
+    prompts: b.prompts,
+    byProject: [...b.projects]
+      .map(([project, messages]) => ({ project, messages }))
+      .sort((a, b) => b.messages - a.messages || byProjectId(a.project, b.project)),
+  })
   for (const action of byTime(actions)) {
     if (inside(action.at, away)) continue
     const last = current
@@ -103,15 +123,27 @@ export function bursts(
     ) {
       last.end = action.at
     } else {
-      if (last !== null) found.push(last)
-      current = { start: action.at, end: action.at, messages: 0, prompts: 0 }
+      if (last !== null) found.push(close(last))
+      current = { start: action.at, end: action.at, messages: 0, prompts: 0, projects: new Map() }
     }
     if (current === null) continue
-    if (action.kind === 'message') current.messages += 1
+    if (action.kind === 'message') {
+      current.messages += 1
+      const project = action.project ?? null
+      current.projects.set(project, (current.projects.get(project) ?? 0) + 1)
+    }
     if (action.kind === 'prompt_answered') current.prompts += 1
   }
-  if (current !== null) found.push(current)
+  if (current !== null) found.push(close(current))
   return found
+}
+
+// A turn with no project sorts after every project.
+function byProjectId(a: string | null, b: string | null): number {
+  if (a === b) return 0
+  if (a === null) return 1
+  if (b === null) return -1
+  return a < b ? -1 : 1
 }
 
 // The part of a burst inside a day, or null. A burst of one action at the day's first instant is
@@ -127,12 +159,11 @@ const dayBounds = (day: Day): Bounds => ({ start: midnight(day), end: midnight(a
 function counted(rows: ActivityRows, now: number) {
   const away = awayPeriods(rows.presence, now)
   const actions = humanActionsOf(rows).filter((a) => !inside(a.at, away))
-  return { actions, all: bursts(actions, away) }
+  return { actions, away, all: bursts(actions, away) }
 }
 
 function readDay(
-  actions: readonly HumanAction[],
-  all: readonly Burst[],
+  { actions, away, all }: ReturnType<typeof counted>,
   bounds: Bounds,
 ): Omit<ActivityDay, 'hours'> {
   const shown: ActivityBurst[] = []
@@ -145,12 +176,20 @@ function readDay(
       fullEnd: b.end,
       messages: b.messages,
       prompts: b.prompts,
+      byProject: b.byProject,
     })
+  }
+  const awayShown: Bounds[] = []
+  for (const p of away) {
+    const start = Math.max(p.start, bounds.start)
+    const end = Math.min(p.end, bounds.end)
+    if (end > start) awayShown.push({ start, end })
   }
   const within = actions.filter((a) => bounds.start <= a.at && a.at < bounds.end)
   return {
     bounds,
     bursts: shown,
+    away: awayShown,
     burstSeconds: shown.reduce((s, b) => s + (b.end - b.start), 0),
     messages: within.filter((a) => a.kind === 'message').length,
     prompts: within.filter((a) => a.kind === 'prompt_answered').length,
@@ -160,7 +199,8 @@ function readDay(
 // A local day by the hour. `rows` must reach past the day's ends far enough to hold its bursts
 // whole: `readActivity` reads them so.
 export function activityDay(rows: ActivityRows, day: Day, now: number): ActivityDay {
-  const { actions, all } = counted(rows, now)
+  const read = counted(rows, now)
+  const { actions } = read
   const bounds = dayBounds(day)
   const hours = buckets(bounds, 'hour').map((hour) => {
     const inHour = actions.filter((a) => hour.start <= a.at && a.at < hour.end)
@@ -170,20 +210,13 @@ export function activityDay(rows: ActivityRows, day: Day, now: number): Activity
       prompts: inHour.filter((a) => a.kind === 'prompt_answered').length,
     }
   })
-  return { ...readDay(actions, all, bounds), hours }
+  return { ...readDay(read, bounds), hours }
 }
 
 // Seven local days from `first`; each counts its own part of a burst that crosses midnight.
 export function activityWeek(rows: ActivityRows, first: Day, now: number): ActivityWeek {
-  const { actions, all } = counted(rows, now)
-  const days = [0, 1, 2, 3, 4, 5, 6].map((n) => {
-    const { bounds, burstSeconds, messages, prompts } = readDay(
-      actions,
-      all,
-      dayBounds(addDays(first, n)),
-    )
-    return { bounds, burstSeconds, messages, prompts }
-  })
+  const read = counted(rows, now)
+  const days = [0, 1, 2, 3, 4, 5, 6].map((n) => readDay(read, dayBounds(addDays(first, n))))
   return { bounds: { start: midnight(first), end: midnight(addDays(first, 7)) }, days }
 }
 

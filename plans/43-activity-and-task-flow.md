@@ -719,12 +719,13 @@ their header and an empty body.
     // the shown section's period was picked there on this visit, or carried into it on entering
     readonly chosen: boolean
   }
-  export function initialSections(today: Day, month: Month): Sections
+  export function initialSections(today: Day): Sections   // the month stepper stays the page's
   export function choose(s: Sections, period: SpendPeriod | TimePeriod | TasksPeriod): Sections
   export function switchTo(s: Sections, to: UsageSection, today: Day): Sections
   export function currentWeek(today: Day): Day        // addDays(today, -6)
   export function weekOf(day: Day, today: Day): Day   // the week of the stepping grid holding day
   export function stepTime(p: TimePeriod, by: -1 | 1): TimePeriod  // a day, or seven days
+  export function timeToggle(p: TimePeriod, kind: 'day' | 'week', today: Day): TimePeriod  // Day ↔ Week
   export function timeArrows(p: TimePeriod, firstDay: Day | null, today: Day):
     { readonly previous: boolean; readonly next: boolean }
   ```
@@ -818,7 +819,9 @@ their header and an empty body.
   `min(now, bounds.end)` (its last row at or before it): `done`, `dropped`, anything else open;
   `done + dropped + open = tasks` — and `baselineAt: number | null`, the earliest `at` of a
   baseline row that marked a task (`sinceBaseline > 0`), else null.
-- **`flowTable(flow)`** in `flow.ts` (Node-free; the page draws its rows): per state in
+- **`flowTable(flow): FlowRow[]`** in `flow.ts` (Node-free; the page draws its rows; `FlowRow` is
+  `{kind: 'state', state, figure, share}` or `{kind: 'waiter', state, waiter, figure, share}`,
+  `REVIEW_WAITERS` exported): per state in
   `FLOW_STATES` order a row, then its waiters' rows. **To review always lists its four waiters**,
   `REVIEW_WAITERS` order (orchestrator, human, pr-approval, pr-merge), a zero one with `tasks` 0
   (drawn dim, "—"), as the mock; **waiting always lists topic and session**, then `other` and none
@@ -885,11 +888,11 @@ said" (`set`, 2026-11-18). The catalogs have no plural forms: a count reads "{n}
 
 #### 7a — the readings the views need (core only)
 
-- [ ] Tests first, each seen failing once against an injected defect: §2.10's rows for
+- [x] Tests first, each seen failing once against an injected defect: §2.10's rows for
   `sections.ts` (the carry), `byProject`, the day's and week's away, the flow's counts and
   `baselineAt`, `flowTable`, `countAxis` and `along`. Update the existing `toEqual`s of
   `bursts.test.ts` and `flow.test.ts` for the new fields, changing no expected figure.
-- [ ] `sections.ts`, `timeline.ts`; the fields in `nodes.ts`; `away` and `bursts` per day and
+- [x] `sections.ts`, `timeline.ts`; the fields in `nodes.ts`; `away` and `bursts` per day and
   `byProject` in `bursts.ts`; `project_id` in `humanActions`' message SELECT; the counts,
   `baselineAt` and `flowTable` in `flow.ts`.
 - Verify: `npm run ci`.
@@ -1256,3 +1259,48 @@ Choices the plan left open (mine):
 
 Not reached yet: nothing calls `taskFlow` / `taskStateRows` outside the tests; block 7 (the Task
 flow section, through `usage-query-worker.ts`) is their consumer.
+
+### Block 7a — `menkar-t111` (task 111), 2026-11-18
+
+Built: new `src/core/usage/sections.ts` — `UsageSection`, `SpendPeriod`, `TimePeriod`,
+`TasksPeriod`, `Sections`, `initialSections(today)`, `choose`, `switchTo`, `currentWeek`, `weekOf`,
+`stepTime`, `timeToggle`, `timeArrows`; new `src/core/usage/timeline.ts` — `countAxis`, `along`,
+`bandLabel`; in `nodes.ts`, `ActivityBurst.byProject`, `ActivityDay.away`,
+`ActivityWeekDay.{bursts,away}`, `TaskFlow.{done,dropped,open,baselineAt}`; in `bursts.ts`,
+`HumanAction.project`, `ActivityRows.messages[].project`, `Burst.byProject`, the away periods
+clipped per day and each week day's bursts (one `readDay` for both); in `history.ts`, `project_id`
+in `humanActions`' message SELECT only; in `flow.ts`, the counts, `baselineAt`, `REVIEW_WAITERS`,
+`FlowRow` and `flowTable`.
+
+Deviations, agreed with `set` (2026-11-18): `initialSections(today)` takes no month (Spend starts on
+7 days and a Month period carries its own stepper, so the stepper stays the page's); `timeToggle`
+added for Day ↔ Week inside Your time, which 7b consumes. Block 7's signature list says both.
+
+Tests: `tests/core/usage/sections.test.ts` (new: the window's start, every carry and keep of
+§2.10, 1.184's example, a stepped-back day and week, a week chosen as current carrying nothing
+past midnight, inside Your time, the arrows, a step across a year and across Santiago's
+midnight daylight-saving change); `tests/core/usage/timeline.test.ts` (new: `countAxis`'s cases,
+`along` on a 25-hour day, `bandLabel`); `bursts.test.ts` (`byProject`, the day's and week's away
+across midnight, each week day's bursts equal that day's, the project read back from the
+history); `flow.test.ts` (the counts with a task done after the window and now before its end,
+`baselineAt`, `flowTable`'s rows and shares). The existing `toEqual`s needed no figure changed:
+the bursts' compare spans or `objectContaining`, the flow's compare figures; the bursts' row
+literals gained `project: null`. Seen red, each restored: the carry ignoring `chosen`, any day as
+today, any week as current, `weekOf` rounding, the arrows with no history, Week → Day on its first
+day, `byProject` unsorted, a null project first, away unclipped, a week day without bursts, the
+project not read, a task's state read past the window's end, the latest baseline, a baseline before
+the window marking, waiting without its session row, the share off, no floor of 5, a 2.5 step, a
+24-hour day.
+
+Choices the plan left open (mine):
+- `byProject` ties sort by id, a turn with no project after every project; a burst with no
+  message has an empty `byProject`.
+- An away clipped to nothing in a day (it only touches the day's edge) is not in that day's `away`.
+- `switchTo` the section already shown returns the state unchanged (`chosen` kept).
+- `flowTable`: a waiter other than the always-listed ones is listed only because it holds a task
+  (the flow's waiters exist only with time in the window); rows follow the flow's waiter order.
+- `countAxis(6)` is top 6, step 2 (three intervals): the rule as written, the first multiple at or
+  above; it does not round up to 10.
+
+Not reached yet: nothing outside the tests calls `sections.ts`, `timeline.ts` or `flowTable`; 7b
+(the page and the two paths), 7c and 7d are their consumers.

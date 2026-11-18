@@ -86,6 +86,7 @@ describe('bursts', () => {
           uuid: `u${i}`,
           sessionId: 's1',
           at,
+          project: null,
         })),
         presence,
       }),
@@ -163,6 +164,7 @@ describe('bursts', () => {
         uuid: `u${i}`,
         sessionId: 's1',
         at,
+        project: null,
       })),
     })
     const all = bursts(humanActionsOf(r), [])
@@ -188,7 +190,7 @@ describe('bursts', () => {
 
   test('a day is cut into its local hours, messages and prompts apart; an empty day has no burst', () => {
     const r = rows({
-      messages: [{ uuid: 'u1', sessionId: 's1', at: hm(9, 15) }],
+      messages: [{ uuid: 'u1', sessionId: 's1', at: hm(9, 15), project: null }],
       actions: [
         { at: hm(9, 20), kind: 'prompt_answered' },
         { at: hm(14, 0), kind: 'topic_closed' },
@@ -223,8 +225,8 @@ describe('bursts', () => {
   // session opened at or after the start is left out, when it is of origin human.
   test("the turn after a prompted start is not the human's; a peer turn first excludes nothing", () => {
     const messages = [
-      { uuid: 'a', sessionId: 's1', at: 103 },
-      { uuid: 'b', sessionId: 's1', at: 400 },
+      { uuid: 'a', sessionId: 's1', at: 103, project: null },
+      { uuid: 'b', sessionId: 's1', at: 400, project: null },
     ]
     const counted = (r: ActivityRows) => humanActionsOf(r).map((a) => a.at)
     expect(
@@ -246,6 +248,84 @@ describe('bursts', () => {
     expect(
       counted(rows({ messages, promptedStarts: [{ at: 500, sessionId: 's1', firstTurn: null }] })),
     ).toEqual([103, 400])
+  })
+})
+
+describe("what the day's and the week's views draw", () => {
+  const msg = (at: number, project: string | null, i: number) => ({
+    uuid: `m${i}`,
+    sessionId: 's1',
+    at,
+    project,
+  })
+
+  // A burst's messages per project, for the hover's line in All projects: most first, ties by id,
+  // a turn with no project as null and last.
+  test('a burst of 3 messages in Shop and 1 in Blog reads [Shop 3, Blog 1]; no project is null', () => {
+    const r = rows({
+      messages: [
+        msg(hm(10, 0), 'blog', 0),
+        msg(hm(10, 2), 'shop', 1),
+        msg(hm(10, 4), 'shop', 2),
+        msg(hm(10, 6), 'shop', 3),
+        msg(hm(15, 0), null, 4),
+        msg(hm(15, 1), 'shop', 5),
+      ],
+      actions: [{ at: hm(10, 8), kind: 'prompt_answered' }],
+    })
+    const day = activityDay(r, NOV_18, hm(23, 0))
+    expect(day.bursts.map((b) => b.byProject)).toEqual([
+      [
+        { project: 'shop', messages: 3 },
+        { project: 'blog', messages: 1 },
+      ],
+      [
+        { project: 'shop', messages: 1 },
+        { project: null, messages: 1 },
+      ],
+    ])
+    expect(bursts([act(hm(9, 0), 'present')], [])[0]?.byProject).toEqual([])
+  })
+
+  // A day's and a week's away periods, clipped to each day, as the hatching draws them.
+  test('an away 23:30–00:30 shows 23:30–24:00 on the first day and 00:00–00:30 on the next', () => {
+    const r = rows({
+      messages: [msg(hm(22, 0), 'shop', 0), msg(hm(24, 40), 'shop', 1)],
+      presence: [
+        { at: hm(23, 30), kind: 'away' },
+        { at: hm(24, 30), kind: 'back' },
+      ],
+    })
+    const now = hm(24 + 23, 0)
+    const first = activityDay(r, NOV_18, now)
+    const second = activityDay(r, NOV_19, now)
+    expect(first.away.map(span)).toEqual([[hm(23, 30), midnight(NOV_19)]])
+    expect(second.away.map(span)).toEqual([[midnight(NOV_19), hm(24, 30)]])
+    const week = activityWeek(r, NOV_18, now)
+    expect(week.days[0]?.away).toEqual(first.away)
+    expect(week.days[1]?.away).toEqual(second.away)
+    expect(week.days[2]?.away).toEqual([])
+    expect(week.days[0]?.bursts).toEqual(first.bursts)
+    expect(week.days[1]?.bursts).toEqual(second.bursts)
+  })
+
+  test("a week day's bursts are that day's, a burst crossing midnight clipped on each side", () => {
+    const r = rows({
+      messages: [hm(23, 50), hm(23, 58), hm(24, 5), hm(24 + 10, 0)].map((at, i) =>
+        msg(at, 'shop', i),
+      ),
+    })
+    const now = hm(24 * 3, 0)
+    const week = activityWeek(r, NOV_18, now)
+    week.days.forEach((d, i) => {
+      const day = activityDay(r, { ...NOV_18, day: 18 + i }, now)
+      expect(d.bursts).toEqual(day.bursts)
+      expect(d.away).toEqual(day.away)
+    })
+    expect(week.days[1]?.bursts.map(span)).toEqual([
+      [midnight(NOV_19), hm(24, 5)],
+      [hm(24 + 10, 0), hm(24 + 10, 0)],
+    ])
   })
 })
 
@@ -298,6 +378,7 @@ describe('reading the history', () => {
       ])
       const r = history.humanActions(hm(9, 0), hm(11, 0))
       expect(r.messages.map((m) => m.uuid)).toEqual(['t1', 't2', 't4'])
+      expect(r.messages.map((m) => m.project)).toEqual(['p1', 'p1', 'p2'])
       expect(r.actions.map((a) => a.kind)).toEqual([
         'prompt_answered',
         'present',

@@ -158,6 +158,8 @@ export interface ActivityBurst {
   readonly fullEnd: number
   readonly messages: number
   readonly prompts: number
+  // the whole burst's messages per project id, most first; null for a turn with no project
+  readonly byProject: readonly { readonly project: string | null; readonly messages: number }[]
 }
 
 export interface ActivityHour {
@@ -171,6 +173,8 @@ export interface ActivityDay {
   readonly bounds: Bounds
   readonly hours: readonly ActivityHour[]
   readonly bursts: readonly ActivityBurst[]
+  // clipped to the day
+  readonly away: readonly Bounds[]
   // the bursts' time inside the day
   readonly burstSeconds: number
   readonly messages: number
@@ -179,6 +183,8 @@ export interface ActivityDay {
 
 export interface ActivityWeekDay {
   readonly bounds: Bounds
+  readonly bursts: readonly ActivityBurst[]
+  readonly away: readonly Bounds[]
   readonly burstSeconds: number
   readonly messages: number
   readonly prompts: number
@@ -214,6 +220,12 @@ export interface TaskFlow {
   readonly bounds: Bounds
   // the tasks with any time in a state inside the window
   readonly tasks: number
+  // of those tasks, by their state at the window's end or now, whichever is first
+  readonly done: number
+  readonly dropped: number
+  readonly open: number
   readonly sinceBaseline: number
+  // the earliest baseline row that marked a task, null when none did
+  readonly baselineAt: number | null
   readonly states: readonly FlowStateFigure[]
 }

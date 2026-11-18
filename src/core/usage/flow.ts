@@ -16,6 +16,13 @@ export interface TaskStateRow {
 
 export const FLOW_STATES: readonly FlowState[] = ['queued', 'in progress', 'waiting', 'to review']
 const WITH_WAITERS: ReadonlySet<string> = new Set(['waiting', 'to review'])
+export const REVIEW_WAITERS: readonly string[] = [
+  'orchestrator',
+  'human',
+  'pr-approval',
+  'pr-merge',
+]
+const WAITING_WAITERS: readonly string[] = ['topic', 'session']
 const WAITER_ORDER = [
   'topic',
   'session',
@@ -80,10 +87,15 @@ export function taskFlow(rows: readonly TaskStateRow[], bounds: Bounds, now: num
   const states = new Map<string, Tally>()
   const waiters = new Map<string, Map<string | null, Tally>>()
   const all = new Tally()
+  const lastState = new Map<string, string>()
+  const markedAt = new Map<string, number>()
   for (const [task, list] of byTask) {
     const sorted = [...list].sort((a, b) => a.at - b.at)
     const first = sorted[0]
     const marked = first?.baseline === true && first.at > bounds.start
+    if (marked) markedAt.set(task, first.at)
+    const last = sorted.filter((r) => r.at <= end).at(-1)
+    if (last !== undefined) lastState.set(task, last.state)
     sorted.forEach((r, i) => {
       if (!(FLOW_STATES as readonly string[]).includes(r.state)) return
       const from = Math.max(r.at, bounds.start)
@@ -109,5 +121,66 @@ export function taskFlow(rows: readonly TaskStateRow[], bounds: Bounds, now: num
       .map(([waiter, tally]) => ({ waiter, figure: tally.figure() })),
   }))
   const { tasks, sinceBaseline } = all.figure()
-  return { bounds, tasks, sinceBaseline, states: figures }
+  let done = 0
+  let dropped = 0
+  const baselines: number[] = []
+  for (const task of all.seconds.keys()) {
+    const now = lastState.get(task)
+    if (now === 'done') done += 1
+    if (now === 'dropped') dropped += 1
+    const at = all.marked.has(task) ? markedAt.get(task) : undefined
+    if (at !== undefined) baselines.push(at)
+  }
+  return {
+    bounds,
+    tasks,
+    done,
+    dropped,
+    open: tasks - done - dropped,
+    sinceBaseline,
+    baselineAt: baselines.length === 0 ? null : Math.min(...baselines),
+    states: figures,
+  }
+}
+
+export type FlowRow =
+  | {
+      readonly kind: 'state'
+      readonly state: FlowState
+      readonly figure: FlowFigure
+      // of the largest state's total; 0 when every total is 0
+      readonly share: number
+    }
+  | {
+      readonly kind: 'waiter'
+      readonly state: FlowState
+      readonly waiter: string | null
+      readonly figure: FlowFigure
+      readonly share: number
+    }
+
+const NOTHING: FlowFigure = { tasks: 0, medianSeconds: 0, totalSeconds: 0, sinceBaseline: 0 }
+
+// The rows the flow's table draws: each state, then whom it waits on. To review lists its four
+// waiters and waiting its topic and session even when they hold no task, so the table keeps its
+// shape from one period to the next.
+export function flowTable(flow: TaskFlow): FlowRow[] {
+  const largest = Math.max(0, ...flow.states.map((s) => s.figure.totalSeconds))
+  const share = (f: FlowFigure) => (largest === 0 ? 0 : f.totalSeconds / largest)
+  const rows: FlowRow[] = []
+  for (const { state, figure, waiters } of flow.states) {
+    rows.push({ kind: 'state', state, figure, share: share(figure) })
+    if (!WITH_WAITERS.has(state)) continue
+    const always = state === 'to review' ? REVIEW_WAITERS : WAITING_WAITERS
+    const listed: { waiter: string | null; figure: FlowFigure }[] = always.map((waiter) => ({
+      waiter,
+      figure: waiters.find((w) => w.waiter === waiter)?.figure ?? NOTHING,
+    }))
+    for (const w of waiters) {
+      if (w.waiter === null || !always.includes(w.waiter)) listed.push(w)
+    }
+    listed.sort((a, b) => waiterRank(a.waiter) - waiterRank(b.waiter))
+    for (const w of listed) rows.push({ kind: 'waiter', state, ...w, share: share(w.figure) })
+  }
+  return rows
 }
