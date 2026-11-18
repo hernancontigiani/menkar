@@ -337,6 +337,10 @@ attachment — `src/core/usage/{transcript,cache}.ts`, plan 39 P1a.6's files.
   `$MENKAR_FILES/menkar-t107-sheet.png`): the left bar as drawn, 180 px; **the project scope
   (this project / all projects) sits at the foot of the left bar** (variant b,
   `menkar-t107-6-scope-place-*`), not in the header; the header holds only the section's period.
+- **The left bar's sections are named "Spend", "Your time" and "Task times"** (the human,
+  2026-11-18, topic 64, option B; rejected: "Agents / You / Tasks", "Agent usage / Your activity
+  / Task flow"): Spend holds Totals and By day (time, tokens, cost); Your time, the bursts; Task
+  times, the flow. The window stays "Usage" (the menu, the header's button, `menkar usage`).
 - **The day's and the week's message count is labelled "Messages sent"** (the human, 2026-11-18):
   they are the turns the human opened, not what reached them to read.
 
