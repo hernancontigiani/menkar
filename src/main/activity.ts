@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { access, appendFile, mkdir, readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
+import { markDue } from '../core/activity/marks'
 import { sessionIdByName } from '../core/activity/names'
 import { type PromptAnswered, PromptTracker } from '../core/activity/prompts'
 import {
@@ -34,6 +35,7 @@ type Unstamped =
   | TopicActivity
   | (PromptAnswered & { readonly projectId?: string })
   | { readonly kind: 'app_start' }
+  | { readonly kind: 'present'; readonly projectId?: string }
 
 const journalPath = () => join(activityDir(), 'journal.jsonl')
 // Written once the first start's baseline is on disk: a crash before it gives a baseline next time.
@@ -97,6 +99,20 @@ export function recordTopics(before: Topics, after: Topics): void {
   const events = topicEvents(before, after)
   if (events.length === 0) return
   void enqueue(() => write(events.map((event) => stamp(event, at))))
+}
+
+let lastPresent: number | null = null
+
+// A window's presence mark; every window's together keep to one a minute. `shown` is asked only
+// for a mark that is written.
+export function recordPresent(shown: () => string | undefined): void {
+  const ms = now()
+  if (!markDue(lastPresent, ms)) return
+  lastPresent = ms
+  const projectId = shown()
+  const event =
+    projectId === undefined ? { kind: 'present' as const } : { kind: 'present' as const, projectId }
+  void enqueue(() => write([stamp(event, ms / 1000)]))
 }
 
 const prompts = new PromptTracker()

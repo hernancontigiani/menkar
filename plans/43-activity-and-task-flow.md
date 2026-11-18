@@ -683,3 +683,40 @@ Choices the plan left open (mine):
 - A `prompt_answered` takes its project from its session's membership at that moment; an unjoined
   pane's has none (N10, as the plan says).
 - `cli.ts` logs and goes on when the import throws: the report never fails on the journal.
+
+### Block 3c — `menkar-t98` (task 98), 2026-11-18
+
+Built: new `src/core/activity/marks.ts` (`markDue(lastMs, nowMs)`, `MARK_INTERVAL_MS`; a clock set
+back gives a mark at once); new `src/renderer/presence.ts` (`watchPresence()`, started in
+`src/renderer/main.ts` beside `watchKeyboardLayout()`); `'activity:present': Record<string, never>`
+in `SendChannels` and `menkar.activity.present()` in `MenkarApi` and the preload;
+`src/main/index.ts` routes it to `recordPresent(() => windowState(event.sender)?.shown)`; in
+`src/main/activity.ts`, `recordPresent` keeps one mark a minute across every window with the same
+`markDue`, asks the window's shown project only for a mark it writes, and journals
+`{kind: 'present', projectId}` at the time main received it.
+
+How it listens without touching xterm's key handler: three listeners on `window` — `keydown`,
+`pointerdown`, `wheel` — each `{ capture: true, passive: true }`. The window's capture phase runs
+before the document's capture listener in `main.ts` that stops the app's own keys, and before
+xterm's textarea, so every key is seen, including the ones the app takes; the listener reads
+`document.hasFocus()` and the clock, and never calls `preventDefault`, `stopPropagation` or
+`stopImmediatePropagation`. `setAppKeyFilter` and `terminals.ts` are untouched. The Usage and
+Settings windows load their own entries, so they send none.
+
+Tests: `tests/core/activity/marks.test.ts` — `markDue`'s cases, and a source test (TypeScript
+compiler API) that `presence.ts` adds exactly those three listeners, each passive and capturing,
+and calls none of the three blocking methods. `e2e/activity.spec.ts` gains one test: a key alone →
+one `present` with the window's project; a double-click, a click and `ASK` typed into the pane
+within the minute → still one, and the stand-in's question appears (the keys reached the pane);
+a wheel over the sidebar once 61 s have passed → a second, ≥ 60 s after the first. It waits a real
+minute (no clock is faked in the e2e). Block 3's test now leaves `present` out of its kinds list:
+its clicks make marks. `agent-panes.spec.ts` was run with it (set's word). Seen red: `markDue`
+without the clock-back rule, with `>` for `>=`; `presence.ts` with an injected `preventDefault`,
+with one listener `passive: false`; the e2e with `markDue` always true (7 marks within the minute).
+
+Choices the plan left open (mine):
+- Marks are journaled while the human is away too; the bursts' reading already counts nothing
+  inside an away period (§2.10), and main has no read of the away state outside `workspace.ts`.
+- The e2e's first mark comes from a bare `Shift` press, once the session list is drawn: a key sent
+  before the renderer's entry ran was lost in a first run.
+- The source test lives in `marks.test.ts`, the one test file the block names.

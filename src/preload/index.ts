@@ -54,6 +54,9 @@ const api: MenkarApi = {
     pathsExist: (paths) => ipcRenderer.invoke('terminal:paths-exist', { paths }),
     onData: (listener) => subscribe('pty:data', listener),
   },
+  activity: {
+    present: () => send('activity:present', {}),
+  },
   agentState: {
     onChanged: (listener) => subscribe('agentState:changed', listener),
     onToast: (listener) => subscribe('agentState:toast', listener),

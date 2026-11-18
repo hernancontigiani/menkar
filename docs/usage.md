@@ -164,6 +164,7 @@ events are computed in `src/core/activity/`.
 | `prompt_answered` | A pane's shown state leaves `blocked` for any other (refusing is the human acting too), with how long it was blocked; never negative, a clock set back gives 0 |
 | `topic_discussed` / `topic_closed` | A topic's status becomes `discussing` / `closed`; Menkar's own permission topics are left out, their answer is already a prompt answered |
 | `app_start` | Menkar starts |
+| `present` | A key, a click or a scroll in a focused main window, with that window's project: at most one a minute across every window, never any content |
 | `task_state` | A task appears, or its state, whom its wait names, or its review's waiter changes |
 
 - **Whom a task waits on.** `topic` with the topic's number when the wait reads `topic N`; `session`
@@ -179,9 +180,8 @@ events are computed in `src/core/activity/`.
   a second one is harmless (each row is an instant; a row in the same state adds no transition).
 - **The human's messages are not recorded again**: they are the history's turns of origin `human`.
 
-The journal's format already has `present` (a mark a minute while the human works in a focused
-window), `away` / `back` (1.167) and `prompted_start` (a session started with a prompt on its
-command line); main does not journal them yet.
+The journal's format already has `away` / `back` (1.167) and `prompted_start` (a session started
+with a prompt on its command line); main does not journal them yet.
 
 ### Bursts, when the reading is built
 
@@ -204,6 +204,13 @@ inside a burst.
 - **Prompts answered**: one `onShownChange` listener (`src/main/activity.ts`) feeds a
   `PromptTracker`. A pane closed while blocked gives nothing, and so does a pane whose agent is no
   longer in its foreground: the question was left, not answered.
+- **Presence marks**: the main window's renderer (`src/renderer/presence.ts`) listens on `window`
+  for `keydown`, `pointerdown` and `wheel`, in the capture phase and passive, and only observes: it
+  never cancels or stops an event, so xterm's key handler and the app's shortcuts see every one as
+  before. With the window focused and a minute past its last mark (`src/core/activity/marks.ts`;
+  a clock set back gives one at once), it sends `activity:present`, empty; main applies the same
+  rule across windows and journals the window's shown project. The Usage and Settings windows send
+  none. Marks are journaled while away too; the reading counts nothing inside an away period.
 - **A session named in a wait** is resolved after the event's time is taken, from the sessions'
   list, which is read asynchronously; the line is written once it is resolved.
 

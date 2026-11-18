@@ -57,3 +57,10 @@ These were inherited from agent-tablet, where each was measured or decided by th
   history, and the opening throws, so the next start tries again. When there is nothing to import
   (no file, an unreadable one, or one from a newer agent-tablet), Menkar starts empty and does not
   try again.
+
+## The human's activity and the task flow
+
+> Replaced 2026-11-18 (decision 1.180): main journals `present` marks.
+The journal's format already has `present` (a mark a minute while the human works in a focused
+window), `away` / `back` (1.167) and `prompted_start` (a session started with a prompt on its
+command line); main does not journal them yet.

@@ -148,6 +148,8 @@ export interface SendChannels {
   'pty:typed': { pane: string; data: string }
   'pty:resize': { pane: string; cols: number; rows: number }
   'panes:reveal': { paneId: string }
+  // A key, a click or a scroll in a focused main window, at most one a minute; it carries nothing.
+  'activity:present': Record<string, never>
 }
 
 // Main → renderer.
@@ -226,6 +228,9 @@ export interface MenkarApi {
     reveal(paneId: string): void
     pathsExist(paths: readonly string[]): Promise<readonly boolean[]>
     onData(listener: (event: EventChannels['pty:data']) => void): () => void
+  }
+  readonly activity: {
+    present(): void
   }
   readonly agentState: {
     onChanged(listener: (states: AgentStates) => void): () => void

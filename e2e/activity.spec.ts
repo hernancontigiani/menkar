@@ -253,7 +253,11 @@ test('a prompt answered, a topic discussed and a task’s states are journaled w
   // The journal a quit left is imported after the next start's pass; nothing is lost, nothing twice.
   const again = await open(carried)
   try {
-    const kinds = () => rows(again.root, 'activity').map((r) => r.kind)
+    // The clicks and keys above also left presence marks; their own test is below.
+    const kinds = () =>
+      rows(again.root, 'activity')
+        .map((r) => r.kind)
+        .filter((kind) => kind !== 'present')
     await expect
       .poll(kinds, { timeout: 20_000 })
       .toEqual(['app_start', 'prompt_answered', 'topic_discussed', 'app_start'])
@@ -272,5 +276,53 @@ test('a prompt answered, a topic discussed and a task’s states are journaled w
   } finally {
     await again.launched.close()
     rmSync(carried, { recursive: true, force: true })
+  }
+})
+
+test('a key, a click or a scroll in the focused window is a presence mark with its project, at most one a minute, and every key still reaches the pane', async () => {
+  test.setTimeout(150_000)
+  const { launched, page, root } = await open()
+  const files = process.env.MENKAR_FILES
+  try {
+    // What the start journaled is imported first, so the marks below stay in the journal.
+    await expect.poll(() => rows(root, 'activity').map((r) => r.kind)).toEqual(['app_start'])
+    await expect.poll(() => existsSync(journalPath(root))).toBe(false)
+    const marks = () => journal(root).filter((r) => r.kind === 'present')
+    const mark = (at: unknown) => ({
+      v: 1,
+      id: expect.any(String),
+      at,
+      kind: 'present',
+      projectId: CLIENT_WORK,
+    })
+
+    // The renderer is up, its listeners set, once the list is drawn.
+    await expect(page.locator('.row', { hasText: 'api' })).toBeVisible()
+    await page.keyboard.press('Shift')
+    await expect.poll(marks).toEqual([mark(expect.any(Number))])
+    const first = Number(marks()[0]?.at)
+
+    // Within the minute: a click, a session opened, keys typed into its pane — no second mark, and
+    // the pane got the keys: the stand-in asks its question on ASK.
+    await page.locator('.row', { hasText: 'api' }).dblclick()
+    await expect(page.locator('.xterm-rows')).toContainText('stand-in claude ready')
+    await page.locator('.xterm').click()
+    await page.keyboard.type('ASK')
+    await expect(page.locator('.xterm-rows')).toContainText('Do you want to proceed?')
+    expect(marks()).toHaveLength(1)
+
+    // A scroll in the sidebar once the minute has passed.
+    await page.waitForTimeout(Math.max(0, (first + 61) * 1000 - Date.now()))
+    await page.locator('#sidebar').hover()
+    await page.mouse.wheel(0, 120)
+    await expect.poll(marks).toEqual([mark(first), mark(expect.any(Number))])
+    expect(Number(marks()[1]?.at) - first).toBeGreaterThanOrEqual(60)
+    if (files)
+      writeFileSync(
+        join(files, 'menkar-t98-43-b3c-journal.txt'),
+        readFileSync(journalPath(root), 'utf8'),
+      )
+  } finally {
+    await launched.close()
   }
 })

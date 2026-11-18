@@ -22,6 +22,7 @@ import { openFileDialog } from './fileopen'
 import { loadCatalog } from './i18n'
 import { dropComposition, watchKeyboardLayout, withLayout } from './keyboard-layout'
 import { beginPrefix, endPrefix, prefixWaiting, setPrefixHandlers, startsPrefix } from './keys'
+import { watchPresence } from './presence'
 import { goToAgent, projectSwitcher, quickSwitcher } from './switcher'
 import { setAppKeyFilter } from './terminals'
 import { dialogOpen, toast } from './ui'
@@ -80,6 +81,7 @@ document.addEventListener(
 )
 
 watchKeyboardLayout()
+watchPresence()
 setAppKeyFilter((event) => {
   if (swallow || prefixWaiting()) return true
   if (startsPrefix(event)) return true
