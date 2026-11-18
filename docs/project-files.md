@@ -54,6 +54,9 @@ the renderer draws the section and names files, never paths.
   Discard trashes without saving, Cancel trashes nothing and leaves the tab. Main resolves the
   path as for a drag (`trashProjectFile`); a trash the system refuses leaves the tabs and shows
   "The file could not be moved to the trash."
+- **The orchestrator's `trash_files`** (decision 1.182) trashes files of its own project's folder
+  by name, the same way and with the same refusal of a name outside it; a folder or a link is
+  refused too. It is how a closed task's worker files go.
 - **Dragging a row out** hands the file to another app: the page's `dragstart` names the file
   (`dragProjectFile`), and main resolves the path itself and refuses one that is not a plain name of
   that folder — `..`, an absolute path, a dotfile, a name with a separator (`insideFolder`) — then

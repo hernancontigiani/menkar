@@ -68,7 +68,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, human_back, human_away, park_session and resume_session', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, human_back, human_away, park_session, resume_session and trash_files', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -94,6 +94,7 @@ describe('the protocol', () => {
       'human_away',
       'park_session',
       'resume_session',
+      'trash_files',
     ])
     expect(TOOL_NAMES).toEqual(reply.result.tools.map((t) => t.name))
   })
@@ -146,6 +147,27 @@ describe('the protocol', () => {
     expect(away?.inputSchema).toEqual({ type: 'object', properties: {} })
     expect(away?.description).toMatch(/only the orchestrator/i)
     expect(away?.description).toMatch(/explicitly/)
+  })
+
+  test("trash_files takes a list of names, and is described as the orchestrator's, for its project's files folder only", async () => {
+    const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
+      result: { tools: { name: string; description: string; inputSchema: object }[] }
+    }
+    const trash = reply.result.tools.find((t) => t.name === 'trash_files')
+    expect(trash?.inputSchema).toEqual({
+      type: 'object',
+      properties: {
+        names: {
+          type: 'array',
+          items: { type: 'string' },
+          description: expect.any(String),
+        },
+      },
+      required: ['names'],
+    })
+    expect(trash?.description).toMatch(/only the orchestrator/i)
+    expect(trash?.description).toMatch(/files folder/)
+    expect(trash?.description).toMatch(/trash/)
   })
 
   test('a call goes to Menkar with its arguments, and its answer comes back as text', async () => {

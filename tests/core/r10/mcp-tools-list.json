@@ -436,6 +436,25 @@
             "name"
           ]
         }
+      },
+      {
+        "name": "trash_files",
+        "description": "Moves files of your Menkar project's files folder to the system's trash, by their names in that folder (no paths). Answers which were trashed and which were not. Only the orchestrator, in the orchestration mode; a name outside the files folder is refused.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "File names in the project's files folder, e.g. menkar-t9-login.png."
+            }
+          },
+          "required": [
+            "names"
+          ]
+        }
       }
     ]
   }

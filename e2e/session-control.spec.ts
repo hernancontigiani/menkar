@@ -4,8 +4,8 @@
 // the caller's tab without taking the focus; list_sessions and last_reply address sessions by name.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
-import { join } from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { dirname, join } from 'node:path'
+import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { SIDEBAR_MIN_WIDTH } from '../src/core/settings'
 import { launchApp, savedState, terminalText } from './app'
 import { catppuccin, prepare, SESSION } from './fixtures'
@@ -677,6 +677,49 @@ test('with the orchestration mode off: human_back and human_away are refused, no
     await expect(chip(page)).toBeHidden()
   } finally {
     await launched.close()
+  }
+})
+
+// Decision 1.182: the orchestrator trashes its project's files by name, and only those.
+test("trash_files: the orchestrator's file in the project's files folder goes to the trash; a name with .. and a missing one do not; refused with the mode off", async () => {
+  type Trashed = { trashed?: string[] }
+  const recordTrash = (app: ElectronApplication) =>
+    app.evaluate(({ shell }) => {
+      const g = globalThis as unknown as Trashed
+      g.trashed = []
+      shell.trashItem = (async (path: string) => {
+        g.trashed?.push(path)
+      }) as typeof shell.trashItem
+    })
+  const trashed = (app: ElectronApplication) =>
+    app.evaluate(() => (globalThis as unknown as Trashed).trashed ?? [])
+  const on = await open({ orchestrated: true })
+  try {
+    await recordTrash(on.launched.app)
+    const env = JSON.parse(readFileSync(join(on.home, 'claude-env.json'), 'utf8'))
+    const folder: string = env.MENKAR_FILES
+    expect(existsSync(folder)).toBe(true)
+    writeFileSync(join(folder, 'menkar-t1-shot.png'), 'shot')
+    writeFileSync(join(dirname(folder), 'outside.txt'), 'kept')
+    await on.page.keyboard.type('TRASHF')
+    // A long answer wraps over rows.
+    await expect
+      .poll(async () => (await terminalText(on.page)).replace(/\n/g, ''), { timeout: 15_000 })
+      .toContain(
+        "TOOL trash_files: Trashed: menkar-t1-shot.png. Not trashed: ../outside.txt (not a file of this project's files folder), gone.png (no such file).",
+      )
+    expect(await trashed(on.launched.app)).toEqual([join(folder, 'menkar-t1-shot.png')])
+  } finally {
+    await on.launched.close()
+  }
+  const off = await open()
+  try {
+    await recordTrash(off.launched.app)
+    await off.page.keyboard.type('TRASHF')
+    await said(off.page, 'TOOL trash_files: The orchestration mode is off in this project.')
+    expect(await trashed(off.launched.app)).toEqual([])
+  } finally {
+    await off.launched.close()
   }
 })
 

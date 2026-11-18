@@ -217,6 +217,7 @@ process.stdin.on('data', (d) => {
     SECONDW: ['start_session', { task: 2, prompt: 'fix the docs' }],
     HUMANBACK: ['human_back', {}],
     HUMANAWAY: ['human_away', {}],
+    TRASHF: ['trash_files', { names: ['menkar-t1-shot.png', '../outside.txt', 'gone.png'] }],
   }
   for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
     if (!typed.endsWith(word)) continue

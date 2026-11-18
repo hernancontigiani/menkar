@@ -22,6 +22,7 @@ import {
 import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
 import { readModel } from '../core/control/model'
 import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
+import { trashCheck } from '../core/control/trash'
 import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
 import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
@@ -238,6 +239,7 @@ import {
   renameFolder,
   startProjectFiles,
   syncShown,
+  trashNamed,
   trashProjectFile,
   undoBring,
 } from './project-files'
@@ -1416,6 +1418,10 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return parkFor(project, sessionId, request.args.name)
     case 'resume_session':
       return resumeFor(pane, project, sessionId, request)
+    case 'trash_files': {
+      const checked = trashCheck(workerTeam(project).orchestrator, sessionId, request.args.names)
+      return checked.ok ? trashNamed(project.id, checked.names) : refuse(checked.text)
+    }
   }
 }
 

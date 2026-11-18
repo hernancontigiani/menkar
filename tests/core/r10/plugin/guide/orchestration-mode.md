@@ -134,7 +134,10 @@ is set waiting, with what it waits on.
   orchestration settings (the gear beside its mode icon). A plan that touches several
   repositories becomes one task per session, each in its folder. The orchestrator reads them, and
   each session's folder, in `list_sessions`.
-- **When a task closes**, its worker's tab closes and its row is hidden from the sidebar.
+- **When a task closes**, its worker's tab closes and its row is hidden from the sidebar. Once it
+  is reviewed, the orchestrator moves the worker's files (its screenshots and logs) from the
+  project's files folder to the system's trash with `trash_files`: only files of that folder, by
+  name, and the trash gives one back.
 - **Workers at once**: a number per project, empty for any number. Set it in the first-time card,
   later in the project's orchestration settings (the gear beside the project's mode icon in the
   project menu, while the mode is on), or ask the orchestrator, which then uses `set_workers_cap`. At the limit the

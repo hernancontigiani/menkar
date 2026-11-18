@@ -3,10 +3,17 @@
 // moved back on Undo, opened and dragged out, and old ones sent to the trash. Nothing here writes
 // anywhere but a project's folder, the root's folder names, and the files the user brings in.
 import { type FSWatcher, watch } from 'node:fs'
-import { mkdir, readdir, rename, stat } from 'node:fs/promises'
+import { lstat, mkdir, readdir, rename, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, dialog, shell, type WebContents } from 'electron'
 import { now } from '../core/clock'
+import {
+  type Found,
+  outcomeBefore,
+  type TrashOutcome,
+  trashAnswer,
+  trashPath,
+} from '../core/control/trash'
 import { clashFree, insideFolder, safeFolderName, uniqueFolderName } from '../core/files/folders'
 import { moveExclusive } from '../core/files/move'
 import { DAY_MS, filesToTrash } from '../core/files/trash'
@@ -369,6 +376,37 @@ export async function trashProjectFile(path: string): Promise<boolean> {
     log.warn('a project file could not go to the trash', { path, error })
     return false
   }
+}
+
+async function found(path: string): Promise<Found> {
+  try {
+    return (await lstat(path)).isFile() ? 'file' : 'other'
+  } catch (error) {
+    if (errno(error) !== 'ENOENT') throw error
+    return 'missing'
+  }
+}
+
+// trash_files: the orchestrator names files of its project's folder, and only those go.
+export async function trashNamed(
+  projectId: string,
+  names: readonly string[],
+): Promise<{ readonly ok: boolean; readonly text: string }> {
+  const folder = folderOf(projectId)
+  if (!folder) return { ok: false, text: 'This project has no files folder yet.' }
+  const results: { name: string; outcome: TrashOutcome }[] = []
+  for (const name of names) {
+    const path = trashPath(folder, name)
+    if (!path)
+      log.warn('a file outside its project folder was refused', { project: projectId, name })
+    const before = outcomeBefore(path, path ? await found(path) : 'missing')
+    if (!path || before) {
+      results.push({ name, outcome: before ?? 'outside' })
+      continue
+    }
+    results.push({ name, outcome: (await trashProjectFile(path)) ? 'trashed' : 'failed' })
+  }
+  return trashAnswer(results)
 }
 
 export async function runTrash(): Promise<void> {

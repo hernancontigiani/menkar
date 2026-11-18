@@ -168,6 +168,14 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     only when the human has said explicitly that they are leaving or want to be marked away (from
     the phone through Remote Control, say); it sets the away state as the chip and `Ctrl+B a` do,
     and the other running orchestrators get "The human is away", the caller not (`awayTool`).
+  - **`trash_files { names }`** (decision 1.182): the orchestrator only, with the mode on, for a
+    task's closing step (Claude Code's auto mode refuses `gio trash` as destructive). Each name is
+    a file of the project's files folder, sent to the system's trash as the file menu's Move to
+    Trash does (`trashNamed`, `src/main/project-files.ts`). A path, `..` or a dotfile is refused
+    before any I/O (`trashPath`, `insideFolder`); a folder or a link is looked at without following
+    it (`lstat`) and refused, so nothing outside the folder goes. The answer names the trashed ones
+    and each one kept with why (`trashCheck`, `trashAnswer`, `src/core/control/trash.ts`); it is not
+    ok when any was kept. No permission rule is added to the settings.
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.

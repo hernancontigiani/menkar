@@ -14,8 +14,9 @@ Read this when a worker reports a task done. Closing is a checklist, not a feeli
    is committed, or moved where the project keeps it.
    **The worker's files in the project's files folder** (its screenshots and logs, named with its
    session's name first) go to the system's trash once the task is closed as done — after your
-   review and, when the review was the human's, after theirs. What they proved is in the commit,
-   the report and the tests; the trash gives a file back if it is ever needed.
+   review and, when the review was the human's, after theirs — with `trash_files` and their names
+   in that folder; its answer says which were trashed and which were not. What they proved is in
+   the commit, the report and the tests; the trash gives a file back if it is ever needed.
 7. **References** to anything deleted or renamed are fixed, by name as well as by path.
 8. **Its task, after you reviewed it**: `task_close` as done, or dropped. Never before: done means
    reviewed. A review that is the human's (a visual change to try, a behaviour to feel) goes to
