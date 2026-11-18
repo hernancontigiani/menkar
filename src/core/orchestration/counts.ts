@@ -11,8 +11,8 @@ export interface WorkCounts {
   readonly waiting: number
 }
 
-// The Work view's tiles, and the tail of every post to the orchestrator: one count for both, or the
-// phone and the sidebar disagree.
+// The sidebar's count tiles, and the tail of every post to the orchestrator: one count for both,
+// or the phone and the sidebar disagree.
 export function workCounts(
   topics: readonly { readonly status: CountedTopicStatus }[],
   tasks: readonly { readonly state: TaskState }[],

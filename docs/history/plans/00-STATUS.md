@@ -992,3 +992,652 @@ icon (right-click) or an "Orchestration settings…" item".
 | 4 | 42 — the orchestrator's inbox and fewer wakes (1.178) | **Being built** (2026-11-18): reviewed and fixed, questions decided (topic 54); block 1 with `menkar-t89`; its blocks never run alongside plan 41's blocks 3 and 6 |
 | 5 | 43 — the human's activity and the task flow metrics (1.180, 1.156) | Written (2026-11-18, `menkar-t87`), ★; **recording first** (blocks 1, 2, 3, 3c, then 3b after plan 42's block 3), the views later with mock-ups |
 | — | The next .deb | **Waits** (the human, 2026-11-18) for: plan 41 block 5 (the looks) and block 6, plan 43 blocks 3 and 3b (recording live, with `prompted_start`), `trash_files` (1.182), and plan 42 blocks 2–3 (the inbox). Before cutting it, `set` lists for the human what goes in and what is still in flight |
+
+## 2026-11-18 — plans 41 and 42 closed (built by `menkar-t78`, `t82`, `t84`, `t88`, `t95`, `t99` and plan 42's workers; shipped in 0.1.0-347)
+
+Plan 41 (background workers, one peek tab, one sidebar view) and plan 42 (the orchestrator's inbox and fewer wakes) were built on `main` (plan 41's last block 1c5d5b7, plan 42's a62ea09) and shipped in 0.1.0-347. Each part went to the destination its exit table declared (`docs/window.md`, `docs/orchestration.md`, `docs/projects.md`, `docs/sessions.md`, `docs/session-control.md`, `docs/context.md`, `docs/agents.md`, `docs/NOT_BUILT_YET.md`, `AGENTS.md`, the plugin's guide and skills); the plans were deleted. Plan 38's row was also brought up to date (plan 39's P0 merged, 127d4f1).
+
+> Replaced 2026-11-18: 1.176, 1.177 and 1.178 built; plan 38's row out of date; plans 41 and 42 closed.
+| 1.176 | **Workers without a tab, and one peek tab** (the human, 2026-11-16, topic 44, option a, from task 59's mock-ups `$MENKAR_FILES/menkar-t59-*`): in the orchestration mode the orchestrator's workers **run without a tab** (Menkar keeps the process and its terminal's screen); a click on a worker's row shows it in **one peek tab**, italic with a pin button, that the next click replaces; pinning makes it an ordinary tab; closing a worker's tab only hides it, with a toast the first time ("‹name› keeps running in the background · Show"); the orchestrator, consultants and "with you" sessions keep ordinary tabs, first, then pinned ones, the peek last; rows show it by the name's weight (bold with a tab, regular in the background, italic in the peek, a pin when pinned); a background worker at a permission prompt shows a red pill in the tab strip that opens it in the peek, besides the row's red dot; a click on a pinned worker selects its tab and leaves the peek. **Amends the rule that a session runs only while it has a tab** (`AGENTS.md`), for these workers. **Plan 41's questions decided** (the human, 2026-11-18, topic 51, all as recommended): AGENTS.md's rule gains that in the orchestration mode a worker's tab may be in the background or in the peek, closing it sends it there, and only Stop, parking, its task closing, its window closing or quitting end it; only workers (no role) go to the background, experts keep ordinary tabs; the mode off turns their tabs ordinary, nothing stops; a double-click on a worker's row opens it pinned; the weights only on workers' rows, and a worker with no tab is regular; one pill per waiting worker, in the tabs' order; one peek per project; closing a worker's tab with a second pane closes that pane and backgrounds the worker; ⋮ Open opens it pinned; "N hidden" after Others, before Done today. Plan 41. Not built yet | 2026-11-16 | this row (until built) |
+| 1.177 | **One sidebar view in the orchestration mode, no Work/Team switch** (the human, 2026-11-16, topic 46, option a with their notes; so background workers (1.176) are found without knowing a Team view exists): in order (1) "Awaiting you", at most 5 topics and "N more" (1.171); (2) **Tasks, at most 3** (today 6) with "See all (N) →" opening the Board, as now; (3) **the orchestrator, folded by default**, its row showing how many are under it and the worst state's dot (1.171), unfolded showing its workers with their task and step as the Team view does; (4) Consultants; (5) Others; (6) Done today, folded. **The three count tiles stay**, at the top (for you · working · waiting). **Every session row keeps what the Team view's rows have today** — the Remote Control icon, the state dot, the role label, the task and step, the row menu (⋮) with its per-session settings — so nothing the Team view offers is lost (the human, 2026-11-17). From task 60's mock-ups (`$MENKAR_FILES/menkar-t60-sheet.png`, the human, 2026-11-17): the folded group's count after its name ("ccai 6 ●"); Done today last, folded; at a low height "Awaiting you" stays and the rest scrolls. Designed in the same plan as 1.176. Not built yet | 2026-11-16 | this row (until built) |
+| 1.178 | **The orchestrator is woken only by what moves the work; the rest waits in an inbox** (the human, 2026-11-17, topic 48, option a; replaces 1.173's coalescing as the answer to the noise in the orchestrator's chat): Menkar wakes the orchestrator only for a task set to review and a worker's question; every other event (control taken or handed back, a topic to discuss, away/back, a turn ended without a report, a permission prompt) goes to **an inbox Menkar keeps per orchestrator**, reaching it **invisibly with the human's next message** (a `UserPromptSubmit` hook in Menkar's `--settings`) and through an MCP tool `inbox`; a worker's permission prompt wakes nobody (the red pill, 1.176) and Menkar raises its blocking topic itself; workers report with `task_review` and ask with a Menkar tool, not SendMessage. Polling was rejected: the orchestrator acts only within a turn, so polling every few seconds costs a turn each. **Plan 42's questions decided** (the human, 2026-11-18, topic 54, as recommended): only a mode-on project's orchestrator has an inbox; the inbox reaches it with any prompt it gets, the human's or a wake, always invisibly; Menkar raises the permission topic for any child of the orchestrator not "with you", experts included; the topic is raised at once unless the human is looking at that session, closed 3 s after the prompt is answered (one topic for a chain), kept out of Done today, its notice opening the waiting session. By `set`: the question tool is `ask`, it does not set the task waiting, the answer goes by SendMessage, and a review from any assignee of the project wakes the orchestrator. Plan 42. Not built yet | 2026-11-17 | this row (until built) |
+| 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143). Next: plan 39, its software architecture (1.135 step 2), by a new Opus session with `/design-plan` — **launched once plan 40's open questions are settled** (the human, 2026-11-15), with task 20 (how each agent receives the team block) as its research, then its Fable review; **no multi-agent implementation** until the human says so; its launch prompt is `prompts/PROMPT-architect.md` |
+| 3 | 41 — background workers and one peek tab (1.176) with the single sidebar view (1.177) | **Built** (2026-11-18, blocks 1–6, last 1c5d5b7) and shipped in 0.1.0-347; **to close** (`set`): move what is left to its docs, delete the plan |
+| 4 | 42 — the orchestrator's inbox and fewer wakes (1.178) | **Built** (2026-11-18, blocks 1–4, last a62ea09) and shipped in 0.1.0-347; **to close** (`set`) as plan 41 |
+
+### Plan 41's execution log, verbatim
+
+
+(Written by the session that executes it.)
+
+#### Block 1 — `menkar-t78` (task 78), 2026-11-18
+
+**Built** (core only; nothing in main or the renderer calls it yet):
+
+- `src/core/projects/place.ts`: `type TabPlace = 'background' | 'peek'`, nothing else.
+- `src/core/projects/model.ts`: `SavedTab`'s session variant gains `place?: 'background'`.
+- `src/core/projects/layout.ts`:
+  - `SessionTab.place?: TabPlace` (absent = ordinary).
+  - `shownTabs` (so `shownTab`, `stepTab`, `nthTab`, `openBeside`'s target) skip background tabs.
+  - The neighbour rule: `withoutTab`'s selection logic is now `selectionWithout(w, tabId)`, which
+    picks a **drawn** neighbour of the same project (next, else previous); `closeTab` and
+    `toBackground` share it.
+  - `select(layout, windowId, tabId)`: a background tab → the project's peek, moved after the
+    project's last tab, the project's previous peek → background in place; any tab → selected.
+    **It also sets `shown` to the tab's project** (as `revealPane` and `openSession` did).
+    Unknown tab → same layout.
+  - `toBackground(layout, windowId, tabId)`: session tab with **exactly one pane** in `tab.panes`
+    → `place: 'background'` in place, selection by the neighbour rule; a two-pane tab, a file tab
+    or an already background one → the same layout object. Main must hang up the second pane
+    first (D2) — and main's `tabPanes` (a split shell) is not seen here.
+  - `pin(layout, windowId, tabId)`: a peek → ordinary in place, selected; a background tab →
+    ordinary, moved **right before the project's peek** (or last when there is none), selected,
+    the peek stays; any other tab → `select`.
+  - `ordinaryUnless(layout, keep)`: **signature differs from §2.3's** `(layout, backgroundable,
+    selected)`: it is `keep: (tab: SessionTab) => boolean`, by tab, so main can combine
+    `backgroundable(session)` with its `tabPanes` count; the selection is read from the layout.
+    A placed tab loses its place when `keep` is false **or `tab.panes.length !== 1`**. A selected
+    peek → ordinary in place; every other losing tab → ordinary, re-inserted before the project's
+    surviving peek (or last when none survives), in their original order; nothing selected changes.
+    Returns **the same layout object** when nothing changes, so `changed()` can call it cheaply.
+  - `openSession(..., newId, options: OpenOptions = {})`, `OpenOptions = { pin?, worker? }`. A
+    found tab → `pin` when `options.pin`, else `select` (a background tab is peeked). A new tab: a
+    worker's (`worker(sessionId)`) goes before the project's peek; anyone else's after the
+    project's last tab that is not a worker's (a tab with a `place`, or whose panes include a
+    `worker`), or first among the project's tabs when all are workers'. Without `worker`, every
+    unplaced tab counts as ordinary, so a new tab lands before background tabs and the peek.
+  - `openBeside`: the tab it extends loses its `place` (a peek given a second pane is pinned).
+  - `moveSessionHere`: a placed tab that comes here (from another window, or re-projected in this
+    one) arrives as background and is `select`ed → the peek; an ordinary one is inserted before the
+    peek and selected, as before. **My choice**: a background tab already in this window's shown
+    project is peeked too (before: Add session on it changed nothing).
+  - `insertTabAfter`: an unplaced tab that would land after its project's peek goes right before
+    it; a background tab goes where asked.
+  - `toSaved`: background and peek → `place: 'background'`; `reopen` reads only
+    `place === 'background'`, anything else ordinary.
+- `tests/core/projects/layout.test.ts`: 17 tests for the list above, then **the sweep**: one case
+  per exported function of `layout.ts`, discovered from the module (`Object.entries`, a floor of
+  20); a new export without a case fails. Each case runs the function over every window, tab and
+  session of a layout with background tabs in two windows and three projects, and checks no
+  `selected` names a background tab, no project has two peeks, and no returned tab id is a
+  background one.
+
+**Seen red**: six defects injected one at a time into `layout.ts` and reverted — the neighbour
+allowed to be background, the previous peek not demoted, `shownTabs` drawing background tabs,
+`toSaved` dropping `place`, `ordinaryUnless` keeping a two-pane placed tab, an uncovered export —
+each failed its tests (and the sweep, where it applies).
+
+**Not done here, for block 3**: main does not call any of it; `revealPane`, `revealTab`, the
+`selectTab` action and the selection writes at `workspace.ts` 2386–2633/2984 still write
+`selected` directly. **The plan's "peek is the last tab" holds only through these functions**:
+`moveTab` (dragging) stays free, as §2.3 says.
+
+**Checks**: `npm run ci` green (108 files, 1437 tests; biome, tsc, R10, code rules, i18n, test
+integrity, history), output in `$MENKAR_FILES/menkar-t78-41-b1-ci.log`.
+
+#### Block 2 — `menkar-t82` (task 82), 2026-11-18
+
+**Built** (core only; nothing in main or the renderer calls it yet):
+
+- `src/core/orchestration/workers.ts`: `backgroundable(team: WorkerTeam, withYou: readonly
+  string[], id)` = `isWorker(team, id) && !withYou.includes(id)` (Q2). Mode off is covered by
+  `workerTeam` giving `orchestrator: null`. **My choice**: `withYou` is the array
+  `OrchestrationInfo.withYou` already carries (`ProjectInfo.orchestration.withYou`), not a set;
+  the tab count (one pane, by `tabPanes`) stays main's, combined with this in the `keep` predicate
+  block 1's `ordinaryUnless` takes.
+- `src/core/orchestration/rows.ts`, beside `TOPICS_SHOWN`/`topicsFolded`:
+  - `TASKS_SHOWN = 3`; `tasksFolded<T>(open: readonly T[])` → `{ rows, more }`, the first 3 and
+    the rest's count. **No `unfolded` argument** (unlike `topicsFolded`): the rest opens the Board,
+    as the plan says. The caller passes the tasks already in the order it shows them.
+  - `type RowWeight = 'pinned' | 'background' | 'peek' | 'none'` (exported, **my choice**, for
+    block 5's class mapping) and `rowWeight(worker: boolean, place: TabPlace | 'ordinary' | null)`
+    → `RowWeight | null`: not a worker → `null` whatever the place (Q5); `'ordinary'` → `'pinned'`;
+    `'background'`, `'peek'` as given; `null` (no tab) → `'none'`, drawn regular (D5). `worker`
+    is the caller's to compute — block 5 decides whether it is `isWorker` or `backgroundable`
+    (a worker "with you" has an ordinary tab and would read `'pinned'` under `isWorker`).
+- Tests: `tests/core/orchestration/workers.test.ts` "who goes to the background" (a worker, one
+  with you, an expert, the orchestrator, a session the human started, a worker with the mode
+  off); `tests/core/orchestration/rows.test.ts` "the tasks in the single view" (8 → 3 + 5,
+  3 → 3 + 0, 0 → 0 + 0) and "a row's weight" (one case per value, and a non-worker with and
+  without a tab → `null`).
+
+**Seen red**: six defects injected one at a time and reverted — `withYou` ignored, the role
+ignored, `TASKS_SHOWN = 6`, `more` negative, a non-worker given a weight, no tab drawn as
+pinned — each failed exactly one test.
+
+**Not done here**: `SHOWN_TASKS` in `src/renderer/work.ts` is untouched (block 4 removes it).
+
+**Checks**: `npm run ci` green (120 files, 1590 tests; biome with 23 warnings, none in these
+files; tsc, R10, code rules, i18n, test integrity, history), output in
+`$MENKAR_FILES/menkar-t82-41-b2-ci.log`.
+
+#### Block 3 — `menkar-t84` (task 84), 2026-11-18
+
+**Built** (main, and the renderer's minimum):
+
+- `src/shared/workspace.ts`: `TabView.place?: TabPlace` (the type from `place.ts`, so main and
+  renderer share it); `openSession` takes `pin?: true`; a new action `pinTab { tab }`;
+  `ActionResult.backgrounded?: { names, first }`.
+- `src/core/background-toast.ts`: `backgroundToastShown(state)` (`background_toast === true`) and
+  `markBackgroundToast(state)`, beside `mute.ts`; `tests/core/background-toast.test.ts`.
+- `src/main/workspace.ts`:
+  - `mayHide(sessionId)` = `backgroundable(workerTeam(project), orchestrationInfo(project).withYou,
+    id)` of the session's project; `staysPlaced(tab)` = one pane by `tabPanes` (the tab's
+    `panes` while it is not started) and every session `mayHide`: the `keep` of
+    `layout = ordinaryUnless(layout, staysPlaced)`, the first line of `changed()` after the
+    buffers, before `startShownTabs()`.
+  - `selectTabIn(windowId, tabId)`: `select` then `putWindow` (so the recent projects follow);
+    `revealPane`, `revealTab` and the `selectTab` action call it. **Left as they were**: the
+    selection writes of file tabs, new and forked sessions and `discussTopic` (the orchestrator's
+    tab, never placed).
+  - `start_session` and `resume_session` give the new tab `place: 'background'` when `mayHide`
+    (after `placeStarted`, so the parent is already set); `insertTabAfter` puts it after the
+    caller's tab.
+  - `closeOrHide(tabId)`: the human's close. An already background tab → nothing; a session tab
+    (not a chat) with a session that `mayHide` → every other pane of it hung up as the `closeTab`
+    function does (`tabId` moved to `closed-…`, out of `tabPanes`), the layout tab reduced to
+    that session, `toBackground`, `changed()`, its name returned; anything else → the `closeTab`
+    function, unchanged. Used by the `closeTab` action (after its unsaved check), `closePane` on
+    a tab's only pane, `closeAllTabs` and `closeOtherTabs` (over every project's tabs, as before).
+    `closePane` on a pane of a two-pane tab still hangs up that pane, a worker's included (the
+    plan names only the only-pane case).
+  - `backgroundedResult(names)`: `{}` when none; else `first` read and `background_toast` set in
+    one `sessions.updateState`, a failed write logged and `first: false`.
+  - `pinTab` → `pin` in the tab's window; `openSession` passes `{ pin: action.pin === true,
+    worker: mayHide }`; `splitPane` on a placed tab pins it first (`openBeside` already does it
+    in the layout).
+- `src/renderer/app.ts`: `renderStrip` skips `place === 'background'`; a row's click sends
+  `selectSessionTab` when its session's tab has a place, `selectTab` otherwise, as before; its
+  double-click and ⋮ Open send `openSession` with `pin: true` (D3; `pin` on a tab that has no
+  place just selects it, so every row passes it). ⋮'s labels and order are untouched. **⋮ Open
+  was added here by `set`'s decision (2026-11-18)**: no block named it.
+- `e2e/background-workers.spec.ts` (new): a started worker has no tab and its pid lives; a row
+  click shows it last and selected, as the peek; × → background, pid alive; `Ctrl+B x` → the
+  same; ⋮ Open → an ordinary tab; a pinned worker's × → background; Close all → no tab, pid
+  alive; ⋮ Stop → pid gone, no tab. A second test: the layout saved with `"place":"background"`,
+  the window closed, a relaunch on the same root resumes the worker (`--resume`) with one tab in
+  the strip and the worker's tab background. Places are read through `menkar.window.state()`.
+- `e2e/app.ts` (granted by `set` for this): `endSessions(app)`, used by `close()`: Close all,
+  then `stopSession` for every session still open — Close all no longer ends workers, and a
+  running one would leave the app's close waiting on "Stop N running".
+- `e2e/session-control.spec.ts`: the per-task worker, the To review/cap and the `task_star` tests
+  reach the worker by its row (the last one switches to the Team view first); task 2's worker is
+  asserted in the background, then shown from its row. The tests at `:367–384` and `:818` (the
+  role makes the worker ordinary) pass unchanged; `orchestration.spec.ts` needed nothing.
+
+**My choices**: a tab of two sessions where one `mayHide` keeps that one (the first) and hangs up
+the other — the D2 rule applied to a second *session* pane too, so two workers sharing a tab lose
+the second one. The row click uses `selectSessionTab` only for a placed tab. `closeOrHide` on an
+already background tab does nothing and names no one (Close all over background tabs).
+
+**Seen red**: the core test against `background_toast !== undefined`; the e2e against three
+injected defects, rebuilt each time and reverted — nothing `mayHide` (both tests fail), close
+always hanging up (the first fails at "background"), the strip drawing background tabs (both
+fail at the tab count).
+
+**Not done here, for later blocks**: no looks (block 5: the peek's italic and pin button, the
+pills, the toast from `backgrounded`); the agent-facing replies still say "in a tab after yours"
+(block 6). New file tabs and new sessions appended by main (`openFileTab`, `addTransientTab`) still
+land after the peek, as block 1's note says of `moveTab`.
+
+**Checks**: `npm run ci` green (121 files, 1599 tests; biome 23 warnings, none new in these
+files; tsc, R10, code rules, i18n, test integrity, flaky, history), output in
+`$MENKAR_FILES/menkar-t84-41-b3-ci.log`; `npm run ui-check` green (381 passed) in
+`$MENKAR_FILES/menkar-t84-41-b3-ui-check.log`; screenshots `menkar-t84-41-b3-background.png`,
+`menkar-t84-41-b3-peek.png`.
+
+#### Block 4 — `menkar-t88` (task 88), 2026-11-18
+
+**Built** (1.177: the single view and the fold's key):
+
+- `src/core/projects/model.ts`: `teamView` gone; **`Project.orchestratorOpen?: true`** replaces
+  `orchestratorCollapsed` (a flag set only while true, like the others). **Deviation, agreed with
+  `set`**: the plan kept `Project.orchestratorCollapsed`; with it a project created in code (no
+  key) would read unfolded, and folded by default must hold for those too.
+  `ProjectInfo.orchestratorCollapsed` stays, derived in `src/main/projects.ts` and
+  `src/main/workspace.ts` as `p.orchestratorOpen !== true`; `ProjectInfo.teamView` gone.
+- `src/core/projects/orchestration.ts`: `setTeamView` and the `teamView` flag gone;
+  `setOrchestratorCollapsed(state, id, collapsed)` keeps its signature and sets `orchestratorOpen`
+  to `!collapsed`.
+- `src/core/projects/store.ts`: reads and writes `orchestrator_open` (absent = folded);
+  `team_view` and `orchestrator_collapsed` are destructured out of the project's unknown keys, so
+  they are neither read nor written back.
+- `src/main/workspace.ts`, `src/shared/workspace.ts`: the `setTeamView` action gone.
+- `src/renderer/work.ts`: `viewSwitch`, `workView`, `consultantsSection`/`consultantIds` and
+  `SHOWN_TASKS` gone. New `modeTop(s, project)` = the three tiles + `topicsSection`;
+  `tasksSection` (exported) uses block 2's `tasksFolded`, "See all (N) →" shown when `more > 0`;
+  `doneSection` exported.
+- `src/renderer/app.ts`: `#view-switch` gone from `buildFrame`; `renderSessionList` with the mode on
+  fills `#topics-section` with `modeTop` and `#session-list` with `tasksSection`, `modeList`, the
+  "N hidden" foot, `doneSection`, then the drag marker; the `work` class gone.
+- `src/renderer/style.css`: `#view-switch` and `.consultant-row`/`.consultant-role` rules gone;
+  `.work-tiles` gets a 6 px top margin, now that it is the first thing under the header.
+- `src/core/i18n/{en,es}.ts`: `work.view`, `work.work`, `work.team` gone, **and also
+  `work.consultants`, `work.consultantsExpand`, `work.consultantsCollapse`** (my choice: they were
+  used only by Work's consultants section, which the block removes; the single view's Consultants
+  heading is `orch.consultants`).
+- Granted by `set` outside the block's list: `tests/core/orchestration/rows.test.ts` and
+  `started.test.ts` (the `teamView: false` fixture line), `e2e/background-workers.spec.ts` (seeds
+  `orchestrator_open: true`).
+- Tests: `tests/core/projects/orchestration.test.ts` — `team_view` not read nor written back;
+  `orchestrator_collapsed: true`, `false` and neither → folded, no fold key written;
+  `orchestrator_open: true` → unfolded and written back; the fold round-trip.
+- e2e: `work-view.spec.ts` — the seed's `teamView` became `orchestratorOpen` (writes
+  `orchestrator_open`) and `SeedMore.hidden`; a new test asserts the order of `#session-list`
+  (Tasks · 8, 3 tasks, See all (8) →, the orchestrator folded with its count, Consultants, Others,
+  "1 hidden", Done today · 1 folded), no `#view-switch`, the tiles and Awaiting you in
+  `#topics-section`, ⋮ on a worker row listing the 19 labels `rowMenu` gives today, and at
+  1280×600 the list scrolled to its end with the tiles and Awaiting you still in view; the
+  triangle saves `orchestrator_open`, and folding removes it. The rest rewritten off the switch.
+  `orchestration.spec.ts` and `session-control.spec.ts`: the seeds' `team_view: true` became
+  `orchestrator_open: true` (they relied on the unfolded orchestrator); the switch's clicks gone;
+  two list-order expectations gain Tasks and Done today.
+  The orchestrator's red dot when a child waits at a prompt is the existing fold test's.
+
+**Seen red**: the store tests before the code (4 failing); then, injected and reverted, Done today
+put before the "N hidden" foot (the order test fails) and the fold flag not inverted (two e2e and
+one core test fail).
+
+**Not done here**: comments still saying "Work view" in `src/renderer/board.ts:73` and
+`src/core/orchestration/counts.ts:14` (outside the block's files); the agent-facing texts and
+docs are block 6's.
+
+**Checks**: `npm run ui-check` green (382 passed), output in
+`$MENKAR_FILES/menkar-t88-41-b4-ui-check.log`; screenshots `menkar-t88-41-b4-folded-{dark,light}.png`,
+`menkar-t88-41-b4-unfolded-{dark,light}.png` (1280×800), `menkar-t88-41-b4-scrolled-600.png`.
+`npm run ci`: biome (none in these paths), tsc, vitest (1656), code rules, i18n, flaky and history
+green on this block's tree; **test integrity red by design**: 15 `expect(` lines rewritten because
+the switch, Work's consultant rows and the 6-task limit are gone, listed in
+`$MENKAR_FILES/menkar-t88-41-b4-removed-expects.txt`, for a person to read. Output in
+`$MENKAR_FILES/menkar-t88-41-b4-ci.log`.
+
+#### Block 5 — `menkar-t95` (task 95), 2026-11-18
+
+**Built** (1.176's looks, from task 59's approved mock-ups):
+
+- **`rowWeight`'s `worker` is `backgroundable`, not `isWorker`** (block 2 left it open): a worker
+  "with you" keeps an ordinary tab no close can hide, so under `isWorker` its row would read bold +
+  pin, claiming a pin the human never made; under `backgroundable` it is drawn as before (Q5), as
+  1.176 lists "with you" sessions beside the orchestrator and consultants.
+- **New `src/core/orchestration/team.ts`** (Node-free: `WorkerTeam`, `isWorker`, `backgroundable`),
+  re-exported by `workers.ts` so no caller changed — `set`'s pick (B) over a second copy of the
+  rule in the renderer, like P0's `details.ts`/`raw.ts`. `workers.ts` pulls Node into the
+  renderer's compile (`projects/orchestration`, `parents` → `model.ts`, `tasks.ts`); `team.ts`
+  types `parents` as the record itself because even a type import of `parents.ts` brings
+  `model.ts` into the renderer's program.
+- `src/renderer/app.ts`:
+  - `act` is now a function: when a result carries `backgrounded.first`, the toast
+    "‹first name› keeps running in the background" with Show; Show finds that name among the
+    background tabs' sessions and sends `selectSessionTab`. In `act`, so every close (×, middle
+    click, Close, Close others/all, `Ctrl+B x` from `keys.ts`) shows it without a second caller.
+  - `tabButton`: a peek gets the `peek` class (italic, regular) and a `.pin` button (`icon('pin')`,
+    `tab.pin`) left of × → `pinTab`; a double-click on a peek → `pinTab`. The pin is `.pin`, not
+    `.close`, so the existing `.close` locators stay unique; the drag ignores both.
+  - `workerPills`: one `button.blocked-pill.worker-pill` per tab of the shown project with
+    `place === 'background'` and a pane whose state is `blocked`, in the tabs' order (D6, Q6),
+    "‹tab title› · permission", before `#prefix-pill`; a click → `selectTab` (main's `select`, so
+    the peek).
+  - `teamText`: the `.name` gets `weight-‹pinned|background|peek|none›` from `weightOf` (the
+    session's tab in `state.tabs`: `place`, `'ordinary'`, or none), and a pinned one a
+    `.pin-mark` (`row.pinned`). Mode off: rows untouched (they never reach `teamText`).
+- `src/renderer/style.css`: `.tab.peek .title` italic 400; `.tab .pin` styled as `.close`;
+  `.worker-pill` (pushed right, `margin-left: auto`, `#prefix-pill` after it at 6 px);
+  `.row .name.weight-{background,none,peek}` 400, `weight-peek` italic; `.pin-mark` beside the
+  muted icon. Placed so Biome's `noDescendingSpecificity` count stays at the tree's 11.
+- `src/renderer/dom.ts` (granted by `set`): one `pin` path, the mock-up's glyph.
+- i18n, both catalogs, as the plan proposed: `tab.pin`, `tab.blockedWorker`, `row.pinned`,
+  `toast.background` (Spanish for `set` to check).
+- `e2e/background-workers.spec.ts`: `open({ helper })` seeds a stopped worker (parent the
+  orchestrator); a new test "the looks": two background workers (SPAWN1, WORKT) and the stopped
+  one regular, the orchestrator bold; a row click → italic peek with its pin button, the row
+  italic; a click on the other worker replaces the peek; the pin button → bold tab without pin,
+  the row bold + `.pin-mark`; the tab's double-click pins; the toast once with Show peeking it,
+  none on the second close; Take control in the peek → still selected, bold; ASK, hand back, ×
+  → the pill, which peeks it and goes; ⋮ With you on a background worker → an ordinary tab, not
+  selected. Screenshots in both schemes.
+
+**Deviations from the block's e2e list**: "a parked worker regular" is tested as a stopped worker
+with no tab — the same `'none'` weight; parking in the stand-in needs Take control, which makes
+the worker "with you". "Take control from a background worker's row menu" is ⋮ **With you**:
+the row menu has no Take control item, and both set the same mark (`setWithYou`).
+
+**Seen red**: the new test before the code (rows not regular); then, injected, rebuilt and
+reverted: the toast on every close (caught only after the toast check became a single count —
+`toHaveCount(0)` retried until the toast expired by itself), pills for every placed tab, the peek
+row not italic.
+
+**Not done here**: the docs and agent-facing texts (block 6).
+
+**Checks**: `npm run ui-check` green (385 passed), output in
+`$MENKAR_FILES/menkar-t95-41-b5-ui-check.log`; screenshots
+`menkar-t95-41-b5-{background,peek,pinned-and-peek,toast,pill}-{dark,light}.png`.
+`npm run ci` (`$MENKAR_FILES/menkar-t95-41-b5-ci.log`): biome green (`--diagnostic-level=error`
+clean; `noDescendingSpecificity` in `style.css` at the tree's 11), tsc green; **vitest 2 red, both
+other sessions' work in the shared tree**: `tests/core/r10.test.ts` (tools/list changed by an
+uncommitted `protocol.ts` edit) and `tests/core/usage/export.test.ts` (plan 43); 1706 passed.
+The steps after vitest, run by hand (`$MENKAR_FILES/menkar-t95-41-b5-ci-rest.log`): i18n, test
+integrity, flaky and history green; code rules red only on `tests/core/usage/cli.test.ts:176–177`
+(`Date.now()`, plan 43's).
+
+#### Block 6 — `menkar-t99` (task 99), 2026-11-18
+
+**Built** (what agents read, the docs, AGENTS.md's rule; no behaviour change):
+
+- `src/core/control/protocol.ts`: `start_session` — "Starts a new Claude Code session in your
+  Menkar project, without taking the focus. A worker you start runs in the background, with no tab
+  of its own, until the human opens it; any other session gets a tab after yours. …", "unique
+  among the project's running sessions"; `list_sessions` — "whether it is running (tab)" (the
+  field stays `tab`); `park_session` — "hangs it up, as Stop does"; `resume_session` — "without
+  taking the focus: a worker runs in the background, with no tab of its own, until the human
+  opens it; any other session gets a tab after yours".
+- `src/main/workspace.ts` (held by me with `set`'s leave, released after): a helper
+  `whereStarted(tab)` above `startForAgent` — "in the background, with no tab of its own until
+  the human opens it" for a tab with `place: 'background'`, else "in a tab after yours" — used by
+  `start_session`'s three replies and `resume_session`'s. **My choice**: the task variant reads
+  `Started "x" for task N, now assigned to it, ‹where›; …` (the task moved before the place, which
+  no longer reads well after it). Refusals: `"x" is already running.`, `A session called "x" is
+  already running in this project.`
+- `e2e/session-control.spec.ts` (granted by `set`): `:247`'s refusal; `:343`, `:403`, `:442`
+  assert `Started "client-work-tN" for task N, now assigned` — only the part that fits the
+  terminal's first row (the whole reply wraps at 80 columns; the tests already assert the tab
+  count that shows the background).
+- `plugin/guide/orchestration-mode.md`: "The sidebar in the mode" rewritten for the single view
+  (counts and Awaiting you fixed; Tasks past three → See all; the team, the orchestrator folded
+  until opened; "N hidden"; Done today) plus a paragraph "Workers run in the background" (peek,
+  pin, close, what ends a worker, the rows' weights, the pills, who keeps ordinary tabs); a card's
+  and a task's click "shows" the session; parking "hangs it up"; a closed task's worker "is hung
+  up"; the cap line: closing a worker's tab frees no place; Take control in the peek keeps the tab
+  as ordinary; "Read the sidebar".
+- `plugin/skills/orchestrator/workers.md`: "Parked" in the sidebar; the cap bullet gains "A worker
+  runs in the background, with no tab, until the human opens it; the human closing its tab sends it
+  back there and frees no slot."
+- `docs/window.md`: new section "Background workers and the peek tab" (place, who goes there, the
+  peek, `select`, what starts there, what closes and what hangs up, pinning, `ordinaryUnless`, the
+  pills, restart, the drawer, the screen, and §2.8's window-side rejections as its "Rejected"
+  list — window.md has no Rejected section of its own); "Closing hangs up" names the exception.
+- `docs/orchestration.md`: the data's keys (`orchestrator_open`, no `team_view`); "The sidebar in
+  the mode" — one view in 1.177's order replaces the Work/Team paragraphs; the folds' key; the
+  workers' row weights paragraph; Topics section, Board, parking, resuming and the cap updated;
+  two §2.8 lines in "Rejected".
+- `docs/projects.md`: the marks' keys (`orchestrator_open`; `team_view` and
+  `orchestrator_collapsed` neither read nor written back); a tab's `place` in the layout, saved
+  and reopened.
+- `docs/sessions.md`: `background_toast` in the `state.json` section.
+- `docs/session-control.md` (granted by `set`): `start_session`, the name refusal,
+  `list_sessions`, `park_session`, `resume_session`, the posts' "sidebar's three counts".
+- `docs/NOT_BUILT_YET.md`: the two deferrals of §2.4, each with its trigger.
+- `AGENTS.md`: Q1's accepted wording appended to the tab rule; the doc table's row for
+  `docs/orchestration.md` says "the sidebar's one view" (it said "the Work and Team views": a
+  line of the same file the block made false).
+- Histories, verbatim: `docs/history/root/AGENTS.history.md` (both AGENTS.md lines),
+  `docs/history/{orchestration,window,projects,session-control}.md` (the sidebar section whole,
+  the rest as the lines that left).
+
+**Not done here**: R10 (`tests/core/r10/`) is not refreshed — `set`'s, per §5: `tools/list`
+(protocol.ts) and the plugin snapshots of `guide/orchestration-mode.md` and
+`skills/orchestrator/workers.md` move. `skills/orchestrator/SKILL.md`'s snapshot also fails, from
+another session's uncommitted edit of that file, not this block's. Comments saying "Work view" in
+`src/renderer/board.ts:73` and `src/core/orchestration/counts.ts:14` (block 4's note) are outside
+the block's files and stay.
+
+**Seen red**: `session-control.spec.ts` against the old strings rebuilt into `workspace.ts` (3
+tests failed), then restored and rebuilt.
+
+**Checks**: `npx playwright test e2e/session-control.spec.ts` 15 passed
+(`$MENKAR_FILES/menkar-t99-41-b6-session-control.log`). `npm run ci`
+(`$MENKAR_FILES/menkar-t99-41-b6-ci.log`): biome and tsc green; vitest 1707 passed, 4 failed, all
+R10 snapshots (above); the steps after vitest run by hand
+(`$MENKAR_FILES/menkar-t99-41-b6-ci-rest.log`): code rules, i18n, test integrity, flaky and history
+(35 documents, 0 lines lost) green. No screenshots: the block changes nothing a user sees.
+
+
+### Plan 42's execution log, verbatim
+
+
+(Written by the session that executes it.)
+
+#### Block 1 — `menkar-t89` (task 89), 2026-11-18
+
+**Built** (core only; nothing calls it yet, R10 does not move):
+
+- `src/core/orchestration/inbox-text.ts` (new): `INBOX_TEXT_MAX_BYTES` = 1,500, `InboxLine`,
+  `inboxText(entries, dropped, maxBytes?)`. Imports nothing; formats the local time from `at` with
+  `new Date(at)` (the code rule only forbids the argument-less form).
+- `src/core/orchestration/inbox.ts` (new): `INBOX_MAX` = 30, `sequence()` (the run's one counter,
+  passed to every `Inbox`), `Inbox` with `add`, `retract`, `entries`, `dropped`, `text`, `take`,
+  `deliveredThrough`, `clear({ keep })`.
+- `src/core/control/events.ts`: `WakeBatcher.wake(parent, child, key, text)`; the `events` map is
+  keyed by key and holds the child (a `note` keys by the child as before); `send` gets a third
+  argument, the batch's `{ key, text }` entries, so main's two-argument callback compiles unchanged.
+  The constructor's parameter properties became plain fields. `route(input)` with `RouteInput`
+  and `Route`.
+- `src/core/orchestration/permission.ts` (new): `PERMISSION_CLOSE_MS` = 3,000, `permissionTopic`
+  (the stored English title and context), `PERMISSION_ANSWERED`, `openPermissionTopic`,
+  `PermissionTopics` (`blocked`, `unblocked`, `exited`, `dispose`) over injected `actions`
+  (`openTopic`, `raise`, `close`) and `Timers`.
+- `src/core/orchestration/topics.ts`: optional `kind?: 'permission'` on `Topic` and `NewTopic`;
+  `parseTopic` keeps it and drops any other value.
+- `src/core/control/files.ts`: `controlPaths().inbox`.
+- `src/core/agents/claude/inbox.ts` (new): `deliveredThrough(transcript, from)` → `{ through,
+  offset }`, reading `attachment` records of `type: hook_additional_context`, `hookEvent:
+  UserPromptSubmit`, whose `content` (an array of strings) names "(events a–b)".
+- `src/core/context/statusline.ts`: `inboxDir()`, `PROMPT_SUBMIT_ARG` = `prompt-submit`,
+  `runPromptSubmit(stdin, pane)`, the header's import list (three of Menkar's modules). Written
+  last, after `set`'s go (§4's seam).
+- Tests: new `tests/core/orchestration/inbox.test.ts` (with the two import checks, by the
+  TypeScript compiler API), new `tests/core/orchestration/permission.test.ts` (with the `kind`
+  round-trip tests), new `tests/core/agents/claude/inbox.test.ts`; added to
+  `tests/core/control/events.test.ts`, `tests/core/context/statusline.test.ts` (the hook run as a
+  process under `TZ=Asia/Tokyo`), `tests/core/sessions/lastreply.test.ts`. `src/core/sessions/
+  lastreply.ts` unchanged: its test passed with the record.
+- `tests/factories/transcript.ts`: `hookContext(text, hookEvent?)`, added with `set`'s ok; its
+  shape is copied from `claude-cli`'s 2.1.327 probe transcripts (`/tmp/menkar-probe-claude-*`).
+
+**Seen red**, each against a defect injected and removed: `<` for `≤` in `deliveredThrough`; the
+sequence reset in `clear()`; `wake` keyed by the child; the review rule after the renew, team or
+report rule; the `seen` check dropped; a return to `blocked` not cancelling the close; `kind`
+dropped by the parser; the transcript read from 0 instead of the offset; any hook event counted; a
+half-written last line read; the hook ignoring `session_id`; the hook without the budget.
+
+**Choices the plan left open (mine):**
+
+- The dropped count goes on the text's first line after the range: "Menkar's inbox (events 2–31)
+  (1 earlier events dropped): …", so the first line holds both what main reads back and §2.2's
+  wording.
+- An entry too long for the budget alone (an `ask` can be 2,000 characters): the hook gives the
+  header without a range and "N more: call inbox.", so nothing is confirmed and the tool gives it
+  whole.
+- `Inbox.deliveredThrough(n)` resets `dropped` when `n` reaches the first pending entry (the model
+  got the line that said so); `take()` and `clear()` reset it too.
+- `route`: `'human'` is an event of its own (always `inbox`); `parentIsOrchestrator: false` gives
+  `none` for a prompt or a turn end without a pending review, since that session's own parent is
+  woken by today's path, which `route` does not replace.
+- `PermissionTopics.blocked` adopts an open or discussing permission topic of the session that it
+  did not raise (an earlier pane's), and closes it in turn once the prompt is answered; it closes
+  only a topic still open, so one closed by hand is never closed again.
+- `deliveredThrough` on a file shorter than `from` confirms nothing and returns its size as the
+  offset; the inode check stays main's (block 2).
+- The hook prints nothing when any entry in the file is malformed, not only when the JSON is.
+
+#### Block 2 — `menkar-t100` (task 100), 2026-11-18
+
+**Built** (plumbing only: nothing routes an event to an inbox yet; the only entry a running
+Menkar can make is an `ask` its parent could not be woken for):
+
+- `src/core/context/settings.ts`: `promptSubmitHooks(statuslineCommand)`, declared in every
+  `--settings` file beside SessionStart and Stop: `if [ -f <inbox dir>/"$MENKAR_PANE".json ]; then
+  <statusline command> prompt-submit; fi`, `"timeout": 5`; the folder is `shellQuote`d as a word.
+- `src/main/agents/types.ts`: `PromptInbox` (`publish`, `delivered`, `forget`) and
+  `MainAgentKit.inbox`. Claude's is new `src/main/agents/claude/inbox.ts` (writes
+  `{ session_id, dropped, entries: [{ seq, at, text }] }` whole through `writeAtomic`, removes it when
+  empty; `delivered` is core's `deliveredThrough`); Cursor's is `null`.
+- `src/main/inbox.ts` (new): `Inboxes`, one `Inbox` per mode-on project with one `sequence()` for
+  the run, fed by a `locate()` that workspace gives (each mode-on project → its orchestrator's pane,
+  session id, transcript and kit, or null when it is not running; a project left out is not in the
+  mode, and its inbox and file go). `sync()` compares where each orchestrator runs with the file last
+  written and only then works; `add`, `paneTurned`, `paneExited`, `read` (for the tool). Every write
+  goes through one queue per project: confirm from the transcript first (inode and size checked; a
+  session first seen is read from its transcript's end, or from 0 when it has none yet), then write
+  the file where the orchestrator runs now, removing the one of a pane it left; a file is not
+  rewritten when its pane, session id, `dropped` and `seq`s are unchanged.
+- `src/main/control.ts`: `startControl` removes and recreates `control/inbox`.
+- `src/main/workspace.ts`: `orchestratorPanes()` and `inboxes` before `changed()`, which calls
+  `inboxes.sync()` first; `sync()` after a pane starts, `paneExited` at its exit; a second
+  `onShownChange` listener calls `paneTurned` on `working`, `idle` and `done` (the wake listener is
+  untouched); `handleControl`'s `ask` (`askFor`) and `inbox` cases; `wakeSession` returns its
+  `WakeOutcome` (`'no pane'` with no waker, `'error'` on a throw); the batcher still ignores it.
+- `src/core/orchestration/ask.ts` (new): `ASK_MAX_CHARS`, `WakeOutcome`, `askText`, `askTool`
+  (2.5's answers), `inboxTool`.
+- `src/core/control/files.ts` (`TOOL_NAMES` + `ask`, `inbox`), `src/core/control/protocol.ts` (the
+  two tools and their descriptions).
+- Tests: new `tests/core/orchestration/ask.test.ts`; `tests/core/context/settings.test.ts`,
+  `tests/core/control/server.test.ts`; `e2e/fixtures.ts` (`QUESTION`, `INBOX`),
+  `e2e/session-control.spec.ts` (one test: ask posted and answered in under a second; `inbox`
+  empty; the orchestrator unwakeable → the question in its pane's file; RENEW → the file is the new
+  pane's, with the new id, the old one gone). `tests/core/agents/parity.test.ts` unchanged: it lists
+  caps, not `MainAgentKit`'s members.
+
+**Seen red**, each against a defect injected and removed: the settings test before the hook
+existed; the server tests before the tools; `ASK_MAX_CHARS + 1`; the inbox fallback dropped; the
+ask key without its number; the mode-off check dropped; `inbox` not emptying; in the e2e, the
+old pane's file not removed (both at the pane change and at exit), and `ask` with no inbox
+fallback.
+
+**The hook probe** (`claude-cli`, Claude Code 2.1.327, `$MENKAR_FILES/menkar-t100-42-hook-probe.txt`):
+the model got both lines and "(events 1–2)", the screen showed nothing, and the transcript holds a
+`hook_additional_context` record with that text; the hook clears nothing, so a second prompt got
+them again. A queued message withdrawn with Up writes no record and the model saw nothing: no loss,
+nothing to report before block 3. Esc does not withdraw a queued message: it interrupts the tool
+and submits it, which the model sees and the transcript records.
+
+**R10** moves in exactly `tests/core/r10/mcp-tools-list.json` and `tests/core/r10/settings.json`;
+not refreshed, as `set` asked (it refreshes them on `main`). Until then `npm run ci` fails on those
+two snapshots only. The settings snapshot first held the test's temporary cache path (the
+hook's guard names the inbox folder): `tests/core/r10.test.ts` now pins `XDG_CACHE_HOME` to
+`/home/demo/.cache` for that test, as the statusline's path is pinned (fix asked by `set`; my choice
+of the two it offered, since it keeps the hook's command as it is).
+
+**Decided by `set`, 2026-11-18:**
+
+- The plan's e2e premise was corrected: a test cannot write the inbox file for main, which is its
+  only writer and holds the entries in memory (a written file is replaced at the next publish).
+  The entry comes in through `ask` with the orchestrator unwakeable, then RENEW.
+- The `inbox` tool's answers are a pure `inboxTool` in `src/core/orchestration/ask.ts`, tested in
+  `ask.test.ts`, so no test file outside the block's list.
+- The stand-in's words are new ones because its `ASK` already prints a permission question. `set`
+  approved `ASKPARENT`; it is `QUESTION`, since typing `ASKPARENT` passes through `ASK` and the
+  stand-in prints a permission question there.
+- **No run id**: §5's "the run's counter and `run` id" has no consumer. The one counter per run
+  (F6) plus reading a transcript from its end the first time a session is seen already keeps an
+  earlier run's records from confirming this run's entries. Block 3 should not add it back.
+
+**Choices the plan left open (mine):**
+
+- An empty `ask` (or not text) answers "Write the question to ask."; the question is trimmed
+  before the checks and the post.
+- `ask`'s "(task N)" is the asker's `currentTask` only when it is in progress or waiting.
+- `ask` puts the question in the inbox when the parent is the project's orchestrator in the
+  mode (`workerTeam(project).orchestrator`), whatever its agent; a Cursor orchestrator's inbox keeps
+  it unread (§3).
+- The inbox's emptying when the mark moves (keeping `presence`) is left to block 3, which lists it;
+  block 2 empties a project's inbox only when the mode goes off. The file follows the mark either
+  way.
+- Main reads the transcript when the orchestrator's pane turns `working`, `idle` or `done`, before
+  each publish and on `inbox`; never on the UI path.
+- The `inbox` tool gives the text with no budget, so a long question comes whole there.
+- `startControl` empties the folder after `startWorkspace` has run; no inbox entry exists before
+  `startControl` today, but block 3's start-up review entries must be added after it.
+
+#### Blocks 3 and 4 — `menkar-t101` (task 101), 2026-11-18
+
+**Block 3, built** (with plan 43's block 3b `askPresence` half):
+
+- `src/main/workspace.ts`, the wake section: `inboxOrchestrator(project)` (the mode on, an
+  orchestrator, and its kit's `inbox` non-null; Q1); `turns` per pane (`open`, `ended-shown`,
+  `ended-stop`) so a turn ends once, at the first of the shown state leaving `working`/`blocked`
+  for `idle`/`done`, the Stop record (`stopRecorded`, called first in `turnEnded`) and the pane's
+  exit; `turnEnd` applying `route` (renewing read before any await; the transcript read only when
+  rules 1–2 do not settle it); `reviews` per session, noted by `noteReview` in `taskFor`'s success
+  path (the assignee, the task now `to review`, not the orchestrator); the review wake through
+  `wakes.wake('orch:‹project›', …)`, its key `review:‹session›:‹task›`; `sendWake` resolving
+  `orch:` at flush and falling back to `inboxes.add` per entry when not posted. Today's path
+  (`wakesParent`, `wakes.note`) is unchanged for every parent that is not the inbox orchestrator.
+- The permission topic: `PermissionTopics` wired in the first `onShownChange` listener before the
+  turn-end reading is asked (F19), to `onPaneExit`, and `closeLeftPermissionTopics()` at the start
+  of `startWorkspace`; `raisePermissionTopic` through `addTopic`, `setTopics`, `noticeTopics`,
+  `changed`; `permissionTopicText` (t() with the session's name now) in `topicViews` and the
+  notice; `doneTodayView` skips closed permission topics; `showTopic` reveals the waiting pane for
+  a permission topic, so both the toast's Show and the desktop notice lead there. `paneSeen(pane)`
+  factored out of the pane's `seen` lambda, for `seen` in the subject.
+- The human's posts: `askPresence`, take control / hand back and `discussTopic` add to the inbox
+  when the project's orchestrator is the inbox orchestrator, else today's `wakes.post`; the
+  orchestrator that set away or back has `presence` retracted. `askFor` retracts `turn:‹asker›`.
+  `renewing` holds `null` from `renew`'s start (before its first await) until the hang-up sets the
+  resolver; `onPaneExit` takes the renew path only on a resolver. `orchestratorMarkMoved` on the
+  `setOrchestrator` action and the card's new orchestrator → `inboxes.moved` (keeps `presence`).
+  `adopt_session`'s answer no longer says "wakes you when it waits or ends its turn".
+- `src/main/inbox.ts`: `retract(project, key)` and `moved(project)`.
+- `src/main/control.ts` (granted by `set`): `ControlHandlers.ready()`, called by `startControl`
+  right after it recreates the inbox folder; workspace's `ready` waits for the first scan
+  (`firstScan`), then adds "Task N is to review (‹assignee›): ‹note›" per task in To review waiting
+  on the orchestrator (`review:‹task›`).
+- `src/main/activity.ts`: `recordPresence(away)` → an `away` or `back` line; called by
+  `askPresence` when the state changed (plan 43, F6).
+- `src/core/i18n/en.ts`, `es.ts`: `topics.permissionTitle`, `topics.permissionContext`.
+- e2e: `e2e/orchestration.spec.ts` (new: the permission topic, and the same in Spanish; rewritten:
+  discuss topic and take control / hand back → inbox lines, no post), `e2e/session-control.spec.ts`
+  (new: the review wake with the F7 case and the turn without a report; the start-up review entry;
+  rewritten: away/back, the team-block turn test, block 2's `ask` test, whose `inbox` now first
+  gives the take-control line), `e2e/activity.spec.ts` (new: away/back journaled),
+  `e2e/fixtures.ts` (granted by `set`: `REVIEW1`, `task_review` without ending the turn).
+
+**Block 4, built:** §2.8's texts (the orchestrator skill's "When you are woken" with the inbox,
+`workers.md`, the worker skill, `team/common.md`, the guide), `task_review`'s and `adopt_session`'s
+descriptions; `docs/session-control.md` (waking a parent rewritten, "The orchestrator's wakes and
+its inbox", `ask` and `inbox` in the tools, the Rejected items of §2.10), `docs/context.md` (the
+`UserPromptSubmit` bullet, the statusline's imports), `docs/agents.md` (`PromptInbox`),
+`docs/orchestration.md` (the posts, double-click, banners, presence, the permission topic, Show),
+`docs/NOT_BUILT_YET.md` (the conversation entry narrowed; `answer`; a Cursor orchestrator's inbox),
+`docs/usage.md` (granted by `set`: `away` / `back` row), each with its lines in `docs/history/`
+(`docs/history/agents.md` new).
+
+**Seen red**, each against a defect injected and removed: `noteReview` not called; a SendMessage
+to the parent silencing the review (F7); `seen` forced false (a topic in view); Done today not
+filtering; the routed child falling through to today's wake (posts); `ready` not adding the
+review lines; `recordPresence` not called; the notice's title not translated (the Spanish toast);
+presence posted instead of put in the inbox; take control posted instead of put in the inbox.
+
+**Choices the plan left open (mine):**
+
+- A Stop record with no `working` seen since the last turn end counts as a turn (a turn too short
+  to be shown), so the stand-in's `REVIEWPR`, which shows no `working`, still ends its turn.
+- Rule 5's inbox line, the permission line and the topic apply only when the session's parent is
+  the inbox orchestrator; a session in the mode whose parent is another session keeps today's
+  wakes to that parent, and only its review wakes the orchestrator.
+- A turn-end reading that fails puts the "without a report" line in the inbox (today's path wakes).
+- `ready` adds the review lines whatever the orchestrator's agent (no session is known that early;
+  an inbox nobody reads only keeps them), and only once the first scan settled, so the assignee is
+  named: before it, names are id prefixes.
+- The away/back line goes to every mode-on project's orchestrator's inbox, running or not (it
+  waits for the next start of that orchestrator); `postRecipients` still applies to orchestrators
+  without an inbox.
+- The review wake's text leaves out ": ‹note›" when the note is empty.
+- `raisePermissionTopic` returns 0 for a session in no project (not reached: the subject is a
+  member of a mode-on project).
+- The toast's text is "Item N: …" ("Pendiente N" in Spanish), as every topic notice is today; the
+  plan's e2e said "Topic N".
+
+**Premises the tree contradicted:** the task state is `to review`, not `review`. The plugin's own
+tests bound §2.8's texts: the orchestrator skill under 200 lines, no word "set" (a session's name),
+no `SendMessage` in a skill (the team block carries it), the common and Claude team parts under 800
+bytes. So the skill quotes the wake as "[Menkar] ‹name› … task N to review: ‹note›" and says
+"answer it by name"; `team/common.md`'s line is §2.8's, shortened to fit.
+
+**R10** moves in exactly these, not refreshed: `tests/core/r10/mcp-tools-list.json`,
+`tests/core/r10/plugin/guide/orchestration-mode.md`, `tests/core/r10/plugin/skills/orchestrator/
+SKILL.md`, `tests/core/r10/plugin/skills/orchestrator/workers.md`, `tests/core/r10/plugin/skills/
+worker/SKILL.md`, `tests/core/r10/plugin/team/common.md`, `tests/core/r10/team-blocks.txt`,
+`tests/core/r10/team-posts.txt`.
+
+**`test integrity`** fails on three removed `expect(` lines, the assertions block 3 asks to
+rewrite (the discuss post, the away and back post counts): read by a person, as the check says.

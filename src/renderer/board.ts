@@ -70,7 +70,7 @@ export function toggleBoard(): void {
   void act({ type: 'setBoard', open: !isOpen(shownProject(currentState())) })
 }
 
-// The Work view's "See all (N) →".
+// The sidebar's "See all (N) →" under Tasks.
 export function openBoardShowingAll(): void {
   if (isOpen(shownProject(currentState()))) {
     pick(showAllPixels())
