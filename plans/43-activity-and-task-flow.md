@@ -343,6 +343,18 @@ attachment — `src/core/usage/{transcript,cache}.ts`, plan 39 P1a.6's files.
   times, the flow. The window stays "Usage" (the menu, the header's button, `menkar usage`).
 - **The day's and the week's message count is labelled "Messages sent"** (the human, 2026-11-18):
   they are the turns the human opened, not what reached them to read.
+- **The carry, read from 1.184's example** (decided by `set`, 2026-11-18, told to the human): a
+  period is carried only when it was **chosen** in the section left — picked there on this visit,
+  or carried into it on entering — not merely shown there; so Spend on *All* → Task times on its
+  own 7 days → back to Spend is still *All*. A day carries to Spend's *Today* only when it is
+  today; a week carries to *7 days* (and Task times' 7 days) only when it is the current one, the
+  seven days ending today; a day or week stepped back to leaves the other section on its own.
+- **The remembered periods live in the page's memory** for the window's life, never across
+  openings; the window opens on Spend, 7 days, as today (`set`, 2026-11-18).
+- **What the approved mock-ups show that blocks 5–6 did not read**, added by block 7a (`set`,
+  2026-11-18): the away periods of each day, each week day's bursts, a burst's messages per
+  project (the hover's line in All projects), and the flow's done / dropped / open counts and its
+  baseline's date.
 
 What follows is what block 4 was asked for. Block 4 produced the mock-ups (by the session `set` names, e.g.
 `designer-40`), each in both themes at the Usage window's default size, with the human's figures
@@ -412,6 +424,20 @@ Each sentence goes in its test's comment; the case is the assertion. Written bef
 | Presence marks count as actions | same | marks at 10:00 and 10:09, a message at 10:18 → one burst 10:00–10:18 |
 | Bursts at read time, by the gap, across midnight | `tests/core/usage/bursts.test.ts` | actions at 23:50, 23:58, 00:05 local with G 10 min → one burst 23:50–00:05; the day view of the first day clips it to 23:50–24:00; 10:00 and 10:11 → two bursts; 10:00 and 10:10 → one; one action → a burst of length 0 |
 | Time per state comes from consecutive rows; the open one runs to now | `tests/core/usage/flow.test.ts` | task 1 queued 09:00, in progress 09:30, to review (pr-merge) 11:00, now 12:00 → queued 30 min, in progress 90 min, to review/pr-merge 60 min; a 7-day window starting at 10:00 clips in progress to 60 min |
+| The carry: a chosen period is carried where the other section has it | `tests/core/usage/sections.test.ts` | today Wed 18 Nov: Spend 7d (chosen) → Task times → 7d; → Your time → the week 12–18 Nov; Spend 30d → Task times 30d; Spend 30d → Your time keeps its own (a day on 15 Nov stays 15 Nov); Spend Today → Your time → Day 18 Nov; Task times 30d → Spend 30d |
+| A period merely shown is not carried (1.184's example) | same | Spend Month+All (chosen) → Task times (own 7d, `chosen` false) → Spend: still Month+All; Spend Month → Your time keeps its own |
+| A stepped-back day or week is not *Today* or *7 days* | same | Your time Day 17 Nov (today 18) → Spend keeps its own; Week 5–11 Nov → Task times keeps its own; Week 12–18 Nov → Task times 7d; Day 18 Nov → Spend Today |
+| Inside Your time | same | Day 15 Nov → Week → 12–18 Nov; Day 4 Nov → Week → 29 Oct–4 Nov; Week 5–11 Nov → Day → 11 Nov; current week → Day → today; next disabled on today and on the current week; previous disabled on `firstDay`, and on today when `firstDay` is null |
+| The window opens on Spend, 7 days | `e2e/usage-sections.spec.ts`, and USG-44 unchanged | a fresh window: Spend selected, 7 days pressed; the left bar's column 180 px; Your time and Task times show their own header toggles |
+| The scope sits at the foot and is carried always | `e2e/usage-sections.spec.ts` | the foot shows the project's name and "All projects"; All projects pressed in Spend → Your time and Task times ask with `allProjects` true and keep it pressed; a Usage window with no opener has no foot |
+| A late answer to an older choice is dropped, across sections (1.131) | same | `usage:activity` held back 1.5 s: Your time, then Spend at once → the activity answer is never drawn (a MutationObserver sees no `[data-burst]`); the star shows while an answer is on its way, the left bar usable |
+| A burst's messages per project | `tests/core/usage/bursts.test.ts` | unscoped, a burst of 3 messages in Shop and 1 in Blog → `byProject` [Shop 3, Blog 1]; a turn with no project → `null` |
+| A day's and a week's away periods, clipped | same | away 23:30–00:30 across midnight → day 1 has 23:30–24:00, day 2 00:00–00:30; the week's two days the same; a week day's `bursts` equal that day's `activityDay` bursts |
+| The flow's counts and baseline date | `tests/core/usage/flow.test.ts` | in a window: task 1 done, task 2 dropped, task 3 in progress → done 1, dropped 1, open 1, and `done + dropped + open = tasks`; a task done after `bounds.end` counts open; baseline rows at 11 Nov inside the window → `baselineAt` 11 Nov; none → null |
+| The flow table lists to review's four waiters always | same, `flowTable` | to review with only `orchestrator` → four waiter rows, three of them tasks 0; waiting with only `topic` → topic and session rows, no `other`, no none; a `null` waiter in waiting → a "not said" row; shares: the largest state 1, the others its fraction |
+| Counts' axis and a day's x | `tests/core/usage/timeline.test.ts` | `countAxis(3)` → top 5, step 1; `countAxis(12)` → 15, step 5; `countAxis(37)` → 40, step 10; `along` the middle of a 25-hour day → half the width, not 12/24 |
+| Your time draws the reading | `e2e/usage-time.spec.ts` | yesterday seeded 10:05–14:09 one burst, away 12:00–12:20, 6 messages at 10:xx: the Day stepped back once shows `[data-burst]` bands, `[data-away]` hatched, the summary with "messages sent", hour 10 with 6; the hover shows start – end, length, counts, and in All projects "Shop n · Blog m"; the week shows seven `[data-day]` rows and a Total; a click on yesterday's row opens Day on yesterday; an empty day says "No activity on this day." |
+| Task times draws the reading | `e2e/usage-tasks.spec.ts` | seeded: 4 tasks (one done, one dropped, one to review on `pr-merge`, one from a baseline) → the summary's counts and "◦ 1 from their baseline", the footnote with the baseline's date, to review's four waiter rows with "—" for the empty ones; 30 days pressed → the 30-day figures; a project with no tasks → the empty card and footer |
 | Today's export is unchanged | `tests/core/usage/export.test.ts` | the existing tests pass untouched (Q4 (a)); `--rows activity` keys equal its documented table |
 
 ## 3. Out of scope
@@ -575,20 +601,364 @@ Files: new `src/core/usage/flow.ts` (`taskFlow(rows, bounds, now)`), new
   and marked; two consecutive rows in the same state are one stretch; a task dropped while waiting ends its wait there; the 30-day window).
 - Verify: `npm run ci`.
 
-### Block 7 — the views (written in full after block 4)
+### Block 7 — the views: the left bar, Spend, Your time, Task times
 
-Files to be named after the placement: the Usage window's renderer files, `src/main/usage.ts` (an
-import request before the report, beside the pass), `src/main/usage-query-worker.ts`, i18n
-catalogs, an `e2e/usage-*.spec.ts`, `docs/spec/usage.md`, `docs/NOT_BUILT_YET.md` (Task flow
-metrics removed, to its history), `docs/usage.md`.
+Written in full by `menkar-t110` (task 110), 2026-11-18, from §2.8 (decision 1.184, topics 62–64)
+and the approved mock-ups: task 107's `$MENKAR_FILES/menkar-t107-sheet.png` and its screens
+`menkar-t107-*` (the window, the left bar, the scope at its foot, the carried period), and task
+106's `menkar-t106-1-day-*` (the day as mocked, its hover) and `menkar-t106-2-week-strips-*` /
+`menkar-t106-3-flow-7d-both-*` (the week and the flow picked). The drawing script,
+`$MENKAR_FILES/menkar-t107-script/draw.js`, is the reference for sizes, colours and icons; it is
+read, never imported. **The mock-ups' section names are the old ones**: the left bar reads
+**Spend, Your time, Task times** (topic 64), and the counts read **"Messages sent"**.
 
-- Verify: `npm run ci`; `npm run ui-check`; screenshots of each view in both themes in
-  `$MENKAR_FILES` as `‹worker›-43-b7-*`.
+**Five sub-blocks, one worker each.** Every one ends with `npm run ci` green, its output in the
+report; 7b, 7c and 7d also run `npm run ui-check` (Playwright, under the lock `set` names) and
+save their screenshots, both themes, as `$MENKAR_FILES/‹worker›-43-b7‹x›-*.png`.
+
+| Sub-block | Needs | Files it touches (no other) | Runs beside |
+|---|---|---|---|
+| **7a** the readings the views need, core only | — | `src/core/usage/{bursts,flow,nodes,history}.ts` (history: one SELECT, below), new `src/core/usage/sections.ts`, new `src/core/usage/timeline.ts`, `tests/core/usage/{bursts,flow}.test.ts`, new `tests/core/usage/{sections,timeline}.test.ts` | anything not touching those files |
+| **7b** the shell: the left bar, the scope at its foot, the carry, the two readings' path, Spend moved | 7a | `src/renderer/usage.ts`, new `src/renderer/usage-spend.ts`, new stubs `src/renderer/usage-time.ts` and `src/renderer/usage-tasks.ts`, `src/renderer/usage.css`, `src/shared/ipc.ts`, `src/preload/index.ts`, `src/main/preferences.ts` (the two handlers), `src/main/usage.ts`, `src/main/usage-query-worker.ts`, `src/core/i18n/{en,es}.ts` (**every** key of 7b–7d), `e2e/usage-window.spec.ts`, new `e2e/usage-sections.spec.ts` | nothing of plan 43 |
+| **7c** Your time: the day and the week | 7b | `src/renderer/usage-time.ts`, new `src/renderer/usage-time.css`, new `e2e/usage-time.spec.ts` | **7d** |
+| **7d** Task times | 7b | `src/renderer/usage-tasks.ts`, new `src/renderer/usage-tasks.css`, new `e2e/usage-tasks.spec.ts` | **7c** |
+| **7e** the docs, and "Task flow metrics" closed | 7c, 7d | `docs/spec/usage.md`, `docs/preferences.md` (its Usage window part), `docs/usage.md`, `docs/NOT_BUILT_YET.md`, `docs/history/{NOT_BUILT_YET,usage,preferences}.md`, `docs/history/spec/usage.md` | anything not touching those files |
+
+7c and 7d run in parallel because 7b writes every string they need and the empty modules they
+fill: a worker of 7c or 7d that needs a key 7b did not write asks `set`, it does not add it (both
+would edit `en.ts`). **No .deb is cut between 7b and 7d**: after 7b, Your time and Task times show
+their header and an empty body.
+
+**What exists, read from the tree on 2026-11-18:**
+
+- **The page** — `src/renderer/usage.ts` (591 lines), one module: its `state` (`:42–58`; the
+  period, the view, the metric, the stack, the month stepper, `allProjects`), one
+  `askReport = latestOnly()` (`:60`), the header with the period's toggles and the scope button
+  `[data-key="all-projects"]` shown only when the report carries a project (`:395–422`), the
+  table (`:146–220`), the chart (`:237–373`), the footer (`:377–390`), the turning star while a
+  report is on its way (`:534–549`, decision 1.131), `refresh` (`:552–562`), `main` (`:564–589`).
+  Its CSS is `usage.css` (222 lines) over `windows.css`; its page `usage.html`.
+- **Settings' left bar**, the precedent the human named: `src/renderer/settings.ts:505–575`
+  (`nav.section-list` with `role="tablist"`, `button.section-item` with `role="tab"`,
+  `aria-selected`, an icon and a label; Up and Down move through it, `:557–566`; the title in
+  `.settings-header` over it) and `windows.css:63–127` (`.settings` is a 250 px grid column; the
+  Usage window's is **180 px**, as approved).
+- **The window** is 760 × 600 (`src/main/windows.ts:94–95`), the size the mock-ups were drawn at;
+  it does not change.
+- **The one path today**: `'usage:view'` (`src/shared/ipc.ts:104`), `MenkarApi.usage.view`
+  (`ipc.ts:278–280`), the preload (`src/preload/index.ts:97–99`), the handler resolving the opener
+  window's shown project (`src/main/preferences.ts:152–160`), `usageView` — a pass on the
+  one-at-a-time runner, then the report in `usage-query-worker.ts` (`src/main/usage.ts:110–128`,
+  `queryInWorker` `:70–85`) — and the worker's `Query` and `answer`
+  (`src/main/usage-query-worker.ts:18–74`).
+- **The journal reaches the history only after a pass**: `importActivity()`
+  (`src/main/activity.ts:211–222`, one chain: rotate, then import in a worker) is called in the
+  pass's `after` (`src/main/index.ts:136–141`, "never beside one: both open the history"), which
+  `PassRunner` does **not** await (`src/main/usage.ts:44–48`). So `usageView`'s answer may not hold
+  the last hour's activity.
+- **The readings** (blocks 5–6): `readActivity` (`bursts.ts:198`), `activityDay` (`:162`),
+  `activityWeek` (`:177`), the private `counted` (`:127`, which already computes the away
+  periods); `taskFlow` (`flow.ts:71`); `UsageHistory.humanActions` (`history.ts:692`),
+  `taskStateRows` (`:767`), `firstOpened` (`:645`); the types in `nodes.ts:152–219`. What they
+  **lack** for the mock-ups: the away periods of a day (hatched in the day and the strips), each
+  week day's bursts (the strips), a burst's messages per project (the hover's third line), and
+  the flow's done / dropped / open counts and its baseline's date (the summary and the
+  footnote). 7a adds exactly those (granted by `set`, 2026-11-18).
+- **e2e**: `e2e/usage-window.spec.ts` (755 lines) — `openUsage` clicks `[data-key="all-projects"]`
+  and waits for `aria-pressed="true"` (`:43–61`); `pressed(page, group)` reads
+  `[data-toggles=…] [aria-pressed="true"]` (`:73–74`); `delayPeriod` holds one answer back by
+  replacing the invoke handler (`:216–233`); USG-44 asserts the window opens on 7 days and Totals.
+  `e2e/activity.spec.ts` writes and reads the journal in a launched app's data dir.
+
+#### The design
+
+**The window** (`menkar-t107-6-scope-place-*`, right):
+
+- **Left bar, 180 px**, Settings' look and classes (`settings-side`, `settings-header`,
+  `section-list`, `section-item`), with a modifier in `usage.css` for the width. Title "Usage"
+  (`usage.title`, unchanged). Three tabs, `data-section` = `spend` | `time` | `tasks`, labels
+  "Spend" / "Your time" / "Task times", icons the three paths of `draw.js:40–44` (usage, activity,
+  flow) in `svg.icon`. Up and Down move through them as in Settings. The window opens on **Spend**.
+- **The scope at the foot of the left bar** (topic 63): a small dim label "Projects" and two
+  stacked buttons, the opener project's name (`data-key="this-project"`) and "All projects"
+  (`data-key="all-projects"`), each with `aria-pressed`. Shown only when the last answer carries a
+  project (as `usage.ts:411` today); a Usage window with no opener has no foot. The selector and
+  `aria-pressed` of "All projects" are today's, so `openUsage` and the 1.15 tests run unchanged.
+- **The header holds only the section's period**, one `[data-toggles="period"]` for every section
+  so `pressed()` reads any of them: Spend — Today, 7 days, 30 days, Month (as today; the stepper
+  and All stay in Spend's body); Your time — Day, Week (`data-value` `day` | `week`); Task times —
+  7 days, 30 days (`7d` | `30d`).
+- **Spend's body is today's**, moved, not changed: Totals and By day, the metric and the stack,
+  the stepper, the footer. Its tests (USG-39 to USG-54, LOOK-50, LOOK-51, 1.15, 1.24, 1.131, plan
+  17) keep passing; a test may change only to click Spend first if it switches sections.
+
+**The periods across sections** (1.184; the reading of its example decided by `set`,
+2026-11-18, now in §2.8):
+
+- The state lives in **the page's memory for the window's life** (the `state` of `usage.ts`), as
+  Totals' expanded rows do (`docs/usage.md`, "Totals' tree"). Not in `localStorage` and not in
+  `state.json`: a remembered stepped-back day would reopen stale, a window's scope depends on its
+  opener, and USG-44 holds that the window opens on Spend, 7 days (`set`, 2026-11-18).
+- **`src/core/usage/sections.ts`** (new, Node-free, pure — the rule is tested in Vitest, the page
+  only calls it):
+
+  ```ts
+  export type UsageSection = 'spend' | 'time' | 'tasks'
+  export type SpendPeriod =
+    | { readonly kind: 'today' | '7d' | '30d' }
+    | { readonly kind: 'month'; readonly stepper: StepperState }
+  export type TimePeriod =
+    | { readonly kind: 'day'; readonly day: Day }
+    | { readonly kind: 'week'; readonly first: Day } // seven days from `first`
+  export type TasksPeriod = '7d' | '30d'
+  export interface Sections {
+    readonly shown: UsageSection
+    readonly spend: SpendPeriod
+    readonly time: TimePeriod
+    readonly tasks: TasksPeriod
+    // the shown section's period was picked there on this visit, or carried into it on entering
+    readonly chosen: boolean
+  }
+  export function initialSections(today: Day, month: Month): Sections
+  export function choose(s: Sections, period: SpendPeriod | TimePeriod | TasksPeriod): Sections
+  export function switchTo(s: Sections, to: UsageSection, today: Day): Sections
+  export function currentWeek(today: Day): Day        // addDays(today, -6)
+  export function weekOf(day: Day, today: Day): Day   // the week of the stepping grid holding day
+  export function stepTime(p: TimePeriod, by: -1 | 1): TimePeriod  // a day, or seven days
+  export function timeArrows(p: TimePeriod, firstDay: Day | null, today: Day):
+    { readonly previous: boolean; readonly next: boolean }
+  ```
+
+  - `initialSections`: Spend 7 days, Your time the current week, Task times 7 days, shown Spend,
+    `chosen` false.
+  - **The carry.** A period's *span* is `today`, `7d`, `30d` or none: Spend's Today, 7 days and 30
+    days are theirs, Month (and All) none; a Day is `today` **only when it is today**; a Week is
+    `7d` **only when it is the current one** (the seven days ending today); Task times' are theirs.
+    On `switchTo`, when `chosen` and the span is one the target has (Spend: all three; Your time:
+    `today` → Day on today, `7d` → the current week; Task times: `7d`, `30d`), the target takes it
+    and `chosen` stays true; otherwise the target keeps its own and `chosen` becomes false. `choose`
+    sets the shown section's period and `chosen` true. A step of the month, the day or the week is a
+    `choose`.
+  - **Inside Your time** (my choice, not decided elsewhere): Day → Week shows `weekOf` the day
+    shown; Week → Day shows today when the week is the current one, else the week's last day; a
+    click on a week's day is `choose({kind: 'day', day})`. Weeks step by seven days on a grid
+    ending today, so the current week and 7 days are the same days (`periodBounds('7d')`,
+    `periods.ts:38–41`). The arrows: next stops at today (the current week); previous at the
+    history's first day (`firstDay`, from `firstOpened`), or at today when the history is empty.
+- **The scope** is one flag, `allProjects`, sent with every ask: it is carried always.
+
+**The two readings, off the UI path, as the report is:**
+
+- **Types** (`nodes.ts`, beside `UsageWhich`/`UsageView`; `Day` imported as a type from
+  `periods.ts`):
+
+  ```ts
+  export type ActivityWhich =
+    | { readonly kind: 'day'; readonly day: Day }
+    | { readonly kind: 'week'; readonly first: Day }
+  export interface ActivityView {
+    readonly which: ActivityWhich
+    readonly reading:
+      | { readonly kind: 'day'; readonly day: ActivityDay }
+      | { readonly kind: 'week'; readonly week: ActivityWeek }
+    readonly firstDay: Day | null        // the history's first turn's day, for the arrows
+    readonly projectNames: readonly (readonly [string, string])[]  // for the hover's line
+    readonly tooNew: boolean
+    readonly project: { readonly id: string; readonly name: string } | null
+    readonly scoped: boolean
+  }
+  export interface TaskFlowView {
+    readonly period: '7d' | '30d'
+    readonly flow: TaskFlow
+    readonly tooNew: boolean
+    readonly project: { readonly id: string; readonly name: string } | null
+    readonly scoped: boolean
+  }
+  ```
+- **IPC** (`src/shared/ipc.ts`, beside `'usage:view'`): `'usage:activity': { request: { which:
+  ActivityWhich; allProjects: boolean }; response: ActivityView }` and `'usage:flow': { request:
+  { period: '7d' | '30d'; allProjects: boolean }; response: TaskFlowView }`; `MenkarApi.usage`
+  gains `activity(which, allProjects)` and `flow(period, allProjects)`; the preload maps them. The
+  handlers in `src/main/preferences.ts` resolve the opener's project exactly as `'usage:view'`
+  does (`:152–160`).
+- **Main** (`src/main/usage.ts`): `activityView(which, projectId, allProjects)` and
+  `flowView(period, projectId, allProjects)` each `await usageRunner?.request()` (the human's turns
+  reach the history; a request joins a running pass), **then `await importActivity()`** (the
+  journal up to this moment; its one chain keeps it from running beside another import, and
+  calling it after the pass keeps it from running beside the pass, the rule of `index.ts:136–137`),
+  then `queryInWorker`. The flow waits for the pass too, for that same rule. Cost: one pass and one
+  import before each answer, as Spend's pass today; the star covers the wait (1.131). Rejected:
+  reading without the import (the flow would lag the Board by up to an hour, against the human's
+  own memory of what just happened); a long-lived query worker (none exists; each query opens and
+  closes the history, `usage-query-worker.ts:41–73`).
+- **The worker** (`usage-query-worker.ts`): `Query` gains
+  `{ kind: 'activity'; which; project; scoped; projectNames }` → bounds `midnight(day)` to
+  `midnight(addDays(day, 1))`, or `midnight(first)` to `midnight(addDays(first, 7))`;
+  `readActivity(history, bounds, now, scoped ? id : undefined)`; then `activityDay` or
+  `activityWeek`; `firstDay` from `firstOpened()`. And `{ kind: 'flow'; period; project; scoped }`
+  → `b = periodBounds(period, now)`; `taskFlow(history.taskStateRows(b.start, b.end, scoped ? id :
+  undefined), b, now)`. Both carry `tooNew` and `project`/`scoped` as the report does (`:57–70`).
+- **The page**: the one `askReport = latestOnly()` serves the three asks. Any newer ask — a
+  period, a step, a section switch, the scope — drops an older answer, whatever section it was
+  for (decision 1.131: a late answer to an older choice is dropped). While an answer is on its way
+  the body gives way to the turning star; the left bar, its foot and the header stay usable.
+  A section switch always asks (no cache): the figures change as the human works.
+
+**7a's additions to the readings** (granted by `set`, 2026-11-18):
+
+- `ActivityDay.away: readonly Bounds[]` and `ActivityWeekDay.away` — the away periods clipped to
+  the day (from what `counted` already computes); `ActivityWeekDay.bursts: readonly
+  ActivityBurst[]` — the day's clipped bursts, as `ActivityDay.bursts`.
+- `ActivityBurst.byProject: readonly { project: string | null; messages: number }[]` — the whole
+  burst's messages per project id, most first, ties by id; `null` for a turn with no project. For
+  it, `humanActions`' message SELECT adds `project_id` (`history.ts:700`, reading only; the write
+  path, `rederive` and the schema stay out — plan 39 P1a.6's), `ActivityRows.messages` gains
+  `project: string | null`, `HumanAction` an optional `project`.
+- `TaskFlow` gains `done`, `dropped` and `open` — of the `tasks` counted, each one's state at
+  `min(now, bounds.end)` (its last row at or before it): `done`, `dropped`, anything else open;
+  `done + dropped + open = tasks` — and `baselineAt: number | null`, the earliest `at` of a
+  baseline row that marked a task (`sinceBaseline > 0`), else null.
+- **`flowTable(flow)`** in `flow.ts` (Node-free; the page draws its rows): per state in
+  `FLOW_STATES` order a row, then its waiters' rows. **To review always lists its four waiters**,
+  `REVIEW_WAITERS` order (orchestrator, human, pr-approval, pr-merge), a zero one with `tasks` 0
+  (drawn dim, "—"), as the mock; **waiting always lists topic and session**, then `other` and none
+  only when they hold a task. Each row has `share = totalSeconds / the largest state total`
+  (0 when all are 0).
+- **`src/core/usage/timeline.ts`** (new, Node-free): `countAxis(tallest)` — the top is the first
+  multiple of a 1, 2 or 5 × 10^n step at or above `max(tallest, 5)`, the step the smallest that
+  leaves at most five intervals (1.14's rule for counts, which have no 2.5); `along(at, bounds,
+  width)` — a moment's x in a day by its share of the day's seconds, so a 23- or 25-hour day is
+  drawn true (`ActivityDay.hours` has 23 or 25 entries, `nodes.ts:169`); `bandLabel(seconds,
+  pixels)` — the length's text and whether it fits inside (as `draw.js:197–200`).
+
+**Your time** (7c; `menkar-t106-1-day-*`, `menkar-t106-2-week-strips-*`, `menkar-t107-2-*`):
+
+- **Day**: a stepper (`[data-key="previous"]`, `[data-key="day-name"]` — weekday, day and month
+  long through `Intl.DateTimeFormat` in the app's language, the year only when not this year —,
+  `[data-key="next"]`); a summary line (`[data-key="time-summary"]`): "Active 4.1h · 1 burst(s) ·
+  38 messages sent · 6 prompts answered"; the plot filling the room left, as By day's
+  (`usage.ts:235–249`): a lane on top with the **bursts as bands** (`[data-burst]`, the band's
+  length inside it or under it when it does not fit, ‹ or › on an end the day clips), a burst of
+  one action as a tick, **away hatched** (`[data-away]`), and per hour **messages sent and prompts
+  answered** as two bars side by side (colours `SLOT_COLORS[scheme][0]` and `[3]`, bands `[6]`,
+  away `GRAY`, as `draw.js:5–11`), the count axis from `countAxis`, the hours 00–23 under them
+  (a DST day labels its hours from their bounds); a dashed "now" line on today; "No activity on
+  this day." on an empty one; the legend (Bursts, Messages sent, Prompts answered, Away). **The
+  hover on a band** (a card, not a `<title>`; `[data-key="burst-tip"]`): its whole start – end and
+  length; "‹clipped part› on this day" when the day clips it; "N messages sent · M prompts
+  answered"; in All projects only, its `byProject` as "Shop 29 · Blog 12" (names from
+  `projectNames`, `usage.noProject` for null). The footer: the bursts' sentence and the Q7 line
+  (mid-turn messages not counted yet), as `mock.spec.ts:17–18` with "messages sent".
+- **Week**: a stepper (`[data-key="week-name"]`, "12 – 18 November" through
+  `Intl.DateTimeFormat.formatRange`); a table on a card as Totals', one row per day
+  (`[data-day="YYYY-MM-DD"]`): the day's short name (today's bold), its strip (bands, ticks, away
+  hatched, the 6-hour grid, "now" on today), Active, Messages sent, Prompts; a Total row; the
+  heading Day · 00 06 12 18 24 · Active · Messages sent · Prompts. **A click on a row opens that
+  day** (a hover shows ›). The footer: the bursts' sentence, "Active: the time inside bursts.
+  Click a day to see it by the hour.", the Q7 line.
+
+**Task times** (7d; `menkar-t106-3-flow-7d-both-*`, `menkar-t107-3-flow-7d-*`, the empty one
+`menkar-t106-3-flow-empty-*`):
+
+- A summary line (`[data-key="flow-summary"]`): "14 tasks · 9 done · 1 dropped · 4 open", and
+  "◦ 3 from their baseline" when `sinceBaseline > 0`.
+- A table on a card (`flowTable`'s rows): State / waiting on · Tasks · Median · Total · Share (a
+  bar `share` of the column's width, the state's colour — queued `GRAY`, in progress
+  `SLOT_COLORS[0]`, waiting `[1]`, to review `[2]`, waiters at 0.7 opacity). States bold; waiting
+  and to review fold their waiters (▾/▸, open at first, kept for the window's life). Labels:
+  Queued, In progress, Waiting, To review; waiters: "on a topic (you)", "on a session", "on
+  something else", "not said" (null); "the orchestrator", "you", "a PR's approval", "a PR's merge".
+  Durations through `formatDuration` (`nodes.ts`).
+- The footer: "Median: the middle task's time in that state. Total: every task's time added up.
+  Open tasks count until now." and, when `sinceBaseline > 0`, "◦ N tasks were already open when
+  recording started (‹baselineAt's date›): counted from then, not from their creation."
+- **No task**: the card says "No tasks in this project in these 7 days." (or 30, or "in any
+  project" in All projects), the summary "0 tasks", the footer "Tasks exist in projects with the
+  orchestration mode on."
+- `tooNew` in either new section shows Spend's too-new page (`usage.ts:430–440`).
+
+**The strings** (7b writes all of them, English and Spanish, through `t()`): the section names
+"Spend" / "Gasto", "Your time" / "Tu tiempo", "Task times" / "Tiempos de tareas" (`set`'s
+pick, put to the human for a veto, 2026-11-18); "Projects"; Day, Week; the summary, legend,
+hover, footer and empty sentences above; the flow's labels, waiters "on something else" and "not
+said" (`set`, 2026-11-18). The catalogs have no plural forms: a count reads "{n} burst(s)", the precedent of `en.ts:181` (my choice); "messages sent" and "prompts answered" read the same for any number.
+
+#### 7a — the readings the views need (core only)
+
+- [ ] Tests first, each seen failing once against an injected defect: §2.10's rows for
+  `sections.ts` (the carry), `byProject`, the day's and week's away, the flow's counts and
+  `baselineAt`, `flowTable`, `countAxis` and `along`. Update the existing `toEqual`s of
+  `bursts.test.ts` and `flow.test.ts` for the new fields, changing no expected figure.
+- [ ] `sections.ts`, `timeline.ts`; the fields in `nodes.ts`; `away` and `bursts` per day and
+  `byProject` in `bursts.ts`; `project_id` in `humanActions`' message SELECT; the counts,
+  `baselineAt` and `flowTable` in `flow.ts`.
+- Verify: `npm run ci`.
+
+#### 7b — the shell, the scope, the carry and the two paths
+
+- [ ] The left bar (180 px), its foot, the header per section, the `Sections` state through
+  `sections.ts`; Spend's body moved to `usage-spend.ts` unchanged; `usage-time.ts` and
+  `usage-tasks.ts` as stubs exporting the functions 7c and 7d fill (`timeBody(view, ctx)` and
+  `tasksBody(view, ctx)`, `ctx` giving `choose`, the locale, the scheme, the scope), drawing an
+  empty body.
+- [ ] `'usage:activity'` and `'usage:flow'`: types, IPC, preload, the handlers, `activityView` /
+  `flowView` with the pass and the import, the worker's two queries; one `latestOnly` for the three.
+- [ ] Every string of 7b–7d in `en.ts` and `es.ts`.
+- [ ] `e2e/usage-window.spec.ts` passes; changed only where a test must click Spend first.
+  New `e2e/usage-sections.spec.ts`: the cases of §2.10's "window" rows below (the left bar and
+  its 180 px, the foot, the carry and the keep through the headers' toggles, the scope carried,
+  a late answer dropped across a section switch with `delayPeriod`'s pattern on `usage:activity`,
+  the star while an answer is on its way). Screenshots of the three sections' headers, dark and
+  light.
+- Verify: `npm run ci`; `npm run ui-check`.
+
+#### 7c — Your time
+
+- [ ] The day and the week as above, in `usage-time.ts` and `usage-time.css`.
+- [ ] New `e2e/usage-time.spec.ts`, over seeded data (below): §2.10's "Your time" rows.
+  Screenshots, dark and light: a day with bursts and away, the hover, an empty day, the week,
+  All projects' hover with its per-project line.
+- Verify: `npm run ci`; `npm run ui-check`.
+
+#### 7d — Task times
+
+- [ ] The flow as above, in `usage-tasks.ts` and `usage-tasks.css`.
+- [ ] New `e2e/usage-tasks.spec.ts`, over seeded data: §2.10's "Task times" rows. Screenshots,
+  dark and light: 7 days, 30 days, a project with no tasks.
+- Verify: `npm run ci`; `npm run ui-check`.
+
+**Seeding the e2e** (7c, 7d): in `launchApp`'s `prepare`, transcripts with turns of origin `human`
+(as `usage-window.spec.ts:10–40`), and a journal at `<data>/menkar/activity/journal.jsonl` holding
+`JournalEvent` lines (`src/core/usage/activity.ts`) — `away`/`back`, `prompt_answered`, `present`,
+`task_state` with and without `baseline` — plus the `activity/baseline` marker so the start adds
+no baseline of its own. The start's pass imports it (`index.ts:138–141`), and each ask imports
+again. Times are **yesterday and the days before, at fixed local hours** (10:00–14:09 and so on):
+never relative to now within today, so a run near midnight or before 10:00 draws the same.
+Invented names only ("Shop", "Blog").
+
+#### 7e — the docs, and "Task flow metrics" closed
+
+- [ ] `docs/spec/usage.md`: the Usage window's three sections, what each shows, the carry and the
+  scope (what the user sees), replacing "Built: … plan 12 built it" with the current pointer.
+- [ ] `docs/preferences.md`, its Usage window part (`:82–86`, the e2e list `:115–116`): the left
+  bar, the three paths, the pass and the import before an answer, one `latestOnly`, the new specs.
+- [ ] `docs/usage.md`: "The Usage window" gains the sections, the carry rule with its date and
+  why the periods live in the page's memory; "Bursts" and "The task flow" name `byProject`,
+  `away` per day, the counts and `baselineAt`; why the flow waits for a pass.
+- [ ] `docs/NOT_BUILT_YET.md`: "Task flow metrics" deleted, verbatim to
+  `docs/history/NOT_BUILT_YET.md`; every replaced line of the three other docs to its history
+  file (`docs/history/README.md`), as `npm run ci`'s history check asks.
+- Verify: `npm run ci`.
 
 ## 6. Decisions and questions
 
 Asked of `set` on 2026-11-18. Q1–Q5 are decided; Q7 is open; Q6 waits for block 4's mock-ups. My
 pick first where open.
+
+Block 7's gaps (task 110: the carry's reading, where the periods live, the hover's per-project
+line, the flow's counts, the new strings) were answered by `set` on 2026-11-18 and are written in
+§2.8 and block 7; `set` puts the carry's reading and the strings to the human for a veto. No
+question of block 7 is open.
 
 | # | Question | Options (pick first) | Needed by |
 |---|---|---|---|
