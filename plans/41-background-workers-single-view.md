@@ -651,3 +651,68 @@ files; tsc, R10, code rules, i18n, test integrity, flaky, history), output in
 `$MENKAR_FILES/menkar-t84-41-b3-ci.log`; `npm run ui-check` green (381 passed) in
 `$MENKAR_FILES/menkar-t84-41-b3-ui-check.log`; screenshots `menkar-t84-41-b3-background.png`,
 `menkar-t84-41-b3-peek.png`.
+
+### Block 4 — `menkar-t88` (task 88), 2026-11-18
+
+**Built** (1.177: the single view and the fold's key):
+
+- `src/core/projects/model.ts`: `teamView` gone; **`Project.orchestratorOpen?: true`** replaces
+  `orchestratorCollapsed` (a flag set only while true, like the others). **Deviation, agreed with
+  `set`**: the plan kept `Project.orchestratorCollapsed`; with it a project created in code (no
+  key) would read unfolded, and folded by default must hold for those too.
+  `ProjectInfo.orchestratorCollapsed` stays, derived in `src/main/projects.ts` and
+  `src/main/workspace.ts` as `p.orchestratorOpen !== true`; `ProjectInfo.teamView` gone.
+- `src/core/projects/orchestration.ts`: `setTeamView` and the `teamView` flag gone;
+  `setOrchestratorCollapsed(state, id, collapsed)` keeps its signature and sets `orchestratorOpen`
+  to `!collapsed`.
+- `src/core/projects/store.ts`: reads and writes `orchestrator_open` (absent = folded);
+  `team_view` and `orchestrator_collapsed` are destructured out of the project's unknown keys, so
+  they are neither read nor written back.
+- `src/main/workspace.ts`, `src/shared/workspace.ts`: the `setTeamView` action gone.
+- `src/renderer/work.ts`: `viewSwitch`, `workView`, `consultantsSection`/`consultantIds` and
+  `SHOWN_TASKS` gone. New `modeTop(s, project)` = the three tiles + `topicsSection`;
+  `tasksSection` (exported) uses block 2's `tasksFolded`, "See all (N) →" shown when `more > 0`;
+  `doneSection` exported.
+- `src/renderer/app.ts`: `#view-switch` gone from `buildFrame`; `renderSessionList` with the mode on
+  fills `#topics-section` with `modeTop` and `#session-list` with `tasksSection`, `modeList`, the
+  "N hidden" foot, `doneSection`, then the drag marker; the `work` class gone.
+- `src/renderer/style.css`: `#view-switch` and `.consultant-row`/`.consultant-role` rules gone;
+  `.work-tiles` gets a 6 px top margin, now that it is the first thing under the header.
+- `src/core/i18n/{en,es}.ts`: `work.view`, `work.work`, `work.team` gone, **and also
+  `work.consultants`, `work.consultantsExpand`, `work.consultantsCollapse`** (my choice: they were
+  used only by Work's consultants section, which the block removes; the single view's Consultants
+  heading is `orch.consultants`).
+- Granted by `set` outside the block's list: `tests/core/orchestration/rows.test.ts` and
+  `started.test.ts` (the `teamView: false` fixture line), `e2e/background-workers.spec.ts` (seeds
+  `orchestrator_open: true`).
+- Tests: `tests/core/projects/orchestration.test.ts` — `team_view` not read nor written back;
+  `orchestrator_collapsed: true`, `false` and neither → folded, no fold key written;
+  `orchestrator_open: true` → unfolded and written back; the fold round-trip.
+- e2e: `work-view.spec.ts` — the seed's `teamView` became `orchestratorOpen` (writes
+  `orchestrator_open`) and `SeedMore.hidden`; a new test asserts the order of `#session-list`
+  (Tasks · 8, 3 tasks, See all (8) →, the orchestrator folded with its count, Consultants, Others,
+  "1 hidden", Done today · 1 folded), no `#view-switch`, the tiles and Awaiting you in
+  `#topics-section`, ⋮ on a worker row listing the 19 labels `rowMenu` gives today, and at
+  1280×600 the list scrolled to its end with the tiles and Awaiting you still in view; the
+  triangle saves `orchestrator_open`, and folding removes it. The rest rewritten off the switch.
+  `orchestration.spec.ts` and `session-control.spec.ts`: the seeds' `team_view: true` became
+  `orchestrator_open: true` (they relied on the unfolded orchestrator); the switch's clicks gone;
+  two list-order expectations gain Tasks and Done today.
+  The orchestrator's red dot when a child waits at a prompt is the existing fold test's.
+
+**Seen red**: the store tests before the code (4 failing); then, injected and reverted, Done today
+put before the "N hidden" foot (the order test fails) and the fold flag not inverted (two e2e and
+one core test fail).
+
+**Not done here**: comments still saying "Work view" in `src/renderer/board.ts:73` and
+`src/core/orchestration/counts.ts:14` (outside the block's files); the agent-facing texts and
+docs are block 6's.
+
+**Checks**: `npm run ui-check` green (382 passed), output in
+`$MENKAR_FILES/menkar-t88-41-b4-ui-check.log`; screenshots `menkar-t88-41-b4-folded-{dark,light}.png`,
+`menkar-t88-41-b4-unfolded-{dark,light}.png` (1280×800), `menkar-t88-41-b4-scrolled-600.png`.
+`npm run ci`: biome (none in these paths), tsc, vitest (1656), code rules, i18n, flaky and history
+green on this block's tree; **test integrity red by design**: 15 `expect(` lines rewritten because
+the switch, Work's consultant rows and the 6-task limit are gone, listed in
+`$MENKAR_FILES/menkar-t88-41-b4-removed-expects.txt`, for a person to read. Output in
+`$MENKAR_FILES/menkar-t88-41-b4-ci.log`.

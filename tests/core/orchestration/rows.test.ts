@@ -23,7 +23,6 @@ const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
     folders: [],
   },
   topicsCollapsed: false,
-  teamView: false,
   consultantsCollapsed: false,
   orchestratorCollapsed: false,
   othersCollapsed: false,

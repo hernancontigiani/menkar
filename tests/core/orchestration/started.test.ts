@@ -54,7 +54,6 @@ describe('starting a session with loose and role', () => {
       parents: keptParents(p),
       orchestration: orchestrationInfo(p),
       topicsCollapsed: false,
-      teamView: false,
       consultantsCollapsed: false,
       orchestratorCollapsed: false,
       othersCollapsed: false,

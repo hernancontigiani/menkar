@@ -16,7 +16,6 @@ import {
   setParked,
   setRole,
   setSkills,
-  setTeamView,
   setTopicsCollapsed,
   setWithYou,
   setWorkersCap,
@@ -106,47 +105,73 @@ describe('orchestration marks', () => {
     expect(removeMember(marked(), 'O').projects[0]?.orchestration?.orchestrator).toBeUndefined()
   })
 
-  // Decisions 1.112 and 1.115: Work by default, Consultants open and Done today folded by default;
-  // each choice saved per project.
-  test('the Work view: Team, Consultants folded and Done today unfolded round-trip; undone, no key is written', () => {
-    let s = setTeamView(work(), 'p1', true)
-    s = setConsultantsCollapsed(s, 'p1', true)
+  // Decision 1.115: Consultants open and Done today folded by default; each choice saved per project.
+  test('Consultants folded and Done today unfolded round-trip; undone, no key is written', () => {
+    let s = setConsultantsCollapsed(work(), 'p1', true)
     s = setDoneTodayOpen(s, 'p1', true)
     expect(roundTrip(s).projects[0]).toMatchObject({
-      teamView: true,
       consultantsCollapsed: true,
       doneTodayOpen: true,
     })
     const written = serializeProjects(s).projects as Record<string, unknown>[]
-    expect(written[0]).toMatchObject({
-      team_view: true,
-      consultants_collapsed: true,
-      done_today_open: true,
-    })
-    s = setDoneTodayOpen(
-      setConsultantsCollapsed(setTeamView(s, 'p1', false), 'p1', false),
-      'p1',
-      false,
-    )
+    expect(written[0]).toMatchObject({ consultants_collapsed: true, done_today_open: true })
+    s = setDoneTodayOpen(setConsultantsCollapsed(s, 'p1', false), 'p1', false)
     const undone = serializeProjects(s).projects as Record<string, unknown>[]
-    for (const key of ['team_view', 'consultants_collapsed', 'done_today_open'])
+    for (const key of ['consultants_collapsed', 'done_today_open'])
       expect(undone[0]).not.toHaveProperty(key)
   })
 
-  // Decision 1.171: the Team view's orchestrator group and Others fold, saved per project.
-  test('the orchestrator and Others folded round-trip; unfolded, no key is written', () => {
-    let s = setOthersCollapsed(setOrchestratorCollapsed(work(), 'p1', true), 'p1', true)
+  // Decision 1.177: one sidebar view, so the Work/Team choice an earlier version saved is dropped.
+  test('team_view is not read and not written back', () => {
+    const file = JSON.parse(JSON.stringify(serializeProjects(work())))
+    file.projects[0].team_view = true
+    const read = parseProjects(file)
+    expect(read.projects[0]).not.toHaveProperty('teamView')
+    expect((serializeProjects(read).projects as Record<string, unknown>[])[0]).not.toHaveProperty(
+      'team_view',
+    )
+  })
+
+  // Decision 1.177: the orchestrator folded by default, saved as orchestrator_open only while
+  // unfolded; the orchestrator_collapsed an earlier version wrote is not read, and dropped.
+  test.each([
+    ['orchestrator_collapsed: true', { orchestrator_collapsed: true }],
+    ['neither key', {}],
+    ['orchestrator_collapsed: false', { orchestrator_collapsed: false }],
+  ])('a file with %s reads folded and writes no fold key', (_, keys) => {
+    const file = JSON.parse(JSON.stringify(serializeProjects(work())))
+    Object.assign(file.projects[0], keys)
+    const read = parseProjects(file)
+    expect(read.projects[0]).not.toHaveProperty('orchestratorOpen')
+    const written = (serializeProjects(read).projects as Record<string, unknown>[])[0]
+    expect(written).not.toHaveProperty('orchestrator_open')
+    expect(written).not.toHaveProperty('orchestrator_collapsed')
+  })
+
+  test('orchestrator_open: true reads unfolded and is written back', () => {
+    const file = JSON.parse(JSON.stringify(serializeProjects(work())))
+    file.projects[0].orchestrator_open = true
+    const read = parseProjects(file)
+    expect(read.projects[0]).toMatchObject({ orchestratorOpen: true })
+    expect((serializeProjects(read).projects as Record<string, unknown>[])[0]).toMatchObject({
+      orchestrator_open: true,
+    })
+  })
+
+  // Decision 1.171: the orchestrator group and Others fold, saved per project.
+  test('the orchestrator unfolded and Others folded round-trip; the defaults write no key', () => {
+    let s = setOthersCollapsed(setOrchestratorCollapsed(work(), 'p1', false), 'p1', true)
     expect(roundTrip(s).projects[0]).toMatchObject({
-      orchestratorCollapsed: true,
+      orchestratorOpen: true,
       othersCollapsed: true,
     })
     expect((serializeProjects(s).projects as Record<string, unknown>[])[0]).toMatchObject({
-      orchestrator_collapsed: true,
+      orchestrator_open: true,
       others_collapsed: true,
     })
-    s = setOthersCollapsed(setOrchestratorCollapsed(s, 'p1', false), 'p1', false)
+    s = setOthersCollapsed(setOrchestratorCollapsed(s, 'p1', true), 'p1', false)
     const undone = serializeProjects(s).projects as Record<string, unknown>[]
-    for (const key of ['orchestrator_collapsed', 'others_collapsed'])
+    for (const key of ['orchestrator_open', 'orchestrator_collapsed', 'others_collapsed'])
       expect(undone[0]).not.toHaveProperty(key)
   })
 

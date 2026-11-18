@@ -30,7 +30,6 @@ export interface ProjectInfo {
     readonly folders: readonly string[]
   }
   readonly topicsCollapsed: boolean
-  readonly teamView: boolean
   readonly consultantsCollapsed: boolean
   readonly orchestratorCollapsed: boolean
   readonly othersCollapsed: boolean

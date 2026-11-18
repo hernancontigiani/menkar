@@ -1,6 +1,6 @@
-// Plan 36: the orchestration mode's Work view (decisions 1.112, 1.115), the ★ on tasks (1.114),
-// tasks in the Team view and the Board panel (1.116, 1.126), on a seeded team with tasks.json and
-// topics.json.
+// The orchestration mode's one sidebar view (decision 1.177): the tiles, Awaiting you, Tasks, the
+// session rows and Done today; the ★ on tasks (1.114), tasks on the rows and the Board panel (1.116,
+// 1.126), on a seeded team with tasks.json and topics.json.
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -108,12 +108,14 @@ interface SeedMore {
   readonly topics?: number
   readonly language?: string
   readonly files?: number
+  // Sessions hidden in the project (decision 1.25).
+  readonly hidden?: readonly (keyof typeof TEAM)[]
 }
 
 function seed(
   dirs: { readonly root: string; readonly home: string },
   tasks: SeedTask[],
-  teamView = false,
+  orchestratorOpen = false,
   more: SeedMore = {},
 ) {
   const env = prepare(dirs)
@@ -158,7 +160,8 @@ function seed(
           members: Object.values(TEAM),
           groups: [],
           parents: { [TEAM.w1]: TEAM.orch, [TEAM.w2]: TEAM.orch },
-          ...(teamView ? { team_view: true } : {}),
+          ...(orchestratorOpen ? { orchestrator_open: true } : {}),
+          ...(more.hidden ? { hidden: more.hidden.map((k) => TEAM[k]) } : {}),
           ...(more.files ? { files_folder: 'team' } : {}),
           orchestration: {
             on: true,
@@ -244,12 +247,17 @@ const saved = (root: string, file: string) =>
   JSON.parse(readFileSync(join(root, 'config', 'menkar', file), 'utf8'))
 
 // `profile`: a previous run's root, whose config is carried over, as a restart would find it.
-async function open(tasks = BASE_TASKS, teamView = false, profile?: string, more: SeedMore = {}) {
+async function open(
+  tasks = BASE_TASKS,
+  orchestratorOpen = false,
+  profile?: string,
+  more: SeedMore = {},
+) {
   let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
       root = dirs.root
-      const env = seed(dirs, tasks, teamView, more)
+      const env = seed(dirs, tasks, orchestratorOpen, more)
       if (profile)
         cpSync(join(profile, 'config'), join(dirs.root, 'config'), {
           recursive: true,
@@ -263,24 +271,26 @@ async function open(tasks = BASE_TASKS, teamView = false, profile?: string, more
   return { launched, page, root }
 }
 
+const row = (page: Page, key: keyof typeof TEAM) =>
+  page.locator(`#session-list .row[data-session="${TEAM[key]}"]`)
+
 const taskNumbers = (page: Page) =>
   page
     .locator('#session-list .task-row')
     .evaluateAll((ns) => ns.map((n) => n.getAttribute('data-task')))
 
-test('the Work view by default: tiles, Topics, Tasks ★ first with their steps, Consultants, Done today folded and saved (screenshot)', async () => {
+test('one view: tiles and Awaiting you on top, Tasks ★ first with their steps, the rows, Consultants folding, Done today folded and saved (screenshot)', async () => {
   const { launched, page, root } = await open()
   try {
-    await expect(page.locator('#view-switch .view-work')).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.locator('#session-list .row')).toHaveCount(0)
-    await expect(page.locator('.work-tile .tile-n')).toHaveText(['2', '1', '1'])
+    await expect(page.locator('#view-switch')).toHaveCount(0)
+    await expect(page.locator('#topics-section .work-tile .tile-n')).toHaveText(['2', '1', '1'])
     // Topic 1 belongs to task 1, which has no ★: the blocking one comes first.
-    await expect(page.locator('#session-list .topic-row')).toHaveText([
+    await expect(page.locator('#topics-section .topic-row')).toHaveText([
       '2Deploy key missing',
       '1Name of the docs section',
     ])
-    // Open ones, ★ first, then by number.
-    await expect.poll(() => taskNumbers(page)).toEqual(['2', '1', '3', '4'])
+    // Open ones, ★ first, then by number; 3 of the 4 shown (decision 1.177).
+    await expect.poll(() => taskNumbers(page)).toEqual(['2', '1', '3'])
     const release = page.locator('.task-row[data-task="2"]')
     await expect(release).toContainText('Release 0.2')
     await expect(release).toContainText('3/5')
@@ -293,8 +303,8 @@ test('the Work view by default: tiles, Topics, Tasks ★ first with their steps,
     await expect(page.locator('.task-row[data-task="1"]')).toHaveClass(/waiting/)
     await expect(page.locator('.task-row[data-task="1"]')).toContainText('waiting on topic 1')
     await expect(page.locator('.task-row[data-task="3"]')).toContainText('queued')
-    await expect(page.locator('.see-all')).toHaveCount(0)
-    await expect(page.locator('.consultant-row')).toHaveText([/fabric/])
+    await expect(page.locator('.see-all')).toHaveText('See all (4) →')
+    await expect(row(page, 'expert')).toBeVisible()
 
     // Done today: folded by default; unfolded, the topic and the task closed today, saved.
     const done = page.locator('[data-section="done"]')
@@ -306,18 +316,18 @@ test('the Work view by default: tiles, Topics, Tasks ★ first with their steps,
     await expect(page.locator('.done-row[data-done="task-6"]')).toContainText('Icon fix')
     await expect(page.locator('.done-row[data-done="topic-3"]')).toContainText('Release date')
     await expect.poll(() => saved(root, 'projects.json').projects[0].done_today_open).toBe(true)
-    await page.locator('[data-section="consultants"]').click()
-    await expect(page.locator('.consultant-row')).toHaveCount(0)
+    await page.locator('[data-heading="consultants"]').click()
+    await expect(row(page, 'expert')).toHaveCount(0)
     await expect
       .poll(() => saved(root, 'projects.json').projects[0].consultants_collapsed)
       .toBe(true)
-    await page.locator('[data-section="consultants"]').click()
+    await page.locator('[data-heading="consultants"]').click()
     await shot(page, 'work.png')
 
     // The ★ from a task's right-click menu: written, and the order follows.
     await page.locator('.task-row[data-task="3"]').click({ button: 'right' })
     await page.locator('.menu-item', { hasText: 'Mark with ★' }).click()
-    await expect.poll(() => taskNumbers(page)).toEqual(['2', '3', '1', '4'])
+    await expect.poll(() => taskNumbers(page)).toEqual(['2', '3', '1'])
     await expect.poll(() => saved(root, 'tasks.json').projects[PROJECT].tasks[2].star).toBe(true)
 
     // A click on a task selects its assignee's tab.
@@ -329,11 +339,13 @@ test('the Work view by default: tiles, Topics, Tasks ★ first with their steps,
   }
 })
 
-test('the Team view: saved per project, each row with its current task and step, ★ from the task; mode off shows none of it (screenshot)', async () => {
+test('the orchestrator unfolded by its triangle, saved as orchestrator_open; each row with its current task and step, ★ from the task; mode off shows none of it (screenshot)', async () => {
   const { launched, page, root } = await open()
   try {
-    await page.locator('#view-switch .view-team').click()
-    await expect.poll(() => saved(root, 'projects.json').projects[0].team_view).toBe(true)
+    await expect(row(page, 'w1')).toHaveCount(0)
+    expect(saved(root, 'projects.json').projects[0]).not.toHaveProperty('orchestrator_open')
+    await row(page, 'orch').locator('.team-fold').click()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].orchestrator_open).toBe(true)
     await expect(page.locator('#topics-section .topic-row')).toHaveCount(2)
     const packager = page.locator(`.row[data-session="${TEAM.w1}"]`)
     await expect(packager.locator('.team-task')).toHaveText('Release 0.2 · 3/5')
@@ -358,7 +370,7 @@ test('the Team view: saved per project, each row with its current task and step,
       .poll(() => saved(root, 'projects.json').projects[0])
       .not.toHaveProperty('board_open')
     await expect(page.locator('.tab')).toHaveCount(2)
-    await expect(page.locator('#view-switch')).toBeEmpty()
+    await expect(page.locator('#topics-section')).toBeEmpty()
     await expect(page.locator('#board-button')).toBeHidden()
     await expect(page.locator('.team-task')).toHaveCount(0)
     await expect(page.locator('.priority-star')).toHaveCount(0)
@@ -489,7 +501,7 @@ const IN_REVIEW: SeedTask[] = [
   },
 ]
 
-test('a task in To review says whom it waits on, on the card and in the Work view: "waiting on PR approval #436", "waiting on the human"; the orchestrator says nothing (screenshot)', async () => {
+test('a task in To review says whom it waits on, on the card and in the sidebar: "waiting on PR approval #436", "waiting on the human"; the orchestrator says nothing (screenshot)', async () => {
   const { launched, page } = await open(IN_REVIEW)
   try {
     const row = (n: number) => page.locator(`#session-list .task-row[data-task="${n}"] .task-note`)
@@ -579,10 +591,10 @@ test('the Board panel resized by dragging, reopened at its last height, Show all
   }
 })
 
-test('more than 6 open tasks: the list shows 6 and "See all (8) →", which opens the Board on Show all', async () => {
+test('more than 3 open tasks: the list shows 3 and "See all (8) →", which opens the Board on Show all', async () => {
   const { launched, page } = await open(QUEUED)
   try {
-    await expect(page.locator('#session-list .task-row')).toHaveCount(6)
+    await expect(page.locator('#session-list .task-row')).toHaveCount(3)
     await expect(page.locator('.see-all')).toHaveText('See all (8) →')
     await page.locator('.see-all').click()
     await expect(panel(page)).toBeVisible()
@@ -597,6 +609,118 @@ test('more than 6 open tasks: the list shows 6 and "See all (8) →", which open
       })
       .toBe(true)
     await expect(page.locator('.tab')).toHaveCount(2)
+  } finally {
+    await launched.close()
+  }
+})
+
+// A worker's row menu as it was before the single view: its tab open, so Stop and no Trash.
+const WORKER_MENU = [
+  'Open',
+  'Open beside the current tab',
+  'Open folder',
+  'Stop',
+  'Remote control',
+  'Mute',
+  'Group ▸',
+  'Orchestrator',
+  'Configure role…',
+  'With you',
+  'Stop reporting to the orchestrator',
+  'Rename…',
+  'Fork session',
+  'Details…',
+  'Copy session ID',
+  'Export as Markdown…',
+  'Reveal transcript',
+  'Hide',
+  'Remove from project',
+]
+
+// What #session-list holds, top to bottom, one word per item.
+const listOrder = (page: Page) =>
+  page.locator('#session-list > *').evaluateAll((nodes) =>
+    nodes.map((n) => {
+      const e = n as HTMLElement
+      if (e.classList.contains('work-heading')) return e.textContent ?? ''
+      if (e.classList.contains('task-row')) return 'task'
+      if (e.classList.contains('see-all')) return e.textContent ?? ''
+      if (e.classList.contains('team-heading')) return `heading ${e.dataset.heading}`
+      if (e.classList.contains('hidden-foot')) return e.textContent ?? ''
+      if (e.classList.contains('row')) return `row ${e.querySelector('.name')?.textContent ?? ''}`
+      const done = e.querySelector<HTMLElement>('[data-section="done"]')
+      if (done) return `${done.textContent} ${done.getAttribute('aria-expanded')}`
+      return e.className
+    }),
+  )
+
+const contentSize = (launched: Awaited<ReturnType<typeof launchApp>>, w: number, h: number) =>
+  launched.app.evaluate(
+    ({ BrowserWindow }, [width, height]) => {
+      const win = BrowserWindow.getAllWindows()[0]
+      const b = win?.getContentBounds()
+      if (win && b) win.setContentBounds({ ...b, width, height })
+    },
+    [w, h] as const,
+  )
+
+// Decision 1.177 (task 60's mock-ups): one view, no Work/Team switch; the tiles and Awaiting you
+// stay on top while the rest scrolls; "N hidden" after Others, before Done today (D4).
+test('the single view in order: tiles and Awaiting you fixed, Tasks · 8 with 3 and See all, the orchestrator folded with its count, Consultants, Others, N hidden, Done today folded; at 600 px high the top stays (screenshots)', async () => {
+  const { launched, page } = await open(QUEUED, false, undefined, { hidden: ['w2'] })
+  try {
+    await expect(page.locator('#view-switch')).toHaveCount(0)
+    await expect(page.locator('#topics-section > .work-tiles')).toHaveCount(1)
+    await expect(page.locator('#topics-section .topics-toggle').first()).toHaveText(
+      'Awaiting you · 2',
+    )
+    await expect(row(page, 'orch').locator('.team-count')).toHaveText('1')
+    await expect
+      .poll(() => listOrder(page))
+      .toEqual([
+        'Tasks · 8',
+        'task',
+        'task',
+        'task',
+        'See all (8) →',
+        'row orchestrator',
+        'heading consultants',
+        'row fabric',
+        'heading others',
+        'row notes',
+        '1 hidden',
+        'Done today · 1 false',
+      ])
+
+    // The row menu of a worker keeps its items, in their order (decision 1.177).
+    await expect(row(page, 'w1')).toHaveCount(0)
+    await row(page, 'orch').locator('.team-fold').click()
+    await row(page, 'w1').locator('.more').click()
+    expect(await page.locator('.menu-item').allTextContents()).toEqual(WORKER_MENU)
+    await page.keyboard.press('Escape')
+    await row(page, 'orch').locator('.team-fold').click()
+    await expect(row(page, 'w1')).toHaveCount(0)
+
+    await contentSize(launched, 1280, 800)
+    await expect.poll(() => page.evaluate(() => window.innerHeight)).toBe(800)
+    await filesShots(page, (scheme) => `menkar-t88-41-b4-folded-${scheme}.png`)
+    await row(page, 'orch').locator('.team-fold').click()
+    await expect(row(page, 'w1')).toBeVisible()
+    await filesShots(page, (scheme) => `menkar-t88-41-b4-unfolded-${scheme}.png`)
+
+    // At a low height the list scrolls under the tiles and Awaiting you.
+    await contentSize(launched, 1280, 600)
+    await expect.poll(() => page.evaluate(() => window.innerHeight)).toBe(600)
+    const list = page.locator('#session-list')
+    expect(await list.evaluate((n) => n.scrollHeight > n.clientHeight)).toBe(true)
+    await list.evaluate((n) => {
+      n.scrollTop = n.scrollHeight
+    })
+    await expect(page.locator('[data-section="done"]')).toBeInViewport()
+    await expect(page.locator('#topics-section .work-tiles')).toBeInViewport()
+    await expect(page.locator('#topics-section .topics-toggle').first()).toBeInViewport()
+    const files = process.env.MENKAR_FILES
+    if (files) await page.screenshot({ path: join(files, 'menkar-t88-41-b4-scrolled-600.png') })
   } finally {
     await launched.close()
   }
@@ -783,10 +907,7 @@ const typeInto = (page: Page, session: string, data: string) =>
     [session, data] as const,
   )
 
-const row = (page: Page, key: keyof typeof TEAM) =>
-  page.locator(`#session-list .row[data-session="${TEAM[key]}"]`)
-
-test('the Team view folds the orchestrator’s group (its count and the worst dot, red at a prompt), Consultants and Others, each saved per project and kept after a restart (screenshots)', async () => {
+test('the orchestrator’s group folds (its count and the worst dot, red at a prompt), Consultants and Others, each saved per project and kept after a restart (screenshots)', async () => {
   const first = await open(BASE_TASKS, true)
   const { page, root } = first
   // The config as the quit leaves it; closing removes the run's own directory.
@@ -806,8 +927,8 @@ test('the Team view folds the orchestrator’s group (its count and the worst do
     const orch = row(page, 'orch')
     await orch.locator('.team-fold').click()
     await expect
-      .poll(() => saved(root, 'projects.json').projects[0].orchestrator_collapsed)
-      .toBe(true)
+      .poll(() => saved(root, 'projects.json').projects[0])
+      .not.toHaveProperty('orchestrator_open')
     await expect(row(page, 'w1')).toHaveCount(0)
     await expect(page.locator('.earlier-row')).toHaveCount(0)
     await expect(orch.locator('.team-count')).toHaveText('2')
@@ -835,7 +956,7 @@ test('the Team view folds the orchestrator’s group (its count and the worst do
     await expect(row(page2, 'w1')).toHaveCount(0)
     await expect(row(page2, 'expert')).toHaveCount(0)
     await expect(row(page2, 'plain')).toHaveCount(0)
-    // Unfolded again, every row is back and no key is left.
+    // Unfolded again, every row is back, saved as orchestrator_open, and no fold key is left.
     await row(page2, 'orch').locator('.team-fold').click()
     await page2.locator('[data-heading="consultants"]').click()
     await page2.locator('[data-heading="others"]').click()
@@ -846,9 +967,10 @@ test('the Team view folds the orchestrator’s group (its count and the worst do
     await expect
       .poll(() => Object.keys(saved(again.root, 'projects.json').projects[0]))
       .not.toContain('others_collapsed')
-    const keys = Object.keys(saved(again.root, 'projects.json').projects[0])
+    const written = saved(again.root, 'projects.json').projects[0]
+    expect(written.orchestrator_open).toBe(true)
     for (const key of ['orchestrator_collapsed', 'consultants_collapsed', 'others_collapsed'])
-      expect(keys).not.toContain(key)
+      expect(Object.keys(written)).not.toContain(key)
   } finally {
     await again.launched.close()
     rmSync(profile, { recursive: true, force: true })
@@ -858,18 +980,15 @@ test('the Team view folds the orchestrator’s group (its count and the worst do
 const topicNumbers = (page: Page) =>
   page.locator('.topic-row').evaluateAll((ns) => ns.map((n) => n.getAttribute('data-topic')))
 
-test('"Awaiting you" shows 5 topics, the current one first, then "N more…", in the Team and the Work view; a click unfolds the rest (screenshots)', async () => {
+test('"Awaiting you" shows 5 topics, the current one first, then "N more…"; a click unfolds the rest (screenshots)', async () => {
   // Topics 1, 2 (blocking) and 4–13 open, 13 discussing: 12 in all.
   const { launched, page } = await open(BASE_TASKS, true, undefined, { topics: 10 })
   try {
-    await expect(page.locator('.topics-toggle')).toHaveText('Awaiting you · 12')
+    await expect(page.locator('#topics-section .topics-toggle')).toHaveText('Awaiting you · 12')
     await expect.poll(() => topicNumbers(page)).toEqual(['13', '2', '1', '4', '5'])
     await expect(page.locator('.topic-more')).toHaveText('7 more…')
     await filesShots(page, (scheme) => `menkar-t52-topics-more-${scheme}.png`)
 
-    await page.locator('#view-switch .view-work').click()
-    await expect.poll(() => topicNumbers(page)).toEqual(['13', '2', '1', '4', '5'])
-    await expect(page.locator('.topic-more')).toHaveText('7 more…')
     await page.locator('.topic-more').click()
     await expect(page.locator('.topic-row')).toHaveCount(12)
     await expect(page.locator('.topic-more')).toHaveCount(0)
@@ -912,8 +1031,7 @@ for (const language of ['en', 'es'] as const)
       await expect(page.locator('#presence-chip')).toBeVisible()
       for (const selector of [
         '.sidebar-header',
-        '#view-switch',
-        '.work-topics .topics-toggle',
+        '#topics-section .topics-heading .topics-toggle',
         '.files-heading',
         '#presence-chip',
       ])

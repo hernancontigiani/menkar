@@ -94,7 +94,7 @@ async function open(
                       orchestrator: SESSION,
                       roles: { [OLD_WORKER]: 'Worker' },
                     },
-                    team_view: true,
+                    orchestrator_open: true,
                   }
                 : {}),
               ...(options.orchestrated
@@ -104,7 +104,7 @@ async function open(
                       orchestrator: SESSION,
                       ...(options.cap !== undefined ? { workers_cap: options.cap } : {}),
                     },
-                    team_view: true,
+                    orchestrator_open: true,
                   }
                 : {}),
             },
@@ -452,8 +452,8 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
 })
 
 // Decision 1.144: the orchestrator gives a task the ★ and takes it away with task_star, and the
-// Work view and the Board show it; a session that is not the orchestrator is refused.
-test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Work view and the Board follow; a worker is refused (screenshot)', async () => {
+// sidebar and the Board show it; a session that is not the orchestrator is refused.
+test('task_star: the orchestrator gives task 1 the ★ and takes it away, the sidebar’s Tasks and the Board follow; a worker is refused (screenshot)', async () => {
   const { launched, page, tasksSaved, argLines } = await open({ orchestrated: true })
   const starOf = () =>
     (tasksSaved().projects[CLIENT_WORK]?.tasks[0] as { star?: boolean } | undefined)?.star
@@ -462,7 +462,6 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Wo
   try {
     await page.keyboard.type('TASKADD')
     await said(page, 'TOOL task_add: Task 1 added.')
-    await page.locator('#view-switch .view-work').click()
     await expect(row).toBeVisible()
     await expect(row.locator('.priority-star')).toHaveCount(0)
 
@@ -487,10 +486,9 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Wo
     // The worker started for task 1 is not the orchestrator.
     await page.keyboard.type('WORKT')
     await said(page, 'TOOL start_session: Started "client-work-t1"')
-    // Decision 1.176: a worker runs in the background; its row, in the Team view, shows it.
+    // Decision 1.176: a worker runs in the background; its row shows it.
     await expect.poll(() => argLines().length).toBe(2)
     const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
-    await page.locator('#view-switch .view-team').click()
     await page.locator(`.row[data-session="${worker}"]`).click()
     await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
     await page

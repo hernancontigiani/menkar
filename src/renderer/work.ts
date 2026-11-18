@@ -1,8 +1,7 @@
 import { workCounts } from '../core/orchestration/counts'
-import { type ModeRow, modeRows } from '../core/orchestration/rows'
+import { tasksFolded } from '../core/orchestration/rows'
 import type { TaskState } from '../core/orchestration/taskState'
 import type { ProjectInfo } from '../core/projects/info'
-import type { SessionInfo } from '../core/sessions/info'
 import type { DoneView, TaskView, WindowState } from '../shared/workspace'
 import { act, sessionState, stateDot } from './app'
 import { openBoardShowingAll, toggleBoard } from './board'
@@ -10,11 +9,6 @@ import { el } from './dom'
 import { t } from './i18n'
 import { topicsSection } from './orchestration'
 import { showMenu } from './ui'
-
-// The Work view of the sidebar in the orchestration mode (decisions 1.112, 1.115): what waits on
-// the human and how far each delegated task is, in the sidebar's width.
-
-const SHOWN_TASKS = 6
 
 function stateLabel(state: TaskState): string {
   switch (state) {
@@ -33,51 +27,19 @@ function stateLabel(state: TaskState): string {
   }
 }
 
-// "Work | Team" at the top of the sidebar while the mode is on.
-export function viewSwitch(project: ProjectInfo): HTMLElement {
-  const button = (team: boolean, label: string) => {
-    const node = el(
-      'button',
-      {
-        class: team ? 'view-team' : 'view-work',
-        'aria-pressed': String(project.teamView === team),
-      },
-      label,
-    )
-    node.addEventListener('click', () => {
-      if (project.teamView !== team) void act({ type: 'setTeamView', team })
-    })
-    return node
-  }
-  return el(
-    'div',
-    { class: 'view-switch segmented', role: 'group', 'aria-label': t('work.view') },
-    button(false, t('work.work')),
-    button(true, t('work.team')),
-  )
-}
-
-export function workView(
-  s: WindowState,
-  project: ProjectInfo,
-  byId: ReadonlyMap<string, SessionInfo>,
-  listed: readonly string[],
-): HTMLElement[] {
-  const open = s.tasks.open
-  const counts = workCounts(s.topics, open)
-  const tiles = el(
-    'div',
-    { class: 'work-tiles' },
-    tile(counts.topics, t('work.tileTopics'), 'topics'),
-    tile(counts.working, t('work.tileWorking'), 'working'),
-    tile(counts.waiting, t('work.tileWaiting'), 'waiting'),
-  )
+// The top of the sidebar in the mode (decision 1.177), fixed above the rows: the three count
+// tiles, then what waits on the human.
+export function modeTop(s: WindowState, project: ProjectInfo): HTMLElement[] {
+  const counts = workCounts(s.topics, s.tasks.open)
   return [
-    tiles,
-    el('div', { class: 'work-topics' }, ...topicsSection(s, project.topicsCollapsed)),
-    ...tasksSection(open),
-    ...consultantsSection(project, byId, listed, s.open),
-    ...doneSection(s.doneToday, project.doneTodayOpen),
+    el(
+      'div',
+      { class: 'work-tiles' },
+      tile(counts.topics, t('work.tileTopics'), 'topics'),
+      tile(counts.working, t('work.tileWorking'), 'working'),
+      tile(counts.waiting, t('work.tileWaiting'), 'waiting'),
+    ),
+    ...topicsSection(s, project.topicsCollapsed),
   ]
 }
 
@@ -94,11 +56,12 @@ function heading(text: string): HTMLElement {
   return el('div', { class: 'work-heading dim' }, text)
 }
 
-function tasksSection(open: readonly TaskView[]): HTMLElement[] {
+export function tasksSection(open: readonly TaskView[]): HTMLElement[] {
   const head = heading(t('work.tasks', { n: open.length }))
   if (open.length === 0) return [head, el('div', { class: 'work-empty dim' }, t('work.noTasks'))]
-  const nodes = open.slice(0, SHOWN_TASKS).map(taskRow)
-  if (open.length > SHOWN_TASKS) {
+  const { rows, more } = tasksFolded(open)
+  const nodes = rows.map(taskRow)
+  if (more > 0) {
     const all = el('button', { class: 'see-all' }, t('work.seeAll', { n: open.length }))
     all.addEventListener('click', () => openBoardShowingAll())
     nodes.push(all)
@@ -224,56 +187,7 @@ function foldHeading(
   return el('div', { class: `topics-heading${folded ? ' collapsed' : ''}` }, node)
 }
 
-// The loose sessions with a role label (decision 1.107), as the Team view lists them.
-function consultantIds(project: ProjectInfo, listed: readonly string[], open: readonly string[]) {
-  // The Team view's folds hide rows; the Work view lists its consultants whatever they are.
-  const unfolded = { ...project, consultantsCollapsed: false, othersCollapsed: false }
-  const rows = modeRows(unfolded, { listed, open: new Set(open), unfolded: new Set() })
-  const ids: string[] = []
-  let inConsultants = false
-  for (const r of rows as readonly ModeRow[]) {
-    if (r.kind === 'heading') inConsultants = r.heading === 'consultants'
-    else if (inConsultants && r.kind === 'session' && r.depth === 0) ids.push(r.id)
-  }
-  return ids
-}
-
-function consultantsSection(
-  project: ProjectInfo,
-  byId: ReadonlyMap<string, SessionInfo>,
-  listed: readonly string[],
-  open: readonly string[],
-): HTMLElement[] {
-  const ids = consultantIds(project, listed, open)
-  if (ids.length === 0) return []
-  const folded = project.consultantsCollapsed
-  const head = foldHeading(
-    t('work.consultants', { n: ids.length }),
-    folded,
-    { expand: t('work.consultantsExpand'), collapse: t('work.consultantsCollapse') },
-    'consultants',
-    () => void act({ type: 'setConsultantsCollapsed', collapsed: !folded }),
-  )
-  if (folded) return [head]
-  return [
-    head,
-    ...ids.flatMap((id) => {
-      const info = byId.get(id)
-      if (!info) return []
-      const node = el(
-        'button',
-        { class: 'consultant-row', 'data-session': id, title: info.name },
-        stateDot(sessionState(id)),
-        el('span', { class: 'consultant-name' }, info.name),
-        el('span', { class: 'consultant-role dim' }, project.orchestration.roles[id] ?? ''),
-      )
-      node.addEventListener('click', () => void act({ type: 'openSession', session: id }))
-      return [node]
-    }),
-  ]
-}
-
-function doneSection(done: readonly DoneView[], open: boolean): HTMLElement[] {
+export function doneSection(done: readonly DoneView[], open: boolean): HTMLElement[] {
   const head = foldHeading(
     t('work.doneToday', { n: done.length }),
     !open,
@@ -302,7 +216,7 @@ function doneSection(done: readonly DoneView[], open: boolean): HTMLElement[] {
   ]
 }
 
-// Under a session's name in the Team view (decision 1.116): its current task and step.
+// Under a session's name in the sidebar (decision 1.116): its current task and step.
 export function teamTaskLine(task: TaskView | undefined): HTMLElement | null {
   if (!task) return null
   return el(

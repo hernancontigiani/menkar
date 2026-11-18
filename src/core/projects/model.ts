@@ -64,15 +64,13 @@ export interface Project {
   readonly orchestration?: Orchestration
   // Its Topics section in the sidebar shows the heading alone.
   readonly topicsCollapsed?: true
-  // The sidebar in the mode shows Team instead of Work (decision 1.112).
-  readonly teamView?: true
-  // The Work view's Consultants section shows its heading alone.
+  // The Consultants section shows its heading alone.
   readonly consultantsCollapsed?: true
-  // The Team view's orchestrator shows its row alone, its children folded into it (decision 1.171).
-  readonly orchestratorCollapsed?: true
-  // The Team view's Others section shows its heading alone.
+  // The orchestrator shows its children under it; folded by default, its row alone (1.171, 1.177).
+  readonly orchestratorOpen?: true
+  // The Others section shows its heading alone.
   readonly othersCollapsed?: true
-  // The Work view's Done today section, folded unless this is set.
+  // The Done today section, folded unless this is set.
   readonly doneTodayOpen?: true
   // The Board panel shown (decision 1.126).
   readonly boardOpen?: true

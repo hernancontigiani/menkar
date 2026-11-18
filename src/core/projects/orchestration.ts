@@ -327,9 +327,8 @@ export function removeFolder(state: Projects, projectId: string, path: string): 
 
 type Flag =
   | 'topicsCollapsed'
-  | 'teamView'
   | 'consultantsCollapsed'
-  | 'orchestratorCollapsed'
+  | 'orchestratorOpen'
   | 'othersCollapsed'
   | 'doneTodayOpen'
 
@@ -348,14 +347,11 @@ function setFlag(state: Projects, projectId: string, flag: Flag, on: boolean): P
 export const setTopicsCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
   setFlag(state, projectId, 'topicsCollapsed', collapsed)
 
-export const setTeamView = (state: Projects, projectId: string, team: boolean) =>
-  setFlag(state, projectId, 'teamView', team)
-
 export const setConsultantsCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
   setFlag(state, projectId, 'consultantsCollapsed', collapsed)
 
 export const setOrchestratorCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
-  setFlag(state, projectId, 'orchestratorCollapsed', collapsed)
+  setFlag(state, projectId, 'orchestratorOpen', !collapsed)
 
 export const setOthersCollapsed = (state: Projects, projectId: string, collapsed: boolean) =>
   setFlag(state, projectId, 'othersCollapsed', collapsed)

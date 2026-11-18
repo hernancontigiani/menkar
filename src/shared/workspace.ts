@@ -205,8 +205,7 @@ export type Action =
   | { readonly type: 'setTaskStar'; readonly number: number; readonly on: boolean }
   | { readonly type: 'setWithYou'; readonly session: string; readonly on: boolean }
   | { readonly type: 'setTopicsCollapsed'; readonly collapsed: boolean }
-  // The Work view (decisions 1.112, 1.115), saved per project.
-  | { readonly type: 'setTeamView'; readonly team: boolean }
+  // The sidebar's folds in the mode (decisions 1.115, 1.171, 1.177), saved per project.
   | { readonly type: 'setConsultantsCollapsed'; readonly collapsed: boolean }
   | { readonly type: 'setOrchestratorCollapsed'; readonly collapsed: boolean }
   | { readonly type: 'setOthersCollapsed'; readonly collapsed: boolean }

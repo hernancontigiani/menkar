@@ -73,13 +73,15 @@ export function parseProjects(value: unknown): Projects {
       parents,
       orchestration,
       topics_collapsed,
-      team_view,
       consultants_collapsed,
-      orchestrator_collapsed,
+      orchestrator_open,
       others_collapsed,
       done_today_open,
       board_open,
       board_height,
+      // Keys an earlier version wrote for a view that is gone (1.177): dropped on the next write.
+      team_view: _teamView,
+      orchestrator_collapsed: _orchestratorCollapsed,
       ...projectRest
     } = raw
     if (typeof id !== 'string') unreadable('a project id is not a string')
@@ -136,9 +138,8 @@ export function parseProjects(value: unknown): Projects {
       ...withParents,
       ...(marks ? { orchestration: marks } : {}),
       ...(topics_collapsed === true ? { topicsCollapsed: true as const } : {}),
-      ...(team_view === true ? { teamView: true as const } : {}),
       ...(consultants_collapsed === true ? { consultantsCollapsed: true as const } : {}),
-      ...(orchestrator_collapsed === true ? { orchestratorCollapsed: true as const } : {}),
+      ...(orchestrator_open === true ? { orchestratorOpen: true as const } : {}),
       ...(others_collapsed === true ? { othersCollapsed: true as const } : {}),
       ...(done_today_open === true ? { doneTodayOpen: true as const } : {}),
       ...(board_open === true ? { boardOpen: true as const } : {}),
@@ -159,7 +160,7 @@ export function parseProjects(value: unknown): Projects {
 
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
 // keys, then id, name, members, groups, and hidden, the files keys, earlier, parents, orchestration
-// and topics_collapsed, team_view, consultants_collapsed, orchestrator_collapsed, others_collapsed,
+// and topics_collapsed, consultants_collapsed, orchestrator_open, others_collapsed,
 // done_today_open, board_open and board_height when any. A group writes name, color, members,
 // then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
@@ -197,9 +198,8 @@ function orchestrationKeys(p: Project): Record<string, unknown> {
   return {
     ...(marks ? { orchestration: marks } : {}),
     ...(p.topicsCollapsed ? { topics_collapsed: true } : {}),
-    ...(p.teamView ? { team_view: true } : {}),
     ...(p.consultantsCollapsed ? { consultants_collapsed: true } : {}),
-    ...(p.orchestratorCollapsed ? { orchestrator_collapsed: true } : {}),
+    ...(p.orchestratorOpen ? { orchestrator_open: true } : {}),
     ...(p.othersCollapsed ? { others_collapsed: true } : {}),
     ...(p.doneTodayOpen ? { done_today_open: true } : {}),
     ...(p.boardOpen ? { board_open: true } : {}),

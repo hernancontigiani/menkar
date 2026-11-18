@@ -106,7 +106,6 @@ test('the row menu’s block sits after Group only while the mode is on; marks a
     await page.keyboard.press('Escape')
     await page.locator('#orchestration-switch').click()
     await startWithFirst(page)
-    await page.locator('#view-switch .view-team').click()
 
     items = await rowMenu(page, CLIENT.login)
     const labels = await items.allTextContents()
@@ -387,8 +386,8 @@ function team(
           members: Object.values(TEAM),
           groups: [{ name: 'writing', color: '#e0b45b', members: [TEAM.plain] }],
           parents: { [TEAM.w1]: TEAM.orch, [TEAM.w2]: TEAM.orch },
-          // The Team view, where the rows are; Work is the default (decision 1.112).
-          team_view: true,
+          // The orchestrator unfolded, its workers' rows shown (decision 1.177).
+          orchestrator_open: true,
           orchestration: {
             on: true,
             orchestrator: TEAM.orch,
@@ -501,6 +500,8 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await expect
       .poll(() => listed(page))
       .toEqual([
+        'Tasks · 1',
+        '★Orders schemaqueuedfabric',
         'orchestrator',
         '  login worker',
         '1 earlier',
@@ -509,6 +510,7 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
         'Others',
         '●writing',
         'noteswith you',
+        'Done today · 0',
       ])
     await expect(page.locator('.row', { hasText: 'fabric' }).locator('.role')).toHaveText(
       'Fabric expert',
@@ -520,7 +522,7 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
       'with you',
     )
     // Decisions 1.100 and 1.114: the ★ task's topic first, then the blocking one, then by number.
-    await expect(page.locator('.topics-toggle')).toHaveText('Awaiting you · 3')
+    await expect(page.locator('#topics-section .topics-toggle')).toHaveText('Awaiting you · 3')
     await expect(page.locator('.topic-row')).toHaveText([
       '★2Schema of the orders table',
       '3Deploy key missing',
@@ -539,7 +541,7 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await shot(page, 'orchestration-topics-open.png')
 
     // Collapsed, saved; and with the mode off the ordinary list and no Topics section.
-    await page.locator('.topics-toggle').click()
+    await page.locator('#topics-section .topics-toggle').click()
     await expect(page.locator('.topic-row')).toHaveCount(0)
     await page.locator('#orchestration-switch').click()
     await expect(page.locator('#topics-section')).toBeEmpty()
@@ -644,11 +646,8 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await expect.poll(() => statusOf(3)).toBe('discussing')
     await expect(orchTab).toHaveClass(/selected/)
     await expect.poll(posted, { timeout: 15_000 }).toEqual([expect.stringMatching(DISCUSS_3)])
-    // The post's counts are the Work view's tiles.
-    await page.locator('#view-switch .view-work').click()
+    // The post's counts are the sidebar's tiles.
     await expect(page.locator('.work-tile .tile-n')).toHaveText(['3', '0', '0'])
-    await page.locator('#view-switch .view-team').click()
-    await expect(page.locator('.work-tile')).toHaveCount(0)
     await page.locator('.topic-row[data-topic="3"]').click()
     await expect(page.locator('.topic-detail')).toContainText('From orchestrator · discussing')
     await shot(page, 'b1-topic-discuss.png')
@@ -667,7 +666,7 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
 })
 
 // Every post ends with the local time, so Claude Code keeps two identical ones apart; one to the
-// orchestrator, then with the Work view's counts (decision 1.125).
+// orchestrator, then with the sidebar's counts (decision 1.125).
 const COUNTS = ' · 3 topics · 0 working · 0 waiting'
 const DISCUSS_3 = new RegExp(
   `^\\[Menkar\\] The human wants to discuss topic 3 \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
@@ -1117,6 +1116,9 @@ test('a parked worker: "Parked · 1" under the orchestrator, folded; unfolded, t
     await expect
       .poll(() => listed(page))
       .toEqual([
+        'Tasks · 2',
+        '★Orders schemaqueuedfabric',
+        'Login fix3/3old workerwaiting on the PR review · PR open',
         'orchestrator',
         '  login worker',
         'Parked · 1',
@@ -1125,6 +1127,7 @@ test('a parked worker: "Parked · 1" under the orchestrator, folded; unfolded, t
         'Others',
         '●writing',
         'noteswith you',
+        'Done today · 0',
       ])
     await expect(page.locator('.parked-row')).toHaveAttribute('aria-expanded', 'false')
     await page.locator('.parked-row').click()
@@ -1402,7 +1405,7 @@ function roleTeam(
           members: Object.values(ROLE),
           groups: [],
           parents: { [ROLE.expert]: ROLE.orch },
-          team_view: true,
+          orchestrator_open: true,
           orchestration: {
             on: true,
             orchestrator: ROLE.orch,

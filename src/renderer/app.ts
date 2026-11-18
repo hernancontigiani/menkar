@@ -31,7 +31,6 @@ import {
   settingsButton,
   syncModeSwitch,
   teamButton,
-  topicsSection,
 } from './orchestration'
 import { confirmRemove, infoItems } from './sessionmenus'
 import { STAR_SVG } from './star'
@@ -56,7 +55,15 @@ import {
   toast,
   unsavedQuestion,
 } from './ui'
-import { boardButton, syncBoardButton, teamTaskLine, viewSwitch, waitsOn, workView } from './work'
+import {
+  boardButton,
+  doneSection,
+  modeTop,
+  syncBoardButton,
+  tasksSection,
+  teamTaskLine,
+  waitsOn,
+} from './work'
 
 let state: WindowState | undefined
 // Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
@@ -223,7 +230,6 @@ export function buildFrame(): void {
       { id: 'sidebar' },
       el('div', { class: 'sidebar-header' }, projectButton, settings),
       el('div', { id: 'away-side', class: 'away-banner', hidden: '' }),
-      el('div', { id: 'view-switch' }),
       el('div', { id: 'topics-section' }),
       el('div', { id: 'session-list' }),
       el('div', { id: 'files-section' }),
@@ -430,12 +436,7 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   const list = $('session-list')
   $('files-section').replaceChildren(...(project ? filesSection(s, project) : []))
   const mode = project?.orchestration.on === true
-  const work = mode && !project?.teamView
-  $('view-switch').replaceChildren(...(mode && project ? [viewSwitch(project)] : []))
-  $('topics-section').replaceChildren(
-    ...(mode && !work && project ? topicsSection(s, project.topicsCollapsed) : []),
-  )
-  list.classList.toggle('work', work)
+  $('topics-section').replaceChildren(...(mode && project ? modeTop(s, project) : []))
   if (!project) {
     list.replaceChildren()
     return
@@ -485,12 +486,9 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   const selected = new Set(
     s.tabs.find((tab) => tab.id === s.selectedTab)?.panes.map((p) => p.sessionId) ?? [],
   )
-  if (work) {
-    list.replaceChildren(...workView(s, project, byId, known.filter(listed)))
-    return
-  }
   if (project.orchestration.on)
     children.push(
+      ...tasksSection(s.tasks.open),
       ...modeList(project, {
         byId,
         listed: known.filter(listed),
@@ -544,6 +542,7 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
     })
     children.push(foot)
   }
+  if (project.orchestration.on) children.push(...doneSection(s.doneToday, project.doneTodayOpen))
   list.replaceChildren(...children)
   if (rowDrag) {
     list.append(rowDrag.marker)

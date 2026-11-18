@@ -158,7 +158,6 @@ import {
   setParked,
   setRole,
   setSkills,
-  setTeamView,
   setTopicsCollapsed,
   setWithYou,
   setWorkersCap,
@@ -576,9 +575,8 @@ function stateFor(windowId: string): WindowState | undefined {
       parents: keptParents(p),
       orchestration: orchestrationInfo(p),
       topicsCollapsed: p.topicsCollapsed === true,
-      teamView: p.teamView === true,
       consultantsCollapsed: p.consultantsCollapsed === true,
-      orchestratorCollapsed: p.orchestratorCollapsed === true,
+      orchestratorCollapsed: p.orchestratorOpen !== true,
       othersCollapsed: p.othersCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
       board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
@@ -3069,10 +3067,6 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'showTopic':
       showTopic(action.project, action.number)
-      return {}
-    case 'setTeamView':
-      projects = setTeamView(projects, w.shown, action.team)
-      changed({ projects: true })
       return {}
     case 'setConsultantsCollapsed':
       projects = setConsultantsCollapsed(projects, w.shown, action.collapsed)
