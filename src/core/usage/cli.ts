@@ -6,7 +6,7 @@ import { t } from '../i18n'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import { activityDir } from './activity'
-import { exportCsv, exportJsonl, exportRows } from './export'
+import { exportActivityCsv, exportActivityRows, exportCsv, exportJsonl, exportRows } from './export'
 import { type Memberships, NO_MEMBERSHIPS, UsageHistory } from './history'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
 import {
@@ -148,13 +148,15 @@ function checkPeriodFlags(values: ReadonlyMap<string, string>): void {
 
 const exportUsage = () =>
   `${flavorFacts().command} usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD` +
-  ' --to YYYY-MM-DD] [--project NAME] [--format jsonl|csv] [--output FILE]'
+  ' --to YYYY-MM-DD] [--project NAME] [--rows turns|activity] [--format jsonl|csv] [--output FILE]'
 const FORMATS = ['jsonl', 'csv'] as const
+const ROWS = ['turns', 'activity'] as const
 
 export interface ExportArgs {
   readonly which: Which
   readonly project: string | null
   readonly format: (typeof FORMATS)[number]
+  readonly rows: (typeof ROWS)[number]
   readonly output: string | null
 }
 
@@ -166,7 +168,16 @@ export function parseExportArgs(argv: readonly string[]): ExportArgs | 'help' {
     const [flag, inline] = arg.includes('=')
       ? [arg.slice(0, arg.indexOf('=')), arg.slice(arg.indexOf('=') + 1)]
       : [arg, undefined]
-    const known = ['--period', '--month', '--from', '--to', '--project', '--format', '--output']
+    const known = [
+      '--period',
+      '--month',
+      '--from',
+      '--to',
+      '--project',
+      '--rows',
+      '--format',
+      '--output',
+    ]
     if (!known.includes(flag ?? '')) {
       throw new UsageError(t('usage.cli.unknownArgument', { argument: arg }))
     }
@@ -181,10 +192,17 @@ export function parseExportArgs(argv: readonly string[]): ExportArgs | 'help' {
       t('usage.cli.badChoice', { flag: '--format', value: format, choices: FORMATS.join(', ') }),
     )
   }
+  const rows = values.get('--rows') ?? 'turns'
+  if (!(ROWS as readonly string[]).includes(rows)) {
+    throw new UsageError(
+      t('usage.cli.badChoice', { flag: '--rows', value: rows, choices: ROWS.join(', ') }),
+    )
+  }
   return {
     which: whichOf(values),
     project: values.get('--project') ?? null,
     format: format as ExportArgs['format'],
+    rows: rows as ExportArgs['rows'],
     output: values.get('--output') ?? null,
   }
 }
@@ -366,12 +384,22 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
         return 2
       }
     }
-    const rows = exportRows(history, boundsOf(args.which, history, now() / 1000), {
-      projectNames: memberships.projectNames,
-      statuslineLogs: deps.statuslineLogs ?? [importedStatuslineLogPath(), statuslineLogPath()],
-      ...(project === undefined ? {} : { project }),
-    })
-    const text = args.format === 'csv' ? exportCsv(rows) : exportJsonl(rows)
+    const bounds = boundsOf(args.which, history, now() / 1000)
+    let text: string
+    if (args.rows === 'activity') {
+      const rows = exportActivityRows(history, bounds, {
+        projectNames: memberships.projectNames,
+        ...(project === undefined ? {} : { project }),
+      })
+      text = args.format === 'csv' ? exportActivityCsv(rows) : exportJsonl(rows)
+    } else {
+      const rows = exportRows(history, bounds, {
+        projectNames: memberships.projectNames,
+        statuslineLogs: deps.statuslineLogs ?? [importedStatuslineLogPath(), statuslineLogPath()],
+        ...(project === undefined ? {} : { project }),
+      })
+      text = args.format === 'csv' ? exportCsv(rows) : exportJsonl(rows)
+    }
     if (args.output === null) {
       if (text !== '') output.out(text.replace(/\n$/, ''))
       return 0

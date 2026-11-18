@@ -333,6 +333,10 @@ attachment — `src/core/usage/{transcript,cache}.ts`, plan 39 P1a.6's files.
   to Task flow on its last 7 or 30, back to Usage still on *all*). **The project scope** (this
   project / all projects) applies to all three and is always carried.
 - **A new mock-up of the window with the left bar** (block 4b) comes before block 7.
+- **Block 4b's mock-up approved** (the human, 2026-11-18, topic 63, task 107's
+  `$MENKAR_FILES/menkar-t107-sheet.png`): the left bar as drawn, 180 px; **the project scope
+  (this project / all projects) sits at the foot of the left bar** (variant b,
+  `menkar-t107-6-scope-place-*`), not in the header; the header holds only the section's period.
 
 What follows is what block 4 was asked for. Block 4 produced the mock-ups (by the session `set` names, e.g.
 `designer-40`), each in both themes at the Usage window's default size, with the human's figures
@@ -774,3 +778,54 @@ Choices the plan left open (mine):
 - The event's project is the tab's, known in `startPaneHeld`, not `projectOf` the session: a new
   worker may not be a member yet when its pane starts.
 - A pane that fails to find its CLI records nothing: the call sits where the command line is made.
+
+### Block 5 — `menkar-t108` (task 108), 2026-11-18
+
+Built: new `src/core/usage/bursts.ts` — `BURST_GAP_SECONDS = 600`, `awayPeriods(presence, end)`,
+`humanActionsOf(rows)` (the prompted-start exclusion), `bursts(actions, away, gap?)`,
+`clipToDay`, `activityDay(rows, day, now)`, `activityWeek(rows, first, now)` and
+`readActivity(source, bounds, now, project?)`; `UsageHistory.humanActions(low, high, project?)`
+and `activityRows(low, high)` at the end of the class (reading only: no write path, no schema
+change); in `nodes.ts` the types the page receives (`ActivityBurst`, `ActivityHour`,
+`ActivityDay`, `ActivityWeekDay`, `ActivityWeek`); `menkar usage export --rows turns|activity`
+(`export.ts`: `ACTIVITY_EXPORT_KEYS`, `exportActivityRows`, `exportActivityCsv`; `cli.ts`: the
+flag, `turns` the default and its output unchanged). Docs: `docs/usage.md` — the bursts' section
+says how it is read, the limits' prompted-start line is corrected, the export's usage line and a
+new "Activity rows" key table (after the turns' example, so the turns' key test reads up to it);
+the replaced lines in `docs/history/usage.md` (the history check asked for them).
+
+Tests: `tests/core/usage/bursts.test.ts` (every §2.10 burst row, the task-104 case of present
+marks while away, an away of two minutes splitting a burst, an open away read at 23:59, a second
+away while away, the day's 24 hours, the clip at the day's first instant, and three readings on a
+real history: the join and the project scope, an away begun two days before the day read, a
+burst begun more than a day before); in `tests/core/usage/export.test.ts`, `--rows activity`'s
+rows, its project scope, its CSV, a bad value, and its documented table; the turns' table test now
+stops at "### Activity rows". Seen red, each restored: away never holding (the task-104 test among
+the three red), an away not splitting, `<` for `<=`, no prompted exclusion, no clip, no widening,
+an open away dropped, a second away restarting, the last presence before the range not read,
+messages not scoped; in the export, presence dropped from a project, a key undocumented, the turns'
+table read to the end, the project's id for its name, the flag ignored.
+
+Granted by `set`, 2026-11-18: `usage.cli.exportHelp` in `src/core/i18n/{en,es}.ts` names
+`--rows activity` (files the block did not name).
+
+Choices the plan left open (mine):
+- An away with neither `back` nor `app_start` after it runs to the reading's `now`; a second
+  `away` while away, or a `back` while present, changes nothing. An action at an away's first
+  instant is inside it, at its last (the `back`) outside.
+- Scoped to a project, the bursts are made from that project's actions alone (its messages by the
+  turn's stored project, its marks, prompts and topics by theirs); away is every project's.
+  Prompted starts are read for every project, since only the turn's uuid matters.
+- A day counts messages and prompts answered; presence marks and topics shape bursts but are not
+  counted. Each `ActivityBurst` carries the whole burst's messages and prompts (for the hover),
+  not the day's part.
+- A burst that only ends at a day's first instant is not in that day; a one-action burst there is.
+- `readActivity` reads a day on each side and widens a day at a time while the first burst starts,
+  or the last ends, within G of the edge read; the last presence event before the range says
+  whether it opens away.
+- The activity export: keys `schema, event, kind, at, at_epoch, project, session_id, topic, task,
+  next, blocked_seconds`; `task_state` rows are not in it (block 6's `--rows tasks`); with
+  `--project`, the project's rows plus `away`, `back` and `app_start`.
+
+Not reached yet: nothing calls `readActivity` / `activityDay` / `activityWeek` outside the tests;
+block 7 (the Usage window's Activity section, through `usage-query-worker.ts`) is their consumer.

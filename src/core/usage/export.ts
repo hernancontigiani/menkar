@@ -119,7 +119,7 @@ export function exportRows(
   return rows
 }
 
-export function exportJsonl(rows: readonly ExportRow[]): string {
+export function exportJsonl(rows: readonly (ExportRow | ActivityExportRow)[]): string {
   return rows.map((row) => `${JSON.stringify(row)}\n`).join('')
 }
 
@@ -182,5 +182,66 @@ export function exportCsv(rows: readonly ExportRow[]): string {
     ]
     lines.push(fields.map(csvField).join(','))
   }
+  return `${lines.join('\n')}\n`
+}
+
+// `--rows activity`: one row per activity event, with its own schema. Never a text, a path or a
+// typed name: the table holds none.
+export const ACTIVITY_EXPORT_SCHEMA = 1
+
+export const ACTIVITY_EXPORT_KEYS = [
+  'schema',
+  'event',
+  'kind',
+  'at',
+  'at_epoch',
+  'project',
+  'session_id',
+  'topic',
+  'task',
+  'next',
+  'blocked_seconds',
+] as const
+
+export type ActivityExportRow = {
+  readonly [K in (typeof ACTIVITY_EXPORT_KEYS)[number]]: string | number | null
+}
+
+// The human's presence is every project's: a project's rows keep it.
+const EVERY_PROJECT = new Set(['away', 'back', 'app_start'])
+
+export function exportActivityRows(
+  history: UsageHistory,
+  bounds: Bounds,
+  options: Pick<ExportOptions, 'projectNames' | 'project'>,
+): ActivityExportRow[] {
+  const labels = history.projectLabels(options.projectNames ?? new Map())
+  for (const [id, name] of options.projectNames ?? []) if (!labels.has(id)) labels.set(id, name)
+  return history
+    .activityRows(bounds.start, bounds.end)
+    .filter(
+      (e) =>
+        options.project === undefined ||
+        e.projectId === options.project ||
+        (e.projectId === null && EVERY_PROJECT.has(e.kind)),
+    )
+    .map((e) => ({
+      schema: ACTIVITY_EXPORT_SCHEMA,
+      event: e.id,
+      kind: e.kind,
+      at: isoLocal(e.at),
+      at_epoch: e.at,
+      project: e.projectId === null ? null : (labels.get(e.projectId) ?? e.projectId),
+      session_id: e.sessionId,
+      topic: e.topic,
+      task: e.task,
+      next: e.next,
+      blocked_seconds: e.blockedSeconds,
+    }))
+}
+
+export function exportActivityCsv(rows: readonly ActivityExportRow[]): string {
+  const lines = [ACTIVITY_EXPORT_KEYS.join(',')]
+  for (const row of rows) lines.push(ACTIVITY_EXPORT_KEYS.map((k) => csvField(row[k])).join(','))
   return `${lines.join('\n')}\n`
 }

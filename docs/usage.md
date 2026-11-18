@@ -150,8 +150,9 @@ stored.
 ## The human's activity and the task flow
 
 Decision 1.180 (2026-11-18): Menkar records, with no text, what the human does and how each task
-moves, so the data accumulates while its views are designed. **Recording is built; the reading and
-the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow metrics").
+moves, so the data accumulates while its views are designed. **Recording and the bursts' reading
+are built; the task flow's reading and the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow
+metrics").
 
 ### What is recorded
 
@@ -182,7 +183,7 @@ events are computed in `src/core/activity/`.
   a second one is harmless (each row is an instant; a row in the same state adds no transition).
 - **The human's messages are not recorded again**: they are the history's turns of origin `human`.
 
-### Bursts, when the reading is built
+### Bursts
 
 A burst is a maximal run of the human's actions, sorted by time, each at most **10 minutes** after
 the one before (the human, 2026-11-18: one constant, changed without rewriting data). It is computed
@@ -193,6 +194,16 @@ Remote Control included; it runs to the next `back` or `app_start`. A burst cros
 burst; a day's view clips it at the local midnights. The evidence for 10 minutes was the human's
 own messages (2026-11-18): no sharp knee; at 10 minutes 89% of the gaps between messages fall
 inside a burst.
+
+The reading is `src/core/usage/bursts.ts`: `UsageHistory.humanActions` returns the rows of a range
+(the human turns, the actions, every `away`, `back` and `app_start` with the last one before the
+range, and each `prompted_start` with its session's first turn at or after it), and
+`activityDay` / `activityWeek` turn them into the hours, the clipped bursts and each day's totals
+(the types the page receives are in `nodes.ts`). `readActivity` reads a day more on each side, and
+another while a burst still reaches the edge read, so a burst begun the evening before is whole.
+Scoped to a project, the bursts are made from that project's actions alone; away is every
+project's. The presence marks and the topics shape the bursts but are not counted: a day counts
+messages and prompts answered, outside away.
 
 ### Where each event is seen
 
@@ -258,8 +269,10 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 - **A deleted project's** events keep its id; its name comes from `projects.json` when read.
 - **Command-line prompts count as the human's messages**: every `start_session`, `resume_session`
   or `renew` with a prompt adds a turn of origin `human` no human typed, and a message typed while
-  the agent works leaves no turn at all. The first is corrected when the reading excludes the turn
-  after each `prompted_start`, which is not journaled yet; the second is not counted.
+  the agent works leaves no turn at all. The first is corrected by the reading, which leaves out the
+  session's first turn after each `prompted_start` when it is of origin `human` (a start whose
+  agent dies before its first turn leaves out the human's next message in that session instead);
+  the second is not counted.
 
 ## Exporting for analysis
 
@@ -271,7 +284,7 @@ answer such questions directly is deferred (`docs/NOT_BUILT_YET.md`).
 
 ```
 menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD --to YYYY-MM-DD]
-                    [--project NAME] [--format jsonl|csv] [--output FILE]
+                    [--project NAME] [--rows turns|activity] [--format jsonl|csv] [--output FILE]
 ```
 
 - **Which turns.** The period flags are the report's, parsed by the same code; 7 days by default.
@@ -321,3 +334,28 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
 
 An example, for a Claude session in a terminal: *"Run `menkar usage export --month 2026-10` and
 tell me the cost per model for each project, and which category used the most cache reads."*
+
+### Activity rows
+
+`--rows activity` writes the activity table instead of the turns (`--rows turns`, the default,
+is the output above, unchanged): one row per event of "The human's activity and the task flow",
+oldest first, in the range by its moment, with its own `schema`, 1, under the same rule. The
+period, `--project`, `--format` and `--output` flags are the turns'. A project's rows keep the
+human's `away`, `back` and `app_start`, which belong to no project. It is how the bursts' gap is
+checked against one's own data. Never in a row: any text, any path, a session's name.
+
+| Field | What it holds |
+|---|---|
+| `schema` | The row format's version: 1 |
+| `event` | The event's random id |
+| `kind` | `prompt_answered`, `topic_discussed`, `topic_closed`, `present`, `away`, `back`, `app_start` or `prompted_start` |
+| `at` | When it happened, local time with its offset |
+| `at_epoch` | The same moment in Unix seconds |
+| `project` | Its project by its current name, or `null` |
+| `session_id` | The session's id (`prompt_answered`, `prompted_start`), or `null` |
+| `topic` | The topic's number (`topic_*`), or `null` |
+| `task` | The topic's task number, or `null` |
+| `next` | The state a pane left `blocked` for (`prompt_answered`), or `null` |
+| `blocked_seconds` | How long that pane was blocked, or `null` |
+
+The CSV has the same columns, `null` as an empty field.

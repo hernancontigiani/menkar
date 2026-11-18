@@ -73,3 +73,18 @@ with a prompt on its command line); main does not journal them yet.
 
 > Left on 2026-11-18: main journals away and back from askPresence (plan 43, block 3b, with plan 42's block 3).
 The journal's format already has `away` / `back` (1.167); main does not journal them yet.
+
+> Replaced 2026-11-18 (plan 43, block 5): the bursts' reading is built in core.
+moves, so the data accumulates while its views are designed. **Recording is built; the reading and
+the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow metrics").
+
+### Bursts, when the reading is built
+
+> Replaced 2026-11-18 (plan 43, block 5): the reading leaves out the turn after each `prompted_start`.
+  the agent works leaves no turn at all. The first is corrected when the reading excludes the turn
+  after each `prompted_start`, which is not journaled yet; the second is not counted.
+
+## The export
+
+> Replaced 2026-11-18 (plan 43, block 5): `--rows turns|activity`.
+                    [--project NAME] [--format jsonl|csv] [--output FILE]

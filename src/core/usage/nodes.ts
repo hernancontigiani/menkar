@@ -148,3 +148,43 @@ export interface UsageView {
   // whether the figures are that project's alone
   readonly scoped: boolean
 }
+
+// One burst of the human's activity as a day shows it: clipped to the day, with its whole length
+// and what it held for the hover. A burst of one action has start = end.
+export interface ActivityBurst {
+  readonly start: number
+  readonly end: number
+  readonly fullStart: number
+  readonly fullEnd: number
+  readonly messages: number
+  readonly prompts: number
+}
+
+export interface ActivityHour {
+  readonly bounds: Bounds
+  readonly messages: number
+  readonly prompts: number
+}
+
+// A local day by the hour: 23 or 25 hours on a daylight-saving change.
+export interface ActivityDay {
+  readonly bounds: Bounds
+  readonly hours: readonly ActivityHour[]
+  readonly bursts: readonly ActivityBurst[]
+  // the bursts' time inside the day
+  readonly burstSeconds: number
+  readonly messages: number
+  readonly prompts: number
+}
+
+export interface ActivityWeekDay {
+  readonly bounds: Bounds
+  readonly burstSeconds: number
+  readonly messages: number
+  readonly prompts: number
+}
+
+export interface ActivityWeek {
+  readonly bounds: Bounds
+  readonly days: readonly ActivityWeekDay[]
+}

@@ -476,7 +476,7 @@ export const en = {
   'usage.cli.cannotWrite': 'Could not write {path}.',
   'usage.cli.unknownProject': "--project: no project is named '{name}'; the projects are: {known}",
   'usage.cli.exportHelp':
-    'One row per turn: JSON lines (the default) or CSV. A turn is in the range by the moment it opened, and is exported whole, never clipped at the range\'s ends. The fields are described in Menkar\'s documentation, under "Exporting for analysis".',
+    'One row per turn, or per activity event with --rows activity: JSON lines (the default) or CSV. A turn is in the range by the moment it opened, an event by its moment, and a turn is exported whole, never clipped at the range\'s ends. The fields are described in Menkar\'s documentation, under "Exporting for analysis".',
   'usage.cli.exec': 'exec',
   'usage.cli.blocked': 'blocked',
   'usage.cli.tokens': 'tokens',

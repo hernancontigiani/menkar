@@ -5,8 +5,9 @@ process.env.TZ = 'America/Argentina/Buenos_Aires'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { batchPath } from '../../../src/core/usage/activity'
 import { runUsageCli } from '../../../src/core/usage/cli'
-import { EXPORT_KEYS } from '../../../src/core/usage/export'
+import { ACTIVITY_EXPORT_KEYS, EXPORT_KEYS } from '../../../src/core/usage/export'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { midnight } from '../../../src/core/usage/periods'
 import { buildReport } from '../../../src/core/usage/report'
@@ -24,6 +25,7 @@ function cli(dirs: Dirs, args: string[]) {
       passPaths: { claudeProjects: dirs.claudeProjects, cache: dirs.cache, history: dirs.history },
       configDir: join(dirs.root, 'config'),
       statuslineLogs: [dirs.statuslineLog],
+      activityDir: join(dirs.root, 'activity'),
     },
   )
   return { code, out: out.join('\n'), err: err.join('\n') }
@@ -278,9 +280,89 @@ describe('menkar usage export', () => {
 
   test("the documentation's table names exactly the row's keys, in order", () => {
     const doc = readFileSync('docs/usage.md', 'utf8')
-    const section = doc.slice(doc.indexOf('## Exporting for analysis'))
+    const section = doc.slice(
+      doc.indexOf('## Exporting for analysis'),
+      doc.indexOf('### Activity rows'),
+    )
     const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
     expect(documented.length).toBeGreaterThan(0)
     expect(documented).toEqual([...EXPORT_KEYS])
+  })
+
+  // Q4 (a): the activity is its own kind of row, so the turns' stream stays one object per turn.
+  test('--rows activity writes one row per event with exactly the documented keys', () => {
+    const dirs = usageDirs('export-activity')
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    const epoch = (time: string) => new Date(at(time)).getTime() / 1000
+    const events = [
+      { id: 'e1', at: epoch('10:00:00'), kind: 'away' },
+      { id: 'e2', at: epoch('10:30:00'), kind: 'back' },
+      { id: 'e3', at: epoch('10:31:00'), kind: 'present', projectId: 'p' },
+      {
+        id: 'e4',
+        at: epoch('10:32:00'),
+        kind: 'prompt_answered',
+        projectId: 'p',
+        sessionId: 's1',
+        next: 'working',
+        blockedSeconds: 12.5,
+      },
+      { id: 'e5', at: epoch('10:33:00'), kind: 'topic_closed', projectId: 'q', topic: 4, task: 7 },
+      {
+        id: 'e6',
+        at: epoch('10:34:00'),
+        kind: 'task_state',
+        projectId: 'p',
+        task: 3,
+        state: 'queued',
+      },
+      { id: 'e7', at: epoch('23:59:59') - 86_400, kind: 'present', projectId: 'p' },
+    ]
+    writeFileSync(batchPath(dir, 0), events.map((e) => JSON.stringify({ v: 1, ...e })).join('\n'))
+    projects(dirs, [
+      { id: 'p', name: 'Client work', members: [] },
+      { id: 'q', name: 'Side', members: [] },
+    ])
+    const all = cli(dirs, ['--period', 'today', '--rows', 'activity'])
+    expect(all.code).toBe(0)
+    const found = rows(all.out)
+    expect(found.map((r) => r.event)).toEqual(['e1', 'e2', 'e3', 'e4', 'e5'])
+    for (const row of found) expect(Object.keys(row)).toEqual([...ACTIVITY_EXPORT_KEYS])
+    expect(found[3]).toEqual({
+      schema: 1,
+      event: 'e4',
+      kind: 'prompt_answered',
+      at: '2026-11-08T10:32:00-03:00',
+      at_epoch: epoch('10:32:00'),
+      project: 'Client work',
+      session_id: 's1',
+      topic: null,
+      task: null,
+      next: 'working',
+      blocked_seconds: 12.5,
+    })
+    expect(found[4]).toMatchObject({ project: 'Side', topic: 4, task: 7 })
+    const scoped = rows(
+      cli(dirs, ['--period', 'today', '--rows', 'activity', '--project', 'Client work']).out,
+    )
+    expect(scoped.map((r) => r.event)).toEqual(['e1', 'e2', 'e3', 'e4'])
+    const csv = cli(dirs, ['--period', 'today', '--rows', 'activity', '--format', 'csv']).out.split(
+      '\n',
+    )
+    expect(csv[0]).toBe(ACTIVITY_EXPORT_KEYS.join(','))
+    expect(csv[1]).toBe(`1,e1,away,2026-11-08T10:00:00-03:00,${epoch('10:00:00')},,,,,,`)
+    expect(csv).toHaveLength(6)
+    const bad = cli(dirs, ['--rows', 'bogus'])
+    expect(bad.code).toBe(2)
+    expect(bad.out).toBe('')
+  })
+
+  test("the documentation's activity table names exactly the activity row's keys, in order", () => {
+    const doc = readFileSync('docs/usage.md', 'utf8')
+    const section = doc.slice(doc.indexOf('### Activity rows'))
+    const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
+    expect(documented.length).toBeGreaterThan(0)
+    expect(documented).toEqual([...ACTIVITY_EXPORT_KEYS])
   })
 })

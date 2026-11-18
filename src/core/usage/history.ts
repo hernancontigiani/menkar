@@ -6,6 +6,7 @@ import { type Db, openDb } from '../db'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import { type ActivityImport, activityDir, batchFiles, importBatch } from './activity'
+import type { ActivityRows, PresenceKind } from './bursts'
 import type { HourTokens, UsageCache } from './cache'
 import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
 import { cost, shownModel } from './prices'
@@ -684,7 +685,99 @@ export class UsageHistory {
     }
     return total
   }
+
+  // What the bursts are read from, in [low, high): the human turns and the human's actions, of
+  // `project` when given; presence and prompted starts are every project's.
+  humanActions(low: number, high: number, project?: string): ActivityRows {
+    const empty: ActivityRows = { messages: [], actions: [], presence: [], promptedStarts: [] }
+    const db = this.db
+    if (db === null) return empty
+    const scoped = project === undefined ? '' : ' AND project_id = ?'
+    const args = (...values: number[]) => (project === undefined ? values : [...values, project])
+    const messages = this.prepared(
+      db,
+      `SELECT uuid AS u, session_id AS s, opened AS d FROM turns WHERE origin = 'human'` +
+        ` AND opened >= ? AND opened < ?${scoped} ORDER BY opened, uuid`,
+    )
+      .all(...args(low, high))
+      .map((r) => ({ uuid: String(r.u), sessionId: String(r.s), at: num(r, 'd') }))
+    const actions = this.prepared(
+      db,
+      `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${sqlList(ACTION_KINDS)}` +
+        ` AND at >= ? AND at < ?${scoped} ORDER BY at, id`,
+    )
+      .all(...args(low, high))
+      .map((r) => ({ at: num(r, 'a'), kind: String(r.k) as (typeof ACTION_KINDS)[number] }))
+    const presenceKinds = sqlList(PRESENCE_KINDS)
+    const presence = [
+      ...this.prepared(
+        db,
+        `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${presenceKinds} AND at < ?` +
+          ' ORDER BY at DESC, id DESC LIMIT 1',
+      ).all(low),
+      ...this.prepared(
+        db,
+        `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${presenceKinds}` +
+          ' AND at >= ? AND at < ? ORDER BY at, id',
+      ).all(low, high),
+    ].map((r) => ({ at: num(r, 'a'), kind: String(r.k) as PresenceKind }))
+    const promptedStarts = this.prepared(
+      db,
+      'SELECT a.at AS a, a.session_id AS s, t.uuid AS u, t.origin AS o FROM activity a' +
+        ' LEFT JOIN turns t ON t.uuid = (SELECT f.uuid FROM turns f WHERE f.session_id = a.session_id' +
+        ' AND f.opened >= a.at ORDER BY f.opened, f.uuid LIMIT 1)' +
+        " WHERE a.kind = 'prompted_start' AND a.session_id IS NOT NULL AND a.at >= ? AND a.at < ?" +
+        ' ORDER BY a.at, a.id',
+    )
+      .all(low, high)
+      .map((r) => ({
+        at: num(r, 'a'),
+        sessionId: String(r.s),
+        firstTurn: r.u === null ? null : { uuid: String(r.u), origin: String(r.o) },
+      }))
+    return { messages, actions, presence, promptedStarts }
+  }
+
+  // Every activity row in [low, high), oldest first, for the export.
+  activityRows(low: number, high: number): StoredActivity[] {
+    const db = this.db
+    if (db === null) return []
+    return this.prepared(
+      db,
+      'SELECT id, at, kind, project_id, session_id, topic, task, next, blocked_seconds' +
+        ' FROM activity WHERE at >= ? AND at < ? ORDER BY at, id',
+    )
+      .all(low, high)
+      .map((r) => ({
+        id: String(r.id),
+        at: num(r, 'at'),
+        kind: String(r.kind),
+        projectId: nullableStr(r, 'project_id'),
+        sessionId: nullableStr(r, 'session_id'),
+        topic: r.topic === null ? null : num(r, 'topic'),
+        task: r.task === null ? null : num(r, 'task'),
+        next: nullableStr(r, 'next'),
+        blockedSeconds: r.blocked_seconds === null ? null : num(r, 'blocked_seconds'),
+      }))
+  }
 }
+
+// One row of the activity table, as stored.
+export interface StoredActivity {
+  readonly id: string
+  readonly at: number
+  readonly kind: string
+  readonly projectId: string | null
+  readonly sessionId: string | null
+  readonly topic: number | null
+  readonly task: number | null
+  readonly next: string | null
+  readonly blockedSeconds: number | null
+}
+
+const ACTION_KINDS = ['prompt_answered', 'topic_discussed', 'topic_closed', 'present'] as const
+const PRESENCE_KINDS = ['away', 'back', 'app_start'] as const
+const sqlList = (kinds: readonly string[]) => `(${kinds.map((k) => `'${k}'`).join(', ')})`
 
 // Execution spans that touch become one: the two-hour rule makes most of a turn contiguous.
 export function mergedSpans<T extends { kind: string; start: number; end: number }>(
