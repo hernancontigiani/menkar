@@ -11,12 +11,12 @@ Or one probe at a time: `node --experimental-strip-types scripts/agent-probes/cl
 Each prints `PASS` or `FAIL` per check with the run's folder, and exits 1 when one failed. `all.mjs`
 takes about two minutes.
 
-| Probe            | What it checks                                                                                                                                                                           |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `permission.mjs` | The Bash permission card (manual mode) and auto mode's confirmation card (the classifier answering "block" three times) are read as `blocked` by main's `detectState` at every burst end |
-| `add-dir.mjs`    | Whether `--add-dir` shows the trust dialog (recorded, not judged), and that `permissions.additionalDirectories` in `--settings` grants the folder with no dialog                         |
-| `team-block.mjs` | `--append-system-prompt-file` text is in the first request's system prompt; a missing file stops Claude Code before any request                                                          |
-| `wake.mjs`       | A one-line post to the session's messaging socket wakes it into a new turn, and its transcript records a peer user turn from `menkar`                                                    |
+| Probe            | What it checks                                                                                                                                                                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permission.mjs` | Three cards are read as `blocked` by main's `detectState` at every burst end: the Bash card (manual mode), auto mode's confirmation card (the classifier answering "block" three times), and auto mode's card before a read outside the working directories |
+| `add-dir.mjs`    | Whether `--add-dir` shows the trust dialog (recorded, not judged), and that `permissions.additionalDirectories` in `--settings` grants the folder with no dialog                                                                                            |
+| `team-block.mjs` | `--append-system-prompt-file` text is in the first request's system prompt; a missing file stops Claude Code before any request                                                                                                                             |
+| `wake.mjs`       | A one-line post to the session's messaging socket wakes it into a new turn, and its transcript records a peer user turn from `menkar`                                                                                                                       |
 
 ## How it stays away from the human's data
 

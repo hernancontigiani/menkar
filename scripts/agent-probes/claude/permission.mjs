@@ -1,53 +1,80 @@
-// Does Menkar read Claude Code's permission cards as blocked? The stand-in API asks for a Bash
-// `git push`; in manual mode that raises the usual card, and in auto mode, with the classifier
-// answering "block" three times, auto mode's confirmation card. Each screen is judged by main's
-// detectState at the end of each burst.
+// Does Menkar read Claude Code's permission cards as blocked? The stand-in API asks for a tool call
+// that raises a card, and each screen is judged by main's detectState at the end of each burst:
+// - manual mode, a Bash `git push`: the usual card;
+// - auto mode, the same push with the classifier answering "block" three times: auto mode's
+//   confirmation card;
+// - auto mode, a Read of a file outside the working directories with the classifier allowing it:
+//   the one-time card that asks about reads outside the working directories.
 import { bytesOf, judge, keep, makeRun, report, runClaude, startApi, text } from './lib.mjs'
 
-const push = {
-  blocks: [
-    {
-      type: 'tool_use',
-      id: 'toolu_probe',
-      name: 'Bash',
-      input: { command: 'git push origin main', description: 'Push the branch' },
-    },
-  ],
+const call = (name, input) => ({
+  blocks: [{ type: 'tool_use', id: 'toolu_probe', name, input }],
   stop: 'tool_use',
+})
+
+// The classifier's requests stop on `</severity>`; its allow/block line is 50.
+function answerWith({ severity, tool, input }) {
+  return (body) => {
+    if (body.stop_sequences?.includes('</severity>')) return text(`<severity>${severity}`)
+    const asked = JSON.stringify(body.messages ?? [])
+    const results = asked.split('tool_result').length - 1
+    if (asked.includes('PROBE-CALL') && results < 3 && body.tools?.some((t) => t.name === tool)) {
+      return call(tool, input)
+    }
+    return text('PROBE-DONE')
+  }
 }
 
-// The classifier's requests stop on `</severity>`; 80 is past its allow/block line of 50.
-function answer(body) {
-  if (body.stop_sequences?.includes('</severity>')) return text('<severity>80')
-  const asked = JSON.stringify(body.messages ?? [])
-  const results = asked.split('tool_result').length - 1
-  if (asked.includes('PROBE-PUSH') && results < 3 && body.tools?.some((t) => t.name === 'Bash')) {
-    return push
-  }
-  return text('PROBE-DONE')
+const push = {
+  tool: 'Bash',
+  input: { command: 'git push origin main', description: 'Push the branch' },
 }
+const SCENARIOS = [
+  { name: 'manual', mode: 'manual', card: 'This command requires approval', severity: 80, ...push },
+  {
+    name: 'auto-block',
+    mode: 'auto',
+    card: 'Auto mode needs your confirmation',
+    severity: 80,
+    ...push,
+  },
+  {
+    name: 'auto-read-outside',
+    mode: 'auto',
+    card: 'Allow this read outside the working directories?',
+    severity: 10,
+    tool: 'Read',
+    input: { file_path: '/etc/hostname' },
+  },
+]
 
 const results = []
-for (const [mode, card] of [
-  ['manual', 'This command requires approval'],
-  ['auto', 'Auto mode needs your confirmation'],
-]) {
-  const run = makeRun(`permission-${mode}`)
-  const api = await startApi(answer)
+for (const scenario of SCENARIOS) {
+  const run = makeRun(`permission-${scenario.name}`)
+  const api = await startApi(answerWith(scenario))
   // In auto mode a stand-in gateway first gets a notice about classifier billing; Enter dismisses it.
-  const keys = mode === 'auto' ? [[8, '\r']] : []
-  const reads = await runClaude(run, api, ['PROBE-PUSH please', '--permission-mode', mode], {
-    seconds: 30,
-    keys,
-  })
+  const keys = scenario.mode === 'auto' ? [[8, '\r']] : []
+  const reads = await runClaude(
+    run,
+    api,
+    ['PROBE-CALL please', '--permission-mode', scenario.mode],
+    {
+      seconds: 30,
+      keys,
+    },
+  )
   await api.close()
   keep(run, 'pty.raw', bytesOf(reads))
   const verdicts = await judge(reads)
-  const onCard = verdicts.filter((v) => v.screen.includes(card))
+  const onCard = verdicts.filter((v) => v.screen.includes(scenario.card))
   const misread = onCard.filter((v) => v.state !== 'blocked')
-  if (onCard.length > 0) keep(run, 'card.txt', onCard[onCard.length - 1].screen)
+  if (onCard.length > 0) {
+    const last = onCard[onCard.length - 1]
+    keep(run, 'card.txt', last.screen)
+    keep(run, 'title.txt', last.title)
+  }
   results.push({
-    name: `${mode} card read as blocked`,
+    name: `${scenario.name} card read as blocked`,
     ok: onCard.length > 0 && misread.length === 0,
     detail:
       onCard.length === 0

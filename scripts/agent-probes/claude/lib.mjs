@@ -183,13 +183,31 @@ function stop(pid) {
   }
 }
 
+// main's detectState, loaded through Vite as the tests load it: the sources import each other the
+// bundler's way, which Node's own type stripping cannot follow. PROBE_DETECT points at another
+// module, a plain .mjs, to see a check fail against a broken rule.
+async function loadDetect() {
+  if (process.env.PROBE_DETECT) return import(process.env.PROBE_DETECT)
+  const { createServer } = require('vite')
+  const server = await createServer({
+    root: REPO,
+    configFile: false,
+    logLevel: 'silent',
+    appType: 'custom',
+    server: { middlewareMode: true, hmr: false, watch: null },
+  })
+  try {
+    return await server.ssrLoadModule('/src/core/agentstate/detect.ts')
+  } finally {
+    await server.close()
+  }
+}
+
 // The text Menkar's mirror would read (rows ending at the cursor), and main's `detectState` over it,
 // at the end of each burst: a read followed by at least 250 ms of quiet, as the pane watcher checks.
 export async function judge(reads, { cols = 120, rows = 40 } = {}) {
   const { Terminal } = require('@xterm/headless')
-  // PROBE_DETECT points at another detect module, to see a check fail against a broken rule.
-  const detect = process.env.PROBE_DETECT ?? join(REPO, 'src/core/agentstate/detect.ts')
-  const { detectState } = await import(detect)
+  const { detectState } = await loadDetect()
   const terminal = new Terminal({ cols, rows, allowProposedApi: true, scrollback: 1000 })
   let title = ''
   terminal.onTitleChange((t) => {
@@ -201,7 +219,7 @@ export async function judge(reads, { cols = 120, rows = 40 } = {}) {
     const quiet = i === reads.length - 1 || reads[i + 1].at - reads[i].at >= 250
     if (!quiet) continue
     const screen = screenOf(terminal)
-    verdicts.push({ at: reads[i].at, state: detectState('claude', title, screen), screen })
+    verdicts.push({ at: reads[i].at, state: detectState('claude', title, screen), screen, title })
   }
   return verdicts
 }
