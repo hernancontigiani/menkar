@@ -1,6 +1,6 @@
 // The report's tree and its figures as they are shown: shared by the terminal, main and the
 // Usage window's page, so nothing here imports Node.
-import type { Bounds } from './periods'
+import type { Bounds, Day } from './periods'
 import type { TokenCounts } from './prices'
 
 export interface Tokens extends TokenCounts {}
@@ -146,6 +146,34 @@ export interface UsageView {
   // null when Usage has no project to scope to (no window, or one with no project open)
   readonly project: { readonly id: string; readonly name: string } | null
   // whether the figures are that project's alone
+  readonly scoped: boolean
+}
+
+// Which day or week Your time asks for.
+export type ActivityWhich =
+  | { readonly kind: 'day'; readonly day: Day }
+  | { readonly kind: 'week'; readonly first: Day }
+
+// What Your time draws, with what its arrows and its hover need.
+export interface ActivityView {
+  readonly which: ActivityWhich
+  readonly reading:
+    | { readonly kind: 'day'; readonly day: ActivityDay }
+    | { readonly kind: 'week'; readonly week: ActivityWeek }
+  // the history's first turn's day, where ‹ stops
+  readonly firstDay: Day | null
+  readonly projectNames: readonly (readonly [string, string])[]
+  readonly tooNew: boolean
+  readonly project: { readonly id: string; readonly name: string } | null
+  readonly scoped: boolean
+}
+
+// What Task times draws for 7 or 30 days.
+export interface TaskFlowView {
+  readonly period: '7d' | '30d'
+  readonly flow: TaskFlow
+  readonly tooNew: boolean
+  readonly project: { readonly id: string; readonly name: string } | null
   readonly scoped: boolean
 }
 

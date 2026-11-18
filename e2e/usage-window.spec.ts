@@ -475,7 +475,9 @@ test('the Usage views fill the window: By day grows its chart, Totals its card, 
       expect(await gapBelow(usage, '.footer')).toBeGreaterThanOrEqual(8)
       const chart = await usage.locator('[data-chart]').boundingBox()
       expect(chart?.height ?? 0).toBeGreaterThan(height / 2)
-      expect(chart?.width ?? 0).toBeGreaterThan(width - 40)
+      // the chart fills its section's pane, beside the left bar (decision 1.184)
+      const pane = await usage.locator('.usage-pane').boundingBox()
+      expect(chart?.width ?? 0).toBeGreaterThan((pane?.width ?? width) - 40)
     }
   } finally {
     await launched.close()

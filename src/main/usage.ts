@@ -5,8 +5,15 @@ import { chooseLanguage, setLanguage } from '../core/i18n'
 import { log } from '../core/log'
 import { runUsageCli } from '../core/usage/cli'
 import type { Memberships, Tokens } from '../core/usage/history'
-import type { UsageView, UsageWhich } from '../core/usage/nodes'
+import type {
+  ActivityView,
+  ActivityWhich,
+  TaskFlowView,
+  UsageView,
+  UsageWhich,
+} from '../core/usage/nodes'
 import { PassRunner } from '../core/usage/runner'
+import { importActivity } from './activity'
 import { currentProjects } from './projects'
 import { sessions } from './sessions'
 import type { Query } from './usage-query-worker'
@@ -124,5 +131,49 @@ export async function usageView(
     scoped: !allProjects,
     projectNames: [...projectNames],
     names,
+  })
+}
+
+function openerProject(projectId: string | null): { id: string; name: string } | null {
+  if (projectId === null) return null
+  const name = currentMemberships().projectNames.get(projectId)
+  return name === undefined ? null : { id: projectId, name }
+}
+
+// The pass brings the human's turns into the history, then the import the journal up to now:
+// after the pass, never beside it, as both open the history.
+async function historyUpToNow(): Promise<void> {
+  await usageRunner?.request()
+  await importActivity()
+}
+
+// Your time's day or week, as `usageView` reads its period.
+export async function activityView(
+  which: ActivityWhich,
+  projectId: string | null,
+  allProjects: boolean,
+): Promise<ActivityView> {
+  await historyUpToNow()
+  return queryInWorker<ActivityView>({
+    kind: 'activity',
+    which,
+    project: openerProject(projectId),
+    scoped: !allProjects,
+    projectNames: [...currentMemberships().projectNames],
+  })
+}
+
+// Task times' 7 or 30 days. The flow waits for the pass too, so its import keeps that same rule.
+export async function flowView(
+  period: '7d' | '30d',
+  projectId: string | null,
+  allProjects: boolean,
+): Promise<TaskFlowView> {
+  await historyUpToNow()
+  return queryInWorker<TaskFlowView>({
+    kind: 'flow',
+    period,
+    project: openerProject(projectId),
+    scoped: !allProjects,
   })
 }

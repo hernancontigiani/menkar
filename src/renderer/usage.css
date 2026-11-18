@@ -160,8 +160,79 @@ body,
   flex-direction: column;
 }
 
-#app > header {
+/* The left bar as Settings', narrower; the pane beside it holds the header and the body. */
+.settings.usage-shell {
+  grid-template-columns: 180px 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.usage-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.usage-pane > header {
   flex: none;
+  min-height: 46px;
+  box-sizing: border-box;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
+/* The scope at the foot of the left bar: this project over All projects, one bordered group. */
+.usage-scope {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px 14px;
+  white-space: nowrap;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
+.usage-scope-label {
+  padding: 0 4px;
+  font-size: 9pt;
+}
+
+.usage-scope-buttons {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--fg) 24%, transparent);
+  border-radius: var(--control-radius);
+  overflow: hidden;
+}
+
+html.classic .usage-scope-buttons {
+  border-radius: var(--radius);
+}
+
+.usage-scope-buttons > button {
+  border-radius: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  color: color-mix(in srgb, var(--fg) 58%, transparent);
+}
+
+.usage-scope-buttons > button + button {
+  border-top: 1px solid color-mix(in srgb, var(--fg) 24%, transparent);
+}
+
+.usage-scope-buttons > button:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+  color: var(--fg);
+}
+
+.usage-scope-buttons > button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
 }
 
 .usage-body {

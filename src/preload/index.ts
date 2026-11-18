@@ -96,6 +96,8 @@ const api: MenkarApi = {
   },
   usage: {
     view: (which, allProjects) => ipcRenderer.invoke('usage:view', { which, allProjects }),
+    activity: (which, allProjects) => ipcRenderer.invoke('usage:activity', { which, allProjects }),
+    flow: (period, allProjects) => ipcRenderer.invoke('usage:flow', { period, allProjects }),
   },
   classifier: {
     status: () => ipcRenderer.invoke('classifier:status'),

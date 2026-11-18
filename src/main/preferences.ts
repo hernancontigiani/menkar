@@ -25,7 +25,7 @@ import type { InvokeChannel, InvokeChannels, RestartAnswer, RestartUnsaved } fro
 import { statuslineCommand } from './context'
 import { saveBuffer } from './files'
 import { sessions } from './sessions'
-import { usageView } from './usage'
+import { activityView, flowView, usageView } from './usage'
 import { rescaleOwnWindows, usageOpener } from './windows'
 import * as workspace from './workspace'
 import { setUiZoom, uiZoom } from './zoom'
@@ -150,13 +150,24 @@ export function registerPreferencesIpc(): void {
   )
   handle('app:restart', ({ unsaved }) => restart(unsaved))
   // The opener window's project scopes the figures; a Usage window with no opener has none.
+  const openerProject = (sender: Electron.WebContents): string | null => {
+    const opener = usageOpener(sender)
+    return (opener ? workspace.windowState(opener.webContents)?.shown : null) || null
+  }
   ipcMain.handle(
     'usage:view',
-    (event, { which, allProjects }: InvokeChannels['usage:view']['request']) => {
-      const opener = usageOpener(event.sender)
-      const projectId = opener ? (workspace.windowState(opener.webContents)?.shown ?? null) : null
-      return usageView(which, projectId || null, allProjects)
-    },
+    (event, { which, allProjects }: InvokeChannels['usage:view']['request']) =>
+      usageView(which, openerProject(event.sender), allProjects),
+  )
+  ipcMain.handle(
+    'usage:activity',
+    (event, { which, allProjects }: InvokeChannels['usage:activity']['request']) =>
+      activityView(which, openerProject(event.sender), allProjects),
+  )
+  ipcMain.handle(
+    'usage:flow',
+    (event, { period, allProjects }: InvokeChannels['usage:flow']['request']) =>
+      flowView(period, openerProject(event.sender), allProjects),
   )
   handle('app:open-link', async ({ link }) => {
     const url = LINKS[link]

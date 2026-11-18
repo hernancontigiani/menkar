@@ -899,15 +899,15 @@ said" (`set`, 2026-11-18). The catalogs have no plural forms: a count reads "{n}
 
 #### 7b — the shell, the scope, the carry and the two paths
 
-- [ ] The left bar (180 px), its foot, the header per section, the `Sections` state through
+- [x] The left bar (180 px), its foot, the header per section, the `Sections` state through
   `sections.ts`; Spend's body moved to `usage-spend.ts` unchanged; `usage-time.ts` and
   `usage-tasks.ts` as stubs exporting the functions 7c and 7d fill (`timeBody(view, ctx)` and
   `tasksBody(view, ctx)`, `ctx` giving `choose`, the locale, the scheme, the scope), drawing an
   empty body.
-- [ ] `'usage:activity'` and `'usage:flow'`: types, IPC, preload, the handlers, `activityView` /
+- [x] `'usage:activity'` and `'usage:flow'`: types, IPC, preload, the handlers, `activityView` /
   `flowView` with the pass and the import, the worker's two queries; one `latestOnly` for the three.
-- [ ] Every string of 7b–7d in `en.ts` and `es.ts`.
-- [ ] `e2e/usage-window.spec.ts` passes; changed only where a test must click Spend first.
+- [x] Every string of 7b–7d in `en.ts` and `es.ts`.
+- [x] `e2e/usage-window.spec.ts` passes; changed only where a test must click Spend first.
   New `e2e/usage-sections.spec.ts`: the cases of §2.10's "window" rows below (the left bar and
   its 180 px, the foot, the carry and the keep through the headers' toggles, the scope carried,
   a late answer dropped across a section switch with `delayPeriod`'s pattern on `usage:activity`,
@@ -1304,3 +1304,56 @@ Choices the plan left open (mine):
 
 Not reached yet: nothing outside the tests calls `sections.ts`, `timeline.ts` or `flowTable`; 7b
 (the page and the two paths), 7c and 7d are their consumers.
+
+### Block 7b — `menkar-t112` (task 112), 2026-11-18
+
+Built: the Usage window's left bar (180 px, Settings' classes, `data-section` spend | time | tasks,
+Up and Down), the scope at its foot (`[data-key="this-project"]`, `[data-key="all-projects"]`,
+shown only when the last answer carries a project), one `[data-toggles="period"]` per section in
+the header, the `Sections` state through `sections.ts` (`choose`, `switchTo`, `timeToggle`), one
+`latestOnly()` for the three asks. Spend's body moved to new `src/renderer/usage-spend.ts`
+(`spendBody`, `spendWhich`, `spendAnswered`, `startStepper`; it also exports `toggles` and `svg`
+for 7c and 7d); new stubs `usage-time.ts` (`timeBody(view, ctx)`) and `usage-tasks.ts`
+(`tasksBody(view, ctx)`) drawing an empty body; `SectionContext` (locale, scheme, allProjects,
+today, loading, `choose`, `render`, `star`) and `SectionBody` (`nodes`, optional `draw`) are
+exported as types from `usage.ts`. The path: `ActivityWhich`, `ActivityView`, `TaskFlowView` in
+`nodes.ts` (types only, granted by `set`), `'usage:activity'` and `'usage:flow'` in `ipc.ts`, the
+preload, the two handlers in `preferences.ts` (one `openerProject` shared with `'usage:view'`),
+`activityView` / `flowView` in `src/main/usage.ts` (the pass awaited, then `importActivity()`, then
+the worker), the worker's `activity` and `flow` queries. Every string of 7b–7d in `en.ts` and
+`es.ts` (`usage.section.*`, `usage.scope.projects`, `usage.readFailed`, `usage.time.*`,
+`usage.tasks.*`).
+
+Deviations, agreed with `set` (2026-11-18): the three view types added to `nodes.ts`, which the
+file table did not list; the fill-the-window test measures By day's chart against the section's
+pane, not the window (the left bar takes 180 px, decision 1.184) — one changed `expect`, which
+`check-test-integrity` reports.
+
+Tests: new `e2e/usage-sections.spec.ts` — the window opens on Spend, 7 days, the bar 180 px, each
+section's own toggles, Up and Down (dark and light); the foot, All projects carried to Your time
+and Task times' asks and kept pressed, back to this project; no opener, no foot; the carry and the
+keep through the headers (Spend 30d → Task times 30d, Your time keeps its week, Month kept, Today →
+Day on today, the current Week → 7 days in both); a late answer across sections dropped, the star
+held while Spend's slower answer is on its way, the bar usable. Seen red, each restored: the
+switch not carrying, Task times reset on entry, the scope reset on entering Your time, the guard
+dropped from the flow's answer, a 250 px bar. `e2e/usage-window.spec.ts` passes with the one
+changed `expect` above.
+
+Choices the plan left open (mine):
+- "All projects" still turns back to this project when pressed again (the 1.15 test clicks it
+  twice); "this project" sets it.
+- The foot is its own bordered group, not `.segmented` (a vertical stack would break the
+  controls test's divider check, which reads left borders).
+- A refused ask shows `usage.readFailed` in the body instead of a star turning for ever.
+- The too-new page keeps the left bar; the header goes, as before.
+- A section shown for the first time shows the star, not "Reading the transcripts…" (kept for
+  Spend's first answer).
+- The tab that had the focus keeps it across the redraw an answer brings (found by the Up/Down
+  test: the bar is drawn again with every answer).
+- "{n} task(s)" for the summary, as the plan's "{n} burst(s)"; Spanish "preguntas respondidas"
+  for prompts answered, after `topics.permissionTitle`'s "pregunta de permiso".
+
+Found, not changed: after `await usageRunner.request()`, a pass another ask starts while this
+ask's `importActivity()` runs would open the history beside the import; the plan's ordering keeps
+each ask's import after its own pass, not after every later one.
+

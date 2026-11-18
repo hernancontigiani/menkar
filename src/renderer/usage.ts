@@ -5,394 +5,229 @@ import './turning.css'
 import { now } from '../core/clock'
 import { latestOnly } from '../core/latest'
 import { resolveLook } from '../core/theme'
+import type { ActivityView, TaskFlowView, UsageView } from '../core/usage/nodes'
+import { type Day, localDay } from '../core/usage/periods'
 import {
-  axisLabels,
-  barHeading,
-  buildChart,
-  type Metric,
-  OTHER_PROJECTS,
-  type Stack,
-  seriesColor,
-} from '../core/usage/chart'
-import {
-  formatCost,
-  formatDuration,
-  formatPercent,
-  formatTokens,
-  NO_PROJECT,
-  type Node,
-  totalExecution,
-  totalTokens,
-  UNCLASSIFIED,
-  type UsageView,
-  type UsageWhich,
-} from '../core/usage/nodes'
-import { modelName } from '../core/usage/prices'
-import { arrows, type Month, type StepperState, step } from '../core/usage/stepper'
+  choose,
+  initialSections,
+  type SpendPeriod,
+  switchTo,
+  type TasksPeriod,
+  type TimePeriod,
+  timeToggle,
+  type UsageSection,
+} from '../core/usage/sections'
 import { el } from './dom'
 import { loadCatalog, t } from './i18n'
 import { applyLook } from './look'
 import { STAR_SVG } from './star'
+import { spendAnswered, spendBody, spendWhich, startStepper, toggles } from './usage-spend'
+import { tasksBody } from './usage-tasks'
+import { timeBody } from './usage-time'
 
-// The Usage window: a period, its Totals as a table or By day as a stacked chart, and a footer.
+// The Usage window: a left bar with Spend, Your time and Task times and the project scope at its
+// foot; the shown section's period in the header over its body.
 
-type Period = 'today' | '7d' | '30d' | 'month'
-type View = 'totals' | 'chart'
+// What a section's body is drawn with.
+export interface SectionContext {
+  readonly locale: string
+  readonly scheme: 'dark' | 'light'
+  // every project instead of the opener window's
+  readonly allProjects: boolean
+  readonly today: Day
+  // an answer is on its way: Spend keeps its toggles over the turning star
+  readonly loading: boolean
+  // a period picked in the body (a step, a day of the week): asked at once
+  choose(period: SpendPeriod | TimePeriod | TasksPeriod): void
+  // the body's own state changed (a fold, a view): drawn again with the same answer
+  render(): void
+  star(): HTMLElement
+}
 
+// What a section's body puts in the pane; `draw` runs once the nodes are laid out, for a plot
+// that takes the room left.
+export interface SectionBody {
+  readonly nodes: readonly HTMLElement[]
+  draw?(): void
+}
+
+const today = (): Day => localDay(now() / 1000)
+
+// Kept in the page's memory for the window's life, never across openings: a stepped-back day
+// would reopen stale, and the scope depends on the opener.
 const state = {
-  period: '7d' as Period,
-  view: 'totals' as View,
-  metric: 'exec' as Metric,
-  stack: 'project' as Stack,
-  stepper: { month: thisMonth(), all: false } as StepperState,
-  collapsed: new Set<string>(),
-  // category rows start collapsed, so what is kept for them is which ones were opened
-  expanded: new Set<string>(),
-  data: null as UsageView | null,
-  // a report is on its way: the table or chart gives way to the turning star, the header stays
+  sections: initialSections(today()),
+  // Month's stepper, kept while another period is shown
+  stepper: startStepper(),
+  spend: null as UsageView | null,
+  time: null as ActivityView | null,
+  tasks: null as TaskFlowView | null,
+  // the opener window's project, as the last answer gave it: no project, no foot
+  project: null as { readonly id: string; readonly name: string } | null,
+  // the last ask was refused: our sentence in the body
+  failed: false,
+  // an answer is on its way: the body gives way to the turning star, the bars stay usable
   loading: false,
   dark: true,
   locale: 'en',
-  // every project instead of the opener window's
   allProjects: false,
 }
-// A report that arrives after another period was chosen is dropped.
-const askReport = latestOnly()
+// One for the three sections' asks: any newer one (a period, a step, a section, the scope) drops
+// an older answer, whatever section it was for.
+const ask = latestOnly()
 
-// What By day stacks by. One project's figures stack by category when classification gives them,
-// and are that project's plain bar otherwise; every project's follow the switch.
-function stackShown(): Stack {
-  const view = state.data
-  if (state.stack === 'model' && state.metric !== 'exec') return 'model'
-  if (view?.scoped) return view.categories ? 'category' : 'project'
-  return state.stack === 'model' ? 'project' : state.stack
+const SECTIONS: readonly UsageSection[] = ['spend', 'time', 'tasks']
+
+const SECTION_NAMES: Readonly<Record<UsageSection, () => string>> = {
+  spend: () => t('usage.section.spend'),
+  time: () => t('usage.section.time'),
+  tasks: () => t('usage.section.tasks'),
 }
 
-function thisMonth(): Month {
-  const d = new Date(now())
-  return { year: d.getFullYear(), month: d.getMonth() + 1 }
+const ICONS: Readonly<Record<UsageSection, string>> = {
+  spend:
+    '<line x1="2.5" y1="13.5" x2="13.5" y2="13.5"/><rect x="3.5" y="8" width="2.4" height="5"/><rect x="6.8" y="4" width="2.4" height="9"/><rect x="10.1" y="6.5" width="2.4" height="6.5"/>',
+  time: '<polyline points="1.5,8.5 4.5,8.5 6.3,3.5 9.2,12.5 11,8.5 14.5,8.5"/>',
+  tasks:
+    '<rect x="1.5" y="5.8" width="3.4" height="4.4" rx="0.8"/><rect x="6.3" y="5.8" width="3.4" height="4.4" rx="0.8"/><rect x="11.1" y="5.8" width="3.4" height="4.4" rx="0.8"/><path d="M3.2 5.8V3.5h9.6v2.3M11.3 4.9l1.5 0.9 1.4-0.9"/>',
 }
 
-function which(): UsageWhich {
-  if (state.period !== 'month') return { kind: 'period', period: state.period }
-  return state.stepper.all ? { kind: 'all' } : { kind: 'month', ...state.stepper.month }
+function sectionIcon(name: UsageSection): SVGSVGElement {
+  const wrapper = document.createElement('span')
+  wrapper.innerHTML = `<svg class="icon" viewBox="0 0 16 16" aria-hidden="true">${ICONS[name]}</svg>`
+  return wrapper.firstElementChild as SVGSVGElement
 }
 
-const CATEGORY_NAMES: Readonly<Record<string, () => string>> = {
-  plan: () => t('usage.catPlan'),
-  design: () => t('usage.catDesign'),
-  build: () => t('usage.catBuild'),
-  test: () => t('usage.catTest'),
-  deploy: () => t('usage.catDeploy'),
-  maintain: () => t('usage.catMaintain'),
-  other: () => t('usage.catOther'),
+function chooseHere(period: SpendPeriod | TimePeriod | TasksPeriod): void {
+  if (typeof period === 'object' && period.kind === 'month') state.stepper = period.stepper
+  state.sections = choose(state.sections, period)
+  void refresh()
 }
 
-function label(key: string, kind: Node['kind'] | 'series'): string {
-  if (key === NO_PROJECT && kind !== 'category') return t('usage.noProject')
-  if (key === UNCLASSIFIED) return t('usage.unclassified')
-  if (key === OTHER_PROJECTS && kind === 'series' && stackShown() === 'project')
-    return t('usage.otherProjects')
-  if (kind === 'category' || (kind === 'series' && stackShown() === 'category')) {
-    return CATEGORY_NAMES[key]?.() ?? key
+function show(section: UsageSection): void {
+  state.sections = switchTo(state.sections, section, today())
+  void refresh()
+}
+
+function setScope(allProjects: boolean): void {
+  state.allProjects = allProjects
+  void refresh()
+}
+
+function context(): SectionContext {
+  return {
+    locale: state.locale,
+    scheme: state.dark ? 'dark' : 'light',
+    allProjects: state.allProjects,
+    today: today(),
+    loading: state.loading,
+    choose: chooseHere,
+    render,
+    star: loadingStar,
   }
-  if (kind === 'series' && stackShown() === 'model')
-    return key === OTHER_PROJECTS ? t('usage.otherProjects') : modelName(key)
-  return key
 }
 
-function metricText(value: number): string {
-  if (state.metric === 'exec') return formatDuration(value)
-  if (state.metric === 'tokens') return formatTokens(value)
-  return `$${value.toFixed(2)}`
-}
+// -- the left bar -------------------------------------------------------------------------------
 
-function toggles<T extends string>(
-  name: string,
-  options: readonly (readonly [T, string])[],
-  current: T,
-  choose: (value: T) => void,
-): HTMLElement {
-  const group = el('div', { class: 'linked segmented', 'data-toggles': name })
-  for (const [value, text] of options) {
-    const button = el(
+function sectionList(): HTMLElement {
+  const list = el('nav', {
+    class: 'section-list',
+    role: 'tablist',
+    'aria-orientation': 'vertical',
+    'aria-label': t('usage.section.list'),
+  })
+  const shown = state.sections.shown
+  for (const name of SECTIONS) {
+    const item = el(
       'button',
-      { 'data-value': value, 'aria-pressed': String(value === current) },
-      text,
-    )
-    button.addEventListener('click', () => choose(value))
-    group.append(button)
-  }
-  return group
-}
-
-// -- the table ----------------------------------------------------------------------------------
-
-// A row's tokens and cost by model, largest first. The cost is always the list-price estimate: an
-// exact cost comes per session, never per model.
-function byModel(node: Node): string {
-  return Object.entries(node.models)
-    .sort(([a, x], [b, y]) => totalTokens(y.tokens) - totalTokens(x.tokens) || (a < b ? -1 : 1))
-    .map(([model, m]) =>
-      t('usage.byModel', {
-        model: modelName(model),
-        tokens: formatTokens(totalTokens(m.tokens)),
-        cost: `~$${m.cost.toFixed(2)}${m.priced ? '' : '+'}`,
-      }),
-    )
-    .join('\n')
-}
-
-function tableRow(node: Node, depth: number, path: string, rows: HTMLElement[]): void {
-  const hasChildren = node.children.length > 0
-  const opened = node.kind === 'category' ? state.expanded : null
-  const collapsed = opened ? !opened.has(path) : state.collapsed.has(path)
-  const arrow = el(
-    'button',
-    { class: 'arrow', 'aria-label': node.label, ...(hasChildren ? {} : { 'aria-hidden': 'true' }) },
-    hasChildren ? (collapsed ? '▸' : '▾') : '',
-  )
-  if (hasChildren) {
-    arrow.addEventListener('click', () => {
-      if (opened) {
-        if (collapsed) opened.add(path)
-        else opened.delete(path)
-      } else if (collapsed) state.collapsed.delete(path)
-      else state.collapsed.add(path)
-      render()
-    })
-  }
-  const parts = Object.entries(node.execution)
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([origin, seconds]) => `${origin} ${formatDuration(seconds)}`)
-  const exec = el(
-    'span',
-    { class: 'num w7', title: t('usage.startedBy', { parts: parts.join(', ') }) },
-    formatDuration(totalExecution(node)),
-  )
-  rows.push(
-    el(
-      'div',
       {
-        class: `usage-row ${node.kind}`,
-        style: `padding-left: ${12 + 18 * depth}px`,
-        'data-kind': node.kind,
-        'data-path': path,
+        role: 'tab',
+        class: 'section-item',
+        'data-section': name,
+        'aria-selected': String(name === shown),
       },
-      arrow,
-      el('span', { class: 'name' }, label(node.label, node.kind)),
-      exec,
-      el('span', { class: 'num w8' }, formatDuration(node.blocked)),
-      el('span', { class: 'num w8', title: byModel(node) }, formatTokens(totalTokens(node.tokens))),
-      el('span', { class: 'num w9', title: byModel(node) }, formatCost(node)),
-    ),
-  )
-  if (!collapsed)
-    for (const child of node.children) tableRow(child, depth + 1, `${path}/${child.label}`, rows)
+      sectionIcon(name),
+      el('span', {}, SECTION_NAMES[name]()),
+    )
+    item.tabIndex = name === shown ? 0 : -1
+    item.addEventListener('click', () => show(name))
+    list.append(item)
+  }
+  list.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    event.preventDefault()
+    const at = SECTIONS.indexOf(state.sections.shown)
+    const next =
+      SECTIONS[
+        Math.min(Math.max(at + (event.key === 'ArrowDown' ? 1 : -1), 0), SECTIONS.length - 1)
+      ]
+    if (next === undefined || next === state.sections.shown) return
+    show(next)
+  })
+  return list
 }
 
-function table(view: UsageView): HTMLElement {
-  const heading = el(
-    'div',
-    { class: 'usage-heading' },
-    el('span', { class: 'name dim' }, t('usage.projectSession')),
-    el('span', { class: 'num w7' }, t('usage.exec')),
-    el('span', { class: 'num w8' }, t('usage.blocked')),
-    el('span', { class: 'num w8' }, t('usage.tokens')),
-    el('span', { class: 'num w9' }, t('usage.cost')),
+// The scope, for every section: this project or every one. "All projects" turns back to this
+// project when pressed again, as it did in the header.
+function scopeFoot(project: { readonly name: string }): HTMLElement {
+  const mine = el(
+    'button',
+    { 'data-key': 'this-project', 'aria-pressed': String(!state.allProjects) },
+    project.name,
   )
-  if (view.totals.nodes.length === 0) {
-    return el(
-      'div',
-      { class: 'usage-table' },
-      heading,
-      el('div', { class: 'card nothing' }, t('usage.nothing')),
-    )
-  }
-  const rows: HTMLElement[] = []
-  for (const project of view.totals.nodes) tableRow(project, 0, project.label, rows)
+  mine.addEventListener('click', () => setScope(false))
+  const all = el(
+    'button',
+    { 'data-key': 'all-projects', 'aria-pressed': String(state.allProjects) },
+    t('usage.allProjects'),
+  )
+  all.addEventListener('click', () => setScope(!state.allProjects))
   return el(
     'div',
-    { class: 'usage-table' },
-    heading,
-    el('div', { class: 'card usage-list' }, ...rows),
+    { class: 'usage-scope', 'data-key': 'scope' },
+    el('div', { class: 'usage-scope-label dim' }, t('usage.scope.projects')),
+    el('div', { class: 'usage-scope-buttons' }, mine, all),
   )
 }
 
-// -- the chart ----------------------------------------------------------------------------------
-
-const SVG = 'http://www.w3.org/2000/svg'
-
-function svg<K extends keyof SVGElementTagNameMap>(
-  tag: K,
-  attrs: Record<string, string | number>,
-): SVGElementTagNameMap[K] {
-  const node = document.createElementNS(SVG, tag)
-  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value))
-  return node
-}
-
-// The chart takes the height the window leaves it: the box is laid out first, with the legend, and
-// the plot is drawn into the room left once the box has a size.
-function chartBox(view: UsageView): { box: HTMLElement; draw(): void } {
-  const plot = el('div', { class: 'chart-plot' })
-  const legend = el('div', { class: 'legend' })
-  const box = el('div', { class: 'chart-box' }, plot, legend)
-  const draw = () => {
-    legend.replaceChildren(...chart(view, 0, MIN_CHART_HEIGHT).legend)
-    plot.replaceChildren()
-    const width = Math.max(200, Math.floor(plot.clientWidth))
-    const height = Math.max(MIN_CHART_HEIGHT, Math.floor(plot.clientHeight))
-    plot.replaceChildren(chart(view, width, height).svg)
-  }
-  return { box, draw }
-}
-
-const MIN_CHART_HEIGHT = 160
-
-function chart(
-  view: UsageView,
-  width: number,
-  height: number,
-): { svg: HTMLElement; legend: HTMLElement[] } {
-  const reports = view.bars.map((bar) =>
-    stackShown() === 'category' && bar.category ? bar.category : bar.project,
+function side(): HTMLElement {
+  const aside = el(
+    'aside',
+    { class: 'settings-side' },
+    el('div', { class: 'settings-header', 'data-key': 'usage-title' }, t('usage.title')),
+    sectionList(),
   )
-  const data = buildChart(reports, state.metric, stackShown())
-  const plot = { left: 64, right: 8, top: 10, bottom: 22 }
-  const plotWidth = Math.max(10, width - plot.left - plot.right)
-  const plotHeight = height - plot.top - plot.bottom
-  const root = svg('svg', { width, height, class: 'usage-chart', 'data-chart': '' })
-  const y = (value: number) => plot.top + plotHeight - (value / data.axisTop) * plotHeight
-  const lines = Math.round(data.axisTop / data.axisStep)
-  for (let k = 0; k <= lines; k += 1) {
-    const value = k * data.axisStep
-    const opacity = k === 0 ? 0.35 : 0.12
-    const at = y(value)
-    root.append(
-      svg('line', {
-        x1: plot.left,
-        x2: width - plot.right,
-        y1: at,
-        y2: at,
-        stroke: 'currentColor',
-        'stroke-opacity': opacity,
-      }),
-    )
-    const text = svg('text', {
-      x: plot.left - 6,
-      y: at,
-      'text-anchor': 'end',
-      'dominant-baseline': 'middle',
-      class: 'axis',
-    })
-    text.textContent = metricText(value)
-    root.append(text)
-  }
-  const slot = plotWidth / Math.max(1, reports.length)
-  const barWidth = Math.min(28, Math.max(2, slot * 0.7))
-  const labels = axisLabels(
-    reports.map((report) => report.bounds.start),
-    view.bucket,
-    state.period === '7d' ? 'week' : 'long',
-    state.locale,
-    plotWidth,
-  )
-  reports.forEach((report, i) => {
-    const x = plot.left + slot * i + (slot - barWidth) / 2
-    const group = svg('g', { 'data-bar': i })
-    const lines = data.series
-      .map((series, k) => [series, data.bars[i]?.[k] ?? 0] as const)
-      .filter(([, value]) => value > 0)
-      .map(([series, value]) => `${label(series.key, 'series')}: ${metricText(value)}`)
-    const tip = svg('title', {})
-    tip.textContent = [
-      barHeading(report.bounds.start, view.bucket, state.locale),
-      ...(lines.length ? lines : [t('usage.nothing')]),
-    ].join('\n')
-    group.append(
-      svg('rect', {
-        x: plot.left + slot * i,
-        y: plot.top,
-        width: slot,
-        height: plotHeight,
-        fill: 'transparent',
-      }),
-      tip,
-    )
-    let base = 0
-    const values = data.bars[i] ?? []
-    const top = values.reduce((n, v, k) => (v > 0 ? k : n), -1)
-    data.series.forEach((series, k) => {
-      const value = values[k] ?? 0
-      if (value <= 0) return
-      const y0 = y(base)
-      const y1 = y(base + value)
-      const segment = Math.max(1, y0 - y1 - (k === top ? 0 : 2))
-      const radius = k === top ? Math.min(4, barWidth / 2, segment) : 0
-      group.append(
-        svg('rect', {
-          x,
-          y: y0 - segment,
-          width: barWidth,
-          height: segment,
-          rx: radius,
-          fill: seriesColor(series, state.dark),
-        }),
-      )
-      base += value
-    })
-    const name = labels[i]
-    if (name) {
-      const text = svg('text', {
-        x: plot.left + slot * i + slot / 2,
-        y: height - 6,
-        'text-anchor': 'middle',
-        class: 'axis',
-      })
-      text.textContent = name
-      group.append(text)
-    }
-    root.append(group)
-  })
-  const legend: HTMLElement[] = []
-  for (const series of data.series) {
-    legend.push(
-      el(
-        'span',
-        { class: 'legend-item' },
-        el('span', {
-          class: 'swatch-square',
-          style: `background: ${seriesColor(series, state.dark)}`,
-        }),
-        label(series.key, 'series'),
-      ),
-    )
-  }
-  return { svg: root as unknown as HTMLElement, legend }
+  if (state.project) aside.append(scopeFoot(state.project))
+  return aside
 }
 
-// -- the window ---------------------------------------------------------------------------------
+// -- the header: the shown section's period -----------------------------------------------------
 
-function footer(view: UsageView): HTMLElement[] {
-  let line = t('usage.blockedFooter', {
-    time: formatDuration(view.totals.nodes.reduce((n, p) => n + p.blocked, 0)),
-  })
-  const limits = view.totals.limits
-  if (limits)
-    line += `   ${t('usage.limits', { five: formatPercent(limits[0]), seven: formatPercent(limits[1]) })}`
-  const out = [
-    el('div', { class: 'footer dim', 'data-key': 'footer' }, `${line}\n${t('usage.estimateNote')}`),
-  ]
-  if (!view.categories)
-    out.push(el('div', { class: 'footer dim', 'data-key': 'hint' }, t('usage.hint')))
-  return out
-}
-
-function render(): void {
-  const app = document.getElementById('app')
-  if (!app) return
-  const header = toggles(
+function periodToggles(): HTMLElement {
+  const s = state.sections
+  if (s.shown === 'time') {
+    return toggles(
+      'period',
+      [
+        ['day', t('usage.time.day')],
+        ['week', t('usage.time.week')],
+      ] as const,
+      s.time.kind,
+      (kind) => chooseHere(timeToggle(s.time, kind, today())),
+    )
+  }
+  if (s.shown === 'tasks') {
+    return toggles(
+      'period',
+      [
+        ['7d', t('usage.days7')],
+        ['30d', t('usage.days30')],
+      ] as const,
+      s.tasks,
+      (period) => chooseHere(period),
+    )
+  }
+  return toggles(
     'period',
     [
       ['today', t('usage.today')],
@@ -400,146 +235,70 @@ function render(): void {
       ['30d', t('usage.days30')],
       ['month', t('usage.month')],
     ] as const,
-    state.period,
-    (value) => {
-      state.period = value
-      void refresh()
-    },
+    s.spend.kind,
+    (kind) => chooseHere(kind === 'month' ? { kind, stepper: state.stepper } : { kind }),
   )
-  const view = state.data
-  const top = el('header', {}, header)
-  if (view?.project) {
-    const scope = el(
-      'button',
-      { 'data-key': 'all-projects', 'aria-pressed': String(state.allProjects) },
-      t('usage.allProjects'),
-    )
-    scope.addEventListener('click', () => {
-      state.allProjects = !state.allProjects
-      void refresh()
-    })
-    top.append(scope)
-  }
-  if (view === null) {
-    app.replaceChildren(
-      top,
-      el('div', { class: 'status-page', 'data-key': 'reading' }, t('usage.reading')),
-    )
-    return
-  }
-  if (view.tooNew) {
-    app.replaceChildren(
-      el(
-        'div',
-        { class: 'status-page', 'data-key': 'too-new' },
-        el('h2', {}, t('usage.tooNew')),
-        el('p', { class: 'dim' }, t('usage.tooNewDescription')),
-      ),
-    )
-    return
-  }
-  const body = el('main', { class: 'usage-body' })
-  if (state.period === 'month') {
-    const enabled = arrows(state.stepper, view.firstMonth, thisMonth())
-    const previous = el('button', { title: t('usage.previousMonth'), 'data-key': 'previous' }, '‹')
-    const next = el('button', { title: t('usage.nextMonth'), 'data-key': 'next' }, '›')
-    previous.toggleAttribute('disabled', !enabled.previous)
-    next.toggleAttribute('disabled', !enabled.next)
-    previous.addEventListener('click', () => {
-      state.stepper = step(state.stepper, -1)
-      void refresh()
-    })
-    next.addEventListener('click', () => {
-      state.stepper = step(state.stepper, 1)
-      void refresh()
-    })
-    const all = el(
-      'button',
-      { 'data-key': 'all', 'aria-pressed': String(state.stepper.all) },
-      t('usage.all'),
-    )
-    all.addEventListener('click', () => {
-      state.stepper = { ...state.stepper, all: !state.stepper.all }
-      void refresh()
-    })
-    const name = state.stepper.all
-      ? t('usage.all')
-      : new Intl.DateTimeFormat(state.locale, { month: 'long', year: 'numeric' }).format(
-          new Date(state.stepper.month.year, state.stepper.month.month - 1, 1),
-        )
-    body.append(
-      el(
-        'div',
-        { class: 'stepper' },
-        previous,
-        el('span', { class: 'month-name', 'data-key': 'month-name' }, name),
-        next,
-        all,
-      ),
-    )
-  }
-  const views = el(
-    'div',
-    { class: 'views' },
-    toggles(
-      'view',
-      [
-        ['totals', t('usage.totals')],
-        ['chart', t('usage.byDay')],
-      ] as const,
-      state.view,
-      (value) => {
-        state.view = value
-        render()
-      },
-    ),
+}
+
+// -- the body -----------------------------------------------------------------------------------
+
+function statusPage(key: string, ...children: HTMLElement[]): HTMLElement {
+  return el('div', { class: 'status-page', 'data-key': key }, ...children)
+}
+
+function tooNewPage(): HTMLElement {
+  return statusPage(
+    'too-new',
+    el('h2', {}, t('usage.tooNew')),
+    el('p', { class: 'dim' }, t('usage.tooNewDescription')),
   )
-  if (state.view === 'chart') {
-    views.append(
-      toggles(
-        'metric',
-        [
-          ['exec', t('usage.exec')],
-          ['tokens', t('usage.tokens')],
-          ['cost', t('usage.cost')],
-        ] as const,
-        state.metric,
-        (value) => {
-          state.metric = value
-          // Time is not split by model: Exec stacks by project again.
-          if (value === 'exec' && state.stack === 'model') state.stack = 'project'
-          render()
-        },
-      ),
+}
+
+function sectionBody(): SectionBody | HTMLElement {
+  const s = state.sections
+  const ctx = context()
+  if (state.failed && !state.loading)
+    return statusPage('failed', el('p', {}, t('usage.readFailed')))
+  if (s.shown === 'spend') {
+    const view = state.spend
+    if (view === null) return statusPage('reading', el('span', {}, t('usage.reading')))
+    if (view.tooNew) return tooNewPage()
+    return spendBody(view, s.spend, ctx)
+  }
+  if (state.loading) return { nodes: [loadingStar()] }
+  const view = s.shown === 'time' ? state.time : state.tasks
+  if (view === null) return { nodes: [loadingStar()] }
+  if (view.tooNew) return tooNewPage()
+  if (s.shown === 'time' && state.time) return timeBody(state.time, ctx)
+  if (s.shown === 'tasks' && state.tasks) return tasksBody(state.tasks, ctx)
+  return { nodes: [] }
+}
+
+let redrawOnResize = false
+
+function render(): void {
+  const app = document.getElementById('app')
+  if (!app) return
+  // the bar is drawn again with every answer: a tab that had the focus keeps it, for Up and Down
+  const tabFocused = document.activeElement?.getAttribute('role') === 'tab'
+  const pane = el('div', { class: 'usage-pane' })
+  const body = sectionBody()
+  if (body instanceof HTMLElement) {
+    // the too-new page stands alone, as no period's figures can be read
+    if (body.dataset.key === 'too-new') pane.append(body)
+    else pane.append(el('header', {}, periodToggles()), body)
+  } else {
+    pane.append(
+      el('header', {}, periodToggles()),
+      el('main', { class: 'usage-body', 'data-section': state.sections.shown }, ...body.nodes),
     )
-    // One project shows its categories (or its plain bar) where every project shows the switch.
-    const stacks: (readonly [Stack, string])[] = view.scoped
-      ? [view.categories ? ['category', t('usage.category')] : ['project', t('usage.project')]]
-      : [
-          ['project', t('usage.project')],
-          ...(view.categories ? [['category', t('usage.category')] as const] : []),
-        ]
-    stacks.push(['model', t('usage.model')])
-    const stack = toggles('stack', stacks, stackShown(), (value) => {
-      state.stack = value
-      render()
-    })
-    const model = stack.querySelector<HTMLButtonElement>('[data-value="model"]')
-    if (model && state.metric === 'exec') {
-      model.disabled = true
-      model.title = t('usage.modelNoTime')
-    }
-    views.append(stack)
   }
-  if (state.loading) {
-    body.append(views, loadingStar())
-    app.replaceChildren(top, body)
-    return
-  }
-  const drawn = state.view === 'chart' ? chartBox(view) : null
-  body.append(views, drawn ? drawn.box : table(view), ...footer(view))
-  app.replaceChildren(top, body)
-  drawn?.draw()
+  app.replaceChildren(el('div', { class: 'settings usage-shell' }, side(), pane))
+  if (tabFocused)
+    document.querySelector<HTMLElement>(`[data-section="${state.sections.shown}"]`)?.focus()
+  const draw = body instanceof HTMLElement ? undefined : body.draw
+  redrawOnResize = draw !== undefined
+  draw?.()
 }
 
 function loadingStar(): HTMLElement {
@@ -548,16 +307,39 @@ function loadingStar(): HTMLElement {
   return el('div', { class: 'usage-loading turning dim', 'data-key': 'loading' }, star)
 }
 
-// A pass, then the report.
+// A pass and, for Your time and Task times, the activity's import, then the shown section's
+// figures.
 async function refresh(): Promise<void> {
-  const current = askReport()
+  const current = ask()
+  const s = state.sections
   state.loading = true
   render()
-  const view = await window.menkar.usage.view(which(), state.allProjects)
-  if (!current()) return
-  state.data = view
+  const usage = window.menkar.usage
+  try {
+    if (s.shown === 'spend') {
+      const view = await usage.view(spendWhich(s.spend), state.allProjects)
+      if (!current()) return
+      state.spend = view
+      state.project = view.project
+      spendAnswered(view)
+    } else if (s.shown === 'time') {
+      const view = await usage.activity(s.time, state.allProjects)
+      if (!current()) return
+      state.time = view
+      state.project = view.project
+    } else {
+      const view = await usage.flow(s.tasks, state.allProjects)
+      if (!current()) return
+      state.tasks = view
+      state.project = view.project
+    }
+    state.failed = false
+  } catch {
+    // main's handler reported the refusal; the page says it in its own words
+    if (!current()) return
+    state.failed = true
+  }
   state.loading = false
-  if (!view.categories) state.stack = 'project'
   render()
 }
 
@@ -583,7 +365,7 @@ async function main(): Promise<void> {
   })
   document.title = t('usage.title')
   window.addEventListener('resize', () => {
-    if (state.view === 'chart') render()
+    if (redrawOnResize) render()
   })
   await refresh()
 }

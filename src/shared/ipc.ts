@@ -13,7 +13,13 @@ import type { PreferenceKey, SettingsSection } from '../core/preferences'
 import type { ProjectsSnapshot } from '../core/projects/info'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Settings } from '../core/settings'
-import type { UsageView, UsageWhich } from '../core/usage/nodes'
+import type {
+  ActivityView,
+  ActivityWhich,
+  TaskFlowView,
+  UsageView,
+  UsageWhich,
+} from '../core/usage/nodes'
 import type { Action, ActionResult, FileUpdate, RoleSkillChoice, WindowState } from './workspace'
 
 export type { ProjectsSnapshot, SessionInfo }
@@ -102,6 +108,12 @@ export interface InvokeChannels {
   // The Usage window (plan 12): a pass, then the period's figures, for the opener window's project
   // unless every project is asked for.
   'usage:view': { request: { which: UsageWhich; allProjects: boolean }; response: UsageView }
+  // Your time and Task times: a pass and the activity journal's import, then the reading.
+  'usage:activity': {
+    request: { which: ActivityWhich; allProjects: boolean }
+    response: ActivityView
+  }
+  'usage:flow': { request: { period: '7d' | '30d'; allProjects: boolean }; response: TaskFlowView }
   // About's two links, opened in the system browser only when clicked.
   'app:open-link': { request: { link: 'website' | 'issues' }; response: undefined }
   // The status line in every Claude session: on when installed and still as written; a refused
@@ -277,6 +289,8 @@ export interface MenkarApi {
   }
   readonly usage: {
     view(which: UsageWhich, allProjects: boolean): Promise<UsageView>
+    activity(which: ActivityWhich, allProjects: boolean): Promise<ActivityView>
+    flow(period: '7d' | '30d', allProjects: boolean): Promise<TaskFlowView>
   }
   readonly classifier: {
     status(): Promise<ClassifierStatus>

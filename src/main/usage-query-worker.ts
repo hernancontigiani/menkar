@@ -1,11 +1,21 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { now } from '../core/clock'
+import { activityDay, activityWeek, readActivity } from '../core/usage/bursts'
+import { taskFlow } from '../core/usage/flow'
 import { historyPath, UsageHistory } from '../core/usage/history'
-import type { UsageView, UsageWhich } from '../core/usage/nodes'
+import type {
+  ActivityView,
+  ActivityWhich,
+  TaskFlowView,
+  UsageView,
+  UsageWhich,
+} from '../core/usage/nodes'
 import {
+  addDays,
   allBounds,
   type Bucket,
   localDay,
+  midnight,
   monthBounds,
   type Period,
   periodBounds,
@@ -28,6 +38,19 @@ export type Query =
       readonly projectNames: readonly (readonly [string, string])[]
       readonly names: readonly (readonly [string, string])[]
     }
+  | {
+      readonly kind: 'activity'
+      readonly which: ActivityWhich
+      readonly project: { readonly id: string; readonly name: string } | null
+      readonly scoped: boolean
+      readonly projectNames: readonly (readonly [string, string])[]
+    }
+  | {
+      readonly kind: 'flow'
+      readonly period: '7d' | '30d'
+      readonly project: { readonly id: string; readonly name: string } | null
+      readonly scoped: boolean
+    }
 
 const BUCKET: Readonly<Record<Which['kind'] | Exclude<Period, 'all'>, Bucket>> = {
   period: 'day',
@@ -38,10 +61,58 @@ const BUCKET: Readonly<Record<Which['kind'] | Exclude<Period, 'all'>, Bucket>> =
   all: 'month',
 }
 
-function answer(query: Query): UsageView | ReturnType<UsageHistory['sessionTokens']> {
+function activity(
+  history: UsageHistory,
+  query: Extract<Query, { kind: 'activity' }>,
+  nowSeconds: number,
+): ActivityView {
+  const which = query.which
+  const from = which.kind === 'day' ? which.day : which.first
+  const bounds = {
+    start: midnight(from),
+    end: midnight(addDays(from, which.kind === 'day' ? 1 : 7)),
+  }
+  const scope = query.scoped && query.project ? query.project.id : undefined
+  const rows = readActivity(history, bounds, nowSeconds, scope)
+  const first = history.firstOpened()
+  return {
+    which,
+    reading:
+      which.kind === 'day'
+        ? { kind: 'day', day: activityDay(rows, which.day, nowSeconds) }
+        : { kind: 'week', week: activityWeek(rows, which.first, nowSeconds) },
+    firstDay: first === null ? null : localDay(first),
+    projectNames: query.projectNames,
+    tooNew: history.tooNew,
+    project: query.project,
+    scoped: scope !== undefined,
+  }
+}
+
+function flow(
+  history: UsageHistory,
+  query: Extract<Query, { kind: 'flow' }>,
+  nowSeconds: number,
+): TaskFlowView {
+  const bounds = periodBounds(query.period, nowSeconds)
+  const scope = query.scoped && query.project ? query.project.id : undefined
+  return {
+    period: query.period,
+    flow: taskFlow(history.taskStateRows(bounds.start, bounds.end, scope), bounds, nowSeconds),
+    tooNew: history.tooNew,
+    project: query.project,
+    scoped: scope !== undefined,
+  }
+}
+
+function answer(
+  query: Query,
+): UsageView | ActivityView | TaskFlowView | ReturnType<UsageHistory['sessionTokens']> {
   const history = new UsageHistory(historyPath())
   try {
     if (query.kind === 'sessionTokens') return history.sessionTokens(query.sessionId)
+    if (query.kind === 'activity') return activity(history, query, now() / 1000)
+    if (query.kind === 'flow') return flow(history, query, now() / 1000)
     const nowSeconds = now() / 1000
     const which = query.which
     const bounds =
