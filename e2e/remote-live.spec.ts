@@ -13,6 +13,10 @@ const fs = require('node:fs')
 const path = require('node:path')
 const home = process.env.HOME
 const args = process.argv.slice(2)
+if (args[0] === '--version') {
+  process.stdout.write('2.1.325 (Claude Code)\\n')
+  process.exit(0)
+}
 const session = args[args.indexOf('--resume') + 1]
 const dir = path.join(home, '.claude', 'sessions')
 const file = path.join(dir, process.pid + '.json')

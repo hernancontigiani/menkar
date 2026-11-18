@@ -43,7 +43,7 @@ async function launch(
       writeFileSync(script, AGENT)
       writeFileSync(
         join(dirs.root, 'bin', 'cursor-agent'),
-        `#!/bin/sh\nAGENT_PID_FILE='${pidFile}' exec '${process.execPath}' '${script}' ${how}\n`,
+        `#!/bin/sh\n[ "$1" = --version ] && exit 0\nAGENT_PID_FILE='${pidFile}' exec '${process.execPath}' '${script}' ${how}\n`,
       )
       return env
     },

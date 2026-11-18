@@ -240,6 +240,10 @@ process.stdin.on('data', (d) => {
 // the stand-in claude does, and stays in the foreground until it reads EXIT0.
 const FAKE_CURSOR = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path')
+if (process.argv[2] === '--version') {
+  process.stdout.write('2026.01.01-stand-in\\n')
+  process.exit(0)
+}
 fs.appendFileSync(path.join(process.env.HOME, 'cursor-args.txt'), process.argv.slice(2).join(' ') + '\\n')
 fs.writeFileSync(path.join(process.env.HOME, 'cursor-env.json'), JSON.stringify(process.env))
 process.stdout.write('stand-in cursor-agent ready\\r\\n')

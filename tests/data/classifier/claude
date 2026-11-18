@@ -2,6 +2,10 @@
 # A stand-in for `claude -p` in the classifier's tests: it records its argv, working folder,
 # environment and stdin under $FAKE_CLAUDE_LOG, then answers with the reply file the test chose.
 # The replies are written by hand in the shape `claude -p --output-format json` prints.
+if [ "$1" = "--version" ]; then
+  echo "2.1.325 (Claude Code)"
+  exit 0
+fi
 log="$FAKE_CLAUDE_LOG"
 n=$(ls "$log" 2>/dev/null | grep -c '^call-')
 dir="$log/call-$((n + 1))"

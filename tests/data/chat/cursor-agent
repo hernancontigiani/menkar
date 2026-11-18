@@ -4,6 +4,10 @@
 // (which the chat must skip) and a result. Synthetic only.
 import fs from 'node:fs'
 import path from 'node:path'
+if (process.argv[2] === '--version') {
+  process.stdout.write('2026.01.01-stand-in\n')
+  process.exit(0)
+}
 const log = process.env.FAKE_CHAT_LOG
 if (log) fs.appendFileSync(path.join(log, 'cursor.json'), `${JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd() })}\n`)
 const out = (o) => process.stdout.write(`${JSON.stringify(o)}\n`)
