@@ -72,3 +72,10 @@ usually the most useful thing a new orchestrator delivers.
 - **Renewing `b1` and `b2`** follows `menkar:orchestrator`: between plans, once a worker's work is
   committed and nothing is owed to it, it renews with a handoff prompt (its name, its next task or
   "wait"). The plan and the tree hold everything the next task needs.
+
+## 2026-11-18 — workers with a task no longer send a line by name when done (one wake per report)
+
+- **Workers' reports go to files as well**: `prompts/reports/<worker>-<topic>.md`, with one line to
+  you, by name, giving the path. Don't subscribe to idle notices (`notify_when_idle`): each one
+  costs you a turn and says nothing a report doesn't.
+- **The workers send that line to `set`** by name (1.74).

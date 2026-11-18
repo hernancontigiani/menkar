@@ -96,10 +96,11 @@ name is the declared one**, and asks for a rename if not.
   `docs/orchestration.md`), shown in the sidebar's Topics section once this project's orchestration
   mode is on. A decided topic is closed with its decision and also goes to `00-STATUS.md` or the
   doc that owns it.
-- **Workers' reports go to files as well**: `prompts/reports/<worker>-<topic>.md`, with one line to
-  you, by name, giving the path. Don't subscribe to idle notices (`notify_when_idle`): each one
-  costs you a turn and says nothing a report doesn't.
-- **The workers send that line to `set`** by name (1.74).
+- **Workers' reports go to files as well**: `prompts/reports/<worker>-<topic>.md`, named in the
+  `task_review` note. **A worker with a task number sends no line by name when it is done**: its
+  `task_review` already wakes you, and a second message is a second wake for the same report (the
+  human, 2026-11-18). Don't subscribe to idle notices (`notify_when_idle`): each one costs you a
+  turn and says nothing a report doesn't.
 - **Several sessions with one name** (stale ones left by a restart): `ListAgents` shows them with a
   `[ref]`. Send to the most recently started one, and tell the human which ones look stale.
 - **Before you commit a worker's change**, read its diff and check it against the report. A
