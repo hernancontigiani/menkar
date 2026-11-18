@@ -73,6 +73,8 @@ dpkg-query -W -f='${Version}\n' menkar
 ```
 
 `install-local.sh` prints the installed and packaged Versions, and stops if they are equal.
+For Menkar Sandbox the line is `~/git/menkar/sandbox-install.sh`: it takes the newest of
+`release/sandbox/` and `release/`, installs beside the daily Menkar, and needs no restart.
 
 ## Self-check
 
