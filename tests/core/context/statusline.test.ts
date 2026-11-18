@@ -11,13 +11,15 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { CONTEXT_READ_KEYS } from '../../../src/core/context/reading'
 import { sessionStartHooks } from '../../../src/core/context/settings'
 import {
   BASELINE_KEYS,
   CHAINED_TIMEOUT_MS,
+  inboxDir,
   PANE_ENV,
+  PROMPT_SUBMIT_ARG,
   paneStart,
   runStatusline,
   SESSION_KEYS,
@@ -354,4 +356,92 @@ test('the Stop hook records the turn end for its pane, and nothing outside a Men
 
 test('the turn-ends folder the hook writes is the one Menkar watches', () => {
   expect(turnEndsDir()).toBe(controlPaths().turnEnds)
+  expect(inboxDir()).toBe(controlPaths().inbox)
+})
+
+// Decision 1.178: the same script is the orchestrator's prompt hook. It gives the inbox main wrote
+// for its pane as the prompt's additional context, unseen on the screen, and clears nothing: main
+// drops an entry only once the transcript shows the model was given it.
+describe('the prompt hook', () => {
+  // 17:02:11 UTC, shown in the hook's own zone.
+  const at = Date.UTC(2026, 10, 18, 17, 2, 11)
+  const entries = (n: number, text = (i: number) => `event ${i}`) =>
+    Array.from({ length: n }, (_, i) => ({ seq: i + 1, at: at + i * 1000, text: text(i + 1) }))
+  function setup(file: unknown) {
+    const d = dirs()
+    const dir = join(d.cache, 'control', 'inbox')
+    mkdirSync(dir, { recursive: true })
+    if (file !== undefined)
+      writeFileSync(
+        join(dir, 'pane-1.json'),
+        typeof file === 'string' ? file : JSON.stringify(file),
+      )
+    return { d, dir }
+  }
+  const submit = (d: Dirs, session = 's1') => {
+    const result = spawnSync(process.execPath, [SCRIPT, PROMPT_SUBMIT_ARG], {
+      input: JSON.stringify({
+        session_id: session,
+        hook_event_name: 'UserPromptSubmit',
+        prompt: 'go on',
+      }),
+      env: { ...d.env, MENKAR_PANE: 'pane-1', TZ: 'Asia/Tokyo' },
+      encoding: 'utf8',
+    })
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+    return result.stdout
+  }
+  const context = (out: string): string => {
+    const parsed = JSON.parse(out)
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit')
+    return parsed.hookSpecificOutput.additionalContext
+  }
+
+  test('no file, or a file of another session → nothing', () => {
+    expect(submit(setup(undefined).d)).toBe('')
+    const { d } = setup({ session_id: 's0', dropped: 0, entries: entries(2) })
+    expect(submit(d)).toBe('')
+  })
+
+  test('three entries → three lines named "(events 1–3)", the same again, nothing written', () => {
+    const { d, dir } = setup({ session_id: 's1', dropped: 0, entries: entries(3) })
+    const before = readFileSync(join(dir, 'pane-1.json'))
+    const out = submit(d)
+    const lines = context(out).split('\n')
+    expect(lines[0]).toContain("Menkar's inbox (events 1–3)")
+    expect(lines.slice(1)).toEqual([
+      '- 02:02:11 event 1',
+      '- 02:02:12 event 2',
+      '- 02:02:13 event 3',
+    ])
+    expect(submit(d)).toBe(out)
+    expect(readdirSync(dir)).toEqual(['pane-1.json'])
+    expect(readFileSync(join(dir, 'pane-1.json'))).toEqual(before)
+  })
+
+  test('two dropped → the first line says so', () => {
+    const { d } = setup({ session_id: 's1', dropped: 2, entries: entries(1) })
+    expect(context(submit(d)).split('\n')[0]).toContain('(2 earlier events dropped)')
+  })
+
+  test('an empty inbox or a corrupt file → nothing, exit 0, no stderr', () => {
+    expect(submit(setup({ session_id: 's1', dropped: 0, entries: [] }).d)).toBe('')
+    expect(submit(setup('{"session_id": "s1", "entr').d)).toBe('')
+    expect(submit(setup({ session_id: 's1', entries: [{ seq: 'x' }] }).d)).toBe('')
+  })
+
+  test('30 entries of 120 characters → under 1,500 bytes, the oldest given, the rest counted', () => {
+    const { d } = setup({
+      session_id: 's1',
+      dropped: 0,
+      entries: entries(30, (i) => `${String(i).padStart(3, '0')} ${'x'.repeat(116)}`),
+    })
+    const text = context(submit(d))
+    expect(Buffer.byteLength(text)).toBeLessThan(1500)
+    const given = text.split('\n').filter((x) => x.startsWith('- '))
+    expect(given.length).toBeGreaterThan(0)
+    expect(text.split('\n')[0]).toContain(`(events 1–${given.length})`)
+    expect(text.split('\n').at(-1)).toBe(`${30 - given.length} more: call inbox.`)
+  })
 })

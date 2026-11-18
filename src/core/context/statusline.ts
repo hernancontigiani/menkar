@@ -4,8 +4,8 @@
 // for the app.
 //
 // It runs inside Claude Code's process tree, whether or not Menkar is running: its imports are
-// limited to Node's own modules and two of Menkar's that import nothing else, so the file also runs
-// as it is under Node (the tests do so). It never fails: a statusline that errors shows an error
+// limited to Node's own modules and three of Menkar's that import nothing else (the clock, the
+// paths and the inbox's text), so the file also runs as it is under Node (the tests do so). It never fails: a statusline that errors shows an error
 // in every Claude session, so a bad payload still exits 0 with a bar.
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
@@ -13,6 +13,7 @@ import { appendFileSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileS
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { now } from '../clock.ts'
+import { INBOX_TEXT_MAX_BYTES, type InboxLine, inboxText } from '../orchestration/inbox-text.ts'
 import { appDirs } from '../paths.ts'
 
 export const FALLBACK = 'menkar'
@@ -51,6 +52,8 @@ export const sessionStartsDir = (): string => join(appDirs().cache, 'session-sta
 export const costBaselinesDir = (): string => join(appDirs().cache, 'cost-baselines')
 // Where the Stop hook tells Menkar a pane's turn ended; the control files' folder.
 export const turnEndsDir = (): string => join(appDirs().cache, 'control', 'turn-ends')
+// Where Menkar leaves the orchestrator's inbox for its prompt hook, by pane; the same folder.
+export const inboxDir = (): string => join(appDirs().cache, 'control', 'inbox')
 
 // What the SessionStart hook leaves for a session: Claude Code's `source`, when, and the Menkar pane
 // it runs in (null outside one), which is how the app learns that a pane's session changed id.
@@ -347,6 +350,44 @@ export function runTurnEnd(stdin: string): void {
   }
 }
 
+function inboxLine(value: unknown): InboxLine | null {
+  if (!isObject(value)) return null
+  const { seq, at, text } = value
+  if (typeof seq !== 'number' || typeof at !== 'number' || typeof text !== 'string') return null
+  return { seq, at, text }
+}
+
+// The prompt hook: the inbox main wrote for this pane, as the prompt's additional context. It
+// writes nothing and clears nothing: main learns what the model was given from the transcript.
+// Whatever fails, it prints nothing: an error or a non-zero exit would show in the session, and
+// exit 2 would block the prompt.
+export function runPromptSubmit(
+  stdin: string,
+  pane: string | undefined = process.env[PANE_ENV],
+): string {
+  try {
+    if (!pane || !/^[A-Za-z0-9_-]{1,100}$/.test(pane)) return ''
+    const payload: unknown = JSON.parse(stdin)
+    if (!isObject(payload) || !validId(payload.session_id)) return ''
+    const file: unknown = JSON.parse(readFileSync(join(inboxDir(), `${pane}.json`), 'utf8'))
+    if (!isObject(file) || file.session_id !== payload.session_id) return ''
+    const raw = Array.isArray(file.entries) ? file.entries : []
+    const entries = raw.map(inboxLine)
+    if (entries.length === 0 || entries.some((x) => x === null)) return ''
+    const dropped = typeof file.dropped === 'number' && file.dropped > 0 ? file.dropped : 0
+    const additionalContext = inboxText(
+      entries.filter((x): x is InboxLine => x !== null),
+      dropped,
+      INBOX_TEXT_MAX_BYTES,
+    )
+    return JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext },
+    })
+  } catch {
+    return '' // no inbox for this pane, or one being replaced: nothing to give this time
+  }
+}
+
 function readStdin(): string {
   try {
     return readFileSync(0, 'utf8')
@@ -359,9 +400,14 @@ function readStdin(): string {
 export const SESSION_START_ARG = 'session-start'
 // And Menkar's Stop hook with this one.
 export const TURN_END_ARG = 'turn-end'
+// And the orchestrator's prompt hook with this one.
+export const PROMPT_SUBMIT_ARG = 'prompt-submit'
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv[2] === SESSION_START_ARG) runSessionStart(readStdin())
   else if (process.argv[2] === TURN_END_ARG) runTurnEnd(readStdin())
-  else process.stdout.write(`${runStatusline(readStdin())}\n`)
+  else if (process.argv[2] === PROMPT_SUBMIT_ARG) {
+    const out = runPromptSubmit(readStdin())
+    if (out) process.stdout.write(out)
+  } else process.stdout.write(`${runStatusline(readStdin())}\n`)
 }

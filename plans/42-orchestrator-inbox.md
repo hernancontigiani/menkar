@@ -748,3 +748,66 @@ plan 41's "R10 is refreshed once per plan" — never one plan's R10 moves in a t
 ## 7. Execution log
 
 (Written by the session that executes it.)
+
+### Block 1 — `menkar-t89` (task 89), 2026-11-18
+
+**Built** (core only; nothing calls it yet, R10 does not move):
+
+- `src/core/orchestration/inbox-text.ts` (new): `INBOX_TEXT_MAX_BYTES` = 1,500, `InboxLine`,
+  `inboxText(entries, dropped, maxBytes?)`. Imports nothing; formats the local time from `at` with
+  `new Date(at)` (the code rule only forbids the argument-less form).
+- `src/core/orchestration/inbox.ts` (new): `INBOX_MAX` = 30, `sequence()` (the run's one counter,
+  passed to every `Inbox`), `Inbox` with `add`, `retract`, `entries`, `dropped`, `text`, `take`,
+  `deliveredThrough`, `clear({ keep })`.
+- `src/core/control/events.ts`: `WakeBatcher.wake(parent, child, key, text)`; the `events` map is
+  keyed by key and holds the child (a `note` keys by the child as before); `send` gets a third
+  argument, the batch's `{ key, text }` entries, so main's two-argument callback compiles unchanged.
+  The constructor's parameter properties became plain fields. `route(input)` with `RouteInput`
+  and `Route`.
+- `src/core/orchestration/permission.ts` (new): `PERMISSION_CLOSE_MS` = 3,000, `permissionTopic`
+  (the stored English title and context), `PERMISSION_ANSWERED`, `openPermissionTopic`,
+  `PermissionTopics` (`blocked`, `unblocked`, `exited`, `dispose`) over injected `actions`
+  (`openTopic`, `raise`, `close`) and `Timers`.
+- `src/core/orchestration/topics.ts`: optional `kind?: 'permission'` on `Topic` and `NewTopic`;
+  `parseTopic` keeps it and drops any other value.
+- `src/core/control/files.ts`: `controlPaths().inbox`.
+- `src/core/agents/claude/inbox.ts` (new): `deliveredThrough(transcript, from)` → `{ through,
+  offset }`, reading `attachment` records of `type: hook_additional_context`, `hookEvent:
+  UserPromptSubmit`, whose `content` (an array of strings) names "(events a–b)".
+- `src/core/context/statusline.ts`: `inboxDir()`, `PROMPT_SUBMIT_ARG` = `prompt-submit`,
+  `runPromptSubmit(stdin, pane)`, the header's import list (three of Menkar's modules). Written
+  last, after `set`'s go (§4's seam).
+- Tests: new `tests/core/orchestration/inbox.test.ts` (with the two import checks, by the
+  TypeScript compiler API), new `tests/core/orchestration/permission.test.ts` (with the `kind`
+  round-trip tests), new `tests/core/agents/claude/inbox.test.ts`; added to
+  `tests/core/control/events.test.ts`, `tests/core/context/statusline.test.ts` (the hook run as a
+  process under `TZ=Asia/Tokyo`), `tests/core/sessions/lastreply.test.ts`. `src/core/sessions/
+  lastreply.ts` unchanged: its test passed with the record.
+- `tests/factories/transcript.ts`: `hookContext(text, hookEvent?)`, added with `set`'s ok; its
+  shape is copied from `claude-cli`'s 2.1.327 probe transcripts (`/tmp/menkar-probe-claude-*`).
+
+**Seen red**, each against a defect injected and removed: `<` for `≤` in `deliveredThrough`; the
+sequence reset in `clear()`; `wake` keyed by the child; the review rule after the renew, team or
+report rule; the `seen` check dropped; a return to `blocked` not cancelling the close; `kind`
+dropped by the parser; the transcript read from 0 instead of the offset; any hook event counted; a
+half-written last line read; the hook ignoring `session_id`; the hook without the budget.
+
+**Choices the plan left open (mine):**
+
+- The dropped count goes on the text's first line after the range: "Menkar's inbox (events 2–31)
+  (1 earlier events dropped): …", so the first line holds both what main reads back and §2.2's
+  wording.
+- An entry too long for the budget alone (an `ask` can be 2,000 characters): the hook gives the
+  header without a range and "N more: call inbox.", so nothing is confirmed and the tool gives it
+  whole.
+- `Inbox.deliveredThrough(n)` resets `dropped` when `n` reaches the first pending entry (the model
+  got the line that said so); `take()` and `clear()` reset it too.
+- `route`: `'human'` is an event of its own (always `inbox`); `parentIsOrchestrator: false` gives
+  `none` for a prompt or a turn end without a pending review, since that session's own parent is
+  woken by today's path, which `route` does not replace.
+- `PermissionTopics.blocked` adopts an open or discussing permission topic of the session that it
+  did not raise (an earlier pane's), and closes it in turn once the prompt is answered; it closes
+  only a topic still open, so one closed by hand is never closed again.
+- `deliveredThrough` on a file shorter than `from` confirms nothing and returns its size as the
+  offset; the inode check stays main's (block 2).
+- The hook prints nothing when any entry in the file is malformed, not only when the JSON is.

@@ -2,8 +2,11 @@
 // `idle` or `done`, is an event; per parent they wait 3 s and go together in one message.
 import { describe, expect, test } from 'vitest'
 import {
+  type RouteInput,
+  route,
   WAKE_DELAY_MS,
   WakeBatcher,
+  type WakeEntry,
   wakeEvent,
   wakesParent,
 } from '../../../src/core/control/events'
@@ -216,6 +219,117 @@ describe('a turn closed by a report', () => {
       await wakesParent(
         'working',
         'done',
+        false,
+        async () => false,
+        async () => false,
+      ),
+    ).toBe(true)
+  })
+})
+
+// Decision 1.178: a review wake has a key of its own, so a child's second event inside the wait
+// never replaces it, and the batch's entries reach the sender with their keys.
+describe("a wake's own key", () => {
+  function batcher(starred: (child: string) => boolean = () => false) {
+    const sent: [string, string, readonly WakeEntry[]][] = []
+    const clock = fakeTimers()
+    const b = new WakeBatcher((...args) => sent.push(args), clock.timers, starred)
+    return { sent, clock, b }
+  }
+
+  test('two wakes of one child with two keys inside the wait both arrive, in order', () => {
+    const { sent, clock, b } = batcher()
+    b.wake('orch:p1', 'w1', 'review:w1:4', 'w set task 4 to review: done')
+    clock.advance(1000)
+    b.wake('orch:p1', 'w1', 'review:w1:5', 'w set task 5 to review: also')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent).toEqual([
+      [
+        'orch:p1',
+        'w set task 4 to review: done; w set task 5 to review: also',
+        [
+          { key: 'review:w1:4', text: 'w set task 4 to review: done' },
+          { key: 'review:w1:5', text: 'w set task 5 to review: also' },
+        ],
+      ],
+    ])
+  })
+
+  test('a wake and a state change of one child both arrive', () => {
+    const { sent, clock, b } = batcher()
+    b.wake('orch', 'w1', 'review:w1:4', 'w set task 4 to review: done')
+    b.note('orch', 'w1', 'w', 'working', 'done')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent[0]?.[2]).toEqual([
+      { key: 'review:w1:4', text: 'w set task 4 to review: done' },
+      { key: 'w1', text: 'w finished its turn' },
+    ])
+  })
+
+  test("a ★ child's wake comes before an unstarred child's state change", () => {
+    const { sent, clock, b } = batcher((child) => child === 'b1')
+    b.note('orch', 'a1', 'A', 'working', 'done')
+    b.wake('orch', 'b1', 'review:b1:2', 'B set task 2 to review: ok')
+    clock.advance(WAKE_DELAY_MS)
+    expect(sent[0]?.[1]).toBe('B set task 2 to review: ok; A finished its turn')
+  })
+})
+
+// Decision 1.178: in the orchestrator's project, what wakes it and what waits in its inbox.
+describe('routing an event to the orchestrator', () => {
+  const turnEnd: RouteInput = {
+    event: 'turn-end',
+    parentIsOrchestrator: true,
+    reviewPending: false,
+    renewing: false,
+    onlyTeamUpdates: false,
+    reportedToParent: false,
+  }
+  test.each([
+    [
+      'a pending review whose turn a SendMessage to the parent closed → wake',
+      { reviewPending: true, reportedToParent: true },
+      'wake',
+    ],
+    [
+      'a pending review with a renew in flight → wake',
+      { reviewPending: true, renewing: true },
+      'wake',
+    ],
+    [
+      'a pending review in a turn only team updates opened → wake',
+      { reviewPending: true, onlyTeamUpdates: true },
+      'wake',
+    ],
+    [
+      'a pending review of a session that is not a child → wake',
+      { reviewPending: true, parentIsOrchestrator: false },
+      'wake',
+    ],
+    ['a renew alone → none', { renewing: true }, 'none'],
+    ['team updates alone → none', { onlyTeamUpdates: true }, 'none'],
+    ['a SendMessage to the parent → none', { reportedToParent: true }, 'none'],
+    ['a child ending its turn without a report, an ask earlier or not → inbox', {}, 'inbox'],
+    ['a non-child with nothing pending → none', { parentIsOrchestrator: false }, 'none'],
+    ['a child at a permission prompt → inbox', { event: 'blocked' }, 'inbox'],
+    [
+      'a non-child at a permission prompt → none',
+      { event: 'blocked', parentIsOrchestrator: false },
+      'none',
+    ],
+    ["the human's own news → inbox", { event: 'human', parentIsOrchestrator: false }, 'inbox'],
+  ] as const)('%s', (_, change, expected) => {
+    expect(route({ ...turnEnd, ...change })).toBe(expected)
+  })
+
+  // Any other parent — the mode off, or a parent that is not the orchestrator — is woken as today.
+  test("another parent's events are today's: a prompt and a turn end wake", async () => {
+    expect(wakeEvent('w', 'working', 'blocked')).toBe('w is waiting at a permission prompt')
+    expect(wakeEvent('w', 'working', 'idle')).toBe('w finished its turn')
+    expect(
+      await wakesParent(
+        'working',
+        'idle',
         false,
         async () => false,
         async () => false,

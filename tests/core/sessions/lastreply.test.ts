@@ -9,6 +9,7 @@ import { describe, expect, test } from 'vitest'
 import { lastReply, onlyTeamUpdates, reportClosedTurn } from '../../../src/core/sessions/lastreply'
 import {
   assistant,
+  hookContext,
   jsonl,
   type Line,
   sendMessage,
@@ -233,5 +234,57 @@ describe('a turn the report closes', () => {
       sendResult('s1', true),
     ])
     expect(await reportClosedTurn(file, 'set')).toBe(false)
+  })
+})
+
+// Decision 1.178: Menkar's prompt hook gives the orchestrator its inbox with any prompt, recorded
+// as an attachment beside it; a turn reads the same with it as without it.
+describe("a turn carrying the inbox's hook context", () => {
+  const ctx = () =>
+    hookContext("Menkar's inbox (events 1–2): events since you last read it.\n- 14:02:11 x")
+  const withAndWithout = (lines: (withHook: boolean) => Line[]) => [
+    transcript(lines(false)),
+    transcript(lines(true)),
+  ]
+
+  test("a report, then the human's prompt and a reply → the same last reply", async () => {
+    const [plain, hooked] = withAndWithout((h) => [
+      user('do block 4'),
+      ...(h ? [ctx()] : []),
+      assistant([text(REPORT)]),
+      user('thanks'),
+      ...(h ? [ctx()] : []),
+      assistant([text('You are welcome.')]),
+    ])
+    expect(await lastReply(hooked as string)).toBe(await lastReply(plain as string))
+    expect(await lastReply(hooked as string)).toBe('You are welcome.')
+  })
+
+  test('a turn only a team update opened stays one', async () => {
+    const [plain, hooked] = withAndWithout((h) => [
+      user('do it'),
+      assistant([text(REPORT)]),
+      ...update(),
+      ...(h ? [ctx()] : []),
+      assistant([text('Noted.')]),
+    ])
+    expect(await onlyTeamUpdates(hooked as string)).toBe(await onlyTeamUpdates(plain as string))
+    expect(await onlyTeamUpdates(hooked as string)).toBe(true)
+    expect(await lastReply(hooked as string)).toBe(REPORT)
+  })
+
+  test('a turn the report to the parent closed stays closed', async () => {
+    const [plain, hooked] = withAndWithout((h) => [
+      user('do block 4'),
+      ...(h ? [ctx()] : []),
+      assistant([toolUse('Bash')]),
+      toolResult(),
+      assistant([sendMessage('set', 's1')]),
+      sendResult('s1', true),
+    ])
+    expect(await reportClosedTurn(hooked as string, 'set')).toBe(
+      await reportClosedTurn(plain as string, 'set'),
+    )
+    expect(await reportClosedTurn(hooked as string, 'set')).toBe(true)
   })
 })

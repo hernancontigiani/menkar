@@ -60,6 +60,8 @@ export function controlPaths() {
     tmp: join(root, 'tmp'),
     snapshots: join(root, 'snapshot'),
     turnEnds: join(root, 'turn-ends'),
+    // The orchestrator's inbox, by pane id, for its prompt hook to read.
+    inbox: join(root, 'inbox'),
     prompts: join(root, 'prompts'),
     // Each pane's team block, by pane id: Claude reads it once, at start.
     team: join(root, 'team'),

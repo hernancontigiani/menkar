@@ -72,3 +72,23 @@ export function jsonl(lines: Array<Line | string>): string {
   const body = lines.map((line) => (typeof line === 'string' ? line : JSON.stringify(line)))
   return `${body.join('\n')}\n`
 }
+
+// A UserPromptSubmit hook's additional context as Claude Code 2.1.327 records it: an attachment
+// beside the prompt, written only when the model was given it.
+export const hookContext = (value: string, hookEvent = 'UserPromptSubmit'): Line => ({
+  type: 'attachment',
+  attachment: {
+    type: 'hook_additional_context',
+    content: [value],
+    hookName: hookEvent,
+    toolUseID: 'hook-1',
+    hookEvent,
+  },
+  rendered: [
+    {
+      content: `<system-reminder>\n${hookEvent} hook additional context: ${value}\n</system-reminder>`,
+    },
+  ],
+  renderedRole: 'system',
+  sessionId: ID,
+})

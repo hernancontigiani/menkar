@@ -5,6 +5,9 @@ import { localDay, midnight } from '../usage/periods'
 
 export type TopicStatus = 'open' | 'discussing' | 'closed'
 
+// A topic Menkar raised itself, which it also closes.
+export type TopicKind = 'permission'
+
 export interface Topic {
   // Per project, never reused.
   readonly number: number
@@ -21,6 +24,7 @@ export interface Topic {
   readonly updated: string
   // The human unfolded or double-clicked it; written only once true.
   readonly seen?: true
+  readonly kind?: TopicKind
 }
 
 interface ProjectTopics {
@@ -56,6 +60,7 @@ export interface NewTopic {
   readonly from: string
   readonly blocking: boolean
   readonly task?: number
+  readonly kind?: TopicKind
 }
 
 // `at` is the time, an ISO string from the clock.
@@ -203,8 +208,20 @@ const STATUSES: readonly TopicStatus[] = ['open', 'discussing', 'closed']
 
 function parseTopic(value: unknown): Topic | null {
   if (!isObject(value)) return null
-  const { number, title, context, from, blocking, task, status, decision, created, updated, seen } =
-    value
+  const {
+    number,
+    title,
+    context,
+    from,
+    blocking,
+    task,
+    status,
+    decision,
+    created,
+    updated,
+    seen,
+    kind,
+  } = value
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
   if (typeof title !== 'string' || typeof from !== 'string') return null
   const known = STATUSES.find((s) => s === status)
@@ -220,6 +237,7 @@ function parseTopic(value: unknown): Topic | null {
     created: typeof created === 'string' ? created : '',
     updated: typeof updated === 'string' ? updated : '',
     ...(seen === true ? { seen: true as const } : {}),
+    ...(kind === 'permission' ? { kind } : {}),
   }
 }
 
