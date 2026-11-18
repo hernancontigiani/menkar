@@ -1,4 +1,4 @@
-// How tasks move, read from their recorded states (decision 1.180, plan 43 §2.8).
+// How tasks move, read from their recorded states.
 process.env.TZ = 'America/Argentina/Buenos_Aires'
 
 import { writeFileSync } from 'node:fs'

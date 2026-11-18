@@ -1649,3 +1649,476 @@ rewrite (the discuss post, the away and back post counts): read by a person, as 
 ## 2026-11-18 — the next .deb's row, before 0.1.0-368
 
 | — | The next .deb | 0.1.0-347 installed 2026-11-18. Since then on main: no groups in the mode (1.183), a stuck worker's row (task 79), a shell named as a shell (task 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+
+## 2026-11-18 — plan 43 closed
+
+Plan 43 (the human's activity and the task flow metrics, 1.180, 1.156, 1.184) built in blocks 1–7e (last e730062), shipped in 0.1.0-368 and checked by hand by the human the same day; every part of its exit table is in `docs/usage.md`, `docs/spec/usage.md`, `docs/preferences.md` and `docs/NOT_BUILT_YET.md` (the nudge; messages typed while an agent works, its Q7). The rows it replaced, verbatim:
+
+| 1.156 | **Before the first release** (the human, 2026-11-15): the task flow metrics — how long tasks spend in each state, and whom a task under review waits on (`docs/NOT_BUILT_YET.md`, "Task flow metrics"); and, wished but not mandatory, **seeing the Board away from the PC** (`plans/ideas/remote-board.md`), an idea still to be thought through | 2026-11-15 | this row · `docs/NOT_BUILT_YET.md` · `plans/ideas/remote-board.md` |
+| 1.180 | **The human's own activity, and the task flow metrics, measured as soon as possible** (the human, 2026-11-18, topic 55, option a; with 1.156's task flow metrics folded into the same plan and prioritised): Menkar records, with no text, each action of the human with its time and project — a message sent to a session (already in the usage history as a turn of origin `human`), a permission prompt answered (a session's `blocked` → working), a topic discussed, a topic closed — and each task's state changes (state, whom it waits on, when); the Usage window gains a view of the human: a day by the hour (messages, prompts answered, the bursts of activity as bands with their length) and a week, per project and for all; the task flow (how long tasks spend queued, in progress, waiting and to review, and on whom) beside it. **Bursts** (the human, 2026-11-18, topic 56): the human's actions closer than **10 min** to start with (the human, same day; one constant, changed without rewriting data; on their messages alone it gave 12.7 bursts a day, median 9 min, before presence in the window was counted) — messages, prompts answered, topics discussed or closed, and **presence in Menkar's focused window** (keys, clicks, scroll, a tab change; no content, at most one mark a minute) — while **away (1.167) the human is not present**: an away period ends a burst and counts nothing. **Recording starts first**, so data accumulates while the views are designed; the views with mock-ups. A nudge after a long burst is deferred until the human has seen the data. Not built yet | 2026-11-18 | this row (until built) |
+| 1.184 | **The activity and task-flow views: where they go and how they look** (the human, 2026-11-18, topic 62, from task 106's mock-ups): the Usage window gets **a left bar like Settings' with three sections, Usage / Activity / Task flow** (Totals and By day stay inside Usage; neither of the mock-ups' placements A or B); the **week** is strips per day and a click on a day opens it; the **task flow** shows median and total; the day view is as mocked. **The period across sections:** each section remembers its own last period; on a switch the chosen one is carried when the other section has it (Usage today ↔ Activity's day, Usage 7 days ↔ Activity's week ↔ Task flow 7 days, Usage 30 days ↔ Task flow 30 days), otherwise the other keeps its own and the choice is not overwritten; the project scope (this project / all projects) applies to all three and is always carried. A new mock-up of the window with the left bar comes before plan 43's block 7 | 2026-11-18 | plan 43 §2.8 |
+
+| 3 | 43 — the human's activity and the task flow metrics (1.180, 1.156) | **Built** (2026-11-18): recording (blocks 1–3c, in 0.1.0-347, checked by hand, task 104), the readings (5, 6) and the views (7a–7e, last e730062): the Usage window's left bar Spend / Your time / Task times (1.184, topics 62–64). **Next:** in the next .deb, the human's hand check; then `set` closes it (1.156 and 1.180's destinations, Q7 open) |
+
+Its execution log, verbatim:
+
+### Plan 43 §7, Execution log
+
+(Written by the executing sessions.)
+
+### Review (task 90, `prompts/reports/menkar-t90-review-43.md`): decided by `set`, 2026-11-18
+
+- **F1** (block 3's `wait_kind: session`): as the review proposes — `src/main/activity.ts` resolves
+  after the event's `at` through `sessions.list()`, among the task's project's members with that
+  exact name; several → the newest; none → `other`; a worker known only to `startedNames` records
+  `other`, written in the limits.
+- **F2, F3, F4** go with block 1, each as the review proposes.
+- **F5, F6:** block 3b is split. Its `startPane` call (`prompted_start`, at the launch plan, with
+  `spec.sessionId ?? spec.start.id`) is built right after plan 41's block 4 is committed, and the
+  first .deb that records anything carries it, so no day is recorded without it. The
+  `askPresence` call rides with plan 42's block 3.
+
+### Block 1 — `menkar-t92` (task 92), 2026-11-18
+
+Built: `HISTORY_VERSION = 4`; the two tables in `HISTORY_SCHEMA` and as migration `3:`, all
+`IF NOT EXISTS` (F2 (a)); `UsageHistory.importActivity(path)` and `importActivityDir(dir)` at the
+end of the class (null when the history is too new, every file left as it was); new
+`src/core/usage/activity.ts` with the line types, `parseJournalLine`, `importBatch(db, path)`,
+`activityDir()`, `batchPath(dir, ms)` and `batchFiles(dir)`. F3: `batchPath` names a batch
+`batch-‹fileStamp›-‹8 hex›.jsonl`, so block 3 must take its names from it. F4: a batch holding a
+line of a higher `v` is imported for what is known and renamed `newer-*`, which `batchFiles` does
+not list; the §2.10 row was built that way. N9: a batch missing on read or on delete is no error.
+Every new test was seen red against an injected defect (`INSERT` for `INSERT OR IGNORE`, the
+too-new check skipped, `IF NOT EXISTS` removed, migration 3 emptied, `newer` deleted, no random
+part in the name).
+
+Choices the plan left open (mine):
+- The journal line's keys are camelCase (`projectId`, `sessionId`, `blockedSeconds`, `waitKind`,
+  `waitRef`), and `baseline` is a boolean (`true`), not `1`: the line is a TypeScript object main
+  serializes; the columns stay snake_case. Block 3 writes `JournalEvent` as typed here.
+- `next` and `state` are stored as any non-empty string, not checked against the shown states or
+  `TASK_STATES`: the history copies what was journaled, as it copies what a transcript says.
+- A line of the current `v` with an unknown kind, or missing a required field, is `bad` (skipped,
+  counted, the file deleted); empty lines are not counted.
+- Not done (pre-existing, outside F2 (a)): two workers creating a **brand-new** history at once
+  still race on `HISTORY_SCHEMA`'s first `CREATE TABLE turns`; only the new tables are
+  `IF NOT EXISTS`.
+
+### Block 2 — `menkar-t93` (task 93), 2026-11-18
+
+Built: new `src/core/activity/record.ts` (`taskEvents(before, after, sessionIdByName)`,
+`topicEvents(before, after)`, the `waitKind` resolution) and `src/core/activity/prompts.ts`
+(`PromptTracker`: `change(paneId, sessionId, previous, next, atSeconds)` and `closed(paneId)`),
+both pure, importing only types from `../orchestration/*` and `../agentstate/shown`. Tests in
+`tests/core/activity/{record,prompts}.test.ts`: every §2.10 row of the two files, the permission
+row included (plan 42 block 1 is committed, `0762852`), and a parity test that each event,
+stamped with `v`, `id` and `at`, comes back whole from block 1's `parseJournalLine`. Each was seen
+red against an injected defect (16 in all: waits ignored, the typed name or the PR note stored,
+the assignee or step as a state, no permission skip, `open` recorded, a negative wait, `closed`
+not forgetting, only `blocked → working`, `blocked → blocked` restarting the wait, the resolver
+asked outside the project, the topic pattern, a new task ignored, the topic kinds swapped, a
+snake_case key).
+
+Choices the plan left open (mine):
+- The events carry neither `v`, `id`, `at` nor `baseline`: main stamps them (block 3). Their keys
+  are block 1's camelCase journal keys, so `{ v, id, at, ...event }` is a `JournalEvent`.
+- `sessionIdByName` takes `(projectId, name)`, so main can look only among that project's members
+  (F1).
+- A task absent before is recorded in its current state, whatever it is; a task that disappears
+  records nothing. A change of `waitingOn` while waiting, or of `reviewWait.on` while to review,
+  is recorded; a change of the review's note alone is not.
+- A topic absent before that is already `discussing` or `closed` is recorded; a topic raised
+  `open` is not. `closed → discussing` (reopened by `topic_update`) is a `topic_discussed`.
+- `blocked → blocked` keeps the first entry time; a pane leaving `blocked` with no entry (blocked
+  before the tracker existed) gives nothing.
+- Not done: N6 (a pane leaving `blocked` because its agent exited) is not filtered here; the
+  tracker has no way to know, and the review leaves it to main (`AgentPane.foreground()`).
+- `taskStateEvent` (one task's event) is kept private; block 3's baseline can be
+  `taskEvents(emptyTasks(), openOnly, …)` or export it then.
+
+### Block 3 — `menkar-t96` (task 96), 2026-11-18
+
+Built: new `src/main/activity.ts` (one promise chain for every append and rename of
+`<data>/activity/journal.jsonl`; `recordTasks`/`recordTopics`, called once each from `setTasks` and
+`setTopics` with the value before and after; the `onShownChange` listener feeding `PromptTracker`,
+with `closed` on each agent pane's close; the baseline; `app_start`; `importActivity`) and
+`src/main/activity-worker.ts` (a third worker entry in `electron.vite.config.ts`);
+`src/main/index.ts` starts it after `startAgentState` and stops its listeners at `will-quit`;
+`src/core/usage/cli.ts` imports leftover batches after opening the history, before a report or an
+export. F1: the rule is `src/core/activity/names.ts` (pure); main feeds it `sessions.list()` and
+`currentProjects()`, only when a wait names something that is not a topic; the event's `at` is
+taken before. F3: batches are named by block 1's `batchPath`. Docs: `docs/usage.md`, a new section
+"The human's activity and the task flow" (placed before "Exporting for analysis": the export's key
+test reads that section to the end of the file, so block 5's activity key table must sit where that
+test can tell it apart); `docs/NOT_BUILT_YET.md`, Task flow metrics rewritten and the nudge
+entered, the old lines in its history.
+
+Tests: `e2e/activity.spec.ts` (one launch and a restart: the start's import of `app_start` and the
+baseline — task 3 waiting on `api` recorded as `session` with the orchestrator's id, the closed task
+left out —, `prompt_answered` with `blockedSeconds > 0` after `ASK` then `TURN`, `topic_discussed`
+on a double-click, `task_state` queued for `TASKADD` and in progress for `STEPS`, no title in the
+journal or the history, and after a restart every row imported once, the journal and batches gone,
+no second baseline); `tests/core/activity/names.test.ts`; one `test.each` in
+`tests/core/usage/cli.test.ts`. Seen red: the e2e before the code and with the baseline's resolver
+skipped (`wait_kind` other); the names tests with the oldest winning and with the membership check
+removed; the cli case before the code.
+
+Decided by `set`, 2026-11-18, on my questions:
+- **F2 (b)**: no timer of its own. The journal is rotated and imported after every usage pass,
+  start and hourly, in the pass's `after` callback (the import first, then the classifier). Rows
+  reach the history up to an hour late.
+- **N3**: a journal a crash or a quit left is rotated before `app_start` is appended.
+- **N2**: the baseline is keyed on a marker file, `activity/baseline`, written after the baseline's
+  lines are appended, not on the directory's absence.
+- **N6**: no `prompt_answered` when the pane's agent is no longer in its foreground; in the limits.
+- `src/core/activity/names.ts`, its test, and the case in `tests/core/usage/cli.test.ts`: files
+  the block did not name, granted.
+
+Choices the plan left open (mine):
+- The baseline's rows take the same `at` as `app_start`.
+- The task diff is first computed with a resolver that names nobody; `sessions.list()` (which
+  waits for the first scan) is read only when that diff asked for a name, so a progress note costs
+  no list.
+- No worker starts when no `batch-*` file waits; the worker's result is logged by main
+  (`activity imported`, with the counts).
+- A `prompt_answered` takes its project from its session's membership at that moment; an unjoined
+  pane's has none (N10, as the plan says).
+- `cli.ts` logs and goes on when the import throws: the report never fails on the journal.
+
+### Block 3c — `menkar-t98` (task 98), 2026-11-18
+
+Built: new `src/core/activity/marks.ts` (`markDue(lastMs, nowMs)`, `MARK_INTERVAL_MS`; a clock set
+back gives a mark at once); new `src/renderer/presence.ts` (`watchPresence()`, started in
+`src/renderer/main.ts` beside `watchKeyboardLayout()`); `'activity:present': Record<string, never>`
+in `SendChannels` and `menkar.activity.present()` in `MenkarApi` and the preload;
+`src/main/index.ts` routes it to `recordPresent(() => windowState(event.sender)?.shown)`; in
+`src/main/activity.ts`, `recordPresent` keeps one mark a minute across every window with the same
+`markDue`, asks the window's shown project only for a mark it writes, and journals
+`{kind: 'present', projectId}` at the time main received it.
+
+How it listens without touching xterm's key handler: three listeners on `window` — `keydown`,
+`pointerdown`, `wheel` — each `{ capture: true, passive: true }`. The window's capture phase runs
+before the document's capture listener in `main.ts` that stops the app's own keys, and before
+xterm's textarea, so every key is seen, including the ones the app takes; the listener reads
+`document.hasFocus()` and the clock, and never calls `preventDefault`, `stopPropagation` or
+`stopImmediatePropagation`. `setAppKeyFilter` and `terminals.ts` are untouched. The Usage and
+Settings windows load their own entries, so they send none.
+
+Tests: `tests/core/activity/marks.test.ts` — `markDue`'s cases, and a source test (TypeScript
+compiler API) that `presence.ts` adds exactly those three listeners, each passive and capturing,
+and calls none of the three blocking methods. `e2e/activity.spec.ts` gains one test: a key alone →
+one `present` with the window's project; a double-click, a click and `ASK` typed into the pane
+within the minute → still one, and the stand-in's question appears (the keys reached the pane);
+a wheel over the sidebar once 61 s have passed → a second, ≥ 60 s after the first. It waits a real
+minute (no clock is faked in the e2e). Block 3's test now leaves `present` out of its kinds list:
+its clicks make marks. `agent-panes.spec.ts` was run with it (set's word). Seen red: `markDue`
+without the clock-back rule, with `>` for `>=`; `presence.ts` with an injected `preventDefault`,
+with one listener `passive: false`; the e2e with `markDue` always true (7 marks within the minute).
+
+Choices the plan left open (mine):
+- Marks are journaled while the human is away too; the bursts' reading already counts nothing
+  inside an away period (§2.10), and main has no read of the away state outside `workspace.ts`.
+- The e2e's first mark comes from a bare `Shift` press, once the session list is drawn: a key sent
+  before the renderer's entry ran was lost in a first run.
+- The source test lives in `marks.test.ts`, the one test file the block names.
+
+### Block 3b, the `startPane` half — `menkar-t98` (task 98), 2026-11-18
+
+Built: `recordPromptedStart(sessionId, projectId)` in `src/main/activity.ts`; in
+`src/main/workspace.ts`, `startPaneHeld` calls it right after the launch plan is made, when
+`spec.promptFile` is set, with `spec.sessionId ?? start.id` (F5). One call covers every path that
+starts with a prompt: `start_session`, `resume_session`, a renew, and the orchestration card. The
+`askPresence` half is not built here: it rides with plan 42's block 3 (F6).
+
+The plan's check, "no path from the UI starts a session with a prompt", found one: the
+orchestration first-time card (`src/renderer/orchestration.ts`, `startTeam`) sends `startNew` with
+`orch.firstPrompt`, saved by `savePrompt`, not `prompted`. **Decided by `set`, 2026-11-18: (a)** it
+records `prompted_start` too — the prompt is Menkar's text, so its first turn is not the human's;
+the click on Start is a presence mark already. (Rejected: (b) a flag on `PaneSpec` to skip it.)
+
+Tests: `e2e/activity.spec.ts`'s first test — after `WORKT` (`start_session` with a prompt; the
+fixture's project has no group `pair`, so `SPAWN1` would be refused there), exactly one
+`prompted_start` with the worker's id and the project; the session opened from the list before it
+(a resume from the UI) gave none; after the restart the history holds it once. Seen red with
+`recordPromptedStart` returning at once.
+
+Choices the plan left open (mine):
+- The event's project is the tab's, known in `startPaneHeld`, not `projectOf` the session: a new
+  worker may not be a member yet when its pane starts.
+- A pane that fails to find its CLI records nothing: the call sits where the command line is made.
+
+### Block 5 — `menkar-t108` (task 108), 2026-11-18
+
+Built: new `src/core/usage/bursts.ts` — `BURST_GAP_SECONDS = 600`, `awayPeriods(presence, end)`,
+`humanActionsOf(rows)` (the prompted-start exclusion), `bursts(actions, away, gap?)`,
+`clipToDay`, `activityDay(rows, day, now)`, `activityWeek(rows, first, now)` and
+`readActivity(source, bounds, now, project?)`; `UsageHistory.humanActions(low, high, project?)`
+and `activityRows(low, high)` at the end of the class (reading only: no write path, no schema
+change); in `nodes.ts` the types the page receives (`ActivityBurst`, `ActivityHour`,
+`ActivityDay`, `ActivityWeekDay`, `ActivityWeek`); `menkar usage export --rows turns|activity`
+(`export.ts`: `ACTIVITY_EXPORT_KEYS`, `exportActivityRows`, `exportActivityCsv`; `cli.ts`: the
+flag, `turns` the default and its output unchanged). Docs: `docs/usage.md` — the bursts' section
+says how it is read, the limits' prompted-start line is corrected, the export's usage line and a
+new "Activity rows" key table (after the turns' example, so the turns' key test reads up to it);
+the replaced lines in `docs/history/usage.md` (the history check asked for them).
+
+Tests: `tests/core/usage/bursts.test.ts` (every §2.10 burst row, the task-104 case of present
+marks while away, an away of two minutes splitting a burst, an open away read at 23:59, a second
+away while away, the day's 24 hours, the clip at the day's first instant, and three readings on a
+real history: the join and the project scope, an away begun two days before the day read, a
+burst begun more than a day before); in `tests/core/usage/export.test.ts`, `--rows activity`'s
+rows, its project scope, its CSV, a bad value, and its documented table; the turns' table test now
+stops at "### Activity rows". Seen red, each restored: away never holding (the task-104 test among
+the three red), an away not splitting, `<` for `<=`, no prompted exclusion, no clip, no widening,
+an open away dropped, a second away restarting, the last presence before the range not read,
+messages not scoped; in the export, presence dropped from a project, a key undocumented, the turns'
+table read to the end, the project's id for its name, the flag ignored.
+
+Granted by `set`, 2026-11-18: `usage.cli.exportHelp` in `src/core/i18n/{en,es}.ts` names
+`--rows activity` (files the block did not name).
+
+Choices the plan left open (mine):
+- An away with neither `back` nor `app_start` after it runs to the reading's `now`; a second
+  `away` while away, or a `back` while present, changes nothing. An action at an away's first
+  instant is inside it, at its last (the `back`) outside.
+- Scoped to a project, the bursts are made from that project's actions alone (its messages by the
+  turn's stored project, its marks, prompts and topics by theirs); away is every project's.
+  Prompted starts are read for every project, since only the turn's uuid matters.
+- A day counts messages and prompts answered; presence marks and topics shape bursts but are not
+  counted. Each `ActivityBurst` carries the whole burst's messages and prompts (for the hover),
+  not the day's part.
+- A burst that only ends at a day's first instant is not in that day; a one-action burst there is.
+- `readActivity` reads a day on each side and widens a day at a time while the first burst starts,
+  or the last ends, within G of the edge read; the last presence event before the range says
+  whether it opens away.
+- The activity export: keys `schema, event, kind, at, at_epoch, project, session_id, topic, task,
+  next, blocked_seconds`; `task_state` rows are not in it (block 6's `--rows tasks`); with
+  `--project`, the project's rows plus `away`, `back` and `app_start`.
+
+Not reached yet: nothing calls `readActivity` / `activityDay` / `activityWeek` outside the tests;
+block 7 (the Usage window's Activity section, through `usage-query-worker.ts`) is their consumer.
+
+### Block 6 — `menkar-t109` (task 109), 2026-11-18
+
+Built: new `src/core/usage/flow.ts` — `TaskStateRow`, `FLOW_STATES`, `taskFlow(rows, bounds, now)`;
+`UsageHistory.taskStateRows(low, high, project?)` at the end of the class (reading only: the rows in
+range and each task's last row before `low`, one `UNION ALL`; no write path, schema or version
+change); in `nodes.ts` the types the page receives (`FlowState`, `FlowFigure`, `FlowStateFigure`,
+`TaskFlow`); `menkar usage export --rows tasks` (`export.ts`: `TASK_EXPORT_KEYS`,
+`exportTaskRows`, `exportTaskCsv`; `cli.ts`: the choice). Docs: `docs/usage.md` — a section "The
+task flow", the export's usage line, a "Task rows" key table at the end; the replaced lines in
+`docs/history/usage.md`; `usage.cli.exportHelp` in `src/core/i18n/{en,es}.ts` names `--rows tasks`.
+Granted by `set`, 2026-11-18: `docs/NOT_BUILT_YET.md`'s "Task flow metrics" now says only the view
+is unbuilt, its old line in `docs/history/NOT_BUILT_YET.md`.
+
+Tests: `tests/core/usage/flow.test.ts` (§2.10's flow row and its 10:00 clip, a baseline inside the
+window counted from it and marked and one before it not, two rows in the same state as one
+stretch, dropped and done ending a wait, the median per task across stretches, tasks told apart
+by project and rows out of order, nothing past now or the window, a review with no waiter, and on
+a real history the 30-day and 7-day windows with a task begun 40 days before, a task closed
+before the window, the project scope and the baseline flag read back); in
+`tests/core/usage/export.test.ts`, `--rows tasks`'s rows, scope, CSV and its documented table, and
+the activity table test now stops at "### Task rows". Seen red, each restored: the baseline mark
+ignoring the window, never marked, no clip at the window's start, the open stretch dropped, rows
+unsorted, the median per stretch, terminal rows counted, tasks merged across projects, the
+even median's upper middle, the last row before the window not read, `baseline` not read back;
+the export tests before the code.
+
+How §2.8 was read: it asks for "median and total per state and per whom it waits on" and says
+nothing per stretch, so the median is per task (a task's whole time in that state, or with that
+waiter, inside the window), as the task's brief proposed.
+
+Choices the plan left open (mine):
+- **The median is of the clipped part**, not the whole stretch: the view says "over 7 or 30 days",
+  the total must be the window's time, and a median of whole stretches would describe time the
+  total leaves out (a task queued for 40 days would show 40 days in a 7-day view). Both figures
+  then describe the same time.
+- **Marked** (`sinceBaseline`) only when the task's first row is a baseline **inside** the window:
+  one whose baseline is before the window start is known for the whole window, so marking it
+  would flag every old task forever.
+- A task counts in a state only with time in it inside the window; zero-length stretches (two rows
+  at one instant) count nothing. `done` and `dropped` count no time and end the stretch before them.
+- Waiters are grouped by `wait_kind` as stored (`session`, not each session's id); a waiting or to
+  review row with none recorded counts in its state under waiter `null`. Order: topic, session,
+  other, orchestrator, human, pr-approval, pr-merge, any other, then null.
+- An open stretch runs to `min(now, bounds.end)`; a window after now is empty.
+- The task export: keys `schema, event, at, at_epoch, project, task, state, wait_kind, wait_ref,
+  assignee, baseline` (`baseline` a boolean); in range by its `at`, so the last-row-before rows
+  the reading needs are not exported.
+
+Not reached yet: nothing calls `taskFlow` / `taskStateRows` outside the tests; block 7 (the Task
+flow section, through `usage-query-worker.ts`) is their consumer.
+
+### Block 7a — `menkar-t111` (task 111), 2026-11-18
+
+Built: new `src/core/usage/sections.ts` — `UsageSection`, `SpendPeriod`, `TimePeriod`,
+`TasksPeriod`, `Sections`, `initialSections(today)`, `choose`, `switchTo`, `currentWeek`, `weekOf`,
+`stepTime`, `timeToggle`, `timeArrows`; new `src/core/usage/timeline.ts` — `countAxis`, `along`,
+`bandLabel`; in `nodes.ts`, `ActivityBurst.byProject`, `ActivityDay.away`,
+`ActivityWeekDay.{bursts,away}`, `TaskFlow.{done,dropped,open,baselineAt}`; in `bursts.ts`,
+`HumanAction.project`, `ActivityRows.messages[].project`, `Burst.byProject`, the away periods
+clipped per day and each week day's bursts (one `readDay` for both); in `history.ts`, `project_id`
+in `humanActions`' message SELECT only; in `flow.ts`, the counts, `baselineAt`, `REVIEW_WAITERS`,
+`FlowRow` and `flowTable`.
+
+Deviations, agreed with `set` (2026-11-18): `initialSections(today)` takes no month (Spend starts on
+7 days and a Month period carries its own stepper, so the stepper stays the page's); `timeToggle`
+added for Day ↔ Week inside Your time, which 7b consumes. Block 7's signature list says both.
+
+Tests: `tests/core/usage/sections.test.ts` (new: the window's start, every carry and keep of
+§2.10, 1.184's example, a stepped-back day and week, a week chosen as current carrying nothing
+past midnight, inside Your time, the arrows, a step across a year and across Santiago's
+midnight daylight-saving change); `tests/core/usage/timeline.test.ts` (new: `countAxis`'s cases,
+`along` on a 25-hour day, `bandLabel`); `bursts.test.ts` (`byProject`, the day's and week's away
+across midnight, each week day's bursts equal that day's, the project read back from the
+history); `flow.test.ts` (the counts with a task done after the window and now before its end,
+`baselineAt`, `flowTable`'s rows and shares). The existing `toEqual`s needed no figure changed:
+the bursts' compare spans or `objectContaining`, the flow's compare figures; the bursts' row
+literals gained `project: null`. Seen red, each restored: the carry ignoring `chosen`, any day as
+today, any week as current, `weekOf` rounding, the arrows with no history, Week → Day on its first
+day, `byProject` unsorted, a null project first, away unclipped, a week day without bursts, the
+project not read, a task's state read past the window's end, the latest baseline, a baseline before
+the window marking, waiting without its session row, the share off, no floor of 5, a 2.5 step, a
+24-hour day.
+
+Choices the plan left open (mine):
+- `byProject` ties sort by id, a turn with no project after every project; a burst with no
+  message has an empty `byProject`.
+- An away clipped to nothing in a day (it only touches the day's edge) is not in that day's `away`.
+- `switchTo` the section already shown returns the state unchanged (`chosen` kept).
+- `flowTable`: a waiter other than the always-listed ones is listed only because it holds a task
+  (the flow's waiters exist only with time in the window); rows follow the flow's waiter order.
+- `countAxis(6)` is top 6, step 2 (three intervals): the rule as written, the first multiple at or
+  above; it does not round up to 10.
+
+Not reached yet: nothing outside the tests calls `sections.ts`, `timeline.ts` or `flowTable`; 7b
+(the page and the two paths), 7c and 7d are their consumers.
+
+### Block 7b — `menkar-t112` (task 112), 2026-11-18
+
+Built: the Usage window's left bar (180 px, Settings' classes, `data-section` spend | time | tasks,
+Up and Down), the scope at its foot (`[data-key="this-project"]`, `[data-key="all-projects"]`,
+shown only when the last answer carries a project), one `[data-toggles="period"]` per section in
+the header, the `Sections` state through `sections.ts` (`choose`, `switchTo`, `timeToggle`), one
+`latestOnly()` for the three asks. Spend's body moved to new `src/renderer/usage-spend.ts`
+(`spendBody`, `spendWhich`, `spendAnswered`, `startStepper`; it also exports `toggles` and `svg`
+for 7c and 7d); new stubs `usage-time.ts` (`timeBody(view, ctx)`) and `usage-tasks.ts`
+(`tasksBody(view, ctx)`) drawing an empty body; `SectionContext` (locale, scheme, allProjects,
+today, loading, `choose`, `render`, `star`) and `SectionBody` (`nodes`, optional `draw`) are
+exported as types from `usage.ts`. The path: `ActivityWhich`, `ActivityView`, `TaskFlowView` in
+`nodes.ts` (types only, granted by `set`), `'usage:activity'` and `'usage:flow'` in `ipc.ts`, the
+preload, the two handlers in `preferences.ts` (one `openerProject` shared with `'usage:view'`),
+`activityView` / `flowView` in `src/main/usage.ts` (the pass awaited, then `importActivity()`, then
+the worker), the worker's `activity` and `flow` queries. Every string of 7b–7d in `en.ts` and
+`es.ts` (`usage.section.*`, `usage.scope.projects`, `usage.readFailed`, `usage.time.*`,
+`usage.tasks.*`).
+
+Deviations, agreed with `set` (2026-11-18): the three view types added to `nodes.ts`, which the
+file table did not list; the fill-the-window test measures By day's chart against the section's
+pane, not the window (the left bar takes 180 px, decision 1.184) — one changed `expect`, which
+`check-test-integrity` reports.
+
+Tests: new `e2e/usage-sections.spec.ts` — the window opens on Spend, 7 days, the bar 180 px, each
+section's own toggles, Up and Down (dark and light); the foot, All projects carried to Your time
+and Task times' asks and kept pressed, back to this project; no opener, no foot; the carry and the
+keep through the headers (Spend 30d → Task times 30d, Your time keeps its week, Month kept, Today →
+Day on today, the current Week → 7 days in both); a late answer across sections dropped, the star
+held while Spend's slower answer is on its way, the bar usable. Seen red, each restored: the
+switch not carrying, Task times reset on entry, the scope reset on entering Your time, the guard
+dropped from the flow's answer, a 250 px bar. `e2e/usage-window.spec.ts` passes with the one
+changed `expect` above.
+
+Choices the plan left open (mine):
+- "All projects" still turns back to this project when pressed again (the 1.15 test clicks it
+  twice); "this project" sets it.
+- The foot is its own bordered group, not `.segmented` (a vertical stack would break the
+  controls test's divider check, which reads left borders).
+- A refused ask shows `usage.readFailed` in the body instead of a star turning for ever.
+- The too-new page keeps the left bar; the header goes, as before.
+- A section shown for the first time shows the star, not "Reading the transcripts…" (kept for
+  Spend's first answer).
+- The tab that had the focus keeps it across the redraw an answer brings (found by the Up/Down
+  test: the bar is drawn again with every answer).
+- "{n} task(s)" for the summary, as the plan's "{n} burst(s)"; Spanish "preguntas respondidas"
+  for prompts answered, after `topics.permissionTitle`'s "pregunta de permiso".
+
+Found, not changed: after `await usageRunner.request()`, a pass another ask starts while this
+ask's `importActivity()` runs would open the history beside the import; the plan's ordering keeps
+each ask's import after its own pass, not after every later one.
+
+### Block 7c — `menkar-t113` (task 113), 2026-11-18
+
+Built: Your time's day and week in `src/renderer/usage-time.ts` and new `usage-time.css`, as block 7 describes, over 7a's readings and 7b's shell. Test: new `e2e/usage-time.spec.ts`.
+
+The seed is a history from yesterday and three days ago, at fixed local hours:
+- Shop: messages at 10:05–10:52 (six in hour 10), 13:05 and 14:09.
+- Blog: messages at 11:10 and 13:40.
+- Presence marks in Shop that join them, away 12:00–12:20, prompts answered at 11:15 and 13:20, and a lone mark at 18:30.
+- One message three days ago.
+
+The transcripts are in the temporary HOME, and the journal is in its data dir before launch.
+
+The spec checks:
+- **The week**: seven `[data-day]` rows, today's last, a Total. Yesterday's strip has 3 bursts and 1 away, with 8 messages. › is disabled on the current week.
+- **A click on yesterday's row**: Day on yesterday, with its name.
+- **The day**:
+  - The summary reads 3 burst(s), 8 messages sent, 2 prompts answered.
+  - 3 bands, one of them a tick, and 1 away. Hour 10 has 6 messages and hour 11 one prompt.
+  - 24 hours, and no "now" on a past day.
+- **The hover** (scoped): "start – end · 1.9h", "6 messages sent · 1 prompts answered", no project line. It hides when the mouse leaves.
+- **All projects**: 10 messages, and the hover reads "7 messages sent …" and "Shop 6 · Blog 1".
+- **The steps**: one day back is empty ("No activity on this day.", 0 burst(s)). The history's first day disables ‹. Three steps with › reach today, which disables › and draws "now".
+
+Seen red, each defect restored:
+- a row click opening the wrong day: failed on the day's name;
+- the per-project line dropped: failed on "Shop 6 · Blog 1";
+- the day's away not drawn: failed on the `[data-away]` count.
+
+Deviation from §2.10's row: it seeds "10:05–14:09 one burst, away 12:00–12:20". Away ends a burst (§2.5, the bursts' own test), so an away inside 10:05–14:09 makes two bursts: 10:05–11:58 and 12:21–14:09. The spec seeds and asserts two, plus a lone tick, so that the screen shows away ending a burst. Everything else in the row is asserted as written.
+
+Choices the plan left open (mine):
+- A band's label is the length drawn on this day (the clipped part). The hover gives the whole length and "… on this day".
+- Clock times in the hover use the app language's own conventions (`Intl` with `hour: '2-digit'`), so en-US reads "10:05 AM". The mock showed 24-hour times.
+- The week's name adds the year only when the week is not in this year, as the day's name does.
+- The week's columns have 8 px gaps and Prompts is 7ch wide, so the strips keep about 190 px beside "Messages sent", which is wider than the mock's "Messages".
+- A week row is `role="button"` with `tabindex="0"`, so Enter and Space open the day as a click does.
+- One hatch pattern (`#usage-time-hatch`) in an out-of-flow SVG serves every plot on the page, because an id belongs to the whole document.
+- Summary: "{n} burst(s)" counts ticks as bursts, as `ActivityDay.bursts` does.
+
+### Block 7d — `menkar-t114` (task 114), 2026-11-18
+
+Built:
+- Task times in `src/renderer/usage-tasks.ts` and the new `usage-tasks.css`:
+  - the summary;
+  - `flowTable`'s rows, with median, total and share;
+  - To review's four waiters always listed, empty ones dim with "—";
+  - Waiting and To review folding, kept for the window's life;
+  - the footer and the baseline's footnote with its date;
+  - the empty card per scope and period.
+
+Tests: new `e2e/usage-tasks.spec.ts` covers §2.10's "Task times" row, plus exact figures and the fold kept across periods, over a journal seeded at fixed local hours. Seen red, each restored: the median as the total, the empty text's scope, zero waiters hidden, the footnote dropped.
+
+Choices the plan left open (mine): an unknown waiter reads "on something else"; the empty sentence follows `view.scoped`; a state with no task is listed dim; the date is day and short month. "Share of the time" wraps over the mock's 80 px column.
+
+Found: in progress's median of 67.5 min reads "1.1h", because `formatDuration` switches to hours at 60 min. The spec's first expectation was wrong, not the code.
+
+### Block 7e — `menkar-t115` (task 115), 2026-11-18
+
+Built (docs only, plus one string): `docs/spec/usage.md` describes the Usage window's three
+sections, the scope at the bar's foot, the header's periods, the carry and the star, and names the
+three new specs and the sections' modules; `docs/preferences.md` the shell and its modules, the
+three paths, the pass then the import, one `latestOnly()`, `usage.readFailed`, the new specs and the
+Vitest files; `docs/usage.md` the sections, the carry rule with its date, why the periods live in
+the page's memory, the day's away, each week day's bursts, `byProject`, `timeline.ts`, the flow's
+counts, `baselineAt`, `flowTable` and why the view waits for a pass, and the "up to an hour late"
+limit narrowed to `menkar usage`. "Task flow metrics" left `docs/NOT_BUILT_YET.md`; the nudge's
+entry now points at Your time. Every replaced line is in its history file. `usage.tasks.colShare`
+reads "Share" / "Parte" (granted by `set`): no e2e asserted the old text.
+
+Not mine to change, left for `set`: `plans/00-STATUS.md`'s 1.156 row still cites
+`docs/NOT_BUILT_YET.md`, "Task flow metrics", and 1.180's row's destination is still "this row
+(until built)" (the plan's exit table).
+
+The next .deb's row, before the plan's name was swept:
+
+| — | The next .deb | 0.1.0-368.gd57c2b82 installed 2026-11-18 (plan 43's views, 1.183, tasks 79 and 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |

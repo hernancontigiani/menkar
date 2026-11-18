@@ -304,6 +304,19 @@ a nudge, and whether one helps at all, is read from the bursts Your time shows (
 **Trigger:** the human has looked at their bursts in the Usage window and asks for it. First
 question: the length, and whether away (1.167) or a quiet minute resets it.
 
+### Counting the messages typed while an agent works
+
+2026-11-18: a message the human types while an agent is working joins that agent's turn and opens
+no turn of its own, so Your time does not count it (its views say so in a note). It can be
+counted: the transcript records it as a `queued_command` attachment, which the cache could read as
+a human message instant, outside any turn. Not built because the files it touches (the cache's
+reading and the history's write path) are the multi-agent architecture's while its Codex phase
+reshapes them.
+
+**Trigger:** the multi-agent architecture's phase that owns the usage cache and the history's
+write path has landed. First question: whether a queued message the human withdrew before it was
+sent leaves the same attachment.
+
 ### The orchestrator's conversation, apart from the events
 
 From ccai's human (2026-11-16): **an order of the topics the orchestrator sets** (today ★,
