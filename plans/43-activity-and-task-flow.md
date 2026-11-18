@@ -720,3 +720,28 @@ Choices the plan left open (mine):
 - The e2e's first mark comes from a bare `Shift` press, once the session list is drawn: a key sent
   before the renderer's entry ran was lost in a first run.
 - The source test lives in `marks.test.ts`, the one test file the block names.
+
+### Block 3b, the `startPane` half — `menkar-t98` (task 98), 2026-11-18
+
+Built: `recordPromptedStart(sessionId, projectId)` in `src/main/activity.ts`; in
+`src/main/workspace.ts`, `startPaneHeld` calls it right after the launch plan is made, when
+`spec.promptFile` is set, with `spec.sessionId ?? start.id` (F5). One call covers every path that
+starts with a prompt: `start_session`, `resume_session`, a renew, and the orchestration card. The
+`askPresence` half is not built here: it rides with plan 42's block 3 (F6).
+
+The plan's check, "no path from the UI starts a session with a prompt", found one: the
+orchestration first-time card (`src/renderer/orchestration.ts`, `startTeam`) sends `startNew` with
+`orch.firstPrompt`, saved by `savePrompt`, not `prompted`. **Decided by `set`, 2026-11-18: (a)** it
+records `prompted_start` too — the prompt is Menkar's text, so its first turn is not the human's;
+the click on Start is a presence mark already. (Rejected: (b) a flag on `PaneSpec` to skip it.)
+
+Tests: `e2e/activity.spec.ts`'s first test — after `WORKT` (`start_session` with a prompt; the
+fixture's project has no group `pair`, so `SPAWN1` would be refused there), exactly one
+`prompted_start` with the worker's id and the project; the session opened from the list before it
+(a resume from the UI) gave none; after the restart the history holds it once. Seen red with
+`recordPromptedStart` returning at once.
+
+Choices the plan left open (mine):
+- The event's project is the tab's, known in `startPaneHeld`, not `projectOf` the session: a new
+  worker may not be a member yet when its pane starts.
+- A pane that fails to find its CLI records nothing: the call sits where the command line is made.

@@ -36,6 +36,7 @@ type Unstamped =
   | (PromptAnswered & { readonly projectId?: string })
   | { readonly kind: 'app_start' }
   | { readonly kind: 'present'; readonly projectId?: string }
+  | { readonly kind: 'prompted_start'; readonly sessionId: string; readonly projectId?: string }
 
 const journalPath = () => join(activityDir(), 'journal.jsonl')
 // Written once the first start's baseline is on disk: a crash before it gives a baseline next time.
@@ -113,6 +114,14 @@ export function recordPresent(shown: () => string | undefined): void {
   const event =
     projectId === undefined ? { kind: 'present' as const } : { kind: 'present' as const, projectId }
   void enqueue(() => write([stamp(event, ms / 1000)]))
+}
+
+// A session started or resumed with a first prompt on its command line: its next turn is that
+// prompt, which the human did not type.
+export function recordPromptedStart(sessionId: string, projectId: string | undefined): void {
+  const at = seconds()
+  const event = { kind: 'prompted_start' as const, sessionId }
+  void enqueue(() => write([stamp(projectId === undefined ? event : { ...event, projectId }, at)]))
 }
 
 const prompts = new PromptTracker()

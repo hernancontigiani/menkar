@@ -164,6 +164,7 @@ events are computed in `src/core/activity/`.
 | `prompt_answered` | A pane's shown state leaves `blocked` for any other (refusing is the human acting too), with how long it was blocked; never negative, a clock set back gives 0 |
 | `topic_discussed` / `topic_closed` | A topic's status becomes `discussing` / `closed`; Menkar's own permission topics are left out, their answer is already a prompt answered |
 | `app_start` | Menkar starts |
+| `prompted_start` | Menkar starts or resumes a session with a first prompt on its command line — `start_session`, `resume_session` or a renew with a prompt, and the orchestration card's first prompt, which is Menkar's text: the session's next turn is not the human's |
 | `present` | A key, a click or a scroll in a focused main window, with that window's project: at most one a minute across every window, never any content |
 | `task_state` | A task appears, or its state, whom its wait names, or its review's waiter changes |
 
@@ -180,8 +181,7 @@ events are computed in `src/core/activity/`.
   a second one is harmless (each row is an instant; a row in the same state adds no transition).
 - **The human's messages are not recorded again**: they are the history's turns of origin `human`.
 
-The journal's format already has `away` / `back` (1.167) and `prompted_start` (a session started
-with a prompt on its command line); main does not journal them yet.
+The journal's format already has `away` / `back` (1.167); main does not journal them yet.
 
 ### Bursts, when the reading is built
 

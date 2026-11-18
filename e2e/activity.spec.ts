@@ -225,6 +225,12 @@ test('a prompt answered, a topic discussed and a task’s states are journaled w
         .map((r) => [r.task, r.state])
     await expect.poll(tasks).toEqual([[4, 'queued']])
     const worker = page.locator('.row', { hasText: 'client-work-t1' })
+    // Started with a prompt on its command line: its first turn is not the human's. The session
+    // the human opened from the list above had none.
+    const workerId = await worker.getAttribute('data-session')
+    await expect
+      .poll(() => journal(root).filter((r) => r.kind === 'prompted_start'))
+      .toEqual([expect.objectContaining({ v: 1, sessionId: workerId, projectId: CLIENT_WORK })])
     await worker.click()
     await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
     await page
@@ -260,7 +266,7 @@ test('a prompt answered, a topic discussed and a task’s states are journaled w
         .filter((kind) => kind !== 'present')
     await expect
       .poll(kinds, { timeout: 20_000 })
-      .toEqual(['app_start', 'prompt_answered', 'topic_discussed', 'app_start'])
+      .toEqual(['app_start', 'prompt_answered', 'topic_discussed', 'prompted_start', 'app_start'])
     expect(rows(again.root, 'task_states').map((r) => [r.task, r.state, r.baseline])).toEqual([
       [1, 'queued', 1],
       [3, 'waiting', 1],

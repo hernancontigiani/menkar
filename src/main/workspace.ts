@@ -200,6 +200,7 @@ import type {
   TopicView,
   WindowState,
 } from '../shared/workspace'
+import { recordPromptedStart } from './activity'
 import { mainKitOf } from './agents/registry'
 import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
@@ -1012,6 +1013,8 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       })
       command = commandLine(plan)
       env = plan.env
+      const promptedId = spec.sessionId ?? start.id
+      if (spec.promptFile && promptedId) recordPromptedStart(promptedId, projectId)
     }
   }
   const size = { cols: 80, rows: 24 }

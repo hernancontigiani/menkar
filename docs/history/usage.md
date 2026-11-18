@@ -64,3 +64,7 @@ These were inherited from agent-tablet, where each was measured or decided by th
 The journal's format already has `present` (a mark a minute while the human works in a focused
 window), `away` / `back` (1.167) and `prompted_start` (a session started with a prompt on its
 command line); main does not journal them yet.
+
+> Replaced 2026-11-18 (decision 1.180): main journals `prompted_start`.
+The journal's format already has `away` / `back` (1.167) and `prompted_start` (a session started
+with a prompt on its command line); main does not journal them yet.
