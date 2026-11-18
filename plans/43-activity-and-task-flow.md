@@ -316,7 +316,25 @@ attachment — `src/core/usage/{transcript,cache}.ts`, plan 39 P1a.6's files.
 
 ### 2.8 The views (blocks 4–7), placed by the human
 
-Nothing is placed by this plan. Block 4 produces the mock-ups (by the session `set` names, e.g.
+**Placed by the human, 2026-11-18 (topic 62, decision 1.184), from block 4's mock-ups:**
+
+- **The Usage window gets a left bar**, like Settings', with three sections: **Usage**, **Activity**,
+  **Task flow**. Totals and By day stay inside Usage (they are usage's measures; activity and the
+  flow are other measures). Neither placement A (own tabs) nor B (views beside By day).
+- **Activity**: the day by the hour as mocked (messages and prompts answered as bars, bursts as
+  bands above with their length, the hover); **the week as strips per day, a click on a day opens
+  that day** (variant a).
+- **Task flow**: **median and total** per state and per whom it waits on (variant a), over 7 or 30
+  days.
+- **The period across sections**: each section remembers its own last period. On a switch, the
+  chosen period is carried when the other section has it — Usage *today* ↔ Activity's day, Usage
+  *7 days* ↔ Activity's week ↔ Task flow *7 days*, Usage *30 days* ↔ Task flow *30 days* —
+  otherwise the other section keeps its own, and the choice is not overwritten (Usage on *all*,
+  to Task flow on its last 7 or 30, back to Usage still on *all*). **The project scope** (this
+  project / all projects) applies to all three and is always carried.
+- **A new mock-up of the window with the left bar** (block 4b) comes before block 7.
+
+What follows is what block 4 was asked for. Block 4 produced the mock-ups (by the session `set` names, e.g.
 `designer-40`), each in both themes at the Usage window's default size, with the human's figures
 replaced by invented ones. **Each mock-up must show:**
 
@@ -515,6 +533,14 @@ By the session `set` names. The four mock-ups of §2.8, in `$MENKAR_FILES`, both
 figures. The human chooses; the chosen placement and any change to §2.8 are written into this plan
 (blocks 5–7 rewritten to it) before block 5 starts.
 
+### Block 4b — the mock-up of the window with the left bar (builds nothing)
+
+By a worker `set` names, as block 4 (its script is `$MENKAR_FILES/menkar-t106-script/`). The Usage
+window with the left bar (Usage / Activity / Task flow) in both themes, invented figures: each
+section selected once; Usage with Totals and By day inside; Activity on a day and on the week;
+Task flow on 7 days; and a pair showing the period carried (Usage 7 days → Task flow 7 days) and
+not carried (Usage *all* → Task flow on its own). The human approves it before block 7.
+
 ### Block 5 — bursts and the day/week reading, core only (needs Q1, Q2)
 
 Files: new `src/core/usage/bursts.ts` (`BURST_GAP_SECONDS = 600`, `bursts(actions, away)`,
@@ -562,7 +588,7 @@ pick first where open.
 | Q4 | The new data in `menkar usage export` | **Decided by `set`, 2026-11-18: (a)** `--rows turns\|activity\|tasks`, turns the default and unchanged, documented in `docs/usage.md`. (Rejected: (b) not exported — the human could not check G on their data; (c) mixed into the turns' stream — breaks "one object per turn") | Block 5 |
 | Q5 | Tasks already open when recording starts | **Decided by `set`, 2026-11-18: (a)** one baseline row each at the first recording start, flagged in the view. (Rejected: (b) none — the tasks open on the first day would be missing from the first weeks' flow) | Block 3 |
 | Q7 | Messages typed mid-turn (no turn of their own, §2.7) | **(a)** counted: a later block teaches the cache to read the `queued_command` attachment as a human message instant, sequenced after plan 39 P1a.6 (its files) · (b) not counted, said in the view's limits | Block 5 (the view can ship with (b) and gain (a) later) |
-| Q6 | Where the views go | The human, from block 4's mock-ups; no pick | Block 7 |
+| Q6 | Where the views go | **Decided by the human, 2026-11-18 (topic 62): a left bar in the Usage window, Usage / Activity / Task flow**, the period carried where it applies (§2.8). (Rejected: (A) own tabs; (B) views beside Totals and By day) | Block 7 |
 
 ## 7. Execution log
 
