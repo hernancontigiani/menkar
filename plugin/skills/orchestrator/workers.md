@@ -43,3 +43,21 @@ Read this when you hand out work, when a task will wait long, and when a task cl
   **read only**, and say so in its task. Never a second session of the expert.
 - **A skill has one maintainer**, the named expert: only it distills its skill. A worker's lesson
   for that skill comes in its report; hand it to the expert, by name.
+
+## When the human will quit Menkar or shut the machine down soon
+
+- **Start nothing new.**
+- **Ask each working session to reach a safe point**, by name: no check, build or long command
+  running, its edits saved, a note of where it stands. It ends its turn and tells you. It is never
+  asked to cut work in half.
+- **A long run already in flight**: a check suite, a build or a package known to take minutes.
+  Tell the human at once that it will not stop soon, how long it has left, and their choices:
+  - **wait** for it;
+  - **interrupt** it, losing that run, to start it again later;
+  - **stop the session now**, abruptly, losing whatever it had not saved.
+
+  Recommend one. Their answer decides; never stop a run on your own.
+- **Write what is in flight** in the project's status file: who resumes what, and what each one
+  owes.
+- **Tell the human** when every session is at a safe point, or which one is not yet and how long
+  it needs. After the restart, tell each one to go on.

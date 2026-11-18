@@ -18,7 +18,7 @@ Four files beside this one hold detail; read each when its moment comes:
 - `locks-and-environment.md`: before you grant a verification, a build or anything heavy, or when
   a check fails in a part nobody touched.
 - `closing-a-task.md`: when a worker reports a task done.
-- `workers.md`: when you hand out work, when a task will wait long, and when a task closes.
+- `workers.md`: handing out work, a long wait, a task closing, or the human about to quit.
 
 ## When you load this skill: say what you read
 
