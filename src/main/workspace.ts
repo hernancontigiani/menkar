@@ -1513,7 +1513,7 @@ async function resumeFor(
   const found = sessionOfProject(named.trim(), sessionsForNames(project.id))
   if ('refusal' in found) return refuse(found.refusal)
   const id = found.id
-  if (inSomeTab(id)) return refuse(`"${named.trim()}" already has a tab.`)
+  if (inSomeTab(id)) return refuse(`"${named.trim()}" is already running.`)
   const agent = sessionInfo(id)?.agent
   if (!agent || kitOf(agent).mcp === null) return refuse('Only a Claude Code session is resumed.')
   if (isWorker(team, id)) {
@@ -1538,7 +1538,7 @@ async function resumeFor(
   changed({ projects: true })
   return {
     ok: true,
-    text: `Resumed "${named.trim()}" with its conversation in a tab after yours.`,
+    text: `Resumed "${named.trim()}" with its conversation ${whereStarted(tab)}.`,
   }
 }
 
@@ -1916,6 +1916,12 @@ function namesWithTab(projectId: string): Set<string> {
   )
 }
 
+function whereStarted(tab: Tab): string {
+  return tab.kind === 'session' && tab.place === 'background'
+    ? 'in the background, with no tab of its own until the human opens it'
+    : 'in a tab after yours'
+}
+
 async function startForAgent(
   caller: Pane,
   callerId: string,
@@ -1934,7 +1940,7 @@ async function startForAgent(
     if (taken) return refuse(taken)
   }
   if (namesWithTab(projectId).has(name))
-    return refuse(`A session called "${name}" already has a tab in this project.`)
+    return refuse(`A session called "${name}" is already running in this project.`)
   const groupName = typeof args.group === 'string' ? args.group.trim() : ''
   const project = projects.projects.find((p) => p.id === projectId)
   const group = groupName ? project?.groups.find((g) => g.name === groupName) : undefined
@@ -2017,10 +2023,10 @@ async function startForAgent(
   return {
     ok: true,
     text: placement.loose
-      ? `Started "${name}" in a tab after yours, loose: you are not its parent. Address it by this name.`
+      ? `Started "${name}" ${whereStarted(tab)}, loose: you are not its parent. Address it by this name.`
       : task !== undefined
-        ? `Started "${name}" in a tab after yours for task ${task}, now assigned to it; you are its parent. Address it by this name.`
-        : `Started "${name}" in a tab after yours; you are its parent. Address it by this name.`,
+        ? `Started "${name}" for task ${task}, now assigned to it, ${whereStarted(tab)}; you are its parent. Address it by this name.`
+        : `Started "${name}" ${whereStarted(tab)}; you are its parent. Address it by this name.`,
   }
 }
 

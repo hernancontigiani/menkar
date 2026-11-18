@@ -115,3 +115,17 @@ keeps how they are built and why.
 
 > Left on 2026-11-16: the Team view's folds are saved beside them (decision 1.171).
   and `done_today_open`, each written only while true.
+
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+> Left on 2026-11-18: `orchestrator_open` replaces `orchestrator_collapsed`, `team_view` retired; a tab's `place` saved (decisions 1.176, 1.177; plan 41).
+  Beside it, `topics_collapsed` when the Topics section shows its heading alone, and the Work
+  view's choices (decision 1.112): `team_view` when the sidebar shows Team, `consultants_collapsed`
+  and `done_today_open`, and the Team view's folds (decision 1.171): `orchestrator_collapsed` and
+  `others_collapsed`, each written only while true.
+
+## The layout — `layout.ts`
+
+> Left on 2026-11-18: `orchestrator_open` replaces `orchestrator_collapsed`, `team_view` retired; a tab's `place` saved (decisions 1.176, 1.177; plan 41).
+  (joined panes) and file tabs (`tabs`); a Board tab an earlier version saved (`{ board: true }`)
+  while it is a member of that tab's project, and at most two per tab. A file tab is kept only if

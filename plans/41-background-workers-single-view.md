@@ -784,3 +784,74 @@ uncommitted `protocol.ts` edit) and `tests/core/usage/export.test.ts` (plan 43);
 The steps after vitest, run by hand (`$MENKAR_FILES/menkar-t95-41-b5-ci-rest.log`): i18n, test
 integrity, flaky and history green; code rules red only on `tests/core/usage/cli.test.ts:176–177`
 (`Date.now()`, plan 43's).
+
+### Block 6 — `menkar-t99` (task 99), 2026-11-18
+
+**Built** (what agents read, the docs, AGENTS.md's rule; no behaviour change):
+
+- `src/core/control/protocol.ts`: `start_session` — "Starts a new Claude Code session in your
+  Menkar project, without taking the focus. A worker you start runs in the background, with no tab
+  of its own, until the human opens it; any other session gets a tab after yours. …", "unique
+  among the project's running sessions"; `list_sessions` — "whether it is running (tab)" (the
+  field stays `tab`); `park_session` — "hangs it up, as Stop does"; `resume_session` — "without
+  taking the focus: a worker runs in the background, with no tab of its own, until the human
+  opens it; any other session gets a tab after yours".
+- `src/main/workspace.ts` (held by me with `set`'s leave, released after): a helper
+  `whereStarted(tab)` above `startForAgent` — "in the background, with no tab of its own until
+  the human opens it" for a tab with `place: 'background'`, else "in a tab after yours" — used by
+  `start_session`'s three replies and `resume_session`'s. **My choice**: the task variant reads
+  `Started "x" for task N, now assigned to it, ‹where›; …` (the task moved before the place, which
+  no longer reads well after it). Refusals: `"x" is already running.`, `A session called "x" is
+  already running in this project.`
+- `e2e/session-control.spec.ts` (granted by `set`): `:247`'s refusal; `:343`, `:403`, `:442`
+  assert `Started "client-work-tN" for task N, now assigned` — only the part that fits the
+  terminal's first row (the whole reply wraps at 80 columns; the tests already assert the tab
+  count that shows the background).
+- `plugin/guide/orchestration-mode.md`: "The sidebar in the mode" rewritten for the single view
+  (counts and Awaiting you fixed; Tasks past three → See all; the team, the orchestrator folded
+  until opened; "N hidden"; Done today) plus a paragraph "Workers run in the background" (peek,
+  pin, close, what ends a worker, the rows' weights, the pills, who keeps ordinary tabs); a card's
+  and a task's click "shows" the session; parking "hangs it up"; a closed task's worker "is hung
+  up"; the cap line: closing a worker's tab frees no place; Take control in the peek keeps the tab
+  as ordinary; "Read the sidebar".
+- `plugin/skills/orchestrator/workers.md`: "Parked" in the sidebar; the cap bullet gains "A worker
+  runs in the background, with no tab, until the human opens it; the human closing its tab sends it
+  back there and frees no slot."
+- `docs/window.md`: new section "Background workers and the peek tab" (place, who goes there, the
+  peek, `select`, what starts there, what closes and what hangs up, pinning, `ordinaryUnless`, the
+  pills, restart, the drawer, the screen, and §2.8's window-side rejections as its "Rejected"
+  list — window.md has no Rejected section of its own); "Closing hangs up" names the exception.
+- `docs/orchestration.md`: the data's keys (`orchestrator_open`, no `team_view`); "The sidebar in
+  the mode" — one view in 1.177's order replaces the Work/Team paragraphs; the folds' key; the
+  workers' row weights paragraph; Topics section, Board, parking, resuming and the cap updated;
+  two §2.8 lines in "Rejected".
+- `docs/projects.md`: the marks' keys (`orchestrator_open`; `team_view` and
+  `orchestrator_collapsed` neither read nor written back); a tab's `place` in the layout, saved
+  and reopened.
+- `docs/sessions.md`: `background_toast` in the `state.json` section.
+- `docs/session-control.md` (granted by `set`): `start_session`, the name refusal,
+  `list_sessions`, `park_session`, `resume_session`, the posts' "sidebar's three counts".
+- `docs/NOT_BUILT_YET.md`: the two deferrals of §2.4, each with its trigger.
+- `AGENTS.md`: Q1's accepted wording appended to the tab rule; the doc table's row for
+  `docs/orchestration.md` says "the sidebar's one view" (it said "the Work and Team views": a
+  line of the same file the block made false).
+- Histories, verbatim: `docs/history/root/AGENTS.history.md` (both AGENTS.md lines),
+  `docs/history/{orchestration,window,projects,session-control}.md` (the sidebar section whole,
+  the rest as the lines that left).
+
+**Not done here**: R10 (`tests/core/r10/`) is not refreshed — `set`'s, per §5: `tools/list`
+(protocol.ts) and the plugin snapshots of `guide/orchestration-mode.md` and
+`skills/orchestrator/workers.md` move. `skills/orchestrator/SKILL.md`'s snapshot also fails, from
+another session's uncommitted edit of that file, not this block's. Comments saying "Work view" in
+`src/renderer/board.ts:73` and `src/core/orchestration/counts.ts:14` (block 4's note) are outside
+the block's files and stay.
+
+**Seen red**: `session-control.spec.ts` against the old strings rebuilt into `workspace.ts` (3
+tests failed), then restored and rebuilt.
+
+**Checks**: `npx playwright test e2e/session-control.spec.ts` 15 passed
+(`$MENKAR_FILES/menkar-t99-41-b6-session-control.log`). `npm run ci`
+(`$MENKAR_FILES/menkar-t99-41-b6-ci.log`): biome and tsc green; vitest 1707 passed, 4 failed, all
+R10 snapshots (above); the steps after vitest run by hand
+(`$MENKAR_FILES/menkar-t99-41-b6-ci-rest.log`): code rules, i18n, test integrity, flaky and history
+(35 documents, 0 lines lost) green. No screenshots: the block changes nothing a user sees.

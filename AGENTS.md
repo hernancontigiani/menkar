@@ -51,7 +51,7 @@ what matters from being lost when a plan is deleted.
 | `docs/preferences.md` | Preferences, About or the Usage window: a setting's row, applying it to every window, restarting, the integrations' page |
 | `docs/chat.md` | Chat tabs and their processes, the permission card, the MCP servers browser, Open in Ghostty |
 | `docs/session-control.md` | Menkar's MCP server, renewing or starting a session from an agent, parents, waking a session, or the skills plugin |
-| `docs/orchestration.md` | The orchestration mode: its marks, topics and tasks, the Work and Team views, the Board, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
+| `docs/orchestration.md` | The orchestration mode: its marks, topics and tasks, the sidebar's one view, the Board, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
 | `docs/release-checklist.md` | Cutting a release: what the human checks on a real desktop before a build is called a version |
 | `docs/agents.md` | Adding or changing a coding agent: its kit, its descriptor, the registries, and the rule that keeps agent names out of shared code |
 | `docs/agent-versions.md` | Checking a coding agent's new version, or which one Menkar is validated with |
@@ -75,7 +75,11 @@ Each one is broken by an ordinary-looking line of code.
   name for a session that Claude already named.
 - **A session belongs to one project at most, runs only while it has a tab, and is in at most one
   tab across every window; a project is open in at most one window.** A saved tab of a project not
-  yet shown since start waits, unstarted, until its project is shown (decision 1.32).
+  yet shown since start waits, unstarted, until its project is shown (decision 1.32). **In the
+  orchestration mode a worker's tab may be in the background — not drawn in the strip, its process
+  and screen kept — or in its project's one peek tab (decision 1.176); closing a worker's tab sends
+  it there, and only Stop, parking, its task closing, removing or deleting it, its window closing
+  or quitting end it.**
 - **The app's own state is JSON** (`state.json`, `projects.json`), written whole through a temporary
   file and a rename. **The one exception is the usage history**, SQLite in the data directory: a
   file from a newer app is left untouched and an unreadable one is moved aside, never deleted.

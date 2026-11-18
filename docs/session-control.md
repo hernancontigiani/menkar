@@ -31,8 +31,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **`renew { prompt? }`:** once this turn ends, the session is hung up as closing a tab does, and
     a fresh session starts in the same tab with the same name and the optional first prompt.
   - **`start_session { name?, task?, prompt? | prompt_file?, remote_control?, group?, model?,
-    loose?, role?, folder? }`:** a new Claude session in the caller's project, in a tab right after
-    the caller's, not selected. The caller becomes its parent, unless `loose` is true.
+    loose?, role?, folder? }`:** a new Claude session in the caller's project, not selected: a
+    worker in the background (decision 1.176, `docs/window.md`), any other session in a tab right
+    after the caller's; the reply says which. The caller becomes its parent, unless `loose` is true.
     - **`folder`** (decision 1.124, 2026-11-14): an absolute path where it starts, one of the
       project's folders (its sessions' folders, earlier conversations included, and the ones the
       human added; `docs/orchestration.md`). One that is not is refused: "‹folder› is not one of
@@ -61,7 +62,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       2.1.323): it never changes the user's default, which only `/model` does.
     - Over a reused name, the namesake's model follows to the new session, as after a renew; a
       `model` given wins.
-    - A name another session of the project already uses in a tab is refused, and so is a group
+    - A name another running session of the project already uses is refused, and so is a group
       the project does not have.
     - The session starts in the caller's folder.
     - **A reused name** (decision 1.92, 2026-11-12): when stopped sessions of the project (members
@@ -76,7 +77,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       delegate the work." (`mayStart`, `src/core/orchestration/mayStart.ts`, decision 1.84). With
       the mode off, or none marked, anyone may.
   - **`list_sessions {}`:** the caller's project, name first, then the id, the shown state, the
-    context percentage, the parent's name, and whether the session has a tab. Earlier
+    context percentage, the parent's name, and whether the session is running (`tab`). Earlier
     conversations are left out. Each session also carries the orchestration mode's marks — `role`
     (its label or null), `orchestrator`, `priority` (the ★ of its current task, decision 1.114)
     and `with_you` — and the answer says whether the mode is on (`orchestration`). With the mode
@@ -149,10 +150,11 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     child, no role) whose current task is waiting, or whose task is in To review waiting on a PR
     (`mayPark`, decision 1.164). Once the worker's turn is over — its
     shown state idle or done, or the Stop hook's record — Menkar stops it as
-    closing its tab does, never mid-turn, and marks it parked (`orchestration.parked`).
+    Stop does, never mid-turn, and marks it parked (`orchestration.parked`).
   - **`resume_session { name, prompt? }`** (decision 1.118): the orchestrator only, with the mode on;
-    a parked or stopped Claude Code session of the project, refused when it has a tab. It opens in
-    a tab after the orchestrator's, not selected, as `--resume <id>`, the prompt as its first
+    a parked or stopped Claude Code session of the project, refused while it runs. A worker opens
+    in the background, any other session in a tab after the orchestrator's; not selected, as
+    `--resume <id>`, the prompt as its first
     message; its parked mark goes. A worker is refused at the cap, as `start_session` is.
   - **`task_close`'s worker** (decision 1.120): the worker started for that task — the
     orchestrator's child, no role, named `<project>-t<N>` for it (`hideOnClose`) — is stopped after
@@ -253,7 +255,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       seconds; only the human repeating the same action within a second could match, and that
       repeat is the one dropped.
     - **A post to the orchestrator** of a project with the mode on ends, after the time, with the
-      Work view's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):
+      sidebar's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):
       `wakeSession` passes them in (`postCounts`, `src/core/orchestration/counts.ts`, the tiles'
       own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
       it. Posts to other sessions have no counts.

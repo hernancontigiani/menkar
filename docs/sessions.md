@@ -116,6 +116,10 @@ later area's settings survive a save. It is written whole through `jsonstate`.
 
 **Only a user action writes it** (hiding a session); reading never creates it.
 
+`background_toast: true` (decision 1.176, `src/core/background-toast.ts`) once the toast "‹name›
+keeps running in the background" has been shown, the first time ever a worker's tab was closed
+into the background; it never shows again. Written only then, through `updateState`.
+
 ## Formats
 
 `src/core/format.ts`: sizes (`B`, then `KB`/`MB`/`GB` in 1024 steps with one decimal, GB the

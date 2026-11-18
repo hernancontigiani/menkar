@@ -351,3 +351,23 @@ later it may open a drop-down of the human's profile, with "Set me away" beside 
 
 **Trigger:** a second setting or action that concerns the person themselves. First question: what
 else goes in it, and whether the chip's click still toggles away or opens the menu.
+
+### Disposing a background worker's view, replaying main's buffer when peeked
+
+A background worker's screen lives where an unselected tab's does (decision 1.176): main's 512 KiB
+buffer and the renderer's xterm.js view with its scrollback, hidden. Disposing the view and
+replaying main's buffer at the peek would lose what is older than 512 KiB and could start inside an
+escape sequence, to save memory nobody has seen short.
+
+**Trigger:** the renderer's memory grows with background workers on the human's machine. First
+question, measured then: `webContents.getProcessMemoryInfo()` with 0 and with 10 background
+workers, each having printed the same transcript through the stand-in `claude`.
+
+### Sizing a background worker's terminal to the window
+
+A worker started in the background runs at 80×24 until it is first shown, as any tab started
+unselected (decision 1.32); the renderer fits it then.
+
+**Trigger:** a peeked worker's earlier output reads badly wrapped at 80 columns. First question:
+whether main sizes a background pty from its window's tab body, measured by the renderer
+before the worker is first shown.

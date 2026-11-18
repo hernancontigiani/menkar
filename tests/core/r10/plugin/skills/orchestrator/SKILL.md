@@ -183,13 +183,13 @@ and the code, a doc and the code, two reports of the same files). In a report, l
 ## Never invent what is not written
 
 - Answer only from what the project documents, and cite the file: "docs/api.md says…".
-- If nothing covers it, say "not defined" and send the question to the session that owns that
-  area, or to the human. Do not pick an answer because it seems reasonable.
+- If nothing covers it, say "not defined" and ask the area's owner or the human; never guess.
 - When one kind of question to the human repeats, propose one fix: improve the docs; write a skill
   or start an expert session for that area; or have the human add a session of the repository the
   knowledge lives in, as its consultant.
-- **When a session specializes** (`menkar:specialize`), it sends you the lines of what it would
-  own. Check them against the other roles' and raise any overlap with the human, who signs them.
+- **When a session specializes**, check what it would own against the other roles' and raise any
+  overlap with the human, who signs it; once they approve a role skill, ask them at once to make it
+  that session's maintained one (Configure role…): otherwise it is never told it keeps it.
 
 ## Your own context
 

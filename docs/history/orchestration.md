@@ -265,3 +265,114 @@ number, the title, a red mark when blocking. A click unfolds its context, who ra
 "The human wants to discuss topic N", "took control of", "handed … back" — ends, after its time,
 with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2 topics · 1
 working · 1 waiting`. The human follows the orchestrator from a phone through Remote Control, where
+
+## The data
+
+> Left on 2026-11-18: one sidebar view replaces Work | Team, the orchestrator folded by default, workers in the background (decisions 1.176, 1.177; plan 41). The section as it stood:
+  "with you", `parked`, `workers_cap` (decision 1.118) and the added `folders` (decision 1.124) — and `topics_collapsed`, `team_view`,
+  `consultants_collapsed`, `orchestrator_collapsed`, `others_collapsed` and `done_today_open`,
+  each written only while true. `consultants_collapsed` folds Consultants in both views, Work and
+  Team: one key for the same sessions (`set`'s choice, 2026-11-16). How they are read, kept and followed through a `/clear`, a
+
+## The sidebar in the mode
+
+> Left on 2026-11-18: one sidebar view replaces Work | Team, the orchestrator folded by default, workers in the background (decisions 1.176, 1.177; plan 41). The section as it stood:
+**"Work | Team"** (decision 1.112) sits at the top of the sidebar while the mode is on, a segmented
+switch; **Work is the default**, and the choice is saved per project (`team_view`, written only
+for Team; `set`'s choice, 2026-11-13). Off, neither shows and the sidebar is the ordinary one.
+
+**The Work view** (decision 1.115, `src/renderer/work.ts`), from the top:
+
+1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting, counted by
+   `workCounts` (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
+   orchestrator (below).
+2. **Topics**, as in the Team view below.
+3. **Tasks · N**: the open tasks, ★ first, then by number. A row: ★, the title, `3/5` (or the state
+   while it has no steps), the assignee, one segment per step (done, current, to come), and the
+   note — "waiting on ‹what›" first while waiting, with a red edge. A click selects the assignee's
+   tab if it has one, starting nothing (`selectSessionTab`); the right-click menu sets or removes the
+   ★. More than 6: the first 6 and "See all (N) →", which opens the Board on Show all.
+4. **Consultants · N** (when any): one compact row each, its state dot, name and role; a click
+   opens its tab. Foldable, saved (`consultants_collapsed`).
+5. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
+   by default**, its unfolding saved (`done_today_open`).
+
+**Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) — a wake,
+"The human wants to discuss topic N", "took control of", "handed … back", away or back — ends,
+after its time, with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2
+topics · 1 working · 1 waiting`. **They are few** (decision 1.173, the human, 2026-11-16): every
+post is a line in the human's chat with the orchestrator. A worker whose turn ends with its report
+to the orchestrator gets no "finished its turn" for it, and everything arriving within
+`WAKE_DELAY_MS` goes in one post, the human's own news first (`docs/session-control.md`, waking a
+parent). The human follows the orchestrator from a phone through Remote Control, where
+the statusline does not show and the posts do. `postCounts` gives them only for the orchestrator of
+a project with the mode on, from the same `workCounts` as the tiles; posts to any other session are
+unchanged.
+
+**The Team view** is the sidebar as follows. `modeRows` (`src/core/orchestration/rows.ts`) orders
+the rows; `renderSessionList` draws them while the shown project's mode is on, and today's list
+otherwise, through the same code as before.
+
+**Four profiles** (decision 1.107, the human, 2026-11-13), read from the marks with no mark of their
+own: the **orchestrator**; an **expert**, a session under the orchestrator with a role label, shown
+nested under it with its label; a **generalist** worker, under it without a label; a
+**consultant**, a loose session with a label, under "Consultants".
+
+**Three folds, each saved per project** (decision 1.171, the human, 2026-11-16), a triangle each:
+
+- **The orchestrator's group** (`orchestrator_collapsed`): the triangle sits on the orchestrator's
+  row, in its left padding, while anyone is under it. Folded, every child is hidden — with a tab,
+  earlier and parked alike — and the row shows how many sessions are under it and the dot of the
+  most urgent state among those running (`groupState`, as a collapsed group's), red when one waits
+  at a permission prompt; with none running, the stopped dot.
+- **Consultants** (`consultants_collapsed`, shared with the Work view) and **Others**
+  (`others_collapsed`): folded, the heading alone.
+
+1. **The orchestrator**, then its children with a tab, indented; its children without a tab fold
+   into one "N earlier" row a click unfolds (per window, not saved). Its parked workers fold apart,
+   after it, into a "Parked · N" row; unfolded (per window, not saved), each parked worker with
+   "waiting on …" from its current task, else from its task in To review (decisions 1.120, 1.164;
+   `modeRows`).
+2. **"Consultants"**: every session with a role label that is not the orchestrator and not
+   nested, each with its own children as in 1.
+3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
+   drag order).
+
+A child sits under the top row of its line of parents, wherever that row is, at one level of indent.
+Rows of parts 1 and 2 and nested rows are not dragged. Hidden rows and earlier conversations stay
+out. A row shows its role label where the folder goes (the orchestrator without a label of its own
+is labelled "Orchestrator"), the ★ before its name while its current task has it, and "with you"
+as a badge after it. Under its name, its current task and step ("Release 0.2 · 3/5", or the state
+while it has no steps; decision 1.116).
+
+**The Topics section** sits under the switch in the Team view and after the tiles in the Work
+view, collapsible like Files
+and saved (`topics_collapsed`), headed "Awaiting you · N", so it says whose turn it is (1.146, the
+human, 2026-11-14: only the label the user sees; "topic" stays the thing's name for agents, tools and
+code). A row: ★ when its task has the ★, the
+number, the title, a green dot while it is discussing (the current topic, decision 1.169, the
+human, 2026-11-16) and a red mark when blocking; a blocking topic being discussed shows both. A click unfolds its context, who raised it and its
+status, per window. Empty, it says "Nothing awaits you".
+**At most 5 topics** (`TOPICS_SHOWN`, `topicsFolded` in `src/core/orchestration/rows.ts`; decision
+1.171, the human, 2026-11-16), in both views, then a "N more…" row as Files has; a click unfolds
+the rest, per window, not saved. The current topic comes first in the order, so it is always among
+the 5.
+
+**A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the
+orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N",
+through the same cross-session messaging as the wakes (`wakeSession`, `postToSession`); nothing is
+typed into its terminal. With no orchestrator running (none marked, or no tab), the topic still
+goes to discussing and nothing is posted (`discussTopic` in `src/main/workspace.ts`).
+
+## The Board
+
+> Left on 2026-11-18: one sidebar view replaces Work | Team, the orchestrator folded by default, workers in the background (decisions 1.176, 1.177; plan 41).
+- The Work view's "See all (N) →" opens it on Show all. **Switching the mode off closes it**
+step segments, the note. The note line starts with what the task waits on, as in the Work view's
+
+## Workers per task
+
+> Left on 2026-11-18: one sidebar view replaces Work | Team, the orchestrator folded by default, workers in the background (decisions 1.176, 1.177; plan 41).
+  Menkar stops it as closing its tab does, never mid-turn and never by typing, and
+  the project, by name, not one with a tab. A tab after the orchestrator's, without the focus,
+  any number. It counts the running workers; parked and stopped ones have no tab and don't count. A

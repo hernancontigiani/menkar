@@ -168,3 +168,15 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
 
 > Left on 2026-11-17: waking is asked of the parent's agent's kit (plan 39, P0.6).
     - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
+
+## The shape
+
+> Left on 2026-11-18: a worker starts and resumes in the background; "has a tab" became "running" (decision 1.176; plan 41).
+    loose?, role?, folder? }`:** a new Claude session in the caller's project, in a tab right after
+    the caller's, not selected. The caller becomes its parent, unless `loose` is true.
+    - A name another session of the project already uses in a tab is refused, and so is a group
+    context percentage, the parent's name, and whether the session has a tab. Earlier
+    closing its tab does, never mid-turn, and marks it parked (`orchestration.parked`).
+    a parked or stopped Claude Code session of the project, refused when it has a tab. It opens in
+    a tab after the orchestrator's, not selected, as `--resume <id>`, the prompt as its first
+      Work view's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):

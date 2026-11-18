@@ -25,7 +25,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'start_session',
     description:
-      "Starts a new Claude Code session in a Menkar tab right after yours, in your project, without taking the focus. You become its parent: Menkar tells you when it waits at a permission prompt or finishes a turn. Its name, unique among the project's sessions with a tab, is how you address it.",
+      "Starts a new Claude Code session in your Menkar project, without taking the focus. A worker you start runs in the background, with no tab of its own, until the human opens it; any other session gets a tab after yours. You become its parent: Menkar tells you when it waits at a permission prompt or finishes a turn. Its name, unique among the project's running sessions, is how you address it.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -71,7 +71,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'list_sessions',
     description:
-      "Lists the sessions of your Menkar project: name, id, shown state (working, blocked, idle, done), context used, parent, whether it has a tab and its folder; in the orchestration mode also its role, marks and the skills the human set for it. Also the project's folders (folders), where start_session { folder } may start a session.",
+      "Lists the sessions of your Menkar project: name, id, shown state (working, blocked, idle, done), context used, parent, whether it is running (tab) and its folder; in the orchestration mode also its role, marks and the skills the human set for it. Also the project's folders (folders), where start_session { folder } may start a session.",
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -279,7 +279,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'park_session',
     description:
-      'Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as closing its tab does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting, or in To review waiting on a PR.',
+      'Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as Stop does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting, or in To review waiting on a PR.',
     inputSchema: {
       type: 'object',
       properties: { name: { type: 'string', description: "The worker's name." } },
@@ -289,7 +289,7 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   {
     name: 'resume_session',
     description:
-      'Resumes a parked or stopped session of your Menkar project by its name, with its conversation, in a tab after yours without taking the focus; the optional prompt is its first message, e.g. what came back on its task. Only the orchestrator.',
+      'Resumes a parked or stopped session of your Menkar project by its name, with its conversation, without taking the focus: a worker runs in the background, with no tab of its own, until the human opens it; any other session gets a tab after yours; the optional prompt is its first message, e.g. what came back on its task. Only the orchestrator.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -244,7 +244,7 @@ test('start_session opens the new session right after the caller’s tab without
     expect(saved().projects[0]?.groups[0]?.members).toEqual([SESSION, worker])
 
     await page.keyboard.type('SPAWN2')
-    await said(page, 'A session called "worker" already has a tab in this project.')
+    await said(page, 'A session called "worker" is already running in this project.')
     await page.keyboard.type('SPAWN3')
     await said(page, 'The project has no group called "no such group".')
     await expect(page.locator('.tab')).toHaveCount(2)
@@ -340,7 +340,7 @@ test('a worker per task: started for task 1 as "client-work-t1"; parked while it
     await page.keyboard.type('TASKADD')
     await said(page, 'TOOL task_add: Task 1 added.')
     await page.keyboard.type('WORKT')
-    await said(page, 'TOOL start_session: Started "client-work-t1" in a tab after yours for task 1')
+    await said(page, 'TOOL start_session: Started "client-work-t1" for task 1, now assigned')
     await expect.poll(() => argLines().length).toBe(2)
     const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
     expect(argLines()[1]).toContain(`--session-id ${worker} -n client-work-t1 fix the login`)
@@ -400,7 +400,7 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
     await page.keyboard.type('TASKADD')
     await said(page, 'TOOL task_add: Task 2 added.')
     await page.keyboard.type('WORKT')
-    await said(page, 'TOOL start_session: Started "client-work-t1" in a tab after yours for task 1')
+    await said(page, 'TOOL start_session: Started "client-work-t1" for task 1, now assigned')
     await expect.poll(() => argLines().length).toBe(2)
     const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
     await page.keyboard.type('SECONDW')
@@ -439,7 +439,7 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
     await expect.poll(() => saved().projects[0]?.orchestration?.parked).toEqual([worker])
 
     await page.keyboard.type('SECONDW')
-    await said(page, 'TOOL start_session: Started "client-work-t2" in a tab after yours for task 2')
+    await said(page, 'TOOL start_session: Started "client-work-t2" for task 2, now assigned')
     // Decision 1.176: running, in the background, until its row shows it.
     await expect.poll(() => argLines().length).toBe(3)
     await expect(page.locator('.tab')).toHaveCount(1)

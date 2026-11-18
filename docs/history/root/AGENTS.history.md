@@ -54,3 +54,11 @@ human likes; the features are all of agent-tablet's.
 
 > Replaced 2026-11-17: the per-agent rule names its check (plan 39, P0.7).
   cannot break another's (1.135). How it is organised is the multi-agent architecture's to decide.
+
+> Replaced 2026-11-18 by decision 1.176 (Q1, the human): a worker's tab may be in the background or the peek.
+- **A session belongs to one project at most, runs only while it has a tab, and is in at most one
+  tab across every window; a project is open in at most one window.** A saved tab of a project not
+  yet shown since start waits, unstarted, until its project is shown (decision 1.32).
+
+> Replaced 2026-11-18 by decision 1.177: the sidebar in the mode is one view.
+| `docs/orchestration.md` | The orchestration mode: its marks, topics and tasks, the Work and Team views, the Board, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |

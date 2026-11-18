@@ -13,7 +13,8 @@ Read this when you hand out work, when a task will wait long, and when a task cl
 - **The cap** on workers running at once is the project's (the first-time card, the project's
   orchestration settings, or `set_workers_cap`). At the cap, `start_session` and
   `resume_session` of a worker are refused: leave the task queued and start it when one finishes.
-  Experts, consultants and parked workers don't count.
+  Experts, consultants and parked workers don't count. A worker runs in the background, with no
+  tab, until the human opens it; the human closing its tab sends it back there and frees no slot.
 - **`set_workers_cap` only when the human asks for it explicitly**, with the number they gave.
   Never to make room for a worker of your own.
 
@@ -21,7 +22,7 @@ Read this when you hand out work, when a task will wait long, and when a task cl
 
 - **When a task will wait long** (a PR under review, an answer that takes days), have its worker
   report it waiting (`task_progress` with `waiting_on`), then `park_session` it: Menkar hangs it up
-  after its turn, keeping its transcript. It shows under "Parked" in the Team view.
+  after its turn, keeping its transcript. It shows under "Parked" in the sidebar.
 - **A task done but waiting on a PR**: the worker hands it to review with `task_review`,
   `waiting_on` `pr-approval` (or `pr-merge` once approved) and the PR's number as its note
   (waiting_note). After your own review, change it with `task_review` on that task as the PR

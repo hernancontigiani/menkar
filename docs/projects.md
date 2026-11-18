@@ -121,10 +121,11 @@ built and why.
   `docs/orchestration.md`): `on`, the `orchestrator`'s id (one per project), `roles` (id → a free
   label) and `with_you` (ids the human marked). A `priority` an earlier Menkar wrote (ids with the
   ★) is read and dropped, never written: the ★ belongs to tasks now (decision 1.114, 2026-11-13).
-  Beside it, `topics_collapsed` when the Topics section shows its heading alone, and the Work
-  view's choices (decision 1.112): `team_view` when the sidebar shows Team, `consultants_collapsed`
-  and `done_today_open`, and the Team view's folds (decision 1.171): `orchestrator_collapsed` and
-  `others_collapsed`, each written only while true.
+  Beside it, `topics_collapsed` when the Topics section shows its heading alone,
+  `consultants_collapsed`, `done_today_open` and `others_collapsed`, each written only while true,
+  and `orchestrator_open` while the orchestrator's group is unfolded: absent, it is folded
+  (decision 1.177). `team_view` and `orchestrator_collapsed`, which an earlier Menkar wrote, are
+  neither read nor written back.
 - **The Board panel** (decision 1.126, 2026-11-14; `setBoard`): `board_open` while it is open,
   written only while true and cleared when the mode goes off, and `board_height`, its last height
   in pixels, written only once dragged or picked (Default size removes it). Read leniently: a
@@ -170,8 +171,12 @@ built and why.
   F5) return what changed, or a refusal key (`layout.twoPanesMax`, `layout.otherProject`,
   `layout.alreadyBeside`, `layout.sharesTab`) for the toast. Moving between tabs (`stepTab`,
   `nthTab`) only counts the shown project's tabs.
+- **A session tab may have a `place`** (decision 1.176, `src/core/projects/place.ts`):
+  `'background'` or `'peek'`, absent for an ordinary tab. What it means and who sets it is
+  `docs/window.md`, "Background workers and the peek tab"; `select` is the one writer of a
+  window's selection, and no `selected` ever names a background tab.
 - **What is saved** (`toSaved`): per window, the shown project (`current`), its session tabs
-  (joined panes) and file tabs (`tabs`); a Board tab an earlier version saved (`{ board: true }`)
+  (joined panes, with `place: 'background'` for a background or peek tab) and file tabs (`tabs`); a Board tab an earlier version saved (`{ board: true }`)
   is dropped on read (decision 1.126),
   grouped by project, leaving out projects with none, and
   `maximized` (decision 1.98, 2026-11-12): whether the window manager has it maximized, full screen
@@ -179,7 +184,8 @@ built and why.
   closes; full screen leaves it as it was.
 - **What reopens** (`reopen`): the saved windows as the file had them, each entry checked on its
   own. A project already taken by an earlier window is skipped. A session is placed once, only
-  while it is a member of that tab's project, and at most two per tab. A file tab is kept only if
+  while it is a member of that tab's project, and at most two per tab. A saved `place:
+  'background'` reopens as background; any other `place` reads as ordinary. A file tab is kept only if
   its path is still a regular file. A window is maximized only when its entry's `maximized` is
   `true`; anything else, or a file from before the key, reads as not. With "Reopen tabs on start"
   off, or nothing usable left, the result is one window on `current` with no tabs, maximized as the

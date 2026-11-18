@@ -81,7 +81,8 @@ It registers what it needs from a function app calls, such as `buildFrame` (2026
   and Claude Code's own settings such as `CLAUDE_CODE_USE_BEDROCK`. The classifier's `claude -p`
   keeps its own, stricter rule: no `CLAUDECODE` and no `CLAUDE_CODE_*` at all (`environment` in
   `src/core/classifier/input.ts`).
-- **Closing hangs up** (decision 1.9, amended 2026-11-10): closing a tab, Stop, closing a window,
+- **Closing hangs up** (decision 1.9, amended 2026-11-10): closing a tab (but a worker's, which
+  goes to the background; below), Stop, closing a window,
   quitting and Restart now send SIGHUP to the pane's shell and to its terminal's foreground
   process group (the agent). Nothing is typed into a running agent, neither `/exit` nor `exit`.
   - **Nothing is left** (`src/main/reap.ts`): 3 s after the hang-up, every process still in the
@@ -230,6 +231,72 @@ session) takes the newest session of that folder modified since the tab started,
   `start timings` notice line, written at the default level, lists every phase in ms when the
   first window shows, so a slow start names its slow phase in the user's own log. A
   `first sessions scan` notice line says when the scan ended and how many sessions it found.
+
+## Background workers and the peek tab
+
+Decision 1.176 (the human, 2026-11-17, from task 59's mock-ups; its D1–D6 and Q1–Q6, 2026-11-18).
+In the orchestration mode the orchestrator's workers run without a place in the tab strip and are
+seen one at a time.
+
+- **A background tab is a tab the strip does not draw.** `SessionTab.place` (`TabPlace`,
+  `src/core/projects/place.ts`, shared by the layout, the saved layout and `TabView`) is
+  `'background'`, `'peek'` or absent (an ordinary tab; for a worker, a **pinned** one). Everything
+  that follows a pane by its tab — output, `bringProject`, window close and quit, saving, 1.32's
+  start, the cap, names, renew — needs no second case. A background tab is never selected and is
+  skipped by `stepTab`, `nthTab` and `shownTab`; its body exists in the renderer, hidden, as an
+  unselected tab's does.
+- **Who goes there** (`backgroundable`, `src/core/orchestration/team.ts`): a worker (`isWorker`:
+  the mode on, under the orchestrator, no role) not "with you". Experts, consultants, the
+  orchestrator and every session with the mode off keep ordinary tabs. Only a tab with one pane, by
+  main's `tabPanes` (which holds a split shell), may be placed.
+- **The peek**: at most one per project (per strip, D1), moved to the end of its project's tabs
+  when it becomes the peek; a tab opened while it exists goes before it, so the drawn order is the
+  layout's and pinning, dragging and `moveTab` need no special case. Drawn italic and regular, with
+  a pin button left of its ×; the pin or a double-click on it makes it ordinary in place.
+- **One writer of the selection**: `select` (`layout.ts`) — a background tab becomes the peek and
+  is selected, the project's previous peek goes back to the background; any other tab is selected.
+  `revealPane`, `revealTab` (Go to agent), the `selectTab` action, `selectSessionTab` (a row, a task,
+  a Board card, a pill, a notification) all go through it. After every exported function of
+  `layout.ts`, no window's `selected` names a background tab (a test sweeps them).
+- **What starts there**: `start_session` and `resume_session` insert a worker's tab, background,
+  after the caller's, the selection untouched.
+- **What closes and what hangs up.** The human's close of a worker's tab — ×, middle click, Close,
+  `Ctrl+B x` on its only pane, Close other tabs, Close all tabs — sends it to the background
+  (`closeOrHide`, `toBackground`), still running; the selection moves by `withoutTab`'s rule, which
+  never picks a background tab. A second pane of that tab is hung up first (D2). Only Stop, parking,
+  its task closing, Remove, trash or delete, deleting the project, its window closing, quitting or
+  its process exiting end a worker. The first such close ever shows "‹name› keeps running in the
+  background" with Show, then `background_toast` in `state.json` keeps it from coming back
+  (`src/core/background-toast.ts`).
+- **Pinning**: the peek's pin or double-click, a double-click on its row and ⋮ Open (D3) make it an
+  ordinary tab (`pinTab`, `openSession` with `pin`); `splitPane` and Open beside on a peek pin it
+  first. A worker with no tab opens ordinary, as before.
+- **When it stops qualifying** (Take control, With you, a role, Stop reporting to the orchestrator,
+  the orchestrator unmarked, the mode off; also at boot): `ordinaryUnless`, first in every
+  `changed()` before `startShownTabs()`, makes its tab ordinary; a selected peek stays in place and
+  selected, any other goes before the project's peek, not selected. Nothing is hung up (Q3).
+- **The pills**: one red pill per background worker of the shown project waiting at a permission
+  prompt, in the tabs' order (D6, Q6), "‹name› · permission", before the prefix pill; a click
+  peeks it. A peek or pinned worker shows its tab's red dot instead.
+- **Restart**: background and peek tabs are saved as `place: 'background'` and reopen as background,
+  started when their project is shown (1.32), resumed with `--resume`; what their screen showed is
+  gone, as for every tab.
+- **A hidden tab's drawer** keeps its shell running (only the hang-up closes it) and shows again
+  with the peek.
+- **Its screen** lives where an unselected tab's does: main's 512 KiB buffer and the renderer's
+  xterm.js view with its scrollback, so the peek shows it at once. Disposing that view and sizing a
+  background pty to the window are deferred (`docs/NOT_BUILT_YET.md`).
+- **Rejected**:
+  - A registry of tabless panes in main, outside the layout: every path that follows a pane by its
+    tab would need a second case, each forgotten one a lost or orphaned process.
+  - Hanging up a worker whose tab closes and resuming it on a click: it stops running work.
+  - Disposing a background view and replaying main's buffer: it loses what is older than 512 KiB
+    and can start inside an escape sequence, to save memory nobody has seen short.
+  - Drawing the peek last whatever its index: pinning would make the tab jump, and a drop before
+    the peek would land at its index.
+  - One peek per window: a window holds a selection per project, and a peek in one project would
+    demote another's selected peek into a selected background tab.
+  - Sorting the strip by kind when drawing: a drag would be undone at the next render.
 
 ## Windows and quitting
 

@@ -139,3 +139,8 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 > Left on 2026-11-17: a saved tab keeps the sessions `session_agents` names (plan 39, P0.6).
   first scan ends, so an empty list never reads as "no sessions". When the scan ends, a saved tab
   whose sessions are all gone is dropped, and the shown project's saved tabs start (decision 1.32).
+
+## Panes and terminals
+
+> Left on 2026-11-18: closing a worker's tab sends it to the background (decision 1.176; plan 41).
+- **Closing hangs up** (decision 1.9, amended 2026-11-10): closing a tab, Stop, closing a window,

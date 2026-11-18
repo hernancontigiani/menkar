@@ -41,9 +41,7 @@ mode is on:
 
 ## The sidebar in the mode
 
-A switch at its top, **Work | Team**, chooses what it shows, per project; Work is the default.
-
-**Work** is what waits on the person and how far the work is, from the top:
+One view, from the top. The counts and Awaiting you stay in place; the rest scrolls.
 
 1. **Counts**: open topics, tasks in progress, tasks waiting.
 2. **Awaiting you** — the topics: the open ones, the one being discussed first (the current one,
@@ -53,24 +51,34 @@ A switch at its top, **Work | Team**, chooses what it shows, per project; Work i
    raised it and its status. The list is read only: a topic is discussed in the orchestrator's
    chat, and closed there. Everything that waits on the person is a topic.
 3. **Tasks**: the open tasks, ★ first: title, who has it, its steps ("3/5") and its latest note,
-   with a red edge while it waits. A click selects that session's tab; a right-click sets or
-   removes the ★. Past six, "See all" opens the Board showing every card.
-4. **Consultants**: one row each, with its state; a click opens its tab.
-5. **Done today**: topics closed and tasks done since midnight, folded until opened.
+   with a red edge while it waits. A click shows that session; a right-click sets or removes the
+   ★. Past three, "See all" opens the Board showing every card.
+4. **The team**: the orchestrator with the sessions it started under it (those not running folded
+   into one "earlier" row a click unfolds), the **Consultants** (every loose session with a role),
+   and **Others** with their groups as in the ordinary list. Each session's row shows its current
+   task and step under its name, and the ★ while that task has it. Three triangles fold, each kept
+   per project: the orchestrator's, folded until opened (its row then stands for everyone under it,
+   with how many and the most urgent state after its name, red while one waits at a permission
+   prompt), Consultants' and Others'.
+5. **"N hidden"**, which shows the hidden rows.
+6. **Done today**: topics closed and tasks done since midnight, folded until opened.
 
-**Team** is the team: **Awaiting you** (the topics), then the orchestrator with the sessions it started under it
-(those without a tab folded into one "earlier" row a click unfolds), the **Consultants** (every
-loose session with a role), and **Others** with their groups as in the ordinary list. Each
-session's row shows its current task and step under its name, and the ★ while that task has it.
-Three triangles fold, each kept per project: the orchestrator's (its row then stands for everyone
-under it, with how many and the most urgent state, red while one waits at a permission prompt),
-Consultants' and Others'.
+**Workers run in the background.** A worker the orchestrator starts or resumes has no tab in the
+strip: it runs, and its row says so. A click on its row (or its task, its card, a notification)
+shows it in the **peek tab**, the last one, in italics; clicking another worker replaces it there.
+The pin on the peek tab, a double-click on it, a double-click on the row or the row menu's Open
+make it an ordinary tab, kept in the strip. Closing a worker's tab sends it back to the background,
+still running; only Stop, parking, its task closing, removing it, closing its window or quitting
+end it. A worker's name is **bold with a pin** while it has an ordinary tab, regular in the
+background, italic in the peek. A worker in the background waiting at a permission prompt shows a
+red pill with its name at the right of the tab strip; a click opens it in the peek. Experts,
+consultants and sessions with you keep ordinary tabs.
 
 **The Board**, a panel under the header opened and closed with the **Board** button beside the
 Orchestration switch, shows every topic and task in columns: **Awaiting you** (the topics), Queued, In progress, Waiting,
 To review, Done (today's; older ones folded under "Done before"). It opens two cards high; the
 person drags its lower edge, or picks "Show all" or "Default size", and it reopens as they left it.
-A card's click selects its session's tab.
+A card's click shows its session, as a task's does.
 
 ## Topics
 
@@ -111,7 +119,7 @@ A task is a piece of work the orchestrator delegated, so the person can see how 
 - `task_star`: only the orchestrator, when the person asks for it, sets or removes a task's ★.
 
 **The ★ belongs to a task**, not to a session: the person sets it from the task's right-click (in
-the Work view or the Board), or the orchestrator (`task_star`) when the person asks. A ★ task's topics come
+the sidebar or the Board), or the orchestrator (`task_star`) when the person asks. A ★ task's topics come
 first, and when several sessions finish at once the orchestrator hears first of those on ★ tasks.
 Consultants get a task for a request that needs more than a short answer (a research, a probe, a
 review); a short question needs none. A task that waits on something outside (a build, a release)
@@ -125,8 +133,8 @@ is set waiting, with what it waits on.
   workers never collide.
 - **Parked**: when a task will wait long (a pull request under review), the orchestrator parks its
   worker with `park_session`: a task waiting on something, or one in To review waiting on a PR's
-  approval or merge. Once its turn is over, Menkar closes its tab and keeps its
-  conversation. The Team view shows parked workers apart, in a folded "Parked · N" row under the
+  approval or merge. Once its turn is over, Menkar hangs it up and keeps its
+  conversation. The sidebar shows parked workers apart, in a folded "Parked · N" row under the
   orchestrator, each with what its task waits on. When the wait ends (tell the orchestrator what
   came back), it resumes the same worker with `resume_session`, with its whole context.
 - **In another repository**: the orchestrator can start a worker in any of the project's folders —
@@ -134,7 +142,7 @@ is set waiting, with what it waits on.
   orchestration settings (the gear beside its mode icon). A plan that touches several
   repositories becomes one task per session, each in its folder. The orchestrator reads them, and
   each session's folder, in `list_sessions`.
-- **When a task closes**, its worker's tab closes and its row is hidden from the sidebar. Once it
+- **When a task closes**, its worker is hung up and its row is hidden from the sidebar. Once it
   is reviewed, the orchestrator moves the worker's files (its screenshots and logs) from the
   project's files folder to the system's trash with `trash_files`: only files of that folder, by
   name, and the trash gives one back.
@@ -142,7 +150,8 @@ is set waiting, with what it waits on.
   later in the project's orchestration settings (the gear beside the project's mode icon in the
   project menu, while the mode is on), or ask the orchestrator, which then uses `set_workers_cap`. At the limit the
   orchestrator leaves the next task queued until a worker finishes. Experts, consultants and
-  parked workers don't count.
+  parked workers don't count. Closing a worker's tab does not free a place: it still runs, in the
+  background.
 - A session under the orchestrator with no role is a worker, whoever started it: it counts, may
   be parked, and is hidden when its task closes. Experts (a role) and consultants never are, so
   the sessions handed in at setup are each made an expert or kept as a worker with the person.
@@ -162,7 +171,8 @@ is set waiting, with what it waits on.
   blocking. While a topic is being discussed, new ones arrive without sound.
 - **Read-only tabs**: the tab of a session under the orchestrator takes no keys or pastes, under a
   yellow banner with "Take control". Taking control marks it "with you" (a blue banner, with "Back
-  to reporting to the orchestrator"); the orchestrator is told both times. While the session waits at a
+  to reporting to the orchestrator"); the orchestrator is told both times. A worker taken control
+  of in the peek keeps its tab, as an ordinary one. While the session waits at a
   permission prompt, its tab takes keys.
 - **Handing a session over**: "Report to the orchestrator" in its row menu (and "Stop reporting to
   the orchestrator"), the first-time card's list of sessions the orchestrator manages, or
@@ -314,7 +324,7 @@ start. When it cannot answer something from the guide, it says what was missing.
 From then on:
 
 1. Talk to the orchestrator. Let it start the workers and create the tasks.
-2. Read the Work view; answer a topic in the orchestrator's chat (a double-click on it tells the
+2. Read the sidebar; answer a topic in the orchestrator's chat (a double-click on it tells the
    orchestrator).
 3. To talk to a session under the orchestrator, press "Take control" on its banner, and "Back to
    reporting to the orchestrator" when you are done; ask it to tell the orchestrator what came
