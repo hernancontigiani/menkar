@@ -576,3 +576,78 @@ pinned — each failed exactly one test.
 **Checks**: `npm run ci` green (120 files, 1590 tests; biome with 23 warnings, none in these
 files; tsc, R10, code rules, i18n, test integrity, history), output in
 `$MENKAR_FILES/menkar-t82-41-b2-ci.log`.
+
+### Block 3 — `menkar-t84` (task 84), 2026-11-18
+
+**Built** (main, and the renderer's minimum):
+
+- `src/shared/workspace.ts`: `TabView.place?: TabPlace` (the type from `place.ts`, so main and
+  renderer share it); `openSession` takes `pin?: true`; a new action `pinTab { tab }`;
+  `ActionResult.backgrounded?: { names, first }`.
+- `src/core/background-toast.ts`: `backgroundToastShown(state)` (`background_toast === true`) and
+  `markBackgroundToast(state)`, beside `mute.ts`; `tests/core/background-toast.test.ts`.
+- `src/main/workspace.ts`:
+  - `mayHide(sessionId)` = `backgroundable(workerTeam(project), orchestrationInfo(project).withYou,
+    id)` of the session's project; `staysPlaced(tab)` = one pane by `tabPanes` (the tab's
+    `panes` while it is not started) and every session `mayHide`: the `keep` of
+    `layout = ordinaryUnless(layout, staysPlaced)`, the first line of `changed()` after the
+    buffers, before `startShownTabs()`.
+  - `selectTabIn(windowId, tabId)`: `select` then `putWindow` (so the recent projects follow);
+    `revealPane`, `revealTab` and the `selectTab` action call it. **Left as they were**: the
+    selection writes of file tabs, new and forked sessions and `discussTopic` (the orchestrator's
+    tab, never placed).
+  - `start_session` and `resume_session` give the new tab `place: 'background'` when `mayHide`
+    (after `placeStarted`, so the parent is already set); `insertTabAfter` puts it after the
+    caller's tab.
+  - `closeOrHide(tabId)`: the human's close. An already background tab → nothing; a session tab
+    (not a chat) with a session that `mayHide` → every other pane of it hung up as the `closeTab`
+    function does (`tabId` moved to `closed-…`, out of `tabPanes`), the layout tab reduced to
+    that session, `toBackground`, `changed()`, its name returned; anything else → the `closeTab`
+    function, unchanged. Used by the `closeTab` action (after its unsaved check), `closePane` on
+    a tab's only pane, `closeAllTabs` and `closeOtherTabs` (over every project's tabs, as before).
+    `closePane` on a pane of a two-pane tab still hangs up that pane, a worker's included (the
+    plan names only the only-pane case).
+  - `backgroundedResult(names)`: `{}` when none; else `first` read and `background_toast` set in
+    one `sessions.updateState`, a failed write logged and `first: false`.
+  - `pinTab` → `pin` in the tab's window; `openSession` passes `{ pin: action.pin === true,
+    worker: mayHide }`; `splitPane` on a placed tab pins it first (`openBeside` already does it
+    in the layout).
+- `src/renderer/app.ts`: `renderStrip` skips `place === 'background'`; a row's click sends
+  `selectSessionTab` when its session's tab has a place, `selectTab` otherwise, as before; its
+  double-click and ⋮ Open send `openSession` with `pin: true` (D3; `pin` on a tab that has no
+  place just selects it, so every row passes it). ⋮'s labels and order are untouched. **⋮ Open
+  was added here by `set`'s decision (2026-11-18)**: no block named it.
+- `e2e/background-workers.spec.ts` (new): a started worker has no tab and its pid lives; a row
+  click shows it last and selected, as the peek; × → background, pid alive; `Ctrl+B x` → the
+  same; ⋮ Open → an ordinary tab; a pinned worker's × → background; Close all → no tab, pid
+  alive; ⋮ Stop → pid gone, no tab. A second test: the layout saved with `"place":"background"`,
+  the window closed, a relaunch on the same root resumes the worker (`--resume`) with one tab in
+  the strip and the worker's tab background. Places are read through `menkar.window.state()`.
+- `e2e/app.ts` (granted by `set` for this): `endSessions(app)`, used by `close()`: Close all,
+  then `stopSession` for every session still open — Close all no longer ends workers, and a
+  running one would leave the app's close waiting on "Stop N running".
+- `e2e/session-control.spec.ts`: the per-task worker, the To review/cap and the `task_star` tests
+  reach the worker by its row (the last one switches to the Team view first); task 2's worker is
+  asserted in the background, then shown from its row. The tests at `:367–384` and `:818` (the
+  role makes the worker ordinary) pass unchanged; `orchestration.spec.ts` needed nothing.
+
+**My choices**: a tab of two sessions where one `mayHide` keeps that one (the first) and hangs up
+the other — the D2 rule applied to a second *session* pane too, so two workers sharing a tab lose
+the second one. The row click uses `selectSessionTab` only for a placed tab. `closeOrHide` on an
+already background tab does nothing and names no one (Close all over background tabs).
+
+**Seen red**: the core test against `background_toast !== undefined`; the e2e against three
+injected defects, rebuilt each time and reverted — nothing `mayHide` (both tests fail), close
+always hanging up (the first fails at "background"), the strip drawing background tabs (both
+fail at the tab count).
+
+**Not done here, for later blocks**: no looks (block 5: the peek's italic and pin button, the
+pills, the toast from `backgrounded`); the agent-facing replies still say "in a tab after yours"
+(block 6). New file tabs and new sessions appended by main (`openFileTab`, `addTransientTab`) still
+land after the peek, as block 1's note says of `moveTab`.
+
+**Checks**: `npm run ci` green (121 files, 1599 tests; biome 23 warnings, none new in these
+files; tsc, R10, code rules, i18n, test integrity, flaky, history), output in
+`$MENKAR_FILES/menkar-t84-41-b3-ci.log`; `npm run ui-check` green (381 passed) in
+`$MENKAR_FILES/menkar-t84-41-b3-ui-check.log`; screenshots `menkar-t84-41-b3-background.png`,
+`menkar-t84-41-b3-peek.png`.

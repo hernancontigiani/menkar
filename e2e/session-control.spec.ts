@@ -349,7 +349,8 @@ test('a worker per task: started for task 1 as "client-work-t1"; parked while it
 
     // The worker reports, and waits on the PR, ending its turn: the human takes control of its
     // read-only tab to type for it.
-    await page.locator('.tab').nth(1).click()
+    // Decision 1.176: a worker runs in the background; its row shows it in the peek.
+    await page.locator(`.row[data-session="${worker}"]`).click()
     await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
     await page
       .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
@@ -405,7 +406,8 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
     await page.keyboard.type('SECONDW')
     await said(page, 'TOOL start_session: This project runs at most 1 workers at once')
 
-    await page.locator('.tab').nth(1).click()
+    // Decision 1.176: a worker runs in the background; its row shows it in the peek.
+    await page.locator(`.row[data-session="${worker}"]`).click()
     await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
     await page
       .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
@@ -438,6 +440,11 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
 
     await page.keyboard.type('SECONDW')
     await said(page, 'TOOL start_session: Started "client-work-t2" in a tab after yours for task 2')
+    // Decision 1.176: running, in the background, until its row shows it.
+    await expect.poll(() => argLines().length).toBe(3)
+    await expect(page.locator('.tab')).toHaveCount(1)
+    const second = /--session-id (\S+)/.exec(argLines()[2] ?? '')?.[1] ?? ''
+    await page.locator(`.row[data-session="${second}"]`).click()
     await expect(page.locator('.tab')).toHaveCount(2)
   } finally {
     await launched.close()
@@ -447,7 +454,7 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
 // Decision 1.144: the orchestrator gives a task the ★ and takes it away with task_star, and the
 // Work view and the Board show it; a session that is not the orchestrator is refused.
 test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Work view and the Board follow; a worker is refused (screenshot)', async () => {
-  const { launched, page, tasksSaved } = await open({ orchestrated: true })
+  const { launched, page, tasksSaved, argLines } = await open({ orchestrated: true })
   const starOf = () =>
     (tasksSaved().projects[CLIENT_WORK]?.tasks[0] as { star?: boolean } | undefined)?.star
   const row = page.locator('.task-row[data-task="1"]')
@@ -480,7 +487,11 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Wo
     // The worker started for task 1 is not the orchestrator.
     await page.keyboard.type('WORKT')
     await said(page, 'TOOL start_session: Started "client-work-t1"')
-    await page.locator('.tab').nth(1).click()
+    // Decision 1.176: a worker runs in the background; its row, in the Team view, shows it.
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await page.locator('#view-switch .view-team').click()
+    await page.locator(`.row[data-session="${worker}"]`).click()
     await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
     await page
       .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })

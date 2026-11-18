@@ -1037,10 +1037,11 @@ function row(
   node.addEventListener('click', () => {
     if (justDragged) return
     const tab = state?.tabs.find((tb) => tb.panes.some((p) => p.sessionId === info.id))
-    if (tab) void act({ type: 'selectTab', tab: tab.id })
+    if (tab?.place !== undefined) void act({ type: 'selectSessionTab', session: info.id })
+    else if (tab) void act({ type: 'selectTab', tab: tab.id })
   })
   node.addEventListener('dblclick', () => {
-    if (!justDragged) void act({ type: 'openSession', session: info.id })
+    if (!justDragged) void act({ type: 'openSession', session: info.id, pin: true })
   })
   return node
 }
@@ -1052,7 +1053,10 @@ function rowMenu(info: SessionInfo, running: boolean, project: ProjectInfo): Men
       void act({ type: 'setGroup', session: info.id, group: { name: g.name, color: g.color } }),
   }))
   const entries: MenuEntry[] = [
-    { label: t('row.open'), run: () => void act({ type: 'openSession', session: info.id }) },
+    {
+      label: t('row.open'),
+      run: () => void act({ type: 'openSession', session: info.id, pin: true }),
+    },
     {
       label: t('row.openBeside'),
       run: () => void openBeside(info.id),
@@ -1157,7 +1161,7 @@ async function openBeside(session: string): Promise<void> {
 
 function renderStrip(s: WindowState): void {
   const strip = $('tab-strip')
-  const tabs = s.tabs.filter((tab) => tab.project === s.shown)
+  const tabs = s.tabs.filter((tab) => tab.project === s.shown && tab.place !== 'background')
   const nodes = tabs.map((tab) => tabButton(tab, tab.id === s.selectedTab))
   const plus = el('button', { id: 'strip-plus', title: t('tab.newInProject') }, '+')
   plus.addEventListener('click', () => openAddSession('new'))

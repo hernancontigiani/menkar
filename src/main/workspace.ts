@@ -7,6 +7,7 @@ import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from '
 import { descriptorOf } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { isDefault, kitOf } from '../core/agents/registry'
+import { backgroundToastShown, markBackgroundToast } from '../core/background-toast'
 import { now } from '../core/clock'
 import { commandLine, mcpConfig, type Start } from '../core/command'
 import { PANE_ENV, type PaneStartSource } from '../core/context/statusline'
@@ -73,6 +74,7 @@ import {
   updateTopic,
 } from '../core/orchestration/topics'
 import {
+  backgroundable,
   capRefusal,
   capTool,
   hideOnClose,
@@ -108,13 +110,17 @@ import {
   nthTab,
   openBeside,
   openSession,
+  ordinaryUnless,
+  pin,
   removeWindow,
   reopen,
+  select,
   setMaximized,
   shownTab,
   stepTab,
   switchProject,
   type Tab,
+  toBackground,
   toSaved,
 } from '../core/projects/layout'
 import {
@@ -364,6 +370,26 @@ function replaceTab(tabId: string, change: (tab: Tab) => Tab): void {
   if (w) putWindow({ ...w, tabs: w.tabs.map((tab) => (tab.id === tabId ? change(tab) : tab)) })
 }
 
+// The one way main selects a tab: a worker's background tab becomes its project's peek.
+function selectTabIn(windowId: string, tabId: string): void {
+  const w = select(layout, windowId, tabId).windows.find((x) => x.id === windowId)
+  if (w) putWindow(w)
+}
+
+// Whether a session's tab leaves the strip instead of ending when closed (decision 1.176).
+function mayHide(sessionId: string): boolean {
+  const project = projectOf(projects, sessionId)
+  return (
+    project !== undefined &&
+    backgroundable(workerTeam(project), orchestrationInfo(project).withYou, sessionId)
+  )
+}
+
+// A tab may stay in the background or the peek only while it holds one pane, a split shell
+// included, of a session that may still be hidden.
+const staysPlaced = (tab: Tab & { kind: 'session' }): boolean =>
+  (tabPanes.get(tab.id) ?? tab.panes).length === 1 && tab.panes.every(mayHide)
+
 function paneOfSession(sessionId: string): Pane | undefined {
   for (const pane of panes.values()) if (pane.sessionId === sessionId) return pane
   return undefined
@@ -434,6 +460,7 @@ function tabView(tab: Tab): TabView {
         }
       : {}),
     ...(tabChats.has(tab.id) ? { chat: tabChats.get(tab.id) ?? '' } : {}),
+    ...(tab.kind === 'session' && tab.place !== undefined ? { place: tab.place } : {}),
     ...drawerView(tab.id),
   }
 }
@@ -736,6 +763,7 @@ function changed(options: { projects?: boolean } = {}): void {
     return project !== undefined && orchestrationInfo(project).on
   })
   releaseBuffersExcept(filePaths())
+  layout = ordinaryUnless(layout, staysPlaced)
   startShownTabs()
   syncShown(new Set(layout.windows.map((lw) => lw.shown)))
   push()
@@ -1105,7 +1133,7 @@ export function revealPane(paneId: string): void {
   const w = pane ? windowOfTab(pane.tabId) : undefined
   const tab = pane ? tabById(pane.tabId) : undefined
   if (!pane || !w || !tab) return
-  putWindow({ ...w, shown: tab.project, selected: { ...w.selected, [tab.project]: tab.id } })
+  selectTabIn(w.id, tab.id)
   windows.get(w.id)?.focus()
   notifySeen()
   changed()
@@ -1163,6 +1191,52 @@ function closeTab(tabId: string): void {
     pane.terminal.hangUp()
   }
   changed()
+}
+
+// The human's close of a tab: a worker's tab goes to the background with its process running
+// (decision 1.176), any other tab is closed. A second pane beside the worker is hung up, as
+// closing would. The worker's name when it was sent to the background.
+function closeOrHide(tabId: string): string | null {
+  const tab = tabById(tabId)
+  const w = windowOfTab(tabId)
+  if (tab?.kind === 'session' && tab.place === 'background') return null
+  const kept = tab?.kind === 'session' && !tabChats.has(tabId) ? tab.panes.find(mayHide) : undefined
+  if (!w || kept === undefined) {
+    closeTab(tabId)
+    return null
+  }
+  const ids = tabPanes.get(tabId)
+  if (ids) {
+    for (const id of ids) {
+      const pane = panes.get(id)
+      if (!pane || pane.sessionId === kept) continue
+      pane.tabId = `closed-${tabId}`
+      pane.terminal.hangUp()
+    }
+    tabPanes.set(
+      tabId,
+      ids.filter((id) => panes.get(id)?.sessionId === kept),
+    )
+  }
+  replaceTab(tabId, (t) => (t.kind === 'session' ? { ...t, panes: [kept] } : t))
+  layout = toBackground(layout, w.id, tabId)
+  changed()
+  return sessionName(kept)
+}
+
+// What a close sent to the background, and whether it is the first time ever, for the toast.
+async function backgroundedResult(names: readonly string[]): Promise<ActionResult> {
+  if (names.length === 0) return {}
+  let first = false
+  try {
+    await sessions.updateState((state) => {
+      first = !backgroundToastShown(state)
+      return first ? markBackgroundToast(state) : state
+    })
+  } catch (error) {
+    log.error('state.json could not record the background toast', { error })
+  }
+  return { backgrounded: { names, first } }
 }
 
 // ---------------------------------------------------------------- a new session joining
@@ -1447,6 +1521,7 @@ async function resumeFor(
     project: project.id,
     panes: [id],
     orientation: 'horizontal',
+    ...(mayHide(id) ? { place: 'background' as const } : {}),
   }
   layout = insertTabAfter(layout, caller.tabId, tab)
   await startPane(tab.id, { ...resumeSpec(id), ...(promptFile ? { promptFile } : {}) })
@@ -1917,6 +1992,7 @@ async function startForAgent(
     project: projectId,
     panes: [id],
     orientation: 'horizontal',
+    ...(mayHide(id) ? { place: 'background' as const } : {}),
   }
   layout = insertTabAfter(layout, caller.tabId, tab)
   await startPane(tab.id, {
@@ -2811,7 +2887,10 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'openSession': {
       const before = new Set(layout.windows.flatMap((lw) => lw.tabs.map((tab) => tab.id)))
-      const opened = openSession(layout, projects, windowId, action.session, newId)
+      const opened = openSession(layout, projects, windowId, action.session, newId, {
+        pin: action.pin === true,
+        worker: mayHide,
+      })
       layout = opened.layout
       projects = opened.projects
       if (!before.has(opened.tab)) await startPane(opened.tab, resumeSpec(action.session))
@@ -3119,8 +3198,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       changed()
       return {}
     case 'selectTab': {
-      const tab = w.tabs.find((x) => x.id === action.tab)
-      if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })
+      if (w.tabs.some((x) => x.id === action.tab)) selectTabIn(windowId, action.tab)
       notifySeen()
       changed()
       return {}
@@ -3136,8 +3214,8 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       ) {
         return { unsaved: [basename(tab.path)], value: tab.path }
       }
-      closeTab(action.tab)
-      return {}
+      const hidden = closeOrHide(action.tab)
+      return backgroundedResult(hidden === null ? [] : [hidden])
     }
     case 'openFile': {
       const expanded = expandInput(action.input, homedir())
@@ -3206,11 +3284,19 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       await openTerminalPath(action.path)
       return {}
     case 'closeAllTabs':
-      for (const tab of w.tabs) closeTab(tab.id)
-      return {}
+      return backgroundedResult(w.tabs.flatMap((tab) => closeOrHide(tab.id) ?? []))
     case 'closeOtherTabs':
-      for (const tab of w.tabs) if (tab.id !== action.tab) closeTab(tab.id)
+      return backgroundedResult(
+        w.tabs.flatMap((tab) => (tab.id === action.tab ? [] : (closeOrHide(tab.id) ?? []))),
+      )
+    case 'pinTab': {
+      const tw = windowOfTab(action.tab)
+      if (!tw) return {}
+      layout = pin(layout, tw.id, action.tab)
+      notifySeen()
+      changed()
       return {}
+    }
     case 'toggleDrawer': {
       const tabId = shownTab(w)
       if (!tabId) return {}
@@ -3345,6 +3431,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const tab = tabById(action.tab)
       if (!tab || tab.kind === 'file' || ids.length === 0) return {}
       if (ids.length >= 2) return { refusal: 'layout.twoPanesMax' }
+      const tw = windowOfTab(action.tab)
+      if (tab.kind === 'session' && tab.place !== undefined && tw)
+        layout = pin(layout, tw.id, action.tab)
       setOrientation(action.tab, action.orientation)
       // Menkar types nothing into a shell pane.
       await startPane(action.tab, {
@@ -3358,9 +3447,12 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'closePane': {
       const pane = panes.get(action.pane)
       if (!pane) return {}
-      if ((tabPanes.get(pane.tabId) ?? []).length <= 1) closeTab(pane.tabId)
-      else pane.terminal.hangUp()
-      return {}
+      if ((tabPanes.get(pane.tabId) ?? []).length > 1) {
+        pane.terminal.hangUp()
+        return {}
+      }
+      const hidden = closeOrHide(pane.tabId)
+      return backgroundedResult(hidden === null ? [] : [hidden])
     }
     case 'refreshSessions':
       await sessions.refresh()
@@ -3474,7 +3566,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const tw = windowOfTab(action.tab)
       const tab = tabById(action.tab)
       if (!tw || !tab) return {}
-      putWindow({ ...tw, shown: tab.project, selected: { ...tw.selected, [tab.project]: tab.id } })
+      selectTabIn(tw.id, tab.id)
       windows.get(tw.id)?.focus()
       notifySeen()
       changed()

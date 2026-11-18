@@ -9,6 +9,7 @@ import type { ReviewWait, TaskState } from '../core/orchestration/taskState'
 import type { SettingsSection } from '../core/preferences'
 import type { PresenceView } from '../core/presence'
 import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
+import type { TabPlace } from '../core/projects/place'
 import type { Details } from '../core/sessions/details'
 import type { SessionInfo } from '../core/sessions/info'
 import type { Settings } from '../core/settings'
@@ -42,6 +43,9 @@ export interface TabView {
   // The shell under the tab's panes (decision 1.29), while it runs: its id on the pty channels,
   // whether it is shown, and its label. Never saved.
   readonly drawer?: { readonly id: string; readonly shown: boolean; readonly label: string }
+  // An orchestrator's worker's tab out of the strip, or in its project's one peek; absent, an
+  // ordinary tab (decision 1.176).
+  readonly place?: TabPlace
 }
 
 // A file in a project's files folder (decision 1.51), newest first.
@@ -152,7 +156,8 @@ export type Action =
   | { readonly type: 'createProject'; readonly name: string }
   | { readonly type: 'renameProject'; readonly project: string; readonly name: string }
   | { readonly type: 'deleteProject'; readonly project: string }
-  | { readonly type: 'openSession'; readonly session: string }
+  // `pin`: a worker's background tab or peek opens as an ordinary tab instead of the peek.
+  | { readonly type: 'openSession'; readonly session: string; readonly pin?: true }
   | { readonly type: 'openBeside'; readonly session: string }
   | { readonly type: 'stopSession'; readonly session: string }
   | {
@@ -236,6 +241,7 @@ export type Action =
   | { readonly type: 'closeTab'; readonly tab: string; readonly force?: boolean }
   | { readonly type: 'closeAllTabs' }
   | { readonly type: 'closeOtherTabs'; readonly tab: string }
+  | { readonly type: 'pinTab'; readonly tab: string }
   // Shows or hides the selected tab's drawer, starting its shell in the folder of `pane` (the
   // focused one) when it has none.
   // With `folder` (the orchestrator's tab, decision 1.78), a drawer started now starts there.
@@ -363,6 +369,9 @@ export interface ActionResult {
   readonly file?: FileState
   // Closing would lose unsaved edits: the files' names, to ask first.
   readonly unsaved?: readonly string[]
+  // The workers a close sent to the background instead of ending them; `first`, the first time
+  // ever, when the toast says so.
+  readonly backgrounded?: { readonly names: readonly string[]; readonly first: boolean }
 }
 
 export interface FileState {

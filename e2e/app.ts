@@ -84,23 +84,35 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
     app,
     window,
     async close() {
-      // A running agent makes closing the window ask; a test's end closes its tabs first.
-      for (const page of app.windows()) {
-        await page
-          .evaluate(() =>
-            (
-              globalThis as unknown as {
-                menkar?: { window: { act(a: { type: string }): Promise<unknown> } }
-              }
-            ).menkar?.window.act({
-              type: 'closeAllTabs',
-            }),
-          )
-          .catch(() => undefined)
-      }
+      await endSessions(app)
       await app.close()
       rmSync(root, { recursive: true, force: true })
     },
+  }
+}
+
+// A running agent makes closing the window ask: a test's end closes its tabs first, then stops
+// the orchestrator's workers Close all leaves running in the background.
+export async function endSessions(app: ElectronApplication): Promise<void> {
+  for (const page of app.windows()) {
+    await page
+      .evaluate(async () => {
+        const menkar = (
+          globalThis as unknown as {
+            menkar?: {
+              window: {
+                act(a: { type: string; session?: string }): Promise<unknown>
+                state(): Promise<{ open: readonly string[] }>
+              }
+            }
+          }
+        ).menkar
+        if (!menkar) return
+        await menkar.window.act({ type: 'closeAllTabs' })
+        for (const session of (await menkar.window.state()).open)
+          await menkar.window.act({ type: 'stopSession', session })
+      })
+      .catch(() => undefined)
   }
 }
 
