@@ -1,0 +1,25 @@
+# Menkar Sandbox: the multi-agent branch's build, installed beside the daily Menkar and unable to
+# touch it. Everything else comes from electron-builder.yml. The post-install, post-remove and
+# AppArmor templates follow executableName and the sanitized productName; these names do not, and
+# each one left out would make apt or the desktop take the sandbox for the daily Menkar.
+extends: ./electron-builder.yml
+appId: io.github.hernancontigiani.MenkarSandbox
+# The sanitized product name is the install folder, /opt/Menkar-sandbox: a space would be kept in
+# it. The name the app shows comes from its own strings.
+productName: Menkar-sandbox
+executableName: menkar-sandbox
+directories:
+  # Not release/: its linux-unpacked would replace the daily build's.
+  output: release/sandbox
+extraMetadata:
+  desktopName: menkar-sandbox.desktop
+linux:
+  # Its own icon: Menkar's star, dark, on an amber tile, drawn from menkar-sandbox.svg beside it.
+  icon: build/icons-sandbox
+  desktop:
+    entry:
+      Name: Menkar Sandbox
+deb:
+  # Without it apt installs the sandbox as an upgrade that replaces the daily Menkar.
+  packageName: menkar-sandbox
+  artifactName: menkar-sandbox_${version}_${arch}.${ext}

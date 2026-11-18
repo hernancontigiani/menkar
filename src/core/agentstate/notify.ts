@@ -1,10 +1,5 @@
 import type { ShownState } from './shown'
 
-export const AGENT_NAMES: Readonly<Record<string, string>> = {
-  claude: 'Claude Code',
-  cursor: 'Cursor',
-}
-
 // The freedesktop sound theme's files; a system without them gets the system beep.
 export const SOUNDS = {
   blocked: '/usr/share/sounds/freedesktop/stereo/dialog-warning.oga',

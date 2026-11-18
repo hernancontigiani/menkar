@@ -44,9 +44,9 @@ async function resolved(path: string): Promise<string> {
 // ~/.claude, anything in it, and ~/.claude.json, each resolved through links.
 export async function isClaudeData(path: string, home: string): Promise<boolean> {
   const target = await resolved(path)
-  const claudeDir = await resolved(join(home, '.claude'))
-  const claudeJson = await resolved(join(home, '.claude.json'))
-  return target === claudeJson || target === claudeDir || target.startsWith(`${claudeDir}/`)
+  const dir = await resolved(join(home, '.claude'))
+  const config = await resolved(join(home, '.claude.json'))
+  return target === config || target === dir || target.startsWith(`${dir}/`)
 }
 
 export type CheckedFile =

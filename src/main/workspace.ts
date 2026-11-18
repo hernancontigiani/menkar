@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
+import { stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
-import { AGENT_COMMANDS } from '../core/agents'
+import { descriptorOf } from '../core/agents/descriptors'
+import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
+import { isDefault, kitOf } from '../core/agents/registry'
 import { now } from '../core/clock'
-import { buildCommand, mcpConfig, type Start } from '../core/command'
+import { commandLine, mcpConfig, type Start } from '../core/command'
 import { PANE_ENV, type PaneStartSource } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
 import { WakeBatcher, wakesParent } from '../core/control/events'
@@ -18,13 +20,13 @@ import {
 } from '../core/control/files'
 import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
 import { readModel } from '../core/control/model'
-import { postToSession } from '../core/control/post'
 import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
 import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
 import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalPathExists } from '../core/files/exists'
-import { type Key, t } from '../core/i18n'
+import { flavorFacts, paneFlavorEnv, refusalFor } from '../core/flavor'
+import { type Key, t, translate } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
 import { followModel, modelOf, setModel } from '../core/models'
@@ -173,10 +175,9 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
-import { lastReply, onlyTeamUpdates, reportClosedTurn } from '../core/sessions/lastreply'
-import { details, exportMarkdown, safeFileName } from '../core/sessions/transcript'
+import { safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
-import { setAppName } from '../core/state'
+import { restoreOf, sessionAgents, setAppName, withSessionAgent } from '../core/state'
 import { teamInput } from '../core/team/input'
 import { type FoundSkill, listSkills } from '../core/team/skills'
 import type { RoleSkills } from '../shared/ipc'
@@ -192,9 +193,10 @@ import type {
   TopicView,
   WindowState,
 } from '../shared/workspace'
+import { mainKitOf } from './agents/registry'
 import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
-import { contextReading, sessionSettingsFile, trackContext } from './context'
+import { contextReading, trackContext } from './context'
 import {
   type ControlHandlers,
   mcpServerScript,
@@ -234,7 +236,7 @@ import {
   undoBring,
 } from './project-files'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
-import { sessions } from './sessions'
+import { noteStarted, sessions, shownSessions, startedIds } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
 import { currentTasks, setTasks } from './tasks'
 import {
@@ -278,6 +280,8 @@ interface Pane {
 let remoteIds = new Set<string>()
 // The sessions in state.json's `muted`, kept the same way.
 let mutedIds = new Set<string>()
+// state.json's `session_agents`, kept the same way.
+let savedAgents: Readonly<Record<string, string>> = {}
 
 // The orientation of a tab that is not a session tab in the layout (a transient tab split).
 const tabOrientation = new Map<string, 'horizontal' | 'vertical'>()
@@ -304,7 +308,7 @@ const windows = new Map<string, BrowserWindow>()
 const allowedToClose = new Set<string>()
 // Windows, the most recently focused first.
 let focusOrder: string[] = []
-let installedAgents: ('claude' | 'cursor')[] = []
+let installedAgents: AgentId[] = []
 let closingLast = false
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let joinTimer: ReturnType<typeof setInterval> | undefined
@@ -320,7 +324,17 @@ const ownName = (id: string): string | undefined => {
   const info = sessionInfo(id)
   return info?.claudeNamed ? info.name : startedNames.get(id)
 }
-const agentName = (agent: PaneAgent) => (agent === 'cursor' ? t('agent.cursor') : t('agent.claude'))
+// A shell is named as the default agent, as it always was.
+const agentName = (agent: PaneAgent) =>
+  translate(descriptorOf(agent === 'shell' ? DEFAULT_AGENT : agent).label)
+// The pane's agent; null for a shell.
+const agentOf = (pane: Pane | undefined): AgentId | null =>
+  !pane || pane.agent === 'shell' ? null : pane.agent
+// Whether Menkar can wake the session the pane runs.
+const wakeable = (pane: Pane | undefined): boolean => {
+  const agent = agentOf(pane)
+  return agent !== null && mainKitOf(agent).waker !== null
+}
 
 function windowOfTab(tabId: string): LayoutWindow | undefined {
   return layout.windows.find((w) => w.tabs.some((tab) => tab.id === tabId))
@@ -545,7 +559,7 @@ function stateFor(windowId: string): WindowState | undefined {
     heldElsewhere,
     tabs: w.tabs.map(tabView),
     selectedTab: shownTab(w),
-    sessions: sessionList,
+    sessions: shownSessions(sessionList),
     running: [...panes.values()]
       .filter((p) => p.sessionId && p.terminal.running)
       .map((p) => p.sessionId as string),
@@ -778,16 +792,18 @@ function startShownTabs(): void {
   }
 }
 
-// Once, after the first scan: a saved tab keeps only the sessions that still exist, and goes
-// when none does. Only tabs not started yet are looked at; a started one is the user's.
+// Once, after the first scan: a saved tab keeps only the sessions that still exist or that
+// `session_agents` names, and goes when none is left. Only tabs not started yet are looked at; a
+// started one is the user's.
 function dropUnknownSessions(): void {
-  const known = new Set(sessionList.map((s) => s.id))
+  const found = new Map(sessionList.map((s) => [s.id, s.agent]))
+  const kept = (id: string) => restoreOf(found.get(id), savedAgents[id]).kind !== 'unnamed'
   layout = {
     windows: layout.windows.map((w) => ({
       ...w,
       tabs: w.tabs.flatMap((tab): Tab[] => {
         if (tab.kind !== 'session' || tabPanes.has(tab.id) || startingTabs.has(tab.id)) return [tab]
-        const panesKnown = tab.panes.filter((id) => known.has(id))
+        const panesKnown = tab.panes.filter(kept)
         return panesKnown.length > 0 ? [{ ...tab, panes: panesKnown }] : []
       }),
     })),
@@ -806,6 +822,8 @@ interface PaneSpec {
   readonly remote?: string
   // A file holding the first prompt, read by the shell.
   readonly promptFile?: string
+  // A line of Menkar's above the pane's shell.
+  readonly notice?: string
 }
 
 // Tabs whose panes are being started: a start awaits before the tab has its panes, and a change
@@ -909,7 +927,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   }
   const id = newId()
   const tag = t('terminal.tag')
-  const messages: string[] = []
+  const messages: string[] = spec.notice ? [appMessage(tag, spec.notice)] : []
   let command: string | undefined
   // The tab's project files folder (decision 1.51), made first so the --settings file names one that
   // exists.
@@ -929,39 +947,42 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
           return null
         })
       : null
+  // The SessionStart hook names the pane, so a clear can be followed (followClear).
+  let env: Readonly<Record<string, string>> = {
+    [PANE_ENV]: id,
+    ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}),
+    ...(privateFolder ? { MENKAR_PRIVATE: privateFolder } : {}),
+    ...paneFlavorEnv(),
+  }
   if (spec.agent !== 'shell' && spec.start) {
-    const cliName = AGENT_COMMANDS[spec.agent]
+    const cliName = descriptorOf(spec.agent).command
     const cli = await findOnPath(cliName)
     if (cli === null) messages.push(appMessage(tag, t('terminal.notFound', { cli: cliName })))
     else {
-      const settingsFile =
-        spec.agent === 'claude'
-          ? await sessionSettingsFile(
-              filesFolder && projectId ? { id: projectId, folder: filesFolder } : undefined,
-            )
-          : undefined
+      const settings = await mainKitOf(spec.agent).settings?.(
+        filesFolder && projectId ? { id: projectId, folder: filesFolder } : undefined,
+      )
       const start = spec.start
       const teamFile = await startTeam({
         pane: id,
         agent: spec.agent,
         cli,
         cwd: spec.cwd,
-        fork: start.kind === 'fork',
+        start,
         input: (found) => startInput(projectId, spec.sessionId, start, found),
       })
-      command = buildCommand(spec.agent, spec.start, {
+      const plan = kitOf(spec.agent).launch.plan(start, {
         cli,
-        ...(settingsFile ? { settings: settingsFile } : {}),
-        ...(spec.agent === 'claude' && spec.remote ? { remoteControl: spec.remote } : {}),
-        ...(spec.agent === 'claude'
-          ? {
-              mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
-              pluginDir: skillsPluginDir(),
-            }
-          : {}),
+        env,
+        ...(settings ? { settings } : {}),
+        ...(spec.remote ? { remoteControl: spec.remote } : {}),
+        mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
+        pluginDir: skillsPluginDir(),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
         ...(teamFile ? { teamFile } : {}),
       })
+      command = commandLine(plan)
+      env = plan.env
     }
   }
   const size = { cols: 80, rows: 24 }
@@ -973,12 +994,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       messages,
       folderGone: (cwd) => appMessage(tag, t('terminal.folderGone', { cwd })),
       ...(command ? { command } : {}),
-      // The SessionStart hook names the pane, so a clear can be followed (followClear).
-      env: {
-        [PANE_ENV]: id,
-        ...(filesFolder ? { MENKAR_FILES: filesFolder } : {}),
-        ...(privateFolder ? { MENKAR_PRIVATE: privateFolder } : {}),
-      },
+      env,
     },
     {
       data: (data, end) => {
@@ -1000,8 +1016,11 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     handle: undefined,
     pending: spec.pending,
     cwd: spec.cwd,
-    remote: spec.agent === 'claude' && spec.remote !== undefined,
+    remote:
+      spec.agent !== 'shell' && mainKitOf(spec.agent).remote !== null && spec.remote !== undefined,
   }
+  if (spec.sessionId) noteStarted(spec.sessionId)
+  if (spec.sessionId && spec.start) recordAgent(spec.sessionId, spec.agent)
   const self = pane
   if (spec.agent !== 'shell') {
     self.handle = registerAgentPane(id, spec.agent, size, {
@@ -1171,12 +1190,24 @@ async function checkPending(list: readonly Pane[]): Promise<void> {
   }
 }
 
+// A session of an agent other than the default is recorded with its agent when its pane starts or
+// its id binds, so a restore that finds no files for it still knows it.
+function recordAgent(sessionId: string, agent: PaneAgent): void {
+  if (agent === 'shell' || isDefault(agent) || savedAgents[sessionId] === agent) return
+  savedAgents = { ...savedAgents, [sessionId]: agent }
+  sessions
+    .updateState((state) => withSessionAgent(state, sessionId, agent))
+    .catch((error: unknown) => log.error('a session’s agent could not be recorded', { error }))
+}
+
 function joinSession(pane: Pane, sessionId: string): void {
   const pending = pane.pending
   if (!pending) return
   pane.pending = undefined
   projects = addMember(projects, joinTarget(projects, pending.startedIn), sessionId)
   pane.sessionId = sessionId
+  noteStarted(sessionId)
+  recordAgent(sessionId, pane.agent)
   teamPaneChanged(pane.id)
   if (panes.has(pane.id)) {
     tabLabels.delete(pane.tabId)
@@ -1270,9 +1301,11 @@ const prompted = async (id: string, prompt: unknown): Promise<string | ControlAn
 
 async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
   const pane = panes.get(request.pane)
+  const agent = agentOf(pane)
   const sessionId = pane?.sessionId
   const project = sessionId ? projectOf(projects, sessionId) : undefined
-  if (!pane || pane.agent !== 'claude' || !sessionId || !project) return refuse(NOT_KNOWN)
+  if (!pane || !agent || kitOf(agent).mcp === null || !sessionId || !project)
+    return refuse(NOT_KNOWN)
   switch (request.tool) {
     case 'renew':
       return requestRenew(pane, sessionId, request)
@@ -1397,7 +1430,8 @@ async function resumeFor(
   if ('refusal' in found) return refuse(found.refusal)
   const id = found.id
   if (inSomeTab(id)) return refuse(`"${named.trim()}" already has a tab.`)
-  if (sessionInfo(id)?.agent !== 'claude') return refuse('Only a Claude Code session is resumed.')
+  const agent = sessionInfo(id)?.agent
+  if (!agent || kitOf(agent).mcp === null) return refuse('Only a Claude Code session is resumed.')
   if (isWorker(team, id)) {
     const full = capRefusal(team, runningIn(project.id))
     if (full) return refuse(full)
@@ -1737,7 +1771,8 @@ async function renew(paneId: string): Promise<void> {
   const pane = panes.get(paneId)
   renewRequests.delete(paneId)
   if (request) clearTimeout(request.timer)
-  if (!request || !pane || pane.sessionId !== request.sessionId) return
+  const agent = agentOf(pane)
+  if (!request || !pane || !agent || pane.sessionId !== request.sessionId) return
   const from = request.sessionId
   const info = sessionInfo(from)
   const to = randomUUID()
@@ -1758,7 +1793,7 @@ async function renew(paneId: string): Promise<void> {
     if (!tabById(tabId)) return
     const remote = remoteIds.has(to) ? remoteName(name ?? '', pane.cwd, to) : undefined
     await startPane(tabId, {
-      agent: 'claude',
+      agent,
       start: { kind: 'new', id: to, ...(name ? { name } : {}), ...(model ? { model } : {}) },
       cwd: pane.cwd,
       sessionId: to,
@@ -1885,7 +1920,7 @@ async function startForAgent(
   }
   layout = insertTabAfter(layout, caller.tabId, tab)
   await startPane(tab.id, {
-    agent: 'claude',
+    agent: DEFAULT_AGENT,
     start: { kind: 'new', id, name, ...model },
     cwd,
     sessionId: id,
@@ -1968,12 +2003,14 @@ async function lastReplyFor(projectId: string, named: unknown): Promise<ControlA
   return 'refusal' in answer ? refuse(answer.refusal) : { ok: true, text: answer.text }
 }
 
-// A Claude session's last reply, or null when it has none (or no transcript yet).
+// A session's last reply, or null when it has none (or no transcript yet, or its agent's catalog
+// reads none).
 async function replyOf(sessionId: string): Promise<string | null> {
   const info = sessionInfo(sessionId)
-  if (!info || info.agent !== 'claude') return null
+  const read = info ? kitOf(info.agent).catalog.lastReply : null
+  if (!info || !read) return null
   try {
-    return await lastReply(info.file)
+    return await read(info.file)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     return null
@@ -2035,7 +2072,9 @@ const wakes = new WakeBatcher(
 )
 
 onShownChange((paneId, sessionId, previous, next) => {
-  if (!sessionId || panes.get(paneId)?.agent !== 'claude') return
+  const agent = agentOf(panes.get(paneId))
+  const reading = agent ? kitOf(agent).catalog.turnEnd : null
+  if (!sessionId || !reading) return
   const turnEnd = previous === 'working' && (next === 'idle' || next === 'done')
   const posted = turnEnd && teamTurnEnded(paneId)
   const project = projectOf(projects, sessionId)
@@ -2047,8 +2086,8 @@ onShownChange((paneId, sessionId, previous, next) => {
     previous,
     next,
     posted,
-    async () => (file ? onlyTeamUpdates(file) : false),
-    async () => (file ? reportClosedTurn(file, parentName) : false),
+    async () => (file ? reading.onlyTeamUpdates(file) : false),
+    async () => (file ? reading.reportedTo(file, parentName) : false),
   )
     .catch((error: unknown) => {
       log.warn('a turn could not be read; its parent is woken', { pane: paneId, error })
@@ -2064,9 +2103,10 @@ onShownChange((paneId, sessionId, previous, next) => {
 })
 
 async function wakeSession(parent: string, text: string): Promise<void> {
-  const pane = paneOfSession(parent)
-  if (pane?.agent !== 'claude') {
-    log.info('a parent with no Claude tab was not woken', { parent })
+  const agent = agentOf(paneOfSession(parent))
+  const waker = agent ? mainKitOf(agent).waker : null
+  if (!waker) {
+    log.info('a parent with no tab that can be woken was not woken', { parent })
     return
   }
   try {
@@ -2077,13 +2117,7 @@ async function wakeSession(parent: string, text: string): Promise<void> {
       project ? topicsOf(currentTopics(), project.id) : [],
       project ? tasksOf(currentTasks(), project.id) : [],
     )
-    const outcome = await postToSession(
-      agentPaths().claudeSessions,
-      parent,
-      text,
-      randomUUID(),
-      counts,
-    )
+    const outcome = await waker.wake(parent, text, counts)
     if (outcome === 'posted') log.info('a parent session was woken', { parent })
     else log.warn('a parent session could not be woken', { parent, outcome })
   } catch (error) {
@@ -2104,11 +2138,11 @@ const inSomeTab = (sessionId: string) =>
 export function followPaneStart(paneId: string, sessionId: string, source: PaneStartSource): void {
   const pane = panes.get(paneId)
   teamStartRecord(paneId, source, pane?.sessionId === sessionId)
-  if (source === 'compact') return
   const from = pane?.sessionId
   const tab = pane ? tabById(pane.tabId) : undefined
-  if (!pane || pane.agent !== 'claude' || !from || from === sessionId || tab?.kind !== 'session')
-    return
+  const agent = agentOf(pane)
+  const change = agent ? (kitOf(agent).follow?.classify(source) ?? null) : null
+  if (!pane || !change || !from || from === sessionId || tab?.kind !== 'session') return
   // A session is in one tab at most: a resume of one another tab holds leaves this tab as it was.
   if (inSomeTab(sessionId)) {
     log.warn('a pane’s new session is open in another tab; the pane is not followed', {
@@ -2118,7 +2152,7 @@ export function followPaneStart(paneId: string, sessionId: string, source: PaneS
     })
     return
   }
-  if (source === 'clear') {
+  if (change === 'clear') {
     if (!followClear(pane, from, sessionId))
       log.warn(
         'a cleared session was not followed: its old id is in no project, or its new one is',
@@ -2132,6 +2166,7 @@ export function followPaneStart(paneId: string, sessionId: string, source: PaneS
   followTaskAssignee(from, sessionId)
   void followSessionModel(from, sessionId)
   pane.sessionId = sessionId
+  noteStarted(sessionId)
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
 }
@@ -2146,6 +2181,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
   projects = next
   layout = followNewIdInLayout(layout, from, to)
   pane.sessionId = to
+  noteStarted(to)
   tabLabels.delete(pane.tabId)
   if (remoteIds.has(from)) {
     remoteIds.delete(from)
@@ -2213,7 +2249,7 @@ function createBrowserWindow(windowId: string): BrowserWindow {
   const window = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
-    title: t('window.title'),
+    title: translate(flavorFacts().titleKey),
     backgroundColor: '#1e1e2e',
     show: false,
     // The header is the title bar; the system draws only its window buttons, over the header's
@@ -2498,11 +2534,28 @@ const isFile = (path: string) => {
   }
 }
 
+// A session no reader found but `session_agents` names gets a shell with one line instead of its
+// agent, its tab and id kept as saved.
 function resumeSpec(sessionId: string): PaneSpec {
   const info = sessionInfo(sessionId)
-  const agent = info?.agent ?? 'claude'
+  const restore = restoreOf(info?.agent, savedAgents[sessionId])
+  if (restore.kind === 'missing')
+    return {
+      agent: 'shell',
+      cwd: null,
+      sessionId,
+      notice: t('terminal.restoreMissing', { agent: agentName(restore.agent) }),
+    }
+  if (restore.kind === 'unsupported')
+    return {
+      agent: 'shell',
+      cwd: null,
+      sessionId,
+      notice: t('terminal.restoreUnsupported', { agent: restore.agent }),
+    }
+  const agent = restore.kind === 'resume' ? restore.agent : DEFAULT_AGENT
   const remote =
-    agent === 'claude' && remoteIds.has(sessionId)
+    mainKitOf(agent).remote !== null && remoteIds.has(sessionId)
       ? remoteName(info?.name ?? '', info?.cwd ?? null, sessionId)
       : undefined
   return {
@@ -2524,7 +2577,8 @@ export async function startWorkspace(): Promise<void> {
   // ends, and the shown project's saved tabs start then (`startShownTabs` waits for it).
   sessionList = sessions.listNow()
   void sessions.start().then(
-    () => {
+    async () => {
+      savedAgents = sessionAgents(await sessions.currentState())
       sessionList = sessions.listNow()
       dropUnknownSessions()
       firstScanDone(sessionList.length)
@@ -2540,9 +2594,10 @@ export async function startWorkspace(): Promise<void> {
   startPhase('state for the workspace')
   remoteIds = new Set(remoteControlList(await sessions.currentState()))
   mutedIds = new Set(mutedList(await sessions.currentState()))
+  savedAgents = sessionAgents(await sessions.currentState())
   installedAgents = []
-  if (await findOnPath(AGENT_COMMANDS.claude)) installedAgents.push('claude')
-  if (await findOnPath(AGENT_COMMANDS.cursor)) installedAgents.push('cursor')
+  for (const agent of AGENT_IDS)
+    if (await findOnPath(descriptorOf(agent).command)) installedAgents.push(agent)
   startPhase('agents found')
   sessions.onChange((list) => {
     sessionList = list
@@ -2550,6 +2605,7 @@ export async function startWorkspace(): Promise<void> {
       settings = settingsOf(state)
       remoteIds = new Set(remoteControlList(state))
       mutedIds = new Set(mutedList(state))
+      savedAgents = sessionAgents(state)
       push()
       teamFactsMayChange()
     })
@@ -2644,7 +2700,7 @@ async function startNewSession(
 ): Promise<ActionResult> {
   if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
   const name = action.name.trim()
-  const id = action.agent === 'claude' ? randomUUID() : null
+  const id = kitOf(action.agent).ids.newId()
   const tab = addTransientTab(
     windowId,
     name || basename(action.folder),
@@ -2688,6 +2744,8 @@ function newSessionPending(windowId: string, folder: string, expectedId: string 
 }
 
 export async function runAction(contents: WebContents, action: Action): Promise<ActionResult> {
+  const refusal = refusalFor(action, startedIds())
+  if (refusal) return { refusal }
   const windowId = windowIdOf(contents)
   if (!windowId) return {}
   const w = layout.windows.find((x) => x.id === windowId)
@@ -2904,7 +2962,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       projects = setWithYou(projects, project.id, action.session, action.type === 'takeControl')
       changed({ projects: true })
       const name = sessionName(action.session)
-      if (paneOfSession(orchestrator)?.agent === 'claude')
+      if (wakeable(paneOfSession(orchestrator)))
         wakes.post(
           orchestrator,
           `control:${action.session}`,
@@ -2982,7 +3040,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const pane = orchestrator ? paneOfSession(orchestrator) : undefined
       const tab = pane ? w.tabs.find((x) => x.id === pane.tabId) : undefined
       if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })
-      if (orchestrator && pane?.agent === 'claude')
+      if (orchestrator && wakeable(pane))
         wakes.post(
           orchestrator,
           `topic:${action.number}`,
@@ -3208,7 +3266,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         w.shown,
         {
           type: 'startNew',
-          agent: 'claude',
+          agent: DEFAULT_AGENT,
           folder,
           name: askName(basename(tab.path), takenNames(w.shown)),
           prompt: t('files.askPrompt', { path: tab.path }),
@@ -3250,16 +3308,17 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'forkSession': {
       const info = sessionInfo(action.session)
-      if (info?.agent !== 'claude') return {}
-      const id = randomUUID()
+      const kit = info ? kitOf(info.agent) : null
+      const id = kit?.fork ? kit.ids.newId() : null
+      if (!info || !kit?.fork || !id) return {}
       const tab = addTransientTab(
         windowId,
         t('tab.fork', { name: info.name }),
         t('tab.tooltipSession', { folder: basename(info.cwd ?? info.folder), id: action.session }),
       )
       await startPane(tab, {
-        agent: 'claude',
-        start: { kind: 'fork', source: action.session, id },
+        agent: info.agent,
+        start: kit.fork.plan(action.session, id),
         cwd: info.cwd,
         sessionId: null,
         pending: newSessionPending(windowId, info.cwd ?? '', id),
@@ -3310,11 +3369,11 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const info = sessionInfo(action.session)
       if (!info) return {}
       const [read, tokens] = await Promise.all([
-        readFile(info.file, 'utf8'),
+        kitOf(info.agent).catalog.details(info.file),
         sessionTokens(info.id),
       ])
       return {
-        details: details(read, info.agent),
+        details: read,
         ...(tokens
           ? { tokens: { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead } }
           : {}),
@@ -3331,7 +3390,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       try {
         await writeFile(
           target.filePath,
-          exportMarkdown(info.name, info.id, await readFile(info.file, 'utf8'), info.agent),
+          await kitOf(info.agent).catalog.exportMarkdown(info.name, info.id, info.file),
           'utf8',
         )
       } catch (error) {
@@ -3342,33 +3401,38 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     }
     case 'revealTranscript': {
       const info = sessionInfo(action.session)
-      if (info) shell.showItemInFolder(info.file)
+      const place = info ? kitOf(info.agent).catalog.location(info.file) : null
+      if (place) shell.showItemInFolder(place)
       return {}
     }
     case 'trashSession':
     case 'deleteSession': {
-      // The only writes under ~/.claude, each started and confirmed by the user: the .jsonl alone;
-      // its sibling directory (subagents/, tool-results/) stays.
+      // The only writes in an agent's data, each started and confirmed by the user: the file its
+      // catalog names.
       const info = sessionInfo(action.session)
       if (!info) return { refusal: 'sessions.gone' }
+      const failed =
+        action.type === 'trashSession' ? 'sessions.trashFailed' : 'sessions.deleteFailed'
+      const trash = kitOf(info.agent).catalog.trash
+      if (!trash) return { refusal: failed }
+      const target = trash.target(info.file)
       try {
-        if (action.type === 'trashSession') await shell.trashItem(info.file)
-        else await unlink(info.file)
+        if (action.type === 'trashSession') await shell.trashItem(target)
+        else await unlink(target)
       } catch (error) {
         log.error('a transcript could not be removed', {
-          path: info.file,
+          path: target,
           action: action.type,
           error,
         })
-        return {
-          refusal:
-            action.type === 'trashSession' ? 'sessions.trashFailed' : 'sessions.deleteFailed',
-        }
+        return { refusal: failed }
       }
       const pane = paneOfSession(action.session)
       if (pane) await runAction(contents, { type: 'stopSession', session: action.session })
       projects = forgetSession(projects, action.session)
       changed({ projects: true })
+      if (savedAgents[action.session] !== undefined)
+        await sessions.updateState((state) => withSessionAgent(state, action.session, null))
       await sessions.refresh()
       return {}
     }

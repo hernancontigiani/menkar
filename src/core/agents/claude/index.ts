@@ -1,1 +1,24 @@
-export const kit = {}
+import type { AgentKit } from '../types'
+import { catalog } from './catalog'
+import { chat } from './chat'
+import { env } from './env'
+import { fork } from './fork'
+import { follow, ids } from './ids'
+import { launch, namer } from './launch'
+import { mcp } from './mcp'
+import { state } from './state'
+import { team } from './team'
+
+export const kit: AgentKit = {
+  launch,
+  mcp,
+  namer,
+  team,
+  env,
+  catalog,
+  state,
+  ids,
+  follow,
+  fork,
+  chat,
+}

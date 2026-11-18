@@ -1,5 +1,6 @@
 import { now } from '../core/clock'
 import type { RetentionStatus } from '../core/context/types'
+import { flavorFacts } from '../core/flavor'
 import { latestOnly } from '../core/latest'
 import { el } from './dom'
 import { t } from './i18n'
@@ -110,13 +111,15 @@ function group(title: string | null, description: string | null, ...rows: HTMLEl
 
 // A switch over one piece of ~/.claude/settings.json: a refused change shows our sentence, then the
 // switch shows what the files say.
-async function claudeSwitch(
+async function settingsSwitch(
   key: string,
   read: () => Promise<{ on: boolean }>,
   write: (on: boolean) => Promise<{ on: boolean; error: string | null }>,
 ): Promise<HTMLInputElement> {
   const input = el('input', { type: 'checkbox', role: 'switch', 'data-key': key })
   input.checked = (await read()).on
+  // Shown, never changed: the daily Menkar owns these pieces of the file.
+  input.disabled = !flavorFacts().offersSettingsFileItems
   input.addEventListener('change', async () => {
     const result = await write(input.checked)
     input.checked = result.on
@@ -125,14 +128,19 @@ async function claudeSwitch(
   return input
 }
 
+const settingsFileDescription = () =>
+  flavorFacts().offersSettingsFileItems
+    ? t('integrations.claudeSettingsDescription')
+    : t('integrations.managedByMenkar')
+
 export async function statuslineSection(): Promise<HTMLElement> {
-  const input = await claudeSwitch('statusline', prefs.statusline, prefs.setStatusline)
+  const input = await settingsSwitch('statusline', prefs.statusline, prefs.setStatusline)
   return el(
     'div',
     {},
     group(
       t('integrations.claudeSettings'),
-      t('integrations.claudeSettingsDescription'),
+      settingsFileDescription(),
       switchRow(t('integrations.statusline'), t('integrations.statuslineSubtitle'), input),
     ),
   )
@@ -162,7 +170,7 @@ export async function retentionSection(): Promise<HTMLElement> {
     now.textContent = retentionText(read.status)
     return read
   }
-  const input = await claudeSwitch('retention', show, async (on) => {
+  const input = await settingsSwitch('retention', show, async (on) => {
     const result = await prefs.setRetention(on)
     await show()
     return result
@@ -173,13 +181,15 @@ export async function retentionSection(): Promise<HTMLElement> {
     group(null, null, el('div', { class: 'row' }, el('div', { class: 'row-text' }, now))),
     group(
       t('integrations.claudeSettings'),
-      t('integrations.claudeSettingsDescription'),
+      settingsFileDescription(),
       switchRow(t('integrations.retention'), t('integrations.retentionSubtitle'), input),
     ),
   )
 }
 
 export async function usageSection(): Promise<HTMLElement> {
+  if (!flavorFacts().classifies)
+    return el('div', {}, el('p', { class: 'group-description dim' }, t('classifier.offInSandbox')))
   const classify = el('input', { type: 'checkbox', role: 'switch', 'data-key': 'classify' })
   const status = el('div', { class: 'row-subtitle', 'data-key': 'classify-status' })
   const earlierSubtitle = el('div', { class: 'row-subtitle', 'data-key': 'earlier-subtitle' })

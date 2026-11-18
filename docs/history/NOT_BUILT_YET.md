@@ -135,3 +135,7 @@ reach the orchestrator outside the human's chat. Measured by it the same day: Cl
 text ("Your previous response had no visible output"), so the skill alone cannot make it silent; a
 minimal "·" is the stopgap. A third idea from ccai's human (2026-11-16): hide, fold or filter in the orchestrator's
 model invisibly but only with the human's next prompt; the empty-turn refusal is switched per model,
+
+> Replaced 2026-11-17: `src/core/agents.ts` is gone; the agents are registered in `src/core/agents/ids.ts` (plan 39, P0.7).
+Menkar runs two agents today: Claude Code and Cursor's terminal agent (`cursor-agent`), listed in
+`src/core/agents.ts`. The human wants OpenAI's Codex CLI and OpenCode too (2026-11-10); Codex comes

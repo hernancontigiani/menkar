@@ -8,8 +8,8 @@ built.
 ## The shape
 
 - **`src/core/agentstate/`** is pure and runs in tests on plain Node:
-  - `detect.ts` holds Claude Code's and Cursor's rules over (agent, title, screen), ported from
-    herdr's.
+  - `detect.ts` is the facade over (agent, title, screen): each agent's rules are its kit's
+    `state` (`src/core/agents/<id>/state.ts`), ported from herdr's.
   - `mirror.ts`, the `ScreenMirror`: an `@xterm/headless` terminal fed the same bytes as the pane.
   - `watch.ts` checks each burst of changes once, after a delay.
   - `shown.ts` turns raw states into shown ones (done and seen), and holds the roll-up and the
@@ -56,7 +56,7 @@ built.
   a team, an MCP task, a workflow, a cloud session) is **working**, not idle, in any mode. The human
   saw a session green while it waited on its own background `npm run ui-check` and thought it had
   stalled.
-- **Read from the footer's pill**, like every other rule: `CLAUDE_BACKGROUND_PILLS` in `detect.ts`,
+- **Read from the footer's pill**, like every other rule: `BACKGROUND_PILLS` in Claude's `state.ts`,
   in the last 3 non-empty lines. The pill starts the footer's line or follows a ` · `, so a count
   in the conversation or typed in the box does not count. Its texts were read in Claude Code
   2.1.323's program (`1 shell`, `2 monitors`, `↳ 3 background`, `◇ 1 cloud session`…): what it

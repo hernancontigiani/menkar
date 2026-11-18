@@ -1,0 +1,84 @@
+{
+  "root": ".cursor/projects",
+  "watched": [
+    ".cursor/projects",
+    ".cursor/projects/home-demo-api",
+    ".cursor/projects/home-demo-api/agent-transcripts"
+  ],
+  "sessions": [
+    {
+      "id": "c0ffee01",
+      "agent": "cursor",
+      "folder": ".cursor/projects/home-demo-api/agent-transcripts/c0ffee01",
+      "cwd": "/home/demo/api",
+      "preview": "make it faster",
+      "badge": "waiting",
+      "customTitle": null,
+      "aiTitle": null,
+      "size": 200,
+      "lastReply": null,
+      "details": {
+        "user": 1,
+        "assistant": 1,
+        "toolCalls": 0,
+        "models": [],
+        "created": null,
+        "lastActivity": null,
+        "cwd": null,
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "make it   faster"
+          },
+          {
+            "fromUser": false,
+            "text": "Ready to apply?"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `c0ffee01`\n\n---\n\n### You\n\nmake it   faster\n\n### Cursor\n\nReady to apply?\n",
+      "location": ".cursor/projects/home-demo-api/agent-transcripts/c0ffee01/c0ffee01.jsonl",
+      "trash": ".cursor/projects/home-demo-api/agent-transcripts/c0ffee01/c0ffee01.jsonl"
+    },
+    {
+      "id": "xyz",
+      "agent": "cursor",
+      "folder": ".cursor/projects/home-demo-api/agent-transcripts/xyz",
+      "cwd": "/home/demo/api",
+      "preview": "from other",
+      "badge": null,
+      "customTitle": null,
+      "aiTitle": null,
+      "size": 305,
+      "lastReply": null,
+      "details": {
+        "user": 2,
+        "assistant": 1,
+        "toolCalls": 0,
+        "models": [],
+        "created": null,
+        "lastActivity": null,
+        "cwd": null,
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "from other"
+          },
+          {
+            "fromUser": false,
+            "text": "Sure."
+          },
+          {
+            "fromUser": true,
+            "text": "[Request interrupted by user]"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `xyz`\n\n---\n\n### You\n\nfrom other\n\n### Cursor\n\nSure.\n\n### You\n\n[Request interrupted by user]\n",
+      "location": ".cursor/projects/home-demo-api/agent-transcripts/xyz/other.jsonl",
+      "trash": ".cursor/projects/home-demo-api/agent-transcripts/xyz/other.jsonl"
+    }
+  ]
+}

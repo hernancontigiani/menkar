@@ -1,6 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { now } from '../clock'
+import { flavorFacts } from '../flavor'
 import { t } from '../i18n'
 import { appDirs } from '../paths'
 import { exportCsv, exportJsonl, exportRows } from './export'
@@ -55,8 +56,8 @@ class UsageError extends Error {}
 
 const PERIODS: readonly Period[] = ['today', '7d', '30d', 'all']
 const BUCKETS: readonly Bucket[] = ['hour', 'day', 'month']
-const USAGE =
-  'menkar usage [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD --to YYYY-MM-DD]' +
+const usage = () =>
+  `${flavorFacts().command} usage [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD --to YYYY-MM-DD]` +
   ' [--by hour|day|month] [--json]'
 
 function parseDay(text: string): Day | null {
@@ -143,8 +144,8 @@ function checkPeriodFlags(values: ReadonlyMap<string, string>): void {
   if (values.has('--from') !== values.has('--to')) throw new UsageError(t('usage.cli.fromAndTo'))
 }
 
-const EXPORT_USAGE =
-  'menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD' +
+const exportUsage = () =>
+  `${flavorFacts().command} usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD` +
   ' --to YYYY-MM-DD] [--project NAME] [--format jsonl|csv] [--output FILE]'
 const FORMATS = ['jsonl', 'csv'] as const
 
@@ -301,12 +302,17 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
     args = parseExportArgs(argv)
   } catch (error) {
     if (!(error instanceof UsageError)) throw error
-    output.err(`${t('usage.cli.usage')} ${EXPORT_USAGE}`)
-    output.err(t('usage.cli.error', { message: error.message }))
+    output.err(`${t('usage.cli.usage')} ${exportUsage()}`)
+    output.err(
+      t('usage.cli.error', {
+        command: flavorFacts().command,
+        message: error.message,
+      }),
+    )
     return 2
   }
   if (args === 'help') {
-    output.out(`${t('usage.cli.usage')} ${EXPORT_USAGE}`)
+    output.out(`${t('usage.cli.usage')} ${exportUsage()}`)
     output.out(t('usage.cli.exportHelp'))
     return 0
   }
@@ -333,9 +339,10 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
       project = [...labels].find(([, name]) => name === args.project)?.[0]
       if (project === undefined) {
         const known = [...new Set(labels.values())].sort((a, b) => a.localeCompare(b))
-        output.err(`${t('usage.cli.usage')} ${EXPORT_USAGE}`)
+        output.err(`${t('usage.cli.usage')} ${exportUsage()}`)
         output.err(
           t('usage.cli.error', {
+            command: flavorFacts().command,
             message: t('usage.cli.unknownProject', {
               name: args.project,
               known: known.map((name) => `'${name}'`).join(', '),
@@ -374,8 +381,13 @@ export function runUsageCli(argv: readonly string[], output: Output, deps: CliDe
     options = parseArgs(argv)
   } catch (error) {
     if (!(error instanceof UsageError)) throw error
-    output.err(`${t('usage.cli.usage')} ${USAGE}`)
-    output.err(t('usage.cli.error', { message: error.message }))
+    output.err(`${t('usage.cli.usage')} ${usage()}`)
+    output.err(
+      t('usage.cli.error', {
+        command: flavorFacts().command,
+        message: error.message,
+      }),
+    )
     return 2
   }
   const configDir = deps.configDir ?? appDirs().config

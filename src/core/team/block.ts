@@ -1,3 +1,5 @@
+import { AGENT_IDS } from '../agents/ids'
+import { kitOf } from '../agents/registry'
 import type { Agent } from '../sessions/lines'
 
 export interface TeamSkill {
@@ -30,16 +32,16 @@ export interface TeamAgent {
   readonly part: string
 }
 
-export const TEAM_AGENTS: Readonly<Partial<Record<Agent, TeamAgent>>> = {
-  claude: {
-    skill: (name) => `\`${name}\``,
-    own: (name) => `\`menkar:${name}\``,
-    part: 'claude.md',
-  },
-}
+// The agents that have a team delivery, each with its record.
+export const TEAM_AGENTS: Readonly<Partial<Record<Agent, TeamAgent>>> = Object.fromEntries(
+  AGENT_IDS.flatMap((id) => {
+    const team = kitOf(id).team
+    return team ? [[id, team]] : []
+  }),
+)
 
 export function teamAgent(agent: Agent): TeamAgent | null {
-  return TEAM_AGENTS[agent] ?? null
+  return kitOf(agent).team
 }
 
 const ROLE_MAX = 60

@@ -5,9 +5,10 @@ The code says what each part does. This file keeps why it is shaped this way.
 ## The shape
 
 - **`src/core/chat/`**, tested on plain Node:
-  - `variants.ts`: which agent offers which chat. Claude Code has one, a long-lived process fed over
-    stdin, gated (every tool use asks). Cursor has `ask` (read-only) and `trusted` (runs edits and
-    commands), one process per message.
+  - `variants.ts`: which agent offers which chat, read from each agent's descriptor (its `chat`
+    list, data the renderer reads). Claude Code has one, a long-lived process fed over stdin, gated
+    (every tool use asks). Cursor has `ask` (read-only) and `trusted` (runs edits and commands), one
+    process per message.
   - `protocol.ts`: each process's argv, the lines written to Claude's stdin (a message, a
     permission's allow or deny), and what each stdout line means, as `ChatEvent`s. `LineSplitter`
     keeps a partial line until the rest arrives.
@@ -16,9 +17,11 @@ The code says what each part does. This file keeps why it is shaped this way.
     translates nothing; the view says each item in the UI's language.
   - `markdown.ts`: the subset an assistant bubble renders, as blocks and spans. The view builds DOM
     nodes from them and never parses HTML.
-  - `processes.ts`: the processes, Node only. A Claude chat starts at once; a Cursor chat starts a
-    process per message, resuming the session id its first `init` line gave. Closing a tab hangs its
-    process up; quitting closes them all.
+  - `processes.ts`: the chat tabs, Node only. How each agent runs its chat is its kit's `chat`
+    (`src/core/agents/<id>/chat.ts`): a Claude chat starts at once; a Cursor chat starts a process
+    per message, resuming the session id its first `init` line gave. `session.ts` holds what they
+    share (the chat, `findOnPath`, the events' sink). Closing a tab hangs its process up; quitting
+    closes them all.
   - `mcp.ts`: `~/.claude.json`'s servers as sections. `ghostty.ts`: Ghostty's arguments.
 - **`src/main/chat.ts`**: Electron's part. It holds the folder chooser (remembered as
   `new_session_dir` through `sessions.updateState()`), sends a chat's events to the windows

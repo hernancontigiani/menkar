@@ -1,0 +1,110 @@
+[
+  {
+    "name": "a Braille spinner in the title",
+    "title": "⠋ Fixing tests",
+    "screen": "> fix the tests\n",
+    "state": "working"
+  },
+  {
+    "name": "the half-circle spinner in the title",
+    "title": "◐ Thinking",
+    "screen": "",
+    "state": "working"
+  },
+  {
+    "name": "Claude's idle title",
+    "title": "✳ Ready",
+    "screen": "> \n",
+    "state": "idle"
+  },
+  {
+    "name": "a spinner with no space after it",
+    "title": "⠋Fixing",
+    "screen": "all good",
+    "state": "idle"
+  },
+  {
+    "name": "esc to interrupt on screen",
+    "title": "✳ x",
+    "screen": "reading files\n  (esc to interrupt)",
+    "state": "working"
+  },
+  {
+    "name": "a permission question under a busy title",
+    "title": "⠋ Working",
+    "screen": "Bash command\nDo you want to proceed?\n❯ 1. Yes\n  2. No",
+    "state": "blocked"
+  },
+  {
+    "name": "the /model picker",
+    "title": "✳ x",
+    "screen": "Select model\n❯ 1. Opus\nEnter to set as default\nEsc to cancel",
+    "state": "idle"
+  },
+  {
+    "name": "esc to cancel with enter to select",
+    "title": "✳ x",
+    "screen": "Pick one\nEsc to cancel · Enter to select",
+    "state": "blocked"
+  },
+  {
+    "name": "would you like to, with a yes",
+    "title": "✳ x",
+    "screen": "Would you like to continue? Yes / No",
+    "state": "blocked"
+  },
+  {
+    "name": "waiting for permission",
+    "title": "✳ x",
+    "screen": "Waiting for permission…",
+    "state": "blocked"
+  },
+  {
+    "name": "a background shell pill in the footer",
+    "title": "✳ x",
+    "screen": "● Done.\n\n────────────────────────────────────────\n> \n────────────────────────────────────────\n  ⏵⏵ auto mode on · 1 shell",
+    "state": "working"
+  },
+  {
+    "name": "housekeeping in the footer",
+    "title": "✳ x",
+    "screen": "● Done.\n\n────────────────────────────────────────\n> \n────────────────────────────────────────\n  saving memories",
+    "state": "idle"
+  },
+  {
+    "name": "a pill typed in the box",
+    "title": "✳ x",
+    "screen": "● Done.\n────────────────────────────────────────\n> 2 shells\n────────────────────────────────────────\n  ? for shortcuts",
+    "state": "idle"
+  },
+  {
+    "name": "Cursor's prompt is not Claude's",
+    "title": "✳ x",
+    "screen": "Keep (n)",
+    "state": "idle"
+  },
+  {
+    "name": "a pill in the footer's last three lines",
+    "title": "✳ x",
+    "screen": "  1 shell\n\na\n  \nb",
+    "state": "working"
+  },
+  {
+    "name": "a pill above the footer's last three lines",
+    "title": "✳ x",
+    "screen": "  1 shell\na\nb\nc",
+    "state": "idle"
+  },
+  {
+    "name": "a question as the 14th line from the bottom",
+    "title": "✳ x",
+    "screen": "Do you want to proceed?\nline 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12",
+    "state": "blocked"
+  },
+  {
+    "name": "a question as the 15th line from the bottom",
+    "title": "✳ x",
+    "screen": "Do you want to proceed?\nline 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13",
+    "state": "idle"
+  }
+]

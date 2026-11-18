@@ -6,14 +6,14 @@ import {
   chatOf,
   closeAllChats,
   closeChat,
-  cursorTurn,
   ghosttyInstalled,
   installedAgents,
   onChatEvent,
   openInGhostty,
+  sendChat,
   startChat,
 } from '../core/chat/processes'
-import { allowLine, denyLine, userLine } from '../core/chat/protocol'
+import { allowLine, denyLine } from '../core/chat/protocol'
 import { agentPaths } from '../core/paths'
 import type { ChatInfo, InvokeChannel, InvokeChannels } from '../shared/ipc'
 
@@ -51,8 +51,7 @@ export function registerChatIpc(): void {
   handle('chat:send', async ({ chatId, text }) => {
     const chat = chatOf(chatId)
     if (!chat) return undefined
-    if (chat.variant.transport === 'stdin-stream') chat.process?.stdin?.write(userLine(text))
-    else cursorTurn(chat, text)
+    sendChat(chat, text)
     return undefined
   })
   handle('chat:reply', async ({ chatId, reply, declined }) => {

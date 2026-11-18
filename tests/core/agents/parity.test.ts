@@ -11,10 +11,10 @@ import { mainKitOf } from '../../../src/main/agents/registry'
 const PAIRS: Readonly<
   Record<AgentCap, { block: string; concern: ((id: AgentId) => unknown) | null }>
 > = {
-  remote: { block: 'P0.5', concern: null },
-  fork: { block: 'P0.6', concern: null },
-  trash: { block: 'P0.4', concern: null },
-  chat: { block: 'P0.7', concern: null },
+  remote: { block: 'P0.5', concern: (id) => mainKitOf(id).remote },
+  fork: { block: 'P0.6', concern: (id) => kitOf(id).fork },
+  trash: { block: 'P0.4', concern: (id) => kitOf(id).catalog.trash },
+  chat: { block: 'P0.7', concern: (id) => kitOf(id).chat },
   context: { block: 'P1a.6', concern: null },
 }
 
@@ -62,6 +62,22 @@ describe('descriptors and kits', () => {
       if (concern === null) continue
       for (const id of AGENT_IDS)
         expect(concern(id) !== null, `${id}: ${cap}`).toBe(descriptorOf(id).caps[cap])
+    }
+  })
+
+  // A descriptor that says a new session takes its name at start is mirrored by the kit's Namer:
+  // Add session asks for a name only where the CLI is given one.
+  test('namedAtStart mirrors the Namer for every agent', () => {
+    for (const id of AGENT_IDS)
+      expect(kitOf(id).namer.atStart('x') !== null, id).toBe(descriptorOf(id).namedAtStart)
+    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([true, false])
+  })
+
+  // The chat variants are data the renderer reads; the kit's ChatStrategy runs them.
+  test('an agent offers chat variants exactly when its kit can chat', () => {
+    for (const id of AGENT_IDS) {
+      expect(descriptorOf(id).chat.length > 0, id).toBe(kitOf(id).chat !== null)
+      for (const variant of descriptorOf(id).chat) expect(variant.agent).toBe(id)
     }
   })
 })

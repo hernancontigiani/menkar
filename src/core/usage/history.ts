@@ -285,10 +285,10 @@ export class UsageHistory {
       const currentName = raw.prepare('SELECT claude FROM names WHERE session_id = ?')
       const setName = raw.prepare('INSERT OR REPLACE INTO names VALUES (?, ?, ?)')
       const sessions = new Set(pending.map((row) => row.sessionId))
-      for (const [sessionId, { name, claude }] of cache.names(sessions)) {
+      for (const [sessionId, { name, given }] of cache.names(sessions)) {
         const current = currentName.get(sessionId)
-        if (current === undefined || claude >= num(current, 'claude'))
-          setName.run(sessionId, name, claude)
+        if (current === undefined || given >= num(current, 'claude'))
+          setName.run(sessionId, name, given)
       }
     })
     cache.written(pending) // only after the commit: writing a turn twice is the same as once

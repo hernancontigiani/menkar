@@ -1,10 +1,11 @@
 import { matchShortcut } from '../core/shortcuts'
 import './chat.css'
+import { descriptorOf } from '../core/agents/descriptors'
 import { renderMarkdown } from '../core/chat/markdown'
 import { ChatModel, type Item } from '../core/chat/model'
-import { AGENT_NAMES, variantOf } from '../core/chat/variants'
+import { variantOf } from '../core/chat/variants'
 import { el } from './dom'
-import { t } from './i18n'
+import { t, translate } from './i18n'
 
 // A chat tab's body: a banner, the conversation, the compose row. It renders into the container it
 // is given and returns what unmounts it; the tab around it is the window's.
@@ -92,7 +93,7 @@ export async function mountChat(container: HTMLElement, chatId: string): Promise
   const info = await api.info(chatId)
   const variant = info ? variantOf(info.agent, info.key) : undefined
   if (!info || !variant) return () => {}
-  const name = AGENT_NAMES[info.agent]
+  const name = translate(descriptorOf(info.agent).label)
   const model = new ChatModel(variant, info.continuing)
   const banner = !variant.writeable
     ? t('chat.bannerReadOnly', { name })

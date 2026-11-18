@@ -1,3 +1,4 @@
+import { descriptorOf } from '../core/agents/descriptors'
 import { variantsFor } from '../core/chat/variants'
 import { formatSize, formatTimestamp, formatTokens } from '../core/format'
 import type { Key } from '../core/i18n'
@@ -7,8 +8,7 @@ import { el } from './dom'
 import { t, translate } from './i18n'
 import { dialogClosed, dialogOpened, showDialog, showError, showMenu } from './ui'
 
-const agentName = (info: SessionInfo) =>
-  info.agent === 'claude' ? t('agent.claude') : t('agent.cursor')
+const agentName = (info: SessionInfo) => translate(descriptorOf(info.agent).label)
 
 export async function renameFromHistory(info: SessionInfo): Promise<void> {
   await renameSessionDialog(info)
@@ -214,7 +214,7 @@ export function historyRowMenu(info: SessionInfo, at: { x: number; y: number }):
       label: t('row.ghostty'),
       run: () => void act({ type: 'openInGhostty', session: info.id }),
     })
-  if (info.agent === 'claude')
+  if (descriptorOf(info.agent).caps.fork)
     open.push({
       label: t('row.fork'),
       run: () => void act({ type: 'forkSession', session: info.id }),

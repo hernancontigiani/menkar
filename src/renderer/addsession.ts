@@ -1,4 +1,5 @@
-import { AGENT_COMMANDS } from '../core/agents'
+import { descriptorOf } from '../core/agents/descriptors'
+import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { now } from '../core/clock'
 import type { Key } from '../core/i18n'
 import {
@@ -19,10 +20,8 @@ import { t, translate } from './i18n'
 import { historyRowMenu, renameFromHistory, trashSelected } from './sessionmenus'
 import { dialogClosed, dialogOpened, toast } from './ui'
 
-type Agent = 'claude' | 'cursor'
-
 export interface NewOptions {
-  readonly agent?: Agent
+  readonly agent?: AgentId
   readonly folder?: string
 }
 
@@ -54,11 +53,11 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   let folder = options.folder ?? ''
   // The agent last started, while it is installed; else Claude Code, else the first installed.
   const remembered = s.agents.find((a) => a === s.settings.last_agent)
-  let agent: Agent =
+  let agent: AgentId =
     options.agent ??
     remembered ??
-    (s.agents.includes('claude') ? 'claude' : s.agents[0]) ??
-    'claude'
+    (s.agents.includes(DEFAULT_AGENT) ? DEFAULT_AGENT : s.agents[0]) ??
+    DEFAULT_AGENT
 
   const body = el('div', { class: 'add-body' })
   const existingButton = el('button', { class: 'switch' }, t('add.existing'))
@@ -214,9 +213,9 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
           'span',
           {
             class: 'agent dim',
-            title: info.agent === 'claude' ? t('agent.claude') : t('agent.cursor'),
+            title: translate(descriptorOf(info.agent).label),
           },
-          info.agent === 'claude' ? '✳' : '➤',
+          descriptorOf(info.agent).glyph,
         ),
         el('span', { class: 'name' }, info.name),
         badge,
@@ -346,15 +345,15 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
   function agentPicker(changed: () => void): HTMLElement {
     const installed = (currentState() ?? s).agents
     const group = el('div', { class: 'segmented agent-picker', 'data-picker': 'agent' })
-    for (const a of Object.keys(AGENT_COMMANDS) as Agent[]) {
+    for (const a of AGENT_IDS) {
       const button = el(
         'button',
         { 'data-agent': a, 'aria-pressed': String(a === agent) },
-        a === 'claude' ? t('agent.claude') : t('agent.cursor'),
+        translate(descriptorOf(a).label),
       )
       if (!installed.includes(a)) {
         button.disabled = true
-        button.title = t('add.agentMissing', { command: AGENT_COMMANDS[a] })
+        button.title = t('add.agentMissing', { command: descriptorOf(a).command })
       }
       button.addEventListener('click', () => {
         agent = a
@@ -423,12 +422,12 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
       el('span', {}, t('rc.switch')),
       remoteSwitch,
     )
-    remoteRow.hidden = agent !== 'claude'
+    remoteRow.hidden = !descriptorOf(agent).caps.remote
     const start = el('button', { class: 'pill' }, t('newSession.start'))
     const submit = async () => {
       const name = nameEntry.value.trim()
-      if (!name && agent === 'claude') return showError(error, 'newSession.needName')
-      const remoteControl = agent === 'claude' && remoteSwitch.checked
+      if (!name && descriptorOf(agent).namedAtStart) return showError(error, 'newSession.needName')
+      const remoteControl = descriptorOf(agent).caps.remote && remoteSwitch.checked
       const { refusal } = await act({
         type: 'startNew',
         agent,
@@ -446,7 +445,7 @@ export function openAddSession(page: 'existing' | 'new', options: NewOptions = {
     newPage.replaceChildren(
       agentPicker(() => {
         remoteSwitch.checked = false
-        remoteRow.hidden = agent !== 'claude'
+        remoteRow.hidden = !descriptorOf(agent).caps.remote
       }),
       el('div', { class: 'dim' }, t('add.nameNote')),
       el(

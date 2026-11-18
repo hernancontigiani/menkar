@@ -1142,3 +1142,216 @@ P0's blocks run in turn.
 ## 6. Execution log
 
 *(Written by the sessions that execute it.)*
+
+### P0.3 (`menkar-t56`, task 56, 2026-11-16)
+
+- **Decided by set, 2026-11-16:** the main kit holds `settings: (() => Promise<string>) | null`
+  (Claude: `sessionSettingsFile`; Cursor: `null`), so no settings file is written on a Cursor-only
+  start, as before.
+- **Decided by set, 2026-11-16:** `pane.remote`'s `spec.agent === 'claude'` line in
+  `startPaneHeld` stays for P0.5 (`mainKit.remote`); `src/main/workspace.ts`'s `agent-literal`
+  count went 25 → 22, its reason now naming P0.5.
+- **Decided by set, 2026-11-16:** `src/core/team/version.ts` stays (its test imports
+  `claudeVersion`, `TEAM_FLOOR`, `teamFlagsAllowed` and `tests/core/team/**` stays unchanged);
+  Claude's kit imports it as its `floor`. Its `ALLOWED` entry is kept as permanent with that
+  reason — P0.7's `docs/agents.md` lists it.
+- **Deviations:** `LaunchPlan` has no `files` member and `TeamDelivery` no `afterCompaction` yet:
+  neither has a producer or an answer that differs in P0 (no abstraction without a consumer); they
+  enter with Codex (P1a, P1b.5). The team file is still written by main before the Launcher is
+  asked, so a failed write still leaves the pane outside the team. `heldAtStart` takes
+  `(start, block)`: the `recorded` argument enters with the first agent that keeps one (Codex).
+- `MainAgentKit` and `MainTeamDelivery` are declared in `src/main/agents/types.ts` (new); the
+  `SESSION_ENV` export of `src/core/sessionenv.ts` is now the union of every kit's `EnvRules`.
+
+### P0.4 (`menkar-t58`, task 58, 2026-11-16)
+
+- **Decided by set, 2026-11-16 — the fixtures' premise corrected:** the plan said
+  `tests/data/agents/<id>/` would be "copied from today's test fixtures"; none existed
+  (`tests/core/sessions/*` build transcripts at run time with `tests/factories/transcript.ts`). They
+  are synthetic files in the factories' shapes, a `home/` tree per agent plus `expected.json`,
+  copied into a temporary HOME by `tests/core/agents/contract/catalog.test.ts`. `expected.json` was
+  written by the readers as they were **before** the move, so the contract asserts no behaviour
+  change; later phases extend these files with real recordings.
+- **Decided by set, 2026-11-16:** `AgentPaths` keeps `claudeProjects` and `cursorProjects`
+  (`tests/core/paths.test.ts` asserts the first); each catalog's `root()` reads `agentPaths()`, so
+  paths stay resolved in the paths module only. `src/core/paths.ts` keeps its count of 12.
+- **Decided by set, 2026-11-16:** `PassPaths` keeps `claudeProjects` (the usage and classifier
+  tests build it literally); `src/core/usage/pass.ts` is untouched, its count 2 with the reason
+  "P1a.6: TurnSource replaces PassPaths' root".
+- **Decided by set, 2026-11-16:** `SessionCatalog` has `transcript: TranscriptReading | null` (head,
+  `headFinal`, badge, `titles`, details and export over text) — how a JSONL agent reads its lines,
+  null for a SQLite one later. The facades `readHead`, `badgeOf`, `details`, `exportMarkdown` and
+  `sessionName` go through `kitOf(agent).catalog.transcript`; whether Claude's titles count is
+  `transcript.titles !== null`, the same test `toInfo`'s `claudeNamed` uses.
+- **Decided by set, 2026-11-16:** `read(found, prev)` became a stateful `reader(read)` per catalog
+  (`SessionReader`: `read(found)`, `retain(locators)`), one per agent in the scanner; Claude's and
+  Cursor's are the same shared `JsonlReader` (`agents/shared/jsonl.ts`) fed by each agent's
+  `TranscriptReading` — today's incremental logic, unchanged.
+- **Decided by set, 2026-11-16:** the facades' old `Roots` shape is
+  `Partial<Record<\`${AgentId}Projects\`, string>>`; a missing key means the catalog's own root, so
+  `src/main/sessions.ts` passes no roots. Left for later blocks, as they use `SessionInfo.file`
+  outside P0.4's list: `src/main/workspace.ts` `trackContext(id, info.file)` (context, P1a.6) and
+  `onlyTeamUpdates(file)` in `onShownChange` (P0.6).
+- **Decided by set, 2026-11-16:** `Details`, `RecentMessage`, `Badge` and `Head` live in the
+  Node-free `src/core/sessions/details.ts`, and `src/shared/workspace.ts`'s one `Details` import
+  points at it: the renderer's `tsc` has no Node types and type-checks every file it reaches, and
+  `transcript.ts`, now a facade over the registry, reaches `node:fs`. `src/core/sessions/info.ts`
+  takes `AgentId` from `ids.ts` for the same reason.
+- **Decided by set, 2026-11-16:** `tests/core/agents/parity.test.ts`'s `trash` pair names its
+  concern, `kitOf(id).catalog.trash`.
+- **My choices:** agent-neutral reading helpers several catalogs can use (`parseLine`,
+  `messageText`, the name and cwd byte scans, `applyNameLines`, `dashedPath`, the directory
+  helpers, `markdownExport`) are in `agents/shared/jsonl.ts`, so the facades the tests import
+  (`sessions/{lines,names,scanner,cursor}.ts`) re-export them without importing an agent folder;
+  `cursorCwd` is that re-export's alias of `dashedPath`. `sessions/lastreply.ts` stays where it is
+  (no agent named in it) and is Claude's `catalog.lastReply`; Cursor's is `null`, as `replyOf`
+  answered before. A catalog whose `trash` is `null` answers a trash or delete with the existing
+  "could not" refusal (no such agent yet).
+- **`ALLOWED`:** the entries of `sessions/{badges,cursor,head,lines,names,scanner,transcript}.ts`
+  and `src/main/sessions.ts` are gone; `sessions/service.ts` 9 → 1 and `sessions/info.ts` 1, both
+  `claudeNamed` (P0.7, read by the renderer and main); `src/main/workspace.ts`'s `agent-literal`
+  22 → 21, its reason now P0.5 and P0.6.
+- **Decided by set, 2026-11-16:** `docs/sessions.md`'s "Details and export" sentence now names the
+  agent's catalog; the old lines went verbatim to `docs/history/sessions.md`.
+- **CI on 2026-11-16:** every step green except "R10 unchanged", because `main` moved to `7e8add4`
+  (task 51, five plugin snapshots). The branch's R10 files are byte-equal to the merge base
+  `fbbf0e5`, and the step clears when `main` is merged in.
+
+### P0.5 (`menkar-t61`, task 61, 2026-11-17)
+
+- **Decided by set, 2026-11-17:** `bottom` and the splitlines `LINE_BREAK` both agents' rules use
+  live in `src/core/agents/shared/screen.ts`, so no import cycle runs detect → registry → a kit's
+  `state.ts` → detect.
+- **Decided by set, 2026-11-17:** the state contract's fixtures are
+  `tests/data/agents/<id>/screens.json` (name, title, screen, expected raw state), checked against
+  the rules as they were before the move (the facade alone, on the unmoved `detect.ts`), with the
+  edge of each line window (Claude's 14 and 3, Cursor's 10) so a moved count fails the contract.
+- **Decided by set, 2026-11-17:** Claude's `remote.live` is tested in
+  `tests/main/agents/claude/remote.test.ts` with a temporary HOME holding a registry `<pid>.json`
+  and a real throwaway process running a script named `claude`, killed by its process group in the
+  teardown.
+- **Decided by set, 2026-11-17 — §2.3 corrected:** Remote is `live(pane) → Promise<BridgeState>`
+  (`'on' | 'off' | 'unknown'`), not `boolean`: 'unknown' makes the icon fall back to the app's own
+  list, and a boolean would lose it. It also has `folder()`, the registry folder the loop watches.
+  `Remote` and `RemotePane` are in `src/main/agents/types.ts`.
+- **Decided by set, 2026-11-17:** `tests/core/agents/parity.test.ts`'s `remote` pair is
+  `mainKitOf(id).remote`, as P0.4 filled `trash`.
+- **Decided by set, 2026-11-17 — P0.4's trap again:** `src/core/agentstate/shown.ts` (reached by
+  the renderer's `tsc`) imported `RawState` from `detect.ts`, now a facade over the registry that
+  reaches `node:fs`. `RAW_STATES` and `RawState` live in the Node-free `src/core/agentstate/raw.ts`,
+  re-exported by `detect.ts`; `shown.ts`'s one import line points at it, as P0.4's `details.ts` did.
+- **Decided by set, 2026-11-17:** `AGENT_NAMES` (`agentstate/notify.ts`) is gone; a notification
+  names its agent with the descriptor's label through `translate(key)`, a new export of
+  `src/core/i18n.ts`, the twin of the renderer's (`check-i18n` takes only a literal in `t()`). A test
+  asserts every descriptor's label key is in `en` and in `es` themselves, and that both read
+  'Claude Code' and 'Cursor', the names shown before.
+- **Decided by set, 2026-11-17:** `docs/agent-state.md` (the shape, the background pill) and
+  `docs/sessions.md` (Remote Control, how it is read) name the kits now; the old lines went verbatim
+  to their histories.
+- `detectState(provider: string, …)` keeps its signature: it parses the id (`parseAgentId`) and an
+  unknown one is idle, as before; `src/core/agentstate/watch.ts` is unchanged. `StateRules` is
+  `state` in every kit (never `null`: every agent has rules). The loop in `remote-live.ts` resolves
+  the kits' folders on each watch attempt, as `agentPaths()` was read before.
+- **`ALLOWED`:** the entries of `agentstate/{detect,notify}.ts`, `src/main/panes.ts` and
+  `src/main/remote-live.ts` are gone; `src/main/workspace.ts`'s `agent-literal` 21 → 20, its reason
+  now P0.6 alone (`pane.remote` asks `mainKitOf(spec.agent).remote`).
+
+### P0.6 (`menkar-t64`, task 64, 2026-11-17)
+
+- **Decided by set, 2026-11-17 — files beyond §5's row:** `src/core/agents/types.ts` and
+  `src/core/agents/{claude,cursor}/index.ts` (`ids`, `follow`, `fork`), `src/main/agents/types.ts`
+  and `src/main/agents/{claude,cursor}/index.ts` (`Waker`), `src/core/agents/registry.ts`
+  (`isDefault`, §2.4's "the registry's"), `tests/core/agents/parity.test.ts` (the `fork` pair,
+  `kitOf(id).fork`), `src/core/agents/{claude,cursor}/catalog.ts` (`turnEnd`, below), and the new
+  test files beside each piece.
+- **Decided by set, 2026-11-17 — a child's turn end (gap A):** `onShownChange` gated a *child's*
+  turn end waking its parent on Claude, and read the child's transcript with `onlyTeamUpdates` and
+  `reportClosedTurn`. That is the child's catalog's concern, not the parent's waker:
+  `SessionCatalog.turnEnd: { onlyTeamUpdates, reportedTo } | null` (Claude's from
+  `sessions/lastreply.ts`, Cursor's `null`); `onShownChange` returns when it is `null`, and the
+  catalog interprets the locator, so P0.4's `onlyTeamUpdates(file)` leftover is gone.
+  `reportClosedTurn` stays in `lastreply.ts` and is Claude's `turnEnd.reportedTo`.
+- **Decided by set, 2026-11-17 — "restored and not started" (gap B):** every pane runs a shell, so
+  a kept pane is a plain shell pane holding the session id (agent `'shell'`: no state detection, no
+  team delivery), with the line written above it, as the "CLI not found" path does
+  (`PaneSpec.notice`). The saved tab and the member stay as they were; closing the shell closes the
+  tab, as any pane's exit does.
+- **Decided by set, 2026-11-17 (gap C):** `agentName('shell')` answers the default agent's label, as
+  before (the quit list names a running shell split "Claude Code"); the fix is task 67.
+- **Decided by set, 2026-11-17 (gap D):** IdBinding enters as `ids.newId()` and
+  `follow.classify(source)`; `isRealId` waits for Codex, its first consumer.
+- **Decided by set, 2026-11-17 (gap E):** `start_session` starts `DEFAULT_AGENT` and "Ask an agent"
+  (a file tab's) too; a renew restarts the pane's own agent. Renew's and `start_session`'s ids stay
+  `randomUUID()` (P1b.2's provisional ids own them); `startNew`'s and a fork's come from
+  `kit.ids.newId()`.
+- **`session_agents`** lives in `src/core/state.ts` (`sessionAgents`, `withSessionAgent`, which
+  returns the same state when nothing changes, so main skips the write), with the restore rule
+  `restoreOf(found, named)` → `resume` / `missing` / `unsupported` / `unnamed`, read by both
+  `dropUnknownSessions` (keeps all but `unnamed`) and `resumeSpec` (`unnamed` resumes as
+  `DEFAULT_AGENT`, as `?? 'claude'` did). Main writes it at a pane's start with a session (not for
+  a kept pane) and when a pending session joins, never for the default agent (`isDefault`), and
+  forgets it on trash and delete. `dropUnknownSessions` reads it from the state after the first
+  scan, so a slow state load cannot drop a tab it names.
+- **`Waker`** (`src/main/agents/types.ts`): `wake(sessionId, text, counts) → Promise<PostOutcome>`,
+  `PostOutcome` being the existing type. Claude's (`src/main/agents/claude/waker.ts`) is the post
+  `wakeSession` made; Claude's `team.tell` is the same function. Cursor's main kit has `waker:
+  null`, so no `src/main/agents/cursor/waker.ts` exists yet (P3.4 adds it). The wake batcher's
+  human posts (presence, control, topic) are gated on the orchestrator's pane having a waker.
+- **`follow.classify`** for Claude: `clear` → `clear`, `resume` → `resume`, `compact` → `null`;
+  `followPaneStart`'s own `compact` early return went with it (the team record is still noted
+  first). The two restore lines are `terminal.restoreMissing` and `terminal.restoreUnsupported`,
+  after `[menkar]`, the tag every app line has.
+- **`ALLOWED`:** `src/main/workspace.ts`'s entry is gone (agent-literal 20 and agent-property 2 →
+  0). `AGENT_COMMANDS[spec.agent]` in `startPaneHeld` stays (P0.7 removes `src/core/agents.ts`).
+- **The e2e's Claude-start case** waits for the new session to join before reading `state.json`:
+  a new Claude session's id binds late (a `Pending`), and a fixed wait passed with `isDefault`
+  broken.
+
+### P0.7 (`menkar-t71`, task 71, 2026-11-17)
+
+- **Decided by set, 2026-11-17 — files beyond §5's row:** `src/core/agents/types.ts`,
+  `src/core/agents/{claude,cursor}/{index,descriptor}.ts` and the new `{claude,cursor}/chat.ts`,
+  `tests/core/agents/parity.test.ts`, and `src/main/workspace.ts:959` only
+  (`AGENT_COMMANDS[spec.agent]` → `descriptorOf(spec.agent).command`), so `src/core/agents.ts` is
+  deleted. Also `docs/chat.md` and `docs/NOT_BUILT_YET.md` (lines this block made false, old ones
+  to their histories) and `AGENTS.md`'s table row for `docs/agents.md`.
+- **Decided by set, 2026-11-17 — test-pinned names (§2.11 against §2.2's "move or rename"):** names
+  the tests import stay where they are, as `ALLOWED` entries whose reason is "tests import it by
+  this name (§2.11, P0 rewrites no test); moves into its agent's folder with its test after P0.8":
+  `chat/protocol.ts` (`claudeArgs`, `cursorArgs`, `claudeEvents`, `cursorEvents`),
+  `chat/processes.ts` (`cursorTurn`, now an alias of `sendChat`), `classifier/run.ts`
+  (`findClaude`, `claudeCall`), `context/files.ts` (`contextFiles.claudeSettings`),
+  `context/integrations.ts` (`CLAUDE_DEFAULT_CLEANUP_DAYS`), `files/check.ts` (`isClaudeData`),
+  `sessions/{info,service}.ts` (`claudeNamed`). **One follow-up after P0.8 merges**: move each with
+  its test and drop its entry (listed in `docs/agents.md` too). Unpinned locals were renamed
+  (`startClaude` → Claude's `chat.open`, `claudeDir`/`claudeJson`, the usage cache's `claude`
+  variable and property → `given`, `claudeSwitch` → `settingsSwitch`).
+- **Decided by set, 2026-11-17 — chat variants are renderer data:** each descriptor holds its
+  `chat: readonly ChatVariant[]` (today's bytes); `variants.ts` keeps `VARIANTS`, `variantsFor`,
+  `variantOf` as facades over `DESCRIPTORS`, `ChatAgent = AgentId`; `AGENT_CLIS` and `AGENT_NAMES`
+  are gone (the descriptor's command and label). The kit's `chat: ChatStrategy | null`
+  (`open(chat, env)`, `send(chat, text, env)`) replaces the `variant.transport` switches in
+  `startChat` and `chat:send`; `transport` stays in the data. Parity: `chat` ⇔ `kit.chat`, and a
+  non-empty list.
+- **Decided by set, 2026-11-17:** the descriptor gains `namedAtStart` (Add session's
+  `newSession.needName`), with a parity row against `kit.namer.atStart('x') !== null`.
+- **Decided by set, 2026-11-17:** `classifier/input.ts`'s `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
+  is a permanent entry ("Claude Code's own variable; only `claude -p` classifies until P4");
+  `usage/pass.ts` keeps "P1a.6"; `paths.ts` keeps its reason ("P0.7 or later" now reads "after
+  P0.8"). The classifier's CLI is `descriptorOf(CLASSIFIER_AGENT).command` (§2.3's
+  "`kitOf(CLASSIFIER_AGENT)`": the command is the descriptor's).
+- **The renderer's `tsc` trap again:** the descriptor's types (`AgentCap`, `AgentDescriptor`,
+  `ChatVariant`, `VariantKey`) live in `descriptors.ts`, re-exported by `types.ts`, which reaches
+  Node; the renderer now imports `descriptors.ts` and `ids.ts`.
+- **An import cycle found by the suite:** a kit's `chat.ts` importing `sessionenv.ts` ran
+  `kitOf` before the registry existed (`sessionenv.ts` reads every kit's `EnvRules` at load), so
+  `processes.ts` passes `withoutSessionEnv(process.env)` in, computed when it was before; the
+  chats' shared machinery (`Chat`, `findOnPath`, the sink, `follow`) moved to the new
+  `chat/session.ts`, which imports no registry. `processes.ts` re-exports what the tests import.
+- **`ALLOWED`** holds 16 files: `agentstate/mirror.ts` 1, `renderer/terminals.ts` 2,
+  `usage/cache.ts` 2 and `usage/history.ts` 1 (the SQL column), `team/version.ts` 1,
+  `classifier/input.ts` 1 (permanent); `usage/pass.ts` 2 (P1a.6), `paths.ts` 12; and the pinned
+  names above (`chat/protocol.ts` 4, `chat/processes.ts` 1, `classifier/run.ts` 2,
+  `context/files.ts` 1, `context/integrations.ts` 1, `files/check.ts` 1, `sessions/info.ts` 1,
+  `sessions/service.ts` 1). No renderer or `src/shared/` file has a hit.
+- The quit list's `agentName('shell')` is untouched (task 67).

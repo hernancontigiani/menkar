@@ -37,3 +37,9 @@ export function setLanguage(language: Language): void {
 export function t(key: Key, params?: Params): string {
   return interpolate(current[key], params)
 }
+
+// For a key that arrives as data (a refusal or a notice from main), not written at the call: the
+// key itself was checked where it was written.
+export function translate(key: Key, params?: Params): string {
+  return interpolate(current[key], params)
+}

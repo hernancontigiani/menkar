@@ -1,3 +1,4 @@
+import { flavorFacts } from '../core/flavor'
 import type { PreferencesInfo } from '../shared/ipc'
 import { el } from './dom'
 import { t } from './i18n'
@@ -11,6 +12,16 @@ const STAR =
 const COPYRIGHT = '© 2026 Hernan Contigiani'
 const DEVELOPER = 'Hernan Contigiani'
 const LICENSE = 'GPL-3.0-or-later'
+
+// The app's name as this flavour shows it. t() takes a literal key, so each is named here.
+export function appName(): string {
+  switch (flavorFacts().titleKey) {
+    case 'window.title':
+      return t('window.title')
+    case 'window.titleSandbox':
+      return t('window.titleSandbox')
+  }
+}
 
 function section(name: string, title: string, ...content: (HTMLElement | string)[]): HTMLElement {
   return el(
@@ -37,7 +48,7 @@ export function aboutSection(info: PreferencesInfo): HTMLElement {
     'div',
     { class: 'about' },
     logo,
-    el('h1', { 'data-key': 'name' }, 'Menkar'),
+    el('h1', { 'data-key': 'name' }, appName()),
     el('div', { class: 'dim', 'data-key': 'developer' }, DEVELOPER),
     el('span', { class: 'badge', 'data-key': 'version' }, info.version),
     el(

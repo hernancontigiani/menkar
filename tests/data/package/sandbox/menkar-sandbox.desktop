@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Menkar Sandbox
+Exec=/opt/Menkar-sandbox/menkar-sandbox %U
+Terminal=false
+Type=Application
+Icon=menkar-sandbox
+StartupWMClass=menkar-sandbox
+Comment=A desktop app for working with several Claude Code sessions at once
+Categories=Development;

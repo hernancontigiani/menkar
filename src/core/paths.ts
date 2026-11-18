@@ -1,7 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-
-const APP = 'menkar'
+import { flavorFacts } from './flavor.ts'
 
 export interface AppDirs {
   readonly config: string
@@ -21,7 +20,7 @@ function xdg(variable: string, fallback: string): string {
   const value = process.env[variable]
   // The XDG spec says a relative value is invalid and must be ignored.
   const base = value?.startsWith('/') ? value : join(homedir(), fallback)
-  return join(base, APP)
+  return join(base, flavorFacts().dirName)
 }
 
 export function appDirs(): AppDirs {
@@ -57,7 +56,7 @@ export function electronUserData(): string {
 // The Menkar folder (decision 1.58): the user's own files, one folder per project, outside every
 // repository. Not the app's state, which stays in appDirs(). `setting` is files_root, '' = default.
 export function filesRoot(setting: string): string {
-  return setting === '' ? join(homedir(), 'Menkar') : setting
+  return setting === '' ? join(homedir(), flavorFacts().filesFolder) : setting
 }
 
 // The folder a project's files live in, given the name it took under the root.

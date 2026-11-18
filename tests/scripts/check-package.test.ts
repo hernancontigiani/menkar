@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { checkPackage, type Package } from '../../scripts/check-package.mjs'
-import { debianRevision } from '../../scripts/package.mjs'
+import { checkPackage, FLAVOURS, type Package, sharedPaths } from '../../scripts/check-package.mjs'
+import { debianRevision, packageFlavour } from '../../scripts/package.mjs'
 
 // The post-install, profile and launcher recorded from a real `npm run package`
 // (electron-builder 26.18.0), so a template change upstream shows here as a red, not as a broken
@@ -159,4 +159,96 @@ describe('the Debian revision of a build', () => {
         ).not.toThrow()
     },
   )
+})
+
+// 1.155 Q3, 1.157 P1, 1.158: the sandbox is a package of its own beside the daily Menkar. Its
+// post-install, profile, launcher and file list are recorded from a real `npm run package:sandbox`
+// by packager, and the daily package's file list beside them.
+describe('the sandbox package', () => {
+  const sandboxData = (name: string) =>
+    readFileSync(join(__dirname, '..', 'data', 'package', 'sandbox', name), 'utf8')
+  // `dpkg-deb -c` lines: a directory's mode starts with d; its path is the sixth field on.
+  const listing = (text: string) => {
+    const entries = text
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const fields = line.split(/\s+/)
+        const path = fields.slice(5).join(' ').replace(/^\./, '').replace(/\/$/, '')
+        return { path, directory: fields[0]?.startsWith('d') === true }
+      })
+    return {
+      files: entries.map((e) => e.path),
+      directories: entries.filter((e) => e.directory).map((e) => e.path),
+    }
+  }
+  const sandbox = (): Package => {
+    const { files } = listing(sandboxData('files.txt'))
+    return {
+      version: '0.1.0',
+      control:
+        ' Package: menkar-sandbox\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n' +
+        ' Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0, libasound2t64 | libasound2\n',
+      files,
+      postinst: sandboxData('postinst'),
+      profile: sandboxData('apparmor-profile'),
+      desktop: sandboxData('menkar-sandbox.desktop'),
+    }
+  }
+
+  test('the sandbox package as built passes as a sandbox, and fails as the daily Menkar', () => {
+    expect(checkPackage(sandbox(), 'sandbox')).toEqual([])
+    expect(checkPackage(sandbox(), 'menkar').length).toBeGreaterThan(0)
+    expect(checkPackage(good(), 'sandbox').length).toBeGreaterThan(0)
+  })
+
+  test('Package: menkar-sandbox, or apt installs it as an upgrade replacing the daily Menkar', () => {
+    const asDaily = { ...sandbox(), control: sandbox().control.replace('menkar-sandbox', 'menkar') }
+    expect(checkPackage(asDaily, 'sandbox')).toEqual([
+      'control: Package is menkar, not menkar-sandbox',
+    ])
+  })
+
+  test('its launcher, command, folder and profile are its own', () => {
+    const { files } = listing(sandboxData('files.txt'))
+    expect(files).toContain('/usr/share/applications/menkar-sandbox.desktop')
+    expect(files).toContain('/opt/Menkar-sandbox/menkar-sandbox')
+    expect(files.filter((f) => f.startsWith('/opt/Menkar/'))).toEqual([])
+    expect(sandboxData('postinst')).toContain(
+      "APPARMOR_PROFILE_TARGET='/etc/apparmor.d/menkar-sandbox'",
+    )
+    expect(sandboxData('menkar-sandbox.desktop')).toMatch(/^Name=Menkar Sandbox$/m)
+  })
+
+  test('no path it installs is one the daily package installs', () => {
+    const mine = listing(sandboxData('files.txt'))
+    const daily = listing(sandboxData('menkar-files.txt'))
+    expect(daily.files).toContain('/opt/Menkar/menkar')
+    expect(
+      sharedPaths(mine.files, daily.files, [...mine.directories, ...daily.directories]),
+    ).toEqual([])
+    expect(sharedPaths(['/opt/Menkar/menkar'], ['/opt/Menkar/menkar'], [])).toEqual([
+      '/opt/Menkar/menkar',
+    ])
+  })
+
+  // The names electron-builder does not derive from executableName and the product name.
+  test('its builder config sets the four names that do not follow', () => {
+    const config = readFileSync(join(__dirname, '..', '..', FLAVOURS.sandbox.builderConfig), 'utf8')
+    expect(config).toMatch(/^extends: \.\/electron-builder\.yml$/m)
+    expect(config).toMatch(/^ {2}packageName: menkar-sandbox$/m)
+    expect(config).toMatch(/^ {2}desktopName: menkar-sandbox\.desktop$/m)
+    expect(config).toMatch(/^ {2}artifactName: menkar-sandbox_/m)
+    expect(config).toMatch(/^appId: \S+Sandbox$/m)
+    expect(config).not.toMatch(/^appId: io\.github\.hernancontigiani\.Menkar$/m)
+  })
+
+  test('a package holds the flavour its code was built as', () => {
+    expect(packageFlavour([], 'sandbox')).toBe('sandbox')
+    expect(packageFlavour([], 'menkar')).toBe('menkar')
+    expect(packageFlavour(['--flavour', 'sandbox'], 'sandbox')).toBe('sandbox')
+    expect(() => packageFlavour(['--flavour', 'menkar'], 'sandbox')).toThrow(/built as sandbox/)
+    expect(() => packageFlavour([], null)).toThrow(/electron-vite build/)
+    expect(() => packageFlavour(['--flavour', 'daily'], 'menkar')).toThrow(/daily/)
+  })
 })

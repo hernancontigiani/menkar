@@ -217,7 +217,10 @@ session) takes the newest session of that folder modified since the tab started,
 - **The window does not wait for the first scan** of the agents' folders. The workspace starts
   from `state.json` and `projects.json` alone. The sessions service announces no list until its
   first scan ends, so an empty list never reads as "no sessions". When the scan ends, a saved tab
-  whose sessions are all gone is dropped, and the shown project's saved tabs start (decision 1.32).
+  keeps the sessions a reader found and those state.json's `session_agents` names (an agent other
+  than Claude: kept and not started, with one line saying its agent is not installed or not
+  supported, 1.155 Q4, 1.159 B3); a tab left with none is dropped, and the shown project's saved
+  tabs start (decision 1.32).
   Measured over a 2 GB history: the first window went from about 6.3 s to 0.5 s.
 - **While that scan runs** (`sessionsLoading` in the window's state), the content shows the logo
   star turning, and the session list a small turning star with "Loading sessions…". Both appear

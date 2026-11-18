@@ -146,6 +146,15 @@ and the wake order.
     - `task_review { number, note }`: the assignee only; to review.
     child, no role) whose current task is waiting (`mayPark`). Once the worker's turn is over — its
 
+## The team block
+
+> Left on 2026-11-16: the team block's delivery per agent is asked of the agent's kit (plan 39, P0.3).
+  is the one without the team, to the byte. An agent with no entry in `TEAM_AGENTS` (Cursor) gets
+  - `buildCommand`'s `teamFile` appends `--append-system-prompt-file '<path>'` **last**; a resume
+- **Three pieces kept apart,** so another agent can bring its own: what a session holds at start
+  (`teamAtStart`), how a start delivers (the file and the flags), how a change is told (`teamPost`
+  and its triggers). `teamPost` itself is agent-neutral.
+
 > Replaced 2026-11-16: tasks 52 and 54 (1.171–1.173).
 - **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, events wait until no
 new one has come for `WAKE_DELAY_MS`, a child keeps only its latest, and all go in one message.
@@ -154,3 +163,8 @@ order the children first spoke in (decisions 1.78 and 1.114).
 - **Other posts to the orchestrator**, through the same `postToSession` and never batched: "[Menkar]
 The human wants to discuss topic N" (a double-click on a topic), "[Menkar] The human took control
 of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab's banner, decision 1.101).
+
+## The shape
+
+> Left on 2026-11-17: waking is asked of the parent's agent's kit (plan 39, P0.6).
+    - A parent with no Claude tab, or no entry in the registry, is logged and not woken.

@@ -126,8 +126,8 @@ is shown as written; none is `—`).
   across windows; a pane alone leaves a two-pane tab. New skips to the name step when the
   remembered folder still exists. A segmented picker at the top of New chooses the agent; one that
   is not on the PATH is greyed out and off, saying so, and Claude Code is chosen when installed.
-- **Details and export** read the whole transcript in main and use
-  `src/core/sessions/transcript.ts`. Details' Tokens row is left out until it can come from the
+- **Details and export** read the whole transcript through the session's agent catalog
+  (`src/core/agents/<id>/catalog.ts`). Details' Tokens row is left out until it can come from the
   usage module, as the spec asks.
 - **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only
   the `.jsonl` goes; its sibling directory stays. An e2e asserts every other file under `~/.claude`
@@ -162,8 +162,10 @@ is shown as written; none is `—`).
     only. Its shape, as of Claude Code 2.1.319: `{"pid":…, "sessionId":"…", "procStart":"…",
     "status":"idle", …, "bridgeSessionId":"session_…"}`. `bridgeSessionId` is a string while a
     bridge is connected, `null` after a disconnect, and absent in a process that never had one.
-  - **How it is read** (`src/core/remote/live.ts`, `src/main/remote-live.ts`): the agent is found
-    as the descendant of the pane's shell named `claude` (or a `node …/claude` script), by
+  - **How it is read** (`src/core/remote/live.ts` and Claude's main kit,
+    `src/main/agents/claude/remote.ts`; the watch and the poll in `src/main/remote-live.ts`): the
+    agent is found as the descendant of the pane's shell named `claude` (or a `node …/claude`
+    script), by
     `/proc/<pid>/task/*/children` and `cmdline`; its file must match its pid, its session (once
     the pane knows it) and its start time (`/proc/<pid>/stat`, field 22), so a reused pid is not
     taken for it. The folder is watched (250 ms debounce) and polled every 5 s, since a watch can

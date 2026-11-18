@@ -3,6 +3,7 @@ import type { en } from './en'
 // A key missing here shows its English text.
 export const es: Partial<Record<keyof typeof en, string>> = {
   'window.title': 'Menkar',
+  'window.titleSandbox': 'Menkar Sandbox',
   'projects.nameEmpty': 'Un proyecto necesita un nombre.',
   'projects.nameTaken': 'Ya hay un proyecto con ese nombre.',
   'projects.lastProject': 'El último proyecto no se puede borrar.',
@@ -33,6 +34,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'drawer.pickPlaceholder': 'Filtrar carpetas',
   'drawer.divider': 'Arrastrá para cambiar el alto de la shell; Ctrl+` la oculta',
   'terminal.notFound': 'aviso: no se encontró `{cli}` en el PATH — se abre una shell sola',
+  'terminal.restoreMissing':
+    'No se encontró esta sesión: puede que su agente ({agent}) esté desinstalado o que sus archivos ya no estén.',
+  'terminal.restoreUnsupported':
+    'Esta versión de Menkar no admite el agente de esta sesión ({agent}).',
   'tab.fork': '{name} (fork)',
   'tab.tooltipSession': '{folder} — {id}',
   'tab.tooltipNew': 'nueva sesión de {agent} — {cwd}',
@@ -323,6 +328,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'export.failedBody':
     'No se pudo escribir el archivo. Revisá que la carpeta exista y que puedas escribir en ella.',
   'sessions.gone': 'La sesión ya no está en el disco.',
+  'sandbox.notStarted': 'Menkar Sandbox solo actúa sobre las sesiones que inició él mismo.',
   'sessions.trashFailed': 'No se pudo mover el archivo a la papelera.',
   'sessions.deleteFailed': 'No se pudo borrar el archivo.',
   'add.title': 'Agregar una sesión a {name}',
@@ -454,7 +460,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.unclassified': 'Sin clasificar',
   'usage.tooNew': 'El historial de uso es de una versión más nueva de Menkar',
   'usage.cli.usage': 'uso:',
-  'usage.cli.error': 'menkar usage: error: {message}',
+  'usage.cli.error': '{command} usage: error: {message}',
   'usage.cli.unknownArgument': 'argumento no reconocido: {argument}',
   'usage.cli.needsValue': '{flag} necesita un valor',
   'usage.cli.notTogether': '{first} y {second} no pueden usarse juntos',
@@ -570,6 +576,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'prefs.reopenTabsSubtitle':
     'Retomar las sesiones que estaban en pestañas, en sus ventanas, con sus divisiones',
   'integrations.claudeSettings': 'Configuración de Claude Code',
+  'integrations.managedByMenkar':
+    'Los gestiona Menkar, el de uso diario: Menkar Sandbox muestra estos ajustes y nunca los cambia.',
   'integrations.claudeSettingsDescription':
     'Cada parte se agrega a ~/.claude/settings.json solo cuando la activás, y se quita cuando la desactivás. Antes de cada cambio se guarda una copia del archivo.',
   'integrations.statusline': 'Barra de estado en cada sesión de Claude',
@@ -585,6 +593,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'integrations.retentionByUser': 'Se conservan {days} días (tu configuración)',
   'integrations.retentionUnreadable':
     'No se pudo leer {path}, así que no se sabe cuánto tiempo conserva Claude Code las transcripciones.',
+  'classifier.offInSandbox': 'Menkar Sandbox no clasifica turnos.',
   'classifier.group': 'Clasificar turnos',
   'classifier.switch': 'Clasificar cada turno nuevo por etapa de desarrollo',
   'classifier.switchSubtitle':

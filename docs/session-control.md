@@ -244,7 +244,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       `wakeSession` passes them in (`postCounts`, `src/core/orchestration/counts.ts`, the tiles'
       own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
       it. Posts to other sessions have no counts.
-    - A parent with no Claude tab, or no entry in the registry, is logged and not woken.
+    - A parent whose tab's agent has no waker (`mainKit.waker`, Claude's alone today), or no entry
+      in the registry, is logged and not woken.
   - Nothing is typed into a terminal.
 - **The human's own posts to the orchestrator** go through the same batch (decision 1.173):
   "The human wants to discuss topic N" (a double-click on a topic), "The human took control of
@@ -312,7 +313,7 @@ What a Claude session of a project in the orchestration mode needs to work in th
     derived title is not one, so it never changes the facts. A session with none reads as "a new
     session"; another session with none is called by its id's first eight characters.
 - **Only with the mode on.** With it off no input is built, no file is written and the command line
-  is the one without the team, to the byte. An agent with no entry in `TEAM_AGENTS` (Cursor) gets
+  is the one without the team, to the byte. An agent whose kit has no team delivery (Cursor) gets
   nothing.
 - **The input at start** is built for every Claude pane whose tab belongs to a mode-on project: a
   member from the project; a session not yet a member (the human's new session, a fork) from the
@@ -323,7 +324,7 @@ What a Claude session of a project in the orchestration mode needs to work in th
   - The block is written to `<cache>/menkar/control/team/<pane-id>.md` (`controlPaths().team`)
     through `writeTextAtomic` **before** the command is built: Claude stops at once on a missing
     file. Files older than a day are swept hourly with the prompt copies (`sweepTeamFiles`).
-  - `buildCommand`'s `teamFile` appends `--append-system-prompt-file '<path>'` **last**; a resume
+  - Claude's Launcher, given the `teamFile`, appends `--append-system-prompt-file '<path>'` **last**; a resume
     puts `--system-prompt-snapshot off` before it, on **every** resume of a mode-on tab. Claude
     reads the file once, at start; a compaction or `/clear` rebuilds the prompt from that text.
   - **Why the snapshot flag on every resume:** without it a resumed conversation keeps the block
@@ -367,9 +368,27 @@ What a Claude session of a project in the orchestration mode needs to work in th
   no team post reads nothing. A team update is a user line with `origin.kind` `peer` and
   `origin.from` `menkar` whose delivered text (after the line Claude Code puts before a peer's)
   **starts** with "[Menkar] Team update:", as Claude Code 2.1.325 records it.
-- **Three pieces kept apart,** so another agent can bring its own: what a session holds at start
-  (`teamAtStart`), how a start delivers (the file and the flags), how a change is told (`teamPost`
-  and its triggers). `teamPost` itself is agent-neutral.
+- **Three pieces kept apart,** so another agent can bring its own: what a session holds at start,
+  how a start delivers, how a change is told. `teamPost`, its triggers and the posts'
+  consequences are agent-neutral.
+
+### Per agent
+
+What differs per agent is a `TeamDelivery` in its kit (`kitOf(agent).team`, core) and a
+`MainTeamDelivery` in its main kit (`mainKitOf(agent).team`); `null` in either means no block, no
+flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
+
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) |
+|---|---|---|
+| How it names skills, its protocol part | `skill`, `own`, `part` | `` `name` ``, `` `menkar:name` ``, `claude.md` |
+| (1) What a start holds | `heldAtStart(start, block)` | new and resume → the block; fork → `null` |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast |
+| (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket |
+
+Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
+that fails leaves the pane outside the team, as above), so the file is not part of the plan the
+Launcher returns.
 
 ## Measured on Claude Code 2.1.322 (2026-11-11, a throwaway home, a local stand-in for the API)
 

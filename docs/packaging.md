@@ -101,6 +101,56 @@ as any start does, single-instance hand-off included. The decision is `shouldDet
   2026-11-08).
 - Neither runs in `npm run ci`: the package takes about a minute to build.
 
+## The sandbox package
+
+The multi-agent branch is tried in a second **flavour**, Menkar Sandbox, that cannot touch the
+human's daily Menkar (1.155 Q3) and duplicates everything it needs to run on its own (1.158).
+
+- **The flavour is a build-time constant** (`src/core/flavor.ts`, defined by
+  `electron.vite.config.ts`): `MENKAR_FLAVOR_BUILD` when set, else `menkar` on `main` and `sandbox`
+  on any other branch, so a build in the branch's worktree is never a `menkar` package by mistake.
+  The build writes it to `out/main/flavor.txt`, and `scripts/package.mjs` packages that flavour,
+  refusing a `--flavour` that differs. `npm run package:sandbox` builds and packages a sandbox;
+  `npm run package:check -- --flavour sandbox` checks it. `ui-check` builds as `menkar` on any
+  branch: the e2e suite tests the app as it ships.
+- **Its own package**, from `electron-builder.sandbox.yml` (`extends: ./electron-builder.yml`):
+  `menkar-sandbox`, in `/opt/Menkar-sandbox/`, built into `release/sandbox/` so its
+  `linux-unpacked` never replaces the daily one's. The post-install, post-remove and AppArmor
+  templates follow the executable and product names, so its command, alternatives name, profile,
+  launcher and icon file are its own. **Four names do not follow and are set explicitly**: the
+  package name (without it apt installs the sandbox as an upgrade that replaces the daily Menkar),
+  the launcher's `desktopName`, the artifact name and the app id. `package:check` and its test
+  fail when the package is not `menkar-sandbox` or shares any installed file with `menkar`'s.
+- **Outside `/opt/Menkar`, as the human allowed (1.157 P1):** `/usr/bin/menkar-sandbox` and
+  `/etc/apparmor.d/menkar-sandbox`, plus its launcher and icon under `/usr/share`. Each package's
+  post-remove unloads only its own profile.
+- **Its own icon** (1.166, variant A): Menkar's star, dark (`#1e1e2e`), on an amber tile
+  (`#f5a524`) instead of the dark one. `build/icons-sandbox/menkar-sandbox.svg` is its source and
+  `512x512.png` is rendered from it (Playwright's Chromium, a screenshot of the SVG at 512 px with a
+  transparent background); a change to the SVG is rendered again by hand.
+- **What the flavour changes in the app:** its state directories (`menkar-sandbox` under the XDG
+  config, cache and data homes, so its own state, records, logs, usage history and single-instance
+  lock), its files folder (`~/Menkar-sandbox`), its name wherever the app shows one ("Menkar
+  Sandbox"), and its panes carry `MENKAR_FLAVOR=sandbox`. Both flavours strip an inherited
+  `MENKAR_FLAVOR` first. The statusline and MCP server programs are built with the same constant
+  and ship in its own package with its own plugin copy.
+
+**What it still shares, because it cannot own it, and how each stays safe:**
+
+| Shared | How it stays safe |
+|---|---|
+| The agents' own data (`~/.claude/projects`, `~/.cursor/projects`) | It acts only on the sessions it started (`started_sessions` in its own `state.json`): its windows list no other, and every action naming another is refused before it does anything (1.159 B1) |
+| Claude Code's messaging registry | Sandbox projects take names no daily project has (a hand check); wakes go by session id |
+| `~/.claude/settings.json` | No flavour chains to a Menkar statusline of any flavour; the sandbox shows the statusline and retention items read only, "managed by Menkar", and its own sessions get its statusline through `--settings` |
+| The agents' logins | Never read or copied |
+| The classifier's account use | Off in the sandbox, its setting hidden (1.159 S11) |
+
+**The install check is in a throwaway container**, never on the human's machine: both .debs
+installed side by side, `dpkg -L menkar` and `/opt/Menkar` unchanged by the sandbox's install, and
+both apps running at once with their own windows. AppArmor profiles cannot be loaded inside a
+container, so there only their files are checked. The human installs the sandbox at the end of the
+branch's first phase.
+
 ## Cutting a release
 
 A release is cut by a session and checked by the human; nothing is published anywhere.

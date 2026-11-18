@@ -1,6 +1,7 @@
 // The source catalog: every key the app uses, with its English text. `{name}` is a placeholder.
 export const en = {
   'window.title': 'Menkar',
+  'window.titleSandbox': 'Menkar Sandbox',
   'projects.nameEmpty': 'A project needs a name.',
   'projects.nameTaken': 'There is already a project with that name.',
   'projects.lastProject': 'The last project cannot be deleted.',
@@ -31,6 +32,10 @@ export const en = {
   'drawer.pickPlaceholder': 'Filter folders',
   'drawer.divider': 'Drag to resize the shell; Ctrl+` hides it',
   'terminal.notFound': 'warning: `{cli}` not found in PATH — starting a plain shell',
+  'terminal.restoreMissing':
+    'This session was not found: its agent ({agent}) may be uninstalled or its files gone.',
+  'terminal.restoreUnsupported':
+    "This session's agent ({agent}) is not supported by this version of Menkar.",
   'tab.fork': '{name} (fork)',
   'tab.tooltipSession': '{folder} — {id}',
   'tab.tooltipNew': 'new {agent} session — {cwd}',
@@ -319,6 +324,7 @@ export const en = {
   'export.failedBody':
     'The file could not be written. Check that the folder exists and that you can write to it.',
   'sessions.gone': 'The session is no longer on disk.',
+  'sandbox.notStarted': 'Menkar Sandbox acts only on the sessions it started itself.',
   'sessions.trashFailed': 'The file could not be moved to the trash.',
   'sessions.deleteFailed': 'The file could not be deleted.',
   'add.title': 'Add a session to {name}',
@@ -450,7 +456,7 @@ export const en = {
   'usage.unclassified': 'Unclassified',
   'usage.tooNew': 'Usage history is from a newer version of Menkar',
   'usage.cli.usage': 'usage:',
-  'usage.cli.error': 'menkar usage: error: {message}',
+  'usage.cli.error': '{command} usage: error: {message}',
   'usage.cli.unknownArgument': 'unrecognized argument: {argument}',
   'usage.cli.needsValue': '{flag} needs a value',
   'usage.cli.notTogether': '{first} and {second} cannot be used together',
@@ -563,6 +569,8 @@ export const en = {
   'prefs.reopenTabsSubtitle':
     'Resume the sessions that were in tabs, in their windows, with their splits',
   'integrations.claudeSettings': 'Claude Code settings',
+  'integrations.managedByMenkar':
+    'Managed by Menkar, the daily one: Menkar Sandbox shows these settings and never changes them.',
   'integrations.claudeSettingsDescription':
     'Each piece is added to ~/.claude/settings.json only when you turn it on, and taken out when you turn it off. A copy of the file is kept before every change.',
   'integrations.statusline': 'Status line in every Claude session',
@@ -577,6 +585,7 @@ export const en = {
   'integrations.retentionByUser': 'Kept for {days} days (your setting)',
   'integrations.retentionUnreadable':
     '{path} could not be read, so how long Claude Code keeps transcripts is not known.',
+  'classifier.offInSandbox': 'Menkar Sandbox does not classify turns.',
   'classifier.group': 'Classify turns',
   'classifier.switch': 'Classify each new turn by development stage',
   'classifier.switchSubtitle':

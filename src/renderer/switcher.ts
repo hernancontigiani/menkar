@@ -1,3 +1,4 @@
+import { descriptorOf } from '../core/agents/descriptors'
 import type { Key } from '../core/i18n'
 import { filterSearch, groupByFolder } from '../core/sessions/history'
 import { matchShortcut, type ShortcutOf } from '../core/shortcuts'
@@ -183,11 +184,10 @@ export function quickSwitcher(): void {
   )
 }
 
-const AGENT_LABEL: Record<string, Key> = {
-  claude: 'agent.claude',
-  cursor: 'agent.cursor',
-  shell: 'agent.shell',
-  file: 'agent.file',
+function agentLabel(entry: TabEntry): Key {
+  if (entry.kind === 'file') return 'agent.file'
+  if (entry.agent === null || entry.agent === 'shell') return 'agent.shell'
+  return descriptorOf(entry.agent).label
 }
 
 // Ctrl+B g: every tab of every window.
@@ -196,9 +196,7 @@ export async function goToAgent(): Promise<void> {
   const { tabs } = await act({ type: 'listTabs' })
   const entries = (tabs ?? []).map((entry: TabEntry) => {
     const state = tabStateOf(entry.panes)
-    const agent = translate(
-      AGENT_LABEL[entry.kind === 'file' ? 'file' : (entry.agent ?? 'shell')] ?? 'agent.shell',
-    )
+    const agent = translate(agentLabel(entry))
     const word = translate(sessionDotState[state])
     return {
       title: `${entry.projectName} · ${entry.title}`,

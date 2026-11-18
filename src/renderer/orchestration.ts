@@ -1,3 +1,4 @@
+import { DEFAULT_AGENT } from '../core/agents/ids'
 import { membersFolders, type ProjectFolder, presentFolders } from '../core/orchestration/folders'
 import { topicsFolded } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
@@ -413,7 +414,7 @@ async function startTeam(
   if (pick === NEW) {
     const { refusal } = await act({
       type: 'startNew',
-      agent: 'claude',
+      agent: DEFAULT_AGENT,
       folder,
       name,
       prompt: t('orch.firstPrompt', { name: p.name, guide }),

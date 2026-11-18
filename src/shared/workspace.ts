@@ -1,5 +1,7 @@
 // What a window shows and what it may ask for: the protocol between main's workspace and a
 // window's renderer. Types only.
+
+import type { AgentId } from '../core/agents/ids'
 import type { Reading } from '../core/context/types'
 import type { Key } from '../core/i18n'
 import type { Params } from '../core/i18n/interpolate'
@@ -7,11 +9,11 @@ import type { ReviewWait, TaskState } from '../core/orchestration/taskState'
 import type { SettingsSection } from '../core/preferences'
 import type { PresenceView } from '../core/presence'
 import type { ActiveProject, Notice, ProjectInfo } from '../core/projects/info'
+import type { Details } from '../core/sessions/details'
 import type { SessionInfo } from '../core/sessions/info'
-import type { Details } from '../core/sessions/transcript'
 import type { Settings } from '../core/settings'
 
-export type PaneAgent = 'claude' | 'cursor' | 'shell'
+export type PaneAgent = AgentId | 'shell'
 
 export interface PaneView {
   readonly id: string
@@ -118,7 +120,7 @@ export interface WindowState {
   readonly readings: Readonly<Record<string, Reading>>
   readonly notices: readonly Notice[]
   // The agents whose CLI is on the PATH.
-  readonly agents: readonly ('claude' | 'cursor')[]
+  readonly agents: readonly AgentId[]
   // Sessions with Remote Control on.
   readonly remoteControl: readonly string[]
   // Sessions muted by hand: no sound, toast or desktop notice.
@@ -245,7 +247,7 @@ export type Action =
   | { readonly type: 'setSidebarWidth'; readonly width: number }
   | {
       readonly type: 'startNew'
-      readonly agent: 'claude' | 'cursor'
+      readonly agent: AgentId
       readonly folder: string
       readonly name: string
       readonly remoteControl?: boolean
