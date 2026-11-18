@@ -99,6 +99,7 @@ with more hits than its entry fails, so a count only goes down. What is left:
   - `src/core/context/integrations.ts`: `CLAUDE_DEFAULT_CLEANUP_DAYS`;
   - `src/core/files/check.ts`: `isClaudeData`;
   - `src/core/sessions/info.ts`, `src/core/sessions/service.ts`: `SessionInfo.claudeNamed`.
+  - `src/core/sessions/starting.ts`: the stand-in row's `claudeNamed`, which goes with that field.
 
 ## Two traps
 

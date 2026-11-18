@@ -4,7 +4,7 @@ import { stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
-import { descriptorOf } from '../core/agents/descriptors'
+import { descriptorOf, paneAgentLabel } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { isDefault, kitOf } from '../core/agents/registry'
 import { backgroundToastShown, markBackgroundToast } from '../core/background-toast'
@@ -194,6 +194,7 @@ import {
 import type { SessionInfo } from '../core/sessions/info'
 import { findOnPath } from '../core/sessions/installed'
 import { lookUp, type Pending } from '../core/sessions/join'
+import { startingSessions } from '../core/sessions/starting'
 import { safeFileName } from '../core/sessions/transcript'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import { restoreOf, sessionAgents, setAppName, withSessionAgent } from '../core/state'
@@ -346,9 +347,7 @@ const ownName = (id: string): string | undefined => {
   const info = sessionInfo(id)
   return info?.claudeNamed ? info.name : startedNames.get(id)
 }
-// A shell is named as the default agent, as it always was.
-const agentName = (agent: PaneAgent) =>
-  translate(descriptorOf(agent === 'shell' ? DEFAULT_AGENT : agent).label)
+const agentName = (agent: PaneAgent) => translate(paneAgentLabel(agent))
 // The pane's agent; null for a shell.
 const agentOf = (pane: Pane | undefined): AgentId | null =>
   !pane || pane.agent === 'shell' ? null : pane.agent
@@ -609,6 +608,15 @@ function stateFor(windowId: string): WindowState | undefined {
     tabs: w.tabs.map(tabView),
     selectedTab: shownTab(w),
     sessions: shownSessions(sessionList),
+    starting: startingSessions(
+      [...panes.values()].flatMap((p) =>
+        p.sessionId && p.agent !== 'shell'
+          ? [{ sessionId: p.sessionId, agent: p.agent, cwd: p.cwd }]
+          : [],
+      ),
+      sessionList,
+      sessionName,
+    ),
     running: [...panes.values()]
       .filter((p) => p.sessionId && p.terminal.running)
       .map((p) => p.sessionId as string),

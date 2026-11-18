@@ -61,6 +61,11 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
   8 ms. A rescan with nothing changed took 11 ms. No worker thread is needed.
 - **One service for every window**: main pushes the whole list to every window after each scan and
   after each change to the hidden set.
+- **A session with a tab and no transcript yet** (2026-11-18: one stopped at a trust dialog before
+  its first turn) has a stand-in row (`src/core/sessions/starting.ts`): the name it was started
+  with, or its id's first 8 characters, its state dot and its row menu, until the catalog's own
+  row replaces it. Only a session whose id its pane knows at start (`start_session`); one from New
+  binds its id only when its transcript appears (`docs/NOT_BUILT_YET.md`).
 
 ## A session that changes id in its tab
 

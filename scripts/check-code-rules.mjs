@@ -104,6 +104,13 @@ export const ALLOWED = {
         "tests import it by this name (§2.11, P0 rewrites no test); moves into its agent's folder with its test after P0.8",
     },
   },
+  'src/core/sessions/starting.ts': {
+    'agent-identifier': {
+      count: 1,
+      reason:
+        'a stand-in SessionInfo sets the field SessionInfo names claudeNamed; goes when that field is renamed',
+    },
+  },
   'src/core/team/version.ts': {
     'agent-identifier': {
       count: 1,

@@ -19,6 +19,7 @@ import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
 import { relativeTime } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
+import { withStarting } from '../core/sessions/starting'
 import { DEFAULT_SETTINGS, SIDEBAR_MIN_WIDTH } from '../core/settings'
 import type { Action, ActionResult, TabView, TaskView, WindowState } from '../shared/workspace'
 import { appName } from './about'
@@ -190,7 +191,7 @@ function showBackground(name: string): void {
   const session = state?.tabs
     .filter((tab) => tab.place === 'background')
     .flatMap((tab) => tab.panes.map((p) => p.sessionId))
-    .find((id) => state?.sessions.find((info) => info.id === id)?.name === name)
+    .find((id) => (state ? sessionsById(state).get(id ?? '')?.name : undefined) === name)
   if (session) void act({ type: 'selectSessionTab', session })
 }
 export const currentState = () => state
@@ -529,7 +530,8 @@ function sendTitleBar(): void {
   void act({ type: 'titleBar', color, symbolColor, height })
 }
 
-const sessionsById = (s: WindowState) => new Map(s.sessions.map((x) => [x.id, x]))
+const sessionsById = (s: WindowState) =>
+  new Map(withStarting(s.sessions, s.starting).map((x) => [x.id, x]))
 const folderOf = (info: SessionInfo) =>
   (info.cwd ?? info.folder).split('/').filter(Boolean).pop() ?? info.cwd ?? ''
 

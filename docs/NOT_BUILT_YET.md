@@ -376,3 +376,15 @@ unselected (decision 1.32); the renderer fits it then.
 **Trigger:** a peeked worker's earlier output reads badly wrapped at 80 columns. First question:
 whether main sizes a background pty from its window's tab body, measured by the renderer
 before the worker is first shown.
+
+### A row for a session from New before its first turn
+
+A session started from New (the first-time card's new orchestrator too) or a fork has no session id
+in its pane until its transcript appears and the pane joins it; until then it has no row, no dot by
+id and no menu target. A session started by `start_session` knows its id at once and has a
+stand-in row (`docs/sessions.md`). Less urgent: the New session's tab is selected, in front of the
+human, while a background worker's is not (decided 2026-11-18).
+
+**Trigger:** a session started from New stuck before its first turn goes unseen by the human.
+First question: whether to bind the expected id at start, as `start_session` does, or draw a row
+per waiting pane.

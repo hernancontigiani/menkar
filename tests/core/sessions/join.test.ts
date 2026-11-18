@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionInfo } from '../../../src/core/sessions/info'
 import { lookUp, type Pending, UNKNOWN_ID_TRIES } from '../../../src/core/sessions/join'
+import { startingSessions, withStarting } from '../../../src/core/sessions/starting'
 
 const session = (over: Partial<SessionInfo>): SessionInfo =>
   ({
@@ -79,5 +80,31 @@ describe('a started tab waiting for its transcript', () => {
         session({ id: 'b', preview: 'x', mtimeMs: STARTED + 20 }),
       ]),
     ).toEqual({ kind: 'joined', sessionId: 'b' })
+  })
+})
+
+describe('a session with a pane and no transcript yet', () => {
+  const named = (id: string) => (id === 'w1' ? 'worker' : id.slice(0, 8))
+  it('stands in with the name it was started with, once, until the catalog has its own row', () => {
+    const panes = [
+      { sessionId: 'w1', agent: 'claude' as const, cwd: '/w' },
+      { sessionId: 'w1', agent: 'claude' as const, cwd: '/w' },
+      { sessionId: 'known', agent: 'claude' as const, cwd: '/w' },
+      { sessionId: '0123456789ab', agent: 'claude' as const, cwd: null },
+    ]
+    const catalog = [session({ id: 'known', name: 'api' })]
+    const starting = startingSessions(panes, catalog, named)
+    expect(starting.map((s) => [s.id, s.name, s.claudeNamed])).toEqual([
+      ['w1', 'worker', false],
+      ['0123456789ab', '01234567', false],
+    ])
+    expect(withStarting(catalog, starting).map((s) => s.id)).toEqual([
+      'known',
+      'w1',
+      '0123456789ab',
+    ])
+    const transcribed = [...catalog, session({ id: 'w1', name: 'worker', claudeNamed: true })]
+    const merged = withStarting(transcribed, starting)
+    expect(merged.filter((s) => s.id === 'w1')).toEqual([transcribed[1]])
   })
 })

@@ -333,6 +333,81 @@ test('a started session waiting at a permission prompt wakes its parent through 
   }
 })
 
+// A session stopped before its first turn (a trust dialog at start) has no transcript, so the
+// catalog has no row for it: its row is the one it was started with, until the catalog's takes over.
+for (const orchestrated of [false, true])
+  test(`with the mode ${orchestrated ? 'on' : 'off'}, a started session with no transcript yet has its row by its started name, red at a prompt, still one row once its transcript appears`, async () => {
+    const { launched, page, argLines } = await open({
+      orchestrated,
+      env: { FAKE_CLAUDE_QUIET: '1' },
+    })
+    try {
+      await page.keyboard.type('SPAWN1')
+      await said(page, 'TOOL start_session: Started "worker"')
+      await expect.poll(() => argLines().length).toBe(2)
+      const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+      const row = page.locator(`.row[data-session="${worker}"]`)
+      await expect(row).toHaveCount(1)
+      await expect(row.locator('.name')).toHaveText(/^worker/)
+
+      // Its terminal: a tab after the caller's, or the peek a click on a background worker opens.
+      // A peek takes no keys until its control is taken; given back, the worker is in the background.
+      const banner = (name: string) =>
+        page.locator('.tab-body:not(.hidden) .pane-banner button', { hasText: name })
+      if (orchestrated) {
+        await row.click()
+        await banner('Take control').click()
+      } else await page.locator('.tab').nth(1).click()
+      await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
+      await page.locator('.xterm:visible').click()
+      await page.keyboard.type('ASK')
+      await expect(page.locator('.xterm-rows:visible')).toContainText('Do you want to proceed?')
+      if (orchestrated) {
+        await banner('Back to reporting to the orchestrator').click()
+        await page.locator('#tab-strip .tab').last().locator('.close').click()
+        await expect(page.locator('#tab-strip .tab')).toHaveCount(1)
+      }
+      await expect(row.locator('.dot')).toHaveClass(/blocked/, { timeout: 15_000 })
+      const files = process.env.MENKAR_FILES
+      if (files)
+        await page.screenshot({
+          path: join(files, `menkar-t79-no-transcript-${orchestrated ? 'mode' : 'list'}.png`),
+        })
+      await row.locator('.more').click()
+      await expect(page.locator('.menu-item').first()).toBeVisible()
+      await page.keyboard.press('Escape')
+
+      if (orchestrated) {
+        await row.click()
+        await banner('Take control').click()
+      }
+      await page.locator('.xterm:visible').click()
+      await page.keyboard.type('FIRSTTURN')
+      await expect(page.locator('.xterm-rows:visible')).toContainText(
+        'stand-in wrote its transcript',
+      )
+      await expect
+        .poll(() =>
+          page.evaluate(
+            async (id) =>
+              (
+                await (
+                  globalThis as unknown as {
+                    menkar: { window: { state(): Promise<{ sessions: { id: string }[] }> } }
+                  }
+                ).menkar.window.state()
+              ).sessions.some((s) => s.id === id),
+            worker,
+          ),
+        )
+        .toBe(true)
+      await expect(row).toHaveCount(1)
+      await expect(row.locator('.name')).toHaveText(/^worker/)
+    } finally {
+      await launched.close()
+    }
+  })
+
 // Decision 1.178: a session asks its parent with ask, posted at once and answered from what the post
 // did; the orchestrator reads its inbox with inbox. A question the orchestrator cannot be woken for
 // waits in its inbox, whose file follows the orchestrator to its new pane on a renew.

@@ -116,6 +116,8 @@ export interface WindowState {
   readonly tabs: readonly TabView[]
   readonly selectedTab: string | null
   readonly sessions: readonly SessionInfo[]
+  // Sessions with a pane the catalog has no row for yet: no transcript before their first turn.
+  readonly starting: readonly SessionInfo[]
   // Sessions whose agent is in the foreground of their pane.
   readonly running: readonly string[]
   // Sessions that have a pane (a tab) in any window.
