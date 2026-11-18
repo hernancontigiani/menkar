@@ -36,6 +36,7 @@ type Unstamped =
   | (PromptAnswered & { readonly projectId?: string })
   | { readonly kind: 'app_start' }
   | { readonly kind: 'present'; readonly projectId?: string }
+  | { readonly kind: 'away' | 'back' }
   | { readonly kind: 'prompted_start'; readonly sessionId: string; readonly projectId?: string }
 
 const journalPath = () => join(activityDir(), 'journal.jsonl')
@@ -122,6 +123,12 @@ export function recordPromptedStart(sessionId: string, projectId: string | undef
   const at = seconds()
   const event = { kind: 'prompted_start' as const, sessionId }
   void enqueue(() => write([stamp(projectId === undefined ? event : { ...event, projectId }, at)]))
+}
+
+// The human set away or back, by any of the ways presence changes.
+export function recordPresence(away: boolean): void {
+  const at = seconds()
+  void enqueue(() => write([stamp({ kind: away ? ('away' as const) : ('back' as const) }, at)]))
 }
 
 const prompts = new PromptTracker()

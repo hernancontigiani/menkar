@@ -19,7 +19,8 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // TASKADD adds an unassigned task, WORKT starts its worker, STEPS and WAITS (which ends the turn)
 // report on task 1, PARK parks "client-work-t1", WAKEW resumes it with a prompt, CLOSE1 closes
 // task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away; REVIEWPR (which ends the
-// turn) hands task 1 to review waiting on PR approval #436, SECONDW starts task 2's worker;
+// turn) hands task 1 to review waiting on PR approval #436, REVIEW1 (which does not) hands it to
+// the orchestrator's review with the note "ready", SECONDW starts task 2's worker;
 // HUMANBACK clears the human's away state (decision 1.167), HUMANAWAY sets it (decision 1.181);
 // QUESTION asks its parent "Which port should the API use?" and INBOX reads its inbox (1.178).
 // Each answer is printed as "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the
@@ -215,6 +216,7 @@ process.stdin.on('data', (d) => {
     STAR1: ['task_star', { number: 1, star: true }],
     DROPSTAR: ['task_star', { number: 1, star: false }],
     REVIEWPR: ['task_review', { number: 1, note: 'PR open', waiting_on: 'pr-approval', waiting_note: '#436' }, true],
+    REVIEW1: ['task_review', { number: 1, note: 'ready' }],
     SECONDW: ['start_session', { task: 2, prompt: 'fix the docs' }],
     HUMANBACK: ['human_back', {}],
     HUMANAWAY: ['human_away', {}],

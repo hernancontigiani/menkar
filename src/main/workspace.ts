@@ -12,7 +12,7 @@ import { now } from '../core/clock'
 import { commandLine, mcpConfig, type Start } from '../core/command'
 import { PANE_ENV, type PaneStartSource } from '../core/context/statusline'
 import type { Reading } from '../core/context/types'
-import { WakeBatcher, wakesParent } from '../core/control/events'
+import { type Route, route, WakeBatcher, type WakeEntry, wakesParent } from '../core/control/events'
 import {
   type ControlAnswer,
   type ControlRequest,
@@ -45,6 +45,13 @@ import {
   startFolder,
 } from '../core/orchestration/folders'
 import { mayStart } from '../core/orchestration/mayStart'
+import {
+  openPermissionTopic,
+  PERMISSION_ANSWERED,
+  type PermissionSubject,
+  PermissionTopics,
+  permissionTopic,
+} from '../core/orchestration/permission'
 import { readOnly } from '../core/orchestration/readonly'
 import { placeStarted, readPlacement } from '../core/orchestration/started'
 import {
@@ -65,9 +72,12 @@ import {
   untakenRefusal,
 } from '../core/orchestration/tasks'
 import {
+  addTopic,
   closedTopicsToday,
+  closeTopic,
   markSeen,
   shownTopics,
+  type Topic,
   type Topics,
   type TopicTool,
   topicNotice,
@@ -201,7 +211,7 @@ import type {
   TopicView,
   WindowState,
 } from '../shared/workspace'
-import { recordPromptedStart } from './activity'
+import { recordPresence, recordPromptedStart } from './activity'
 import { mainKitOf } from './agents/registry'
 import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
@@ -345,6 +355,15 @@ const agentOf = (pane: Pane | undefined): AgentId | null =>
 const wakeable = (pane: Pane | undefined): boolean => {
   const agent = agentOf(pane)
   return agent !== null && mainKitOf(agent).waker !== null
+}
+
+// Its tab is its window's selected tab and that window is focused: the human is looking at it.
+function paneSeen(pane: Pane): boolean {
+  const w = windowOfTab(pane.tabId)
+  const window = w ? windows.get(w.id) : undefined
+  return (
+    !!w && shownTab(w) === pane.tabId && !!window && !window.isDestroyed() && window.isFocused()
+  )
 }
 
 function windowOfTab(tabId: string): LayoutWindow | undefined {
@@ -627,8 +646,7 @@ function topicViews(projectId: string): TopicView[] {
       : [
           {
             number: x.number,
-            title: x.title,
-            context: x.context,
+            ...permissionTopicText(x),
             from: sessionName(x.from),
             blocking: x.blocking,
             status: x.status,
@@ -640,12 +658,16 @@ function topicViews(projectId: string): TopicView[] {
 
 function doneTodayView(projectId: string): DoneView[] {
   const at = now()
-  const topics = closedTopicsToday(topicsOf(currentTopics(), projectId), at).map((x) => ({
-    kind: 'topic' as const,
-    number: x.number,
-    title: x.title,
-    at: Date.parse(x.updated),
-  }))
+  // A prompt answered is no work done: its topic is kept out.
+  const closed = closedTopicsToday(topicsOf(currentTopics(), projectId), at)
+  const topics = closed
+    .filter((x) => x.kind !== 'permission')
+    .map((x) => ({
+      kind: 'topic' as const,
+      number: x.number,
+      title: x.title,
+      at: Date.parse(x.updated),
+    }))
   const tasks = doneToday(tasksOf(currentTasks(), projectId), at).map((x) => ({
     kind: 'task' as const,
     number: x.number,
@@ -1087,17 +1109,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       sessionId: () => self.sessionId,
       foreground: () => self.terminal.running,
       shellPid: () => self.terminal.pid,
-      seen: () => {
-        const w = windowOfTab(self.tabId)
-        const window = w ? windows.get(w.id) : undefined
-        return (
-          !!w &&
-          shownTab(w) === self.tabId &&
-          !!window &&
-          !window.isDestroyed() &&
-          window.isFocused()
-        )
-      },
+      seen: () => paneSeen(self),
       tabTitle: () => {
         const tab = tabById(self.tabId)
         return tab ? tabView(tab).title : ''
@@ -1121,13 +1133,16 @@ function onPaneExit(paneId: string): void {
   const pane = panes.get(paneId)
   if (!pane) return
   panes.delete(paneId)
+  if (turns.get(paneId) === 'open' && pane.sessionId) turnEnd(paneId, pane.sessionId, agentOf(pane))
+  turns.delete(paneId)
+  permissions.exited(paneId)
   forgetTeam(paneId)
   inboxes.paneExited(paneId)
   pane.handle?.close()
   // A pane hung up to renew its session: its tab stays, already re-keyed, for the new one.
   const renewed = renewing.get(paneId)
+  renewing.delete(paneId)
   if (renewed) {
-    renewing.delete(paneId)
     tabPanes.set(
       pane.tabId,
       (tabPanes.get(pane.tabId) ?? []).filter((id) => id !== paneId),
@@ -1393,8 +1408,9 @@ interface RenewRequest {
 }
 // By pane: a session asked to be renewed once its turn ends.
 const renewRequests = new Map<string, RenewRequest>()
-// By pane: hung up to renew; called when it is gone, so the new session starts in its tab.
-const renewing = new Map<string, () => void>()
+// By pane: hung up to renew; called when it is gone, so the new session starts in its tab. Null
+// from the renew's start until its hang-up: a turn ending meanwhile is the renew's, not reported.
+const renewing = new Map<string, (() => void) | null>()
 
 // The tools' sentences go to the agent that called, in English.
 const refuse = (text: string): ControlAnswer => ({ ok: false, text })
@@ -1471,6 +1487,7 @@ let asks = 0
 
 // Posted at once, not batched: the answer says what the post did.
 function askFor(project: Project, sessionId: string, question: unknown): Promise<ControlAnswer> {
+  inboxes.retract(project.id, `turn:${sessionId}`)
   const parent = keptParents(project)[sessionId]
   const orchestrator = workerTeam(project).orchestrator
   const task = currentTask(tasksOf(currentTasks(), project.id), sessionId)
@@ -1677,12 +1694,19 @@ function askPresence(away: boolean, clearedBy?: string): void {
   presence = presenceAsked(presence, away, now(), modesOn())
   const text = presencePost(before, presence)
   if (text) {
-    const orchestrators = projects.projects.flatMap((p) => {
+    // An orchestrator with an inbox reads it there; one without is woken as before.
+    const woken = projects.projects.flatMap((p) => {
       const id = workerTeam(p).orchestrator
-      return id ? [{ sessionId: id, running: paneOfSession(id)?.terminal.running === true }] : []
+      if (!id) return []
+      if (inboxOrchestrator(p) !== id)
+        return [{ sessionId: id, running: paneOfSession(id)?.terminal.running === true }]
+      if (id === clearedBy) inboxes.retract(p.id, 'presence')
+      else inboxes.add(p.id, 'presence', text)
+      return []
     })
-    for (const id of postRecipients(orchestrators, clearedBy)) wakes.post(id, 'presence', text)
+    for (const id of postRecipients(woken, clearedBy)) wakes.post(id, 'presence', text)
     if (clearedBy) wakes.forget(clearedBy, 'presence')
+    recordPresence(presence.away)
     log.info('the human is now', { away: presence.away })
   }
   push()
@@ -1715,11 +1739,23 @@ function taskFor(
   })
   if (result.tasks) {
     setTasks(result.tasks)
+    if (tool === 'task_review') noteReview(project, sessionId, args.number)
     changed()
     if (tool === 'task_close' && typeof args.number === 'number')
       putAwayWorker(project, args.number)
   }
   return { ok: result.ok, text: result.text }
+}
+
+// Its assignee set the task to review: the orchestrator is woken at the end of that turn. The
+// orchestrator changing whom a review waits on, or reviewing its own task, wakes nobody.
+function noteReview(project: Project, sessionId: string, number: unknown): void {
+  const orchestrator = inboxOrchestrator(project)
+  if (!orchestrator || sessionId === orchestrator || typeof number !== 'number') return
+  const task = tasksOf(currentTasks(), project.id).find((x) => x.number === number)
+  if (task?.assignee !== sessionId || task.state !== 'to review') return
+  reviews.set(sessionId, { task: number, note: task.note })
+  inboxes.retract(project.id, `turn:${sessionId}`)
 }
 
 function adoptFor(projectId: string, caller: string, named: unknown): ControlAnswer {
@@ -1732,7 +1768,7 @@ function adoptFor(projectId: string, caller: string, named: unknown): ControlAns
   changed({ projects: true })
   return {
     ok: true,
-    text: `"${named.trim()}" is now your child: Menkar wakes you when it waits or ends its turn.`,
+    text: `"${named.trim()}" is now your child: Menkar tells you when it waits, ends its turn without a report, or sets its task to review.`,
   }
 }
 
@@ -1790,6 +1826,13 @@ async function configureRole(
   return {}
 }
 
+// The orchestrator's mark went to another session: what its inbox held was for the last one.
+function orchestratorMarkMoved(projectId: string, before: string | null): void {
+  const project = projects.projects.find((p) => p.id === projectId)
+  const after = project ? orchestrationInfo(project).orchestrator : null
+  if (before !== null && after !== before) inboxes.moved(projectId)
+}
+
 type MarkAction = Extract<Action, { type: 'setOrchestrator' | 'setRole' | 'setWithYou' }>
 
 function marked(state: Projects, projectId: string, action: MarkAction): Projects {
@@ -1845,7 +1888,7 @@ function noticeTopics(project: Project, before: Topics, after: Topics): void {
     notifyTopic({
       project: project.id,
       number: topic.number,
-      title: topic.title,
+      title: permissionTopicText(topic).title,
       sound: notice.sound,
       focused: focusedShowing(project.id),
       onClick: () => showTopic(project.id, topic.number),
@@ -1869,11 +1912,14 @@ function seeTopic(projectId: string, number: number): void {
   if (next !== currentTopics()) setTopics(next)
 }
 
-// A topic's notice clicked: the orchestrator's tab shown, the Topics section open, the topic unfolded.
+// A topic's notice clicked: the orchestrator's tab shown, the Topics section open, the topic
+// unfolded. A permission topic leads to the session that waits instead, while its pane is there.
 function showTopic(projectId: string, number: number): void {
   const project = projects.projects.find((p) => p.id === projectId)
   const orchestrator = project ? orchestrationInfo(project).orchestrator : null
-  const pane = orchestrator ? paneOfSession(orchestrator) : undefined
+  const topic = topicsOf(currentTopics(), projectId).find((x) => x.number === number)
+  const waiting = topic?.kind === 'permission' ? paneOfSession(topic.from) : undefined
+  const pane = waiting ?? (orchestrator ? paneOfSession(orchestrator) : undefined)
   if (pane) revealPane(pane.id)
   else {
     const w = layout.windows.find((x) => x.id === holder(layout, projectId))
@@ -1911,6 +1957,7 @@ async function requestRenew(
 
 // The Stop hook's record: the turn in this pane ended, under this session id.
 function turnEnded(paneId: string, sessionId: string): void {
+  stopRecorded(paneId, sessionId)
   if (stopRequests.get(paneId)?.sessionId === sessionId) stopNow(paneId)
   const request = renewRequests.get(paneId)
   if (request && panes.get(paneId)?.sessionId === sessionId && request.sessionId === sessionId)
@@ -1935,11 +1982,13 @@ async function renew(paneId: string): Promise<void> {
   if (request) clearTimeout(request.timer)
   const agent = agentOf(pane)
   if (!request || !pane || !agent || pane.sessionId !== request.sessionId) return
+  renewing.set(paneId, null)
   const from = request.sessionId
   const info = sessionInfo(from)
   const to = randomUUID()
   const model = modelOf(await sessions.currentState(), from)
   if (!followClear(pane, from, to)) {
+    if (renewing.get(paneId) === null) renewing.delete(paneId)
     log.warn('a session was not renewed: it is in no project', { session: from })
     return
   }
@@ -2221,7 +2270,43 @@ function publishSnapshots(): void {
   for (const p of projects.projects) publishSnapshot(p.id, () => snapshotOf(p.id))
 }
 
-export const controlHandlers: ControlHandlers = { handle: handleControl, turnEnded }
+export const controlHandlers: ControlHandlers = { handle: handleControl, turnEnded, ready }
+
+// The control folder is new: what a quit took from the inboxes and is still true goes back in.
+// Every task to review waiting on its orchestrator, whose wake may not have gone, once the sessions'
+// names are known. Its agent is not asked: an inbox nobody reads only keeps its lines.
+function ready(): void {
+  void firstScan.then(restoreReviews)
+}
+
+function restoreReviews(): void {
+  for (const project of projects.projects) {
+    const o = orchestrationInfo(project)
+    if (!o.on || !o.orchestrator) continue
+    for (const task of tasksOf(currentTasks(), project.id)) {
+      if (task.state !== 'to review' || task.reviewWait?.on !== 'orchestrator') continue
+      const who = task.assignee === undefined ? '' : ` (${sessionName(task.assignee)})`
+      const note = task.note ? `: ${task.note}` : ''
+      inboxes.add(
+        project.id,
+        `review:${task.number}`,
+        `Task ${task.number} is to review${who}${note}`,
+      )
+    }
+  }
+}
+
+// Every permission topic a quit left open: the process at the prompt is gone.
+function closeLeftPermissionTopics(): void {
+  let topics = currentTopics()
+  for (const [projectId, own] of Object.entries(topics.projects))
+    for (const topic of own?.topics ?? [])
+      if (topic.kind === 'permission' && topic.status !== 'closed') {
+        const closed = closeTopic(topics, projectId, topic.number, PERMISSION_ANSWERED, topicsNow())
+        if (closed) topics = closed.topics
+      }
+  if (topics !== currentTopics()) setTopics(topics)
+}
 setSnapshotSource(publishSnapshots)
 
 // Waking a parent: a session another started waits at a prompt or ends its
@@ -2229,7 +2314,7 @@ setSnapshotSource(publishSnapshots)
 // together with its other children's news and the human's own. Never typed into the parent's
 // terminal.
 const wakes = new WakeBatcher(
-  (parent, text) => void wakeSession(parent, text),
+  (parent, text, entries) => void sendWake(parent, text, entries),
   {
     set: (fn, ms) => setTimeout(fn, ms),
     clear: (handle) => clearTimeout(handle as NodeJS.Timeout),
@@ -2240,13 +2325,140 @@ const wakes = new WakeBatcher(
   },
 )
 
+// A wake for a project's orchestrator is addressed when it goes, not when it came: a renew or a
+// clear inside the wait gave the orchestrator another id.
+const ORCHESTRATOR_OF = 'orch:'
+
+// What could not be posted to an orchestrator waits in its inbox, under the same keys.
+async function sendWake(
+  parent: string,
+  text: string,
+  entries: readonly WakeEntry[],
+): Promise<void> {
+  if (!parent.startsWith(ORCHESTRATOR_OF)) {
+    await wakeSession(parent, text)
+    return
+  }
+  const projectId = parent.slice(ORCHESTRATOR_OF.length)
+  const project = projects.projects.find((p) => p.id === projectId)
+  const orchestrator = project ? inboxOrchestrator(project) : null
+  if (!orchestrator) {
+    log.info('a wake for an orchestrator no longer in the mode was dropped', { project: projectId })
+    return
+  }
+  if ((await wakeSession(orchestrator, text)) === 'posted') return
+  for (const entry of entries) inboxes.add(projectId, entry.key, entry.text)
+}
+
+// The project's orchestrator when the mode is on and its agent can be given an inbox: what it was
+// woken for, other than a review or a question, waits there instead, off the human's screen.
+function inboxOrchestrator(project: Project): string | null {
+  const o = orchestrationInfo(project)
+  if (!o.on || !o.orchestrator) return null
+  const agent = agentOf(paneOfSession(o.orchestrator)) ?? sessionInfo(o.orchestrator)?.agent
+  return agent && mainKitOf(agent).inbox !== null ? o.orchestrator : null
+}
+
+// By pane, how its last turn stands. A turn ends once, at the first of: its shown state going from
+// working or blocked to idle or done, the Stop hook's record, the pane's exit. A Stop record with no
+// working seen since the last one is a turn too short to be shown.
+const turns = new Map<string, 'open' | 'ended-shown' | 'ended-stop'>()
+// By session: the task it set to review in this turn; the orchestrator is woken at the turn's end,
+// once its report is written.
+const reviews = new Map<string, { readonly task: number; readonly note: string }>()
+
+// Menkar's blocking topic for a session of the orchestrator at a permission prompt nobody looks at.
+const permissions = new PermissionTopics(
+  {
+    openTopic: (session) => {
+      const project = projectOf(projects, session)
+      return project
+        ? (openPermissionTopic(topicsOf(currentTopics(), project.id), session)?.number ?? null)
+        : null
+    },
+    raise: raisePermissionTopic,
+    close: (session, number) => {
+      const project = projectOf(projects, session)
+      const closed = project
+        ? closeTopic(currentTopics(), project.id, number, PERMISSION_ANSWERED, topicsNow())
+        : null
+      if (!closed) return
+      setTopics(closed.topics)
+      changed()
+    },
+  },
+  {
+    set: (fn, ms) => setTimeout(fn, ms),
+    clear: (handle) => clearTimeout(handle as NodeJS.Timeout),
+  },
+)
+
+// Raised as a session's topic_add is: a notice, a sound, silence while the human is away.
+function raisePermissionTopic(subject: PermissionSubject): number {
+  const project = projectOf(projects, subject.session)
+  // Not reached: the subject is a member of a project in the mode.
+  if (!project) return 0
+  const before = currentTopics()
+  const task = currentTask(tasksOf(currentTasks(), project.id), subject.session)
+  const added = addTopic(
+    before,
+    project.id,
+    permissionTopic(sessionName(subject.session), subject.session, task?.number),
+    topicsNow(),
+  )
+  setTopics(added.topics)
+  noticeTopics(project, before, added.topics)
+  changed()
+  return added.number
+}
+
+// A permission topic is stored in English, as topic_list gives it, and shown in the user's language
+// with the session's name now.
+function permissionTopicText(topic: Topic): { readonly title: string; readonly context: string } {
+  if (topic.kind !== 'permission') return { title: topic.title, context: topic.context }
+  const name = sessionName(topic.from)
+  return {
+    title: t('topics.permissionTitle', { name }),
+    context: t('topics.permissionContext'),
+  }
+}
+
 onShownChange((paneId, sessionId, previous, next) => {
-  const agent = agentOf(panes.get(paneId))
-  const reading = agent ? kitOf(agent).catalog.turnEnd : null
-  if (!sessionId || !reading) return
-  const turnEnd = previous === 'working' && (next === 'idle' || next === 'done')
-  const posted = turnEnd && teamTurnEnded(paneId)
+  if (!sessionId) return
   const project = projectOf(projects, sessionId)
+  const orchestrator = project ? inboxOrchestrator(project) : null
+  const toOrchestrator =
+    !!project && !!orchestrator && keptParents(project)[sessionId] === orchestrator
+  const pane = panes.get(paneId)
+  // Before any transcript is asked: an agent with no turn-end reading still raises these.
+  if (project && orchestrator) {
+    if (next === 'blocked' && previous !== 'blocked')
+      permissions.blocked({
+        pane: paneId,
+        session: sessionId,
+        parentIsOrchestrator: toOrchestrator,
+        withYou: orchestrationInfo(project).withYou.includes(sessionId),
+        seen: pane ? paneSeen(pane) : false,
+      })
+    else if (previous === 'blocked' && next !== 'blocked') permissions.unblocked(paneId)
+  }
+  if (toOrchestrator && project && next === 'blocked' && previous !== 'blocked')
+    inboxes.add(
+      project.id,
+      `permission:${sessionId}`,
+      `${sessionName(sessionId)} is waiting at a permission prompt`,
+    )
+  if (next === 'working' || next === 'blocked') turns.set(paneId, 'open')
+  else if ((next === 'idle' || next === 'done') && turns.get(paneId) === 'open') {
+    turns.set(paneId, 'ended-shown')
+    turnEnd(paneId, sessionId, agentOf(pane))
+  }
+  if (toOrchestrator) return
+  const agent = agentOf(pane)
+  const reading = agent ? kitOf(agent).catalog.turnEnd : null
+  if (!reading) return
+  const turnEnded = previous === 'working' && (next === 'idle' || next === 'done')
+  const posted = turnEnded && teamTurnEnded(paneId)
   const parent = project ? keptParents(project)[sessionId] : undefined
   if (!parent) return
   const file = sessionInfo(sessionId)?.file
@@ -2270,6 +2482,66 @@ onShownChange((paneId, sessionId, previous, next) => {
       wakes.note(parent, sessionId, sessionName(sessionId), previous, next)
     })
 })
+
+// The Stop hook's record, unless the shown state ended this turn already.
+function stopRecorded(paneId: string, sessionId: string): void {
+  const ended = turns.get(paneId) === 'ended-shown'
+  turns.set(paneId, 'ended-stop')
+  if (!ended) turnEnd(paneId, sessionId, agentOf(panes.get(paneId)))
+}
+
+// A turn's end in a project whose orchestrator has an inbox, its rules in order, the first that
+// applies winning. The renew is read before any await: a turn seen ending while renew awaits is
+// not a turn without a report.
+function turnEnd(paneId: string, sessionId: string, agent: AgentId | null): void {
+  const project = projectOf(projects, sessionId)
+  const orchestrator = project ? inboxOrchestrator(project) : null
+  if (!project || !orchestrator) return
+  const review = reviews.get(sessionId)
+  reviews.delete(sessionId)
+  const reading = agent ? kitOf(agent).catalog.turnEnd : null
+  if (!review && !reading) return
+  const parentIsOrchestrator = keptParents(project)[sessionId] === orchestrator
+  const known = {
+    event: 'turn-end' as const,
+    parentIsOrchestrator,
+    reviewPending: review !== undefined,
+    renewing: renewRequests.has(paneId) || renewing.has(paneId),
+  }
+  const name = sessionName(sessionId)
+  const act = (where: Route) => {
+    if (where === 'wake' && review) {
+      inboxes.retract(project.id, `turn:${sessionId}`)
+      wakes.wake(
+        `${ORCHESTRATOR_OF}${project.id}`,
+        sessionId,
+        `review:${sessionId}:${review.task}`,
+        `${name} set task ${review.task} to review${review.note ? `: ${review.note}` : ''}`,
+      )
+    } else if (where === 'inbox')
+      inboxes.add(project.id, `turn:${sessionId}`, `${name} ended its turn without a report`)
+  }
+  const posted = parentIsOrchestrator && teamTurnEnded(paneId)
+  if (known.reviewPending || known.renewing || !parentIsOrchestrator || !reading) {
+    act(route({ ...known, onlyTeamUpdates: false, reportedToParent: false }))
+    return
+  }
+  const file = sessionInfo(sessionId)?.file
+  const parentName = sessionName(orchestrator)
+  const read = async () => ({
+    onlyTeamUpdates: posted && file ? await reading.onlyTeamUpdates(file) : false,
+    reportedToParent: file ? await reading.reportedTo(file, parentName) : false,
+  })
+  void read()
+    .catch((error: unknown) => {
+      log.warn('a turn could not be read; it goes to the orchestrator’s inbox', {
+        pane: paneId,
+        error,
+      })
+      return { onlyTeamUpdates: false, reportedToParent: false }
+    })
+    .then((found) => act(route({ ...known, ...found })))
+}
 
 async function wakeSession(parent: string, text: string): Promise<WakeOutcome> {
   const agent = agentOf(paneOfSession(parent))
@@ -2745,14 +3017,18 @@ function resumeSpec(sessionId: string): PaneSpec {
 
 // Reopens the saved windows (or one window on `current`) once the first scan knows the sessions;
 // a session the scan does not know is skipped.
+// Settled once the agents' folders were first read, whether or not that worked: names are known.
+let firstScan: Promise<void> = Promise.resolve()
+
 export async function startWorkspace(): Promise<void> {
   const loaded = currentProjects()
   if (!loaded) throw new Error('projects were not loaded before the workspace started')
   projects = loaded
+  closeLeftPermissionTopics()
   // The window does not wait for the first scan of the agents' folders: the list fills in when it
   // ends, and the shown project's saved tabs start then (`startShownTabs` waits for it).
   sessionList = sessions.listNow()
-  void sessions.start().then(
+  firstScan = sessions.start().then(
     async () => {
       savedAgents = sessionAgents(await sessions.currentState())
       sessionList = sessions.listNow()
@@ -2899,7 +3175,10 @@ async function startNewSession(
   if (id && action.orchestrator) {
     // A member at once, as start_session's sessions are, so the mark has a session to name.
     if (name) startedNames.set(id, name)
+    const project = projects.projects.find((p) => p.id === shown)
+    const before = project ? orchestrationInfo(project).orchestrator : null
     projects = setOrchestrator(addMember(projects, shown, id), shown, id)
+    orchestratorMarkMoved(shown, before)
   }
   await startPane(tab, {
     agent: action.agent,
@@ -3128,7 +3407,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'setWithYou': {
       const project = projectOf(projects, action.session)
       if (!project) return {}
+      const before = orchestrationInfo(project).orchestrator
       projects = marked(projects, project.id, action)
+      orchestratorMarkMoved(project.id, before)
       changed({ projects: true })
       return {}
     }
@@ -3141,14 +3422,14 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       projects = setWithYou(projects, project.id, action.session, action.type === 'takeControl')
       changed({ projects: true })
       const name = sessionName(action.session)
-      if (wakeable(paneOfSession(orchestrator)))
-        wakes.post(
-          orchestrator,
-          `control:${action.session}`,
-          action.type === 'takeControl'
-            ? `The human took control of ${name}`
-            : `The human handed ${name} back`,
-        )
+      const text =
+        action.type === 'takeControl'
+          ? `The human took control of ${name}`
+          : `The human handed ${name} back`
+      if (inboxOrchestrator(project) === orchestrator)
+        inboxes.add(project.id, `control:${action.session}`, text)
+      else if (wakeable(paneOfSession(orchestrator)))
+        wakes.post(orchestrator, `control:${action.session}`, text)
       return {}
     }
     case 'setManaged': {
@@ -3215,12 +3496,11 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const pane = orchestrator ? paneOfSession(orchestrator) : undefined
       const tab = pane ? w.tabs.find((x) => x.id === pane.tabId) : undefined
       if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })
-      if (orchestrator && wakeable(pane))
-        wakes.post(
-          orchestrator,
-          `topic:${action.number}`,
-          `The human wants to discuss topic ${action.number}`,
-        )
+      const text = `The human wants to discuss topic ${action.number}`
+      if (project && orchestrator && inboxOrchestrator(project) === orchestrator)
+        inboxes.add(project.id, `topic:${action.number}`, text)
+      else if (orchestrator && wakeable(pane))
+        wakes.post(orchestrator, `topic:${action.number}`, text)
       notifySeen()
       changed()
       return {}

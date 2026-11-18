@@ -11,12 +11,14 @@ shaped this way and what was rejected.
   (`Launcher`, `McpMount`, `Namer`, `EnvRules`), the team block's delivery (`TeamDelivery`,
   `MainTeamDelivery`), the sessions (`SessionCatalog`), the state read from the screen
   (`StateRules`), ids (`SessionIds`, `PaneFollow`), `Fork`, Remote Control (`Remote`), waking
-  (`Waker`), the settings file and chat tabs (`ChatStrategy`). An interface enters with the first
+  (`Waker`), the orchestrator's inbox file and its delivery read back from the transcript
+  (`PromptInbox`, `MainAgentKit.inbox`; decision 1.178), the settings file and chat tabs
+  (`ChatStrategy`). An interface enters with the first
   agent that implements it, never ahead of its consumer.
 - **A kit per agent** groups its strategies: `src/core/agents/<id>/index.ts` (`AgentKit`, plain
   Node) and `src/main/agents/<id>/index.ts` (`MainAgentKit`, what needs Electron's main process).
   **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
-  fork, no Remote Control, no team block, no waker.
+  fork, no Remote Control, no team block, no waker, no inbox.
 - **The registries choose**: `kitOf(id)` (`src/core/agents/registry.ts`) and `mainKitOf(id)`
   (`src/main/agents/registry.ts`) are `Record<AgentId, …>` literals, so `tsc` refuses an agent
   registered without a kit. They are the only code that imports an agent's folder. A pane keeps

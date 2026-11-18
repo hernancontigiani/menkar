@@ -27,6 +27,25 @@ Integrations page are still `docs/spec/context.md` until they are built.
     and nothing outside a Menkar pane. `turnEndsDir()` repeats the folder because the statusline
     runs under plain Node in its tests and cannot import the control module; a test holds the two
     equal.
+  - **A `UserPromptSubmit` hook** (decision 1.178, 2026-11-18; `promptSubmitHooks`), declared in
+    every session Menkar starts, since the orchestrator's mark can move to a running session that
+    never re-reads its settings. Its command is `if [ -f <cache>/control/inbox/"$MENKAR_PANE".json ];
+    then <statusline command> prompt-submit; fi`, with `"timeout": 5`: a pane with no inbox file
+    never starts Electron. With the argument `prompt-submit` (`runPromptSubmit`) it reads the pane's
+    inbox file, which main alone writes (`docs/session-control.md`, the orchestrator's inbox), and
+    when its `session_id` is stdin's prints `{"hookSpecificOutput":{"hookEventName":
+    "UserPromptSubmit","additionalContext":…}}` with the inbox's text; otherwise, and on any
+    failure, nothing. It always exits 0 with nothing on stderr (an exit 2 would block the prompt),
+    writes nothing, and does not read the prompt. `inboxDir()` repeats the folder, held equal to
+    `controlPaths().inbox` by a test. What reached the model is read from the transcript, not
+    from the hook. **Measured** by `claude-cli` on Claude Code 2.1.327 (2026-11-18, throwaway homes):
+    the hook runs on a typed prompt, a skill's slash command, a `[Menkar]` wake, a peer's
+    SendMessage, a message queued mid-turn and the first prompt of `claude "<p>"` or `--resume`,
+    never on `/clear`, `/compact`, `/model` or `/rename`; the model sees `additionalContext` and
+    the screen shows nothing of it; the transcript gets an `attachment` record of type
+    `hook_additional_context`; up to 10,000 characters arrive whole; a hook of the user's own
+    settings runs beside it; another hook exiting 2 blocks the prompt and leaves no record; a
+    queued message withdrawn with Up leaves none either.
   - **`permissions.allow: ["mcp__menkar"]`**: Menkar's own tools run without a prompt in every mode
     (measured, 2.1.322). They act only on Menkar's tabs.
   - **`crossSessionInbound: "accept"`**: Menkar's wake messages are delivered. Without it, a session
@@ -104,8 +123,10 @@ Integrations page are still `docs/spec/context.md` until they are built.
   (`release/linux-unpacked/menkar`) was checked running the script straight from inside `app.asar`
   under `ELECTRON_RUN_AS_NODE=1`: it printed the bar and wrote both files, so nothing has to be
   unpacked from the asar.
-- **The script imports only Node's modules, `paths.ts` and `clock.ts`** (with their `.ts`
-  extensions), so the tests run it unbuilt, as a real process with real stdin, under plain Node. A
+- **The script imports only Node's modules, `paths.ts`, `clock.ts` and
+  `orchestration/inbox-text.ts`** (with their `.ts` extensions; each imports nothing of Menkar's
+  beyond these and holds nothing Node's type stripping cannot run), so the tests run it unbuilt,
+  as a real process with real stdin, under plain Node; a test reads its import declarations. A
   statusline that throws shows an error in every Claude session, so every failure ends in a bar.
 - **One declaration per boundary.** The session file's keys (`SESSION_KEYS`) and the usage line's
   keys (`USAGE_KEYS`) are declared in the script. The readers declare the keys they use

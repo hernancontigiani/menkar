@@ -161,14 +161,14 @@ the top:
 6. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
    by default**, its unfolding saved (`done_today_open`).
 
-**Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) — a wake,
-"The human wants to discuss topic N", "took control of", "handed … back", away or back — ends,
-after its time, with the tiles' three numbers: `[Menkar] packager finished its turn (08:47:33) · 2
-topics · 1 working · 1 waiting`. **They are few** (decision 1.173, the human, 2026-11-16): every
-post is a line in the human's chat with the orchestrator. A worker whose turn ends with its report
-to the orchestrator gets no "finished its turn" for it, and everything arriving within
-`WAKE_DELAY_MS` goes in one post, the human's own news first (`docs/session-control.md`, waking a
-parent). The human follows the orchestrator from a phone through Remote Control, where
+**Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) ends,
+after its time, with the tiles' three numbers: `[Menkar] packager set task 4 to review: PR open
+(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are two kinds only** (decision 1.178, the
+human, 2026-11-17): every post is a line in the human's chat with the orchestrator, so it is
+posted to when a task is set to review and when a session asks it something; everything else —
+a turn ended without a report, a permission prompt, the human's own news — waits in its inbox and
+reaches it with its next prompt, off the human's screen (`docs/session-control.md`, the
+orchestrator's wakes and its inbox). The human follows the orchestrator from a phone through Remote Control, where
 the statusline does not show and the posts do. `postCounts` gives them only for the orchestrator of
 a project with the mode on, from the same `workCounts` as the tiles; posts to any other session are
 unchanged.
@@ -233,10 +233,10 @@ the rest, per window, not saved. The current topic comes first in the order, so 
 the 5.
 
 **A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the
-orchestrator's tab and posts to the orchestrator "[Menkar] The human wants to discuss topic N",
-through the same cross-session messaging as the wakes (`wakeSession`, `postToSession`); nothing is
-typed into its terminal. With no orchestrator running (none marked, or no tab), the topic still
-goes to discussing and nothing is posted (`discussTopic` in `src/main/workspace.ts`).
+orchestrator's tab and tells the orchestrator "The human wants to discuss topic N" through its
+inbox (decision 1.178), so it hears it with its next prompt, the human's own included; nothing is
+typed into its terminal. An orchestrator whose agent has no inbox is posted to instead, through the
+wakes' messaging, when it runs (`discussTopic` in `src/main/workspace.ts`).
 
 ## The Board
 
@@ -340,8 +340,9 @@ orchestrator, the sessions working with them, the loose ones, and the topics.
   `topic_update` in `src/main/workspace.ts`), and only while the mode is on: off, the Topics
   section is not shown, so a notice would lead nowhere. Menkar raises topics, not the orchestrator,
   so muting the orchestrator never mutes them.
-- **Show** (the toast's button, or a click on the desktop notice) shows the orchestrator's tab, opens
-  the Topics section if it was collapsed and unfolds the topic.
+- **Show** (the toast's button, or a click on the desktop notice) shows the orchestrator's tab — the
+  waiting session's, for Menkar's permission topic —, opens the Topics section if it was collapsed
+  and unfolds the topic.
 - **The dock's count** is the desktop's own count of Menkar's open desktop notices; Menkar sets no
   badge. A topic's desktop notice goes in the same tray as the agents' (`NotificationTray`), under
   its project and number, and seeing the topic — unfolding it or double-clicking it — closes it
@@ -374,12 +375,12 @@ there would cross its instructions (`readOnly` and `bannerOf`, `src/core/orchest
 - **A yellow banner** across the top of the pane, a fixed amber with dark text in every look and
   scheme so it stands out (the human, through `set`, 2026-11-12): "This session reports to the
   orchestrator.", with
-  "Take control", which marks it "with you", makes it writable and posts to the orchestrator
-  "[Menkar] The human took control of ‹name›".
+  "Take control", which marks it "with you", makes it writable and tells the orchestrator "The
+  human took control of ‹name›".
 - **"With you"**, the banner is blue (the theme's ANSI blue, the role `blue`): "This session is
   with you.", with "Back to reporting to the orchestrator", which clears the mark, makes it read only again
-  and posts "[Menkar] The human handed ‹name› back". Both posts go through the wakes' messaging
-  (`wakeSession`); nothing is typed.
+  and tells it "The human handed ‹name› back". Both go to the orchestrator's inbox (decision
+  1.178; posted through the wakes' messaging to one whose agent has none); nothing is typed.
 - **At a permission prompt** (shown state `blocked`) the tab is writable while it waits; the banner
   stays yellow and says "Waiting for your permission".
 - Loose sessions and the orchestrator have no banner and stay writable; with the mode off, nothing
@@ -471,10 +472,21 @@ What the user sees and how the orchestrator acts on it is in the guide; the rule
   (`docs/session-control.md`). The window state carries `presence`; every window draws the banner
   under its header and the chip from it.
   Its mirror `human_away` comes here too (decision 1.181).
-- **The posts**: a change posts `[Menkar] The human is away: …` or `[Menkar] The human is back`
-  (`presencePost`) through `wakeSession` to each project's running orchestrator, minus the one
-  that called `human_back` (`postRecipients`).
-  Likewise for the one that called `human_away`.
+- **The orchestrators hear it** (decision 1.178): a change puts "The human is away: …" or "The human
+  is back" (`presencePost`) in each mode-on project's orchestrator's inbox, the later replacing the
+  earlier, so it reaches the orchestrator with its next prompt — the human's own, when they are
+  back; the orchestrator that called `human_back` or `human_away` has it taken out instead. An
+  orchestrator whose agent has no inbox is posted to through `wakeSession` while it runs
+  (`postRecipients`). Each change is journaled too, `away` or `back` (`recordPresence`,
+  `docs/usage.md`).
+- **A session at a permission prompt** (decisions 1.178, and topic 54's answers, the human,
+  2026-11-18): a session under the orchestrator, not "with you", whose tab is not in view, wakes
+  nobody; Menkar raises a blocking topic "‹name› is waiting at a permission prompt" (context
+  "Answer it in its tab. Menkar closes this topic once it is answered."), shown in the user's
+  language, notified as a new topic is, and closes it 3 s after the prompt is answered, so a chain
+  of prompts is one topic. It is kept out of Done today, and its Show leads to the waiting
+  session's tab while it runs. With its tab in view the human answers it there and no topic is
+  raised. (`docs/session-control.md`, the orchestrator's wakes and its inbox.)
 - **Topics while away** (`topicNoticeNow`): a topic notice raises nothing — no sound, toast,
   desktop notice or tray entry — and nothing is replayed on return; the topic waits in Topics.
   The sessions' own notifications are not silenced.

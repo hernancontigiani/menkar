@@ -116,6 +116,9 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.consultants': 'Consultores',
   'orch.others': 'Otros',
   'topics.noticeTitle': 'Pendiente {n}',
+  'topics.permissionTitle': '{name} espera en una pregunta de permiso',
+  'topics.permissionContext':
+    'Respóndela en su pestaña. Menkar cierra este pendiente cuando se responde.',
   'orch.bannerReports': 'Esta sesión responde al orquestador.',
   'orch.bannerPermission': 'Esperando tu permiso',
   'orch.bannerWithYou': 'Esta sesión está contigo.',

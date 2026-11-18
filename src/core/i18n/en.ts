@@ -112,6 +112,8 @@ export const en = {
   'orch.consultants': 'Consultants',
   'orch.others': 'Others',
   'topics.noticeTitle': 'Item {n}',
+  'topics.permissionTitle': '{name} is waiting at a permission prompt',
+  'topics.permissionContext': 'Answer it in its tab. Menkar closes this topic once it is answered.',
   'orch.bannerReports': 'This session reports to the orchestrator.',
   'orch.bannerPermission': 'Waiting for your permission',
   'orch.bannerWithYou': 'This session is with you.',

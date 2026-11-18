@@ -78,6 +78,22 @@ export class Inboxes {
     this.kick(projectId)
   }
 
+  // Removed unread: what the entry said no longer holds.
+  retract(projectId: string, key: string): void {
+    const entry = this.byProject.get(projectId)
+    if (!entry?.inbox.entries.some((x) => x.key === key)) return
+    entry.inbox.retract(key)
+    this.kick(projectId)
+  }
+
+  // The mark went to another session: the inbox was the last one's, except that the human is away.
+  moved(projectId: string): void {
+    const entry = this.byProject.get(projectId)
+    if (!entry) return
+    entry.inbox.clear({ keep: ['presence'] })
+    this.kick(projectId)
+  }
+
   // The orchestrator's pane started or ended a turn: a prompt may have given it its inbox.
   paneTurned(paneId: string): void {
     for (const [id, entry] of this.byProject) if (entry.shown?.pane === paneId) this.kick(id)

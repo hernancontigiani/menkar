@@ -4,6 +4,9 @@ Read this when you hand out work, when a task will wait long, and when a task cl
 
 ## A worker per task
 
+- Sessions report with `task_review` and ask you with `ask`; both wake you. A message from
+  one still reaches you.
+
 - **A new generalist worker for each task**, never one reused for the next. Create the task first
   (`task_add` with no assignee), then start its worker with `start_session` and the task's
   number (`task`): Menkar names it `<project>-t<number>` and assigns it the task. Names are unique

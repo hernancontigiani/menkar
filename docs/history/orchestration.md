@@ -376,3 +376,25 @@ step segments, the note. The note line starts with what the task waits on, as in
   Menkar stops it as closing its tab does, never mid-turn and never by typing, and
   the project, by name, not one with a tab. A tab after the orchestrator's, without the focus,
   any number. It counts the running workers; parked and stopped ones have no tab and don't count. A
+
+## Notifications in the mode
+
+> Left on 2026-11-18: Menkar's permission topic's Show leads to the waiting session (decision 1.178, plan 42).
+- **Show** (the toast's button, or a click on the desktop notice) shows the orchestrator's tab, opens
+  the Topics section if it was collapsed and unfolds the topic.
+
+## Read-only tabs
+
+> Left on 2026-11-18: taking control and handing back go to the orchestrator's inbox, not a post (decision 1.178, plan 42).
+  "Take control", which marks it "with you", makes it writable and posts to the orchestrator
+  "[Menkar] The human took control of ‹name›".
+  and posts "[Menkar] The human handed ‹name› back". Both posts go through the wakes' messaging
+  (`wakeSession`); nothing is typed.
+
+## The human's presence
+
+> Left on 2026-11-18: away and back go to the orchestrators' inboxes, not a post (decision 1.178, plan 42).
+- **The posts**: a change posts `[Menkar] The human is away: …` or `[Menkar] The human is back`
+  (`presencePost`) through `wakeSession` to each project's running orchestrator, minus the one
+  that called `human_back` (`postRecipients`).
+  Likewise for the one that called `human_away`.

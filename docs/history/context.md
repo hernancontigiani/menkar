@@ -52,3 +52,9 @@
   app rewrites `<config>/claude-settings.json` (Menkar's statusline) and
   `<config>/chained-statusline.json` (the user's own command, or null), each only when its content
   changed. Nothing is written under `~/.claude` for this.
+
+## Why
+
+> Left on 2026-11-18: the statusline also imports the inbox's text, for the prompt hook (decision 1.178, plan 42).
+- **The script imports only Node's modules, `paths.ts` and `clock.ts`** (with their `.ts`
+  extensions), so the tests run it unbuilt, as a real process with real stdin, under plain Node. A

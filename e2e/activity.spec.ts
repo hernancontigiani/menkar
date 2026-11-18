@@ -332,3 +332,39 @@ test('a key, a click or a scroll in the focused window is a presence mark with i
     await launched.close()
   }
 })
+
+// Every change of the human's presence, by the shortcut or by the orchestrator's tools, is a line.
+test('away and back are journaled each time presence changes: by Ctrl+B a, and by human_away and human_back', async () => {
+  const { launched, page, root } = await open()
+  try {
+    await expect.poll(() => rows(root, 'activity').map((r) => r.kind)).toEqual(['app_start'])
+    await expect.poll(() => existsSync(journalPath(root))).toBe(false)
+    const presence = () =>
+      journal(root)
+        .filter((r) => r.kind === 'away' || r.kind === 'back')
+        .map((r) => r.kind)
+    await page.locator('.row', { hasText: 'api' }).dblclick()
+    await expect(page.locator('.xterm-rows')).toContainText('stand-in claude ready')
+    await page.locator('.xterm').click()
+
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('a')
+    await expect.poll(presence).toEqual(['away'])
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('a')
+    await expect.poll(presence).toEqual(['away', 'back'])
+
+    await page.keyboard.type('HUMANAWAY')
+    await said(page, 'TOOL human_away: The human is marked away.')
+    // Asked again, nothing changed: no line.
+    await page.keyboard.type('HUMANAWAY')
+    await said(page, 'TOOL human_away: The human is already marked away.')
+    await page.keyboard.type('HUMANBACK')
+    await said(page, 'TOOL human_back: The human is marked back.')
+    await expect.poll(presence).toEqual(['away', 'back', 'away', 'back'])
+    for (const line of journal(root).filter((r) => r.kind === 'away' || r.kind === 'back'))
+      expect(Object.keys(line).sort()).toEqual(['at', 'id', 'kind', 'v'])
+  } finally {
+    await launched.close()
+  }
+})

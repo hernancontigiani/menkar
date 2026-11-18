@@ -166,6 +166,7 @@ events are computed in `src/core/activity/`.
 | `app_start` | Menkar starts |
 | `prompted_start` | Menkar starts or resumes a session with a first prompt on its command line — `start_session`, `resume_session` or a renew with a prompt, and the orchestration card's first prompt, which is Menkar's text: the session's next turn is not the human's |
 | `present` | A key, a click or a scroll in a focused main window, with that window's project: at most one a minute across every window, never any content |
+| `away` / `back` | Each change of the human's presence, by the chip, `Ctrl+B a`, the banner, `human_away` or `human_back` (`recordPresence` from `askPresence`) |
 | `task_state` | A task appears, or its state, whom its wait names, or its review's waiter changes |
 
 - **Whom a task waits on.** `topic` with the topic's number when the wait reads `topic N`; `session`
@@ -180,8 +181,6 @@ events are computed in `src/core/activity/`.
   is written once those lines are on disk: a crash before it gives a baseline at the next start, and
   a second one is harmless (each row is an instant; a row in the same state adds no transition).
 - **The human's messages are not recorded again**: they are the history's turns of origin `human`.
-
-The journal's format already has `away` / `back` (1.167); main does not journal them yet.
 
 ### Bursts, when the reading is built
 

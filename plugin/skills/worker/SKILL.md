@@ -29,14 +29,17 @@ When the task names a task number (Menkar's orchestration mode), the human follo
   something, give its waiting_on argument ("topic 4", or a session's name).
 - When it is done, `task_review` with a one-line note of what to look at, before your report;
   if it then waits on a pull request, say so in it: waiting on pr-approval or pr-merge, and the PR.
-  Never close it: the orchestrator closes it after reviewing.
+  It wakes the orchestrator at your turn's end, once your report is written. Never close it: the
+  orchestrator closes it after reviewing.
 
 ## Never invent what is not defined
 
 - When the task, the docs and the code do not answer a question, **ask**. Do not pick an answer
   because it seems reasonable: a guess written into the code looks decided to everyone after you.
 - Ask the session the task names for that area ("for X ask ‹consultant›"). If it names none, ask the
-  session that handed you the task.
+  session that handed you the task. **Your parent you ask with `ask`**, not a message: it does
+  not wait for the answer, which comes as a message. Go on with what does not depend on it; if
+  nothing does, mark your task waiting on your parent with `task_progress` and end your turn.
 - How the team talks: the "Your team in Menkar" section of your instructions; if you have none,
   read `team/common.md` and `team/claude.md` in Menkar's plugin folder (one level up from
   `skills/`).
@@ -99,7 +102,8 @@ At most one short line per step. The reader of your work reads the report, not t
 
 ## Your report
 
-When the task is done, or you are blocked, report. Write it once, complete:
+When the task is done, or you are blocked, report. Write it once, complete. **Blocked, say so
+with `ask` too.** With no task number, send your report to your parent by name as well.
 
 - **What changed**: the paths, one line each on what changed there.
 - **Checks**: each one with its result and the relevant output. `last_reply` shows about 20,000

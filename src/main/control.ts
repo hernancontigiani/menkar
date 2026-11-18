@@ -23,6 +23,8 @@ export interface ControlHandlers {
   handle(request: ControlRequest): Promise<ControlAnswer>
   // A pane's agent ended a turn, under this session id (the Stop hook's record).
   turnEnded(pane: string, sessionId: string): void
+  // The inbox folder is new and empty: an inbox file written from now on stays.
+  ready(): void
 }
 
 // Beside the main bundle, as the statusline is: Electron's binary runs it as plain Node.
@@ -48,6 +50,7 @@ export async function startControl(handlers: ControlHandlers): Promise<void> {
   // Every inbox file names a pane of an earlier run, and every such pane is gone.
   await rm(paths.inbox, { recursive: true, force: true })
   mkdirSync(paths.inbox, { recursive: true })
+  handlers.ready()
   await writeAtomic(paths.root, 'alive.json', { pid: process.pid, started: now() })
 
   const queue = new RequestQueue((request) => handlers.handle(request), now)

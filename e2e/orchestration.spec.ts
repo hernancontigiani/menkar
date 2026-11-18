@@ -1,7 +1,7 @@
 // Plan 34: the orchestration mode. Switched from the header (1.91) and from the project popover
 // (1.89); the row menu's block — Orchestrator, Configure role…, With you — only while it is on;
 // switching it off keeps every mark (1.77).
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
@@ -593,7 +593,7 @@ for (const scheme of ['dark', 'light'] as const)
   })
 
 // Decision 1.96: a double-click on a topic sets it to "discussing", selects the orchestrator's tab
-// and posts to the orchestrator through Claude Code's messaging, as the wakes do.
+// and tells the orchestrator, through its inbox (1.178).
 test('a double-click on a topic: discussing, the orchestrator’s tab selected and told; with no orchestrator running, only discussing (screenshot)', async () => {
   let root = ''
   const launched = await launchApp({
@@ -645,8 +645,10 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await page.locator('.topic-row[data-topic="3"]').dblclick()
     await expect.poll(() => statusOf(3)).toBe('discussing')
     await expect(orchTab).toHaveClass(/selected/)
-    await expect.poll(posted, { timeout: 15_000 }).toEqual([expect.stringMatching(DISCUSS_3)])
-    // The post's counts are the sidebar's tiles.
+    // Told through its inbox, off the human's screen (decision 1.178): nothing is posted.
+    await expect.poll(() => inboxLines(root)).toEqual(['The human wants to discuss topic 3'])
+    await page.waitForTimeout(NO_WAKE_MS)
+    expect(posted()).toEqual([])
     await expect(page.locator('.work-tile .tile-n')).toHaveText(['3', '0', '0'])
     await page.locator('.topic-row[data-topic="3"]').click()
     await expect(page.locator('.topic-detail')).toContainText('From orchestrator · discussing')
@@ -658,19 +660,12 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await page.locator('.topic-row[data-topic="1"]').dblclick()
     await expect.poll(() => statusOf(1)).toBe('discussing')
     await page.waitForTimeout(4000)
-    expect(posted()).toEqual([expect.stringMatching(DISCUSS_3)])
+    expect(posted()).toEqual([])
   } finally {
     server.close()
     await launched.close()
   }
 })
-
-// Every post ends with the local time, so Claude Code keeps two identical ones apart; one to the
-// orchestrator, then with the sidebar's counts (decision 1.125).
-const COUNTS = ' · 3 topics · 0 working · 0 waiting'
-const DISCUSS_3 = new RegExp(
-  `^\\[Menkar\\] The human wants to discuss topic 3 \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
-)
 
 const drawer = (page: Page) => page.locator('.tab-body:not(.hidden) .pane.drawer')
 const jumpRows = (page: Page) => page.locator('.jump-row')
@@ -878,6 +873,171 @@ test('a new topic raises a toast "Topic N"; with one discussing, a toast and no 
   }
 })
 
+// The orchestrator's inbox, as its prompt hook reads it: one file, for the pane it runs in.
+const inboxLines = (root: string): string[] => {
+  const dir = join(root, 'cache', 'menkar', 'control', 'inbox')
+  const names = existsSync(dir) ? readdirSync(dir) : []
+  return names.flatMap((name) =>
+    (
+      JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
+        entries: { text: string }[]
+      }
+    ).entries.map((e) => e.text),
+  )
+}
+
+// Longer than a wake's batch (3 s) by a second: what has not been posted by then is not.
+const NO_WAKE_MS = 4000
+
+const doneTodayTopics = (page: Page) =>
+  page.evaluate(async () => {
+    const s = await (globalThis as unknown as PageGlobals).menkar.window.state()
+    return (s?.doneToday ?? []).filter((x) => x.kind === 'topic').map((x) => x.number)
+  })
+
+const setAway = (page: Page, away: boolean) =>
+  page.evaluate(
+    (on) =>
+      (globalThis as unknown as PageGlobals).menkar.window.act({ type: 'setPresence', away: on }),
+    away,
+  )
+
+const openDoneToday = (page: Page) =>
+  page.evaluate(() =>
+    (globalThis as unknown as PageGlobals).menkar.window.act({
+      type: 'setDoneTodayOpen',
+      open: true,
+    }),
+  )
+
+const filesShot = async (page: Page, name: string) => {
+  const files = process.env.MENKAR_FILES
+  if (files) await page.screenshot({ path: join(files, `menkar-t101-42-b3-${name}.png`) })
+}
+
+// Decision 1.178: a session of the orchestrator at a permission prompt nobody is looking at wakes
+// nobody; its line waits in the orchestrator's inbox, and Menkar raises a blocking topic, with its
+// notice, closed 3 s after the prompt is answered and kept out of Done today. While the human is
+// away the topic comes with no toast; with the session's tab in view, no topic.
+test('a worker at a permission prompt: no post, a line in the inbox, a blocking topic and its toast, closed after the answer and not in Done today; away, no toast; in view, no topic (screenshots)', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      const env = team(dirs)
+      orchestratorSocket(dirs)
+      return { ...env, MENKAR_LOG: 'info' }
+    },
+  })
+  const page = launched.window
+  const socket = await listen(root)
+  const statusOf = (number: number) => topicsFile(root).find((x) => x.number === number)?.status
+  const WAITING = 'login worker is waiting at a permission prompt'
+  try {
+    await expect(page.locator('.tab')).toHaveCount(2)
+    const w1 = await agentReady(page, TEAM.w1)
+    await page.locator('.tab', { hasText: 'orchestrator' }).click()
+
+    await typeInto(page, w1, 'ASK')
+    await expect(page.locator('.toast')).toContainText(`Item 4: ${WAITING}`, { timeout: 15_000 })
+    const row = page.locator('.topic-row[data-topic="4"]')
+    await expect(row).toContainText(WAITING)
+    await expect(row.locator('.topic-blocking')).toHaveCount(1)
+    await expect.poll(() => inboxLines(root)).toEqual([WAITING])
+    await filesShot(page, 'permission-topic-en')
+    await page.waitForTimeout(NO_WAKE_MS)
+    expect(socket.posted()).toEqual([])
+    await row.click()
+    await expect(page.locator('.topic-detail')).toContainText(
+      'Answer it in its tab. Menkar closes this topic once it is answered.',
+    )
+    await filesShot(page, 'permission-topic-detail-en')
+    await page.locator('.toast').evaluateAll((ns) => {
+      for (const n of ns) n.remove()
+    })
+
+    // Answered: still open for a moment, closed 3 s after, and not a row of Done today.
+    await typeInto(page, w1, 'TURN')
+    await page.waitForTimeout(1500)
+    expect(statusOf(4)).toBe('open')
+    await expect.poll(() => statusOf(4), { timeout: 15_000 }).toBe('closed')
+    await expect(page.locator('.topic-row[data-topic="4"]')).toHaveCount(0)
+    expect(await doneTodayTopics(page)).toEqual([])
+    await openDoneToday(page)
+    await filesShot(page, 'permission-topic-closed')
+    expect(socket.posted()).toEqual([])
+
+    // Away: the topic is raised with no toast.
+    await setAway(page, true)
+    await typeInto(page, w1, 'ASK')
+    await expect.poll(() => statusOf(5), { timeout: 15_000 }).toBe('open')
+    await page.waitForTimeout(1500)
+    await expect(page.locator('.toast', { hasText: WAITING })).toHaveCount(0)
+    await typeInto(page, w1, 'TURN')
+    await expect.poll(() => statusOf(5), { timeout: 15_000 }).toBe('closed')
+    await setAway(page, false)
+
+    // The human looking at the worker's tab answers it there: no topic.
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await typeInto(page, w1, 'ASK')
+    await expect(page.locator('.tab-body:not(.hidden) .pane-banner')).toContainText(
+      'Waiting for your permission',
+      { timeout: 10_000 },
+    )
+    await page.waitForTimeout(1500)
+    expect(topicsFile(root).map((x) => x.number)).toEqual([1, 2, 3, 4, 5])
+    await page.waitForTimeout(NO_WAKE_MS)
+    expect(socket.posted()).toEqual([])
+  } finally {
+    socket.close()
+    await launched.close()
+  }
+})
+
+test('the permission topic in Spanish: its title and context in the user’s language, stored in English (screenshot)', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      root = dirs.root
+      const env = team(dirs)
+      const state = join(dirs.root, 'config', 'menkar', 'state.json')
+      const saved = JSON.parse(readFileSync(state, 'utf8'))
+      writeFileSync(
+        state,
+        JSON.stringify({ ...saved, settings: { ...saved.settings, language: 'es' } }),
+      )
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    await expect(page.locator('.tab')).toHaveCount(2)
+    const w1 = await agentReady(page, TEAM.w1)
+    await page.locator('.tab', { hasText: 'orchestrator' }).click()
+    await typeInto(page, w1, 'ASK')
+    await expect(page.locator('.toast')).toContainText(
+      'Pendiente 4: login worker espera en una pregunta de permiso',
+      { timeout: 15_000 },
+    )
+    const row = page.locator('.topic-row[data-topic="4"]')
+    await expect(row).toContainText('login worker espera en una pregunta de permiso')
+    await row.click()
+    await expect(page.locator('.topic-detail')).toContainText('Respóndela en su pestaña.')
+    await filesShot(page, 'permission-topic-es')
+    const stored = (
+      JSON.parse(readFileSync(join(root, 'config', 'menkar', 'topics.json'), 'utf8')).projects[
+        TEAM_PROJECT
+      ].topics as { number: number; title: string; kind?: string }[]
+    ).find((x) => x.number === 4)
+    expect(stored).toMatchObject({
+      title: 'login worker is waiting at a permission prompt',
+      kind: 'permission',
+    })
+  } finally {
+    await launched.close()
+  }
+})
+
 const ESC = String.fromCharCode(27)
 
 // The orchestrator's messaging socket, as the stand-in cannot open one: what Menkar posts to it.
@@ -991,27 +1151,25 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
     await page.locator('.tab-body:not(.hidden) .xterm').click()
     await page.keyboard.type('typed-with-you')
     await expect.poll(received).toContain('typed-with-you')
-    await expect
-      .poll(socket.posted, { timeout: 15_000 })
-      .toEqual([
-        expect.stringMatching(
-          new RegExp(
-            `^\\[Menkar\\] The human took control of login worker \\(\\d{2}:\\d{2}:\\d{2}\\)${COUNTS}$`,
-          ),
-        ),
-      ])
+    // Told through its inbox, off the human's screen (decision 1.178).
+    await expect.poll(() => inboxLines(root)).toEqual(['The human took control of login worker'])
     await shot(page, 'banner-blue.png')
 
     // At a permission prompt, even handed back, the tab takes keys while it waits.
     await page.keyboard.type('ASK')
     await banner.locator('button', { hasText: 'Back to reporting to the orchestrator' }).click()
-    await expect.poll(socket.posted, { timeout: 15_000 }).toContainEqual(
-      expect.stringMatching(
-        // The prompt that follows may join it, after the human's own news (decision 1.173).
-        /^\[Menkar\] The human handed login worker back(; [^(]+)? \(\d{2}:\d{2}:\d{2}\) · \d+ topics? · \d+ working · \d+ waiting$/,
-      ),
-    )
+    // The later news of the session replaces the earlier; the prompt has a line of its own, and
+    // no topic, since it came while the session was with the human.
+    await expect
+      .poll(() => inboxLines(root).sort())
+      .toEqual([
+        'The human handed login worker back',
+        'login worker is waiting at a permission prompt',
+      ])
     await expect(banner).toContainText('Waiting for your permission', { timeout: 10_000 })
+    await page.waitForTimeout(NO_WAKE_MS)
+    expect(socket.posted()).toEqual([])
+    expect(topicsFile(root).map((x) => x.number)).toEqual([1, 2, 3])
     await expect(banner).toHaveClass(/warning/)
     await page.locator('.tab-body:not(.hidden) .xterm').click()
     await page.keyboard.type('answer-at-prompt')

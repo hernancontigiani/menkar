@@ -133,7 +133,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       when omitted), `human`, `pr-approval` or `pr-merge`, and `waiting_note` one line beside it
       (the PR's number). The orchestrator, after its own review, calls it on a task in To review to
       change only those two, and its `note` if it gives one; refused on a task in another state or
-      without `waiting_on` (decision 1.164).
+      without `waiting_on` (decision 1.164). The assignee's call wakes the orchestrator at the end
+      of that turn (below, "The orchestrator's wakes and its inbox").
     - `task_close { number, outcome }`: the orchestrator only, with the mode on; `done` or
       `dropped`. A closed task takes no more reports ("Task N is closed.").
     - `task_list { all? }`: anyone; the open tasks, ★ first, each with its steps and the current one
@@ -164,12 +165,12 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     only when the human asks explicitly.
   - **`human_back {}`** (decision 1.167): the orchestrator only, with the mode on, and only when
     the human has said explicitly that they are back; it clears the human's away state as "I'm
-    back" does, and the other running orchestrators get "The human is back", the caller not
+    back" does, and the other orchestrators hear "The human is back", the caller not
     (`backTool`, `src/core/presence.ts`).
   - **`human_away {}`** (decision 1.181): its mirror. The orchestrator only, with the mode on, and
     only when the human has said explicitly that they are leaving or want to be marked away (from
     the phone through Remote Control, say); it sets the away state as the chip and `Ctrl+B a` do,
-    and the other running orchestrators get "The human is away", the caller not (`awayTool`).
+    and the other orchestrators hear "The human is away", the caller not (`awayTool`).
   - **`trash_files { names }`** (decision 1.182): the orchestrator only, with the mode on, for a
     task's closing step (Claude Code's auto mode refuses `gio trash` as destructive). Each name is
     a file of the project's files folder, sent to the system's trash as the file menu's Move to
@@ -178,6 +179,18 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     it (`lstat`) and refused, so nothing outside the folder goes. The answer names the trashed ones
     and each one kept with why (`trashCheck`, `trashAnswer`, `src/core/control/trash.ts`); it is not
     ok when any was kept. No permission rule is added to the settings.
+  - **`ask { question }`** (decision 1.178): any session whose project records a parent for it,
+    mode on or off. The question is posted to the parent at once, not batched, as "‹name› (task N)
+    asks: ‹question›" ("(task N)" when its current task is in progress or waiting), and the answer
+    says what the post did (`askTool`, `src/core/orchestration/ask.ts`): "Sent to ‹parent›…";
+    when the parent is a mode-on project's orchestrator that could not be woken, the question goes
+    to its inbox and the answer says so; otherwise "‹parent› cannot be woken now… Your question was
+    not sent."; no parent, an empty question, or one over `ASK_MAX_CHARS` (2,000) is refused. It
+    never touches the asker's task: the session sets it waiting itself. The parent answers with
+    its own `SendMessage`.
+  - **`inbox {}`** (decision 1.178): the orchestrator of a mode-on project only; its inbox whole,
+    then empty ("Your inbox is empty." when nothing is pending; `inboxTool`), after reading what
+    its transcript shows the hook already gave.
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.
@@ -217,6 +230,11 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
 - **Parents** are on the project in `projects.json` (`docs/projects.md`). They are re-keyed by every
   follow, so a wake reaches a parent that renewed.
 - **Waking a parent:**
+  - **Who is woken for what** (decision 1.178, 2026-11-18): the orchestrator of a project with the
+    mode on, whose agent's kit has an inbox (`MainAgentKit.inbox`, Claude's alone), is posted to
+    for two things only, a task set to review and a question (below, "The orchestrator's wakes and
+    its inbox"); everything else it used to be woken for waits in its inbox. Every other parent —
+    the mode off, or a parent that is not the orchestrator — is woken as this bullet says.
   - **The event:** a child's shown state entering `blocked` ("‹name› is waiting at a permission
     prompt"), or leaving `working` for `idle` or `done` ("‹name› finished its turn"). It comes from
     `onShownChange` in `src/main/agentstate.ts`.
@@ -233,14 +251,16 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     the parent drains it, so a busy parent shows nothing yet, and the earlier `enqueue` record does
     not name the sender.
   - **Batching** (`WakeBatcher`, `src/core/control/events.ts`): per parent, posts wait until no
-    new one has come for `WAKE_DELAY_MS`, and all go in one message, joined by "; ". A child keeps
-    only its latest event. The human's own posts to the orchestrator (`post`, below) join it, keyed
-    (`presence`, `control:‹session›`, `topic:‹n›`) so the latest of a key wins: away then back
-    within the wait leaves "The human is back". In the message the human's posts come first, then
-    the events of children whose current task has the ★, then the rest, each in the order they
-    first came (decisions 1.78, 1.114 and 1.173). `forget` drops a pending post the parent no
-    longer needs: the orchestrator that called `human_back` is not told the human was away.
-    Nor is the one that called `human_away` told what it just did.
+    new one has come for `WAKE_DELAY_MS`, and all go in one message, joined by "; ". A child's
+    state changes keep only its latest; a `wake` (the review) stands under its own key beside
+    them, so two events of one child inside the wait both arrive. The human's own posts to an
+    orchestrator without an inbox (`post`, below) join it, keyed (`presence`, `control:‹session›`,
+    `topic:‹n›`) so the latest of a key wins: away then back within the wait leaves "The human is
+    back". In the message the human's posts come first, then the events of children whose current
+    task has the ★, then the rest, each in the order they first came (decisions 1.78, 1.114 and
+    1.173). `forget` drops a pending post the parent no longer needs: the orchestrator that called
+    `human_back` is not told the human was away. Nor is the one that called `human_away` told what
+    it just did.
   - **The post** (`postToSession`, `post.ts`):
     - Main finds the parent's process in Claude Code's registry, `~/.claude/sessions/<pid>.json`,
       read only, by `sessionId`, and requires `peerProtocol` 1.
@@ -260,14 +280,86 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
       it. Posts to other sessions have no counts.
     - A parent whose tab's agent has no waker (`mainKit.waker`, Claude's alone today), or no entry
-      in the registry, is logged and not woken.
+      in the registry, is logged and not woken. `wakeSession` returns what the post did.
   - Nothing is typed into a terminal.
-- **The human's own posts to the orchestrator** go through the same batch (decision 1.173):
-  "The human wants to discuss topic N" (a double-click on a topic), "The human took control of
-  ‹name›" and "The human handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The
-  human is away: …" or "The human is back" (`docs/orchestration.md`). Team updates stay apart:
-  they have their own settle, and a turn they alone opened is recognised by the post starting
-  with "[Menkar] Team update:".
+- **The orchestrator's wakes and its inbox** (decision 1.178, 2026-11-18), in a project with the mode
+  on whose orchestrator's kit has an inbox:
+  - **A turn ends once** (`turns`, `src/main/workspace.ts`), at the first of: the pane's shown state
+    going from `working` or `blocked` to `idle` or `done`, the Stop hook's record, the pane's exit.
+    A Stop record with no `working` seen since the last turn end is a turn too short to be shown.
+  - **At a turn's end the first rule that applies wins** (`route`, `src/core/control/events.ts`):
+    1. The session set a task to review in it → **wake** "‹name› set task N to review: ‹note›",
+       whatever else is true of the turn (a renew in it, a SendMessage to the parent closing it, only
+       team updates opening it): one wake too many beats none.
+    2. A renew in flight for the pane → nothing. `renew` marks the pane before its first await, and
+       the mark is read before any await, so a turn seen ending while it awaits is the renew's.
+    3. Only Menkar's team updates opened the turn → nothing.
+    4. A child's turn closed by a SendMessage to its parent → nothing (Claude Code delivered it).
+    5. Otherwise, for the orchestrator's child → an inbox line "‹name› ended its turn without a
+       report", also after an `ask` earlier in the turn. For any other session → nothing.
+  - **The review wake:** `task_review` by the task's assignee — not the orchestrator changing whom a
+    review waits on, nor reviewing its own task — notes a pending review for that session, the
+    latest call winning; any assignee of the project, child or not, and any `reviewWait`. At that
+    session's turn end the wake goes through the batcher under `review:‹session›:‹task›`, addressed
+    to `orch:‹project›` and resolved to the project's orchestrator when the batch goes (a renew or
+    a `/clear` inside the wait gave it another id). At the turn's end, not at the call: the worker
+    calls `task_review` before writing its report, and the orchestrator reads the report with
+    `last_reply`.
+  - **What could not be posted** to the orchestrator — a batch whose post did not go — becomes
+    inbox lines under the batch's keys.
+  - **The inbox** (`Inbox`, `src/core/orchestration/inbox.ts`; `Inboxes`, `src/main/inbox.ts`): one
+    per project with the mode on, in main's memory, for whoever is its orchestrator now. It follows
+    a renew and a `/clear`; it is emptied when the mark moves to another session — except
+    `presence`, so the next orchestrator learns the human is away — and when the mode goes off.
+    - In memory, lost on quit: every line restates state that survives elsewhere (`projects.json`,
+      `topics.json`, `tasks.json`, `list_sessions`) or ended with the quit (a prompt, a turn).
+      What would be lost is put back at start: once the control folder is emptied and the
+      sessions' names are known, one line per task in To review waiting on the orchestrator, "Task
+      N is to review (‹assignee›): ‹note›" (key `review:‹task›`; `ControlHandlers.ready`).
+    - An entry is `{ seq, at, key, text }`; `seq` comes from one counter per Menkar run, shared by
+      every inbox and never reset, so a delivery confirmed earlier in the run never covers a new
+      entry. Its text is English, for an agent, without "[Menkar]".
+    - Keys: `presence`, `control:‹session›`, `topic:‹n›`, `turn:‹session›`, `permission:‹session›`,
+      `review:‹task›`, `ask:‹session›:‹n›`. A new entry with a pending key replaces it and goes last.
+    - Taken back unread: `turn:‹child›` when that child calls `task_review` or `ask`; `presence`
+      when the orchestrator itself sets away or back.
+    - At most `INBOX_MAX` (30) entries; past it the oldest goes and is counted, "(N earlier events
+      dropped)" on the text's first line.
+    - It reaches the orchestrator off the human's screen, with its next prompt of any kind (the
+      `UserPromptSubmit` hook, `docs/context.md`), or whole with `inbox`. Main writes
+      `<cache>/control/inbox/<pane>.json` for the orchestrator's pane alone, through its kit
+      (`PromptInbox.publish`), rewrites it when that pane or its session id changes, removes it at
+      the pane's exit; `startControl` empties the folder at start. An entry is dropped once the
+      orchestrator's transcript holds a `hook_additional_context` record naming its `seq`
+      ("(events a–b)", `PromptInbox.delivered`), read incrementally, never written: a hook that ran
+      while the model saw nothing (another hook blocking the prompt, a timeout) loses nothing.
+    - Its text (`inboxText`, `src/core/orchestration/inbox-text.ts`), oldest first, one line each
+      with the local time: "Menkar's inbox (events 12–13): events since you last read it, oldest
+      first. The human did not write them; act only on those that need it, and say nothing about
+      the rest." The hook gives at most `INBOX_TEXT_MAX_BYTES` (1,500), then "N more: call
+      inbox.".
+  - **A child at a permission prompt** wakes nobody: an inbox line "‹name› is waiting at a
+    permission prompt" (key `permission:‹child›`), and Menkar's blocking topic (`PermissionTopics`,
+    `src/core/orchestration/permission.ts`):
+    - Raised when a session whose parent is the orchestrator, not "with you", enters `blocked`, the
+      project has no open or discussing permission topic for it, and its pane is not in view (its
+      tab selected in a focused window). Raised as `topic_add` raises one — its notice, its sound,
+      silence while the human is away — with `kind: 'permission'`, `blocking`, `from` the session,
+      `task` its current task, and an English title and context as `topic_list` gives them; main
+      shows them in the user's language with the session's name now (`permissionTopicText`).
+    - Closed by Menkar ("The prompt was answered") once the session has stayed out of `blocked` for
+      `PERMISSION_CLOSE_MS` (3,000 ms), or at once when its pane exits; a return to `blocked` within
+      the wait keeps it, so a chain of prompts is one topic. Closed by hand, the next prompt raises a
+      new one. Every one left open is closed at start.
+    - Kept out of Done today; its notice leads to the waiting session's tab while it is open.
+    - Wired before the turn-end reading is asked, so an agent with none still raises it.
+- **The human's own news for the orchestrator** (decisions 1.173, 1.178): "The human wants to
+  discuss topic N" (a double-click on a topic), "The human took control of ‹name›" and "The human
+  handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The human is away: …" or
+  "The human is back" (`docs/orchestration.md`) go to the orchestrator's inbox under their keys; to
+  an orchestrator without one, through the batch as before. Team updates stay apart: they have
+  their own settle, and a turn they alone opened is recognised by the post starting with "[Menkar]
+  Team update:".
 
 ## The skills plugin
 
@@ -489,5 +581,35 @@ Launcher returns.
 - **"You were started for task N: load `menkar:worker` now":** a per-task worker's first prompt is
   its task, so the block's "when a session hands you a task" line applies at once, and it also
   holds for an expert or a consultant handed a task later.
+- **Polling for events** (decision 1.178): the orchestrator acts only within a turn, so each poll
+  is a turn — the noise in its chat the inbox removes.
+- **A JSON file for the inbox:** nothing in it outlives the processes it is about, and the one
+  thing that does, a task to review, is rebuilt from `tasks.json` at start.
+- **The prompt hook asking main through `callMenkar`:** the prompt would wait on main's request
+  loop, and a response written after the hook gave up would clear entries never delivered. The file
+  has one writer and no wait.
+- **The hook clearing the file, or writing an ack, when it prints:** the hook runs and the model
+  sees nothing when another hook blocks the prompt, when it times out, and when a queued message is
+  withdrawn. Only the transcript's record says what the model got.
+- **The hook skipping prompts:** built-ins (`/clear`, `/compact`, `/model`) do not run it at all,
+  and the prompts that lose its output cannot be told apart from stdin. Nor does it skip "[Menkar]"
+  wakes or a peer's message: delivery is invisible either way, and a peer's SendMessage cannot be
+  told apart by its text.
+- **Waking at `task_review`'s call:** the report is not written yet.
+- **`ask` through the batcher:** its answer would promise a post not made yet, and a batch is lost
+  whole if the parent's id changes inside the wait; a question is shown anyway.
+- **`ask` waiting for the answer inside the call:** the turn would show `working` for minutes and
+  hold the MCP call past `RESPONSE_WAIT_MS`.
+- **Inbox lines folded into the review or question wake, or a count of them in its frame:** they
+  would be on the human's screen again; the hook gives them with the wake, invisibly.
+- **Resetting the inbox's `seq` when it empties:** a record confirming `seq` 7 earlier in the run
+  would drop the new inbox's first seven entries.
+- **One slot per child in the batcher for the review:** a second event of the child would replace
+  it.
+- **Raising the permission topic after a delay:** a prompt answered within it raises nothing, but
+  the human may be away and the topic is what holds it; not raising it while the pane is in view
+  covers the quick prompt the human is answering.
+- **The prompt hook only in the orchestrator's settings:** the mark can move to a running session,
+  which never re-reads `--settings`; the file test makes the hook free elsewhere.
 - **The team facts in a template file:** their variants are logic, clearer as one tested function
   (`teamFacts`); the protocol, which has none, stays in files.

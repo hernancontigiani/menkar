@@ -180,3 +180,25 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
     a parked or stopped Claude Code session of the project, refused when it has a tab. It opens in
     a tab after the orchestrator's, not selected, as `--resume <id>`, the prompt as its first
       Work view's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):
+
+## The shape
+
+> Left on 2026-11-18: the orchestrator is woken only for a review and a question; the rest waits in its inbox (decision 1.178, plan 42).
+      without `waiting_on` (decision 1.164).
+    back" does, and the other running orchestrators get "The human is back", the caller not
+    and the other running orchestrators get "The human is away", the caller not (`awayTool`).
+    new one has come for `WAKE_DELAY_MS`, and all go in one message, joined by "; ". A child keeps
+    only its latest event. The human's own posts to the orchestrator (`post`, below) join it, keyed
+    (`presence`, `control:‹session›`, `topic:‹n›`) so the latest of a key wins: away then back
+    within the wait leaves "The human is back". In the message the human's posts come first, then
+    the events of children whose current task has the ★, then the rest, each in the order they
+    first came (decisions 1.78, 1.114 and 1.173). `forget` drops a pending post the parent no
+    longer needs: the orchestrator that called `human_back` is not told the human was away.
+    Nor is the one that called `human_away` told what it just did.
+      in the registry, is logged and not woken.
+- **The human's own posts to the orchestrator** go through the same batch (decision 1.173):
+  "The human wants to discuss topic N" (a double-click on a topic), "The human took control of
+  ‹name›" and "The human handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The
+  human is away: …" or "The human is back" (`docs/orchestration.md`). Team updates stay apart:
+  they have their own settle, and a turn they alone opened is recognised by the post starting
+  with "[Menkar] Team update:".

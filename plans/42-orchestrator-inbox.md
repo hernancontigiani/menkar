@@ -900,3 +900,97 @@ of the two it offered, since it keeps the hook's command as it is).
 - The `inbox` tool gives the text with no budget, so a long question comes whole there.
 - `startControl` empties the folder after `startWorkspace` has run; no inbox entry exists before
   `startControl` today, but block 3's start-up review entries must be added after it.
+
+### Blocks 3 and 4 — `menkar-t101` (task 101), 2026-11-18
+
+**Block 3, built** (with plan 43's block 3b `askPresence` half):
+
+- `src/main/workspace.ts`, the wake section: `inboxOrchestrator(project)` (the mode on, an
+  orchestrator, and its kit's `inbox` non-null; Q1); `turns` per pane (`open`, `ended-shown`,
+  `ended-stop`) so a turn ends once, at the first of the shown state leaving `working`/`blocked`
+  for `idle`/`done`, the Stop record (`stopRecorded`, called first in `turnEnded`) and the pane's
+  exit; `turnEnd` applying `route` (renewing read before any await; the transcript read only when
+  rules 1–2 do not settle it); `reviews` per session, noted by `noteReview` in `taskFor`'s success
+  path (the assignee, the task now `to review`, not the orchestrator); the review wake through
+  `wakes.wake('orch:‹project›', …)`, its key `review:‹session›:‹task›`; `sendWake` resolving
+  `orch:` at flush and falling back to `inboxes.add` per entry when not posted. Today's path
+  (`wakesParent`, `wakes.note`) is unchanged for every parent that is not the inbox orchestrator.
+- The permission topic: `PermissionTopics` wired in the first `onShownChange` listener before the
+  turn-end reading is asked (F19), to `onPaneExit`, and `closeLeftPermissionTopics()` at the start
+  of `startWorkspace`; `raisePermissionTopic` through `addTopic`, `setTopics`, `noticeTopics`,
+  `changed`; `permissionTopicText` (t() with the session's name now) in `topicViews` and the
+  notice; `doneTodayView` skips closed permission topics; `showTopic` reveals the waiting pane for
+  a permission topic, so both the toast's Show and the desktop notice lead there. `paneSeen(pane)`
+  factored out of the pane's `seen` lambda, for `seen` in the subject.
+- The human's posts: `askPresence`, take control / hand back and `discussTopic` add to the inbox
+  when the project's orchestrator is the inbox orchestrator, else today's `wakes.post`; the
+  orchestrator that set away or back has `presence` retracted. `askFor` retracts `turn:‹asker›`.
+  `renewing` holds `null` from `renew`'s start (before its first await) until the hang-up sets the
+  resolver; `onPaneExit` takes the renew path only on a resolver. `orchestratorMarkMoved` on the
+  `setOrchestrator` action and the card's new orchestrator → `inboxes.moved` (keeps `presence`).
+  `adopt_session`'s answer no longer says "wakes you when it waits or ends its turn".
+- `src/main/inbox.ts`: `retract(project, key)` and `moved(project)`.
+- `src/main/control.ts` (granted by `set`): `ControlHandlers.ready()`, called by `startControl`
+  right after it recreates the inbox folder; workspace's `ready` waits for the first scan
+  (`firstScan`), then adds "Task N is to review (‹assignee›): ‹note›" per task in To review waiting
+  on the orchestrator (`review:‹task›`).
+- `src/main/activity.ts`: `recordPresence(away)` → an `away` or `back` line; called by
+  `askPresence` when the state changed (plan 43, F6).
+- `src/core/i18n/en.ts`, `es.ts`: `topics.permissionTitle`, `topics.permissionContext`.
+- e2e: `e2e/orchestration.spec.ts` (new: the permission topic, and the same in Spanish; rewritten:
+  discuss topic and take control / hand back → inbox lines, no post), `e2e/session-control.spec.ts`
+  (new: the review wake with the F7 case and the turn without a report; the start-up review entry;
+  rewritten: away/back, the team-block turn test, block 2's `ask` test, whose `inbox` now first
+  gives the take-control line), `e2e/activity.spec.ts` (new: away/back journaled),
+  `e2e/fixtures.ts` (granted by `set`: `REVIEW1`, `task_review` without ending the turn).
+
+**Block 4, built:** §2.8's texts (the orchestrator skill's "When you are woken" with the inbox,
+`workers.md`, the worker skill, `team/common.md`, the guide), `task_review`'s and `adopt_session`'s
+descriptions; `docs/session-control.md` (waking a parent rewritten, "The orchestrator's wakes and
+its inbox", `ask` and `inbox` in the tools, the Rejected items of §2.10), `docs/context.md` (the
+`UserPromptSubmit` bullet, the statusline's imports), `docs/agents.md` (`PromptInbox`),
+`docs/orchestration.md` (the posts, double-click, banners, presence, the permission topic, Show),
+`docs/NOT_BUILT_YET.md` (the conversation entry narrowed; `answer`; a Cursor orchestrator's inbox),
+`docs/usage.md` (granted by `set`: `away` / `back` row), each with its lines in `docs/history/`
+(`docs/history/agents.md` new).
+
+**Seen red**, each against a defect injected and removed: `noteReview` not called; a SendMessage
+to the parent silencing the review (F7); `seen` forced false (a topic in view); Done today not
+filtering; the routed child falling through to today's wake (posts); `ready` not adding the
+review lines; `recordPresence` not called; the notice's title not translated (the Spanish toast);
+presence posted instead of put in the inbox; take control posted instead of put in the inbox.
+
+**Choices the plan left open (mine):**
+
+- A Stop record with no `working` seen since the last turn end counts as a turn (a turn too short
+  to be shown), so the stand-in's `REVIEWPR`, which shows no `working`, still ends its turn.
+- Rule 5's inbox line, the permission line and the topic apply only when the session's parent is
+  the inbox orchestrator; a session in the mode whose parent is another session keeps today's
+  wakes to that parent, and only its review wakes the orchestrator.
+- A turn-end reading that fails puts the "without a report" line in the inbox (today's path wakes).
+- `ready` adds the review lines whatever the orchestrator's agent (no session is known that early;
+  an inbox nobody reads only keeps them), and only once the first scan settled, so the assignee is
+  named: before it, names are id prefixes.
+- The away/back line goes to every mode-on project's orchestrator's inbox, running or not (it
+  waits for the next start of that orchestrator); `postRecipients` still applies to orchestrators
+  without an inbox.
+- The review wake's text leaves out ": ‹note›" when the note is empty.
+- `raisePermissionTopic` returns 0 for a session in no project (not reached: the subject is a
+  member of a mode-on project).
+- The toast's text is "Item N: …" ("Pendiente N" in Spanish), as every topic notice is today; the
+  plan's e2e said "Topic N".
+
+**Premises the tree contradicted:** the task state is `to review`, not `review`. The plugin's own
+tests bound §2.8's texts: the orchestrator skill under 200 lines, no word "set" (a session's name),
+no `SendMessage` in a skill (the team block carries it), the common and Claude team parts under 800
+bytes. So the skill quotes the wake as "[Menkar] ‹name› … task N to review: ‹note›" and says
+"answer it by name"; `team/common.md`'s line is §2.8's, shortened to fit.
+
+**R10** moves in exactly these, not refreshed: `tests/core/r10/mcp-tools-list.json`,
+`tests/core/r10/plugin/guide/orchestration-mode.md`, `tests/core/r10/plugin/skills/orchestrator/
+SKILL.md`, `tests/core/r10/plugin/skills/orchestrator/workers.md`, `tests/core/r10/plugin/skills/
+worker/SKILL.md`, `tests/core/r10/plugin/team/common.md`, `tests/core/r10/team-blocks.txt`,
+`tests/core/r10/team-posts.txt`.
+
+**`test integrity`** fails on three removed `expect(` lines, the assertions block 3 asks to
+rewrite (the discuss post, the away and back post counts): read by a person, as the check says.

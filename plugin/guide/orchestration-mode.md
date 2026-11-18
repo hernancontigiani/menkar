@@ -169,6 +169,14 @@ is set waiting, with what it waits on.
   session's state.
 - **A new topic** notifies the person, as a waiting session does, and so does a topic that becomes
   blocking. While a topic is being discussed, new ones arrive without sound.
+- **A session at a permission prompt**: when a session under the orchestrator, not "with you",
+  waits at a permission prompt and its tab is not in view, Menkar raises a blocking topic for it,
+  "‹name› is waiting at a permission prompt", and closes it once the prompt is answered. Its Show
+  opens that session's tab, where you answer it. It does not stay in Done today.
+- **The orchestrator's inbox**: Menkar posts to the orchestrator's chat only when a task is set to
+  review and when a session asks it something. Everything else — a turn ended without a report, a
+  permission prompt, taking control, a topic to discuss, away or back — waits in its inbox and
+  reaches it with its next prompt, yours included, without a line on your screen.
 - **Read-only tabs**: the tab of a session under the orchestrator takes no keys or pastes, under a
   yellow banner with "Take control". Taking control marks it "with you" (a blue banner, with "Back
   to reporting to the orchestrator"); the orchestrator is told both times. A worker taken control
@@ -186,13 +194,15 @@ sidebar's foot, "● Here · Set me away…", or with `Ctrl+B a`. The chip shows
 project has the mode on, and the state is the whole app's, not a project's. While away, a thin amber banner sits under the header of every window, "Away since
 ‹time›", with "I'm back". Quitting forgets it: Menkar always opens with you here.
 
-- **It concerns the orchestrators only.** Each running one hears "[Menkar] The human is away": it
+- **It concerns the orchestrators only.** Each one hears "The human is away" with its next prompt,
+  or when it reads its inbox: it
   writes each event to a topic or the status file instead of a chat summary, goes on with what
   does not depend on you, and a new blocking topic waits for your return. A topic raised meanwhile
   makes no sound, toast or desktop notice and is not replayed: it waits in Topics. The sessions'
   own desktop notifications are not silenced.
-- **Coming back**: "I'm back" on the banner or on the chip, or `Ctrl+B a`. The running
-  orchestrators hear "[Menkar] The human is back" and answer first with a short preliminary
+- **Coming back**: "I'm back" on the banner or on the chip, or `Ctrl+B a`. The orchestrators hear
+  "The human is back" with your next message, or when they read their inbox, and answer first
+  with a short preliminary
   summary (how many things happened, which await a decision); then you go through them one by
   one or read the full summary.
 - **Writing to an orchestrator while away** (from Remote Control, say) does not clear it by
@@ -200,7 +210,7 @@ project has the mode on, and the state is the whole app's, not a project's. Whil
   `human_back`.
 - **Telling an orchestrator you are leaving** (from Remote Control, say) lets it set you away with
   `human_away`, as the chip does; it does so only when you say so explicitly, and the other
-  running orchestrators hear "[Menkar] The human is away".
+  orchestrators hear "The human is away".
 
 ## Who may start sessions
 

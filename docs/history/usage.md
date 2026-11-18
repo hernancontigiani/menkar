@@ -68,3 +68,8 @@ command line); main does not journal them yet.
 > Replaced 2026-11-18 (decision 1.180): main journals `prompted_start`.
 The journal's format already has `away` / `back` (1.167) and `prompted_start` (a session started
 with a prompt on its command line); main does not journal them yet.
+
+## The human's activity and the task flow
+
+> Left on 2026-11-18: main journals away and back from askPresence (plan 43, block 3b, with plan 42's block 3).
+The journal's format already has `away` / `back` (1.167); main does not journal them yet.

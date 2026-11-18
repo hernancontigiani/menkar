@@ -30,6 +30,8 @@ const OLD_WORKER = '0b1d0b1d-0000-4000-8000-000000000001'
 async function open(
   options: {
     stoppedWorker?: boolean
+    // The stopped worker's task is to review, waiting on the orchestrator, as a quit left it.
+    toReview?: boolean
     orchestrated?: boolean
     cap?: number
     language?: string
@@ -137,10 +139,9 @@ async function open(
                     title: 'An earlier task',
                     assignee: OLD_WORKER,
                     star: true,
-                    state: 'queued',
-                    steps: [],
-                    step: 0,
-                    note: '',
+                    ...(options.toReview
+                      ? { state: 'to review', steps: ['read', 'fix'], step: 2, note: 'ready' }
+                      : { state: 'queued', steps: [], step: 0, note: '' }),
                     created: '2026-11-13T10:00:00.000-03:00',
                     updated: '2026-11-13T10:00:00.000-03:00',
                   },
@@ -381,6 +382,9 @@ test('ask: posted to the orchestrator at once; inbox empty; unwakeable, the ques
 
     await page.locator('.tab').first().click()
     await page.locator('.xterm:visible').click()
+    // Taking control of the worker went to the inbox (decision 1.178): read, then gone.
+    await page.keyboard.type('INBOX')
+    await said(page, 'The human took control of client-work-t1')
     await page.keyboard.type('INBOX')
     await said(page, 'TOOL inbox: Your inbox is empty.')
     expect(inboxFiles()).toEqual([])
@@ -414,6 +418,82 @@ test('ask: posted to the orchestrator at once; inbox empty; unwakeable, the ques
     expect(inboxFile(inboxFiles()[0] ?? '').entries.map((e) => e.text)).toEqual([question])
   } finally {
     if (listening) socket.close()
+    await launched.close()
+  }
+})
+
+// Decision 1.178: a task set to review wakes the orchestrator once, at the end of the turn that
+// set it, whatever closed that turn; a child's turn that ends with no report wakes nobody and waits
+// in the orchestrator's inbox, until the child reports.
+test('task_review wakes the orchestrator once at the turn’s end, also when a SendMessage to it closed the turn; a turn without a report is an inbox line, taken back by the review', async () => {
+  const { launched, page, root, argLines, tasksSaved } = await open({ orchestrated: true })
+  const socket = await orchestratorPosts(root)
+  const reviewPosts = () => socket.posted().filter((p) => p.includes('set task 1 to review'))
+  const NO_REPORT = 'client-work-t1 ended its turn without a report'
+  try {
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 1 added.')
+    await page.keyboard.type('WORKT')
+    await said(page, 'TOOL start_session: Started "client-work-t1" for task 1, now assigned')
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await expect.poll(() => tasksSaved().projects[CLIENT_WORK]?.tasks[0]?.assignee).toBe(worker)
+    await page.locator(`.row[data-session="${worker}"]`).click()
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('STEPS')
+    await said(page, 'TOOL task_steps: Task 1 has 3 steps')
+
+    // A turn with no report: a line in the orchestrator's inbox, no post.
+    await page.keyboard.type('TURN')
+    await expect.poll(() => inboxLines(root), { timeout: 15_000 }).toContain(NO_REPORT)
+    await page.waitForTimeout(QUIET_MS)
+    expect(socket.posted()).toEqual([])
+
+    // The review takes that line back, and its turn's end is one post.
+    await page.keyboard.type('REVIEW1')
+    await said(page, 'TOOL task_review:')
+    await expect.poll(() => inboxLines(root)).not.toContain(NO_REPORT)
+    expect(reviewPosts()).toEqual([])
+    await page.keyboard.type('TURN')
+    await expect
+      .poll(reviewPosts, { timeout: 15_000 })
+      .toEqual([
+        expect.stringMatching(
+          /^\[Menkar\] client-work-t1 set task 1 to review: ready \(\d{2}:\d{2}:\d{2}\)( · .*)?$/,
+        ),
+      ])
+
+    // A SendMessage to the orchestrator closing the turn does not silence the review.
+    await page.keyboard.type('REVIEW1')
+    await said(page, 'TOOL task_review:')
+    await page.keyboard.type('REPORT')
+    await expect.poll(reviewPosts, { timeout: 15_000 }).toHaveLength(2)
+
+    // A turn without either: no post, an inbox line.
+    await page.keyboard.type('TURN')
+    await expect.poll(() => inboxLines(root), { timeout: 15_000 }).toContain(NO_REPORT)
+    await page.waitForTimeout(QUIET_MS)
+    expect(reviewPosts()).toHaveLength(2)
+    expect(socket.posted().filter((p) => /finished its turn|ended its turn/.test(p))).toEqual([])
+  } finally {
+    socket.close()
+    await launched.close()
+  }
+})
+
+// A task to review waiting on the orchestrator is in no file Menkar can lose: at start its line is
+// back in the inbox, after the control folder is emptied, so it stays.
+test('at start, a task to review waiting on the orchestrator is a line in its inbox', async () => {
+  const { launched, root } = await open({ stoppedWorker: true, toReview: true })
+  try {
+    await expect.poll(() => inboxLines(root)).toEqual(['Task 1 is to review (worker): ready'])
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    expect(inboxLines(root)).toEqual(['Task 1 is to review (worker): ready'])
+  } finally {
     await launched.close()
   }
 })
@@ -626,10 +706,19 @@ const setScheme = (page: Page, scheme: 'dark' | 'light') =>
     },
     [scheme, catppuccin(scheme)] as const,
   )
-const backPosts = (posted: () => string[]) =>
-  posted().filter((p) => p.startsWith('[Menkar] The human is back')).length
+// The orchestrator's inbox, as its prompt hook reads it: one file, for the pane it runs in.
+const inboxLines = (root: string): string[] => {
+  const dir = join(root, 'cache', 'menkar', 'control', 'inbox')
+  return (existsSync(dir) ? readdirSync(dir) : []).flatMap((name) =>
+    (
+      JSON.parse(readFileSync(join(dir, name), 'utf8')) as { entries: { text: string }[] }
+    ).entries.map((e) => e.text),
+  )
+}
+const presenceLines = (root: string) =>
+  inboxLines(root).filter((line) => line.startsWith('The human is '))
 
-test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears it; the orchestrator hears both, and human_away and human_back set and clear it with no post to itself (screenshots)", async () => {
+test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears it; the orchestrator hears both through its inbox, never a post, and human_away and human_back set and clear it with nothing for itself (screenshots)", async () => {
   const { launched, page, root } = await open({ orchestrated: true, env: { MENKAR_LOG: 'info' } })
   const socket = await orchestratorPosts(root)
   const log = join(root, 'cache', 'menkar', 'menkar.log')
@@ -646,8 +735,8 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await expect(banner(page)).toBeVisible()
     await expect(banner(page)).toContainText(/Away since \d\d:\d\d/)
     await expect
-      .poll(socket.posted, { timeout: 15_000 })
-      .toContainEqual(expect.stringMatching(/^\[Menkar\] The human is away/))
+      .poll(() => presenceLines(root))
+      .toEqual([expect.stringMatching(/^The human is away/)])
 
     // A topic raised while away waits in the sidebar: no toast, no sound, nothing replayed later.
     await page.locator('.xterm:visible').click()
@@ -675,16 +764,15 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await other.locator('#away-back').click()
     await expect(banner(other)).toBeHidden()
     await expect(banner(page)).toBeHidden()
-    await expect.poll(() => backPosts(socket.posted), { timeout: 15_000 }).toBe(1)
+    // Away then back leaves one line: the later replaces the earlier.
+    await expect.poll(() => presenceLines(root)).toEqual(['The human is back'])
     await page.waitForTimeout(1000)
     await expect(topicToasts(page)).toHaveCount(0)
     await expect(topicToasts(other)).toHaveCount(0)
     expect(sounds()).toEqual([])
 
-    // The orchestrator itself sets it on the human's word, with no post to itself, and clears it.
-    const awayPosts = () =>
-      socket.posted().filter((p) => p.startsWith('[Menkar] The human is away')).length
-    const awayBefore = awayPosts()
+    // The orchestrator itself sets it on the human's word and clears it: what it did leaves its
+    // inbox, nothing goes in.
     await page.locator('.xterm:visible').click()
     await page.keyboard.type('HUMANAWAY')
     await said(page, 'TOOL human_away: The human is marked away.')
@@ -692,14 +780,13 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await expect(banner(other)).toBeVisible()
     await page.keyboard.type('HUMANAWAY')
     await said(page, 'TOOL human_away: The human is already marked away.')
-    await page.waitForTimeout(QUIET_MS)
-    expect(awayPosts()).toBe(awayBefore)
+    await expect.poll(() => presenceLines(root)).toEqual([])
     await page.keyboard.type('HUMANBACK')
     await said(page, 'TOOL human_back: The human is marked back.')
     await expect(banner(page)).toBeHidden()
     await expect(banner(other)).toBeHidden()
     await page.waitForTimeout(QUIET_MS)
-    expect(backPosts(socket.posted)).toBe(1)
+    expect(presenceLines(root)).toEqual([])
 
     // The chip at the sidebar's foot sets and clears it too, in every window.
     await expect(chip(page)).toHaveText(/Here.*Set me away…/)
@@ -711,7 +798,7 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await chip(other).click()
     await expect(banner(page)).toBeHidden()
     await expect(chip(page)).toHaveText(/Here.*Set me away…/)
-    await expect.poll(() => backPosts(socket.posted), { timeout: 15_000 }).toBe(2)
+    await expect.poll(() => presenceLines(root)).toEqual(['The human is back'])
 
     // Screenshots at the default width and the minimum, both states, both schemes.
     await page.bringToFront()
@@ -734,12 +821,10 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
           }
       }
     }
-    // Back then away within a wake's batch is one post, the latest (decision 1.173); with
-    // screenshots between them they may fall in two.
-    const presencePosts = () => socket.posted().filter((p) => /^\[Menkar\] The human is /.test(p))
     await expect
-      .poll(() => presencePosts().at(-1), { timeout: 15_000 })
-      .toMatch(/^\[Menkar\] The human is away/)
+      .poll(() => presenceLines(root))
+      .toEqual([expect.stringMatching(/^The human is away/)])
+    expect(socket.posted()).toEqual([])
   } finally {
     socket.close()
     await launched.close()
@@ -937,13 +1022,14 @@ test('the team block, mode on: a resume rebuilds it and gets no post; the human�
   }
 })
 
-test('the team block: a role change is one post, saving it unchanged none, a compaction posts the facts again; a turn that only answered it wakes no parent, nor one its report to the parent closed; a typed one does', async () => {
+test('the team block: a role change is one post, saving it unchanged none, a compaction posts the facts again; a turn that only answered it tells the orchestrator nothing, nor one its report to it closed; a typed one is a line in its inbox, never a post', async () => {
   const { launched, page, argLines, root, posts } = await open({
     orchestrated: true,
     env: { FAKE_CLAUDE_TEAM_TURN: '1', FAKE_CLAUDE_SOCKET: '1' },
   })
   const orchestrator = await orchestratorPosts(root)
-  const finished = () => orchestrator.posted().filter((p) => p.includes('worker finished its turn'))
+  const finished = () =>
+    inboxLines(root).filter((line) => line === 'worker ended its turn without a report')
   const ROLE =
     /^\[Menkar\] Team update: your facts are now:\nYou are `worker`, a session of the Menkar project "Client work", in orchestration mode\. Your role: "Reviewer"\. Your parent is `api`, the orchestrator\.\n/
   try {
@@ -985,6 +1071,8 @@ test('the team block: a role change is one post, saving it unchanged none, a com
 
     await page.keyboard.type('TURN')
     await expect.poll(finished, { timeout: 15_000 }).toHaveLength(1)
+    await page.waitForTimeout(QUIET_MS)
+    expect(orchestrator.posted().filter((p) => p.includes('worker'))).toEqual([])
   } finally {
     orchestrator.close()
     await launched.close()
