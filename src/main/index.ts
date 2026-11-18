@@ -11,6 +11,7 @@ import { electronUserData, logFile } from '../core/paths'
 import { settingsOf } from '../core/settings'
 import { loadState } from '../core/state'
 import type { InvokeChannel, InvokeChannels, SendChannel, SendChannels } from '../shared/ipc'
+import { importActivity, startActivity } from './activity'
 import { startAgentState } from './agentstate'
 import { closeAllChats, registerChatIpc } from './chat'
 import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
@@ -22,7 +23,7 @@ import { projectsSnapshot, startProjects } from './projects'
 import { allReaped, reaping } from './reap'
 import { broadcastSessions, sessions, sessionsForWindows } from './sessions'
 import { startPhase } from './startup'
-import { startTasks } from './tasks'
+import { currentTasks, startTasks } from './tasks'
 import { startTopics } from './topics'
 import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
 import {
@@ -129,14 +130,21 @@ async function start(): Promise<void> {
   registerPreferencesIpc()
   registerChatIpc()
   app.on('will-quit', () => closeAllChats())
-  const usage = startUsagePasses(currentMemberships, classifyAfterUsagePass)
+  // The activity journal goes into the history after each pass, on start and hourly, never beside
+  // one: both open the history, and the first open after an upgrade migrates it.
+  const usage = startUsagePasses(currentMemberships, async () => {
+    await importActivity()
+    await classifyAfterUsagePass()
+  })
   app.on('will-quit', () => usage.stop())
   // Agent state and context (plan 09): the panes' states and the statusline's readings.
   const stopAgentState = startAgentState()
+  const stopActivity = startActivity(currentTasks())
   const stopContext = startContextReadings()
   const stopPaneStarts = watchPaneStarts(followPaneStart)
   app.on('will-quit', () => {
     stopAgentState()
+    stopActivity()
     stopContext()
     stopPaneStarts()
   })

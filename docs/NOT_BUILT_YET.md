@@ -302,22 +302,22 @@ show, over the last 7 or 30 days, how long tasks spent queued, in progress, wait
 a measure of the team's flow that shows the bottleneck. Long in queue: too few workers at once, or
 more tasks created than the short term can take. Long to review: reviews to speed up.
 
-- **To review needs to say whose review.** Today "To review" holds both the orchestrator's review
-  and the human's (a visual check, a behaviour to try: a topic naming the task, closing-a-task
-  step 8); Menkar knows nothing of a PR waiting for approval or merge. The column stays one; the
-  task gains **who it waits on** (the orchestrator, the human, a PR's review, a PR's merge), set
-  with `task_review`/`task_progress`, shown on the card and kept with the state change, so the
-  human can tell whether their own checks or the PRs are the bottleneck.
-- **Storage:** an append-only table of state changes (state, reviewer, when; the task's number
-  and project only to pair entries and exits — the metric itself is not per task), next to the
-  usage history in SQLite (the one exception to "the app's state is JSON", already the home of
-  Menkar's metrics), while `tasks.json` stays the live state. Moving all of `tasks.json` to SQLite
-  is not needed for this. Time through `src/core/clock.ts`; a task spanning midnight, a restart, a
-  state re-entered.
-- **Shown** in the Usage window beside time and tokens, or the Board; where is the human's call.
+**Recorded since 2026-11-18** (decision 1.180): each task's state changes, with whom a wait or a
+review waits on, go into the usage history's `task_states` (`docs/usage.md`, "The human's activity
+and the task flow"), and the tasks open at the first start that records are a baseline. **Not
+built: the reading and the view** — time per state over 7 and 30 days, per whom it waits on.
 
-**Trigger:** fired — wanted before the first release (1.156, 2026-11-15). First question:
-which states and reviewers to record, and where the numbers show.
+**Trigger:** fired — wanted before the first release (1.156, 1.180). First question: where the
+view sits, from mock-ups the human picks.
+
+### A nudge after a long burst of the human's activity
+
+1.180 (2026-11-18): Menkar could tell the human when a burst of their activity has run long (a
+break is due). Deferred by the human until they have seen their own data: the length that deserves
+a nudge, and whether one helps at all, is read from the bursts the views will show.
+
+**Trigger:** the human has looked at their bursts in the Usage window and asks for it. First
+question: the length, and whether away (1.167) or a quiet minute resets it.
 
 ### The orchestrator's conversation, apart from the events
 

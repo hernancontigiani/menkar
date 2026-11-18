@@ -634,3 +634,52 @@ Choices the plan left open (mine):
   tracker has no way to know, and the review leaves it to main (`AgentPane.foreground()`).
 - `taskStateEvent` (one task's event) is kept private; block 3's baseline can be
   `taskEvents(emptyTasks(), openOnly, …)` or export it then.
+
+### Block 3 — `menkar-t96` (task 96), 2026-11-18
+
+Built: new `src/main/activity.ts` (one promise chain for every append and rename of
+`<data>/activity/journal.jsonl`; `recordTasks`/`recordTopics`, called once each from `setTasks` and
+`setTopics` with the value before and after; the `onShownChange` listener feeding `PromptTracker`,
+with `closed` on each agent pane's close; the baseline; `app_start`; `importActivity`) and
+`src/main/activity-worker.ts` (a third worker entry in `electron.vite.config.ts`);
+`src/main/index.ts` starts it after `startAgentState` and stops its listeners at `will-quit`;
+`src/core/usage/cli.ts` imports leftover batches after opening the history, before a report or an
+export. F1: the rule is `src/core/activity/names.ts` (pure); main feeds it `sessions.list()` and
+`currentProjects()`, only when a wait names something that is not a topic; the event's `at` is
+taken before. F3: batches are named by block 1's `batchPath`. Docs: `docs/usage.md`, a new section
+"The human's activity and the task flow" (placed before "Exporting for analysis": the export's key
+test reads that section to the end of the file, so block 5's activity key table must sit where that
+test can tell it apart); `docs/NOT_BUILT_YET.md`, Task flow metrics rewritten and the nudge
+entered, the old lines in its history.
+
+Tests: `e2e/activity.spec.ts` (one launch and a restart: the start's import of `app_start` and the
+baseline — task 3 waiting on `api` recorded as `session` with the orchestrator's id, the closed task
+left out —, `prompt_answered` with `blockedSeconds > 0` after `ASK` then `TURN`, `topic_discussed`
+on a double-click, `task_state` queued for `TASKADD` and in progress for `STEPS`, no title in the
+journal or the history, and after a restart every row imported once, the journal and batches gone,
+no second baseline); `tests/core/activity/names.test.ts`; one `test.each` in
+`tests/core/usage/cli.test.ts`. Seen red: the e2e before the code and with the baseline's resolver
+skipped (`wait_kind` other); the names tests with the oldest winning and with the membership check
+removed; the cli case before the code.
+
+Decided by `set`, 2026-11-18, on my questions:
+- **F2 (b)**: no timer of its own. The journal is rotated and imported after every usage pass,
+  start and hourly, in the pass's `after` callback (the import first, then the classifier). Rows
+  reach the history up to an hour late.
+- **N3**: a journal a crash or a quit left is rotated before `app_start` is appended.
+- **N2**: the baseline is keyed on a marker file, `activity/baseline`, written after the baseline's
+  lines are appended, not on the directory's absence.
+- **N6**: no `prompt_answered` when the pane's agent is no longer in its foreground; in the limits.
+- `src/core/activity/names.ts`, its test, and the case in `tests/core/usage/cli.test.ts`: files
+  the block did not name, granted.
+
+Choices the plan left open (mine):
+- The baseline's rows take the same `at` as `app_start`.
+- The task diff is first computed with a resolver that names nobody; `sessions.list()` (which
+  waits for the first scan) is read only when that diff asked for a name, so a progress note costs
+  no list.
+- No worker starts when no `batch-*` file waits; the worker's result is logged by main
+  (`activity imported`, with the counts).
+- A `prompt_answered` takes its project from its session's membership at that moment; an unjoined
+  pane's has none (N10, as the plan says).
+- `cli.ts` logs and goes on when the import throws: the report never fails on the journal.

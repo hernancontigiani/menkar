@@ -34,6 +34,7 @@ export default defineConfig({
           'usage-worker': resolve('src/main/usage-worker.ts'),
           'classifier-worker': resolve('src/main/classifier-worker.ts'),
           'usage-query-worker': resolve('src/main/usage-query-worker.ts'),
+          'activity-worker': resolve('src/main/activity-worker.ts'),
           // Claude Code runs the statusline as a program of its own, through Electron's binary.
           statusline: resolve('src/core/context/statusline.ts'),
           // Menkar's MCP server, which Claude Code starts for each session Menkar starts, the same way.

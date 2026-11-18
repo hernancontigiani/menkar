@@ -3,7 +3,9 @@ import { join } from 'node:path'
 import { now } from '../clock'
 import { flavorFacts } from '../flavor'
 import { t } from '../i18n'
+import { log } from '../log'
 import { appDirs } from '../paths'
+import { activityDir } from './activity'
 import { exportCsv, exportJsonl, exportRows } from './export'
 import { type Memberships, NO_MEMBERSHIPS, UsageHistory } from './history'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
@@ -286,6 +288,17 @@ export interface CliDeps {
   readonly passPaths?: PassPaths
   readonly configDir?: string
   readonly statuslineLogs?: readonly string[]
+  readonly activityDir?: string
+}
+
+// What the running app journaled and could not import yet (a crash, a quit before its next pass);
+// its live journal is the app's and is never read here. A failure leaves the batches for later.
+function importLeftActivity(history: UsageHistory, deps: CliDeps): void {
+  try {
+    history.importActivityDir(deps.activityDir ?? activityDir())
+  } catch (error) {
+    log.warn('the activity batches could not be imported', { error })
+  }
 }
 
 // `menkar usage`: a pass, then the report for the period, as text or JSON. The exit code.
@@ -331,6 +344,7 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
     output.err(t('usage.cli.cannotOpen'))
     return 1
   }
+  importLeftActivity(history, deps)
   try {
     let project: string | undefined
     if (args.project !== null) {
@@ -408,6 +422,7 @@ export function runUsageCli(argv: readonly string[], output: Output, deps: CliDe
     output.err(t('usage.cli.cannotOpen'))
     return 1
   }
+  importLeftActivity(history, deps)
   try {
     const bounds = boundsOf(options.which, history, now() / 1000)
     const reportOptions = {

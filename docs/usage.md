@@ -147,6 +147,114 @@ stored.
 - **`menkar usage --json`** gives each node `models`, keyed by model id as stored, with the token
   fields in snake_case as `tokens` has them, `cost_usd` and `priced`. The text report is unchanged.
 
+## The human's activity and the task flow
+
+Decision 1.180 (2026-11-18): Menkar records, with no text, what the human does and how each task
+moves, so the data accumulates while its views are designed. **Recording is built; the reading and
+the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow metrics").
+
+### What is recorded
+
+Each event is one instant: a random id, its time in Unix seconds (`src/core/clock.ts`), its
+project's id or none. The journal line's type and its parser are `src/core/usage/activity.ts`; the
+events are computed in `src/core/activity/`.
+
+| Kind | When |
+|---|---|
+| `prompt_answered` | A pane's shown state leaves `blocked` for any other (refusing is the human acting too), with how long it was blocked; never negative, a clock set back gives 0 |
+| `topic_discussed` / `topic_closed` | A topic's status becomes `discussing` / `closed`; Menkar's own permission topics are left out, their answer is already a prompt answered |
+| `app_start` | Menkar starts |
+| `task_state` | A task appears, or its state, whom its wait names, or its review's waiter changes |
+
+- **Whom a task waits on.** `topic` with the topic's number when the wait reads `topic N`; `session`
+  with the session's **id** when it names a member of the task's project (a renewed session keeps
+  its name under a new id: the newest wins, `src/core/activity/names.ts`); else `other`, with
+  nothing. For `to review`, the waiter as is (`orchestrator`, `human`, `pr-approval`, `pr-merge`).
+  The text typed, the review's note and the titles are never stored: a session's name changes, and
+  an id or a number says whom.
+- **Not a state change**: the assignee alone (a renew), the note, the steps, the star.
+- **The baseline.** The first start that records journals one `task_state` per open task, flagged
+  `baseline`, so a task already open is counted from that moment. A marker file, `activity/baseline`,
+  is written once those lines are on disk: a crash before it gives a baseline at the next start, and
+  a second one is harmless (each row is an instant; a row in the same state adds no transition).
+- **The human's messages are not recorded again**: they are the history's turns of origin `human`.
+
+The journal's format already has `present` (a mark a minute while the human works in a focused
+window), `away` / `back` (1.167) and `prompted_start` (a session started with a prompt on its
+command line); main does not journal them yet.
+
+### Bursts, when the reading is built
+
+A burst is a maximal run of the human's actions, sorted by time, each at most **10 minutes** after
+the one before (the human, 2026-11-18: one constant, changed without rewriting data). It is computed
+when read, never stored. The actions: turns of origin `human` (less the one after each
+`prompted_start`), prompts answered, topics discussed or closed, and presence marks; task changes
+are not the human's. An away period ends a burst and counts nothing inside it, a message sent by
+Remote Control included; it runs to the next `back` or `app_start`. A burst crossing midnight is one
+burst; a day's view clips it at the local midnights. The evidence for 10 minutes was the human's
+own messages (2026-11-18): no sharp knee; at 10 minutes 89% of the gaps between messages fall
+inside a burst.
+
+### Where each event is seen
+
+- **Tasks and topics**: every change goes through `setTasks` / `setTopics` (`src/main/tasks.ts`,
+  `src/main/topics.ts`), whatever made it — a tool, the Board, a renew — and each calls the recorder
+  once with the value before and after. Who acted is not known there: the orchestrator's
+  `topic_close` and the human's double-click look the same.
+- **Prompts answered**: one `onShownChange` listener (`src/main/activity.ts`) feeds a
+  `PromptTracker`. A pane closed while blocked gives nothing, and so does a pane whose agent is no
+  longer in its foreground: the question was left, not answered.
+- **A session named in a wait** is resolved after the event's time is taken, from the sessions'
+  list, which is read asynchronously; the line is written once it is resolved.
+
+### Where it is stored
+
+In the usage history, version 4, tables `activity` and `task_states`. Main never opens SQLite:
+
+1. Main appends each event as a JSON line to `<data>/activity/journal.jsonl`, through one promise
+   chain, so lines are written in the order they happened.
+2. **After each usage pass**, on start and hourly, in the pass's `after` callback: the journal is
+   renamed, in that same chain, to a batch whose name cannot repeat (a stamp and a random part), and
+   if any batch waits, a short-lived worker (`src/main/activity-worker.ts`) imports every one, one
+   transaction per file, `INSERT OR IGNORE` by id, and deletes it. Never beside a pass: both open
+   the history, and the first open after an upgrade migrates it.
+3. **At start**, before `app_start` is written, a journal a crash or a quit left is set aside as a
+   batch: a last line torn by a power loss would otherwise swallow `app_start`.
+4. `menkar usage` and its export import the batches left there before reading; never the live
+   journal, which the running app owns.
+
+A crash loses nothing appended; quitting needs no flush (the journal is imported after the next
+start's pass); an import twice is an import once. A history from a newer Menkar keeps every batch
+for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
+
+### Rejected, and why
+
+- **The history's blocked spans as prompts answered**: Claude only, one per tool call (a parallel
+  batch is several spans for one answer), and the decision names the shown state.
+- **Main writing SQLite**: it is synchronous, and a busy history blocks for up to 30 s.
+- **A long-lived worker fed by messages**: what it holds is lost on a crash and at quit; the
+  journal is not.
+- **A timer of its own every 5 minutes**: it raced the start's pass on the history's migration and
+  opened the history twelve times an hour; nothing reads the rows sooner than the views will.
+- **A separate database**: the reading joins the history's human turns; one file, one version.
+- **Recording at each call site**: four task paths and three topic paths; the two funnels see each
+  change once.
+- **Storing the text of a wait or a review's note**: text, and a name changes.
+
+### Limits
+
+- **Up to an hour late**: the rows reach the history after the next pass.
+- **A pane blocked across a restart** gives no `prompt_answered`: its entry time is gone, and the
+  answer may have been given while Menkar was down. A pane not yet joined to a session records no
+  session and no project.
+- **A worker just started**, whose transcript is not in the sessions' list yet, is recorded as
+  `other` when a wait names it.
+- **A deleted project's** events keep its id; its name comes from `projects.json` when read.
+- **Command-line prompts count as the human's messages**: every `start_session`, `resume_session`
+  or `renew` with a prompt adds a turn of origin `human` no human typed, and a message typed while
+  the agent works leaves no turn at all. The first is corrected when the reading excludes the turn
+  after each `prompted_start`, which is not journaled yet; the second is not counted.
+
 ## Exporting for analysis
 
 `menkar usage export` writes the history's turns as rows for an LLM session or a spreadsheet to

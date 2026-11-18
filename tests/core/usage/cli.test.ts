@@ -2,10 +2,11 @@
 // USG-43, USG-55 to USG-60).
 process.env.TZ = 'America/Argentina/Buenos_Aires'
 
-import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { openDb } from '../../../src/core/db'
+import { batchPath } from '../../../src/core/usage/activity'
 import { runUsageCli } from '../../../src/core/usage/cli'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { type NodeJson, reportJson } from '../../../src/core/usage/report'
@@ -23,6 +24,7 @@ function cli(dirs: Dirs, args: string[]) {
       passPaths: { claudeProjects: dirs.claudeProjects, cache: dirs.cache, history: dirs.history },
       configDir: join(dirs.root, 'config'),
       statuslineLogs: [dirs.statuslineLog],
+      activityDir: join(dirs.root, 'activity'),
     },
   )
   return { code, out: out.join('\n'), err: err.join('\n') }
@@ -163,6 +165,29 @@ describe('menkar usage', () => {
     const json = JSON.parse(cli(dirs, ['--json']).out)
     expect(json).toMatchObject({ nodes: [], history_too_new: true })
   })
+})
+
+// The running app imports its journal after each pass; a batch it left, by a crash or a quit,
+// reaches the history with the next report or export too.
+test.each([[[]], [['export']]])('a batch left by the app is imported by `usage %s`', (args) => {
+  const dirs = usageDirs('cli-activity')
+  const dir = join(dirs.root, 'activity')
+  mkdirSync(dir, { recursive: true })
+  const ms = new Date(2026, 10, 8, 17, 0, 0).getTime()
+  const batch = batchPath(dir, ms)
+  const at = ms / 1000
+  writeFileSync(batch, `${JSON.stringify({ v: 1, id: 'a1', at, kind: 'app_start' })}\n`)
+  config(dirs, { projects: [] })
+  expect(cli(dirs, args).code).toBe(0)
+  expect(existsSync(batch)).toBe(false)
+  const history = new UsageHistory(dirs.history)
+  try {
+    expect(history.handle?.raw.prepare('SELECT id, kind FROM activity').all()).toEqual([
+      { id: 'a1', kind: 'app_start' },
+    ])
+  } finally {
+    history.close()
+  }
 })
 
 describe('categories in usage', () => {

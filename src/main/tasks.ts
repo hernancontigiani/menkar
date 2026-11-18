@@ -1,5 +1,6 @@
 import { log } from '../core/log'
 import { emptyTasks, loadTasks, saveTasks, type Tasks } from '../core/orchestration/tasks'
+import { recordTasks } from './activity'
 import { addNotice } from './projects'
 
 let tasks: Tasks = emptyTasks()
@@ -17,6 +18,7 @@ export function currentTasks(): Tasks {
 
 // Kept at once, written in the background: a failed write is logged and the next one retries.
 export function setTasks(next: Tasks): void {
+  recordTasks(tasks, next)
   tasks = next
   saveTasks(next).catch((error: unknown) => log.error('tasks could not be saved', { error }))
 }

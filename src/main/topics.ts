@@ -1,6 +1,7 @@
 import { localIso, now } from '../core/clock'
 import { log } from '../core/log'
 import { emptyTopics, loadTopics, saveTopics, type Topics } from '../core/orchestration/topics'
+import { recordTopics } from './activity'
 import { addNotice } from './projects'
 
 let topics: Topics = emptyTopics()
@@ -22,6 +23,7 @@ export function topicsNow(): string {
 
 // Kept at once, written in the background: a failed write is logged and the next one retries.
 export function setTopics(next: Topics): void {
+  recordTopics(topics, next)
   topics = next
   saveTopics(next).catch((error: unknown) => log.error('topics could not be saved', { error }))
 }

@@ -139,3 +139,21 @@ model invisibly but only with the human's next prompt; the empty-turn refusal is
 > Replaced 2026-11-17: `src/core/agents.ts` is gone; the agents are registered in `src/core/agents/ids.ts` (plan 39, P0.7).
 Menkar runs two agents today: Claude Code and Cursor's terminal agent (`cursor-agent`), listed in
 `src/core/agents.ts`. The human wants OpenAI's Codex CLI and OpenCode too (2026-11-10); Codex comes
+
+> Replaced 2026-11-18: the task states are recorded (1.180); the reading and the view are not built.
+- **To review needs to say whose review.** Today "To review" holds both the orchestrator's review
+  and the human's (a visual check, a behaviour to try: a topic naming the task, closing-a-task
+  step 8); Menkar knows nothing of a PR waiting for approval or merge. The column stays one; the
+  task gains **who it waits on** (the orchestrator, the human, a PR's review, a PR's merge), set
+  with `task_review`/`task_progress`, shown on the card and kept with the state change, so the
+  human can tell whether their own checks or the PRs are the bottleneck.
+- **Storage:** an append-only table of state changes (state, reviewer, when; the task's number
+  and project only to pair entries and exits — the metric itself is not per task), next to the
+  usage history in SQLite (the one exception to "the app's state is JSON", already the home of
+  Menkar's metrics), while `tasks.json` stays the live state. Moving all of `tasks.json` to SQLite
+  is not needed for this. Time through `src/core/clock.ts`; a task spanning midnight, a restart, a
+  state re-entered.
+- **Shown** in the Usage window beside time and tokens, or the Board; where is the human's call.
+
+**Trigger:** fired — wanted before the first release (1.156, 2026-11-15). First question:
+which states and reviewers to record, and where the numbers show.
