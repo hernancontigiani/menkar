@@ -42,6 +42,9 @@ built.
   10 and 6 for Cursor) mean the same lines they mean on a VTE screen.
 - **Rules in core, timers in main.** The rules and the debounce are tested with a fake pane and
   fake timers. Main only connects them to Electron.
+- **Auto mode's "Allow this read outside the working directories?" card is blocked** (Claude Code
+  2.1.257 on, captured on 2.1.327): the question on its own line with the first choice under it,
+  since the screen ends at the cursor and its footer is not read.
 - **Line breaks as Python's `splitlines()` counts them**, since that is what the counts were tuned
   on.
 - **The sound through `paplay`**, which Ubuntu's PulseAudio and PipeWire both provide, with

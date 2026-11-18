@@ -32,6 +32,12 @@ const BACKGROUND = new RegExp(
   'mu',
 )
 
+// Auto mode's card on a first read outside the working directories (2.1.327). Its question has no
+// "do you want to", and the screen ends at the cursor on a choice, so its footer is not read: the
+// question is matched on a line of its own with the first choice right under it, which a mention in
+// the conversation does not have.
+const READ_OUTSIDE_CARD = /^\s*allow this read outside the working directories\?\n\s*(?:❯\s*)?1\./mu
+
 function detect(title: string, screen: string): RawState {
   const recent = bottom(screen, 14)
   if (recent.includes('select model') && recent.includes('enter to set as default')) {
@@ -42,6 +48,7 @@ function detect(title: string, screen: string): RawState {
     recent.includes('waiting for permission') ||
     recent.includes('do you want to allow this connection?') ||
     recent.includes('review your answers') ||
+    READ_OUTSIDE_CARD.test(recent) ||
     (recent.includes('esc to cancel') &&
       (recent.includes('enter to confirm') || recent.includes('enter to select'))) ||
     ((recent.includes('do you want to') || recent.includes('would you like to')) &&
