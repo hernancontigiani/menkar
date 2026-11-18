@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import * as layoutModule from '../../../src/core/projects/layout'
 import {
   bringProject,
   closeTab,
@@ -12,15 +13,20 @@ import {
   nthTab,
   openBeside,
   openSession,
+  ordinaryUnless,
+  pin,
   removeWindow,
   reopen,
+  select,
   setMaximized,
   shownTab,
   stepTab,
   switchProject,
   type Tab,
+  toBackground,
   toSaved,
 } from '../../../src/core/projects/layout'
+import type { TabPlace } from '../../../src/core/projects/place'
 import { ids, project, projects } from '../../factories/projects'
 
 const session = (
@@ -551,5 +557,543 @@ describe('a saved Board tab', () => {
       { reopenTabs: true, isFile: () => true, newId: ids('id') },
     )
     expect(reopened.windows[0]?.tabs.map((x) => x.kind)).toEqual(['session'])
+  })
+})
+
+const placedTab =
+  (place: TabPlace) =>
+  (id: string, projectId: string, pane: string): Tab => ({
+    kind: 'session',
+    id,
+    project: projectId,
+    panes: [pane],
+    orientation: 'horizontal',
+    place,
+  })
+const bgTab = placedTab('background')
+const peekTab = placedTab('peek')
+const placeIn = (l: Layout, tabId: string): TabPlace | 'ordinary' | 'gone' => {
+  const tab = l.windows.flatMap((w) => w.tabs).find((t) => t.id === tabId)
+  if (!tab) return 'gone'
+  return tab.kind === 'session' ? (tab.place ?? 'ordinary') : 'ordinary'
+}
+const order = (l: Layout, windowId: string, projectId?: string) =>
+  tabsOf(l, windowId)
+    .filter((t) => projectId === undefined || t.project === projectId)
+    .map((t) => t.id)
+const sel = (l: Layout, windowId: string, projectId: string) =>
+  l.windows.find((w) => w.id === windowId)?.selected[projectId]
+
+// Decision 1.176, plan 41 §2: an orchestrator's worker keeps running in a tab the strip does not
+// draw, and is seen in its project's one peek tab, the last one.
+describe('background workers and the peek tab (decision 1.176)', () => {
+  test('a worker sent to the background keeps its tab, undrawn, and the selection goes to a drawn neighbour', () => {
+    const l = layoutOf(
+      win('w', 'X', [session('orch', 'X', ['o']), session('t9', 'X', ['w9'])], { X: 't9' }),
+    )
+    const after = toBackground(l, 'w', 't9')
+    expect(order(after, 'w')).toEqual(['orch', 't9'])
+    expect(placeIn(after, 't9')).toBe('background')
+    expect(sel(after, 'w', 'X')).toBe('orch')
+    const w = after.windows[0] as LayoutWindow
+    expect(shownTab(w)).toBe('orch')
+    expect(nthTab(w, 2)).toBeNull()
+    expect(stepTab(w, 1)).toBeNull()
+  })
+
+  test('a tab with two panes is never sent to the background', () => {
+    const l = layoutOf(win('w', 'X', [session('t9', 'X', ['w9', 's2'])], { X: 't9' }))
+    expect(toBackground(l, 'w', 't9')).toBe(l)
+  })
+
+  test('closing or hiding the peek selects the next drawn tab, never a background one', () => {
+    const l = layoutOf(
+      win(
+        'w',
+        'X',
+        [
+          session('orch', 'X', ['o']),
+          peekTab('A', 'X', 'wa'),
+          bgTab('B', 'X', 'wb'),
+          session('c1', 'X', ['c']),
+        ],
+        { X: 'A' },
+      ),
+    )
+    expect(sel(closeTab(l, 'w', 'A'), 'w', 'X')).toBe('c1')
+    expect(sel(toBackground(l, 'w', 'A'), 'w', 'X')).toBe('c1')
+    const atEnd = layoutOf(
+      win('w', 'X', [session('orch', 'X', ['o']), peekTab('A', 'X', 'wa'), bgTab('B', 'X', 'wb')], {
+        X: 'A',
+      }),
+    )
+    expect(sel(closeTab(atEnd, 'w', 'A'), 'w', 'X')).toBe('orch')
+  })
+
+  test('D1: one peek per project; selecting a background worker makes it the peek, last and selected, and the previous peek goes back', () => {
+    const l = layoutOf(
+      win(
+        'w',
+        'X',
+        [
+          session('orch', 'X', ['o']),
+          bgTab('A', 'X', 'wa'),
+          bgTab('B', 'X', 'wb'),
+          session('c1', 'X', ['c']),
+          peekTab('P', 'Y', 'wp'),
+          session('y1', 'Y', ['y']),
+        ],
+        { X: 'orch', Y: 'P' },
+      ),
+    )
+    const a = select(l, 'w', 'A')
+    expect(order(a, 'w', 'X')).toEqual(['orch', 'B', 'c1', 'A'])
+    expect(placeIn(a, 'A')).toBe('peek')
+    expect(sel(a, 'w', 'X')).toBe('A')
+    const b = select(a, 'w', 'B')
+    expect(order(b, 'w', 'X')).toEqual(['orch', 'c1', 'A', 'B'])
+    expect([placeIn(b, 'A'), placeIn(b, 'B')]).toEqual(['background', 'peek'])
+    expect(sel(b, 'w', 'X')).toBe('B')
+    // Another project's peek is its own.
+    expect(placeIn(b, 'P')).toBe('peek')
+    expect(sel(b, 'w', 'Y')).toBe('P')
+  })
+
+  test('a tab opened while the project has a peek goes before it, so the peek stays last', () => {
+    const state = projects([project('X', 'X', ['o', 'wa', 'c2'])])
+    const l = select(
+      layoutOf(win('w', 'X', [session('orch', 'X', ['o']), bgTab('A', 'X', 'wa')], { X: 'orch' })),
+      'w',
+      'A',
+    )
+    const opened = openSession(l, state, 'w', 'c2', ids('t'))
+    expect(order(opened.layout, 'w')).toEqual(['orch', 't1', 'A'])
+    expect(sel(opened.layout, 'w', 'X')).toBe('t1')
+    expect(placeIn(opened.layout, 'A')).toBe('peek')
+  })
+
+  test('pinning the peek makes it ordinary where it is, selected; the next peek comes after it', () => {
+    const l = select(
+      layoutOf(
+        win('w', 'X', [session('orch', 'X', ['o']), bgTab('A', 'X', 'wa'), bgTab('B', 'X', 'wb')], {
+          X: 'orch',
+        }),
+      ),
+      'w',
+      'A',
+    )
+    const pinned = pin(l, 'w', 'A')
+    expect(order(pinned, 'w')).toEqual(['orch', 'B', 'A'])
+    expect(placeIn(pinned, 'A')).toBe('ordinary')
+    expect(sel(pinned, 'w', 'X')).toBe('A')
+    const next = select(pinned, 'w', 'B')
+    expect(order(next, 'w')).toEqual(['orch', 'A', 'B'])
+    expect([placeIn(next, 'A'), placeIn(next, 'B')]).toEqual(['ordinary', 'peek'])
+  })
+
+  test('pinning a background worker makes it ordinary right before the peek, selected; the peek stays', () => {
+    const l = layoutOf(
+      win(
+        'w',
+        'X',
+        [
+          session('orch', 'X', ['o']),
+          bgTab('B', 'X', 'wb'),
+          session('c1', 'X', ['c']),
+          peekTab('A', 'X', 'wa'),
+        ],
+        { X: 'orch' },
+      ),
+    )
+    const pinned = pin(l, 'w', 'B')
+    expect(order(pinned, 'w')).toEqual(['orch', 'c1', 'B', 'A'])
+    expect([placeIn(pinned, 'B'), placeIn(pinned, 'A')]).toEqual(['ordinary', 'peek'])
+    expect(sel(pinned, 'w', 'X')).toBe('B')
+  })
+
+  test('selecting a pinned worker leaves the peek where it is (1.176)', () => {
+    const l = layoutOf(
+      win(
+        'w',
+        'X',
+        [session('orch', 'X', ['o']), session('C', 'X', ['wc']), peekTab('A', 'X', 'wa')],
+        {
+          X: 'A',
+        },
+      ),
+    )
+    const after = select(l, 'w', 'C')
+    expect(sel(after, 'w', 'X')).toBe('C')
+    expect(order(after, 'w')).toEqual(['orch', 'C', 'A'])
+    expect(placeIn(after, 'A')).toBe('peek')
+  })
+
+  test('a session that is not a worker opens before the pinned workers; a worker opens before the peek', () => {
+    const state = projects([project('X', 'X', ['o', 'w9', 'c', 'w5', 'wa'])])
+    const worker = (id: string) => id.startsWith('w')
+    const l = layoutOf(
+      win('w', 'X', [session('orch', 'X', ['o']), session('t9', 'X', ['w9'])], { X: 'orch' }),
+    )
+    expect(order(openSession(l, state, 'w', 'c', ids('n'), { worker }).layout, 'w')).toEqual([
+      'orch',
+      'n1',
+      't9',
+    ])
+    const withPeek = layoutOf(
+      win(
+        'w',
+        'X',
+        [session('orch', 'X', ['o']), session('t9', 'X', ['w9']), peekTab('A', 'X', 'wa')],
+        {
+          X: 'A',
+        },
+      ),
+    )
+    expect(order(openSession(withPeek, state, 'w', 'c', ids('n'), { worker }).layout, 'w')).toEqual(
+      ['orch', 'n1', 't9', 'A'],
+    )
+    expect(
+      order(openSession(withPeek, state, 'w', 'w5', ids('n'), { worker }).layout, 'w'),
+    ).toEqual(['orch', 't9', 'n1', 'A'])
+  })
+
+  test('Q3: a tab whose worker stops being one turns ordinary; a selected peek stays where it is, selected', () => {
+    const tabs = [
+      session('orch', 'X', ['o']),
+      bgTab('B', 'X', 'wb'),
+      session('c1', 'X', ['c']),
+      peekTab('A', 'X', 'wa'),
+    ]
+    const l = layoutOf(win('w', 'X', tabs, { X: 'A' }))
+    const none = ordinaryUnless(l, () => false)
+    // A stays in place and selected; B, no peek left to go before, goes last.
+    expect(order(none, 'w')).toEqual(['orch', 'c1', 'A', 'B'])
+    expect([placeIn(none, 'A'), placeIn(none, 'B')]).toEqual(['ordinary', 'ordinary'])
+    expect(sel(none, 'w', 'X')).toBe('A')
+    const keepA = ordinaryUnless(l, (t) => t.id === 'A')
+    expect(order(keepA, 'w')).toEqual(['orch', 'c1', 'B', 'A'])
+    expect([placeIn(keepA, 'A'), placeIn(keepA, 'B')]).toEqual(['peek', 'ordinary'])
+    // An unselected peek: ordinary, not selected.
+    const unselected = ordinaryUnless(
+      layoutOf(win('w', 'X', tabs, { X: 'c1' })),
+      (t) => t.id === 'B',
+    )
+    expect([placeIn(unselected, 'A'), placeIn(unselected, 'B')]).toEqual(['ordinary', 'background'])
+    expect(sel(unselected, 'w', 'X')).toBe('c1')
+    expect(ordinaryUnless(l, () => true)).toBe(l)
+    // A placed tab with two panes never keeps its place.
+    const split = layoutOf(
+      win('w', 'X', [{ ...peekTab('A', 'X', 'wa'), panes: ['wa', 's'] } as Tab]),
+    )
+    expect(
+      placeIn(
+        ordinaryUnless(split, () => true),
+        'A',
+      ),
+    ).toBe('ordinary')
+  })
+
+  test('a saved background tab of a session that is no longer a worker reopens ordinary', () => {
+    const state = projects([project('X', 'X', ['S1', 'S2'])], 'X')
+    const l = reopen(
+      {
+        ...state,
+        windows: [
+          {
+            current: 'X',
+            tabs: { X: [{ panes: ['S1'] }, { panes: ['S2'], place: 'background' }] },
+          },
+        ] as never,
+      },
+      { reopenTabs: true, isFile: () => true, newId: ids('id') },
+    )
+    const placeOf = (layout: Layout) =>
+      layout.windows[0]?.tabs.map((t) => (t.kind === 'session' ? t.place : 'file'))
+    expect(placeOf(l)).toEqual([undefined, 'background'])
+    expect(placeOf(ordinaryUnless(l, (t) => t.panes.includes('S2')))).toEqual([
+      undefined,
+      'background',
+    ])
+    expect(placeOf(ordinaryUnless(l, (t) => t.panes.includes('S1')))).toEqual([
+      undefined,
+      undefined,
+    ])
+  })
+
+  test('a peek given a second pane by Open beside is pinned first', () => {
+    const state = projects([project('X', 'X', ['o', 'wa', 's2'])])
+    const l = layoutOf(
+      win('w', 'X', [session('orch', 'X', ['o']), peekTab('A', 'X', 'wa')], { X: 'A' }),
+    )
+    const out = openBeside(l, state, 'w', 's2')
+    if (out.kind !== 'done') throw new Error(out.kind)
+    expect(tabsOf(out.layout, 'w')[1]).toEqual(session('A', 'X', ['wa', 's2']))
+    expect(placeIn(out.layout, 'A')).toBe('ordinary')
+  })
+
+  test('next, previous, the Nth tab and the shown tab never land on a background tab', () => {
+    const w = win(
+      'w',
+      'X',
+      [
+        bgTab('B0', 'X', 'b0'),
+        session('T1', 'X', ['a']),
+        bgTab('B1', 'X', 'b1'),
+        session('T2', 'X', ['c']),
+      ],
+      { X: 'T2' },
+    )
+    expect(stepTab(w, 1)).toBe('T1')
+    expect(stepTab(w, -1)).toBe('T1')
+    expect([nthTab(w, 1), nthTab(w, 2), nthTab(w, 3)]).toEqual(['T1', 'T2', null])
+    expect(shownTab({ ...w, selected: {} })).toBe('T1')
+    expect(shownTab({ ...w, selected: { X: 'B1' } })).toBe('T1')
+  })
+
+  test('D3: opening a background worker shows it in the peek; opening it pinned makes it ordinary', () => {
+    const state = projects([project('X', 'X', ['o', 'wa', 'wb'])])
+    const l = layoutOf(
+      win('w', 'X', [session('orch', 'X', ['o']), bgTab('B', 'X', 'wb'), peekTab('A', 'X', 'wa')], {
+        X: 'orch',
+      }),
+    )
+    const peeked = openSession(l, state, 'w', 'wb', ids('n'))
+    expect(peeked.tab).toBe('B')
+    expect(order(peeked.layout, 'w')).toEqual(['orch', 'A', 'B'])
+    expect([placeIn(peeked.layout, 'A'), placeIn(peeked.layout, 'B')]).toEqual([
+      'background',
+      'peek',
+    ])
+    expect(sel(peeked.layout, 'w', 'X')).toBe('B')
+    const pinned = openSession(l, state, 'w', 'wb', ids('n'), { pin: true })
+    expect(order(pinned.layout, 'w')).toEqual(['orch', 'B', 'A'])
+    expect([placeIn(pinned.layout, 'A'), placeIn(pinned.layout, 'B')]).toEqual(['peek', 'ordinary'])
+    expect(sel(pinned.layout, 'w', 'X')).toBe('B')
+  })
+
+  test('Add session on a background worker brings it into the peek', () => {
+    const state = projects([project('X', 'X', ['sx']), project('Y', 'Y', ['wb', 'sy'])])
+    const l = layoutOf(
+      win('w1', 'X', [session('x1', 'X', ['sx'])], { X: 'x1' }),
+      win('w2', 'Y', [session('y1', 'Y', ['sy']), bgTab('B', 'Y', 'wb')], { Y: 'y1' }),
+    )
+    const moved = moveSessionHere(l, state, 'w1', 'wb', ids('n'))
+    if (!moved.ok) throw new Error(moved.refusal)
+    expect(order(moved.layout, 'w1')).toEqual(['x1', 'B'])
+    expect(tabsOf(moved.layout, 'w1')[1]).toMatchObject({ project: 'X', place: 'peek' })
+    expect(sel(moved.layout, 'w1', 'X')).toBe('B')
+    const here = moveSessionHere(
+      layoutOf(win('w2', 'Y', [session('y1', 'Y', ['sy']), bgTab('B', 'Y', 'wb')], { Y: 'y1' })),
+      state,
+      'w2',
+      'wb',
+      ids('n'),
+    )
+    if (!here.ok) throw new Error(here.refusal)
+    expect(placeIn(here.layout, 'B')).toBe('peek')
+    expect(sel(here.layout, 'w2', 'Y')).toBe('B')
+  })
+
+  test('a tab started by the peek: a background one goes after it, unseen; an ordinary one before it', () => {
+    const l = layoutOf(
+      win('w', 'X', [session('orch', 'X', ['o']), peekTab('A', 'X', 'wa')], { X: 'A' }),
+    )
+    const hidden = insertTabAfter(l, 'A', bgTab('n', 'X', 'wn'))
+    expect(order(hidden, 'w')).toEqual(['orch', 'A', 'n'])
+    expect(sel(hidden, 'w', 'X')).toBe('A')
+    expect(order(insertTabAfter(l, 'A', session('m', 'X', ['m'])), 'w')).toEqual(['orch', 'm', 'A'])
+  })
+
+  test('saved, a background tab and the peek are both background; on reopening an unknown place is ordinary', () => {
+    const l = layoutOf(
+      win('w', 'X', [session('x1', 'X', ['S1']), bgTab('B', 'X', 'S2'), peekTab('A', 'X', 'S3')], {
+        X: 'A',
+      }),
+    )
+    const saved = toSaved(l)
+    expect(saved[0]?.tabs.X).toEqual([
+      { panes: ['S1'], orientation: 'horizontal' },
+      { panes: ['S2'], orientation: 'horizontal', place: 'background' },
+      { panes: ['S3'], orientation: 'horizontal', place: 'background' },
+    ])
+    const state = projects([project('X', 'X', ['S1', 'S2', 'S3'])], 'X')
+    const options = { reopenTabs: true, isFile: () => true, newId: ids('id') }
+    const back = reopen({ ...state, windows: saved }, options)
+    expect(back.windows[0]?.tabs.map((t) => t.kind === 'session' && t.place)).toEqual([
+      undefined,
+      'background',
+      'background',
+    ])
+    const odd = reopen(
+      {
+        ...state,
+        windows: [
+          {
+            current: 'X',
+            tabs: {
+              X: [
+                { panes: ['S1'], place: 'peek' },
+                { panes: ['S2'], place: 7 },
+              ],
+            },
+          },
+        ] as never,
+      },
+      options,
+    )
+    expect(odd.windows[0]?.tabs.map((t) => t.kind === 'session' && t.place)).toEqual([
+      undefined,
+      undefined,
+    ])
+  })
+
+  test('D1: bringing a project moves its background tabs and its peek, their places kept', () => {
+    const l = layoutOf(
+      win(
+        'w1',
+        'M',
+        [
+          session('m1', 'M', ['sm']),
+          session('x1', 'X', ['sx']),
+          peekTab('A', 'X', 'wa'),
+          bgTab('B', 'X', 'wb'),
+        ],
+        { M: 'm1', X: 'A' },
+      ),
+      win('w2', 'Y', [session('y1', 'Y', ['sy'])], { Y: 'y1' }),
+    )
+    const out = bringProject(l, 'w2', 'X', [], ['M', 'X', 'Y'])
+    if (out.kind !== 'brought') throw new Error(out.kind)
+    expect(order(out.layout, 'w2')).toEqual(['y1', 'x1', 'A', 'B'])
+    expect([placeIn(out.layout, 'A'), placeIn(out.layout, 'B')]).toEqual(['peek', 'background'])
+    expect(sel(out.layout, 'w2', 'X')).toBe('A')
+  })
+})
+
+// Plan 41 §2.2's invariant, over every exported function: a case per export, so a new one without
+// a case fails here.
+describe('no function of the layout leaves a background tab selected (decision 1.176)', () => {
+  const state = projects([
+    project('X', 'X', ['sx1', 'wa', 'wp', 'wb', 'free']),
+    project('Y', 'Y', ['sy1', 'wy']),
+    project('Z', 'Z', ['sz1', 'wz']),
+  ])
+  const base = layoutOf(
+    win(
+      'w1',
+      'X',
+      [
+        session('x1', 'X', ['sx1']),
+        bgTab('xa', 'X', 'wa'),
+        session('z1', 'Z', ['sz1']),
+        bgTab('zb', 'Z', 'wz'),
+        peekTab('xp', 'X', 'wp'),
+        bgTab('xb', 'X', 'wb'),
+      ],
+      { X: 'xp', Z: 'z1' },
+    ),
+    win('w2', 'Y', [bgTab('yb', 'Y', 'wy'), session('y1', 'Y', ['sy1'])], { Y: 'y1' }),
+  )
+  const windowIds = base.windows.map((w) => w.id)
+  const tabIds = base.windows.flatMap((w) => w.tabs.map((t) => t.id))
+  const sessionIds = [...state.projects.flatMap((p) => p.members), 'loose']
+  const projectIds = ['X', 'Y', 'Z', 'Q']
+  const background = new Set(['xa', 'zb', 'xb', 'yb'])
+  const over = <A, B>(as: readonly A[], bs: readonly B[]): [A, B][] =>
+    as.flatMap((a) => bs.map((b): [A, B] => [a, b]))
+  const reopened = (l: Layout) =>
+    reopen(
+      { ...state, windows: toSaved(l) },
+      { reopenTabs: true, isFile: () => true, newId: ids('r') },
+    )
+
+  const cases: Record<string, () => unknown[]> = {
+    holder: () => projectIds.map((p) => holder(base, p)),
+    shownTab: () => base.windows.map(shownTab),
+    stepTab: () => base.windows.flatMap((w) => [stepTab(w, 1), stepTab(w, -1)]),
+    nthTab: () => base.windows.flatMap((w) => [1, 2, 3, 4].map((n) => nthTab(w, n))),
+    switchProject: () =>
+      over(windowIds, projectIds).map(([w, p]) => {
+        const out = switchProject(base, w, p)
+        return out.kind === 'shown' ? out.layout : null
+      }),
+    bringProject: () =>
+      over(windowIds, projectIds).map(([w, p]) => {
+        const out = bringProject(base, w, p, [], projectIds)
+        return out.kind === 'brought' ? out.layout : null
+      }),
+    openSession: () =>
+      over(windowIds, sessionIds).flatMap(([w, s]) => [
+        openSession(base, state, w, s, ids('n')).layout,
+        openSession(base, state, w, s, ids('n'), { pin: true }).layout,
+        openSession(base, state, w, s, ids('n'), { worker: (id) => id.startsWith('w') }).layout,
+      ]),
+    openBeside: () =>
+      over(windowIds, sessionIds).map(([w, s]) => {
+        const out = openBeside(base, state, w, s)
+        return out.kind === 'done' ? out.layout : null
+      }),
+    moveSessionHere: () =>
+      over(windowIds, sessionIds).map(([w, s]) => {
+        const out = moveSessionHere(base, state, w, s, ids('n'))
+        return out.ok ? out.layout : null
+      }),
+    insertTabAfter: () =>
+      tabIds.flatMap((t) => [
+        insertTabAfter(base, t, session('new', 'X', ['n1'])),
+        insertTabAfter(base, t, bgTab('newbg', 'X', 'n2')),
+      ]),
+    closeTab: () => over(windowIds, tabIds).map(([w, t]) => closeTab(base, w, t)),
+    moveTab: () =>
+      over(windowIds, tabIds).flatMap(([w, t]) => [
+        moveTab(base, w, t, null),
+        ...tabIds.map((before) => moveTab(base, w, t, before)),
+      ]),
+    select: () => over(windowIds, tabIds).map(([w, t]) => select(base, w, t)),
+    pin: () => over(windowIds, tabIds).map(([w, t]) => pin(base, w, t)),
+    toBackground: () => over(windowIds, tabIds).map(([w, t]) => toBackground(base, w, t)),
+    ordinaryUnless: () => [
+      ordinaryUnless(base, () => false),
+      ordinaryUnless(base, () => true),
+      ordinaryUnless(base, (t) => t.id === 'xa'),
+    ],
+    newWindowProject: () => [newWindowProject(base, state)],
+    removeWindow: () => windowIds.map((w) => removeWindow(base, w)),
+    setMaximized: () => windowIds.map((w) => setMaximized(base, w, true)),
+    toSaved: () => [reopened(base)],
+    reopen: () => [reopened(base), ...tabIds.map((t) => reopened(select(base, 'w1', t)))],
+  }
+
+  const isLayout = (x: unknown): x is Layout =>
+    typeof x === 'object' && x !== null && Array.isArray((x as Layout).windows)
+  const broken = (l: Layout): string[] =>
+    l.windows.flatMap((w) => {
+      const selectedBackground = Object.values(w.selected).filter((id) =>
+        w.tabs.some((t) => t.id === id && t.kind === 'session' && t.place === 'background'),
+      )
+      const peeks = w.tabs.filter((t) => t.kind === 'session' && t.place === 'peek')
+      const twoPeeks = peeks.filter((p, i) => peeks.findIndex((q) => q.project === p.project) !== i)
+      return [
+        ...selectedBackground.map((id) => `${w.id} selects background ${id}`),
+        ...twoPeeks.map((p) => `${w.id} has a second peek in ${p.project}`),
+      ]
+    })
+
+  test('every exported function has a case', () => {
+    const exported = Object.entries(layoutModule)
+      .filter(([, value]) => typeof value === 'function')
+      .map(([name]) => name)
+      .sort()
+    expect(exported.length).toBeGreaterThanOrEqual(20)
+    expect(Object.keys(cases).sort()).toEqual(exported)
+  })
+
+  test.each(Object.keys(cases))('%s', (name) => {
+    const outcomes = cases[name]?.() ?? []
+    expect(outcomes.length).toBeGreaterThan(0)
+    for (const out of outcomes) {
+      if (isLayout(out)) expect(broken(out)).toEqual([])
+      if (typeof out === 'string') expect(background.has(out)).toBe(false)
+    }
   })
 })

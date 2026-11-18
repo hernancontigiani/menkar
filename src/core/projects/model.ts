@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Key } from '../i18n'
 import { tidyOrchestration } from './orchestration'
+import type { TabPlace } from './place'
 
 export const DEFAULT_PROJECT_NAME = 'Default'
 export const GROUP_COLORS = ['#5ec4b6', '#c17be0', '#e0b45b', '#7fb2ff', '#e57c9a'] as const
@@ -84,7 +85,12 @@ export interface Project {
 export type Orientation = 'horizontal' | 'vertical'
 
 export type SavedTab =
-  | { readonly panes: readonly string[]; readonly orientation: Orientation }
+  | {
+      readonly panes: readonly string[]
+      readonly orientation: Orientation
+      // A peek is saved as background: after a restart no tab is peeked.
+      readonly place?: Extract<TabPlace, 'background'>
+    }
   | { readonly file: string; readonly preview: boolean }
 
 export interface SavedWindow {

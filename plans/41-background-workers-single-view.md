@@ -475,3 +475,68 @@ I share; then my Q1–Q6 with my pick. §2.7 says where each lands.
 ## 7. Execution log
 
 (Written by the session that executes it.)
+
+### Block 1 — `menkar-t78` (task 78), 2026-11-18
+
+**Built** (core only; nothing in main or the renderer calls it yet):
+
+- `src/core/projects/place.ts`: `type TabPlace = 'background' | 'peek'`, nothing else.
+- `src/core/projects/model.ts`: `SavedTab`'s session variant gains `place?: 'background'`.
+- `src/core/projects/layout.ts`:
+  - `SessionTab.place?: TabPlace` (absent = ordinary).
+  - `shownTabs` (so `shownTab`, `stepTab`, `nthTab`, `openBeside`'s target) skip background tabs.
+  - The neighbour rule: `withoutTab`'s selection logic is now `selectionWithout(w, tabId)`, which
+    picks a **drawn** neighbour of the same project (next, else previous); `closeTab` and
+    `toBackground` share it.
+  - `select(layout, windowId, tabId)`: a background tab → the project's peek, moved after the
+    project's last tab, the project's previous peek → background in place; any tab → selected.
+    **It also sets `shown` to the tab's project** (as `revealPane` and `openSession` did).
+    Unknown tab → same layout.
+  - `toBackground(layout, windowId, tabId)`: session tab with **exactly one pane** in `tab.panes`
+    → `place: 'background'` in place, selection by the neighbour rule; a two-pane tab, a file tab
+    or an already background one → the same layout object. Main must hang up the second pane
+    first (D2) — and main's `tabPanes` (a split shell) is not seen here.
+  - `pin(layout, windowId, tabId)`: a peek → ordinary in place, selected; a background tab →
+    ordinary, moved **right before the project's peek** (or last when there is none), selected,
+    the peek stays; any other tab → `select`.
+  - `ordinaryUnless(layout, keep)`: **signature differs from §2.3's** `(layout, backgroundable,
+    selected)`: it is `keep: (tab: SessionTab) => boolean`, by tab, so main can combine
+    `backgroundable(session)` with its `tabPanes` count; the selection is read from the layout.
+    A placed tab loses its place when `keep` is false **or `tab.panes.length !== 1`**. A selected
+    peek → ordinary in place; every other losing tab → ordinary, re-inserted before the project's
+    surviving peek (or last when none survives), in their original order; nothing selected changes.
+    Returns **the same layout object** when nothing changes, so `changed()` can call it cheaply.
+  - `openSession(..., newId, options: OpenOptions = {})`, `OpenOptions = { pin?, worker? }`. A
+    found tab → `pin` when `options.pin`, else `select` (a background tab is peeked). A new tab: a
+    worker's (`worker(sessionId)`) goes before the project's peek; anyone else's after the
+    project's last tab that is not a worker's (a tab with a `place`, or whose panes include a
+    `worker`), or first among the project's tabs when all are workers'. Without `worker`, every
+    unplaced tab counts as ordinary, so a new tab lands before background tabs and the peek.
+  - `openBeside`: the tab it extends loses its `place` (a peek given a second pane is pinned).
+  - `moveSessionHere`: a placed tab that comes here (from another window, or re-projected in this
+    one) arrives as background and is `select`ed → the peek; an ordinary one is inserted before the
+    peek and selected, as before. **My choice**: a background tab already in this window's shown
+    project is peeked too (before: Add session on it changed nothing).
+  - `insertTabAfter`: an unplaced tab that would land after its project's peek goes right before
+    it; a background tab goes where asked.
+  - `toSaved`: background and peek → `place: 'background'`; `reopen` reads only
+    `place === 'background'`, anything else ordinary.
+- `tests/core/projects/layout.test.ts`: 17 tests for the list above, then **the sweep**: one case
+  per exported function of `layout.ts`, discovered from the module (`Object.entries`, a floor of
+  20); a new export without a case fails. Each case runs the function over every window, tab and
+  session of a layout with background tabs in two windows and three projects, and checks no
+  `selected` names a background tab, no project has two peeks, and no returned tab id is a
+  background one.
+
+**Seen red**: six defects injected one at a time into `layout.ts` and reverted — the neighbour
+allowed to be background, the previous peek not demoted, `shownTabs` drawing background tabs,
+`toSaved` dropping `place`, `ordinaryUnless` keeping a two-pane placed tab, an uncovered export —
+each failed its tests (and the sweep, where it applies).
+
+**Not done here, for block 3**: main does not call any of it; `revealPane`, `revealTab`, the
+`selectTab` action and the selection writes at `workspace.ts` 2386–2633/2984 still write
+`selected` directly. **The plan's "peek is the last tab" holds only through these functions**:
+`moveTab` (dragging) stays free, as §2.3 says.
+
+**Checks**: `npm run ci` green (108 files, 1437 tests; biome, tsc, R10, code rules, i18n, test
+integrity, history), output in `$MENKAR_FILES/menkar-t78-41-b1-ci.log`.

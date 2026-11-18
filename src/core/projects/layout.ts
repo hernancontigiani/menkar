@@ -7,6 +7,7 @@ import {
   type SavedTab,
   type SavedWindow,
 } from './model'
+import type { TabPlace } from './place'
 
 export const MAX_PANES = 2
 
@@ -20,6 +21,8 @@ export type Tab =
       readonly project: string
       readonly panes: readonly string[]
       readonly orientation: Orientation
+      // Absent: an ordinary tab. Only an orchestrator's worker's tab with one pane has one.
+      readonly place?: TabPlace
     }
   | {
       readonly kind: 'file'
@@ -56,7 +59,33 @@ export function holder(layout: Layout, projectId: string): string | undefined {
   )?.id
 }
 
-const shownTabs = (w: LayoutWindow) => w.tabs.filter((t) => t.project === w.shown)
+const placeOf = (tab: Tab): TabPlace | undefined => (tab.kind === 'session' ? tab.place : undefined)
+const drawn = (tab: Tab) => placeOf(tab) !== 'background'
+const shownTabs = (w: LayoutWindow) => w.tabs.filter((t) => t.project === w.shown && drawn(t))
+
+function placed(tab: SessionTab, place?: TabPlace): SessionTab {
+  const { place: _old, ...rest } = tab
+  return place === undefined ? rest : { ...rest, place }
+}
+
+function insertAt(tabs: readonly Tab[], at: number, tab: Tab): Tab[] {
+  return [...tabs.slice(0, at), tab, ...tabs.slice(at)]
+}
+
+const lastOf = (tabs: readonly Tab[], projectId: string) =>
+  tabs.map((t) => t.project).lastIndexOf(projectId)
+
+// After the project's last tab: where the peek goes.
+function atEnd(tabs: readonly Tab[], tab: Tab): Tab[] {
+  const last = lastOf(tabs, tab.project)
+  return insertAt(tabs, last < 0 ? tabs.length : last + 1, tab)
+}
+
+// Last among the project's tabs, but before its peek, which stays the last one.
+function beforePeek(tabs: readonly Tab[], tab: Tab): Tab[] {
+  const peek = tabs.findIndex((t) => t.project === tab.project && placeOf(t) === 'peek')
+  return peek < 0 ? atEnd(tabs, tab) : insertAt(tabs, peek, tab)
+}
 
 export function shownTab(w: LayoutWindow): string | null {
   const tabs = shownTabs(w)
@@ -87,21 +116,105 @@ function findSession(
   return undefined
 }
 
-// Removing a tab moves its project's selection to a neighbour of the same project, or clears it.
-function withoutTab(w: LayoutWindow, tabId: string): LayoutWindow {
+// A tab leaving the strip moves its project's selection to a drawn neighbour of the same
+// project, or clears it.
+function selectionWithout(w: LayoutWindow, tabId: string): Record<string, string> {
   const index = w.tabs.findIndex((t) => t.id === tabId)
   const tab = w.tabs[index]
-  if (!tab) return w
-  const tabs = w.tabs.filter((t) => t.id !== tabId)
   const selected = { ...w.selected }
-  if (selected[tab.project] === tabId) {
-    const same = (t: Tab) => t.project === tab.project
+  if (tab && selected[tab.project] === tabId) {
+    const same = (t: Tab) => t.project === tab.project && drawn(t)
     const neighbour =
       w.tabs.slice(index + 1).find(same) ?? w.tabs.slice(0, index).reverse().find(same)
     if (neighbour) selected[tab.project] = neighbour.id
     else delete selected[tab.project]
   }
-  return { ...w, tabs, selected }
+  return selected
+}
+
+function withoutTab(w: LayoutWindow, tabId: string): LayoutWindow {
+  if (!w.tabs.some((t) => t.id === tabId)) return w
+  return { ...w, tabs: w.tabs.filter((t) => t.id !== tabId), selected: selectionWithout(w, tabId) }
+}
+
+// The one writer of a selection (decision 1.176): a background tab becomes its project's peek,
+// moved last, and the project's previous peek goes back to the background; any other tab is just
+// selected. The window shows the tab's project.
+export function select(layout: Layout, windowId: string, tabId: string): Layout {
+  const w = windowOf(layout, windowId)
+  const tab = w.tabs.find((t) => t.id === tabId)
+  if (!tab) return layout
+  let tabs = w.tabs
+  if (tab.kind === 'session' && tab.place === 'background') {
+    const rest = w.tabs
+      .filter((t) => t.id !== tabId)
+      .map((t) =>
+        t.kind === 'session' && t.project === tab.project && t.place === 'peek'
+          ? placed(t, 'background')
+          : t,
+      )
+    tabs = atEnd(rest, placed(tab, 'peek'))
+  }
+  return put(layout, {
+    ...w,
+    tabs,
+    shown: tab.project,
+    selected: { ...w.selected, [tab.project]: tabId },
+  })
+}
+
+// Closing a worker's tab (decision 1.176): it stays in the layout, undrawn, its process running.
+export function toBackground(layout: Layout, windowId: string, tabId: string): Layout {
+  const w = windowOf(layout, windowId)
+  const tab = w.tabs.find((t) => t.id === tabId)
+  if (tab?.kind !== 'session' || tab.panes.length !== 1 || tab.place === 'background') return layout
+  const tabs = w.tabs.map((t) => (t.id === tabId ? placed(tab, 'background') : t))
+  return put(layout, { ...w, tabs, selected: selectionWithout(w, tabId) })
+}
+
+// Makes a worker's tab ordinary and selects it: the peek where it is (already last), a background
+// tab right before its project's peek.
+export function pin(layout: Layout, windowId: string, tabId: string): Layout {
+  const w = windowOf(layout, windowId)
+  const tab = w.tabs.find((t) => t.id === tabId)
+  if (tab?.kind !== 'session' || tab.place === undefined) return select(layout, windowId, tabId)
+  const tabs =
+    tab.place === 'peek'
+      ? w.tabs.map((t) => (t.id === tabId ? placed(tab) : t))
+      : beforePeek(
+          w.tabs.filter((t) => t.id !== tabId),
+          placed(tab),
+        )
+  return put(layout, {
+    ...w,
+    tabs,
+    shown: tab.project,
+    selected: { ...w.selected, [tab.project]: tabId },
+  })
+}
+
+// A tab whose session no longer qualifies (`keep` false: not a worker any more, with you, a role,
+// the mode off) becomes ordinary and nothing stops. A selected peek stays where it is, selected;
+// any other goes last among its project's tabs, before the peek. The same layout when nothing
+// changes.
+export function ordinaryUnless(layout: Layout, keep: (tab: SessionTab) => boolean): Layout {
+  const loses = (t: Tab): t is SessionTab =>
+    t.kind === 'session' && t.place !== undefined && !(t.panes.length === 1 && keep(t))
+  if (!layout.windows.some((w) => w.tabs.some(loses))) return layout
+  return {
+    windows: layout.windows.map((w) => {
+      if (!w.tabs.some(loses)) return w
+      let tabs: Tab[] = []
+      const moved: SessionTab[] = []
+      for (const t of w.tabs) {
+        if (!loses(t)) tabs.push(t)
+        else if (t.place === 'peek' && w.selected[t.project] === t.id) tabs.push(placed(t))
+        else moved.push(placed(t))
+      }
+      for (const t of moved) tabs = beforePeek(tabs, t)
+      return { ...w, tabs }
+    }),
+  }
 }
 
 export type SwitchOutcome =
@@ -169,6 +282,13 @@ export interface Opened {
   readonly tab: string
 }
 
+export interface OpenOptions {
+  // Open a worker's background tab or peek as an ordinary tab instead of peeking it.
+  readonly pin?: boolean
+  // Who is an orchestrator's worker: another session's new tab opens before the workers' tabs.
+  readonly worker?: (sessionId: string) => boolean
+}
+
 // Open (M18): select its tab where it has one; else make it a member of the shown project if it
 // is in none, and open a tab in the window that holds its project (this one when none does).
 export function openSession(
@@ -177,15 +297,13 @@ export function openSession(
   windowId: string,
   sessionId: string,
   newId: () => string,
+  options: OpenOptions = {},
 ): Opened {
   const found = findSession(layout, sessionId)
   if (found) {
-    const w = {
-      ...found.window,
-      shown: found.tab.project,
-      selected: { ...found.window.selected, [found.tab.project]: found.tab.id },
-    }
-    return { layout: put(layout, w), projects, window: w.id, tab: found.tab.id }
+    const choose = options.pin === true ? pin : select
+    const next = choose(layout, found.window.id, found.tab.id)
+    return { layout: next, projects, window: found.window.id, tab: found.tab.id }
   }
   const here = windowOf(layout, windowId)
   const member = projectOf(projects, sessionId)
@@ -200,13 +318,26 @@ export function openSession(
     panes: [sessionId],
     orientation: 'horizontal',
   }
-  const after = {
-    ...w,
-    shown: target,
-    tabs: [...w.tabs, tab],
-    selected: { ...w.selected, [target]: tab.id },
-  }
+  const worker = options.worker ?? (() => false)
+  const tabs = worker(sessionId) ? beforePeek(w.tabs, tab) : afterOrdinary(w.tabs, tab, worker)
+  const after = { ...w, shown: target, tabs, selected: { ...w.selected, [target]: tab.id } }
   return { layout: put(layout, after), projects: state, window: after.id, tab: tab.id }
+}
+
+// The strip's order is ordinary tabs, pinned workers, the peek: a session that is not a worker
+// opens after its project's last tab that is not a worker's.
+function afterOrdinary(
+  tabs: readonly Tab[],
+  tab: Tab,
+  worker: (sessionId: string) => boolean,
+): Tab[] {
+  const ordinary = (t: Tab) =>
+    t.project === tab.project &&
+    !(t.kind === 'session' && (t.place !== undefined || t.panes.some(worker)))
+  const last = tabs.findLastIndex(ordinary)
+  if (last >= 0) return insertAt(tabs, last + 1, tab)
+  const first = tabs.findIndex((t) => t.project === tab.project)
+  return first < 0 ? [...tabs, tab] : insertAt(tabs, first, tab)
 }
 
 export type BesideOutcome =
@@ -237,7 +368,9 @@ export function openBeside(
   if (found) next = put(next, withoutTab(windowOf(next, found.window.id), found.tab.id))
   const current = windowOf(next, windowId)
   const tabs = current.tabs.map((t) =>
-    t.id === selected.id && t.kind === 'session' ? { ...t, panes: [...t.panes, sessionId] } : t,
+    t.id === selected.id && t.kind === 'session'
+      ? { ...placed(t), panes: [...t.panes, sessionId] }
+      : t,
   )
   return {
     kind: 'done',
@@ -266,21 +399,25 @@ export function moveSessionHere(
   }
   const state = addMember(projects, here.shown, sessionId)
   if (!found) return { ok: true, layout, projects: state }
+  // A worker's tab arrives in the background and is selected, so it becomes the peek.
+  const arriving = (tab: SessionTab): SessionTab =>
+    tab.place === undefined ? tab : placed(tab, 'background')
   if (found.window.id !== windowId) {
     const moved = put(layout, withoutTab(found.window, found.tab.id))
     const w = windowOf(moved, windowId)
-    const tab: Tab = { ...found.tab, project: w.shown }
+    const tab = arriving({ ...found.tab, project: w.shown })
+    const tabs = tab.place === undefined ? beforePeek(w.tabs, tab) : [...w.tabs, tab]
     return {
       ok: true,
-      layout: put(moved, {
-        ...w,
-        tabs: [...w.tabs, tab],
-        selected: { ...w.selected, [w.shown]: tab.id },
-      }),
+      layout: select(put(moved, { ...w, tabs }), windowId, tab.id),
       projects: state,
     }
   }
-  if (found.tab.project === here.shown) return { ok: true, layout, projects: state }
+  if (found.tab.project === here.shown) {
+    const peeked =
+      found.tab.place === 'background' ? select(layout, windowId, found.tab.id) : layout
+    return { ok: true, layout: peeked, projects: state }
+  }
   if (found.tab.panes.length >= MAX_PANES) {
     const rest = found.tab.panes.filter((p) => p !== sessionId)
     const alone: Tab = {
@@ -296,19 +433,25 @@ export function moveSessionHere(
     ]
     return { ok: true, layout: put(layout, { ...here, tabs }), projects: state }
   }
-  const tabs = here.tabs.map((t) =>
-    t.id === found.tab.id ? { ...found.tab, project: here.shown } : t,
-  )
-  return { ok: true, layout: put(layout, { ...here, tabs }), projects: state }
+  const tab = arriving({ ...found.tab, project: here.shown })
+  const tabs = here.tabs.map((t) => (t.id === found.tab.id ? tab : t))
+  const next = put(layout, { ...here, tabs })
+  return {
+    ok: true,
+    layout: tab.place === undefined ? next : select(next, windowId, tab.id),
+    projects: state,
+  }
 }
 
 // A tab opened for another tab's sake (a session one started): right after it, in its
-// window, with the window's selection left as it was.
+// window, with the window's selection left as it was; a drawn tab never after the peek.
 export function insertTabAfter(layout: Layout, afterTabId: string, tab: Tab): Layout {
   const w = layout.windows.find((x) => x.tabs.some((t) => t.id === afterTabId))
   if (!w) return layout
-  const at = w.tabs.findIndex((t) => t.id === afterTabId) + 1
-  const tabs = [...w.tabs.slice(0, at), tab, ...w.tabs.slice(at)]
+  const after = w.tabs.findIndex((t) => t.id === afterTabId) + 1
+  const peek = w.tabs.findIndex((t) => t.project === tab.project && placeOf(t) === 'peek')
+  const at = placeOf(tab) === undefined && peek >= 0 && peek < after ? peek : after
+  const tabs = insertAt(w.tabs, at, tab)
   return { windows: layout.windows.map((x) => (x === w ? { ...w, tabs } : x)) }
 }
 
@@ -374,7 +517,11 @@ export function toSaved(layout: Layout): SavedWindow[] {
     for (const tab of w.tabs) {
       let saved: SavedTab | undefined
       if (tab.kind === 'session' && tab.panes.length > 0)
-        saved = { panes: [...tab.panes], orientation: tab.orientation }
+        saved = {
+          panes: [...tab.panes],
+          orientation: tab.orientation,
+          ...(tab.place === undefined ? {} : { place: 'background' as const }),
+        }
       if (tab.kind === 'file') saved = { file: tab.path, preview: tab.preview }
       if (saved) {
         const list = tabs[tab.project] ?? []
@@ -436,6 +583,7 @@ export function reopen(projects: Projects, options: ReopenOptions): Layout {
             project: projectId,
             panes,
             orientation,
+            ...(saved.place === 'background' ? { place: 'background' as const } : {}),
           })
         } else if (typeof saved.file === 'string' && options.isFile(saved.file)) {
           tabs.push({
