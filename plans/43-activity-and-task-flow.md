@@ -525,6 +525,9 @@ types the page receives; the export's `--rows activity` if Q4 (a) (`export.ts`, 
 `export.test.ts`, `docs/usage.md`'s table).
 
 - [ ] Tests first (§2.10's burst and export rows), each seen failing once.
+- [ ] **A case from the human's hand check (task 104, 2026-11-18):** `present` marks journaled
+  while away (the human clicking in Menkar after setting away, 11:48–11:50) are dropped by
+  `bursts(actions, away)`: they neither extend nor start a burst. Seen failing first.
 - Verify: `npm run ci`.
 
 ### Block 6 — the flow reading, core only
