@@ -295,27 +295,11 @@ every figure adds up across days. The human finds 2.3 s tolerable for now (2026-
 lines a day) pushes a month with categories past ~4 s. First question: a parity test against the
 SQL lookups before any change.
 
-### Task flow metrics: how long tasks spend in each state
-
-The human's idea (2026-11-15): record a timestamp each time a task enters a state, so Menkar can
-show, over the last 7 or 30 days, how long tasks spent queued, in progress, waiting and to review —
-a measure of the team's flow that shows the bottleneck. Long in queue: too few workers at once, or
-more tasks created than the short term can take. Long to review: reviews to speed up.
-
-**Recorded since 2026-11-18** (decision 1.180): each task's state changes, with whom a wait or a
-review waits on, go into the usage history's `task_states` (`docs/usage.md`, "The human's activity
-and the task flow"), and the tasks open at the first start that records are a baseline. **Not
-built: the view** — time per state over 7 and 30 days, per whom it waits on (the reading is
-`src/core/usage/flow.ts`).
-
-**Trigger:** fired — wanted before the first release (1.156, 1.180). First question: where the
-view sits, from mock-ups the human picks.
-
 ### A nudge after a long burst of the human's activity
 
 1.180 (2026-11-18): Menkar could tell the human when a burst of their activity has run long (a
 break is due). Deferred by the human until they have seen their own data: the length that deserves
-a nudge, and whether one helps at all, is read from the bursts the views will show.
+a nudge, and whether one helps at all, is read from the bursts Your time shows (built 2026-11-18).
 
 **Trigger:** the human has looked at their bursts in the Usage window and asks for it. First
 question: the length, and whether away (1.167) or a quiet minute resets it.

@@ -79,11 +79,31 @@ are shaped this way.
   Its "Coding agents" card lists every agent Menkar can run, with its installed and validated
   version and its standing, from `agents:versions` (`src/main/agent-versions.ts`,
   `docs/agent-versions.md`); it fills again whenever main reads the versions anew.
-- **The Usage window** asks `usage:view` for a period. Main runs a pass on the same one-at-a-time
-  runner as the hourly pass, then builds the Totals and one report per bar in the usage query worker
-  (`src/main/usage-query-worker.ts`). The chart's series, axis and labels are computed in core
-  (`src/core/usage/chart.ts`, Node-free); the page only draws them. A report that arrives after
-  another period was chosen is dropped.
+- **The Usage window** (2026-11-18) has a left bar of three sections, Spend, Your time and Task
+  times, in Settings' classes (`settings-side`, `section-list`, `section-item`) at 180 px, with the
+  scope's two buttons at its foot. `src/renderer/usage.ts` holds the shell — the bar, the foot, the
+  header's one `[data-toggles="period"]`, the sections' state through `src/core/usage/sections.ts`
+  (Node-free: the carry is tested in Vitest, the page only calls it) — and each section's body is
+  its own module: `usage-spend.ts`, `usage-time.ts`, `usage-tasks.ts`, given a `SectionContext`
+  (the locale, the scheme, the scope, today, `choose`, `render`, the star).
+  - **Three paths**, one per section: `usage:view` (Spend), `usage:activity` (a day or a week) and
+    `usage:flow` (7 or 30 days), each with `allProjects`. Their handlers in `src/main/preferences.ts`
+    resolve the opener window's shown project the same way (`openerProject`).
+  - **Main runs a pass first**, on the same one-at-a-time runner as the hourly pass, so the human's
+    turns are in the history. Your time and Task times then **import the activity journal**
+    (`importActivity()`): otherwise the journal reaches the history only from the callback each pass
+    starts and does not wait for, and the figures could lag the Board by up to an hour. The import
+    comes after the pass, never beside it: both open the history. Then the usage query worker
+    (`src/main/usage-query-worker.ts`) builds the answer: Spend's Totals and one report per bar, the
+    day or week of `readActivity`, or `taskFlow`.
+  - The chart's series, axis and labels are computed in core (`src/core/usage/chart.ts`), the day's
+    count axis and positions in `src/core/usage/timeline.ts`, the flow's rows in `flowTable`
+    (`flow.ts`); all Node-free, the page only draws them.
+  - **One `latestOnly()` serves the three asks**: any newer ask — a period, a step, a section, the
+    scope — drops an older answer, whatever section it was for, and the star covers the body until
+    the newest arrives. A section switch always asks: the figures change as the human works.
+  - A refused ask shows our sentence (`usage.readFailed`) in the body instead of a star turning for
+    ever.
 
 ## Why
 
@@ -113,4 +133,9 @@ are shaped this way.
   `e2e/integrations.spec.ts` (the status line switch with its backup and refusal, the
   classification switch and the earlier-turns dialog with the stand-in `claude`, About),
   `e2e/usage-window.spec.ts` (periods, the stepper, Totals and By day; screenshots in
-  `test-results/usage/`).
+  `test-results/usage/`), `e2e/usage-sections.spec.ts` (the left bar and its keys, the foot and the
+  scope carried, the carry and the keep across sections, a late answer dropped across a switch),
+  `e2e/usage-time.spec.ts` (the day, the hover, the week and its steps over a seeded history and
+  journal) and `e2e/usage-tasks.spec.ts` (the flow's figures, the folds, the baseline, the empty
+  card); each saves its screenshots, dark and light, under `test-results/usage-{sections,time,tasks}/`.
+- Vitest for the sections and the readings: `tests/core/usage/{sections,timeline,bursts,flow}.test.ts`.

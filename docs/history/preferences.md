@@ -65,3 +65,18 @@
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
   system font chooser. The setting keeps agent-tablet's form, `"Family Size"`, which the terminals
   already read. A size with the default family is stored as `monospace <size>` (2026-11-10), the alias
+
+## The shape
+
+> Left on 2026-11-18 (plan 43, block 7e): the Usage window has three sections, three paths and one `latestOnly()`.
+- **The Usage window** asks `usage:view` for a period. Main runs a pass on the same one-at-a-time
+  runner as the hourly pass, then builds the Totals and one report per bar in the usage query worker
+  (`src/main/usage-query-worker.ts`). The chart's series, axis and labels are computed in core
+  (`src/core/usage/chart.ts`, Node-free); the page only draws them. A report that arrives after
+  another period was chosen is dropped.
+
+## Checks
+
+> Left on 2026-11-18 (plan 43, block 7e): the three sections' specs are listed.
+  `e2e/usage-window.spec.ts` (periods, the stepper, Totals and By day; screenshots in
+  `test-results/usage/`).

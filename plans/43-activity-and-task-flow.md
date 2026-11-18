@@ -941,14 +941,14 @@ Invented names only ("Shop", "Blog").
 
 #### 7e — the docs, and "Task flow metrics" closed
 
-- [ ] `docs/spec/usage.md`: the Usage window's three sections, what each shows, the carry and the
+- [x] `docs/spec/usage.md`: the Usage window's three sections, what each shows, the carry and the
   scope (what the user sees), replacing "Built: … plan 12 built it" with the current pointer.
-- [ ] `docs/preferences.md`, its Usage window part (`:82–86`, the e2e list `:115–116`): the left
+- [x] `docs/preferences.md`, its Usage window part (`:82–86`, the e2e list `:115–116`): the left
   bar, the three paths, the pass and the import before an answer, one `latestOnly`, the new specs.
-- [ ] `docs/usage.md`: "The Usage window" gains the sections, the carry rule with its date and
+- [x] `docs/usage.md`: "The Usage window" gains the sections, the carry rule with its date and
   why the periods live in the page's memory; "Bursts" and "The task flow" name `byProject`,
   `away` per day, the counts and `baselineAt`; why the flow waits for a pass.
-- [ ] `docs/NOT_BUILT_YET.md`: "Task flow metrics" deleted, verbatim to
+- [x] `docs/NOT_BUILT_YET.md`: "Task flow metrics" deleted, verbatim to
   `docs/history/NOT_BUILT_YET.md`; every replaced line of the three other docs to its history
   file (`docs/history/README.md`), as `npm run ci`'s history check asks.
 - Verify: `npm run ci`.
@@ -1412,3 +1412,21 @@ Tests: new `e2e/usage-tasks.spec.ts` covers §2.10's "Task times" row, plus exac
 Choices the plan left open (mine): an unknown waiter reads "on something else"; the empty sentence follows `view.scoped`; a state with no task is listed dim; the date is day and short month. "Share of the time" wraps over the mock's 80 px column.
 
 Found: in progress's median of 67.5 min reads "1.1h", because `formatDuration` switches to hours at 60 min. The spec's first expectation was wrong, not the code.
+
+### Block 7e — `menkar-t115` (task 115), 2026-11-18
+
+Built (docs only, plus one string): `docs/spec/usage.md` describes the Usage window's three
+sections, the scope at the bar's foot, the header's periods, the carry and the star, and names the
+three new specs and the sections' modules; `docs/preferences.md` the shell and its modules, the
+three paths, the pass then the import, one `latestOnly()`, `usage.readFailed`, the new specs and the
+Vitest files; `docs/usage.md` the sections, the carry rule with its date, why the periods live in
+the page's memory, the day's away, each week day's bursts, `byProject`, `timeline.ts`, the flow's
+counts, `baselineAt`, `flowTable` and why the view waits for a pass, and the "up to an hour late"
+limit narrowed to `menkar usage`. "Task flow metrics" left `docs/NOT_BUILT_YET.md`; the nudge's
+entry now points at Your time. Every replaced line is in its history file. `usage.tasks.colShare`
+reads "Share" / "Parte" (granted by `set`): no e2e asserted the old text.
+
+Not mine to change, left for `set`: `plans/00-STATUS.md`'s 1.156 row still cites
+`docs/NOT_BUILT_YET.md`, "Task flow metrics", and 1.180's row's destination is still "this row
+(until built)" (the plan's exit table).
+

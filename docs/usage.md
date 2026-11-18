@@ -3,7 +3,7 @@
 How long Claude worked and how many tokens it used, per session and project. All of it lives in
 `src/core/usage/`, and every figure the app or `menkar usage` shows is read from there. The code
 says what each step does. This file keeps why it is shaped this way, and what was rejected. What the
-user sees in the Usage window is still `docs/spec/usage.md` until the window is built.
+user sees in the Usage window is `docs/spec/usage.md`.
 
 ## The shape
 
@@ -83,8 +83,29 @@ For Menkar (2026-11-08):
 
 ## The Usage window
 
-Built by plan 12; how it is wired is in `docs/preferences.md`. The window reads `src/core/usage/`
-only: the Totals are `buildReport`, the bars `buildSeries` (folded by category while classification
+How it is wired is in `docs/preferences.md`. The window reads `src/core/usage/` only.
+
+**Three sections** (decision 1.184, 2026-11-18), in a left bar: **Spend** (the Totals and By day
+below), **Your time** (the bursts' day and week, "Bursts") and **Task times** (the flow, "The task
+flow"). The scope at the bar's foot is one flag, `allProjects`, sent with every ask and kept across
+sections.
+
+- **The periods carry** (`src/core/usage/sections.ts`, the reading of 1.184 decided 2026-11-18). A
+  period's span is Today, 7 days, 30 days or none: Spend's Today, 7 days and 30 days are theirs,
+  Month none; a Day is Today only when it is today, a Week is 7 days only when it is the current
+  one (the seven days ending today, the same days as 7 days); Task times' are theirs. On entering a
+  section, if the section left shows a period picked there on this visit, or carried into it, and
+  the new one has that span, the new one takes it; otherwise it keeps its own and carries nothing on
+  until a period is picked in it. A step of the month, the day or the week is a pick. So Spend's
+  30 days opens Task times on 30 days, while Your time keeps the week it showed.
+- **Inside Your time**: Day → Week shows the week holding the day shown; Week → Day shows today on
+  the current week, else the week's last day. Weeks step by seven days on a grid ending today. The
+  arrows stop at today and at the history's first day.
+- **The periods live in the page's memory for the window's life**, as Totals' expanded rows do: not
+  in `localStorage` and not in `state.json`. A remembered stepped-back day would reopen stale, a
+  window's scope depends on its opener, and the window always opens on Spend, 7 days.
+
+Spend's figures: the Totals are `buildReport`, the bars `buildSeries` (folded by category while classification
 is on), both from one reading of the statusline logs per request (`buildUsage`), the chart's
 series, axis and labels `src/core/usage/chart.ts`, the month stepper
 `src/core/usage/stepper.ts`. The types the page receives (`UsageView`, `UsageWhich`) and the shared
@@ -150,9 +171,9 @@ stored.
 ## The human's activity and the task flow
 
 Decision 1.180 (2026-11-18): Menkar records, with no text, what the human does and how each task
-moves, so the data accumulates while its views are designed. **Recording, the bursts' reading and
-the task flow's reading are built; the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow
-metrics").
+moves, so the data accumulates while its views are designed. **Recording, the bursts' and the task
+flow's readings, and their views are built** (2026-11-18): Your time and Task times, in the Usage
+window.
 
 ### What is recorded
 
@@ -205,6 +226,14 @@ Scoped to a project, the bursts are made from that project's actions alone; away
 project's. The presence marks and the topics shape the bursts but are not counted: a day counts
 messages and prompts answered, outside away.
 
+What Your time draws comes from the same reading: each day's away periods clipped to it (`away`,
+in the day and in each week day; one that only touches the day's edge is not that day's), each
+week day's clipped bursts, and each burst's messages per project (`byProject`, most first, ties by
+id, a turn with no project last; for it `humanActions` reads each message's `project_id`, only
+reading). The day's count axis and its positions are `src/core/usage/timeline.ts`: the axis is
+1.14's rule without the 2.5 step, counts having none, with a top of at least 5; a moment's x is its
+share of the day's seconds, so a 23- or 25-hour day is drawn true.
+
 ### The task flow
 
 How long tasks spend in each state, read from their `task_state` rows (`src/core/usage/flow.ts`,
@@ -220,6 +249,18 @@ the total, so both describe the same time. A task whose first row is a baseline 
 is counted from the baseline and marked (`sinceBaseline`): what it did before recording began is
 not known; one whose baseline is before the range is whole inside it. Tasks are told apart by
 project and number; the types the page receives are in `nodes.ts`.
+
+- **The counts**: of the tasks counted, each one's state at the range's end or now, whichever is
+  first (its last row at or before it), gives `done`, `dropped` or `open`; they add up to `tasks`.
+  `baselineAt` is the earliest baseline that marked a task, for the footnote's date, else null.
+- **`flowTable`** turns the flow into the rows Task times draws: each state in order, then its
+  waiters. To review always lists its four waiters, a zero one included; waiting always lists topic
+  and session, then `other` and none only when they hold a task. A row's share is its total over
+  the largest state's.
+- **The view waits for a pass, then imports the journal**, before every answer: the rows reach the
+  history only from the callback after a pass, and an import must never run beside a pass. Without
+  it, the flow would lag the Board by up to an hour, against the human's own memory of what just
+  happened.
 
 ### Where each event is seen
 
@@ -276,7 +317,9 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 
 ### Limits
 
-- **Up to an hour late**: the rows reach the history after the next pass.
+- **Up to an hour late outside the Usage window**: the rows reach the history after the next
+  pass, so `menkar usage` and its export, which import only the batches a pass set aside, lag the
+  live journal. Your time and Task times import it before each answer.
 - **A pane blocked across a restart** gives no `prompt_answered`: its entry time is gone, and the
   answer may have been given while Menkar was down. A pane not yet joined to a session records no
   session and no project.

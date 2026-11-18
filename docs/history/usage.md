@@ -100,3 +100,41 @@ metrics").
 
 > Replaced 2026-11-18 (plan 43, block 6): `--rows turns|activity|tasks`.
                     [--project NAME] [--rows turns|activity] [--format jsonl|csv] [--output FILE]
+
+## Usage — how it is measured and kept
+
+> Left on 2026-11-18 (plan 43, block 7e): the Usage window is built; its spec is current.
+says what each step does. This file keeps why it is shaped this way, and what was rejected. What the
+user sees in the Usage window is still `docs/spec/usage.md` until the window is built.
+
+## The Usage window
+
+> Left on 2026-11-18 (plan 43, block 7e): the window has three sections; their carry and their state are described.
+Built by plan 12; how it is wired is in `docs/preferences.md`. The window reads `src/core/usage/`
+only: the Totals are `buildReport`, the bars `buildSeries` (folded by category while classification
+
+## The human's activity and the task flow
+
+> Left on 2026-11-18 (plan 43, block 7e): the views are built.
+moves, so the data accumulates while its views are designed. **Recording, the bursts' reading and
+the task flow's reading are built; the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow
+metrics").
+
+## Bursts
+
+> Left on 2026-11-18 (plan 43, block 7e): the day's away, each week day's bursts and `byProject` are read.
+Scoped to a project, the bursts are made from that project's actions alone; away is every
+project's. The presence marks and the topics shape the bursts but are not counted: a day counts
+messages and prompts answered, outside away.
+
+## The task flow
+
+> Left on 2026-11-18 (plan 43, block 7e): the counts, `baselineAt` and `flowTable` are read, and why the view waits for a pass.
+is counted from the baseline and marked (`sinceBaseline`): what it did before recording began is
+not known; one whose baseline is before the range is whole inside it. Tasks are told apart by
+project and number; the types the page receives are in `nodes.ts`.
+
+## Limits
+
+> Left on 2026-11-18 (plan 43, block 7e): the Usage window imports the journal before each answer.
+- **Up to an hour late**: the rows reach the history after the next pass.

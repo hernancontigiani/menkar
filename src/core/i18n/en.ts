@@ -723,7 +723,7 @@ export const en = {
   'usage.tasks.colMedian': 'Median',
   'usage.tasks.colMedianTitle': 'Per task',
   'usage.tasks.colTotal': 'Total',
-  'usage.tasks.colShare': 'Share of the time',
+  'usage.tasks.colShare': 'Share',
   'usage.tasks.queued': 'Queued',
   'usage.tasks.inProgress': 'In progress',
   'usage.tasks.waiting': 'Waiting',

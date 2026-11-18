@@ -735,7 +735,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.tasks.colMedian': 'Mediana',
   'usage.tasks.colMedianTitle': 'Por tarea',
   'usage.tasks.colTotal': 'Total',
-  'usage.tasks.colShare': 'Parte del tiempo',
+  'usage.tasks.colShare': 'Parte',
   'usage.tasks.queued': 'En cola',
   'usage.tasks.inProgress': 'En curso',
   'usage.tasks.waiting': 'Esperando',

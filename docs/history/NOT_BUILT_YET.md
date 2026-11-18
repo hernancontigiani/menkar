@@ -188,3 +188,27 @@ enough. First question: what the separate interface shows, and where.
 > Replaced 2026-11-18 (plan 43, block 6): the task flow's reading is built in core.
 and the task flow"), and the tasks open at the first start that records are a baseline. **Not
 built: the reading and the view** — time per state over 7 and 30 days, per whom it waits on.
+
+## Task flow metrics: how long tasks spend in each state
+
+> Left on 2026-11-18 (plan 43, block 7e): the views are built — Task times in the Usage window, with Spend and Your time.
+### Task flow metrics: how long tasks spend in each state
+
+The human's idea (2026-11-15): record a timestamp each time a task enters a state, so Menkar can
+show, over the last 7 or 30 days, how long tasks spent queued, in progress, waiting and to review —
+a measure of the team's flow that shows the bottleneck. Long in queue: too few workers at once, or
+more tasks created than the short term can take. Long to review: reviews to speed up.
+
+**Recorded since 2026-11-18** (decision 1.180): each task's state changes, with whom a wait or a
+review waits on, go into the usage history's `task_states` (`docs/usage.md`, "The human's activity
+and the task flow"), and the tasks open at the first start that records are a baseline. **Not
+built: the view** — time per state over 7 and 30 days, per whom it waits on (the reading is
+`src/core/usage/flow.ts`).
+
+**Trigger:** fired — wanted before the first release (1.156, 1.180). First question: where the
+view sits, from mock-ups the human picks.
+
+## A nudge after a long burst of the human's activity
+
+> Left on 2026-11-18 (plan 43, block 7e): Your time shows the bursts.
+a nudge, and whether one helps at all, is read from the bursts the views will show.

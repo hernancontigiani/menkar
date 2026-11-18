@@ -844,3 +844,18 @@ history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-h
 > Left on 2026-11-11: agent-tablet leaves Menkar; what named it is said in Menkar's own terms or dropped (decision 1.68).
 ### First start: importing agent-tablet's usage history (F14, Menkar decision 1.8)
 - Built: `docs/usage.md` describes how; `src/core/usage/` holds it.
+
+## The Usage window (F40, M4)
+
+> Left on 2026-11-18 (plan 43, block 7e): the window's three sections are described here.
+- Built: `docs/preferences.md` describes how; plan 12 built it.
+
+## Acceptance cases
+
+> Left on 2026-11-18 (plan 43, block 7e): the three sections' specs are named.
+- Built and tested: the Vitest tests in `tests/core/usage/`, `tests/core/latest.test.ts` and `e2e/usage-window.spec.ts` carry the USG ids.
+
+## Look
+
+> Left on 2026-11-18 (plan 43, block 7e): the sections' modules and screenshots are named.
+- Built: `src/renderer/usage.ts` and `usage.css`; LOOK-50 and LOOK-51 in `e2e/usage-window.spec.ts` assert the series colors and the Totals card. Reference screenshots: `img/usage-*.png`.
