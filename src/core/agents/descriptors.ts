@@ -43,3 +43,8 @@ export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude,
 export function descriptorOf(id: AgentId): AgentDescriptor {
   return DESCRIPTORS[id]
 }
+
+// What a pane runs, as it is named to the human: a shell pane is a shell, whatever it runs.
+export function paneAgentLabel(agent: AgentId | 'shell'): Key {
+  return agent === 'shell' ? 'agent.shell' : descriptorOf(agent).label
+}
