@@ -34,6 +34,7 @@ const PATHS: Readonly<Record<string, string>> = {
   edit: '<path d="M10.5 2.5l3 3-8 8H2.5v-3z"/>',
   trash: '<path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.7 9h5.6l.7-9"/>',
   close: '<line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>',
+  pin: '<path d="M6 2.5h4M7 2.5v3.5L5 9h6L9 6V2.5M8 9v4.5"/>',
   terminal:
     '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><polyline points="4,6 6.5,8 4,10"/><line x1="8" y1="10.5" x2="11.5" y2="10.5"/>',
   list: '<circle cx="3" cy="4.5" r="0.7"/><circle cx="3" cy="8" r="0.7"/><circle cx="3" cy="11.5" r="0.7"/><line x1="6" y1="4.5" x2="13.5" y2="4.5"/><line x1="6" y1="8" x2="13.5" y2="8"/><line x1="6" y1="11.5" x2="13.5" y2="11.5"/>',

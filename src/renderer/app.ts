@@ -7,7 +7,8 @@ import { formatClock, formatTime } from '../core/format'
 import type { Key } from '../core/i18n'
 import { presentFolders } from '../core/orchestration/folders'
 import { bannerOf } from '../core/orchestration/readonly'
-import { type ModeRow, modeRows } from '../core/orchestration/rows'
+import { type ModeRow, modeRows, type RowWeight, rowWeight } from '../core/orchestration/rows'
+import { backgroundable } from '../core/orchestration/team'
 import { chipShown } from '../core/presence'
 import type { ProjectInfo } from '../core/projects/info'
 import { RING_RADIUS, RING_SIZE, RING_STROKE, ringOf } from '../core/ring'
@@ -157,7 +158,26 @@ let lastSelected: string | null = null
 const SIDEBAR_SAVE_DELAY_MS = 600
 const TITLE_CHARS = 28
 
-export const act = (action: Action) => window.menkar.window.act(action)
+// Every close the human makes may send a worker to the background: the toast says so the first
+// time ever, whichever close it was.
+export async function act(action: Action): Promise<ActionResult> {
+  const result = await window.menkar.window.act(action)
+  const name = result.backgrounded?.first ? result.backgrounded.names[0] : undefined
+  if (name !== undefined)
+    toast(t('toast.background', { name }), {
+      action: { label: t('toast.show'), run: () => showBackground(name) },
+    })
+  return result
+}
+
+// The toast carries a name only; by Show, the tab it hid is found among the background ones.
+function showBackground(name: string): void {
+  const session = state?.tabs
+    .filter((tab) => tab.place === 'background')
+    .flatMap((tab) => tab.panes.map((p) => p.sessionId))
+    .find((id) => state?.sessions.find((info) => info.id === id)?.name === name)
+  if (session) void act({ type: 'selectSessionTab', session })
+}
 export const currentState = () => state
 
 // The session's current task: in progress or waiting, else its oldest queued one.
@@ -934,14 +954,18 @@ function teamText(info: SessionInfo, folder: string | null, project: ProjectInfo
   const task = currentTaskOf(info.id)
   const role = o.roles[info.id] ?? (o.orchestrator === info.id ? t('orch.orchestrator') : undefined)
   const under = [role, folder].filter((x): x is string => Boolean(x)).join(' · ')
+  const weight = weightOf(info.id, project)
   return el(
     'div',
     { class: 'text' },
     el(
       'div',
-      { class: 'name' },
+      { class: weight ? `name weight-${weight}` : 'name' },
       task?.star ? el('span', { class: 'priority-star', title: task.title }, '★') : null,
       info.name,
+      weight === 'pinned'
+        ? el('span', { class: 'pin-mark dim', title: t('row.pinned') }, icon('pin'))
+        : null,
       mutedIcon(info.id),
       o.withYou.includes(info.id)
         ? el('span', { class: 'with-you' }, t('orch.withYouBadge'))
@@ -950,6 +974,21 @@ function teamText(info: SessionInfo, folder: string | null, project: ProjectInfo
     teamTaskLine(task),
     under ? el('div', { class: `folder dim${role ? ' role' : ''}` }, under) : null,
   )
+}
+
+// A worker's name says where its tab is (decision 1.176). Judged by `backgroundable`, not by
+// `isWorker`: a worker "with you" keeps an ordinary tab that no close can hide, so a pin there
+// would claim a choice the human never made.
+function weightOf(sessionId: string, project: ProjectInfo): RowWeight | null {
+  const o = project.orchestration
+  const team = {
+    orchestrator: o.on ? o.orchestrator : null,
+    parents: project.parents,
+    roles: o.roles,
+  }
+  const worker = backgroundable(team, o.withYou, sessionId)
+  const tab = state?.tabs.find((tb) => tb.panes.some((p) => p.sessionId === sessionId))
+  return rowWeight(worker, tab ? (tab.place ?? 'ordinary') : null)
 }
 
 // `section` is the row's group name, or '' in "No group". `nested` and a row that is not dragged
@@ -1166,11 +1205,35 @@ function renderStrip(s: WindowState): void {
   plus.addEventListener('click', () => openAddSession('new'))
   const pill = el('span', { id: 'prefix-pill' }, 'PREFIX')
   pill.toggleAttribute('hidden', !prefixPill)
-  strip.replaceChildren(...nodes, plus, pill)
+  strip.replaceChildren(...nodes, plus, ...workerPills(s), pill)
   if (tabDrag) {
     strip.append(tabDrag.marker)
     strip.querySelector(`.tab[data-tab="${tabDrag.tabId}"]`)?.classList.add('dragging')
   }
+}
+
+// A worker waiting at a permission prompt out of sight: one pill each, in the tabs' order. In the
+// peek or pinned, its tab's dot says it.
+function workerPills(s: WindowState): HTMLElement[] {
+  const blocked = new Set(
+    agentStates?.panes.filter((p) => p.state === 'blocked').map((p) => p.paneId) ?? [],
+  )
+  return s.tabs
+    .filter(
+      (tab) =>
+        tab.project === s.shown &&
+        tab.place === 'background' &&
+        tab.panes.some((p) => blocked.has(p.id)),
+    )
+    .map((tab) => {
+      const node = el(
+        'button',
+        { class: 'blocked-pill worker-pill', 'data-tab': tab.id },
+        t('tab.blockedWorker', { name: tab.title }),
+      )
+      node.addEventListener('click', () => void act({ type: 'selectTab', tab: tab.id }))
+      return node
+    })
 }
 
 function shortTitle(title: string): string {
@@ -1311,12 +1374,21 @@ let rowDrag: { sessionId: string; marker: HTMLElement } | null = null
 
 function tabButton(tab: TabView, selected: boolean): HTMLElement {
   const close = el('span', { class: 'close', role: 'button', title: t('tab.close') }, icon('close'))
+  const peek = tab.place === 'peek'
+  const pin = peek
+    ? el('span', { class: 'pin', role: 'button', title: t('tab.pin') }, icon('pin'))
+    : null
   const node = el(
     'button',
-    { class: `tab${selected ? ' selected' : ''}`, 'data-tab': tab.id, title: tab.tooltip },
+    {
+      class: `tab${selected ? ' selected' : ''}${peek ? ' peek' : ''}`,
+      'data-tab': tab.id,
+      title: tab.tooltip,
+    },
     tabDot(tab),
     el('span', { class: 'title' }, shortTitle(tab.title)),
     tabRing(tab),
+    pin,
     close,
     tab.groupColor ? groupLine(tab.groupColor) : null,
   )
@@ -1324,6 +1396,11 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
     event.stopPropagation()
     void closeTabAsking(tab.id)
   })
+  pin?.addEventListener('click', (event) => {
+    event.stopPropagation()
+    void act({ type: 'pinTab', tab: tab.id })
+  })
+  if (peek) node.addEventListener('dblclick', () => void act({ type: 'pinTab', tab: tab.id }))
   dragToReorder({
     node,
     id: tab.id,
@@ -1332,7 +1409,7 @@ function tabButton(tab: TabView, selected: boolean): HTMLElement {
     idOf: (item) => item.dataset.tab,
     axis: 'x',
     markerClass: 'tab-marker',
-    ignore: '.close',
+    ignore: '.close, .pin',
     started: (drag) => {
       tabDrag = drag ? { tabId: tab.id, marker: drag.marker } : null
     },

@@ -531,6 +531,11 @@ html.classic #tab-strip {
   background: var(--accent);
   color: var(--bg);
 }
+/* The peek (decision 1.176): one worker shown until the next is; its pin keeps it. */
+.tab.peek .title {
+  font-style: italic;
+  font-weight: 400;
+}
 html.classic .tab {
   background: transparent;
   color: var(--fg);
@@ -544,7 +549,8 @@ html.classic .tab.selected {
 html.classic .tab.selected .title {
   opacity: 1;
 }
-.tab .close {
+.tab .close,
+.tab .pin {
   padding: 2px;
   margin-right: -4px;
   border-radius: 50%;
@@ -552,11 +558,11 @@ html.classic .tab.selected .title {
   line-height: 0;
   cursor: pointer;
 }
-.tab .close:hover {
+.tab .close:hover,
+.tab .pin:hover {
   opacity: 1;
   background: color-mix(in srgb, currentColor 15%, transparent);
 }
-
 /* ---------------------------------------------------------------- tab content */
 #tab-content {
   flex: 1;
@@ -1048,6 +1054,25 @@ html.classic .drawer-hide {
 #prefix-pill[hidden] {
   display: none;
 }
+.tab .pin + .close {
+  margin-left: -4px;
+}
+/* A background worker waiting at a permission prompt, at the strip's right end. */
+.worker-pill {
+  flex: none;
+  align-self: center;
+  margin-left: auto;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.worker-pill + .worker-pill {
+  margin-left: 4px;
+}
+.worker-pill ~ #prefix-pill {
+  margin-left: 6px;
+}
 .mono-block {
   font-family: monospace;
   text-align: left;
@@ -1522,11 +1547,22 @@ select option {
   margin-right: 4px;
   flex: none;
 }
-.row .muted-icon {
+.row .muted-icon,
+.row .pin-mark {
   margin-left: 6px;
   vertical-align: -1px;
 }
-.row .muted-icon svg {
+/* A worker's name: bold only while it has a tab in the strip (decision 1.176). */
+.row .name.weight-background,
+.row .name.weight-none,
+.row .name.weight-peek {
+  font-weight: 400;
+}
+.row .name.weight-peek {
+  font-style: italic;
+}
+.row .muted-icon svg,
+.row .pin-mark svg {
   display: inline-block;
 }
 .row .with-you {

@@ -5,9 +5,11 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { _electron, type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { endSessions, type LaunchedApp, launchApp, terminalText } from './app'
-import { prepare, SESSION } from './fixtures'
+import { catppuccin, prepare, SESSION } from './fixtures'
 
 const CLIENT_WORK = 'aaaaaaaaaaaa'
+// A worker of the orchestrator's that is not running: no tab at all.
+const HELPER = 'd4e5f6a7-1111-4222-8333-444455556666'
 
 interface TabState {
   readonly id: string
@@ -16,7 +18,7 @@ interface TabState {
   readonly panes: readonly { readonly sessionId: string | null }[]
 }
 
-async function open(): Promise<{
+async function open(options: { readonly helper?: boolean } = {}): Promise<{
   launched: LaunchedApp
   page: Page
   home: string
@@ -28,21 +30,18 @@ async function open(): Promise<{
       home = dirs.home
       const env = prepare(dirs)
       const work = join(dirs.home, 'work')
-      writeFileSync(
-        join(
-          dirs.home,
-          '.claude',
-          'projects',
-          work.replace(/[^A-Za-z0-9]/g, '-'),
-          `${SESSION}.jsonl`,
-        ),
-        `${[
-          { type: 'custom-title', customTitle: 'api' },
-          { type: 'user', cwd: work, message: { content: 'fix the login bug' } },
-        ]
-          .map((l) => JSON.stringify(l))
-          .join('\n')}\n`,
-      )
+      const transcript = (id: string, name: string) =>
+        writeFileSync(
+          join(dirs.home, '.claude', 'projects', work.replace(/[^A-Za-z0-9]/g, '-'), `${id}.jsonl`),
+          `${[
+            { type: 'custom-title', customTitle: name },
+            { type: 'user', cwd: work, message: { content: 'fix the login bug' } },
+          ]
+            .map((l) => JSON.stringify(l))
+            .join('\n')}\n`,
+        )
+      transcript(SESSION, 'api')
+      if (options.helper) transcript(HELPER, 'helper')
       writeFileSync(
         join(dirs.root, 'config', 'menkar', 'projects.json'),
         JSON.stringify({
@@ -52,8 +51,9 @@ async function open(): Promise<{
             {
               id: CLIENT_WORK,
               name: 'Client work',
-              members: [SESSION],
+              members: options.helper ? [SESSION, HELPER] : [SESSION],
               groups: [{ name: 'pair', color: '#5ec4b6', members: [SESSION] }],
+              ...(options.helper ? { parents: { [HELPER]: SESSION } } : {}),
               orchestration: { on: true, orchestrator: SESSION },
               orchestrator_open: true,
             },
@@ -230,5 +230,162 @@ test('a relaunch reopens a background worker in the background, running with its
       await next.close().catch(() => undefined)
     }
     await launched.close().catch(() => undefined)
+  }
+})
+
+const setScheme = async (page: Page, scheme: 'dark' | 'light') => {
+  await page.evaluate(
+    async ([s, theme]) => {
+      const prefs = (
+        globalThis as unknown as {
+          menkar: { preferences: { set(k: string, v: string): Promise<unknown> } }
+        }
+      ).menkar.preferences
+      await prefs.set('color_scheme', s)
+      await prefs.set('terminal_theme', theme)
+    },
+    [scheme, catppuccin(scheme)] as const,
+  )
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.style.colorScheme))
+    .toBe(scheme)
+}
+
+// Each state in both schemes, into the project's files folder when the run has one.
+async function shots(page: Page, name: string): Promise<void> {
+  const files = process.env.MENKAR_FILES
+  if (!files) return
+  for (const scheme of ['dark', 'light'] as const) {
+    await setScheme(page, scheme)
+    await page.screenshot({ path: join(files, `menkar-t95-41-b5-${name}-${scheme}.png`) })
+  }
+  await setScheme(page, 'dark')
+}
+
+// How a row's name or a tab's title is drawn: its weight and whether it is italic.
+const looks = (node: ReturnType<Page['locator']>) =>
+  node.evaluate((n) => {
+    const style = getComputedStyle(n)
+    return `${style.fontWeight === '700' ? 'bold' : 'regular'}${style.fontStyle === 'italic' ? ' italic' : ''}`
+  })
+
+test('the looks (decision 1.176): rows by weight, the italic peek with its pin, the toast once, the permission pill, and a worker that stops being backgroundable (screenshots)', async () => {
+  const { launched, page, home, argLines } = await open({ helper: true })
+  try {
+    const { worker } = await startWorker(page, home, argLines)
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 1 added.')
+    await page.keyboard.type('WORKT')
+    await said(page, 'TOOL start_session: Started "client-work-t1"')
+    await expect.poll(() => argLines().length).toBe(3)
+    const second = /--session-id (\S+)/.exec(argLines()[2] ?? '')?.[1] ?? ''
+    const nameOf = (id: string) => page.locator(`.row[data-session="${id}"] .name`)
+    const rowOf = (id: string) => page.locator(`.row[data-session="${id}"]`)
+    const peek = () => strip(page).last()
+
+    // Every worker regular: two in the background, one with no tab; the orchestrator as before.
+    await expect.poll(() => placeOf(page, second)).toBe('background')
+    await expect.poll(() => looks(nameOf(worker))).toBe('regular')
+    expect(await looks(nameOf(second))).toBe('regular')
+    // A worker with no tab is among the orchestrator's earlier children.
+    await page.locator('.earlier-row').click()
+    expect(await looks(nameOf(HELPER))).toBe('regular')
+    expect(await looks(nameOf(SESSION))).toBe('bold')
+    await expect(page.locator('.row .pin-mark')).toHaveCount(0)
+    await shots(page, 'background')
+
+    // A click: the peek, italic in the strip and in the list, with its pin button.
+    await rowOf(worker).click()
+    await expect(strip(page)).toHaveCount(2)
+    await expect(peek()).toHaveClass(/peek/)
+    expect(await looks(peek().locator('.title'))).toBe('regular italic')
+    await expect(peek().locator('.pin')).toHaveAttribute('title', 'Pin tab (or double-click it)')
+    await expect.poll(() => looks(nameOf(worker))).toBe('regular italic')
+    await shots(page, 'peek')
+
+    // A click on another worker replaces the peek; the first goes back to the background.
+    await rowOf(second).click()
+    await expect(strip(page)).toHaveCount(2)
+    await expect(peek()).toHaveText(/client-work-t1/)
+    expect(await placeOf(page, worker)).toBe('background')
+    await expect.poll(() => looks(nameOf(worker))).toBe('regular')
+    expect(await looks(nameOf(second))).toBe('regular italic')
+
+    // The pin button: an ordinary tab, bold, no pin button; its row bold with the pin.
+    await peek().locator('.pin').click()
+    await expect.poll(() => placeOf(page, second)).toBe('ordinary')
+    await expect(peek()).not.toHaveClass(/peek/)
+    await expect(peek().locator('.pin')).toHaveCount(0)
+    expect(await looks(peek().locator('.title'))).toBe('bold')
+    await expect.poll(() => looks(nameOf(second))).toBe('bold')
+    await expect(rowOf(second).locator('.pin-mark')).toHaveAttribute('title', 'Pinned tab')
+
+    // A click on the other worker: the peek after the pinned tab; a double-click on it pins it.
+    await rowOf(worker).click()
+    await expect(strip(page)).toHaveCount(3)
+    await expect(peek()).toHaveClass(/peek/)
+    await shots(page, 'pinned-and-peek')
+    await peek().dblclick()
+    await expect.poll(() => placeOf(page, worker)).toBe('ordinary')
+    await expect(rowOf(worker).locator('.pin-mark')).toHaveCount(1)
+
+    // The first close into the background: a toast whose Show peeks it; the second, none.
+    await peek().locator('.close').click()
+    const toast = page.locator('.toast', { hasText: 'worker keeps running in the background' })
+    await expect(toast).toHaveCount(1)
+    await shots(page, 'toast')
+    await toast.locator('.toast-action', { hasText: 'Show' }).click()
+    await expect.poll(() => placeOf(page, worker)).toBe('peek')
+    await expect(toast).toHaveCount(0)
+    await peek().locator('.close').click()
+    await expect.poll(() => placeOf(page, worker)).toBe('background')
+    // Counted once, not polled: a toast leaves by itself after a few seconds.
+    await page.waitForTimeout(500)
+    expect(await page.locator('.toast', { hasText: 'keeps running' }).count()).toBe(0)
+
+    // Take control in the peek: still selected, an ordinary tab, no longer italic.
+    await rowOf(worker).click()
+    await expect.poll(() => placeOf(page, worker)).toBe('peek')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await expect.poll(() => placeOf(page, worker)).toBe('ordinary')
+    await expect(peek()).toHaveClass(/selected/)
+    expect(await looks(peek().locator('.title'))).toBe('bold')
+
+    // At a permission prompt in the background: its pill, which opens it in the peek.
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('ASK')
+    await expect(page.locator('.xterm-rows:visible')).toContainText('Do you want to proceed?')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', {
+        hasText: 'Back to reporting to the orchestrator',
+      })
+      .click()
+    await peek().locator('.close').click()
+    await expect.poll(() => placeOf(page, worker)).toBe('background')
+    const pill = page.locator('#tab-strip .worker-pill')
+    await expect(pill).toHaveText('worker · permission', { timeout: 15_000 })
+    await shots(page, 'pill')
+    await pill.click()
+    await expect.poll(() => placeOf(page, worker)).toBe('peek')
+    await expect(peek()).toHaveClass(/selected/)
+    await expect(pill).toHaveCount(0)
+
+    // With you from a background worker's row menu: an ordinary tab, not selected.
+    await strip(page).nth(1).locator('.close').click()
+    await expect.poll(() => placeOf(page, second)).toBe('background')
+    await rowOf(second).locator('.more').click()
+    await page
+      .locator('.menu-item')
+      .filter({ hasText: /With you$/ })
+      .click()
+    await expect.poll(() => placeOf(page, second)).toBe('ordinary')
+    const tab = strip(page).filter({ hasText: 'client-work-t1' })
+    await expect(tab).not.toHaveClass(/selected/)
+    expect(await looks(tab.locator('.title'))).toBe('bold')
+  } finally {
+    await launched.close()
   }
 })

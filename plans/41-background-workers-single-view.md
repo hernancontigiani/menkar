@@ -716,3 +716,71 @@ green on this block's tree; **test integrity red by design**: 15 `expect(` lines
 the switch, Work's consultant rows and the 6-task limit are gone, listed in
 `$MENKAR_FILES/menkar-t88-41-b4-removed-expects.txt`, for a person to read. Output in
 `$MENKAR_FILES/menkar-t88-41-b4-ci.log`.
+
+### Block 5 — `menkar-t95` (task 95), 2026-11-18
+
+**Built** (1.176's looks, from task 59's approved mock-ups):
+
+- **`rowWeight`'s `worker` is `backgroundable`, not `isWorker`** (block 2 left it open): a worker
+  "with you" keeps an ordinary tab no close can hide, so under `isWorker` its row would read bold +
+  pin, claiming a pin the human never made; under `backgroundable` it is drawn as before (Q5), as
+  1.176 lists "with you" sessions beside the orchestrator and consultants.
+- **New `src/core/orchestration/team.ts`** (Node-free: `WorkerTeam`, `isWorker`, `backgroundable`),
+  re-exported by `workers.ts` so no caller changed — `set`'s pick (B) over a second copy of the
+  rule in the renderer, like P0's `details.ts`/`raw.ts`. `workers.ts` pulls Node into the
+  renderer's compile (`projects/orchestration`, `parents` → `model.ts`, `tasks.ts`); `team.ts`
+  types `parents` as the record itself because even a type import of `parents.ts` brings
+  `model.ts` into the renderer's program.
+- `src/renderer/app.ts`:
+  - `act` is now a function: when a result carries `backgrounded.first`, the toast
+    "‹first name› keeps running in the background" with Show; Show finds that name among the
+    background tabs' sessions and sends `selectSessionTab`. In `act`, so every close (×, middle
+    click, Close, Close others/all, `Ctrl+B x` from `keys.ts`) shows it without a second caller.
+  - `tabButton`: a peek gets the `peek` class (italic, regular) and a `.pin` button (`icon('pin')`,
+    `tab.pin`) left of × → `pinTab`; a double-click on a peek → `pinTab`. The pin is `.pin`, not
+    `.close`, so the existing `.close` locators stay unique; the drag ignores both.
+  - `workerPills`: one `button.blocked-pill.worker-pill` per tab of the shown project with
+    `place === 'background'` and a pane whose state is `blocked`, in the tabs' order (D6, Q6),
+    "‹tab title› · permission", before `#prefix-pill`; a click → `selectTab` (main's `select`, so
+    the peek).
+  - `teamText`: the `.name` gets `weight-‹pinned|background|peek|none›` from `weightOf` (the
+    session's tab in `state.tabs`: `place`, `'ordinary'`, or none), and a pinned one a
+    `.pin-mark` (`row.pinned`). Mode off: rows untouched (they never reach `teamText`).
+- `src/renderer/style.css`: `.tab.peek .title` italic 400; `.tab .pin` styled as `.close`;
+  `.worker-pill` (pushed right, `margin-left: auto`, `#prefix-pill` after it at 6 px);
+  `.row .name.weight-{background,none,peek}` 400, `weight-peek` italic; `.pin-mark` beside the
+  muted icon. Placed so Biome's `noDescendingSpecificity` count stays at the tree's 11.
+- `src/renderer/dom.ts` (granted by `set`): one `pin` path, the mock-up's glyph.
+- i18n, both catalogs, as the plan proposed: `tab.pin`, `tab.blockedWorker`, `row.pinned`,
+  `toast.background` (Spanish for `set` to check).
+- `e2e/background-workers.spec.ts`: `open({ helper })` seeds a stopped worker (parent the
+  orchestrator); a new test "the looks": two background workers (SPAWN1, WORKT) and the stopped
+  one regular, the orchestrator bold; a row click → italic peek with its pin button, the row
+  italic; a click on the other worker replaces the peek; the pin button → bold tab without pin,
+  the row bold + `.pin-mark`; the tab's double-click pins; the toast once with Show peeking it,
+  none on the second close; Take control in the peek → still selected, bold; ASK, hand back, ×
+  → the pill, which peeks it and goes; ⋮ With you on a background worker → an ordinary tab, not
+  selected. Screenshots in both schemes.
+
+**Deviations from the block's e2e list**: "a parked worker regular" is tested as a stopped worker
+with no tab — the same `'none'` weight; parking in the stand-in needs Take control, which makes
+the worker "with you". "Take control from a background worker's row menu" is ⋮ **With you**:
+the row menu has no Take control item, and both set the same mark (`setWithYou`).
+
+**Seen red**: the new test before the code (rows not regular); then, injected, rebuilt and
+reverted: the toast on every close (caught only after the toast check became a single count —
+`toHaveCount(0)` retried until the toast expired by itself), pills for every placed tab, the peek
+row not italic.
+
+**Not done here**: the docs and agent-facing texts (block 6).
+
+**Checks**: `npm run ui-check` green (385 passed), output in
+`$MENKAR_FILES/menkar-t95-41-b5-ui-check.log`; screenshots
+`menkar-t95-41-b5-{background,peek,pinned-and-peek,toast,pill}-{dark,light}.png`.
+`npm run ci` (`$MENKAR_FILES/menkar-t95-41-b5-ci.log`): biome green (`--diagnostic-level=error`
+clean; `noDescendingSpecificity` in `style.css` at the tree's 11), tsc green; **vitest 2 red, both
+other sessions' work in the shared tree**: `tests/core/r10.test.ts` (tools/list changed by an
+uncommitted `protocol.ts` edit) and `tests/core/usage/export.test.ts` (plan 43); 1706 passed.
+The steps after vitest, run by hand (`$MENKAR_FILES/menkar-t95-41-b5-ci-rest.log`): i18n, test
+integrity, flaky and history green; code rules red only on `tests/core/usage/cli.test.ts:176–177`
+(`Date.now()`, plan 43's).

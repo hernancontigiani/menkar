@@ -1,8 +1,9 @@
 import type { Project } from '../projects/model'
 import { isCap, orchestrationInfo } from '../projects/orchestration'
-import { keptParents, type Parents } from '../projects/parents'
+import { keptParents } from '../projects/parents'
 import { waitsOnPr } from './taskState'
 import type { Task } from './tasks'
+import { isWorker, type WorkerTeam } from './team'
 
 // Per project, so two projects' `t42` never collide: cross-session messages go by name across the
 // whole machine.
@@ -34,16 +35,7 @@ export function startName(
 
 const NO_NAME = 'A name is needed to start a session: give name, or task.'
 
-// What decides whether Menkar may park, count or hide a session: only the orchestrator's own
-// children without a role label are workers. Experts, consultants (loose, no parent) and sessions
-// the human started are never parked, counted or hidden by Menkar.
-export interface WorkerTeam {
-  readonly orchestrator: string | null
-  readonly parents: Parents
-  readonly roles: Readonly<Record<string, string>>
-  // Absent: unlimited.
-  readonly cap?: number
-}
+export { backgroundable, isWorker, type WorkerTeam } from './team'
 
 // With the mode off nothing is a worker: off is the ordinary Menkar.
 export function workerTeam(p: Project): WorkerTeam {
@@ -63,16 +55,6 @@ export const startsWorker = (
   caller: string,
   placement: { readonly loose: boolean; readonly role: string },
 ): boolean => team.orchestrator === caller && !placement.loose && placement.role === ''
-
-export const isWorker = (team: WorkerTeam, id: string): boolean =>
-  team.orchestrator !== null &&
-  team.parents[id] === team.orchestrator &&
-  team.roles[id] === undefined
-
-// Whether a worker's tab may leave the strip (decision 1.176): a worker the human took "with you"
-// keeps an ordinary tab, like experts and every session that is not a worker.
-export const backgroundable = (team: WorkerTeam, withYou: readonly string[], id: string): boolean =>
-  isWorker(team, id) && !withYou.includes(id)
 
 // `running`: the sessions with a tab. Parked and stopped ones have none.
 export function runningWorkers(team: WorkerTeam, running: ReadonlySet<string>): number {
