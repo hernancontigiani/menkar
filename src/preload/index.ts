@@ -79,6 +79,11 @@ const api: MenkarApi = {
     setRetention: (on) => ipcRenderer.invoke('integrations:set-retention', { on }),
     onSection: (listener) => subscribe('settings:section', listener),
   },
+  agents: {
+    versions: () => ipcRenderer.invoke('agents:versions'),
+    hideVersion: (agent) => ipcRenderer.invoke('agents:hide-version', { agent }),
+    onVersions: (listener) => subscribe('agents:versions', listener),
+  },
   chat: {
     agents: () => ipcRenderer.invoke('chat:agents'),
     info: (chatId) => ipcRenderer.invoke('chat:info', { chatId }),

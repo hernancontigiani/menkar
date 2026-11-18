@@ -13,7 +13,12 @@ Marks:
   human's;
 - **read** means read in the docs, the changelog or the binary, not run.
 
-What Menkar tells the user about their installed version (1.179, part 2) is not built yet.
+**What the user sees** (1.179, part 2): Settings › About lists each agent's installed and
+validated version; a banner under the header says when the installed one is below Menkar's floor
+(red), or newer than validated by a patch (blue) or by a minor or major version (amber), until Hide
+for that version. A row's version here is the descriptor's `versions.validated`
+(`src/core/agents/<id>/descriptor.ts`), and a test keeps the two equal: a new row is a new release
+of Menkar.
 
 ## Claude Code — validated at 2.1.327 (2026-11-18), owner: `claude-cli`
 

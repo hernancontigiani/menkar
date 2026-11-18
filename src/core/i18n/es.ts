@@ -627,6 +627,27 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'about.legal': 'Legal',
   'about.license':
     'Este programa no tiene ninguna garantía. Consultá la Licencia Pública General de GNU, versión 3 o posterior, para más detalles.',
+  'about.agents': 'Agentes de código',
+  'about.agentsValidated': 'Validada: la versión con la que se probó Menkar antes de esta versión.',
+  'about.agentVersions': 'Instalada {installed} · validada {validated}',
+  'about.agentInstalled': 'Instalada {installed}',
+  'about.agentUnknown': 'Instalado, versión desconocida',
+  'about.agentNotInstalled': 'No instalado',
+  'about.agentOld': 'Demasiado viejo: actualizalo',
+  'about.agentOlder': 'Más vieja que la validada',
+  'about.agentValidated': 'Validada',
+  'about.agentNewer': 'Más nueva que la validada',
+  'about.agentMuchNewer': 'Mucho más nueva que la validada',
+  'about.agentNotValidated': 'Todavía sin validar',
+  'versions.old':
+    '{agent} {installed} es demasiado viejo para Menkar: necesita {floor} o posterior. Actualizá {agent}.',
+  'versions.newer':
+    '{agent} {installed} es más nuevo que la versión con la que se validó Menkar ({validated}). Pueden aparecer pequeñas diferencias hasta una actualización de Menkar.',
+  'versions.muchNewer':
+    '{agent} {installed} es mucho más nuevo que la versión con la que se validó Menkar ({validated}). Puede haber errores o regresiones; esperá una nueva versión de Menkar.',
+  'versions.details': 'Detalles',
+  'versions.hide': 'Ocultar',
+  'versions.hideTooltip': 'Oculto hasta la próxima versión de {agent}',
   'usage.today': 'Hoy',
   'usage.days7': '7 días',
   'usage.days30': '30 días',

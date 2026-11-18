@@ -344,6 +344,33 @@ details.expander > summary::-webkit-details-marker {
   padding: 0 12px 12px;
 }
 
+.agents-card {
+  margin-bottom: 16px;
+}
+
+.agents-title {
+  font-weight: 700;
+}
+
+.agent-standing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.agent-standing.warns {
+  color: var(--blue);
+}
+
+.agent-version[data-standing="old"] .agent-standing {
+  color: var(--red);
+}
+
+.agent-version[data-standing="muchNewer"] .agent-standing {
+  color: var(--yellow);
+}
+
 button.link {
   background: none;
   width: 100%;

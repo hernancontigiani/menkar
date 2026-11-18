@@ -1,4 +1,9 @@
 import { descriptorOf } from '../core/agents/descriptors'
+import {
+  type AgentVersionView,
+  type Standing,
+  bannerOf as versionBannerOf,
+} from '../core/agents/versions'
 import type { AgentStates } from '../core/agentstate/shown'
 import { faceBadge, groupState, rollup, type ShownState } from '../core/agentstate/shown'
 import { now } from '../core/clock'
@@ -81,6 +86,16 @@ export function setPrefixPill(shown: boolean): void {
 }
 let agentStates: AgentStates | null = null
 const liveReadings = new Map<string, Reading | null>()
+
+let agentVersions: readonly AgentVersionView[] = []
+window.menkar.agents.onVersions((views) => {
+  agentVersions = views
+  renderVersions()
+})
+void window.menkar.agents.versions().then((views) => {
+  agentVersions = views
+  renderVersions()
+})
 
 window.menkar.agentState.onChanged((states) => {
   agentStates = states
@@ -250,6 +265,7 @@ export function buildFrame(): void {
       { id: 'sidebar' },
       el('div', { class: 'sidebar-header' }, projectButton, settings),
       el('div', { id: 'away-side', class: 'away-banner', hidden: '' }),
+      el('div', { id: 'versions-side', class: 'away-banner versions-banner', hidden: '' }),
       el('div', { id: 'topics-section' }),
       el('div', { id: 'session-list' }),
       el('div', { id: 'files-section' }),
@@ -271,6 +287,7 @@ export function buildFrame(): void {
         el('div', { class: 'title' }, titleStar(), el('span', { class: 'title-text' }, appName())),
       ),
       awayBanner(),
+      versionsBanner(),
       ...boardFrame(),
       el('div', { id: 'tab-strip' }),
       el('div', { id: 'tab-content' }),
@@ -285,6 +302,7 @@ export function buildFrame(): void {
       if (target === header || target.closest('.title')) void act({ type: 'toggleMaximize' })
     })
   }
+  renderVersions()
 }
 
 export function toggleSidebar(): void {
@@ -401,6 +419,69 @@ function renderAway(s: WindowState): void {
     el('span', { class: 'presence-state' }, away ? t('presence.away') : t('presence.here')),
     el('span', { class: 'presence-action' }, away ? t('presence.back') : t('presence.setAway')),
   )
+}
+
+// An agent's installed version Menkar has something to say about: one strip under the away one,
+// coloured by how serious it is, until Hide for that version.
+let versionsShown: AgentVersionView | null = null
+const versionsSize = new ResizeObserver(() => {
+  const side = document.getElementById('versions-side')
+  const banner = document.getElementById('versions-banner')
+  if (side && banner) side.style.height = `${banner.offsetHeight}px`
+})
+
+function versionsBanner(): HTMLElement {
+  const details = el(
+    'button',
+    { class: 'bar-button', 'data-key': 'details' },
+    t('versions.details'),
+  )
+  details.addEventListener('click', () => void act({ type: 'openSettings', section: 'about' }))
+  const hide = el('button', { class: 'bar-button', 'data-key': 'hide' }, t('versions.hide'))
+  hide.addEventListener('click', () => {
+    if (versionsShown) void window.menkar.agents.hideVersion(versionsShown.agent)
+  })
+  const banner = el(
+    'div',
+    { id: 'versions-banner', class: 'away-banner versions-banner', role: 'status', hidden: '' },
+    icon('warning'),
+    el('span', { class: 'bar-text' }),
+    details,
+    hide,
+  )
+  versionsSize.observe(banner)
+  return banner
+}
+
+function versionsText(v: AgentVersionView, agent: string): string {
+  const params = {
+    agent,
+    installed: v.installed ?? '',
+    validated: v.validated ?? '',
+    floor: v.floor ?? '',
+  }
+  if (v.standing === 'old') return t('versions.old', params)
+  if (v.standing === 'muchNewer') return t('versions.muchNewer', params)
+  return t('versions.newer', params)
+}
+
+function renderVersions(): void {
+  const banner = document.getElementById('versions-banner')
+  const side = document.getElementById('versions-side')
+  if (!banner || !side) return
+  const shown = versionBannerOf(agentVersions)
+  versionsShown = shown
+  banner.hidden = !shown
+  side.hidden = !shown
+  if (!shown) return
+  const agent = translate(descriptorOf(shown.agent).label)
+  const standing: Standing = shown.standing
+  banner.dataset.standing = standing
+  side.dataset.standing = standing
+  banner.querySelector('.bar-text')?.replaceChildren(versionsText(shown, agent))
+  banner
+    .querySelector('[data-key=hide]')
+    ?.setAttribute('title', t('versions.hideTooltip', { agent }))
 }
 
 // The window buttons the system draws over the header take the header's colors and height: as

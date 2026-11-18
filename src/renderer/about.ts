@@ -1,10 +1,13 @@
+import { descriptorOf } from '../core/agents/descriptors'
+import type { AgentVersionView, Standing } from '../core/agents/versions'
 import { flavorFacts } from '../core/flavor'
+import type { Key } from '../core/i18n'
 import type { PreferencesInfo } from '../shared/ipc'
-import { el } from './dom'
-import { t } from './i18n'
+import { el, icon } from './dom'
+import { t, translate } from './i18n'
 
-// Settings' About section: Menkar's star, its name, its developer and version, then Details, the issue
-// tracker, Credits and Legal.
+// Settings' About section: Menkar's star, its name, its developer and version, the coding agents'
+// versions, then Details, the issue tracker, Credits and Legal.
 
 const STAR =
   '<svg viewBox="0 0 100 100" width="96" height="96" fill="currentColor" aria-hidden="true"><path d="M50 2 L56 44 L98 50 L56 56 L50 98 L44 56 L2 50 L44 44Z"/><path d="M50 22 L54 46 L78 50 L54 54 L50 78 L46 54 L22 50 L46 46Z" transform="rotate(45 50 50)"/></svg>'
@@ -32,6 +35,68 @@ function section(name: string, title: string, ...content: (HTMLElement | string)
   )
 }
 
+const STATES: Readonly<Record<Standing, Key | null>> = {
+  notInstalled: null,
+  unknown: null,
+  old: 'about.agentOld',
+  notValidated: 'about.agentNotValidated',
+  older: 'about.agentOlder',
+  validated: 'about.agentValidated',
+  newer: 'about.agentNewer',
+  muchNewer: 'about.agentMuchNewer',
+}
+// The ones the banner also tells: shown with its icon and colour.
+const WARNS: ReadonlySet<Standing> = new Set(['old', 'newer', 'muchNewer'])
+
+function versionLine(v: AgentVersionView): string {
+  if (v.standing === 'notInstalled') return t('about.agentNotInstalled')
+  if (v.installed === null) return t('about.agentUnknown')
+  if (v.validated === null) return t('about.agentInstalled', { installed: v.installed })
+  return t('about.agentVersions', { installed: v.installed, validated: v.validated })
+}
+
+function agentRow(v: AgentVersionView): HTMLElement {
+  const key = STATES[v.standing]
+  const warns = WARNS.has(v.standing)
+  return el(
+    'div',
+    { class: 'row agent-version', 'data-agent': v.agent, 'data-standing': v.standing },
+    el(
+      'div',
+      { class: 'row-text' },
+      el('div', { class: 'row-title' }, translate(descriptorOf(v.agent).label)),
+      el('div', { class: 'row-subtitle' }, versionLine(v)),
+    ),
+    key &&
+      el(
+        'span',
+        { class: warns ? 'agent-standing warns' : 'agent-standing dim' },
+        warns ? icon('warning') : null,
+        el('span', {}, translate(key)),
+      ),
+  )
+}
+
+// Filled once main has read the versions, and again whenever it reads them anew.
+function agentsCard(): HTMLElement {
+  const head = el(
+    'div',
+    { class: 'row' },
+    el(
+      'div',
+      { class: 'row-text' },
+      el('div', { class: 'row-title agents-title' }, t('about.agents')),
+      el('div', { class: 'row-subtitle' }, t('about.agentsValidated')),
+    ),
+  )
+  const card = el('div', { class: 'card agents-card', 'data-key': 'agents' }, head)
+  const fill = (views: readonly AgentVersionView[]) =>
+    card.replaceChildren(head, ...views.map(agentRow))
+  void window.menkar.agents.versions().then(fill)
+  window.menkar.agents.onVersions(fill)
+  return card
+}
+
 export function aboutSection(info: PreferencesInfo): HTMLElement {
   const prefs = window.menkar.preferences
   const logo = el('div', { class: 'about-logo' })
@@ -51,6 +116,7 @@ export function aboutSection(info: PreferencesInfo): HTMLElement {
     el('h1', { 'data-key': 'name' }, appName()),
     el('div', { class: 'dim', 'data-key': 'developer' }, DEVELOPER),
     el('span', { class: 'badge', 'data-key': 'version' }, info.version),
+    agentsCard(),
     el(
       'div',
       { class: 'card' },

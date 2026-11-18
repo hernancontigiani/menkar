@@ -2,6 +2,7 @@ import type { Key } from '../i18n'
 import { descriptor as claude } from './claude/descriptor'
 import { descriptor as cursor } from './cursor/descriptor'
 import type { AgentId } from './ids'
+import type { AgentVersions } from './versions'
 
 // What the renderer and the MCP server program may know of an agent: data, no Node.
 export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context'
@@ -32,6 +33,9 @@ export interface AgentDescriptor {
   readonly namedAtStart: boolean
   // In the order menus offer them; empty when the agent has no chat.
   readonly chat: readonly ChatVariant[]
+  // The version Menkar was tested with before this release, null until one is; and the oldest it
+  // can run, null when any runs.
+  readonly versions: AgentVersions
 }
 
 export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor }

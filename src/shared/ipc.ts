@@ -1,5 +1,7 @@
 // Every IPC channel and its payload, declared once and imported by main, preload and renderer.
 
+import type { AgentId } from '../core/agents/ids'
+import type { AgentVersionView } from '../core/agents/versions'
 import type { AgentStates } from '../core/agentstate/shown'
 import type { McpSection } from '../core/chat/mcp'
 import type { Reply } from '../core/chat/model'
@@ -94,6 +96,9 @@ export interface InvokeChannels {
   'chat:stop': { request: { chatId: string }; response: undefined }
   // The MCP servers browser (plan 14): ~/.claude.json read once, when it opens.
   'mcp:sections': { request: undefined; response: readonly McpSection[] }
+  // Each agent's installed version against the validated one; Hide for the installed version.
+  'agents:versions': { request: undefined; response: readonly AgentVersionView[] }
+  'agents:hide-version': { request: { agent: AgentId }; response: readonly AgentVersionView[] }
   // The Usage window (plan 12): a pass, then the period's figures, for the opener window's project
   // unless every project is asked for.
   'usage:view': { request: { which: UsageWhich; allProjects: boolean }; response: UsageView }
@@ -188,6 +193,8 @@ export interface EventChannels {
   'settings:section': SettingsSection
   // A session's context reading changed (null: no reading, no ring).
   'context:reading': { readonly sessionId: string; readonly reading: Reading | null }
+  // The agents' versions were read again, or a banner was hidden: to every window.
+  'agents:versions': readonly AgentVersionView[]
 }
 
 export type InvokeChannel = keyof InvokeChannels
@@ -262,6 +269,11 @@ export interface MenkarApi {
     stop(chatId: string): Promise<void>
     onEvent(listener: (event: EventChannels['chat:event']) => void): () => void
     mcpSections(): Promise<readonly McpSection[]>
+  }
+  readonly agents: {
+    versions(): Promise<readonly AgentVersionView[]>
+    hideVersion(agent: AgentId): Promise<readonly AgentVersionView[]>
+    onVersions(listener: (views: readonly AgentVersionView[]) => void): () => void
   }
   readonly usage: {
     view(which: UsageWhich, allProjects: boolean): Promise<UsageView>

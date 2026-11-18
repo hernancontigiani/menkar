@@ -26,4 +26,5 @@ export const descriptor: AgentDescriptor = {
       mode: 'trustedAutoRun',
     },
   ],
+  versions: { validated: null, floor: null },
 }

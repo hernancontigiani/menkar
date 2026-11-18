@@ -12,6 +12,7 @@ import { settingsOf } from '../core/settings'
 import { loadState } from '../core/state'
 import type { InvokeChannel, InvokeChannels, SendChannel, SendChannels } from '../shared/ipc'
 import { importActivity, recordPresent, startActivity } from './activity'
+import { startAgentVersions } from './agent-versions'
 import { startAgentState } from './agentstate'
 import { closeAllChats, registerChatIpc } from './chat'
 import { classifyAfterUsagePass, registerClassifierIpc } from './classifier'
@@ -130,6 +131,7 @@ async function start(): Promise<void> {
   registerClassifierIpc()
   registerPreferencesIpc()
   registerChatIpc()
+  startAgentVersions()
   app.on('will-quit', () => closeAllChats())
   // The activity journal goes into the history after each pass, on start and hourly, never beside
   // one: both open the history, and the first open after an upgrade migrates it.

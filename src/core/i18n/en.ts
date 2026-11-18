@@ -618,6 +618,27 @@ export const en = {
   'about.legal': 'Legal',
   'about.license':
     'This program comes with absolutely no warranty. See the GNU General Public License, version 3 or later, for details.',
+  'about.agents': 'Coding agents',
+  'about.agentsValidated': 'Validated: the version Menkar was tested with before this release.',
+  'about.agentVersions': 'Installed {installed} · validated {validated}',
+  'about.agentInstalled': 'Installed {installed}',
+  'about.agentUnknown': 'Installed, version unknown',
+  'about.agentNotInstalled': 'Not installed',
+  'about.agentOld': 'Too old: update it',
+  'about.agentOlder': 'Older than validated',
+  'about.agentValidated': 'Validated',
+  'about.agentNewer': 'Newer than validated',
+  'about.agentMuchNewer': 'Much newer than validated',
+  'about.agentNotValidated': 'Not validated yet',
+  'versions.old':
+    '{agent} {installed} is too old for Menkar: it needs {floor} or later. Update {agent}.',
+  'versions.newer':
+    '{agent} {installed} is newer than the version Menkar was validated with ({validated}). Small differences may show until a Menkar update.',
+  'versions.muchNewer':
+    '{agent} {installed} is much newer than the version Menkar was validated with ({validated}). Expect bugs or regressions; wait for a Menkar release.',
+  'versions.details': 'Details',
+  'versions.hide': 'Hide',
+  'versions.hideTooltip': 'Hidden until the next {agent} version',
   'usage.today': 'Today',
   'usage.days7': '7 days',
   'usage.days30': '30 days',

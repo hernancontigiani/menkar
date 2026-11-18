@@ -76,6 +76,9 @@ are shaped this way.
   classifier's IPC (`docs/classifier.md`).
 - **About** opens its two links (website, issues) only on a click, through `app:open-link`, which
   knows those two addresses and no other.
+  Its "Coding agents" card lists every agent Menkar can run, with its installed and validated
+  version and its standing, from `agents:versions` (`src/main/agent-versions.ts`,
+  `docs/agent-versions.md`); it fills again whenever main reads the versions anew.
 - **The Usage window** asks `usage:view` for a period. Main runs a pass on the same one-at-a-time
   runner as the hourly pass, then builds the Totals and one report per bar in the usage query worker
   (`src/main/usage-query-worker.ts`). The chart's series, axis and labels are computed in core

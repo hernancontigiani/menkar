@@ -2195,6 +2195,32 @@ button.team-heading.folded::before {
 #away-back:hover {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
+/* An agent's version: the away strip's shape, red below the floor, amber for a large jump, blue
+   for a small one. */
+.versions-banner {
+  --standing: var(--blue);
+  background: color-mix(in srgb, var(--standing) 24%, var(--bg));
+}
+.versions-banner[data-standing="old"] {
+  --standing: var(--red);
+}
+.versions-banner[data-standing="muchNewer"] {
+  --standing: var(--yellow);
+}
+.away-banner.versions-banner .icon {
+  color: var(--standing);
+}
+.versions-banner .bar-button {
+  font-weight: 700;
+  padding: 1px 10px;
+  border-radius: var(--control-radius);
+  border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  background: transparent;
+  color: var(--fg);
+}
+.versions-banner .bar-button:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
 /* The human's presence at the sidebar's foot, like a chat app's status; a click toggles it. */
 #presence-chip {
   display: flex;
