@@ -305,7 +305,8 @@ more tasks created than the short term can take. Long to review: reviews to spee
 **Recorded since 2026-11-18** (decision 1.180): each task's state changes, with whom a wait or a
 review waits on, go into the usage history's `task_states` (`docs/usage.md`, "The human's activity
 and the task flow"), and the tasks open at the first start that records are a baseline. **Not
-built: the reading and the view** — time per state over 7 and 30 days, per whom it waits on.
+built: the view** — time per state over 7 and 30 days, per whom it waits on (the reading is
+`src/core/usage/flow.ts`).
 
 **Trigger:** fired — wanted before the first release (1.156, 1.180). First question: where the
 view sits, from mock-ups the human picks.

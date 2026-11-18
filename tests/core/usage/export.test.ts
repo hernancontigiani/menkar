@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { batchPath } from '../../../src/core/usage/activity'
 import { runUsageCli } from '../../../src/core/usage/cli'
-import { ACTIVITY_EXPORT_KEYS, EXPORT_KEYS } from '../../../src/core/usage/export'
+import { ACTIVITY_EXPORT_KEYS, EXPORT_KEYS, TASK_EXPORT_KEYS } from '../../../src/core/usage/export'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { midnight } from '../../../src/core/usage/periods'
 import { buildReport } from '../../../src/core/usage/report'
@@ -360,9 +360,99 @@ describe('menkar usage export', () => {
 
   test("the documentation's activity table names exactly the activity row's keys, in order", () => {
     const doc = readFileSync('docs/usage.md', 'utf8')
-    const section = doc.slice(doc.indexOf('### Activity rows'))
+    const section = doc.slice(doc.indexOf('### Activity rows'), doc.indexOf('### Task rows'))
     const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
     expect(documented.length).toBeGreaterThan(0)
     expect(documented).toEqual([...ACTIVITY_EXPORT_KEYS])
+  })
+
+  // Q4 (a): a task's states are their own kind of row; whom it waits on is a kind and an id or a
+  // number, never the text typed.
+  test('--rows tasks writes one row per task state in the range, with exactly the documented keys', () => {
+    const dirs = usageDirs('export-tasks')
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    const epoch = (time: string) => new Date(at(time)).getTime() / 1000
+    const events = [
+      {
+        id: 'k0',
+        at: epoch('09:00:00') - 86_400,
+        kind: 'task_state',
+        projectId: 'p',
+        task: 1,
+        state: 'queued',
+      },
+      {
+        id: 'k1',
+        at: epoch('10:00:00'),
+        kind: 'task_state',
+        projectId: 'p',
+        task: 1,
+        state: 'waiting',
+        waitKind: 'session',
+        waitRef: 's1',
+        assignee: 's2',
+        baseline: true,
+      },
+      {
+        id: 'k2',
+        at: epoch('10:05:00'),
+        kind: 'task_state',
+        projectId: 'q',
+        task: 4,
+        state: 'to review',
+        waitKind: 'pr-merge',
+      },
+      { id: 'k3', at: epoch('10:06:00'), kind: 'present', projectId: 'p' },
+    ]
+    writeFileSync(batchPath(dir, 0), events.map((e) => JSON.stringify({ v: 1, ...e })).join('\n'))
+    projects(dirs, [
+      { id: 'p', name: 'Client work', members: [] },
+      { id: 'q', name: 'Side', members: [] },
+    ])
+    const all = cli(dirs, ['--period', 'today', '--rows', 'tasks'])
+    expect(all.code).toBe(0)
+    const found = rows(all.out)
+    expect(found.map((r) => r.event)).toEqual(['k1', 'k2'])
+    for (const row of found) expect(Object.keys(row)).toEqual([...TASK_EXPORT_KEYS])
+    expect(found[0]).toEqual({
+      schema: 1,
+      event: 'k1',
+      at: '2026-11-08T10:00:00-03:00',
+      at_epoch: epoch('10:00:00'),
+      project: 'Client work',
+      task: 1,
+      state: 'waiting',
+      wait_kind: 'session',
+      wait_ref: 's1',
+      assignee: 's2',
+      baseline: true,
+    })
+    expect(found[1]).toMatchObject({
+      project: 'Side',
+      wait_ref: null,
+      assignee: null,
+      baseline: false,
+    })
+    const scoped = rows(
+      cli(dirs, ['--period', 'today', '--rows', 'tasks', '--project', 'Side']).out,
+    )
+    expect(scoped.map((r) => r.event)).toEqual(['k2'])
+    const csv = cli(dirs, ['--period', 'today', '--rows', 'tasks', '--format', 'csv']).out.split(
+      '\n',
+    )
+    expect(csv[0]).toBe(TASK_EXPORT_KEYS.join(','))
+    expect(csv[2]).toBe(
+      `1,k2,2026-11-08T10:05:00-03:00,${epoch('10:05:00')},Side,4,to review,pr-merge,,,false`,
+    )
+    expect(csv).toHaveLength(3)
+  })
+
+  test("the documentation's task table names exactly the task row's keys, in order", () => {
+    const doc = readFileSync('docs/usage.md', 'utf8')
+    const section = doc.slice(doc.indexOf('### Task rows'))
+    const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
+    expect(documented.length).toBeGreaterThan(0)
+    expect(documented).toEqual([...TASK_EXPORT_KEYS])
   })
 })

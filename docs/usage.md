@@ -150,8 +150,8 @@ stored.
 ## The human's activity and the task flow
 
 Decision 1.180 (2026-11-18): Menkar records, with no text, what the human does and how each task
-moves, so the data accumulates while its views are designed. **Recording and the bursts' reading
-are built; the task flow's reading and the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow
+moves, so the data accumulates while its views are designed. **Recording, the bursts' reading and
+the task flow's reading are built; the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow
 metrics").
 
 ### What is recorded
@@ -204,6 +204,22 @@ another while a burst still reaches the edge read, so a burst begun the evening 
 Scoped to a project, the bursts are made from that project's actions alone; away is every
 project's. The presence marks and the topics shape the bursts but are not counted: a day counts
 messages and prompts answered, outside away.
+
+### The task flow
+
+How long tasks spend in each state, read from their `task_state` rows (`src/core/usage/flow.ts`,
+`taskFlow`). A row holds until the task's next row, the last one until now: two rows in a row in
+the same state are one stretch, and a task done or dropped while waiting ends its wait there.
+`UsageHistory.taskStateRows` returns the rows of a range and each task's last row before it, which
+says what the task was in when the range began. For each of `queued`, `in progress`, `waiting` and
+`to review`, and within waiting and to review for each waiter as recorded (`topic`, `session`,
+`other`; `orchestrator`, `human`, `pr-approval`, `pr-merge`), the figure is the **median per task**
+of each task's whole time in it inside the range, however many stretches it took, and their
+**total**. A stretch crossing the range's start counts only its part inside, for the median as for
+the total, so both describe the same time. A task whose first row is a baseline inside the range
+is counted from the baseline and marked (`sinceBaseline`): what it did before recording began is
+not known; one whose baseline is before the range is whole inside it. Tasks are told apart by
+project and number; the types the page receives are in `nodes.ts`.
 
 ### Where each event is seen
 
@@ -284,7 +300,7 @@ answer such questions directly is deferred (`docs/NOT_BUILT_YET.md`).
 
 ```
 menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD --to YYYY-MM-DD]
-                    [--project NAME] [--rows turns|activity] [--format jsonl|csv] [--output FILE]
+                    [--project NAME] [--rows turns|activity|tasks] [--format jsonl|csv] [--output FILE]
 ```
 
 - **Which turns.** The period flags are the report's, parsed by the same code; 7 days by default.
@@ -359,3 +375,24 @@ checked against one's own data. Never in a row: any text, any path, a session's 
 | `blocked_seconds` | How long that pane was blocked, or `null` |
 
 The CSV has the same columns, `null` as an empty field.
+
+### Task rows
+
+`--rows tasks` writes the `task_state` rows instead, under the same rules as the activity rows,
+with its own `schema`, 1: one row per recorded state of a task, oldest first, in the range by its
+moment; `--project` keeps that project's tasks. Never in a row: the wait's text, the review's note,
+a title, a session's name.
+
+| Field | What it holds |
+|---|---|
+| `schema` | The row format's version: 1 |
+| `event` | The row's random id |
+| `at` | When the task entered the state, local time with its offset |
+| `at_epoch` | The same moment in Unix seconds |
+| `project` | The task's project by its current name |
+| `task` | The task's number in its project |
+| `state` | `queued`, `in progress`, `waiting`, `to review`, `done` or `dropped` |
+| `wait_kind` | Whom it waits on: `topic`, `session` or `other` while waiting; `orchestrator`, `human`, `pr-approval` or `pr-merge` to review; else `null` |
+| `wait_ref` | The topic's number or the session's id, or `null` |
+| `assignee` | The assignee's session id, or `null` |
+| `baseline` | Whether the row is the baseline of a task already open when recording began |

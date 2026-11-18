@@ -481,7 +481,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.cli.unknownProject':
     "--project: ningún proyecto se llama '{name}'; los proyectos son: {known}",
   'usage.cli.exportHelp':
-    'Una fila por turno, o por evento de actividad con --rows activity: líneas JSON (por defecto) o CSV. Un turno entra en el rango por el momento en que se abrió, un evento por su momento, y un turno se exporta entero, nunca recortado en los extremos del rango. Los campos se describen en la documentación de Menkar, en "Exporting for analysis".',
+    'Una fila por turno, por evento de actividad con --rows activity, o por estado de tarea con --rows tasks: líneas JSON (por defecto) o CSV. Un turno entra en el rango por el momento en que se abrió, un evento o un estado por su momento, y un turno se exporta entero, nunca recortado en los extremos del rango. Los campos se describen en la documentación de Menkar, en "Exporting for analysis".',
   'usage.cli.cannotOpen': 'No se pudo abrir el historial de uso.',
   'usage.cli.exec': 'ejec.',
   'usage.cli.blocked': 'bloqueado',

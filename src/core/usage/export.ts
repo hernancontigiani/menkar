@@ -119,7 +119,9 @@ export function exportRows(
   return rows
 }
 
-export function exportJsonl(rows: readonly (ExportRow | ActivityExportRow)[]): string {
+export function exportJsonl(
+  rows: readonly (ExportRow | ActivityExportRow | TaskExportRow)[],
+): string {
   return rows.map((row) => `${JSON.stringify(row)}\n`).join('')
 }
 
@@ -243,5 +245,58 @@ export function exportActivityRows(
 export function exportActivityCsv(rows: readonly ActivityExportRow[]): string {
   const lines = [ACTIVITY_EXPORT_KEYS.join(',')]
   for (const row of rows) lines.push(ACTIVITY_EXPORT_KEYS.map((k) => csvField(row[k])).join(','))
+  return `${lines.join('\n')}\n`
+}
+
+// `--rows tasks`: one row per recorded task state, with its own schema. Whom a task waits on is a
+// kind and a session's id or a topic's number, never the text typed.
+export const TASK_EXPORT_SCHEMA = 1
+
+export const TASK_EXPORT_KEYS = [
+  'schema',
+  'event',
+  'at',
+  'at_epoch',
+  'project',
+  'task',
+  'state',
+  'wait_kind',
+  'wait_ref',
+  'assignee',
+  'baseline',
+] as const
+
+export type TaskExportRow = {
+  readonly [K in (typeof TASK_EXPORT_KEYS)[number]]: string | number | boolean | null
+}
+
+export function exportTaskRows(
+  history: UsageHistory,
+  bounds: Bounds,
+  options: Pick<ExportOptions, 'projectNames' | 'project'>,
+): TaskExportRow[] {
+  const labels = history.projectLabels(options.projectNames ?? new Map())
+  for (const [id, name] of options.projectNames ?? []) if (!labels.has(id)) labels.set(id, name)
+  return history
+    .taskStateRows(bounds.start, bounds.end, options.project)
+    .filter((r) => r.at >= bounds.start)
+    .map((r) => ({
+      schema: TASK_EXPORT_SCHEMA,
+      event: r.id,
+      at: isoLocal(r.at),
+      at_epoch: r.at,
+      project: labels.get(r.projectId) ?? r.projectId,
+      task: r.task,
+      state: r.state,
+      wait_kind: r.waitKind,
+      wait_ref: r.waitRef,
+      assignee: r.assignee,
+      baseline: r.baseline,
+    }))
+}
+
+export function exportTaskCsv(rows: readonly TaskExportRow[]): string {
+  const lines = [TASK_EXPORT_KEYS.join(',')]
+  for (const row of rows) lines.push(TASK_EXPORT_KEYS.map((k) => csvField(row[k])).join(','))
   return `${lines.join('\n')}\n`
 }

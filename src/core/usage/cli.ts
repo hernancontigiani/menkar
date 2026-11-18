@@ -6,7 +6,15 @@ import { t } from '../i18n'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import { activityDir } from './activity'
-import { exportActivityCsv, exportActivityRows, exportCsv, exportJsonl, exportRows } from './export'
+import {
+  exportActivityCsv,
+  exportActivityRows,
+  exportCsv,
+  exportJsonl,
+  exportRows,
+  exportTaskCsv,
+  exportTaskRows,
+} from './export'
 import { type Memberships, NO_MEMBERSHIPS, UsageHistory } from './history'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
 import {
@@ -148,9 +156,9 @@ function checkPeriodFlags(values: ReadonlyMap<string, string>): void {
 
 const exportUsage = () =>
   `${flavorFacts().command} usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD` +
-  ' --to YYYY-MM-DD] [--project NAME] [--rows turns|activity] [--format jsonl|csv] [--output FILE]'
+  ' --to YYYY-MM-DD] [--project NAME] [--rows turns|activity|tasks] [--format jsonl|csv] [--output FILE]'
 const FORMATS = ['jsonl', 'csv'] as const
-const ROWS = ['turns', 'activity'] as const
+const ROWS = ['turns', 'activity', 'tasks'] as const
 
 export interface ExportArgs {
   readonly which: Which
@@ -392,6 +400,12 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
         ...(project === undefined ? {} : { project }),
       })
       text = args.format === 'csv' ? exportActivityCsv(rows) : exportJsonl(rows)
+    } else if (args.rows === 'tasks') {
+      const rows = exportTaskRows(history, bounds, {
+        projectNames: memberships.projectNames,
+        ...(project === undefined ? {} : { project }),
+      })
+      text = args.format === 'csv' ? exportTaskCsv(rows) : exportJsonl(rows)
     } else {
       const rows = exportRows(history, bounds, {
         projectNames: memberships.projectNames,

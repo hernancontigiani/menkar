@@ -831,3 +831,54 @@ Choices the plan left open (mine):
 
 Not reached yet: nothing calls `readActivity` / `activityDay` / `activityWeek` outside the tests;
 block 7 (the Usage window's Activity section, through `usage-query-worker.ts`) is their consumer.
+
+### Block 6 — `menkar-t109` (task 109), 2026-11-18
+
+Built: new `src/core/usage/flow.ts` — `TaskStateRow`, `FLOW_STATES`, `taskFlow(rows, bounds, now)`;
+`UsageHistory.taskStateRows(low, high, project?)` at the end of the class (reading only: the rows in
+range and each task's last row before `low`, one `UNION ALL`; no write path, schema or version
+change); in `nodes.ts` the types the page receives (`FlowState`, `FlowFigure`, `FlowStateFigure`,
+`TaskFlow`); `menkar usage export --rows tasks` (`export.ts`: `TASK_EXPORT_KEYS`,
+`exportTaskRows`, `exportTaskCsv`; `cli.ts`: the choice). Docs: `docs/usage.md` — a section "The
+task flow", the export's usage line, a "Task rows" key table at the end; the replaced lines in
+`docs/history/usage.md`; `usage.cli.exportHelp` in `src/core/i18n/{en,es}.ts` names `--rows tasks`.
+Granted by `set`, 2026-11-18: `docs/NOT_BUILT_YET.md`'s "Task flow metrics" now says only the view
+is unbuilt, its old line in `docs/history/NOT_BUILT_YET.md`.
+
+Tests: `tests/core/usage/flow.test.ts` (§2.10's flow row and its 10:00 clip, a baseline inside the
+window counted from it and marked and one before it not, two rows in the same state as one
+stretch, dropped and done ending a wait, the median per task across stretches, tasks told apart
+by project and rows out of order, nothing past now or the window, a review with no waiter, and on
+a real history the 30-day and 7-day windows with a task begun 40 days before, a task closed
+before the window, the project scope and the baseline flag read back); in
+`tests/core/usage/export.test.ts`, `--rows tasks`'s rows, scope, CSV and its documented table, and
+the activity table test now stops at "### Task rows". Seen red, each restored: the baseline mark
+ignoring the window, never marked, no clip at the window's start, the open stretch dropped, rows
+unsorted, the median per stretch, terminal rows counted, tasks merged across projects, the
+even median's upper middle, the last row before the window not read, `baseline` not read back;
+the export tests before the code.
+
+How §2.8 was read: it asks for "median and total per state and per whom it waits on" and says
+nothing per stretch, so the median is per task (a task's whole time in that state, or with that
+waiter, inside the window), as the task's brief proposed.
+
+Choices the plan left open (mine):
+- **The median is of the clipped part**, not the whole stretch: the view says "over 7 or 30 days",
+  the total must be the window's time, and a median of whole stretches would describe time the
+  total leaves out (a task queued for 40 days would show 40 days in a 7-day view). Both figures
+  then describe the same time.
+- **Marked** (`sinceBaseline`) only when the task's first row is a baseline **inside** the window:
+  one whose baseline is before the window start is known for the whole window, so marking it
+  would flag every old task forever.
+- A task counts in a state only with time in it inside the window; zero-length stretches (two rows
+  at one instant) count nothing. `done` and `dropped` count no time and end the stretch before them.
+- Waiters are grouped by `wait_kind` as stored (`session`, not each session's id); a waiting or to
+  review row with none recorded counts in its state under waiter `null`. Order: topic, session,
+  other, orchestrator, human, pr-approval, pr-merge, any other, then null.
+- An open stretch runs to `min(now, bounds.end)`; a window after now is empty.
+- The task export: keys `schema, event, at, at_epoch, project, task, state, wait_kind, wait_ref,
+  assignee, baseline` (`baseline` a boolean); in range by its `at`, so the last-row-before rows
+  the reading needs are not exported.
+
+Not reached yet: nothing calls `taskFlow` / `taskStateRows` outside the tests; block 7 (the Task
+flow section, through `usage-query-worker.ts`) is their consumer.

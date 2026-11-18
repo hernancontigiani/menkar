@@ -188,3 +188,32 @@ export interface ActivityWeek {
   readonly bounds: Bounds
   readonly days: readonly ActivityWeekDay[]
 }
+
+// The states a task spends time in; done and dropped end it.
+export type FlowState = 'queued' | 'in progress' | 'waiting' | 'to review'
+
+// Each task's whole time in a state inside the window: their median and their sum.
+export interface FlowFigure {
+  readonly tasks: number
+  readonly medianSeconds: number
+  readonly totalSeconds: number
+  // of those tasks, the ones counted from a baseline inside the window: their time before it was
+  // not recorded
+  readonly sinceBaseline: number
+}
+
+export interface FlowStateFigure {
+  readonly state: FlowState
+  readonly figure: FlowFigure
+  // whom it waits on, as recorded (`topic`, `session`, `other` for waiting; `orchestrator`,
+  // `human`, `pr-approval`, `pr-merge` for to review), null for a wait with none
+  readonly waiters: readonly { readonly waiter: string | null; readonly figure: FlowFigure }[]
+}
+
+export interface TaskFlow {
+  readonly bounds: Bounds
+  // the tasks with any time in a state inside the window
+  readonly tasks: number
+  readonly sinceBaseline: number
+  readonly states: readonly FlowStateFigure[]
+}

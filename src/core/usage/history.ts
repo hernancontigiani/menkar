@@ -8,6 +8,7 @@ import { appDirs } from '../paths'
 import { type ActivityImport, activityDir, batchFiles, importBatch } from './activity'
 import type { ActivityRows, PresenceKind } from './bursts'
 import type { HourTokens, UsageCache } from './cache'
+import type { TaskStateRow } from './flow'
 import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
 import { cost, shownModel } from './prices'
 
@@ -758,6 +759,36 @@ export class UsageHistory {
         task: r.task === null ? null : num(r, 'task'),
         next: nullableStr(r, 'next'),
         blockedSeconds: r.blocked_seconds === null ? null : num(r, 'blocked_seconds'),
+      }))
+  }
+
+  // The task states in [low, high), and each task's last one before `low`, which says what it was
+  // in when the range began; of `project` when given. Oldest first.
+  taskStateRows(low: number, high: number, project?: string): TaskStateRow[] {
+    const db = this.db
+    if (db === null) return []
+    const scoped = project === undefined ? '' : ' AND project_id = ?'
+    const columns = 'id, at, project_id, task, state, wait_kind, wait_ref, assignee, baseline'
+    const args = project === undefined ? [low, high, low] : [low, high, project, low, project]
+    return this.prepared(
+      db,
+      `SELECT ${columns} FROM task_states WHERE at >= ? AND at < ?${scoped}` +
+        ` UNION ALL SELECT ${columns} FROM task_states s WHERE at < ?${scoped}` +
+        ' AND id = (SELECT p.id FROM task_states p WHERE p.project_id = s.project_id' +
+        ' AND p.task = s.task AND p.at < ? ORDER BY p.at DESC, p.id DESC LIMIT 1)' +
+        ' ORDER BY at, id',
+    )
+      .all(...args, low)
+      .map((r) => ({
+        id: String(r.id),
+        at: num(r, 'at'),
+        projectId: String(r.project_id),
+        task: num(r, 'task'),
+        state: String(r.state),
+        waitKind: nullableStr(r, 'wait_kind'),
+        waitRef: nullableStr(r, 'wait_ref'),
+        assignee: nullableStr(r, 'assignee'),
+        baseline: num(r, 'baseline') !== 0,
       }))
   }
 }

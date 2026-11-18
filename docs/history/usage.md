@@ -88,3 +88,15 @@ the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow metrics").
 
 > Replaced 2026-11-18 (plan 43, block 5): `--rows turns|activity`.
                     [--project NAME] [--format jsonl|csv] [--output FILE]
+
+## The human's activity and the task flow
+
+> Replaced 2026-11-18 (plan 43, block 6): the task flow's reading is built in core.
+moves, so the data accumulates while its views are designed. **Recording and the bursts' reading
+are built; the task flow's reading and the views are not** (`docs/NOT_BUILT_YET.md`, "Task flow
+metrics").
+
+## The export
+
+> Replaced 2026-11-18 (plan 43, block 6): `--rows turns|activity|tasks`.
+                    [--project NAME] [--rows turns|activity] [--format jsonl|csv] [--output FILE]

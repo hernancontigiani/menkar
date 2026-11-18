@@ -182,3 +182,9 @@ not by the user. The levers left are posting fewer, coalesced events and deferri
 human's next prompt.
 **Trigger:** the human finds the current topic (1.169) and the skill's silence on events not
 enough. First question: what the separate interface shows, and where.
+
+## Task flow metrics: how long tasks spend in each state
+
+> Replaced 2026-11-18 (plan 43, block 6): the task flow's reading is built in core.
+and the task flow"), and the tasks open at the first start that records are a baseline. **Not
+built: the reading and the view** — time per state over 7 and 30 days, per whom it waits on.
