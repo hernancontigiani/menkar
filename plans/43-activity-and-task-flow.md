@@ -576,3 +576,61 @@ pick first where open.
   `spec.sessionId ?? spec.start.id`) is built right after plan 41's block 4 is committed, and the
   first .deb that records anything carries it, so no day is recorded without it. The
   `askPresence` call rides with plan 42's block 3.
+
+### Block 1 — `menkar-t92` (task 92), 2026-11-18
+
+Built: `HISTORY_VERSION = 4`; the two tables in `HISTORY_SCHEMA` and as migration `3:`, all
+`IF NOT EXISTS` (F2 (a)); `UsageHistory.importActivity(path)` and `importActivityDir(dir)` at the
+end of the class (null when the history is too new, every file left as it was); new
+`src/core/usage/activity.ts` with the line types, `parseJournalLine`, `importBatch(db, path)`,
+`activityDir()`, `batchPath(dir, ms)` and `batchFiles(dir)`. F3: `batchPath` names a batch
+`batch-‹fileStamp›-‹8 hex›.jsonl`, so block 3 must take its names from it. F4: a batch holding a
+line of a higher `v` is imported for what is known and renamed `newer-*`, which `batchFiles` does
+not list; the §2.10 row was built that way. N9: a batch missing on read or on delete is no error.
+Every new test was seen red against an injected defect (`INSERT` for `INSERT OR IGNORE`, the
+too-new check skipped, `IF NOT EXISTS` removed, migration 3 emptied, `newer` deleted, no random
+part in the name).
+
+Choices the plan left open (mine):
+- The journal line's keys are camelCase (`projectId`, `sessionId`, `blockedSeconds`, `waitKind`,
+  `waitRef`), and `baseline` is a boolean (`true`), not `1`: the line is a TypeScript object main
+  serializes; the columns stay snake_case. Block 3 writes `JournalEvent` as typed here.
+- `next` and `state` are stored as any non-empty string, not checked against the shown states or
+  `TASK_STATES`: the history copies what was journaled, as it copies what a transcript says.
+- A line of the current `v` with an unknown kind, or missing a required field, is `bad` (skipped,
+  counted, the file deleted); empty lines are not counted.
+- Not done (pre-existing, outside F2 (a)): two workers creating a **brand-new** history at once
+  still race on `HISTORY_SCHEMA`'s first `CREATE TABLE turns`; only the new tables are
+  `IF NOT EXISTS`.
+
+### Block 2 — `menkar-t93` (task 93), 2026-11-18
+
+Built: new `src/core/activity/record.ts` (`taskEvents(before, after, sessionIdByName)`,
+`topicEvents(before, after)`, the `waitKind` resolution) and `src/core/activity/prompts.ts`
+(`PromptTracker`: `change(paneId, sessionId, previous, next, atSeconds)` and `closed(paneId)`),
+both pure, importing only types from `../orchestration/*` and `../agentstate/shown`. Tests in
+`tests/core/activity/{record,prompts}.test.ts`: every §2.10 row of the two files, the permission
+row included (plan 42 block 1 is committed, `0762852`), and a parity test that each event,
+stamped with `v`, `id` and `at`, comes back whole from block 1's `parseJournalLine`. Each was seen
+red against an injected defect (16 in all: waits ignored, the typed name or the PR note stored,
+the assignee or step as a state, no permission skip, `open` recorded, a negative wait, `closed`
+not forgetting, only `blocked → working`, `blocked → blocked` restarting the wait, the resolver
+asked outside the project, the topic pattern, a new task ignored, the topic kinds swapped, a
+snake_case key).
+
+Choices the plan left open (mine):
+- The events carry neither `v`, `id`, `at` nor `baseline`: main stamps them (block 3). Their keys
+  are block 1's camelCase journal keys, so `{ v, id, at, ...event }` is a `JournalEvent`.
+- `sessionIdByName` takes `(projectId, name)`, so main can look only among that project's members
+  (F1).
+- A task absent before is recorded in its current state, whatever it is; a task that disappears
+  records nothing. A change of `waitingOn` while waiting, or of `reviewWait.on` while to review,
+  is recorded; a change of the review's note alone is not.
+- A topic absent before that is already `discussing` or `closed` is recorded; a topic raised
+  `open` is not. `closed → discussing` (reopened by `topic_update`) is a `topic_discussed`.
+- `blocked → blocked` keeps the first entry time; a pane leaving `blocked` with no entry (blocked
+  before the tracker existed) gives nothing.
+- Not done: N6 (a pane leaving `blocked` because its agent exited) is not filtered here; the
+  tracker has no way to know, and the review leaves it to main (`AgentPane.foreground()`).
+- `taskStateEvent` (one task's event) is kept private; block 3's baseline can be
+  `taskEvents(emptyTasks(), openOnly, …)` or export it then.
