@@ -528,6 +528,31 @@ test('TRM-52 a new session not yet joined, running at window close, is listed as
   }
 })
 
+test('a shell split running a program at window close is listed as a shell, not as an agent', async () => {
+  const { launched, page } = await shell()
+  try {
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('v')
+    await expect(page.locator('.xterm')).toHaveCount(2)
+    const split = page.locator('.xterm').nth(1).locator('.xterm-rows > div')
+    const splitText = async () => (await split.allTextContents()).join('\n')
+    await expect.poll(splitText).toMatch(/\$\s*$/m)
+    await page.keyboard.type("echo sl''eeping && sleep 600")
+    await page.keyboard.press('Enter')
+    await expect.poll(splitText).toMatch(/^sleeping\s*$/m)
+    await launched.app.evaluate(({ app, BrowserWindow }) => {
+      app.removeAllListeners('window-all-closed')
+      BrowserWindow.getAllWindows()[0]?.close()
+    })
+    await expect(page.locator('.dialog .heading')).toHaveText('Stop 1 running session(s)?')
+    await expect(page.locator('.dialog .body')).toHaveText(/^shell(?!,)/)
+    await expect(page.locator('.dialog .body')).not.toContainText('Claude Code')
+    await page.locator('.dialog button', { hasText: 'Stop and close' }).click()
+  } finally {
+    await launched.close()
+  }
+})
+
 const menuItems = (page: Page) =>
   page
     .locator('.popover .menu-item')
