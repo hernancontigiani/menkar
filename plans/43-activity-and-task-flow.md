@@ -564,3 +564,15 @@ pick first where open.
 ## 7. Execution log
 
 (Written by the executing sessions.)
+
+### Review (task 90, `prompts/reports/menkar-t90-review-43.md`): decided by `set`, 2026-11-18
+
+- **F1** (block 3's `wait_kind: session`): as the review proposes — `src/main/activity.ts` resolves
+  after the event's `at` through `sessions.list()`, among the task's project's members with that
+  exact name; several → the newest; none → `other`; a worker known only to `startedNames` records
+  `other`, written in the limits.
+- **F2, F3, F4** go with block 1, each as the review proposes.
+- **F5, F6:** block 3b is split. Its `startPane` call (`prompted_start`, at the launch plan, with
+  `spec.sessionId ?? spec.start.id`) is built right after plan 41's block 4 is committed, and the
+  first .deb that records anything carries it, so no day is recorded without it. The
+  `askPresence` call rides with plan 42's block 3.
