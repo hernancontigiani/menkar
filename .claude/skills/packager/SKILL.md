@@ -57,10 +57,14 @@ How the package is built and why: `docs/packaging.md`. What the human checks by 
 
 ## Shared resources
 
-- **The working tree.** A dirty tree packages other sessions' uncommitted work. Building from a
-  clean worktree of HEAD is the documented way out, but it has **never been run (unverified)**: it
-  needs `npm ci` and a native rebuild inside the worktree. Do it only when `set` says "HEAD only",
-  in your scratchpad, and remove the worktree after.
+- **The working tree.** A dirty tree packages other sessions' uncommitted work, and building in a
+  tree others run from rewrites their `out/` and `release/`. When `set` says "HEAD only" or the
+  tree is busy, build from a clean clone in your scratchpad (done for tasks 76 and 83):
+  `git clone --shared --no-checkout <repo> <dir>`, `git checkout <commit>`, `cp -a` the repo's
+  `node_modules` (check `package-lock.json` is the same at that commit), build, copy the `.deb` to
+  `~/git/menkar/release/` for `install-local.sh`, delete the clone. Its HEAD is detached, so the
+  daily package needs `MENKAR_FLAVOR_BUILD=menkar`, then confirm `out/main/flavor.txt`
+  (`docs/packaging.md` "The sandbox package"). The clone takes about 1.5 GB: check `df -h /`.
 - **`release/`** is shared: one build overwrites the last one.
 
 ## Talking to the human
@@ -109,6 +113,5 @@ name if you pass the context ring's red mark. Check your row in `list_sessions` 
 
 - "The release's log" (`docs/packaging.md` "Cutting a release", step 4): where the size and entry
   count are kept. Not defined; it is the human's to decide before the first tagged release.
-- The clean-worktree build of HEAD: unverified (see "Shared resources").
 
 What has not failed yet is what this role knows least.
