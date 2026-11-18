@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest'
 import type { Task } from '../../../src/core/orchestration/tasks'
 import {
   atCap,
+  backgroundable,
   capRefusal,
   capTool,
   hideOnClose,
@@ -198,5 +199,26 @@ describe('closing hides only the task worker', () => {
 
   test('an unassigned task hides nothing', () => {
     expect(hideOnClose(team, 'P', { number: 42 }, nameOf)).toBe(false)
+  })
+})
+
+describe('who goes to the background', () => {
+  // Decision 1.176 (Q2, the human, 2026-11-18): only workers (the orchestrator's children with no
+  // role) go to the background; one "with you" keeps an ordinary tab, experts keep theirs, and
+  // with the mode off nothing does.
+  const team: WorkerTeam = {
+    orchestrator: 'O',
+    parents: { W: 'O', Y: 'O', E: 'O' },
+    roles: { E: 'Fabric expert' },
+  }
+  test.each([
+    ['a worker', team, 'W', true],
+    ['a worker with you', team, 'Y', false],
+    ['an expert', team, 'E', false],
+    ['the orchestrator', team, 'O', false],
+    ['a session the human started', team, 'H', false],
+    ['a worker, with the mode off', { ...team, orchestrator: null }, 'W', false],
+  ])('%s → %s', (_what, t, id, expected) => {
+    expect(backgroundable(t, ['Y'], id)).toBe(expected)
   })
 })

@@ -2,7 +2,7 @@
 // first, then "Consultants" (decision 1.107), then "Others" with groups as today. A child sits under its
 // parent wherever the parent is; children without a tab fold into one "N earlier" row.
 import { describe, expect, test } from 'vitest'
-import { modeRows } from '../../../src/core/orchestration/rows'
+import { modeRows, rowWeight, tasksFolded } from '../../../src/core/orchestration/rows'
 import type { ProjectInfo } from '../../../src/core/projects/info'
 
 const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
@@ -235,5 +235,35 @@ describe('folding the Team view', () => {
       'E',
       'heading others collapsed',
     ])
+  })
+})
+
+describe('the tasks in the single view', () => {
+  // Decision 1.177: at most 3 tasks, the rest behind "See all (N) →".
+  test.each([
+    [8, 3, 5],
+    [3, 3, 0],
+    [0, 0, 0],
+  ])('%i open → %i rows, %i more', (open, rows, more) => {
+    const tasks = Array.from({ length: open }, (_, i) => i + 1)
+    const folded = tasksFolded(tasks)
+    expect(folded.rows).toEqual(tasks.slice(0, rows))
+    expect(folded.more).toBe(more)
+  })
+})
+
+describe("a row's weight", () => {
+  // Decision 1.176: a worker's name says where its tab is — bold with a pin when pinned, regular in
+  // the background, italic in the peek; regular with no tab at all (D5); rows of sessions that are
+  // not workers are drawn as before (Q5).
+  test.each([
+    [true, 'ordinary', 'pinned'],
+    [true, 'background', 'background'],
+    [true, 'peek', 'peek'],
+    [true, null, 'none'],
+    [false, 'ordinary', null],
+    [false, null, null],
+  ] as const)('worker %s, tab %s → %s', (worker, place, weight) => {
+    expect(rowWeight(worker, place)).toBe(weight)
   })
 })

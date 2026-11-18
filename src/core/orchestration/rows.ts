@@ -1,4 +1,5 @@
 import type { ProjectInfo } from '../projects/info'
+import type { TabPlace } from '../projects/place'
 
 // What the sidebar draws in the orchestration mode (decision 1.89), in order.
 export type ModeRow =
@@ -161,4 +162,23 @@ export function topicsFolded<T>(
 ): { readonly rows: readonly T[]; readonly more: number } {
   if (unfolded || shown.length <= TOPICS_SHOWN) return { rows: shown, more: 0 }
   return { rows: shown.slice(0, TOPICS_SHOWN), more: shown.length - TOPICS_SHOWN }
+}
+
+export const TASKS_SHOWN = 3
+
+export function tasksFolded<T>(open: readonly T[]): {
+  readonly rows: readonly T[]
+  readonly more: number
+} {
+  return { rows: open.slice(0, TASKS_SHOWN), more: Math.max(0, open.length - TASKS_SHOWN) }
+}
+
+export type RowWeight = 'pinned' | 'background' | 'peek' | 'none'
+
+// A worker's name says where its tab is; `null` leaves the row as it was drawn before, which is
+// every row that is not a worker's.
+export function rowWeight(worker: boolean, place: TabPlace | 'ordinary' | null): RowWeight | null {
+  if (!worker) return null
+  if (place === null) return 'none'
+  return place === 'ordinary' ? 'pinned' : place
 }

@@ -69,6 +69,11 @@ export const isWorker = (team: WorkerTeam, id: string): boolean =>
   team.parents[id] === team.orchestrator &&
   team.roles[id] === undefined
 
+// Whether a worker's tab may leave the strip (decision 1.176): a worker the human took "with you"
+// keeps an ordinary tab, like experts and every session that is not a worker.
+export const backgroundable = (team: WorkerTeam, withYou: readonly string[], id: string): boolean =>
+  isWorker(team, id) && !withYou.includes(id)
+
 // `running`: the sessions with a tab. Parked and stopped ones have none.
 export function runningWorkers(team: WorkerTeam, running: ReadonlySet<string>): number {
   let n = 0

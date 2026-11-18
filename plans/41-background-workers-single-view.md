@@ -540,3 +540,39 @@ each failed its tests (and the sweep, where it applies).
 
 **Checks**: `npm run ci` green (108 files, 1437 tests; biome, tsc, R10, code rules, i18n, test
 integrity, history), output in `$MENKAR_FILES/menkar-t78-41-b1-ci.log`.
+
+### Block 2 — `menkar-t82` (task 82), 2026-11-18
+
+**Built** (core only; nothing in main or the renderer calls it yet):
+
+- `src/core/orchestration/workers.ts`: `backgroundable(team: WorkerTeam, withYou: readonly
+  string[], id)` = `isWorker(team, id) && !withYou.includes(id)` (Q2). Mode off is covered by
+  `workerTeam` giving `orchestrator: null`. **My choice**: `withYou` is the array
+  `OrchestrationInfo.withYou` already carries (`ProjectInfo.orchestration.withYou`), not a set;
+  the tab count (one pane, by `tabPanes`) stays main's, combined with this in the `keep` predicate
+  block 1's `ordinaryUnless` takes.
+- `src/core/orchestration/rows.ts`, beside `TOPICS_SHOWN`/`topicsFolded`:
+  - `TASKS_SHOWN = 3`; `tasksFolded<T>(open: readonly T[])` → `{ rows, more }`, the first 3 and
+    the rest's count. **No `unfolded` argument** (unlike `topicsFolded`): the rest opens the Board,
+    as the plan says. The caller passes the tasks already in the order it shows them.
+  - `type RowWeight = 'pinned' | 'background' | 'peek' | 'none'` (exported, **my choice**, for
+    block 5's class mapping) and `rowWeight(worker: boolean, place: TabPlace | 'ordinary' | null)`
+    → `RowWeight | null`: not a worker → `null` whatever the place (Q5); `'ordinary'` → `'pinned'`;
+    `'background'`, `'peek'` as given; `null` (no tab) → `'none'`, drawn regular (D5). `worker`
+    is the caller's to compute — block 5 decides whether it is `isWorker` or `backgroundable`
+    (a worker "with you" has an ordinary tab and would read `'pinned'` under `isWorker`).
+- Tests: `tests/core/orchestration/workers.test.ts` "who goes to the background" (a worker, one
+  with you, an expert, the orchestrator, a session the human started, a worker with the mode
+  off); `tests/core/orchestration/rows.test.ts` "the tasks in the single view" (8 → 3 + 5,
+  3 → 3 + 0, 0 → 0 + 0) and "a row's weight" (one case per value, and a non-worker with and
+  without a tab → `null`).
+
+**Seen red**: six defects injected one at a time and reverted — `withYou` ignored, the role
+ignored, `TASKS_SHOWN = 6`, `more` negative, a non-worker given a weight, no tab drawn as
+pinned — each failed exactly one test.
+
+**Not done here**: `SHOWN_TASKS` in `src/renderer/work.ts` is untouched (block 4 removes it).
+
+**Checks**: `npm run ci` green (120 files, 1590 tests; biome with 23 warnings, none in these
+files; tsc, R10, code rules, i18n, test integrity, history), output in
+`$MENKAR_FILES/menkar-t82-41-b2-ci.log`.
