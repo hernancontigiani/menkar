@@ -1,0 +1,58 @@
+/* Task times: the flow's summary, its table of states and waiters, and the share bars. */
+.flow-summary {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.usage-row.flow-row {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.usage-row.flow-state {
+  min-height: 36px;
+}
+
+.usage-row.flow-state .name {
+  font-weight: bold;
+}
+
+.usage-row.flow-waiter {
+  min-height: 28px;
+  padding-left: 30px;
+}
+
+.flow-share {
+  flex: 0 0 80px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.flow-bar {
+  display: inline-block;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.flow-waiter .flow-bar {
+  height: 8px;
+  opacity: 0.7;
+}
+
+.flow-waiter .arrow {
+  flex: none;
+  width: 22px;
+}
+
+/* "Share of the time" wraps over the bars' column instead of narrowing the names. */
+.flow-heading {
+  align-items: flex-end;
+}
+
+.flow-heading .flow-share {
+  white-space: normal;
+  line-height: 1.2;
+}

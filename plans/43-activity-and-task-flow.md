@@ -1357,3 +1357,58 @@ Found, not changed: after `await usageRunner.request()`, a pass another ask star
 ask's `importActivity()` runs would open the history beside the import; the plan's ordering keeps
 each ask's import after its own pass, not after every later one.
 
+### Block 7c — `menkar-t113` (task 113), 2026-11-18
+
+Built: Your time's day and week in `src/renderer/usage-time.ts` and new `usage-time.css`, as block 7 describes, over 7a's readings and 7b's shell. Test: new `e2e/usage-time.spec.ts`.
+
+The seed is a history from yesterday and three days ago, at fixed local hours:
+- Shop: messages at 10:05–10:52 (six in hour 10), 13:05 and 14:09.
+- Blog: messages at 11:10 and 13:40.
+- Presence marks in Shop that join them, away 12:00–12:20, prompts answered at 11:15 and 13:20, and a lone mark at 18:30.
+- One message three days ago.
+
+The transcripts are in the temporary HOME, and the journal is in its data dir before launch.
+
+The spec checks:
+- **The week**: seven `[data-day]` rows, today's last, a Total. Yesterday's strip has 3 bursts and 1 away, with 8 messages. › is disabled on the current week.
+- **A click on yesterday's row**: Day on yesterday, with its name.
+- **The day**:
+  - The summary reads 3 burst(s), 8 messages sent, 2 prompts answered.
+  - 3 bands, one of them a tick, and 1 away. Hour 10 has 6 messages and hour 11 one prompt.
+  - 24 hours, and no "now" on a past day.
+- **The hover** (scoped): "start – end · 1.9h", "6 messages sent · 1 prompts answered", no project line. It hides when the mouse leaves.
+- **All projects**: 10 messages, and the hover reads "7 messages sent …" and "Shop 6 · Blog 1".
+- **The steps**: one day back is empty ("No activity on this day.", 0 burst(s)). The history's first day disables ‹. Three steps with › reach today, which disables › and draws "now".
+
+Seen red, each defect restored:
+- a row click opening the wrong day: failed on the day's name;
+- the per-project line dropped: failed on "Shop 6 · Blog 1";
+- the day's away not drawn: failed on the `[data-away]` count.
+
+Deviation from §2.10's row: it seeds "10:05–14:09 one burst, away 12:00–12:20". Away ends a burst (§2.5, the bursts' own test), so an away inside 10:05–14:09 makes two bursts: 10:05–11:58 and 12:21–14:09. The spec seeds and asserts two, plus a lone tick, so that the screen shows away ending a burst. Everything else in the row is asserted as written.
+
+Choices the plan left open (mine):
+- A band's label is the length drawn on this day (the clipped part). The hover gives the whole length and "… on this day".
+- Clock times in the hover use the app language's own conventions (`Intl` with `hour: '2-digit'`), so en-US reads "10:05 AM". The mock showed 24-hour times.
+- The week's name adds the year only when the week is not in this year, as the day's name does.
+- The week's columns have 8 px gaps and Prompts is 7ch wide, so the strips keep about 190 px beside "Messages sent", which is wider than the mock's "Messages".
+- A week row is `role="button"` with `tabindex="0"`, so Enter and Space open the day as a click does.
+- One hatch pattern (`#usage-time-hatch`) in an out-of-flow SVG serves every plot on the page, because an id belongs to the whole document.
+- Summary: "{n} burst(s)" counts ticks as bursts, as `ActivityDay.bursts` does.
+
+### Block 7d — `menkar-t114` (task 114), 2026-11-18
+
+Built:
+- Task times in `src/renderer/usage-tasks.ts` and the new `usage-tasks.css`:
+  - the summary;
+  - `flowTable`'s rows, with median, total and share;
+  - To review's four waiters always listed, empty ones dim with "—";
+  - Waiting and To review folding, kept for the window's life;
+  - the footer and the baseline's footnote with its date;
+  - the empty card per scope and period.
+
+Tests: new `e2e/usage-tasks.spec.ts` covers §2.10's "Task times" row, plus exact figures and the fold kept across periods, over a journal seeded at fixed local hours. Seen red, each restored: the median as the total, the empty text's scope, zero waiters hidden, the footnote dropped.
+
+Choices the plan left open (mine): an unknown waiter reads "on something else"; the empty sentence follows `view.scoped`; a state with no task is listed dim; the date is day and short month. "Share of the time" wraps over the mock's 80 px column.
+
+Found: in progress's median of 67.5 min reads "1.1h", because `formatDuration` switches to hours at 60 min. The spec's first expectation was wrong, not the code.
