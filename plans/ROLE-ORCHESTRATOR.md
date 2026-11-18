@@ -107,9 +107,11 @@ name is the declared one**, and asks for a rename if not.
   human changed, and the commit message says so. Stage by path; when two workers touched one file,
   stage only the hunks of the work you are committing (`git apply --cached` with a hunk-only patch).
   A decision the human made goes into `00-STATUS.md` §1 in the same commit.
-- **A build for the human to try**: ask `packager`, this repository's packaging expert (its skill
-  is `.claude/skills/packager/`), saying which tree state to package — the main tree as it is, or
-  HEAD only. It reports the Version and the install line, `~/git/menkar/install-local.sh`, which
+- **A build for the human to try**: first list for the human what goes in (committed since the
+  build they have installed, `dpkg-query -W menkar`) and what is still in flight, and wait for
+  their go: they may wait for a feature (the human, 2026-11-18). Then ask `packager`, this
+  repository's packaging expert (its skill is `.claude/skills/packager/`), saying which tree state
+  to package — the main tree as it is, or HEAD only. It reports the Version and the install line, `~/git/menkar/install-local.sh`, which
   the human runs in their own terminal, then restarts (2026-11-13).
 - **Specialists' skills** (`menkar:specialize`): review a new role skill yourself before the
   human's read, and give the human a short summary of its rules to accept (2026-11-13).
