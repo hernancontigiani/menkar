@@ -208,7 +208,7 @@
 | 1 | 38 — more coding agents: Codex, OpenCode, Cursor in the orchestration mode | Design approved, D1–D22 decided (1.137–1.143); its software architecture is plan 39 (row 2), being built phase by phase |
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` again, merging `main` in before each block; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |
 | 3 | 43 — the human's activity and the task flow metrics (1.180, 1.156) | **Built** (2026-11-18): recording (blocks 1–3c, in 0.1.0-347, checked by hand, task 104), the readings (5, 6) and the views (7a–7e, last e730062): the Usage window's left bar Spend / Your time / Task times (1.184, topics 62–64). **Next:** in the next .deb, the human's hand check; then `set` closes it (1.156 and 1.180's destinations, Q7 open) |
-| — | The next .deb | 0.1.0-347 installed 2026-11-18. Since then on main: no groups in the mode (1.183), a stuck worker's row (task 79), a shell named as a shell (task 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+| — | The next .deb | 0.1.0-368.gd57c2b82 installed 2026-11-18 (plan 43's views, 1.183, tasks 79 and 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
 
 ## 4. Next plan number
 

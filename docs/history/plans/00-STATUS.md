@@ -1645,3 +1645,7 @@ rewrite (the discuss post, the away and back post counts): read by a person, as 
 ## 2026-11-18 — plan 43's §3 row, before its views were built
 
 | 3 | 43 — the human's activity and the task flow metrics (1.180, 1.156) | **Recording built** (blocks 1–3c, shipped in 0.1.0-347) and checked by hand by the human (task 104, 5/5). Views placed by the human (1.184, topic 62): a left bar Usage / Activity / Task flow. **Next:** block 4b (the left bar's mock-up) and block 5 (bursts reading, core) in parallel; then 6, 7 |
+
+## 2026-11-18 — the next .deb's row, before 0.1.0-368
+
+| — | The next .deb | 0.1.0-347 installed 2026-11-18. Since then on main: no groups in the mode (1.183), a stuck worker's row (task 79), a shell named as a shell (task 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
