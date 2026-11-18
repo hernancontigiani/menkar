@@ -163,6 +163,51 @@ describe('the history file', () => {
     }
   })
 
+  // Version 4 adds the human's activity and the task flow beside the turns, touching none.
+  test('a version-3 history migrates to 4 keeping every turn, its new tables empty', () => {
+    const dirs = usageDirs('v3to4')
+    const fresh = new UsageHistory(join(dirs.root, 'fresh.sqlite'))
+    const schema3 = fresh.handle?.raw
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND tbl_name NOT IN ('activity', 'task_states')",
+      )
+      .all()
+      .map((r) => `${String(r.sql)};`)
+      .join('\n')
+    fresh.close()
+    const db = openDb(dirs.history)
+    db.raw.exec(schema3 ?? '')
+    const insert = db.raw.prepare(
+      "INSERT INTO turns VALUES (?, 's1', 'human', ?, NULL, NULL, NULL, 0)",
+    )
+    insert.run('t1', NOV_8.start + 100)
+    insert.run('t2', NOV_8.start + 200)
+    db.setUserVersion(3)
+    db.close()
+    const history = new UsageHistory(dirs.history)
+    expect(history.handle?.userVersion()).toBe(4)
+    expect(HISTORY_VERSION).toBe(4)
+    const count = (table: string) =>
+      history.handle?.raw.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n
+    expect(count('turns')).toBe(2)
+    expect(count('activity')).toBe(0)
+    expect(count('task_states')).toBe(0)
+    history.close()
+  })
+
+  // Two workers open the history at start-up: both may read version 3, and the second one's
+  // migration must not fail on the tables the first created.
+  test('a version-3 history that already holds the new tables still migrates', () => {
+    const dirs = usageDirs('v3race')
+    new UsageHistory(dirs.history).close()
+    const db = openDb(dirs.history)
+    db.setUserVersion(3)
+    db.close()
+    const history = new UsageHistory(dirs.history)
+    expect(history.handle?.userVersion()).toBe(4)
+    history.close()
+  })
+
   test('USG-35 a history at an older version is migrated in place, every row kept', () => {
     const dirs = usageDirs('usg35')
     const db = openDb(dirs.history)

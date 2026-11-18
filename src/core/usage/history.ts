@@ -5,6 +5,7 @@ import { fileStamp, now } from '../clock'
 import { type Db, openDb } from '../db'
 import { log } from '../log'
 import { appDirs } from '../paths'
+import { type ActivityImport, activityDir, batchFiles, importBatch } from './activity'
 import type { HourTokens, UsageCache } from './cache'
 import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
 import { cost, shownModel } from './prices'
@@ -13,8 +14,23 @@ export { addTokens, type Tokens, totalTokens, ZERO_TOKENS } from './nodes'
 
 // The one file whose loss loses what no transcript can rebuild: one row per turn, never pruned. A
 // file from a newer Menkar is left untouched; an unreadable one is moved aside, never deleted.
-export const HISTORY_VERSION = 3
+export const HISTORY_VERSION = 4
 export const BUSY_TIMEOUT_MS = 30_000
+
+const ACTIVITY_SCHEMA = `
+CREATE TABLE IF NOT EXISTS activity (
+  id TEXT PRIMARY KEY, at REAL NOT NULL, kind TEXT NOT NULL, project_id TEXT,
+  session_id TEXT, topic INTEGER, task INTEGER, next TEXT, blocked_seconds REAL
+);
+CREATE INDEX IF NOT EXISTS activity_time ON activity (at);
+CREATE TABLE IF NOT EXISTS task_states (
+  id TEXT PRIMARY KEY, at REAL NOT NULL, project_id TEXT NOT NULL, task INTEGER NOT NULL,
+  state TEXT NOT NULL, wait_kind TEXT, wait_ref TEXT, assignee TEXT,
+  baseline INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS task_states_task ON task_states (project_id, task, at);
+CREATE INDEX IF NOT EXISTS task_states_time ON task_states (at);
+`
 
 export const HISTORY_SCHEMA = `
 CREATE TABLE turns (
@@ -35,7 +51,7 @@ CREATE TABLE tokens (
 CREATE INDEX tokens_hour ON tokens (hour);
 CREATE TABLE names (session_id TEXT PRIMARY KEY, name TEXT NOT NULL, claude INTEGER NOT NULL);
 CREATE TABLE rederive (uuid TEXT PRIMARY KEY);
-`
+${ACTIVITY_SCHEMA}`
 
 // Each step takes a file from the version it is keyed by to the next.
 const MIGRATIONS: Readonly<Record<number, string>> = {
@@ -45,6 +61,8 @@ ALTER TABLE turns ADD COLUMN category_tries INTEGER NOT NULL DEFAULT 0;`,
   // which needs the cache and so runs in the pass, not here.
   2: `CREATE TABLE rederive (uuid TEXT PRIMARY KEY);
 INSERT INTO rederive SELECT uuid FROM turns;`,
+  // Two workers open the history at start-up and may both read version 3.
+  3: ACTIVITY_SCHEMA,
 }
 
 export function historyPath(): string {
@@ -648,6 +666,23 @@ export class UsageHistory {
   // For a test or a tool that must read the rows as stored.
   get handle(): Db | null {
     return this.db
+  }
+
+  // Null when the history is too new: the batch is left for a Menkar that can write it.
+  importActivity(path: string): ActivityImport | null {
+    return this.db === null ? null : importBatch(this.db, path)
+  }
+
+  importActivityDir(dir: string = activityDir()): ActivityImport | null {
+    if (this.db === null) return null
+    const total: ActivityImport = { imported: 0, skipped: 0, newer: 0 }
+    for (const path of batchFiles(dir)) {
+      const one = importBatch(this.db, path)
+      total.imported += one.imported
+      total.skipped += one.skipped
+      total.newer += one.newer
+    }
+    return total
   }
 }
 
