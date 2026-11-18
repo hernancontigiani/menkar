@@ -398,3 +398,9 @@ step segments, the note. The note line starts with what the task waits on, as in
   (`presencePost`) through `wakeSession` to each project's running orchestrator, minus the one
   that called `human_back` (`postRecipients`).
   Likewise for the one that called `human_away`.
+
+## The sidebar in the mode
+
+> Left on 2026-11-18: "Others" is one flat list with no group headings in the mode (decision 1.183, task 105).
+3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
+   drag order).

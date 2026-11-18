@@ -426,3 +426,12 @@ export function setBoard(
     }),
   }
 }
+
+// A session tab's group line: the colour its panes' group shares, and none in the orchestration
+// mode, whose tabs are told apart by their marks (decision 1.183).
+export function tabGroupColor(p: Project | undefined, panes: readonly string[]): string | null {
+  if (!p || orchestrationInfo(p).on) return null
+  const colors = panes.map((id) => p.groups.find((g) => g.members.includes(id))?.color ?? null)
+  const first = colors[0] ?? null
+  return first !== null && colors.every((c) => c === first) ? first : null
+}

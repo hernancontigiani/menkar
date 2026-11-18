@@ -1,5 +1,5 @@
 // The sidebar in the orchestration mode (decision 1.89, mock C1): the orchestrator and its children
-// first, then "Consultants" (decision 1.107), then "Others" with groups as today. A child sits under its
+// first, then "Consultants" (decision 1.107), then "Others", one flat list with no group headings (decision 1.183). A child sits under its
 // parent wherever the parent is; children without a tab fold into one "N earlier" row.
 import { describe, expect, test } from 'vitest'
 import { modeRows, rowWeight, tasksFolded } from '../../../src/core/orchestration/rows'
@@ -60,11 +60,20 @@ describe('the sidebar in the orchestration mode', () => {
       'heading consultants',
       'E',
       'heading others',
-      'group G',
+      'S',
       'G1',
       'G2',
-      'no group',
-      'S',
+    ])
+  })
+
+  test('Others has no group headings; each row keeps its group as its drag section (1.183)', () => {
+    const rows = modeRows(info(), view())
+    const others = rows.slice(rows.findIndex((r) => r.kind === 'heading' && r.heading === 'others'))
+    expect(others.some((r) => r.kind === 'group' || r.kind === 'noGroup')).toBe(false)
+    expect(others.flatMap((r) => (r.kind === 'session' ? [[r.id, r.section]] : []))).toEqual([
+      ['S', ''],
+      ['G1', 'G'],
+      ['G2', 'G'],
     ])
   })
 
@@ -83,11 +92,9 @@ describe('the sidebar in the orchestration mode', () => {
       'E',
       '  W3',
       'heading others',
-      'group G',
-      'G1',
-      'no group',
       'S',
       '  G2',
+      'G1',
     ])
   })
 
@@ -112,7 +119,7 @@ describe('the sidebar in the orchestration mode', () => {
     ])
   })
 
-  test('a collapsed group shows its heading alone; without an orchestrator or consultants, Others alone', () => {
+  test("a collapsed group's members still show in Others; without an orchestrator or consultants, Others alone", () => {
     const p = info({
       groups: [{ name: 'G', color: '#5ec4b6', members: ['G1', 'G2'], collapsed: true }],
       parents: {},
@@ -128,14 +135,14 @@ describe('the sidebar in the orchestration mode', () => {
     })
     expect(short(modeRows(p, view()))).toEqual([
       'heading others',
-      'group G collapsed',
-      'no group',
       'O',
       'W1',
       'W2',
       'W3',
       'E',
       'S',
+      'G1',
+      'G2',
     ])
   })
 
@@ -216,16 +223,14 @@ describe('folding the Team view', () => {
       '  W1',
       'heading consultants collapsed',
       'heading others',
-      'group G',
-      'G1',
-      'G2',
-      'no group',
       'W3',
       'S',
+      'G1',
+      'G2',
     ])
   })
 
-  test('Others folded: its heading alone, groups and loose rows hidden', () => {
+  test('Others folded: its heading alone, its rows hidden', () => {
     expect(short(modeRows(info({ othersCollapsed: true }), view()))).toEqual([
       'O',
       '  W1',

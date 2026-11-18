@@ -19,10 +19,11 @@ import {
   setTopicsCollapsed,
   setWithYou,
   setWorkersCap,
+  tabGroupColor,
 } from '../../../src/core/projects/orchestration'
 import { followNewId, followResume } from '../../../src/core/projects/rekey'
 import { parseProjects, serializeProjects } from '../../../src/core/projects/store'
-import { project, projects } from '../../factories/projects'
+import { group, project, projects } from '../../factories/projects'
 
 const work = () => projects([project('p1', 'Work', ['O', 'A', 'B', 'X'])])
 const roundTrip = (state: ReturnType<typeof work>) =>
@@ -411,5 +412,32 @@ describe('the stored skills', () => {
     expect(second.ok && second.projects.projects[0]?.orchestration?.skills).toEqual({
       X: [{ name: 'c' }],
     })
+  })
+})
+
+describe("a session tab's group line", () => {
+  const grouped = () =>
+    projects([
+      project(
+        'p1',
+        'Work',
+        ['A', 'B', 'C'],
+        [group('g', ['A', 'B'], '#111111'), group('h', ['C'], '#222222')],
+      ),
+    ])
+
+  test("the panes' shared group colour, with the mode off", () => {
+    const p = grouped().projects[0]
+    expect(tabGroupColor(p, ['A'])).toBe('#111111')
+    expect(tabGroupColor(p, ['A', 'B'])).toBe('#111111')
+    expect(tabGroupColor(p, ['A', 'C'])).toBeNull()
+    expect(tabGroupColor(p, [])).toBeNull()
+    expect(tabGroupColor(undefined, ['A'])).toBeNull()
+  })
+
+  test('none with the mode on, and back when it goes off (1.183)', () => {
+    const on = setMode(grouped(), 'p1', true)
+    expect(tabGroupColor(on.projects[0], ['A'])).toBeNull()
+    expect(tabGroupColor(setMode(on, 'p1', false).projects[0], ['A'])).toBe('#111111')
   })
 })

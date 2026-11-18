@@ -56,6 +56,36 @@ async function startWithFirst(page: Page): Promise<void> {
   await expect(card(page)).toHaveCount(0)
 }
 
+// 1.183: in the orchestration mode a session tab carries no group line and "Others" no group
+// heading; off, both are back, the group kept.
+test("a grouped session: its tab's group line and its group's heading with the mode off, neither with the mode on", async () => {
+  const launched = await launchApp({ prepare: (dirs) => clientWork(dirs, { tabs: [['login']] }) })
+  const page = launched.window
+  try {
+    const line = page.locator('.tab .group-line')
+    const heading = page.locator('#session-list .group-heading', { hasText: 'api pair' })
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect(line).toHaveCount(1)
+    await expect(heading).toHaveCount(1)
+    await shot(page, 'group-line-mode-off.png')
+    const toggle = page.locator('#orchestration-switch')
+    await toggle.click()
+    await startWithFirst(page)
+    await expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect(line).toHaveCount(0)
+    await expect(page.locator(`.row[data-session="${CLIENT.api}"]`)).toBeVisible()
+    await expect(heading).toHaveCount(0)
+    await shot(page, 'group-line-mode-on.png')
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-checked', 'false')
+    await expect(line).toHaveCount(1)
+    await expect(heading).toHaveCount(1)
+  } finally {
+    await launched.close()
+  }
+})
+
 test('the header switch: the first time the card, then on and off for the shown project; its word is "Orchestration" (screenshots)', async () => {
   const { launched, page } = await launch()
   try {
@@ -508,7 +538,6 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
         'Consultants',
         '★fabric',
         'Others',
-        '●writing',
         'noteswith you',
         'Done today · 0',
       ])
@@ -1283,7 +1312,6 @@ test('a parked worker: "Parked · 1" under the orchestrator, folded; unfolded, t
         'Consultants',
         '★fabric',
         'Others',
-        '●writing',
         'noteswith you',
         'Done today · 0',
       ])

@@ -174,6 +174,7 @@ import {
   setTopicsCollapsed,
   setWithYou,
   setWorkersCap,
+  tabGroupColor,
 } from '../core/projects/orchestration'
 import { clearParent, keptParents, setParent } from '../core/projects/parents'
 import {
@@ -456,12 +457,10 @@ function tabView(tab: Tab): TabView {
         folder: basename(info?.cwd ?? info?.folder ?? ''),
         id: first,
       })
-    const project = projects.projects.find((p) => p.id === tab.project)
-    const colors = tab.panes.map(
-      (id) => project?.groups.find((g) => g.members.includes(id))?.color ?? null,
+    groupColor = tabGroupColor(
+      projects.projects.find((p) => p.id === tab.project),
+      tab.panes,
     )
-    if (colors.length > 0 && colors.every((c) => c !== null && c === colors[0]))
-      groupColor = colors[0] ?? null
   }
   const orientation =
     tab.kind === 'session' ? tab.orientation : (tabOrientation.get(tab.id) ?? 'horizontal')

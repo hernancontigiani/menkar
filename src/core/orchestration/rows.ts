@@ -135,20 +135,10 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
     ...(project.othersCollapsed ? { collapsed: true as const } : {}),
   })
   if (project.othersCollapsed) return rows
-  const othersSet = new Set(others)
-  const grouped = new Set<string>()
-  let groupsShown = 0
-  for (const g of project.groups) {
-    const members = g.members.filter((id) => othersSet.has(id))
-    for (const id of members) grouped.add(id)
-    if (members.length === 0) continue
-    groupsShown += 1
-    rows.push({ kind: 'group', name: g.name, collapsed: g.collapsed === true })
-    if (!g.collapsed) for (const id of members) rows.push(...withChildren(id, g.name))
-  }
-  const loose = others.filter((id) => !grouped.has(id))
-  if (loose.length > 0 && groupsShown > 0) rows.push({ kind: 'noGroup' })
-  for (const id of loose) rows.push(...withChildren(id, ''))
+  // One flat list, no group headings (decision 1.183); the groups are kept for the mode off. Each
+  // row keeps its group as its drag section, so a drop still reorders only within its group.
+  const groupOf = (id: string) => project.groups.find((g) => g.members.includes(id))?.name ?? ''
+  for (const id of others) rows.push(...withChildren(id, groupOf(id)))
   return rows
 }
 

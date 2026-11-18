@@ -202,8 +202,9 @@ nested under it with its label; a **generalist** worker, under it without a labe
    `modeRows`).
 2. **"Consultants"**: every session with a role label that is not the orchestrator and not
    nested, each with its own children as in 1.
-3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
-   drag order).
+3. **"Others"**: the rest, one flat list in the project's order with no group headings (decision
+   1.183, the human, 2026-11-18); the groups are kept for the mode off, and a drag still reorders
+   a row only within its group.
 
 A child sits under the top row of its line of parents, wherever that row is, at one level of indent.
 Rows of parts 1 and 2 and nested rows are not dragged. Hidden rows and earlier conversations stay
@@ -219,6 +220,10 @@ when it is not running. "A worker" here is a session that may go to the backgrou
 (`backgroundable`, `src/core/orchestration/team.ts`): every other row is drawn as before. A click on
 a worker's row shows it in the peek; a double-click, or ⋮ Open, pins it as an ordinary tab. How the
 peek and the background work is `docs/window.md`'s "Background workers and the peek tab".
+
+**No group line on a session tab** (decision 1.183, the human, 2026-11-18; `tabGroupColor` in
+`src/core/projects/orchestration.ts`): with the mode on, a tab is not underlined in its group's
+colour; with it off, it is.
 
 **The Topics section** sits after the tiles, collapsible like Files
 and saved (`topics_collapsed`), headed "Awaiting you · N", so it says whose turn it is (1.146, the
