@@ -15,18 +15,18 @@ Marks:
 
 What Menkar tells the user about their installed version (1.179, part 2) is not built yet.
 
-## Claude Code — validated at 2.1.326 (2026-11-17), owner: `claude-cli`
+## Claude Code — validated at 2.1.327 (2026-11-18), owner: `claude-cli`
 
 | What | State | Where it is described |
 |---|---|---|
 | Start and resume: `--session-id`, `-n`, `--model`, `--resume`, `--fork-session`, `--remote-control`; the first prompt before `--add-dir`/`--mcp-config` (both swallow later words) | measured 2.1.322; the swallowing fixed upstream in 2.1.326 (read, changelog) | `docs/session-control.md`, `docs/window.md` |
-| `--add-dir` stops every start at a trust dialog whose default is "No, exit"; the files folder goes as `permissions.additionalDirectories` in `--settings` instead | measured 2.1.326 | `docs/project-files.md` |
+| `--add-dir` stops every start at a trust dialog whose default is "No, exit"; the files folder goes as `permissions.additionalDirectories` in `--settings` instead | measured 2.1.327 (probes: `add-dir.mjs`) | `docs/project-files.md` |
 | `--settings`: statusline, SessionStart and Stop hooks, `permissions.allow: ["mcp__menkar"]`, `crossSessionInbound: "accept"` | measured 2.1.322 | `docs/context.md` |
 | `--mcp-config` inline adds Menkar's server beside the user's; `mcpServers` in `--settings` is ignored; the server inherits the pty's env | measured 2.1.322 | `docs/session-control.md` |
 | `--plugin-dir` loads the skills plugin as `menkar:<folder>`, no trust prompt | measured 2.1.322 | `docs/session-control.md` |
-| The team block by `--append-system-prompt-file`: in the first request's system prompt, read once at start, kept on `--resume` until a compaction unless `--system-prompt-snapshot off`; a missing file exits at once | measured 2.1.325 | `docs/session-control.md` |
-| The state screens: the permission card ("Do you want to proceed?"), auto mode's consecutive-block card with its 2-minute countdown (after which Claude Code blocks the call itself and the turn ends), the footer's background pills | measured 2.1.326 (cards); pills read 2.1.323 | `docs/agent-state.md` |
-| Waking: a post to the registry's messaging socket wakes an idle session, leaves a permission card untouched, is held in bypass mode without `crossSessionInbound: "accept"`; identical repeats are dropped | measured 2.1.322 (2.1.325 for the transcript record) | `docs/session-control.md` |
+| The team block by `--append-system-prompt-file`: in the first request's system prompt, read once at start, kept on `--resume` until a compaction unless `--system-prompt-snapshot off`; a missing file exits at once | first request and missing file measured 2.1.327 (`team-block.mjs`); resume and snapshot measured 2.1.325 | `docs/session-control.md` |
+| The state screens: the permission card ("Do you want to proceed?"), auto mode's consecutive-block card with its 2-minute countdown (after which Claude Code blocks the call itself and the turn ends), the footer's background pills | cards measured 2.1.327 (`permission.mjs`), the countdown's expiry 2.1.326; pills read 2.1.323 | `docs/agent-state.md` |
+| Waking: a post to the registry's messaging socket wakes an idle session, leaves a permission card untouched, is held in bypass mode without `crossSessionInbound: "accept"`; identical repeats are dropped | idle wake and transcript record measured 2.1.327 (`wake.mjs`); the card and bypass cases 2.1.322 | `docs/session-control.md` |
 | `SendMessage` between sessions: the child's transcript records `to` as typed and `toolUseResult {success, message, display, msg_id}`; the receiver's record carries `origin.kind: "peer"` | read 2.1.325 (own transcript) | `docs/session-control.md` |
 | Transcripts: `~/.claude/projects/<cwd>/<id>.jsonl`; the registry `~/.claude/sessions/<pid>.json` | measured 2.1.322; registry shape read 2.1.319 | `docs/sessions.md` |
 | Project skills load from the start folder and every parent (outside git too), the nearest wins | measured 2.1.325 | — |
