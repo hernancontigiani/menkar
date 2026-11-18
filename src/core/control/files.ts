@@ -32,6 +32,8 @@ export const TOOL_NAMES = [
   'park_session',
   'resume_session',
   'trash_files',
+  'ask',
+  'inbox',
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 

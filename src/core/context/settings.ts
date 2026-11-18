@@ -3,7 +3,14 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { agentPaths, projectSessionSettingsFile } from '../paths'
 import { contextFiles } from './files'
-import { SESSION_START_ARG, START_SOURCES, TURN_END_ARG } from './statusline'
+import {
+  inboxDir,
+  PANE_ENV,
+  PROMPT_SUBMIT_ARG,
+  SESSION_START_ARG,
+  START_SOURCES,
+  TURN_END_ARG,
+} from './statusline'
 
 export type JsonValue =
   | null
@@ -56,6 +63,16 @@ export function turnEndHooks(statuslineCommand: string): JsonObject {
   return {
     Stop: [{ hooks: [{ type: 'command', command: `${statuslineCommand} ${TURN_END_ARG}` }] }],
   }
+}
+
+// The orchestrator's prompt hook. Declared in every session Menkar starts, since the orchestrator's
+// mark can move to a running session, which never re-reads its settings; the guard keeps a pane
+// with no inbox file from starting the program at all. Past its timeout Claude Code lets the prompt
+// go on and discards the output.
+export function promptSubmitHooks(statuslineCommand: string): JsonObject {
+  const file = `${shellQuote(inboxDir())}/"$${PANE_ENV}".json`
+  const command = `if [ -f ${file} ]; then ${statuslineCommand} ${PROMPT_SUBMIT_ARG}; fi`
+  return { UserPromptSubmit: [{ hooks: [{ type: 'command', command, timeout: 5 }] }] }
 }
 
 async function readText(path: string): Promise<string | null> {
@@ -136,7 +153,11 @@ export async function writeSessionSettings(
   const allow = ['mcp__menkar']
   const base: JsonObject = {
     statusLine: statuslineObject(statuslineCommand),
-    hooks: { ...sessionStartHooks(statuslineCommand), ...turnEndHooks(statuslineCommand) },
+    hooks: {
+      ...sessionStartHooks(statuslineCommand),
+      ...turnEndHooks(statuslineCommand),
+      ...promptSubmitHooks(statuslineCommand),
+    },
     permissions: { allow },
     // Menkar wakes a session it started through Claude Code's messaging; without this a
     // session that bypasses prompts would hold each message behind a card.

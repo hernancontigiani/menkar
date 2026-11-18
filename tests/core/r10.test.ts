@@ -90,6 +90,9 @@ describe('the command line', () => {
 })
 
 test("the --settings file's bytes", async () => {
+  // The prompt hook's guard names the inbox folder under the cache directory: pinned, as the
+  // statusline's path is, so the bytes do not change with the test's temporary directory.
+  vi.stubEnv('XDG_CACHE_HOME', '/home/demo/.cache')
   const path = await writeSessionSettings(
     "'/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs'",
   )

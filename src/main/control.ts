@@ -45,6 +45,9 @@ export async function startControl(handlers: ControlHandlers): Promise<void> {
   const paths = controlPaths()
   for (const dir of [paths.requests, paths.responses, paths.turnEnds, paths.snapshots])
     mkdirSync(dir, { recursive: true })
+  // Every inbox file names a pane of an earlier run, and every such pane is gone.
+  await rm(paths.inbox, { recursive: true, force: true })
+  mkdirSync(paths.inbox, { recursive: true })
   await writeAtomic(paths.root, 'alive.json', { pid: process.pid, started: now() })
 
   const queue = new RequestQueue((request) => handlers.handle(request), now)

@@ -1,5 +1,6 @@
 import { sessionSettingsFile } from '../../context'
 import type { MainAgentKit } from '../types'
+import { inbox } from './inbox'
 import { remote } from './remote'
 import { waker } from './waker'
 
@@ -8,4 +9,5 @@ export const mainKit: MainAgentKit = {
   team: { tell: waker.wake },
   remote,
   waker,
+  inbox,
 }

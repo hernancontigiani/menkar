@@ -332,6 +332,92 @@ test('a started session waiting at a permission prompt wakes its parent through 
   }
 })
 
+// Decision 1.178: a session asks its parent with ask, posted at once and answered from what the post
+// did; the orchestrator reads its inbox with inbox. A question the orchestrator cannot be woken for
+// waits in its inbox, whose file follows the orchestrator to its new pane on a renew.
+test('ask: posted to the orchestrator at once; inbox empty; unwakeable, the question waits in the inbox file, which follows a renew to the new pane', async () => {
+  const { launched, page, root, argLines, tasksSaved } = await open({ orchestrated: true })
+  const socket = await orchestratorPosts(root)
+  let listening = true
+  const inboxDir = join(root, 'cache', 'menkar', 'control', 'inbox')
+  const inboxFiles = () => (existsSync(inboxDir) ? readdirSync(inboxDir) : [])
+  const inboxFile = (name: string) =>
+    JSON.parse(readFileSync(join(inboxDir, name), 'utf8')) as {
+      session_id: string
+      dropped: number
+      entries: { seq: number; at: number; text: string }[]
+    }
+  const question = 'client-work-t1 (task 1) asks: Which port should the API use?'
+  try {
+    await page.keyboard.type('TASKADD')
+    await said(page, 'TOOL task_add: Task 1 added.')
+    await page.keyboard.type('WORKT')
+    await said(page, 'TOOL start_session: Started "client-work-t1" for task 1, now assigned')
+    await expect.poll(() => argLines().length).toBe(2)
+    const worker = /--session-id (\S+)/.exec(argLines()[1] ?? '')?.[1] ?? ''
+    await expect.poll(() => tasksSaved().projects[CLIENT_WORK]?.tasks[0]?.assignee).toBe(worker)
+    await page.locator(`.row[data-session="${worker}"]`).click()
+    await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
+    await page
+      .locator('.tab-body:not(.hidden) .pane-banner button', { hasText: 'Take control' })
+      .click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('STEPS')
+    await said(page, 'TOOL task_steps: Task 1 has 3 steps')
+
+    // Posted now, not after the wakes' 3 s wait: the answer says it was sent.
+    const asked = Date.now()
+    await page.keyboard.type('QUESTION')
+    await said(page, 'TOOL ask: Sent to api. Its answer comes as a message from it.')
+    const answeredIn = Date.now() - asked
+    await expect
+      .poll(socket.posted)
+      .toContainEqual(
+        expect.stringMatching(
+          /^\[Menkar\] client-work-t1 \(task 1\) asks: Which port should the API use\? \(\d{2}:\d{2}:\d{2}\)( · .*)?$/,
+        ),
+      )
+    expect(answeredIn).toBeLessThan(1000)
+
+    await page.locator('.tab').first().click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('INBOX')
+    await said(page, 'TOOL inbox: Your inbox is empty.')
+    expect(inboxFiles()).toEqual([])
+
+    // The orchestrator cannot be woken now: the question waits in its inbox, and its pane's file
+    // holds it for the prompt hook.
+    socket.close()
+    listening = false
+    await page.locator(`.row[data-session="${worker}"]`).click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('QUESTION')
+    await said(page, 'TOOL ask: api could not be woken now. Your question is in its inbox')
+    await expect.poll(inboxFiles).toHaveLength(1)
+    const before = inboxFiles()[0] ?? ''
+    expect(inboxFile(before)).toMatchObject({
+      session_id: SESSION,
+      dropped: 0,
+      entries: [{ text: question }],
+    })
+
+    // The orchestrator renews: a new pane and a new session id; the file follows them.
+    await page.locator('.tab').first().click()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('RENEW')
+    await expect.poll(() => argLines().length, { timeout: 15_000 }).toBe(3)
+    const fresh = /--session-id (\S+)/.exec(argLines()[2] ?? '')?.[1] ?? ''
+    expect(fresh).toMatch(/^[0-9a-f-]{36}$/)
+    await expect
+      .poll(() => inboxFiles().map((name) => [name === before, inboxFile(name).session_id]))
+      .toEqual([[false, fresh]])
+    expect(inboxFile(inboxFiles()[0] ?? '').entries.map((e) => e.text)).toEqual([question])
+  } finally {
+    if (listening) socket.close()
+    await launched.close()
+  }
+})
+
 // Decisions 1.118 and 1.120: a worker per task, named by Menkar; parked while its task waits, after
 // its turn, resumed with its conversation and a prompt, hidden once its task closes.
 test('a worker per task: started for task 1 as "client-work-t1"; parked while it waits; resumed with a prompt; hidden when the task closes', async () => {

@@ -68,7 +68,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, human_back, human_away, park_session, resume_session and trash_files', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, human_back, human_away, park_session, resume_session, trash_files, ask and inbox', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -95,6 +95,8 @@ describe('the protocol', () => {
       'park_session',
       'resume_session',
       'trash_files',
+      'ask',
+      'inbox',
     ])
     expect(TOOL_NAMES).toEqual(reply.result.tools.map((t) => t.name))
   })
@@ -168,6 +170,26 @@ describe('the protocol', () => {
     expect(trash?.description).toMatch(/only the orchestrator/i)
     expect(trash?.description).toMatch(/files folder/)
     expect(trash?.description).toMatch(/trash/)
+  })
+
+  // Decision 1.178: a session asks its parent with ask, which does not wait for the answer; the
+  // orchestrator reads what Menkar kept for it with inbox.
+  test("ask takes one question, says it does not wait and how the answer comes; inbox takes nothing and is the orchestrator's", async () => {
+    const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
+      result: { tools: { name: string; description: string; inputSchema: object }[] }
+    }
+    const ask = reply.result.tools.find((t) => t.name === 'ask')
+    expect(ask?.inputSchema).toEqual({
+      type: 'object',
+      properties: { question: { type: 'string', description: expect.any(String) } },
+      required: ['question'],
+    })
+    expect(ask?.description).toMatch(/parent/)
+    expect(ask?.description).toMatch(/does not wait/)
+    expect(ask?.description).toMatch(/message/)
+    const inbox = reply.result.tools.find((t) => t.name === 'inbox')
+    expect(inbox?.inputSchema).toEqual({ type: 'object', properties: {} })
+    expect(inbox?.description).toMatch(/only the orchestrator/i)
   })
 
   test('a call goes to Menkar with its arguments, and its answer comes back as text', async () => {

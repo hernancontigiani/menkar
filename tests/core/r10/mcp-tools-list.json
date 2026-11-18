@@ -455,6 +455,30 @@
             "names"
           ]
         }
+      },
+      {
+        "name": "ask",
+        "description": "Asks your parent session in Menkar a question now, as a message it sees at once. It does not wait for the answer, which comes later as a message from your parent: go on with what does not depend on it, or set your task waiting on your parent with task_progress and end your turn. Says whether the question was sent.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "question": {
+              "type": "string",
+              "description": "The question, at most 2,000 characters; put longer details in a file and name its path."
+            }
+          },
+          "required": [
+            "question"
+          ]
+        }
+      },
+      {
+        "name": "inbox",
+        "description": "Gives the events Menkar kept for you since you last read them, oldest first, and empties your inbox; the human did not write them. They also reach you with your next prompt. Only the orchestrator, in the orchestration mode; call it when your inbox's last line says to.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
       }
     ]
   }

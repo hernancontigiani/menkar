@@ -51,6 +51,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f /home/demo/.cache/menkar/control/inbox/\"$MENKAR_PANE\".json ]; then '/opt/Menkar/menkar' '/opt/Menkar/resources/statusline.cjs' prompt-submit; fi",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "permissions": {

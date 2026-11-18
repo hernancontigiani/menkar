@@ -8,6 +8,7 @@ import { shellQuote, writeSessionSettings } from '../../../src/core/context/sett
 import { agentPaths, appDirs, projectSessionSettingsFile } from '../../../src/core/paths'
 
 const COMMAND = "ELECTRON_RUN_AS_NODE=1 '/opt/Menkar/menkar' '/opt/Menkar/statusline.js'"
+const INBOX = shellQuote(join(appDirs().cache, 'control', 'inbox'))
 
 function userSettings(content: string | null) {
   const path = agentPaths().claudeSettings
@@ -49,6 +50,20 @@ test('CTX-28 the settings file is created, left alone when identical, replaced w
         { matcher: 'compact', hooks: [hook] },
       ],
       Stop: [{ hooks: [{ type: 'command', command: `${COMMAND} turn-end` }] }],
+      // Plan 42: the orchestrator's prompt hook, in every session Menkar starts (the mark can move
+      // to a running session, which never re-reads its settings), guarded so a pane with no inbox
+      // file never starts the program, and bounded: past its timeout the prompt goes on.
+      UserPromptSubmit: [
+        {
+          hooks: [
+            {
+              type: 'command',
+              command: `if [ -f ${INBOX}/"$MENKAR_PANE".json ]; then ${COMMAND} prompt-submit; fi`,
+              timeout: 5,
+            },
+          ],
+        },
+      ],
     },
     permissions: { allow: ['mcp__menkar'] },
     crossSessionInbound: 'accept',

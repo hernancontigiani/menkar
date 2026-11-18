@@ -34,6 +34,7 @@ import { log } from '../core/log'
 import { followModel, modelOf, setModel } from '../core/models'
 import { followMuted, mutedList, setMuted } from '../core/mute'
 import { adopt } from '../core/orchestration/adopt'
+import { askTool, inboxTool, type WakeOutcome } from '../core/orchestration/ask'
 import { postCounts } from '../core/orchestration/counts'
 import {
   isAbsoluteFolder,
@@ -223,6 +224,7 @@ import {
   reloadBuffer,
   saveBuffer,
 } from './files'
+import { Inboxes, type OrchestratorPane } from './inbox'
 import { notifySeen, type PaneHandle, registerAgentPane } from './panes'
 import {
   bringIn,
@@ -759,7 +761,33 @@ function filePaths(): Set<string> {
   )
 }
 
+// Each orchestration-mode project's orchestrator, where it runs now: its inbox file follows it.
+function orchestratorPanes(): ReadonlyMap<string, OrchestratorPane | null> {
+  const where = new Map<string, OrchestratorPane | null>()
+  for (const p of projects.projects) {
+    const orchestrator = workerTeam(p).orchestrator
+    if (!orchestrationInfo(p).on) continue
+    const pane = orchestrator ? paneOfSession(orchestrator) : undefined
+    const agent = agentOf(pane)
+    where.set(
+      p.id,
+      pane && orchestrator && agent
+        ? {
+            pane: pane.id,
+            sessionId: orchestrator,
+            transcript: sessionInfo(orchestrator)?.file ?? null,
+            kit: mainKitOf(agent).inbox,
+          }
+        : null,
+    )
+  }
+  return where
+}
+
+const inboxes = new Inboxes(orchestratorPanes)
+
 function changed(options: { projects?: boolean } = {}): void {
+  inboxes.sync()
   syncTopicNotices(currentTopics(), (id) => {
     const project = projects.projects.find((p) => p.id === id)
     return project !== undefined && orchestrationInfo(project).on
@@ -1086,6 +1114,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   panes.set(id, self)
   tabPanes.set(tabId, [...(tabPanes.get(tabId) ?? []), id])
   if (self.pending) ensureJoinPolling()
+  inboxes.sync()
 }
 
 function onPaneExit(paneId: string): void {
@@ -1093,6 +1122,7 @@ function onPaneExit(paneId: string): void {
   if (!pane) return
   panes.delete(paneId)
   forgetTeam(paneId)
+  inboxes.paneExited(paneId)
   pane.handle?.close()
   // A pane hung up to renew its session: its tab stays, already re-keyed, for the new one.
   const renewed = renewing.get(paneId)
@@ -1421,11 +1451,55 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return parkFor(project, sessionId, request.args.name)
     case 'resume_session':
       return resumeFor(pane, project, sessionId, request)
+    case 'ask':
+      return askFor(project, sessionId, request.args.question)
+    case 'inbox': {
+      const info = orchestrationInfo(project)
+      return inboxes.read(project.id, (inbox) =>
+        inboxTool({ modeOn: info.on, isOrchestrator: info.orchestrator === sessionId, inbox }),
+      )
+    }
     case 'trash_files': {
       const checked = trashCheck(workerTeam(project).orchestrator, sessionId, request.args.names)
       return checked.ok ? trashNamed(project.id, checked.names) : refuse(checked.text)
     }
   }
+}
+
+// A number per question, so two of one session never share an inbox key.
+let asks = 0
+
+// Posted at once, not batched: the answer says what the post did.
+function askFor(project: Project, sessionId: string, question: unknown): Promise<ControlAnswer> {
+  const parent = keptParents(project)[sessionId]
+  const orchestrator = workerTeam(project).orchestrator
+  const task = currentTask(tasksOf(currentTasks(), project.id), sessionId)
+  const working = task && (task.state === 'in progress' || task.state === 'waiting')
+  return askTool(
+    {
+      question,
+      asker: {
+        id: sessionId,
+        name: sessionName(sessionId),
+        ...(working ? { task: task.number } : {}),
+      },
+      parent: parent
+        ? {
+            id: parent,
+            name: sessionName(parent),
+            toInbox:
+              parent === orchestrator ? (key, text) => inboxes.add(project.id, key, text) : null,
+          }
+        : null,
+    },
+    {
+      post: wakeSession,
+      nextAsk: () => {
+        asks += 1
+        return asks
+      },
+    },
+  )
 }
 
 // By pane: a worker to hang up once its turn is over, parked or put away with its closed task.
@@ -2197,12 +2271,12 @@ onShownChange((paneId, sessionId, previous, next) => {
     })
 })
 
-async function wakeSession(parent: string, text: string): Promise<void> {
+async function wakeSession(parent: string, text: string): Promise<WakeOutcome> {
   const agent = agentOf(paneOfSession(parent))
   const waker = agent ? mainKitOf(agent).waker : null
   if (!waker) {
     log.info('a parent with no tab that can be woken was not woken', { parent })
-    return
+    return 'no pane'
   }
   try {
     const project = projectOf(projects, parent)
@@ -2215,10 +2289,17 @@ async function wakeSession(parent: string, text: string): Promise<void> {
     const outcome = await waker.wake(parent, text, counts)
     if (outcome === 'posted') log.info('a parent session was woken', { parent })
     else log.warn('a parent session could not be woken', { parent, outcome })
+    return outcome
   } catch (error) {
     log.warn('a parent session could not be woken', { parent, error })
+    return 'error'
   }
 }
+
+// A prompt the orchestrator's model got may have carried its inbox: the transcript says so.
+onShownChange((paneId, _sessionId, _previous, next) => {
+  if (next === 'working' || next === 'idle' || next === 'done') inboxes.paneTurned(paneId)
+})
 
 // ---------------------------------------------------------------- a pane's session changing id
 

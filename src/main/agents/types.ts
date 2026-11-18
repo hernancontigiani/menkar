@@ -1,5 +1,6 @@
 import type { PostOutcome } from '../../core/control/post'
 import type { WorkCounts } from '../../core/orchestration/counts'
+import type { InboxLine } from '../../core/orchestration/inbox-text'
 import type { BridgeState } from '../../core/remote/live'
 
 // The team block's delivery on main's side: how a change is told to a running session.
@@ -27,6 +28,25 @@ export interface Waker {
   wake(sessionId: string, text: string, counts: WorkCounts | undefined): Promise<PostOutcome>
 }
 
+// The orchestrator's inbox as its agent is given it: a file its prompt hook reads, and the
+// transcript's own record of what the model was given.
+export interface PromptInbox {
+  // Writes the pane's inbox file whole, or removes it when nothing is pending.
+  publish(
+    pane: string,
+    sessionId: string,
+    dropped: number,
+    entries: readonly InboxLine[],
+  ): Promise<void>
+  // The highest entry the transcript's records after `from` show the model got, 0 if none, and
+  // the offset read to.
+  delivered(
+    transcript: string,
+    from: number,
+  ): Promise<{ readonly through: number; readonly offset: number }>
+  forget(pane: string): Promise<void>
+}
+
 export interface MainAgentKit {
   // The settings file the agent's sessions are started with, written when it changed; null when
   // the agent takes none.
@@ -36,4 +56,5 @@ export interface MainAgentKit {
   readonly team: MainTeamDelivery | null
   readonly remote: Remote | null
   readonly waker: Waker | null
+  readonly inbox: PromptInbox | null
 }

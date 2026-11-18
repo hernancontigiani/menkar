@@ -20,7 +20,8 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // report on task 1, PARK parks "client-work-t1", WAKEW resumes it with a prompt, CLOSE1 closes
 // task 1 as done; STAR1 gives task 1 the ★ and DROPSTAR takes it away; REVIEWPR (which ends the
 // turn) hands task 1 to review waiting on PR approval #436, SECONDW starts task 2's worker;
-// HUMANBACK clears the human's away state (decision 1.167), HUMANAWAY sets it (decision 1.181).
+// HUMANBACK clears the human's away state (decision 1.167), HUMANAWAY sets it (decision 1.181);
+// QUESTION asks its parent "Which port should the API use?" and INBOX reads its inbox (1.178).
 // Each answer is printed as "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the
 // terminal for the cursor's position (CSI 6n) as it starts, as Claude Code queries its terminal.
 // The team block: --version prints FAKE_CLAUDE_VERSION (2.1.325 by default) and exits;
@@ -218,6 +219,8 @@ process.stdin.on('data', (d) => {
     HUMANBACK: ['human_back', {}],
     HUMANAWAY: ['human_away', {}],
     TRASHF: ['trash_files', { names: ['menkar-t1-shot.png', '../outside.txt', 'gone.png'] }],
+    QUESTION: ['ask', { question: 'Which port should the API use?' }],
+    INBOX: ['inbox', {}],
   }
   for (const [word, [tool, toolArgs, endsTurn]] of Object.entries(calls)) {
     if (!typed.endsWith(word)) continue

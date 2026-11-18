@@ -811,3 +811,92 @@ half-written last line read; the hook ignoring `session_id`; the hook without th
 - `deliveredThrough` on a file shorter than `from` confirms nothing and returns its size as the
   offset; the inode check stays main's (block 2).
 - The hook prints nothing when any entry in the file is malformed, not only when the JSON is.
+
+### Block 2 — `menkar-t100` (task 100), 2026-11-18
+
+**Built** (plumbing only: nothing routes an event to an inbox yet; the only entry a running
+Menkar can make is an `ask` its parent could not be woken for):
+
+- `src/core/context/settings.ts`: `promptSubmitHooks(statuslineCommand)`, declared in every
+  `--settings` file beside SessionStart and Stop: `if [ -f <inbox dir>/"$MENKAR_PANE".json ]; then
+  <statusline command> prompt-submit; fi`, `"timeout": 5`; the folder is `shellQuote`d as a word.
+- `src/main/agents/types.ts`: `PromptInbox` (`publish`, `delivered`, `forget`) and
+  `MainAgentKit.inbox`. Claude's is new `src/main/agents/claude/inbox.ts` (writes
+  `{ session_id, dropped, entries: [{ seq, at, text }] }` whole through `writeAtomic`, removes it when
+  empty; `delivered` is core's `deliveredThrough`); Cursor's is `null`.
+- `src/main/inbox.ts` (new): `Inboxes`, one `Inbox` per mode-on project with one `sequence()` for
+  the run, fed by a `locate()` that workspace gives (each mode-on project → its orchestrator's pane,
+  session id, transcript and kit, or null when it is not running; a project left out is not in the
+  mode, and its inbox and file go). `sync()` compares where each orchestrator runs with the file last
+  written and only then works; `add`, `paneTurned`, `paneExited`, `read` (for the tool). Every write
+  goes through one queue per project: confirm from the transcript first (inode and size checked; a
+  session first seen is read from its transcript's end, or from 0 when it has none yet), then write
+  the file where the orchestrator runs now, removing the one of a pane it left; a file is not
+  rewritten when its pane, session id, `dropped` and `seq`s are unchanged.
+- `src/main/control.ts`: `startControl` removes and recreates `control/inbox`.
+- `src/main/workspace.ts`: `orchestratorPanes()` and `inboxes` before `changed()`, which calls
+  `inboxes.sync()` first; `sync()` after a pane starts, `paneExited` at its exit; a second
+  `onShownChange` listener calls `paneTurned` on `working`, `idle` and `done` (the wake listener is
+  untouched); `handleControl`'s `ask` (`askFor`) and `inbox` cases; `wakeSession` returns its
+  `WakeOutcome` (`'no pane'` with no waker, `'error'` on a throw); the batcher still ignores it.
+- `src/core/orchestration/ask.ts` (new): `ASK_MAX_CHARS`, `WakeOutcome`, `askText`, `askTool`
+  (2.5's answers), `inboxTool`.
+- `src/core/control/files.ts` (`TOOL_NAMES` + `ask`, `inbox`), `src/core/control/protocol.ts` (the
+  two tools and their descriptions).
+- Tests: new `tests/core/orchestration/ask.test.ts`; `tests/core/context/settings.test.ts`,
+  `tests/core/control/server.test.ts`; `e2e/fixtures.ts` (`QUESTION`, `INBOX`),
+  `e2e/session-control.spec.ts` (one test: ask posted and answered in under a second; `inbox`
+  empty; the orchestrator unwakeable → the question in its pane's file; RENEW → the file is the new
+  pane's, with the new id, the old one gone). `tests/core/agents/parity.test.ts` unchanged: it lists
+  caps, not `MainAgentKit`'s members.
+
+**Seen red**, each against a defect injected and removed: the settings test before the hook
+existed; the server tests before the tools; `ASK_MAX_CHARS + 1`; the inbox fallback dropped; the
+ask key without its number; the mode-off check dropped; `inbox` not emptying; in the e2e, the
+old pane's file not removed (both at the pane change and at exit), and `ask` with no inbox
+fallback.
+
+**The hook probe** (`claude-cli`, Claude Code 2.1.327, `$MENKAR_FILES/menkar-t100-42-hook-probe.txt`):
+the model got both lines and "(events 1–2)", the screen showed nothing, and the transcript holds a
+`hook_additional_context` record with that text; the hook clears nothing, so a second prompt got
+them again. A queued message withdrawn with Up writes no record and the model saw nothing: no loss,
+nothing to report before block 3. Esc does not withdraw a queued message: it interrupts the tool
+and submits it, which the model sees and the transcript records.
+
+**R10** moves in exactly `tests/core/r10/mcp-tools-list.json` and `tests/core/r10/settings.json`;
+not refreshed, as `set` asked (it refreshes them on `main`). Until then `npm run ci` fails on those
+two snapshots only. The settings snapshot first held the test's temporary cache path (the
+hook's guard names the inbox folder): `tests/core/r10.test.ts` now pins `XDG_CACHE_HOME` to
+`/home/demo/.cache` for that test, as the statusline's path is pinned (fix asked by `set`; my choice
+of the two it offered, since it keeps the hook's command as it is).
+
+**Decided by `set`, 2026-11-18:**
+
+- The plan's e2e premise was corrected: a test cannot write the inbox file for main, which is its
+  only writer and holds the entries in memory (a written file is replaced at the next publish).
+  The entry comes in through `ask` with the orchestrator unwakeable, then RENEW.
+- The `inbox` tool's answers are a pure `inboxTool` in `src/core/orchestration/ask.ts`, tested in
+  `ask.test.ts`, so no test file outside the block's list.
+- The stand-in's words are new ones because its `ASK` already prints a permission question. `set`
+  approved `ASKPARENT`; it is `QUESTION`, since typing `ASKPARENT` passes through `ASK` and the
+  stand-in prints a permission question there.
+- **No run id**: §5's "the run's counter and `run` id" has no consumer. The one counter per run
+  (F6) plus reading a transcript from its end the first time a session is seen already keeps an
+  earlier run's records from confirming this run's entries. Block 3 should not add it back.
+
+**Choices the plan left open (mine):**
+
+- An empty `ask` (or not text) answers "Write the question to ask."; the question is trimmed
+  before the checks and the post.
+- `ask`'s "(task N)" is the asker's `currentTask` only when it is in progress or waiting.
+- `ask` puts the question in the inbox when the parent is the project's orchestrator in the
+  mode (`workerTeam(project).orchestrator`), whatever its agent; a Cursor orchestrator's inbox keeps
+  it unread (§3).
+- The inbox's emptying when the mark moves (keeping `presence`) is left to block 3, which lists it;
+  block 2 empties a project's inbox only when the mode goes off. The file follows the mark either
+  way.
+- Main reads the transcript when the orchestrator's pane turns `working`, `idle` or `done`, before
+  each publish and on `inbox`; never on the UI path.
+- The `inbox` tool gives the text with no budget, so a long question comes whole there.
+- `startControl` empties the folder after `startWorkspace` has run; no inbox entry exists before
+  `startControl` today, but block 3's start-up review entries must be added after it.
