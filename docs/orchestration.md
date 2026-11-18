@@ -455,9 +455,11 @@ What the user sees and how the orchestrator acts on it is in the guide; the rule
   toggles) and the banner's "I'm back"; and `human_back`, the orchestrator's tool
   (`docs/session-control.md`). The window state carries `presence`; every window draws the banner
   under its header and the chip from it.
+  Its mirror `human_away` comes here too (decision 1.181).
 - **The posts**: a change posts `[Menkar] The human is away: …` or `[Menkar] The human is back`
   (`presencePost`) through `wakeSession` to each project's running orchestrator, minus the one
   that called `human_back` (`postRecipients`).
+  Likewise for the one that called `human_away`.
 - **Topics while away** (`topicNoticeNow`): a topic notice raises nothing — no sound, toast,
   desktop notice or tray entry — and nothing is replayed on return; the topic waits in Topics.
   The sessions' own notifications are not silenced.

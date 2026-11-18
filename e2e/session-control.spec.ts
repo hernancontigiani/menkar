@@ -543,7 +543,7 @@ const setScheme = (page: Page, scheme: 'dark' | 'light') =>
 const backPosts = (posted: () => string[]) =>
   posted().filter((p) => p.startsWith('[Menkar] The human is back')).length
 
-test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears it; the orchestrator hears both, and human_back clears it with no post to itself (screenshots)", async () => {
+test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears it; the orchestrator hears both, and human_away and human_back set and clear it with no post to itself (screenshots)", async () => {
   const { launched, page, root } = await open({ orchestrated: true, env: { MENKAR_LOG: 'info' } })
   const socket = await orchestratorPosts(root)
   const log = join(root, 'cache', 'menkar', 'menkar.log')
@@ -595,12 +595,19 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await expect(topicToasts(other)).toHaveCount(0)
     expect(sounds()).toEqual([])
 
-    // Away again, and the orchestrator itself clears it on the human's word.
+    // The orchestrator itself sets it on the human's word, with no post to itself, and clears it.
+    const awayPosts = () =>
+      socket.posted().filter((p) => p.startsWith('[Menkar] The human is away')).length
+    const awayBefore = awayPosts()
     await page.locator('.xterm:visible').click()
-    await page.keyboard.press('Control+b')
-    await page.keyboard.press('a')
+    await page.keyboard.type('HUMANAWAY')
+    await said(page, 'TOOL human_away: The human is marked away.')
     await expect(banner(page)).toBeVisible()
-    await page.locator('.xterm:visible').click()
+    await expect(banner(other)).toBeVisible()
+    await page.keyboard.type('HUMANAWAY')
+    await said(page, 'TOOL human_away: The human is already marked away.')
+    await page.waitForTimeout(QUIET_MS)
+    expect(awayPosts()).toBe(awayBefore)
     await page.keyboard.type('HUMANBACK')
     await said(page, 'TOOL human_back: The human is marked back.')
     await expect(banner(page)).toBeHidden()
@@ -653,11 +660,14 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
   }
 })
 
-test('with the orchestration mode off: human_back is refused, no chip, Ctrl+B a sets nothing', async () => {
+test('with the orchestration mode off: human_back and human_away are refused, no chip, Ctrl+B a sets nothing', async () => {
   const { launched, page } = await open()
   try {
     await page.keyboard.type('HUMANBACK')
     await said(page, 'TOOL human_back: The orchestration mode is off in this project.')
+    await page.keyboard.type('HUMANAWAY')
+    await said(page, 'TOOL human_away: The orchestration mode is off in this project.')
+    await expect(banner(page)).toBeHidden()
     await expect(chip(page)).toBeHidden()
     await page.locator('.xterm').click()
     await page.keyboard.press('Control+b')

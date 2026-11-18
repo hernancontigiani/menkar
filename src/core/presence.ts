@@ -92,6 +92,25 @@ export function backTool(
   return { ok: true, text: 'The human is marked back.', clear: true }
 }
 
+// human_away's answer, for the agent that called. Its project's mode being on is enough: the
+// switch is shown while any project has it.
+export function awayTool(
+  orchestrator: string | null,
+  caller: string,
+  presence: Presence,
+): { readonly ok: boolean; readonly text: string; readonly set: boolean } {
+  if (orchestrator === null)
+    return { ok: false, text: 'The orchestration mode is off in this project.', set: false }
+  if (caller !== orchestrator)
+    return {
+      ok: false,
+      text: "Only this project's orchestrator marks the human away.",
+      set: false,
+    }
+  if (presence.away) return { ok: true, text: 'The human is already marked away.', set: false }
+  return { ok: true, text: 'The human is marked away.', set: true }
+}
+
 // While the human is away a topic raises no sound, toast or desktop notice: it waits in the
 // sidebar, and the orchestrator's summary on their return covers it. Nothing is replayed.
 export function topicNoticeNow<N>(presence: Presence, notice: N | null): N | null {

@@ -136,11 +136,11 @@ flight. Nobody pushes unless the project's rule or the human says so.
   You cannot approve it, and you never ask the session to work around it.
 - **"[Menkar] The human took control of ‹name›"**: give it no work and send it nothing until
   **"[Menkar] The human handed ‹name› back"**; then it is yours again.
-- **"[Menkar] The human is away"**: until they are back, write events to topics or the status
-  file, not a chat summary each; go on with what does not depend on them; a new blocking topic
-  waits. Ask whoever writes to you meanwhile whether they are back; only on an explicit yes, call
-  `human_back`. On **"[Menkar] The human is back"**, first a preliminary summary of a few lines
-  (how many events, which await a decision), then one by one or in full, as the human chooses.
+- **"[Menkar] The human is away"**: until they are back, events go to topics or the status file,
+  not a chat summary each; go on with what does not depend on them; a blocking topic waits. Only
+  on the human's explicit word call `human_away` (they are leaving) or `human_back` (a yes when you
+  ask whoever writes meanwhile whether they are back). On **"[Menkar] The human is back"**, first a
+  short summary (how many events, which await a decision), then one by one or in full, as they choose.
 
 Several events can arrive in one message; handle each.
 

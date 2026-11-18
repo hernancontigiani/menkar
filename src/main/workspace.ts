@@ -86,6 +86,7 @@ import {
 } from '../core/orchestration/workers'
 import { agentPaths } from '../core/paths'
 import {
+  awayTool,
   backTool,
   HERE,
   type Presence,
@@ -1406,6 +1407,11 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return capFor(project, sessionId, request.args)
     case 'human_back':
       return backFor(project, sessionId)
+    case 'human_away': {
+      const result = awayTool(workerTeam(project).orchestrator, sessionId, presence)
+      if (result.set) askPresence(true, sessionId)
+      return { ok: result.ok, text: result.text }
+    }
     case 'park_session':
       return parkFor(project, sessionId, request.args.name)
     case 'resume_session':
@@ -1581,8 +1587,8 @@ function presenceNow(): PresenceView {
   return presenceView(presence, modesOn())
 }
 
-// The chip, the banner, the shortcut and human_back all come here. The orchestrator that
-// cleared it is not told what it just did.
+// The chip, the banner, the shortcut, human_away and human_back all come here. The orchestrator
+// that changed it is not told what it just did.
 function askPresence(away: boolean, clearedBy?: string): void {
   const before = presence
   presence = presenceAsked(presence, away, now(), modesOn())

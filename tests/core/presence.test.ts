@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AWAY_POST,
+  awayTool,
   BACK_POST,
   backTool,
   chipShown,
@@ -90,5 +91,20 @@ describe('human_back', () => {
   it("clears the orchestrator's away state, and says so when already here", () => {
     expect(backTool('orch', 'orch', away)).toMatchObject({ ok: true, clear: true })
     expect(backTool('orch', 'orch', HERE)).toMatchObject({ ok: true, clear: false })
+  })
+})
+
+describe('human_away', () => {
+  it('is refused with the mode off', () => {
+    expect(awayTool(null, 'x', HERE)).toMatchObject({ ok: false, set: false })
+  })
+
+  it('is refused to a session that is not the orchestrator', () => {
+    expect(awayTool('orch', 'worker', HERE)).toMatchObject({ ok: false, set: false })
+  })
+
+  it('marks the human away for the orchestrator, and says so when already away', () => {
+    expect(awayTool('orch', 'orch', HERE)).toMatchObject({ ok: true, set: true })
+    expect(awayTool('orch', 'orch', away)).toMatchObject({ ok: true, set: false })
   })
 })

@@ -68,7 +68,7 @@ describe('the protocol', () => {
     expect(await answer(rpc('notifications/initialized', undefined, null), ctx('p1'))).toBe(null)
   })
 
-  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, human_back, park_session and resume_session', async () => {
+  test('tools/list names exactly renew, start_session, list_sessions, last_reply, the four topic tools, adopt_session, the seven task tools, set_workers_cap, human_back, human_away, park_session and resume_session', async () => {
     const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
       result: { tools: { name: string; inputSchema: unknown }[] }
     }
@@ -91,6 +91,7 @@ describe('the protocol', () => {
       'task_star',
       'set_workers_cap',
       'human_back',
+      'human_away',
       'park_session',
       'resume_session',
     ])
@@ -135,6 +136,16 @@ describe('the protocol', () => {
     expect(back?.inputSchema).toEqual({ type: 'object', properties: {} })
     expect(back?.description).toMatch(/only the orchestrator/i)
     expect(back?.description).toMatch(/explicitly/)
+  })
+
+  test("human_away takes no argument and is described as only on the human's explicit word", async () => {
+    const reply = (await answer(rpc('tools/list'), ctx('p1'))) as {
+      result: { tools: { name: string; description: string; inputSchema: object }[] }
+    }
+    const away = reply.result.tools.find((t) => t.name === 'human_away')
+    expect(away?.inputSchema).toEqual({ type: 'object', properties: {} })
+    expect(away?.description).toMatch(/only the orchestrator/i)
+    expect(away?.description).toMatch(/explicitly/)
   })
 
   test('a call goes to Menkar with its arguments, and its answer comes back as text', async () => {

@@ -394,6 +394,14 @@
         }
       },
       {
+        "name": "human_away",
+        "description": "Marks the human away in Menkar, as their own switch does. Only the orchestrator, in the orchestration mode, and only when the human has said explicitly that they are leaving or want to be marked away.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
         "name": "park_session",
         "description": "Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as closing its tab does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting, or in To review waiting on a PR.",
         "inputSchema": {

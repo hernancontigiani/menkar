@@ -164,6 +164,10 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     the human has said explicitly that they are back; it clears the human's away state as "I'm
     back" does, and the other running orchestrators get "The human is back", the caller not
     (`backTool`, `src/core/presence.ts`).
+  - **`human_away {}`** (decision 1.181): its mirror. The orchestrator only, with the mode on, and
+    only when the human has said explicitly that they are leaving or want to be marked away (from
+    the phone through Remote Control, say); it sets the away state as the chip and `Ctrl+B a` do,
+    and the other running orchestrators get "The human is away", the caller not (`awayTool`).
 - **The files between the server and main** live in `<cache>/control/` (`controlPaths` in
   `src/core/control/files.ts`). There is no socket and no port. Every file is written in `tmp/`
   and renamed into place, so nothing ever reads half of one.
@@ -226,6 +230,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     the events of children whose current task has the ★, then the rest, each in the order they
     first came (decisions 1.78, 1.114 and 1.173). `forget` drops a pending post the parent no
     longer needs: the orchestrator that called `human_back` is not told the human was away.
+    Nor is the one that called `human_away` told what it just did.
   - **The post** (`postToSession`, `post.ts`):
     - Main finds the parent's process in Claude Code's registry, `~/.claude/sessions/<pid>.json`,
       read only, by `sessionId`, and requires `peerProtocol` 1.

@@ -185,6 +185,9 @@ project has the mode on, and the state is the whole app's, not a project's. Whil
 - **Writing to an orchestrator while away** (from Remote Control, say) does not clear it by
   itself: the orchestrator asks whether you are back, and only on an explicit yes clears it with
   `human_back`.
+- **Telling an orchestrator you are leaving** (from Remote Control, say) lets it set you away with
+  `human_away`, as the chip does; it does so only when you say so explicitly, and the other
+  running orchestrators hear "[Menkar] The human is away".
 
 ## Who may start sessions
 
