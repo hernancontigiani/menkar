@@ -113,6 +113,10 @@ human's daily Menkar (1.155 Q3) and duplicates everything it needs to run on its
   refusing a `--flavour` that differs. `npm run package:sandbox` builds and packages a sandbox;
   `npm run package:check -- --flavour sandbox` checks it. `ui-check` builds as `menkar` on any
   branch: the e2e suite tests the app as it ships.
+- **A checkout on a detached HEAD builds a sandbox.** `git rev-parse --abbrev-ref HEAD` prints
+  `HEAD` there, not `main`, so a clean clone of a `main` commit (the way to package one while
+  others edit the live tree) needs `MENKAR_FLAVOR_BUILD=menkar npm run package`. Without it,
+  `package.mjs` follows `out/main/flavor.txt` and builds `menkar-sandbox` (seen 2026-11-18).
 - **Its own package**, from `electron-builder.sandbox.yml` (`extends: ./electron-builder.yml`):
   `menkar-sandbox`, in `/opt/Menkar-sandbox/`, built into `release/sandbox/` so its
   `linux-unpacked` never replaces the daily one's. The post-install, post-remove and AppArmor
