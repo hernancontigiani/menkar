@@ -1,0 +1,130 @@
+/* Your time: the day by the hour and the week as strips, over usage.css. */
+.usage-time-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.time-name {
+  min-width: 22ch;
+}
+
+.time-plot {
+  position: relative;
+}
+
+.usage-chart .on-band {
+  fill: var(--on-accent);
+  font: bold 9pt sans-serif;
+}
+
+.usage-chart .band-length {
+  font: 600 8pt sans-serif;
+}
+
+.usage-chart .burst .band {
+  fill-opacity: 0.85;
+}
+
+.usage-chart .burst.hovered .band {
+  fill-opacity: 1;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.usage-chart .time-empty {
+  fill: currentColor;
+  fill-opacity: 0.6;
+}
+
+.burst-tip {
+  position: absolute;
+  z-index: 3;
+  padding: 8px 12px;
+  white-space: pre;
+  line-height: 1.45;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
+}
+
+.burst-tip[hidden] {
+  display: none;
+}
+
+.burst-tip .tip-span {
+  font-weight: bold;
+}
+
+/* The week: a day's name, its strip taking the room left, then the figures. */
+.week-day {
+  flex: none;
+  width: 7ch;
+}
+
+.week-day.today {
+  font-weight: bold;
+}
+
+.strip-box {
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+}
+
+.week-axis {
+  justify-content: space-between;
+  font-size: 8pt;
+}
+
+.week-heading,
+.usage-row.week-row,
+.usage-row.week-total {
+  gap: 8px;
+}
+
+.w-messages {
+  width: 13ch;
+}
+
+.w-prompts {
+  width: 7ch;
+}
+
+.week-open {
+  flex: none;
+  width: 12px;
+  visibility: hidden;
+}
+
+.usage-row.week-row {
+  min-height: 38px;
+  cursor: pointer;
+}
+
+.usage-row.week-total {
+  min-height: 38px;
+}
+
+.week-row .strip-ground {
+  fill-opacity: 0.05;
+}
+
+.week-row:hover,
+.week-row:focus-visible {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+
+.week-row:hover .strip-ground {
+  fill-opacity: 0.1;
+}
+
+.week-row:hover .week-open,
+.week-row:focus-visible .week-open {
+  visibility: visible;
+}
+
+.strip {
+  display: block;
+  flex: none;
+}
