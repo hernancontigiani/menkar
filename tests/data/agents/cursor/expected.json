@@ -7,6 +7,49 @@
   ],
   "sessions": [
     {
+      "id": "5a1e0077",
+      "agent": "cursor",
+      "folder": ".cursor/projects/home-demo-api/agent-transcripts/5a1e0077",
+      "cwd": "/home/demo/api",
+      "preview": "Run the shell command: touch probe.txt",
+      "badge": null,
+      "customTitle": null,
+      "aiTitle": null,
+      "size": 786,
+      "lastReply": null,
+      "details": {
+        "user": 1,
+        "assistant": 3,
+        "toolCalls": 2,
+        "models": [],
+        "created": null,
+        "lastActivity": null,
+        "cwd": null,
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Run the shell command: touch probe.txt"
+          },
+          {
+            "fromUser": false,
+            "text": "I'll create `probe.txt` with `touch`."
+          },
+          {
+            "fromUser": false,
+            "text": "The command was blocked; retrying."
+          },
+          {
+            "fromUser": false,
+            "text": "Skipped creating `probe.txt`."
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `5a1e0077`\n\n---\n\n### You\n\nRun the shell command: touch probe.txt\n\n### Cursor\n\nI'll create `probe.txt` with `touch`.\n\n*Used `Shell`*\n\n### Cursor\n\nThe command was blocked; retrying.\n\n*Used `Shell`*\n\n### Cursor\n\nSkipped creating `probe.txt`.\n",
+      "location": ".cursor/projects/home-demo-api/agent-transcripts/5a1e0077/5a1e0077.jsonl",
+      "trash": ".cursor/projects/home-demo-api/agent-transcripts/5a1e0077/5a1e0077.jsonl"
+    },
+    {
       "id": "c0ffee01",
       "agent": "cursor",
       "folder": ".cursor/projects/home-demo-api/agent-transcripts/c0ffee01",

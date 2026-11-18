@@ -88,5 +88,29 @@
     "title": "",
     "screen": "Keep (n)\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10",
     "state": "idle"
+  },
+  {
+    "name": "the Run this command? card of 2026.11.13",
+    "title": "",
+    "screen": "\n\n  Cursor Agent\n  v2026.11.13-eacade1\n  Tip: Try Cursor Grok 4.7 via /model, frontier intelligence at a fraction of the cost.\n\n\n  Run the shell command: touch probe.txt\n\n\n  I'll create probe.txt with touch.\n\n  $ touch probe.txt Waiting for approval...\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n $  touch probe.txt in .\n\n Run this command?\n Not in allowlist: touch\n  → Run (once) (y)\n    Add Shell(touch) to allowlist? (tab)\n    Run Everything (shift+tab)\n    Skip & tell the agent what to do instead (esc or n)\n\n\n",
+    "state": "blocked"
+  },
+  {
+    "name": "Tell the agent what to do instead, after Skip, though ctrl+c to stop shows",
+    "title": "",
+    "screen": "\n\n  Cursor Agent\n  v2026.11.13-eacade1\n  Tip: Try Cursor Grok 4.7 via /model, frontier intelligence at a fraction of the cost.\n\n\n  Run the shell command: touch probe.txt\n\n\n  I'll create probe.txt with touch.\n\n  $ touch probe.txt Waiting for approval...\n\n\n ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐\n │ $  touch probe.txt in .                                                                                            │\n └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘\n\n\n  → Tell the agent what to do instead (Enter to send, empty to skip, Esc to cancel)                     ctrl+c to stop\n\n\n\n\n",
+    "state": "blocked"
+  },
+  {
+    "name": "idle once the instead box was answered",
+    "title": "",
+    "screen": "\n\n  Run the shell command: touch probe.txt\n\n\n  I'll create probe.txt with touch.\n\n  $ touch probe.txt Rejected\n\n  The command was blocked; retrying.\n\n  $ touch probe.txt Rejected\n   Don't create files; just say you skipped it.\n\n  Skipped creating probe.txt.\n\n\n\n\n  → Don't create files; just say you skipped it.\n\n\n  Auto · 3.9%\n  /home/demo/api · master\n\n",
+    "state": "idle"
+  },
+  {
+    "name": "ctrl+c to stop without the instead box",
+    "title": "",
+    "screen": "→ Tell the agent what to do next   ctrl+c to stop",
+    "state": "working"
   }
 ]

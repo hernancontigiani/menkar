@@ -45,6 +45,10 @@ built.
 - **Auto mode's "Allow this read outside the working directories?" card is blocked** (Claude Code
   2.1.257 on, captured on 2.1.327): the question on its own line with the first choice under it,
   since the screen ends at the cursor and its footer is not read.
+- **Cursor's "Tell the agent what to do instead" box is blocked** (cursor-agent 2026.11.13,
+  captured 2026-11-18): after Skip on a "Run this command?" card the turn waits for the human's
+  reason, while the footer still says "ctrl+c to stop". Esc there brings the card back; an answer,
+  empty or typed, lets the agent go on.
 - **Line breaks as Python's `splitlines()` counts them**, since that is what the counts were tuned
   on.
 - **The sound through `paplay`**, which Ubuntu's PulseAudio and PipeWire both provide, with

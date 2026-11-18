@@ -18,6 +18,8 @@ function detect(_title: string, screen: string): RawState {
     recent.includes('(y) (enter)') ||
     recent.includes('keep (n)') ||
     recent.includes('skip (esc or n)') ||
+    // After Skip the turn waits for the human's reason, while its footer still says ctrl+c to stop.
+    recent.includes('tell the agent what to do instead (enter to send') ||
     ALLOW.test(recent)
   ) {
     return 'blocked'

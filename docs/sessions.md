@@ -31,6 +31,11 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
     file-history snapshot. Without it, resuming that session started `claude` in the home folder.
   - **Tail** (`badges.ts`): the last 64 KiB, re-read when the size or mtime changes, for the
     waiting / interrupted badge. A tail that starts mid-file drops its first, cut line.
+- **Cursor's user text** (`src/core/agents/cursor/catalog.ts`): cursor-agent wraps what the user
+  typed in `<user_query>` and, since 2026.11.13 at least, puts a `<timestamp>…</timestamp>` before
+  it; both are stripped before the preview, the recent messages, the badge and the export read it.
+  Its tool calls are the assistant lines' `tool_use` blocks. A reason typed after Skip is not
+  written to the transcript.
 - **A session's name** (`sessionName`): Claude's name, then the app's name (`state.json` `names`),
   then Claude's generated title, then the preview, then the id's first 8 characters. Cursor has no
   Claude names. `claudeNamed` tells the UI that Rename must refuse.

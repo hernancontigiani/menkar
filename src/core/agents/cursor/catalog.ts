@@ -16,14 +16,17 @@ import {
   parseLine,
   subdirs,
   textLines,
+  toolUses,
 } from '../shared/jsonl'
 import type { Found, SessionCatalog, TranscriptReading } from '../types'
 
 const PREVIEW_CHARS = 120
 const RECENT = 12
 const USER_QUERY = /<\/?user_query>/g
+// cursor-agent puts the time the message was sent before what the user typed.
+const TIMESTAMP = /^\s*<timestamp>[^<]*<\/timestamp>/
 
-const userText = (value: string) => value.replace(USER_QUERY, '')
+const userText = (value: string) => value.replace(TIMESTAMP, '').replace(USER_QUERY, '')
 
 // A message the user typed: text, trimmed, not empty and not injected (`<…>`).
 function typed(line: Line): string | null {
@@ -73,13 +76,17 @@ function badge(tail: string, fromStart: boolean): Badge {
 function details(text: string): Details {
   let user = 0
   let assistant = 0
+  let toolCalls = 0
   let cwd: string | null = null
   const recent: RecentMessage[] = []
   for (const line of textLines(text)) {
     if (cwd === null && typeof line.cwd === 'string') cwd = line.cwd
     const kind = line.role
     if (kind === 'user') user += 1
-    if (kind === 'assistant') assistant += 1
+    if (kind === 'assistant') {
+      assistant += 1
+      toolCalls += toolUses(line).length
+    }
     const said = messageText(line)
     if ((kind === 'user' || kind === 'assistant') && said) {
       recent.push({
@@ -91,7 +98,7 @@ function details(text: string): Details {
   return {
     user,
     assistant,
-    toolCalls: 0,
+    toolCalls,
     models: [],
     created: null,
     lastActivity: null,
