@@ -986,3 +986,9 @@ icon (right-click) or an "Orchestration settings…" item".
 
 > Replaced 2026-11-18: 1.183 also drops Others' groups in the mode (topic 61).
 | 1.183 | **No group underline on tabs in the orchestration mode** (the human, 2026-11-18, from ccai's tab strip): with the project's mode on, a session tab carries no group colour line (`groupColor` null), since groups are not how the mode organises sessions; with the mode off, as today. Not built yet | 2026-11-18 | this row (until built) |
+
+> Replaced 2026-11-18: plans 41 and 42 built and shipped; plan 43 recording built; 0.1.0-347 installed.
+| 3 | 41 — background workers and one peek tab (1.176) with the single sidebar view (1.177) | **Being built** (2026-11-18), one block at a time on `main`: block 1 committed (d5894d7). Next: block 2. The next .deb waits for it, except the one cut for P0's merge |
+| 4 | 42 — the orchestrator's inbox and fewer wakes (1.178) | **Being built** (2026-11-18): reviewed and fixed, questions decided (topic 54); block 1 with `menkar-t89`; its blocks never run alongside plan 41's blocks 3 and 6 |
+| 5 | 43 — the human's activity and the task flow metrics (1.180, 1.156) | Written (2026-11-18, `menkar-t87`), ★; **recording first** (blocks 1, 2, 3, 3c, then 3b after plan 42's block 3), the views later with mock-ups |
+| — | The next .deb | **Waits** (the human, 2026-11-18) for: plan 41 block 5 (the looks) and block 6, plan 43 blocks 3 and 3b (recording live, with `prompted_start`), `trash_files` (1.182), and plan 42 blocks 2–3 (the inbox). Before cutting it, `set` lists for the human what goes in and what is still in flight |
