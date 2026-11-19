@@ -2195,17 +2195,13 @@ button.team-heading.folded::before {
 #away-back:hover {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
-/* An agent's version: the away strip's shape, red below the floor, amber for a large jump, blue
-   for a small one. */
+/* An agent's version: the away strip's shape, red below the floor, amber for a large jump. */
 .versions-banner {
-  --standing: var(--blue);
+  --standing: var(--yellow);
   background: color-mix(in srgb, var(--standing) 24%, var(--bg));
 }
 .versions-banner[data-standing="old"] {
   --standing: var(--red);
-}
-.versions-banner[data-standing="muchNewer"] {
-  --standing: var(--yellow);
 }
 .away-banner.versions-banner .icon {
   color: var(--standing);

@@ -1,6 +1,6 @@
-// The coding agents' versions (decision 1.179): a banner under the header when the installed
-// version is below Menkar's floor or newer than the validated one, and Settings › About's
-// "Coding agents" section always. The stand-in claude prints FAKE_CLAUDE_VERSION for --version.
+// The coding agents' versions (decisions 1.179, 1.187): a banner under the header when the
+// installed version is below Menkar's floor or newer than the validated one by a minor or major
+// version, and Settings › About's "Coding agents" section always. The stand-in claude prints FAKE_CLAUDE_VERSION for --version.
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
@@ -77,17 +77,10 @@ const CASES = [
     about: 'Too old: update it',
   },
   {
-    standing: 'newer',
-    version: '2.1.330',
-    color: '--blue',
-    text: 'Claude Code 2.1.330 is newer than the version Menkar was validated with (2.1.327). Small differences may show until a Menkar update.',
-    about: 'Newer than validated',
-  },
-  {
     standing: 'muchNewer',
     version: '2.3.0',
     color: '--yellow',
-    text: 'Claude Code 2.3.0 is much newer than the version Menkar was validated with (2.1.327). Expect bugs or regressions; wait for a Menkar release.',
+    text: 'Claude Code 2.3.0 is much newer than the version Menkar was validated with (2.1.328). Expect bugs or regressions; wait for a Menkar release.',
     about: 'Much newer than validated',
   },
 ] as const
@@ -120,7 +113,7 @@ for (const scheme of ['dark', 'light'] as const)
         await about.setViewportSize({ width: 1280, height: 800 })
         const row = about.locator('.agent-version[data-agent="claude"]')
         await expect(row.locator('.row-subtitle')).toHaveText(
-          `Installed ${c.version} · validated 2.1.327`,
+          `Installed ${c.version} · validated 2.1.328`,
         )
         await expect(row.locator('.agent-standing')).toHaveText(c.about)
         await expect(about.locator('.agent-version[data-agent="cursor"]')).toContainText(
@@ -160,7 +153,7 @@ test('1.179 Hide hides the banner for that version and is kept in state.json; De
 })
 
 test('1.179 the validated version and an agent with no validated one: no banner; About says so', async () => {
-  const launched = await launch('2.1.327', 'dark', '2026.11.13-eacade1')
+  const launched = await launch('2.1.328', 'dark', '2026.11.13-eacade1')
   const page = launched.window
   try {
     const about = await openAbout(launched)
@@ -171,6 +164,28 @@ test('1.179 the validated version and an agent with no validated one: no banner;
     await expect(cursor.locator('.agent-standing')).toHaveText('Not validated yet')
     await expect(page.locator('#versions-banner')).toBeHidden()
     await expect(page.locator('#versions-side')).toBeHidden()
+  } finally {
+    await launched.close()
+  }
+})
+
+test('1.187 a patch newer than validated: no banner; About says it', async () => {
+  const launched = await launch('2.1.330', 'dark')
+  const page = launched.window
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const about = await openAbout(launched)
+    await about.setViewportSize({ width: 1280, height: 800 })
+    const row = about.locator('.agent-version[data-agent="claude"]')
+    await expect(row.locator('.row-subtitle')).toHaveText('Installed 2.1.330 · validated 2.1.328')
+    await expect(row.locator('.agent-standing')).toHaveText('Newer than validated')
+    await expect(page.locator('#versions-banner')).toBeHidden()
+    await expect(page.locator('#versions-side')).toBeHidden()
+    const files = process.env.MENKAR_FILES
+    if (files) {
+      await page.screenshot({ path: join(files, 'menkar-t122-newer-no-banner.png') })
+      await about.screenshot({ path: join(files, 'menkar-t122-newer-about.png') })
+    }
   } finally {
     await launched.close()
   }

@@ -76,13 +76,20 @@ describe('the banner', () => {
     expect(bannerOf(quiet.map((s) => view('claude', s)))).toBeNull()
   })
 
-  test('shows the most serious: too old before much newer before newer', () => {
+  test('shows the most serious: too old before much newer', () => {
     expect(bannerOf([view('claude', 'newer'), view('cursor', 'old')])?.agent).toBe('cursor')
     expect(bannerOf([view('claude', 'muchNewer'), view('cursor', 'newer')])?.agent).toBe('claude')
   })
 
+  test('a patch newer than validated says nothing: About shows it', () => {
+    expect(bannerOf([view('claude', 'newer')])).toBeNull()
+    expect(bannerOf([view('claude', 'old', true), view('cursor', 'newer')])).toBeNull()
+  })
+
   test('a hidden one is skipped', () => {
-    expect(bannerOf([view('claude', 'old', true), view('cursor', 'newer')])?.agent).toBe('cursor')
+    expect(bannerOf([view('claude', 'old', true), view('cursor', 'muchNewer')])?.agent).toBe(
+      'cursor',
+    )
     expect(bannerOf([view('claude', 'old', true)])).toBeNull()
   })
 

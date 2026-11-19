@@ -13,10 +13,11 @@ Marks:
   human's;
 - **read** means read in the docs, the changelog or the binary, not run.
 
-**What the user sees** (1.179, part 2): Settings › About lists each agent's installed and
-validated version; a banner under the header says when the installed one is below Menkar's floor
-(red), or newer than validated by a patch (blue) or by a minor or major version (amber), until Hide
-for that version. A row's version here is the descriptor's `versions.validated`
+**What the user sees** (1.179, part 2, amended by 1.187 on 2026-11-19): Settings › About lists
+each agent's installed and validated version, and says when the installed one is newer by a patch;
+a banner under the header says when the installed one is below Menkar's floor (red) or newer than
+validated by a minor or major version (amber), until Hide for that version.
+A row's version here is the descriptor's `versions.validated`
 (`src/core/agents/<id>/descriptor.ts`), and a test keeps the two equal: a new row is a new release
 of Menkar.
 

@@ -72,7 +72,8 @@ export function standingOf(installed: string | null, found: boolean, v: AgentVer
   return largeJump(v.validated, installed) ? 'muchNewer' : 'newer'
 }
 
-const SAYS: Readonly<Partial<Record<Standing, number>>> = { old: 3, muchNewer: 2, newer: 1 }
+// A patch newer than validated is said only in About: a banner for every patch release is noise.
+const SAYS: Readonly<Partial<Record<Standing, number>>> = { old: 2, muchNewer: 1 }
 
 // The one banner a window shows: the most serious of what is not hidden, or null.
 export function bannerOf(views: readonly AgentVersionView[]): AgentVersionView | null {

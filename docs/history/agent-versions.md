@@ -25,3 +25,9 @@ What Menkar tells the user about their installed version (1.179, part 2) is not 
 | The team block by `--append-system-prompt-file`: in the first request's system prompt, read once at start, kept on `--resume` until a compaction unless `--system-prompt-snapshot off`; a missing file exits at once | first request and missing file measured 2.1.327 (`team-block.mjs`); resume and snapshot measured 2.1.325 | `docs/session-control.md` |
 | The state screens: the permission card ("Do you want to proceed?"), auto mode's consecutive-block card with its 2-minute countdown (after which Claude Code blocks the call itself and the turn ends), the footer's background pills | cards measured 2.1.327 (`permission.mjs`), the countdown's expiry 2.1.326; pills read 2.1.323 | `docs/agent-state.md` |
 | Waking: a post to the registry's messaging socket wakes an idle session, leaves a permission card untouched, is held in bypass mode without `crossSessionInbound: "accept"`; identical repeats are dropped | idle wake and transcript record measured 2.1.327 (`wake.mjs`); the card and bypass cases 2.1.322 | `docs/session-control.md` |
+
+> Replaced 2026-11-19: no banner for a patch newer than validated (decision 1.187, task 122). It was:
+**What the user sees** (1.179, part 2): Settings › About lists each agent's installed and
+validated version; a banner under the header says when the installed one is below Menkar's floor
+(red), or newer than validated by a patch (blue) or by a minor or major version (amber), until Hide
+for that version. A row's version here is the descriptor's `versions.validated`

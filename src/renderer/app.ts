@@ -462,8 +462,7 @@ function versionsText(v: AgentVersionView, agent: string): string {
     floor: v.floor ?? '',
   }
   if (v.standing === 'old') return t('versions.old', params)
-  if (v.standing === 'muchNewer') return t('versions.muchNewer', params)
-  return t('versions.newer', params)
+  return t('versions.muchNewer', params)
 }
 
 function renderVersions(): void {

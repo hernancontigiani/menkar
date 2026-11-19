@@ -637,8 +637,6 @@ export const en = {
   'about.agentNotValidated': 'Not validated yet',
   'versions.old':
     '{agent} {installed} is too old for Menkar: it needs {floor} or later. Update {agent}.',
-  'versions.newer':
-    '{agent} {installed} is newer than the version Menkar was validated with ({validated}). Small differences may show until a Menkar update.',
   'versions.muchNewer':
     '{agent} {installed} is much newer than the version Menkar was validated with ({validated}). Expect bugs or regressions; wait for a Menkar release.',
   'versions.details': 'Details',

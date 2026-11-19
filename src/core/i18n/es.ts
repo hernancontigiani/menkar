@@ -647,8 +647,6 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'about.agentNotValidated': 'Todavía sin validar',
   'versions.old':
     '{agent} {installed} es demasiado viejo para Menkar: necesita {floor} o posterior. Actualizá {agent}.',
-  'versions.newer':
-    '{agent} {installed} es más nuevo que la versión con la que se validó Menkar ({validated}). Pueden aparecer pequeñas diferencias hasta una actualización de Menkar.',
   'versions.muchNewer':
     '{agent} {installed} es mucho más nuevo que la versión con la que se validó Menkar ({validated}). Puede haber errores o regresiones; esperá una nueva versión de Menkar.',
   'versions.details': 'Detalles',
