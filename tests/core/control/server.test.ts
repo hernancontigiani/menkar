@@ -11,7 +11,13 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
-import { callMenkar, controlPaths, writeAtomic } from '../../../src/core/control/files'
+import {
+  callMenkar,
+  controlPaths,
+  menkarAlive,
+  menkarAliveSync,
+  writeAtomic,
+} from '../../../src/core/control/files'
 import { answer, TOOL_NAMES } from '../../../src/core/control/protocol'
 import { serverContext } from '../../../src/core/control/server'
 import { en } from '../../../src/core/i18n/en'
@@ -275,6 +281,20 @@ describe('the files between the server and main', () => {
     expect((await callMenkar({ pane: 'p1', tool: 'renew', args: {} })).text).toMatch(
       /Menkar is not running/,
     )
+  })
+
+  // `menkar usage now` reads it synchronously, the server asynchronously: they cannot disagree.
+  test('whether Menkar runs follows alive.json, read either way', async () => {
+    const { root, alive } = controlPaths()
+    const both = async () => [menkarAliveSync(), await menkarAlive()]
+    expect(await both()).toEqual([false, false])
+    aliveNow()
+    expect(await both()).toEqual([true, true])
+    mkdirSync(root, { recursive: true })
+    writeFileSync(alive, JSON.stringify({ pid: 2 ** 22 + 7, started: 1 }))
+    expect(await both()).toEqual([false, false])
+    writeFileSync(alive, '{"pid":')
+    expect(await both()).toEqual([false, false])
   })
 
   test('no response in time: the timeout sentence, and the request is taken back', async () => {

@@ -29,6 +29,10 @@ user sees in the Usage window is `docs/spec/usage.md`.
   Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
   it and exits before `ready`, so no window opens and no display is needed. Checked on 2026-11-08
   under `env -i`, with no `DISPLAY`.
+- **Two openers at once.** The app's workers and a poller of `menkar usage now` may open the cache
+  and the history together. `BEGIN IMMEDIATE` and the busy timeout serialize their writes, and each
+  history migration step, the history's creation and the cache's rebuild read the version again
+  inside their transaction and do nothing when another opener moved it first.
 - **Turns imported at an earlier first start** stay in the history like any other (decision 1.68,
   2026-11-11: there is no import any more). Their statusline log, copied into the data directory
   then (`importedStatuslineLogPath`), keeps its fixed name and is read before Menkar's own
@@ -297,8 +301,9 @@ In the usage history, version 4, tables `activity` and `task_states`. Main never
    the history, and the first open after an upgrade migrates it.
 3. **At start**, before `app_start` is written, a journal a crash or a quit left is set aside as a
    batch: a last line torn by a power loss would otherwise swallow `app_start`.
-4. `menkar usage` and its export import the batches left there before reading; never the live
-   journal, which the running app owns.
+4. `menkar usage` and its export import the batches left there before reading. `menkar usage now`
+   reads the live journal and the batches where they lie and moves or imports nothing: the running
+   app owns them.
 
 A crash loses nothing appended; quitting needs no flush (the journal is imported after the next
 start's pass); an import twice is an import once. A history from a newer Menkar keeps every batch
@@ -320,9 +325,9 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 
 ### Limits
 
-- **Up to an hour late outside the Usage window**: the rows reach the history after the next
-  pass, so `menkar usage` and its export, which import only the batches a pass set aside, lag the
-  live journal. Your time and Task times import it before each answer.
+- **Up to an hour late in `menkar usage` and its export**: the rows reach the history after the
+  next pass, and those commands import only the batches a pass set aside, not the live journal.
+  Your time and Task times import it before each answer; `menkar usage now` reads it in place.
 - **A pane blocked across a restart** gives no `prompt_answered`: its entry time is gone, and the
   answer may have been given while Menkar was down. A pane not yet joined to a session records no
   session and no project.
@@ -335,6 +340,92 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
   session's first turn after each `prompted_start` when it is of origin `human` (a start whose
   agent dies before its first turn leaves out the human's next message in that session instead);
   the second is not counted.
+
+### The burst in progress (`menkar usage now`)
+
+Decision 1.185 (the human, 2026-11-19): Menkar does not alert. `menkar usage now --json` prints
+the human's burst in progress as one JSON object, for a service of the human's own that polls it
+about once a minute and keeps its own thresholds and snooze. `--json` is required; without it, or
+with any other argument, the usage line goes to standard error and the exit code is 2.
+
+**How it reads** (`runNow` in `cli.ts`, `src/core/usage/now.ts`). A pass runs first, as for every
+`menkar usage`, so the human's messages are in. Then the live journal and the batches are read where
+they lie (`readJournal`) and their events laid over the history's rows in memory (`withJournal`):
+nothing in `<data>/activity/` is renamed, written or deleted. **The order is what keeps it right
+while the app rotates and imports**: the journal first, then the batches' listing and contents,
+then the history. An event only moves journal → batch → history, and a batch is deleted only after
+its rows committed, so whatever left the journal before it was read is in a batch read after it or
+in the history read after that. A batch gone between the listing and its read was imported. An
+event read from a file that the history already holds is dropped by id
+(`UsageHistory.knownActivityIds`). A torn last line (an append in progress) and a newer Menkar's
+line are skipped without a log line: the command runs every minute. For the one presence row before
+the range, the later of the history's and the files' is kept, since a journal a quit left can hold
+the `away` still open; a `prompted_start` from the files gets its session's first turn from the
+history (`UsageHistory.firstTurnAt`, the same subquery `humanActions` uses). Every project's, with
+no `--project`. It never runs `importLeftActivity`.
+
+**What it prints**, `schema` 1, pretty-printed: a field changes meaning or goes away only with a
+new `schema`, and one may be added without it. Times are whole Unix seconds with the same moment as
+local ISO with its offset.
+
+| Field | What it holds |
+|---|---|
+| `schema` | 1 |
+| `status` | `ok`, `history_too_new` or `history_unavailable`; on anything but `ok`, the object holds only `schema`, `status`, `now`, `now_epoch` |
+| `now`, `now_epoch` | The moment of the reading |
+| `menkar_running` | Whether a Menkar app runs now: `alive.json`'s pid answers (`menkarAliveSync`, the same check the MCP server makes) |
+| `away` | `null`, or `{ "since", "since_epoch" }`: the start of the away still open (no `back` and no `app_start` after it) |
+| `last_action` | `null`, or `{ "at", "at_epoch" }`: the latest action counted (outside away), from yesterday's local midnight at least |
+| `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts" }` |
+| `today` | `{ "active_seconds", "messages", "prompts" }`: today's bursts clipped at midnight, its messages and prompts answered, outside away |
+
+- **The burst in progress** is the last burst while the human is not away, no away started since
+  its last action, and `now − last action ≤ 10 minutes`: a burst lasts until the gap that would end
+  it has passed. While away there is none.
+- **`length_seconds` is `last_action − start`**, the burst as Menkar defines it; the service has
+  `now` for `now − start`. A clock set back gives no negative length.
+- **A burst crossing midnight** is whole in `burst`; only its part since midnight counts in
+  `today.active_seconds`.
+- **With the app closed** the same reading runs on what a quit or a crash left; no burst can be in
+  progress ten minutes after the last action, and an away left open runs to now. `menkar_running`
+  tells the service which case it reads.
+- **Never in it**: a project, a session, a name, a path, any text.
+
+**Exit codes**: 0 with `ok`; 1 with `history_too_new` (nothing read, the batches left) or
+`history_unavailable` (`Could not open the usage history.` on standard error); 2 for a bad
+argument. A failed pass prints its sentence on standard error and the reading goes on from what the
+history has.
+
+**Rejected, and why:**
+
+- **Asking the running app** through a control request: two paths, one with the app and one
+  without; it would make the app rotate the journal and start an import worker every minute, the
+  pattern rejected above as "a timer of its own", sixty times an hour; and 1.185 wants no local
+  server.
+- **`now` rotating and importing the journal itself**: the journal has one writer, the app's
+  promise chain; a rename from another process lands between its `stat` and its `rename`, and on
+  Windows renaming a file another process appends to is not dependable. It would also write the
+  history every minute for a read.
+- **No pass, only the journal** (about 50 ms cheaper): the human's messages reach the history only
+  through a pass, so a burst of messages sent by Remote Control would lag up to an hour.
+- **Taking Electron's single-instance lock to tell whether the app runs**: while `now` held it, an
+  app being started would think another one runs and exit.
+
+**Its cost** (2026-11-19, the command built from the tree, run three times under `env -i` against
+a throwaway home of 20 synthetic transcripts, 2,000 human turns and a journal of 120 lines):
+
+| Run | Wall time | Peak RSS |
+|---|---|---|
+| First (the pass ingests everything) | 0.95 s | 160 MB |
+| Warm | 0.12–0.13 s | 126 MB |
+
+On a copy of the human's real volume (339 transcripts, 2.8 GB) the steps measured at design time
+were a pass with nothing new 51 ms and the reading 47–55 ms, whatever the journal's length up to
+5,000 lines. The activity folder kept its listing, bytes and mtimes across the runs. **The worst
+case is waiting**: the pass and the history's open each wait up to the 30-second busy timeout when
+the app's own pass holds the file, normally under a second but tens of seconds in the start's
+catch-up after a long time off. A service gives the command a timeout of a minute or more, or skips
+that poll.
 
 ## Exporting for analysis
 

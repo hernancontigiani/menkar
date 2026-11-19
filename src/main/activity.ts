@@ -22,6 +22,7 @@ import {
   type ActivityImport,
   activityDir,
   batchPath,
+  JOURNAL_FILE,
   JOURNAL_VERSION,
   type JournalEvent,
 } from '../core/usage/activity'
@@ -39,7 +40,7 @@ type Unstamped =
   | { readonly kind: 'away' | 'back' }
   | { readonly kind: 'prompted_start'; readonly sessionId: string; readonly projectId?: string }
 
-const journalPath = () => join(activityDir(), 'journal.jsonl')
+const journalPath = () => join(activityDir(), JOURNAL_FILE)
 // Written once the first start's baseline is on disk: a crash before it gives a baseline next time.
 const baselinePath = () => join(activityDir(), 'baseline')
 const seconds = () => now() / 1000

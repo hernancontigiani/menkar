@@ -212,3 +212,15 @@ view sits, from mock-ups the human picks.
 
 > Left on 2026-11-18 (plan 43, block 7e): Your time shows the bursts.
 a nudge, and whether one helps at all, is read from the bursts the views will show.
+
+## A nudge after a long burst of the human's activity
+
+> Left on 2026-11-19 (plan 44): its trigger fired and decision 1.185 answered it: Menkar does not alert; `menkar usage now --json` serves the human's own service.
+### A nudge after a long burst of the human's activity
+
+1.180 (2026-11-18): Menkar could tell the human when a burst of their activity has run long (a
+break is due). Deferred by the human until they have seen their own data: the length that deserves
+a nudge, and whether one helps at all, is read from the bursts Your time shows (built 2026-11-18).
+
+**Trigger:** the human has looked at their bursts in the Usage window and asks for it. First
+question: the length, and whether away (1.167) or a quiet minute resets it.

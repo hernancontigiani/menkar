@@ -16,7 +16,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { openDb } from '../../../src/core/db'
 import { addSink } from '../../../src/core/log'
 import { UsageCache } from '../../../src/core/usage/cache'
-import { HISTORY_VERSION, UsageHistory } from '../../../src/core/usage/history'
+import { HISTORY_VERSION, migrateHistory, UsageHistory } from '../../../src/core/usage/history'
 import { runPass } from '../../../src/core/usage/pass'
 import { midnight } from '../../../src/core/usage/periods'
 import { buildReport, totalExecution } from '../../../src/core/usage/report'
@@ -207,6 +207,23 @@ describe('the history file', () => {
     expect(history.handle?.userVersion()).toBe(4)
     history.close()
   })
+
+  // A poller opens the history every minute beside the app: two openers may both read an old
+  // version, and the second takes the lock only after the first migrated the file.
+  test.each([0, 1, 2, 3])(
+    'a step read at version %i but already done by another opener is skipped',
+    (stale) => {
+      const dirs = usageDirs(`stale${stale}`)
+      new UsageHistory(dirs.history).close()
+      const db = openDb(dirs.history)
+      db.raw.exec("INSERT INTO turns VALUES ('t1', 's1', 'human', 1, NULL, NULL, NULL, 0)")
+      expect(() => migrateHistory(db, stale)).not.toThrow()
+      expect(db.userVersion()).toBe(HISTORY_VERSION)
+      expect(db.raw.prepare('SELECT count(*) AS n FROM turns').get()?.n).toBe(1)
+      expect(db.raw.prepare('SELECT count(*) AS n FROM rederive').get()?.n).toBe(0)
+      db.close()
+    },
+  )
 
   test('USG-35 a history at an older version is migrated in place, every row kept', () => {
     const dirs = usageDirs('usg35')

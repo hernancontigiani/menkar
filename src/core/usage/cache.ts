@@ -91,38 +91,41 @@ type Row = Record<string, unknown>
 const num = (row: Row | undefined, key: string): number => Number(row?.[key])
 const str = (row: Row | undefined, key: string): string => String(row?.[key])
 
+function cacheSchema(db: Db): number | null {
+  try {
+    const row = db.raw.prepare("SELECT value FROM meta WHERE key = 'schema'").get()
+    return row ? Number(row.value) : null
+  } catch {
+    return null // no meta table: a new or foreign file, rebuilt below
+  }
+}
+
+// Drops every table and creates the current ones. Another opener may have rebuilt the file between
+// the schema read and the lock, and dropping it again would lose what its pass ingested: the
+// schema is read again inside the transaction.
+export function rebuildCache(db: Db): void {
+  db.transaction(() => {
+    if (cacheSchema(db) === SCHEMA_VERSION) return
+    const tables = db.raw
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .all()
+      .map((row) => String(row.name))
+    for (const name of tables) db.raw.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`)
+    db.raw.exec(SCHEMA)
+    db.raw.prepare("INSERT INTO meta VALUES ('schema', ?)").run(String(SCHEMA_VERSION))
+  })
+}
+
 export class UsageCache {
   readonly db: Db
 
   constructor(path: string = cachePath()) {
     this.db = openDb(path, 30_000)
-    if (this.version() !== SCHEMA_VERSION) this.rebuild()
+    if (cacheSchema(this.db) !== SCHEMA_VERSION) rebuildCache(this.db)
   }
 
   close(): void {
     this.db.close()
-  }
-
-  private version(): number | null {
-    try {
-      const row = this.db.raw.prepare("SELECT value FROM meta WHERE key = 'schema'").get()
-      return row ? Number(row.value) : null
-    } catch {
-      return null // no meta table: a new or foreign file, rebuilt below
-    }
-  }
-
-  private rebuild(): void {
-    const tables = this.db.raw
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-      .all()
-      .map((row) => String(row.name))
-    this.db.transaction(() => {
-      for (const name of tables)
-        this.db.raw.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`)
-      this.db.raw.exec(SCHEMA)
-      this.db.raw.prepare("INSERT INTO meta VALUES ('schema', ?)").run(String(SCHEMA_VERSION))
-    })
   }
 
   // Reads what each transcript gained since the last pass. What the pass may have changed is

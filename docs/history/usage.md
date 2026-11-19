@@ -144,3 +144,16 @@ project and number; the types the page receives are in `nodes.ts`.
 > Left on 2026-11-19 (task 117): Task times gains Today, and Today carries to and from it.
   one (the seven days ending today, the same days as 7 days); Task times' are theirs. On entering a
   30 days opens Task times on 30 days, while Your time keeps the week it showed.
+
+## The human's activity and the task flow
+
+> Replaced 2026-11-19 (plan 44): `menkar usage now` reads the live journal in place, importing nothing.
+4. `menkar usage` and its export import the batches left there before reading; never the live
+   journal, which the running app owns.
+
+## Limits
+
+> Replaced 2026-11-19 (plan 44): `menkar usage now` reads the live journal in place.
+- **Up to an hour late outside the Usage window**: the rows reach the history after the next
+  pass, so `menkar usage` and its export, which import only the batches a pass set aside, lag the
+  live journal. Your time and Task times import it before each answer.

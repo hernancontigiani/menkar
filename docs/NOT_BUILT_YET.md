@@ -295,14 +295,29 @@ every figure adds up across days. The human finds 2.3 s tolerable for now (2026-
 lines a day) pushes a month with categories past ~4 s. First question: a parity test against the
 SQL lookups before any change.
 
-### A nudge after a long burst of the human's activity
+### A text form of `menkar usage now`
 
-1.180 (2026-11-18): Menkar could tell the human when a burst of their activity has run long (a
-break is due). Deferred by the human until they have seen their own data: the length that deserves
-a nudge, and whether one helps at all, is read from the bursts Your time shows (built 2026-11-18).
+2026-11-19 (plan 44, D1): `menkar usage now` requires `--json`; the reading is for the human's own
+service, and the JSON reads well enough with `jq`. A short translated line ("Burst: 1 h 10 min since
+14:30 · today 2 h 10 min") would need strings in both catalogs.
 
-**Trigger:** the human has looked at their bursts in the Usage window and asks for it. First
-question: the length, and whether away (1.167) or a quiet minute resets it.
+**Trigger:** the human wants to read it by eye in a terminal.
+
+### `menkar usage now` for one project
+
+2026-11-19 (plan 44, D3): the reading is every project's; away is already every project's, and a
+break is the human's, not a project's. The export's `--project NAME` would scope the actions.
+
+**Trigger:** the human's service asks for one project's burst.
+
+### `menkar usage now` on Windows while the app rotates the journal
+
+2026-11-19 (plan 44): checked on Linux only, where reading `journal.jsonl` while the app renames
+it disturbs neither. Not checked on Windows, where renaming a file another process has open depends
+on how both opened it.
+
+**Trigger:** Menkar runs on Windows. First question: whether the app's rename of the journal
+succeeds while `now` reads it, and what the app logs when it does not.
 
 ### Counting the messages typed while an agent works
 

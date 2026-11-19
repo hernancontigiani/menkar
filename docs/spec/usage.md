@@ -94,6 +94,10 @@ Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut bel
 ### `menkar usage` (F41)
 
 - Built: `docs/usage.md` describes how; `src/core/usage/` holds it.
+- Built: `menkar usage now --json`, the burst in progress (decision 1.185): `docs/usage.md`, "The
+  burst in progress". Tests USG-69 (it writes nothing in the activity folder), USG-70 (the
+  seeded reading, whole), USG-71 (away now), USG-72 (a burst across midnight), USG-73 (a newer
+  history).
 
 ## Data contracts
 

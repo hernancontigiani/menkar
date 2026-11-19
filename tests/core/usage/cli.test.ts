@@ -2,19 +2,27 @@
 // USG-43, USG-55 to USG-60).
 process.env.TZ = 'America/Argentina/Buenos_Aires'
 
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { openDb } from '../../../src/core/db'
 import { batchPath } from '../../../src/core/usage/activity'
-import { runUsageCli } from '../../../src/core/usage/cli'
+import { type CliDeps, runUsageCli } from '../../../src/core/usage/cli'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { type NodeJson, reportJson } from '../../../src/core/usage/report'
 import { prompt, response, usageDirs } from '../../factories/usage'
 
 type Dirs = ReturnType<typeof usageDirs>
 
-function cli(dirs: Dirs, args: string[]) {
+function cli(dirs: Dirs, args: string[], extra: Partial<CliDeps> = {}) {
   const out: string[] = []
   const err: string[] = []
   const code = runUsageCli(
@@ -25,6 +33,7 @@ function cli(dirs: Dirs, args: string[]) {
       configDir: join(dirs.root, 'config'),
       statuslineLogs: [dirs.statuslineLog],
       activityDir: join(dirs.root, 'activity'),
+      ...extra,
     },
   )
   return { code, out: out.join('\n'), err: err.join('\n') }
@@ -303,4 +312,89 @@ test('a report is JSON with local offsets, five token counts and limits', () => 
     limits: [41, 12],
     history_too_new: false,
   })
+})
+
+// `menkar usage now --json`, polled by the human's own service (decision 1.185).
+describe('menkar usage now', () => {
+  const nov8 = (h: number, m: number) => new Date(2026, 10, 8, h, m, 0).getTime() / 1000
+
+  // The batches are read where they lie: the app imports them, not `now`.
+  test('prints the reading, reads a left batch without importing it, and exits 0', () => {
+    const dirs = usageDirs('now-cli')
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    const batch = batchPath(dir, nov8(17, 55) * 1000)
+    const line = { v: 1, id: 'a1', at: nov8(17, 55), kind: 'present' }
+    writeFileSync(batch, `${JSON.stringify(line)}\n`)
+    const before = readFileSync(batch)
+    const mtime = statSync(batch).mtimeMs
+    const result = cli(dirs, ['now', '--json'], { running: () => true })
+    expect(result.code).toBe(0)
+    expect(result.err).toBe('')
+    expect(JSON.parse(result.out)).toMatchObject({
+      schema: 1,
+      status: 'ok',
+      now_epoch: nov8(18, 0),
+      menkar_running: true,
+      burst: { start_epoch: nov8(17, 55), length_seconds: 0 },
+    })
+    expect(readFileSync(batch)).toEqual(before)
+    expect(statSync(batch).mtimeMs).toBe(mtime)
+    expect(readdirSync(dir)).toHaveLength(1)
+    const history = new UsageHistory(dirs.history)
+    expect(history.handle?.raw.prepare('SELECT count(*) AS n FROM activity').get()?.n).toBe(0)
+    history.close()
+  })
+
+  test('USG-73 a history from a newer Menkar: history_too_new, exit 1, the batches untouched', () => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const dirs = usageDirs('usg73')
+    const db = openDb(dirs.history)
+    db.setUserVersion(99)
+    db.close()
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    const batch = batchPath(dir, nov8(17, 0) * 1000)
+    writeFileSync(
+      batch,
+      `${JSON.stringify({ v: 1, id: 'a1', at: nov8(17, 0), kind: 'present' })}\n`,
+    )
+    const result = cli(dirs, ['now', '--json'], { running: () => false })
+    expect(result.code).toBe(1)
+    expect(JSON.parse(result.out)).toEqual({
+      schema: 1,
+      status: 'history_too_new',
+      now: '2026-11-08T18:00:00-03:00',
+      now_epoch: nov8(18, 0),
+    })
+    expect(readdirSync(dir)).toEqual([batch.slice(dir.length + 1)])
+  })
+
+  test('a history that cannot be opened: history_unavailable and its sentence, exit 1', () => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const dirs = usageDirs('now-unopenable')
+    const data = join(dirs.root, 'data')
+    mkdirSync(data, { recursive: true })
+    chmodSync(data, 0o500)
+    try {
+      const result = cli(dirs, ['now', '--json'], { running: () => false })
+      expect(result.code).toBe(1)
+      expect(result.err.split('\n')).toContain('Could not open the usage history.')
+      expect(JSON.parse(result.out)).toMatchObject({ schema: 1, status: 'history_unavailable' })
+    } finally {
+      chmodSync(data, 0o700)
+    }
+  })
+
+  test.each([[['now']], [['now', '--period', 'today']], [['now', '--json', 'x']]])(
+    '`usage %s` is a bad argument: the usage line, nothing printed, exit 2',
+    (args) => {
+      const dirs = usageDirs('now-args')
+      const result = cli(dirs, args, { running: () => false })
+      expect(result.code).toBe(2)
+      expect(result.out).toBe('')
+      expect(result.err.split('\n')[0]).toBe('usage: menkar usage now --json')
+      expect(existsSync(dirs.history)).toBe(false)
+    },
+  )
 })

@@ -111,9 +111,14 @@ menkar usage --month 2026-10          # a calendar month
 menkar usage --from 2026-11-01 --to 2026-11-03   # both days included
 menkar usage --period today --by hour # one report per hour (or day, month)
 menkar usage --json                   # JSON instead of text
+menkar usage now --json               # the burst in progress, for a break reminder of your own
 ```
 
 Costs marked `~` are list-price estimates, not a bill. A `+` means some model had no price.
+
+`menkar usage now --json` is for a program you run yourself: it tells it whether you are in a burst
+of activity and since when, whether you are away, and today's active time. Menkar itself never
+alerts you to take a break.
 
 `menkar usage export` writes every turn as a row, for a spreadsheet or for an AI session to
 analyse: who opened it, when, its project and category, its time, and its tokens and cost by model.

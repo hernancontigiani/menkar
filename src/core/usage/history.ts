@@ -163,6 +163,27 @@ export function keyOf(
   return JSON.stringify([projectId, sessionId, category])
 }
 
+// Brings a file read at `version` to the current one. Another opener may have moved it between
+// that read and the lock, so each step re-reads the version inside its transaction.
+export function migrateHistory(db: Db, version: number): void {
+  if (version === 0) {
+    db.transaction(() => {
+      if (db.userVersion() !== 0) return
+      db.raw.exec(HISTORY_SCHEMA)
+      db.setUserVersion(HISTORY_VERSION)
+    })
+  }
+  for (let v = version; v > 0 && v < HISTORY_VERSION; v += 1) {
+    const step = MIGRATIONS[v]
+    if (step === undefined) throw new Error(`no migration from usage history version ${v}`)
+    db.transaction(() => {
+      if (db.userVersion() !== v) return
+      db.raw.exec(step)
+      db.setUserVersion(v + 1)
+    })
+  }
+}
+
 export class UsageHistory {
   readonly path: string
   readonly tooNew: boolean
@@ -197,20 +218,7 @@ export class UsageHistory {
       this.db = null
       return
     }
-    if (version === 0) {
-      db.transaction(() => {
-        db.raw.exec(HISTORY_SCHEMA)
-        db.setUserVersion(HISTORY_VERSION)
-      })
-    }
-    for (let v = version; v > 0 && v < HISTORY_VERSION; v += 1) {
-      const step = MIGRATIONS[v]
-      if (step === undefined) throw new Error(`no migration from usage history version ${v}`)
-      db.transaction(() => {
-        db.raw.exec(step)
-        db.setUserVersion(v + 1)
-      })
-    }
+    migrateHistory(db, version)
     this.tooNew = false
     this.db = db
   }
@@ -730,8 +738,7 @@ export class UsageHistory {
     const promptedStarts = this.prepared(
       db,
       'SELECT a.at AS a, a.session_id AS s, t.uuid AS u, t.origin AS o FROM activity a' +
-        ' LEFT JOIN turns t ON t.uuid = (SELECT f.uuid FROM turns f WHERE f.session_id = a.session_id' +
-        ' AND f.opened >= a.at ORDER BY f.opened, f.uuid LIMIT 1)' +
+        ` LEFT JOIN turns t ON t.uuid = (${firstTurnAfter('a.session_id', 'a.at')})` +
         " WHERE a.kind = 'prompted_start' AND a.session_id IS NOT NULL AND a.at >= ? AND a.at < ?" +
         ' ORDER BY a.at, a.id',
     )
@@ -742,6 +749,28 @@ export class UsageHistory {
         firstTurn: r.u === null ? null : { uuid: String(r.u), origin: String(r.o) },
       }))
     return { messages, actions, presence, promptedStarts }
+  }
+
+  // Which of these activity ids the history already holds.
+  knownActivityIds(ids: readonly string[]): Set<string> {
+    const db = this.db
+    if (db === null || ids.length === 0) return new Set()
+    return new Set(
+      this.prepared(db, 'SELECT id FROM activity WHERE id IN (SELECT value FROM json_each(?))')
+        .all(JSON.stringify(ids))
+        .map((r) => String(r.id)),
+    )
+  }
+
+  // A session's first turn opened at or after `at`, as `humanActions` joins it to a prompted start.
+  firstTurnAt(sessionId: string, at: number): { uuid: string; origin: string } | null {
+    const db = this.db
+    if (db === null) return null
+    const row = this.prepared(
+      db,
+      `SELECT uuid AS u, origin AS o FROM turns WHERE uuid = (${firstTurnAfter('?', '?')})`,
+    ).get(sessionId, at)
+    return row === undefined ? null : { uuid: String(row.u), origin: String(row.o) }
   }
 
   // Every activity row in [low, high), oldest first, for the export.
@@ -813,6 +842,9 @@ export interface StoredActivity {
 
 const ACTION_KINDS = ['prompt_answered', 'topic_discussed', 'topic_closed', 'present'] as const
 const PRESENCE_KINDS = ['away', 'back', 'app_start'] as const
+const firstTurnAfter = (session: string, at: string) =>
+  `SELECT f.uuid FROM turns f WHERE f.session_id = ${session}` +
+  ` AND f.opened >= ${at} ORDER BY f.opened, f.uuid LIMIT 1`
 const sqlList = (kinds: readonly string[]) => `(${kinds.map((k) => `'${k}'`).join(', ')})`
 
 // Execution spans that touch become one: the two-hour rule makes most of a turn contiguous.

@@ -1,11 +1,12 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { now } from '../clock'
+import { menkarAliveSync } from '../control/files'
 import { flavorFacts } from '../flavor'
 import { t } from '../i18n'
 import { log } from '../log'
 import { appDirs } from '../paths'
-import { activityDir } from './activity'
+import { activityDir, readJournal } from './activity'
 import {
   exportActivityCsv,
   exportActivityRows,
@@ -16,6 +17,7 @@ import {
   exportTaskRows,
 } from './export'
 import { type Memberships, NO_MEMBERSHIPS, UsageHistory } from './history'
+import { nowUnavailable, readNow, withJournal } from './now'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
 import {
   allBounds,
@@ -315,6 +317,8 @@ export interface CliDeps {
   readonly configDir?: string
   readonly statuslineLogs?: readonly string[]
   readonly activityDir?: string
+  // whether a Menkar app runs now
+  readonly running?: () => boolean
 }
 
 // What the running app journaled and could not import yet (a crash, a quit before its next pass);
@@ -430,8 +434,61 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
   }
 }
 
+const nowUsage = () => `${flavorFacts().command} usage now --json`
+
+// `menkar usage now --json`: the human's burst in progress, for a service of their own that polls
+// it. The live journal and the batches are read where they lie, never moved or imported: the
+// running app owns them.
+function runNow(argv: readonly string[], output: Output, deps: CliDeps): number {
+  let json = false
+  for (const arg of argv) {
+    if (arg === '--help' || arg === '-h') {
+      output.out(`${t('usage.cli.usage')} ${nowUsage()}`)
+      output.out(t('usage.cli.nowHelp'))
+      return 0
+    }
+    if (arg === '--json') json = true
+    else return nowArgumentError(output, t('usage.cli.unknownArgument', { argument: arg }))
+  }
+  if (!json) return nowArgumentError(output, t('usage.cli.nowNeedsJson'))
+  const passPaths = deps.passPaths ?? defaultPassPaths()
+  try {
+    runPass(readMemberships(deps.configDir ?? appDirs().config), passPaths)
+  } catch {
+    output.err(t('usage.cli.passFailed'))
+  }
+  const print = (value: unknown) => output.out(JSON.stringify(value, null, 2))
+  let history: UsageHistory
+  try {
+    history = new UsageHistory(passPaths.history)
+  } catch {
+    output.err(t('usage.cli.cannotOpen'))
+    print(nowUnavailable('history_unavailable', now() / 1000))
+    return 1
+  }
+  try {
+    if (history.tooNew) {
+      print(nowUnavailable('history_too_new', now() / 1000))
+      return 1
+    }
+    const events = readJournal(deps.activityDir ?? activityDir()).events
+    const running = (deps.running ?? menkarAliveSync)()
+    print(readNow(withJournal(history, events), now() / 1000, running))
+    return 0
+  } finally {
+    history.close()
+  }
+}
+
+function nowArgumentError(output: Output, message: string): number {
+  output.err(`${t('usage.cli.usage')} ${nowUsage()}`)
+  output.err(t('usage.cli.error', { command: flavorFacts().command, message }))
+  return 2
+}
+
 export function runUsageCli(argv: readonly string[], output: Output, deps: CliDeps = {}): number {
   if (argv[0] === 'export') return runExport(argv.slice(1), output, deps)
+  if (argv[0] === 'now') return runNow(argv.slice(1), output, deps)
   let options: Options
   try {
     options = parseArgs(argv)

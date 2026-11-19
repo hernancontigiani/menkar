@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, watch } from 'node:fs'
+import { existsSync, readFileSync, watch } from 'node:fs'
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { now } from '../clock'
@@ -96,13 +96,13 @@ function errno(error: unknown): string | undefined {
   return (error as NodeJS.ErrnoException).code
 }
 
-// Whether the Menkar that wrote alive.json still runs.
-export async function menkarAlive(): Promise<boolean> {
+// Whether the Menkar that wrote alive.json, read as `text`, still runs.
+function aliveIn(text: string): boolean {
   let pid: unknown
   try {
-    pid = (JSON.parse(await readFile(controlPaths().alive, 'utf8')) as { pid?: unknown }).pid
+    pid = (JSON.parse(text) as { pid?: unknown }).pid
   } catch (error) {
-    if (errno(error) === 'ENOENT' || error instanceof SyntaxError) return false
+    if (error instanceof SyntaxError) return false
     throw error
   }
   if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return false
@@ -112,6 +112,29 @@ export async function menkarAlive(): Promise<boolean> {
   } catch (error) {
     return errno(error) === 'EPERM' // alive, under another user
   }
+}
+
+export async function menkarAlive(): Promise<boolean> {
+  let text: string
+  try {
+    text = await readFile(controlPaths().alive, 'utf8')
+  } catch (error) {
+    if (errno(error) === 'ENOENT') return false
+    throw error
+  }
+  return aliveIn(text)
+}
+
+// For a command-line path that is synchronous end to end.
+export function menkarAliveSync(): boolean {
+  let text: string
+  try {
+    text = readFileSync(controlPaths().alive, 'utf8')
+  } catch (error) {
+    if (errno(error) === 'ENOENT') return false
+    throw error
+  }
+  return aliveIn(text)
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

@@ -2,7 +2,7 @@
 // results, responses with tokens — and the directories a pass reads and writes. Synthetic only.
 import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Memberships } from '../../src/core/usage/history'
+import type { Memberships, UsageHistory } from '../../src/core/usage/history'
 
 export type Line = Record<string, unknown>
 
@@ -127,5 +127,25 @@ export function memberships(
   return {
     sessions: new Map(Object.entries(sessions).map(([s, [id, name]]) => [s, { id, name }])),
     projectNames: names,
+  }
+}
+
+// Rows written straight into a history, as a pass and an import would leave them.
+export function historyRows(history: UsageHistory) {
+  const raw = history.handle?.raw
+  if (raw === undefined) throw new Error('the history did not open')
+  return {
+    turn(uuid: string, sessionId: string, origin: string, opened: number, project?: string) {
+      raw
+        .prepare(
+          'INSERT INTO turns (uuid, session_id, origin, opened, project_id) VALUES (?, ?, ?, ?, ?)',
+        )
+        .run(uuid, sessionId, origin, opened, project ?? null)
+    },
+    activity(id: string, at: number, kind: string, sessionId?: string) {
+      raw
+        .prepare('INSERT INTO activity (id, at, kind, session_id) VALUES (?, ?, ?, ?)')
+        .run(id, at, kind, sessionId ?? null)
+    },
   }
 }

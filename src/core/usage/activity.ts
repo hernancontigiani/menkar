@@ -64,6 +64,9 @@ export function activityDir(): string {
   return join(appDirs().data, 'activity')
 }
 
+// The live journal, which only the running app appends to and renames.
+export const JOURNAL_FILE = 'journal.jsonl'
+
 // A rename replaces its target silently, and the stamp repeats when the clock is set back or an
 // hour repeats at a daylight-saving change: the random part keeps a batch from replacing another.
 export function batchPath(dir: string, ms: number): string {
@@ -202,4 +205,38 @@ export function importBatch(db: Db, path: string): ActivityImport {
     })
   }
   return result
+}
+
+export interface JournalRead {
+  // the activity events by id; a task's state changes are not the human's activity
+  readonly events: Map<string, ActivityEvent>
+  bad: number
+  newer: number
+}
+
+// The events not yet in the history, read without moving or importing anything: the app may be
+// appending and rotating meanwhile. An event only moves journal → batch → history, and a batch is
+// deleted only after its rows committed; so the journal is read first, then the batches listed and
+// read, and the history after them, and each event is seen at least once.
+export function readJournal(dir: string): JournalRead {
+  const read: JournalRead = { events: new Map(), bad: 0, newer: 0 }
+  const take = (path: string) => {
+    let text: string
+    try {
+      text = readFileSync(path, 'utf8')
+    } catch (error) {
+      if (missing(error)) return // no journal yet, or a batch imported since it was listed
+      throw error
+    }
+    for (const line of text.split('\n')) {
+      if (line.trim() === '') continue
+      const parsed = parseJournalLine(line)
+      if (parsed === 'bad') read.bad += 1
+      else if (parsed === 'newer') read.newer += 1
+      else if (parsed.kind !== 'task_state') read.events.set(parsed.id, parsed)
+    }
+  }
+  take(join(dir, JOURNAL_FILE))
+  for (const path of batchFiles(dir)) take(path)
+  return read
 }

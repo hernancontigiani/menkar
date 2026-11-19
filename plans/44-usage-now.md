@@ -375,4 +375,45 @@ Files: `docs/usage.md`, `docs/history/usage.md`, `README.md`, `docs/spec/usage.m
 
 ## 7. Execution log
 
-*(Written by the session that executes it.)*
+Executed 2026-11-19 by `menkar-t120` (task 120), blocks 1–5 in order, each test seen red against
+an injected defect before it was trusted.
+
+**Block 1.** The migration steps and the cache's rebuild became two exported functions,
+`migrateHistory(db, version)` and `rebuildCache(db)`, so a test can run a step with a stale
+version; behaviour is otherwise the same. Inside each transaction the version is read again and the
+step returns when it moved. Seen red: versions 0, 1 and 2 threw ("table turns already exists",
+"duplicate column name: category", "table rederive already exists"); version 3 was already
+idempotent and passed; the cache test lost its row. The cache's table listing moved inside the
+transaction with the re-check.
+
+**Block 2.** `readJournal(dir)` and `JOURNAL_FILE` in `src/core/usage/activity.ts`;
+`knownActivityIds` and `firstTurnAt` in `history.ts`, the first-turn subquery shared through
+`firstTurnAfter` (the SQL `humanActions` runs is the same string); `withJournal` in `now.ts`.
+Deviation: `src/main/activity.ts` line 42 now builds the journal's path from `JOURNAL_FILE`
+instead of its own `'journal.jsonl'`, so reader and writer cannot name two files; the writer and the
+rotation are otherwise untouched. A shared factory `historyRows` went into
+`tests/factories/usage.ts`. Not covered by a test: the read order under a real concurrent rotation
+(the reads are synchronous; the order is in `readJournal` and in `withJournal` being built after
+it, with the reasoning in its comment).
+
+**Block 3.** `readNow` and `nowUnavailable` in `now.ts`. The open away is found by reading
+`awayPeriods` to an endless now (the one with no end), so away keeps one definition. My choice
+beyond §2.2: a burst is also not in progress when an away **started and ended** since its last
+action (`bursts` ends a burst at an away whatever the gap; without the check, actions to 14:58,
+away 15:00, back 15:05, now 15:06 read as a burst in progress). Tested, plus one edge for the
+open-away check: an away recorded at the very second of now.
+
+**Block 4.** `runNow` in `cli.ts`; `menkarAliveSync` beside `menkarAlive`, both on one `aliveIn`.
+Two strings, not one: `usage.cli.nowHelp` and `usage.cli.nowNeedsJson`, the error line under the
+usage line, as the other commands print theirs (my choice). The history-unavailable test makes the
+data folder unwritable, as USG-60 does: a directory at the history's path is moved aside and
+replaced, so it is not unopenable. Built with `electron-vite build --outDir` into the scratchpad,
+not `out/`, because ui-check (held by another session) runs from `out/`. Run under `env -i` with a
+throwaway `HOME` and `XDG_*`, 20 synthetic transcripts (2,000 human turns), a 120-line journal and
+one batch: `0.95 s 159936 KB` (first, the pass ingesting all), `0.13 s 126128 KB`,
+`0.12 s 126284 KB`; the activity folder's listing, mtimes and hashes were the same before and
+after; `menkar_running` true with an `alive.json` naming a live pid; `usage now` without `--json`
+exit 2. The throwaway home and build were deleted.
+
+**Block 5.** As declared. The Windows entry says only that it is not checked there: whether a
+read blocks the app's rename on Windows was not verified, so it is not asserted.
