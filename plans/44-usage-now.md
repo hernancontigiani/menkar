@@ -273,6 +273,8 @@ holds the whole printed text.
 
 ## 5. Decisions for the human
 
+**Decided by the human, 2026-11-19 (topic 66): D1 (a), D2 (a), D3 (a)**, the recommended ones. Block 1 (concurrent openers) accepted by `set` the same day.
+
 **D1 — Without `--json`.** (a) **`--json` is required**: `menkar usage now` alone prints the usage
 line and exits 2; a text form is an entry in `docs/NOT_BUILT_YET.md` with its trigger (the human
 wants to read it by eye). (b) A short text form of the same facts ("Burst: 1 h 10 min since 14:30 ·
