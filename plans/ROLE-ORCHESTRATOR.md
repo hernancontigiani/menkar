@@ -122,6 +122,13 @@ name is the declared one**, and asks for a rename if not.
 
 ## How you start
 
+**On the first start of a day**, before proposing work: compare each installed coding agent's
+version (`claude --version`, and the others' as `docs/agents.md` names them) with its row in
+`docs/agent-versions.md`, and note the row's date. A newer installed version, or a row older than a
+week, is a task to that agent's consultant ("On a new version of an agent" in that doc); say it in
+your summary. Patches no longer show a banner (1.187), so this is how a new one gets checked
+(the human, 2026-11-19).
+
 After the skill's "say what you read", confirm with a one-screen summary: what is done, what is in
 flight, what you propose to do first, and **what you found out of date or contradictory** between
 the docs and the tree. That last part is usually the most useful thing a new orchestrator delivers.
