@@ -232,8 +232,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
 - **Waking a parent:**
   - **Who is woken for what** (decision 1.178, 2026-11-18): the orchestrator of a project with the
     mode on, whose agent's kit has an inbox (`MainAgentKit.inbox`, Claude's alone), is posted to
-    for two things only, a task set to review and a question (below, "The orchestrator's wakes and
-    its inbox"); everything else it used to be woken for waits in its inbox. Every other parent —
+    for three things only, a task set to review, a question (below, "The orchestrator's wakes and
+    its inbox") and the human wanting to discuss a topic (decision 1.186, 2026-11-19, below);
+    everything else it used to be woken for waits in its inbox. Every other parent —
     the mode off, or a parent that is not the orchestrator — is woken as this bullet says.
   - **The event:** a child's shown state entering `blocked` ("‹name› is waiting at a permission
     prompt"), or leaving `working` for `idle` or `done` ("‹name› finished its turn"). It comes from
@@ -353,11 +354,14 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       new one. Every one left open is closed at start.
     - Kept out of Done today; its notice leads to the waiting session's tab while it is open.
     - Wired before the turn-end reading is asked, so an agent with none still raises it.
-- **The human's own news for the orchestrator** (decisions 1.173, 1.178): "The human wants to
-  discuss topic N" (a double-click on a topic), "The human took control of ‹name›" and "The human
-  handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The human is away: …" or
-  "The human is back" (`docs/orchestration.md`) go to the orchestrator's inbox under their keys; to
-  an orchestrator without one, through the batch as before. Team updates stay apart: they have
+- **The human's own news for the orchestrator** (decisions 1.173, 1.178, 1.186): "The human wants
+  to discuss topic N" (a double-click on a topic) wakes it, through the batch under the project's
+  orchestrator key, so a post that cannot be delivered goes to the inbox (`sendWake`); an
+  orchestrator that cannot be woken (no pane, or no waker) gets it in its inbox. "The human took
+  control of ‹name›" and "The human handed ‹name› back" (a read-only tab's banner, decision 1.101),
+  and "The human is away: …" or "The human is back" (`docs/orchestration.md`) go to the
+  orchestrator's inbox under their keys; to an orchestrator without one, through the batch as
+  before. Team updates stay apart: they have
   their own settle, and a turn they alone opened is recognised by the post starting with "[Menkar]
   Team update:".
 

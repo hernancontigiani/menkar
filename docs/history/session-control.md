@@ -202,3 +202,15 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
   human is away: …" or "The human is back" (`docs/orchestration.md`). Team updates stay apart:
   they have their own settle, and a turn they alone opened is recognised by the post starting
   with "[Menkar] Team update:".
+
+## The shape
+
+> Left on 2026-11-19: "The human wants to discuss topic N" wakes the orchestrator; the inbox only when it cannot be woken (decision 1.186, task 119).
+    mode on, whose agent's kit has an inbox (`MainAgentKit.inbox`, Claude's alone), is posted to
+    for two things only, a task set to review and a question (below, "The orchestrator's wakes and
+    its inbox"); everything else it used to be woken for waits in its inbox. Every other parent —
+- **The human's own news for the orchestrator** (decisions 1.173, 1.178): "The human wants to
+  discuss topic N" (a double-click on a topic), "The human took control of ‹name›" and "The human
+  handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The human is away: …" or
+  "The human is back" (`docs/orchestration.md`) go to the orchestrator's inbox under their keys; to
+  an orchestrator without one, through the batch as before. Team updates stay apart: they have

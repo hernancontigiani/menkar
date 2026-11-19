@@ -128,8 +128,8 @@ flight. Nobody pushes unless the project's rule or the human says so.
 ## When you are woken
 
 Only for a task to review ("[Menkar] ‹name› … task N to review: ‹note›": read its report with
-`last_reply`, check it, then `closing-a-task.md`) and a question ("[Menkar] ‹name› (task N) asks:
-…": answer it by name, or raise a topic when the human must decide).
+`last_reply`, check it, then `closing-a-task.md`), a question ("[Menkar] ‹name› (task N) asks:
+…": answer it by name, or raise a topic when the human must decide), and a topic to discuss (below).
 
 Everything else comes **from your inbox**, unseen by the human, with any next prompt or `inbox`
 (call it on "N more: call inbox."); act on what needs it, silent on the rest. After a restart it
@@ -139,7 +139,7 @@ holds only the tasks to review: read `task_list`, `topic_list` and `list_session
 - **"The human is away"**: events go to topics or the status file, not a chat summary; a blocking
   topic waits. Call `human_away` or `human_back` only on the human's explicit word. On **"The human
   is back"**, first a short summary (how many events, which await a decision), then one by one.
-- **"The human wants to discuss topic N"**: take it up. **"‹name› ended its turn without a
+- **"The human wants to discuss topic N"**: take it up now. **"‹name› ended its turn without a
   report"**: read it with `last_reply`, and ask it if it needs you (after a renew, nothing).
 - **"‹name› is waiting at a permission prompt"**: Menkar raised its topic; raise no other. You
   cannot approve it, and never ask the session to work around it.

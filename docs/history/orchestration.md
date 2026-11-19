@@ -404,3 +404,16 @@ step segments, the note. The note line starts with what the task waits on, as in
 > Left on 2026-11-18: "Others" is one flat list with no group headings in the mode (decision 1.183, task 105).
 3. **"Others"**: the rest, with groups as in the ordinary list (headings, collapsed groups, the
    drag order).
+
+## The sidebar in the mode
+
+> Left on 2026-11-19: "The human wants to discuss topic N" wakes the orchestrator; the inbox only when it cannot be woken (decision 1.186, task 119).
+(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are two kinds only** (decision 1.178, the
+human, 2026-11-17): every post is a line in the human's chat with the orchestrator, so it is
+posted to when a task is set to review and when a session asks it something; everything else —
+a turn ended without a report, a permission prompt, the human's own news — waits in its inbox and
+reaches it with its next prompt, off the human's screen (`docs/session-control.md`, the
+orchestrator's tab and tells the orchestrator "The human wants to discuss topic N" through its
+inbox (decision 1.178), so it hears it with its next prompt, the human's own included; nothing is
+typed into its terminal. An orchestrator whose agent has no inbox is posted to instead, through the
+wakes' messaging, when it runs (`discussTopic` in `src/main/workspace.ts`).

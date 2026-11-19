@@ -622,8 +622,8 @@ for (const scheme of ['dark', 'light'] as const)
   })
 
 // Decision 1.96: a double-click on a topic sets it to "discussing", selects the orchestrator's tab
-// and tells the orchestrator, through its inbox (1.178).
-test('a double-click on a topic: discussing, the orchestrator’s tab selected and told; with no orchestrator running, only discussing (screenshot)', async () => {
+// and wakes the orchestrator (1.186); with no orchestrator running, nothing is posted.
+test('a double-click on a topic: discussing, the orchestrator’s tab selected and woken; with no orchestrator running, only discussing (screenshot)', async () => {
   let root = ''
   const launched = await launchApp({
     prepare: (dirs) => {
@@ -674,22 +674,25 @@ test('a double-click on a topic: discussing, the orchestrator’s tab selected a
     await page.locator('.topic-row[data-topic="3"]').dblclick()
     await expect.poll(() => statusOf(3)).toBe('discussing')
     await expect(orchTab).toHaveClass(/selected/)
-    // Told through its inbox, off the human's screen (decision 1.178): nothing is posted.
-    await expect.poll(() => inboxLines(root)).toEqual(['The human wants to discuss topic 3'])
-    await page.waitForTimeout(NO_WAKE_MS)
-    expect(posted()).toEqual([])
+    // Woken (decision 1.186): posted to its chat, nothing left in its inbox.
+    await expect
+      .poll(() => posted().filter((p) => p.includes('discuss topic')))
+      .toEqual([expect.stringContaining('[Menkar] The human wants to discuss topic 3')])
+    expect(inboxLines(root)).toEqual([])
     await expect(page.locator('.work-tile .tile-n')).toHaveText(['3', '0', '0'])
     await page.locator('.topic-row[data-topic="3"]').click()
     await expect(page.locator('.topic-detail')).toContainText('From orchestrator · discussing')
     await shot(page, 'b1-topic-discuss.png')
 
-    // The orchestrator's tab closed: the topic still goes to discussing; nothing is posted.
+    // The orchestrator's tab closed: it cannot be woken; the topic still goes to discussing and
+    // nothing more is posted (its inbox holds it until the orchestrator runs again).
     await orchTab.locator('.close').click()
     await expect(page.locator('.tab')).toHaveCount(1)
+    const before = posted().length
     await page.locator('.topic-row[data-topic="1"]').dblclick()
     await expect.poll(() => statusOf(1)).toBe('discussing')
-    await page.waitForTimeout(4000)
-    expect(posted()).toEqual([])
+    await page.waitForTimeout(NO_WAKE_MS)
+    expect(posted()).toHaveLength(before)
   } finally {
     server.close()
     await launched.close()

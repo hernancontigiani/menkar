@@ -174,9 +174,10 @@ is set waiting, with what it waits on.
   "‹name› is waiting at a permission prompt", and closes it once the prompt is answered. Its Show
   opens that session's tab, where you answer it. It does not stay in Done today.
 - **The orchestrator's inbox**: Menkar posts to the orchestrator's chat only when a task is set to
-  review and when a session asks it something. Everything else — a turn ended without a report, a
-  permission prompt, taking control, a topic to discuss, away or back — waits in its inbox and
-  reaches it with its next prompt, yours included, without a line on your screen.
+  review, when a session asks it something and when you double-click a topic to discuss it.
+  Everything else — a turn ended without a report, a permission prompt, taking control, away or
+  back — waits in its inbox and reaches it with its next prompt, yours included, without a line on
+  your screen.
 - **Read-only tabs**: the tab of a session under the orchestrator takes no keys or pastes, under a
   yellow banner with "Take control". Taking control marks it "with you" (a blue banner, with "Back
   to reporting to the orchestrator"); the orchestrator is told both times. A worker taken control

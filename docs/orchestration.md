@@ -163,11 +163,12 @@ the top:
 
 **Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) ends,
 after its time, with the tiles' three numbers: `[Menkar] packager set task 4 to review: PR open
-(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are two kinds only** (decision 1.178, the
-human, 2026-11-17): every post is a line in the human's chat with the orchestrator, so it is
-posted to when a task is set to review and when a session asks it something; everything else —
-a turn ended without a report, a permission prompt, the human's own news — waits in its inbox and
-reaches it with its next prompt, off the human's screen (`docs/session-control.md`, the
+(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are three kinds only** (decisions 1.178,
+the human, 2026-11-17, and 1.186, the human, 2026-11-19): every post is a line in the human's chat
+with the orchestrator, so it is posted to when a task is set to review, when a session asks it
+something and when the human wants to discuss a topic; everything else — a turn ended without a
+report, a permission prompt, the rest of the human's own news — waits in its inbox and reaches it
+with its next prompt, off the human's screen (`docs/session-control.md`, the
 orchestrator's wakes and its inbox). The human follows the orchestrator from a phone through Remote Control, where
 the statusline does not show and the posts do. `postCounts` gives them only for the orchestrator of
 a project with the mode on, from the same `workCounts` as the tiles; posts to any other session are
@@ -238,10 +239,12 @@ the rest, per window, not saved. The current topic comes first in the order, so 
 the 5.
 
 **A double-click on a topic** (decision 1.96, 2026-11-12) sets it to "discussing", selects the
-orchestrator's tab and tells the orchestrator "The human wants to discuss topic N" through its
-inbox (decision 1.178), so it hears it with its next prompt, the human's own included; nothing is
-typed into its terminal. An orchestrator whose agent has no inbox is posted to instead, through the
-wakes' messaging, when it runs (`discussTopic` in `src/main/workspace.ts`).
+orchestrator's tab and wakes the orchestrator (decision 1.186, the human, 2026-11-19): "The human
+wants to discuss topic N" is posted through the wakes' messaging, so it takes the topic up without
+waiting for the human's next prompt; nothing is typed into its terminal. An orchestrator that
+cannot be woken (its tab closed, or an agent with no waker) is told through its inbox instead, when
+it has one; a post that cannot be delivered falls back to the inbox too (`discussTopic` in
+`src/main/workspace.ts`).
 
 ## The Board
 

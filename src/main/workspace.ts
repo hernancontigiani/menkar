@@ -3504,10 +3504,16 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       const tab = pane ? w.tabs.find((x) => x.id === pane.tabId) : undefined
       if (tab) putWindow({ ...w, selected: { ...w.selected, [tab.project]: tab.id } })
       const text = `The human wants to discuss topic ${action.number}`
-      if (project && orchestrator && inboxOrchestrator(project) === orchestrator)
-        inboxes.add(project.id, `topic:${action.number}`, text)
-      else if (orchestrator && wakeable(pane))
-        wakes.post(orchestrator, `topic:${action.number}`, text)
+      const key = `topic:${action.number}`
+      const hasInbox = !!project && !!orchestrator && inboxOrchestrator(project) === orchestrator
+      // Through the project's key, a wake that cannot be delivered falls back to the inbox.
+      if (orchestrator && wakeable(pane))
+        wakes.post(
+          hasInbox && project ? `${ORCHESTRATOR_OF}${project.id}` : orchestrator,
+          key,
+          text,
+        )
+      else if (hasInbox && project) inboxes.add(project.id, key, text)
       notifySeen()
       changed()
       return {}
