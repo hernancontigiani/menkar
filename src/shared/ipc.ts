@@ -20,6 +20,7 @@ import type {
   UsageView,
   UsageWhich,
 } from '../core/usage/nodes'
+import type { TasksPeriod } from '../core/usage/sections'
 import type { Action, ActionResult, FileUpdate, RoleSkillChoice, WindowState } from './workspace'
 
 export type { ProjectsSnapshot, SessionInfo }
@@ -113,7 +114,7 @@ export interface InvokeChannels {
     request: { which: ActivityWhich; allProjects: boolean }
     response: ActivityView
   }
-  'usage:flow': { request: { period: '7d' | '30d'; allProjects: boolean }; response: TaskFlowView }
+  'usage:flow': { request: { period: TasksPeriod; allProjects: boolean }; response: TaskFlowView }
   // About's two links, opened in the system browser only when clicked.
   'app:open-link': { request: { link: 'website' | 'issues' }; response: undefined }
   // The status line in every Claude session: on when installed and still as written; a refused
@@ -290,7 +291,7 @@ export interface MenkarApi {
   readonly usage: {
     view(which: UsageWhich, allProjects: boolean): Promise<UsageView>
     activity(which: ActivityWhich, allProjects: boolean): Promise<ActivityView>
-    flow(period: '7d' | '30d', allProjects: boolean): Promise<TaskFlowView>
+    flow(period: TasksPeriod, allProjects: boolean): Promise<TaskFlowView>
   }
   readonly classifier: {
     status(): Promise<ClassifierStatus>

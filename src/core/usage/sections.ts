@@ -10,7 +10,7 @@ export type SpendPeriod =
 export type TimePeriod =
   | { readonly kind: 'day'; readonly day: Day }
   | { readonly kind: 'week'; readonly first: Day } // seven days from `first`
-export type TasksPeriod = '7d' | '30d'
+export type TasksPeriod = 'today' | '7d' | '30d'
 
 export interface Sections {
   readonly shown: UsageSection
@@ -77,7 +77,7 @@ export function switchTo(s: Sections, to: UsageSection, today: Day): Sections {
   const kept: Sections = { ...s, shown: to, chosen: false }
   if (span === null) return kept
   if (to === 'spend') return { ...kept, spend: { kind: span }, chosen: true }
-  if (to === 'tasks') return span === 'today' ? kept : { ...kept, tasks: span, chosen: true }
+  if (to === 'tasks') return { ...kept, tasks: span, chosen: true }
   if (span === 'today') return { ...kept, time: { kind: 'day', day: today }, chosen: true }
   if (span === '7d')
     return { ...kept, time: { kind: 'week', first: currentWeek(today) }, chosen: true }

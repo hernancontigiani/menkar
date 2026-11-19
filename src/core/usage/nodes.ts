@@ -2,6 +2,7 @@
 // Usage window's page, so nothing here imports Node.
 import type { Bounds, Day } from './periods'
 import type { TokenCounts } from './prices'
+import type { TasksPeriod } from './sections'
 
 export interface Tokens extends TokenCounts {}
 
@@ -168,9 +169,9 @@ export interface ActivityView {
   readonly scoped: boolean
 }
 
-// What Task times draws for 7 or 30 days.
+// What Task times draws for its period.
 export interface TaskFlowView {
-  readonly period: '7d' | '30d'
+  readonly period: TasksPeriod
   readonly flow: TaskFlow
   readonly tooNew: boolean
   readonly project: { readonly id: string; readonly name: string } | null

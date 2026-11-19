@@ -138,3 +138,9 @@ project and number; the types the page receives are in `nodes.ts`.
 
 > Left on 2026-11-18 (plan 43, block 7e): the Usage window imports the journal before each answer.
 - **Up to an hour late**: the rows reach the history after the next pass.
+
+## The Usage window
+
+> Left on 2026-11-19 (task 117): Task times gains Today, and Today carries to and from it.
+  one (the seven days ending today, the same days as 7 days); Task times' are theirs. On entering a
+  30 days opens Task times on 30 days, while Your time keeps the week it showed.

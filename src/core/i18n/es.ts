@@ -752,8 +752,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
     'Mediana: el tiempo de la tarea del medio en ese estado. Total: el tiempo de todas las tareas sumado. Las tareas abiertas cuentan hasta ahora.',
   'usage.tasks.baselineFooter':
     '◦ {n} tarea(s) ya estaban abiertas cuando empezó el registro ({date}): se cuentan desde entonces, no desde su creación.',
+  'usage.tasks.emptyToday': 'No hay tareas en este proyecto hoy.',
   'usage.tasks.empty7': 'No hay tareas en este proyecto en estos 7 días.',
   'usage.tasks.empty30': 'No hay tareas en este proyecto en estos 30 días.',
+  'usage.tasks.emptyAllToday': 'No hay tareas en ningún proyecto hoy.',
   'usage.tasks.emptyAll7': 'No hay tareas en ningún proyecto en estos 7 días.',
   'usage.tasks.emptyAll30': 'No hay tareas en ningún proyecto en estos 30 días.',
   'usage.tasks.emptyFooter':

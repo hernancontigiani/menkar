@@ -171,6 +171,7 @@ test('decision 1.184: the window opens on Spend, 7 days; the left bar is 180 px;
       await expect(section(usage, 'tasks')).toHaveAttribute('aria-selected', 'true')
       await expect(section(usage, 'tasks')).toBeFocused()
       await expect(usage.locator('[data-toggles="period"] button')).toHaveText([
+        'Today',
         '7 days',
         '30 days',
       ])
@@ -308,6 +309,16 @@ test('decision 1.184: a chosen period is carried where the other section has it;
     await expect
       .poll(async () => (await lastAsk(launched.app, 'usage:activity'))?.request.which)
       .toEqual({ kind: 'day', day: localToday() })
+    // Your time on today's Day (carried) → Task times Today → Spend Today → Your time today's Day
+    await section(usage, 'tasks').click()
+    await expect(pressed(usage, 'period')).toHaveText('Today')
+    await expect
+      .poll(async () => (await lastAsk(launched.app, 'usage:flow'))?.request.period)
+      .toBe('today')
+    await section(usage, 'spend').click()
+    await expect(pressed(usage, 'period')).toHaveText('Today')
+    await section(usage, 'time').click()
+    await expect(pressed(usage, 'period')).toHaveText('Day')
 
     // Your time Week (chosen, the current one) → Spend 7 days and Task times 7 days
     await period('week').click()

@@ -62,10 +62,21 @@ describe('switchTo', () => {
     expect(go(s, 'time')).toMatchObject({ time: day(nov(15)), chosen: false })
   })
 
-  test('Spend Today carries to Your time as the day of today; Task times keeps its own', () => {
+  test('Spend Today carries to Your time as the day of today and to Task times Today', () => {
     const s = choose(own, { kind: 'today' })
     expect(go(s, 'time')).toMatchObject({ time: day(TODAY), chosen: true })
-    expect(go(s, 'tasks')).toMatchObject({ tasks: '30d', chosen: false })
+    expect(go(s, 'tasks')).toMatchObject({ tasks: 'today', chosen: true })
+  })
+
+  test("Your time on today's day carries to Task times Today; a day stepped back to does not", () => {
+    expect(go(choose(own, day(TODAY)), 'tasks')).toMatchObject({ tasks: 'today', chosen: true })
+    expect(go(choose(own, day(nov(17))), 'tasks')).toMatchObject({ tasks: '30d', chosen: false })
+  })
+
+  test("Task times Today carries to Spend Today and to Your time's today", () => {
+    const s = choose(go(own, 'tasks'), 'today')
+    expect(go(s, 'spend')).toMatchObject({ spend: { kind: 'today' }, chosen: true })
+    expect(go(s, 'time')).toMatchObject({ time: day(TODAY), chosen: true })
   })
 
   test('Task times 30 days carries to Spend 30 days', () => {

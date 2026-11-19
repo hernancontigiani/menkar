@@ -93,11 +93,14 @@ sections.
 - **The periods carry** (`src/core/usage/sections.ts`, the reading of 1.184 decided 2026-11-18). A
   period's span is Today, 7 days, 30 days or none: Spend's Today, 7 days and 30 days are theirs,
   Month none; a Day is Today only when it is today, a Week is 7 days only when it is the current
-  one (the seven days ending today, the same days as 7 days); Task times' are theirs. On entering a
+  one (the seven days ending today, the same days as 7 days); Task times' Today, 7 days and 30 days
+  are theirs (Today added 2026-11-19). On entering a
   section, if the section left shows a period picked there on this visit, or carried into it, and
   the new one has that span, the new one takes it; otherwise it keeps its own and carries nothing on
   until a period is picked in it. A step of the month, the day or the week is a pick. So Spend's
-  30 days opens Task times on 30 days, while Your time keeps the week it showed.
+  30 days opens Task times on 30 days, while Your time keeps the week it showed; Spend's Today, or
+  Your time on today's day, opens Task times on Today, and Task times' Today opens Spend on Today and
+  Your time on today's day.
 - **Inside Your time**: Day → Week shows the week holding the day shown; Week → Day shows today on
   the current week, else the week's last day. Weeks step by seven days on a grid ending today. The
   arrows stop at today and at the history's first day.

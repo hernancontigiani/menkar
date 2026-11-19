@@ -64,7 +64,7 @@ Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut bel
     projects", one pressed. It is shown only when the window has an opener; the scope chosen holds
     in every section (decision 1.15).
   - **The header holds only the section's period**: Spend — Today, 7 days, 30 days, Month; Your time
-    — Day, Week; Task times — 7 days, 30 days.
+    — Day, Week; Task times — Today, 7 days, 30 days (Today added 2026-11-19).
   - **Spend** is the Totals and By day of before, with the metric, the stack, the month stepper and
     the footer, unchanged.
   - **Your time**, the human's own activity. **Day**: a stepper over the day's name; "Active 4.1h ·
@@ -83,7 +83,7 @@ Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut bel
     while the window is open; To review lists its four waiters always, an empty one dim with "—"),
     and per row the tasks, the median per task, the total and a share bar. The footer explains the
     median and the total and, with a baseline, from when those tasks are counted. With no task the
-    card says "No tasks in this project in these 7 days." (or 30, or "in any project").
+    card says "No tasks in this project in these 7 days." (or 30, "today", or "in any project").
   - **The period carries across sections** (decision 1.184, the reading decided 2026-11-18): a
     period picked in one section is taken by the next when that section has the same span (Today,
     7 days, 30 days; Today is Day on today, 7 days the current week); otherwise the section keeps

@@ -13,6 +13,7 @@ import type {
   UsageWhich,
 } from '../core/usage/nodes'
 import { PassRunner } from '../core/usage/runner'
+import type { TasksPeriod } from '../core/usage/sections'
 import { importActivity } from './activity'
 import { currentProjects } from './projects'
 import { sessions } from './sessions'
@@ -163,9 +164,9 @@ export async function activityView(
   })
 }
 
-// Task times' 7 or 30 days. The flow waits for the pass too, so its import keeps that same rule.
+// Task times' period. The flow waits for the pass too, so its import keeps that same rule.
 export async function flowView(
-  period: '7d' | '30d',
+  period: TasksPeriod,
   projectId: string | null,
   allProjects: boolean,
 ): Promise<TaskFlowView> {

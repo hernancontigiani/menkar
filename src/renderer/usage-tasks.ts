@@ -152,6 +152,9 @@ function summary(view: TaskFlowView): HTMLElement {
 }
 
 function emptyText(view: TaskFlowView): string {
+  if (view.period === 'today') {
+    return view.scoped ? t('usage.tasks.emptyToday') : t('usage.tasks.emptyAllToday')
+  }
   const seven = view.period === '7d'
   if (view.scoped) return seven ? t('usage.tasks.empty7') : t('usage.tasks.empty30')
   return seven ? t('usage.tasks.emptyAll7') : t('usage.tasks.emptyAll30')

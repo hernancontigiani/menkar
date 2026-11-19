@@ -220,6 +220,7 @@ function periodToggles(): HTMLElement {
     return toggles(
       'period',
       [
+        ['today', t('usage.today')],
         ['7d', t('usage.days7')],
         ['30d', t('usage.days30')],
       ] as const,

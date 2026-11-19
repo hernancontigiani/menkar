@@ -859,3 +859,12 @@ history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-h
 
 > Left on 2026-11-18 (plan 43, block 7e): the sections' modules and screenshots are named.
 - Built: `src/renderer/usage.ts` and `usage.css`; LOOK-50 and LOOK-51 in `e2e/usage-window.spec.ts` assert the series colors and the Totals card. Reference screenshots: `img/usage-*.png`.
+
+## The Usage window (F40, M4)
+
+> Left on 2026-11-19 (task 117): Task times gains Today, first, as in Spend's header.
+  - **The header holds only the section's period**: Spend — Today, 7 days, 30 days, Month; Your time
+    — Day, Week; Task times — 7 days, 30 days.
+
+> Left on 2026-11-19 (task 117): Task times' empty card has a Today wording.
+    card says "No tasks in this project in these 7 days." (or 30, or "in any project").

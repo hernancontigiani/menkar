@@ -740,8 +740,10 @@ export const en = {
     'Median: the middle task’s time in that state. Total: every task’s time added up. Open tasks count until now.',
   'usage.tasks.baselineFooter':
     '◦ {n} tasks were already open when recording started ({date}): counted from then, not from their creation.',
+  'usage.tasks.emptyToday': 'No tasks in this project today.',
   'usage.tasks.empty7': 'No tasks in this project in these 7 days.',
   'usage.tasks.empty30': 'No tasks in this project in these 30 days.',
+  'usage.tasks.emptyAllToday': 'No tasks in any project today.',
   'usage.tasks.emptyAll7': 'No tasks in any project in these 7 days.',
   'usage.tasks.emptyAll30': 'No tasks in any project in these 30 days.',
   'usage.tasks.emptyFooter': 'Tasks exist in projects with the orchestration mode on.',

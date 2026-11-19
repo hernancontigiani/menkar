@@ -4,9 +4,10 @@ import { type ElectronApplication, expect, type Page, test } from '@playwright/t
 import { launchApp } from './app'
 
 // Task times (decision 1.184): how long tasks spent in each state and on whom they waited, median
-// and total, over 7 or 30 days, read from a seeded activity journal on the real app in a temporary
-// HOME. Every moment is yesterday or earlier at a fixed local hour, so a run near midnight or
-// before 10:00 draws the same. Screenshots land in test-results/usage-tasks/.
+// and total, over Today, 7 or 30 days, read from a seeded activity journal on the real app in a
+// temporary HOME. Every moment is yesterday or earlier at a fixed local hour, so a run near midnight
+// or before 10:00 draws the same; Today holds only what is still open, whose time is the day so far.
+// Screenshots land in test-results/usage-tasks/.
 
 const SHOTS = 'test-results/usage-tasks'
 const SHOP = 'aaaaaaaaaaa1'
@@ -146,7 +147,7 @@ async function figures(page: Page, state: string, waiter?: string): Promise<stri
     .allTextContents()
 }
 
-test('decision 1.184: Task times shows the flow per state and per waiter, median and total, over 7 and 30 days', async () => {
+test('decision 1.184: Task times shows the flow per state and per waiter, median and total, over Today, 7 and 30 days', async () => {
   for (const scheme of ['dark', 'light'] as const) {
     const launched = await launchApp({
       prepare: ({ root, home }) => {
@@ -215,6 +216,24 @@ test('decision 1.184: Task times shows the flow per state and per waiter, median
       await row(usage, 'waiting').locator('button.arrow').click()
       await expect(usage.locator('.flow-waiter[data-state="waiting"]')).toHaveCount(2)
       await shot(usage, `${SHOTS}/30d-${scheme}.png`)
+
+      // Today: only task 3, still in review on a PR's merge since yesterday; its time is today's so
+      // far, so only the counts are fixed
+      await usage.locator('[data-toggles="period"] [data-value="today"]').click()
+      await expect(usage.locator('[data-toggles="period"] [aria-pressed="true"]')).toHaveText(
+        'Today',
+      )
+      await expect(summary).toHaveText(['1 task(s)', '0 done', '0 dropped', '1 open'])
+      expect(await figures(usage, 'queued')).toEqual(['0', '—', '—'])
+      expect(await figures(usage, 'in progress')).toEqual(['0', '—', '—'])
+      expect(await figures(usage, 'waiting')).toEqual(['0', '—', '—'])
+      const [tasks, median, total] = await figures(usage, 'to review')
+      expect(tasks).toBe('1')
+      expect(median).toBe(total)
+      expect(await figures(usage, 'to review', 'pr-merge')).toEqual([tasks, median, total])
+      expect(await figures(usage, 'to review', 'orchestrator')).toEqual(['0', '—', '—'])
+      await expect(usage.locator('[data-key="baseline-footer"]')).toHaveCount(0)
+      await shot(usage, `${SHOTS}/today-${scheme}.png`)
     } finally {
       await launched.close()
     }
@@ -244,6 +263,11 @@ test('decision 1.184: a project with no tasks shows the empty card and says wher
       await expect(usage.locator('[data-key="flow-empty"]')).toHaveText(
         'No tasks in this project in these 30 days.',
       )
+      await usage.locator('[data-toggles="period"] [data-value="today"]').click()
+      await expect(usage.locator('[data-key="flow-empty"]')).toHaveText(
+        'No tasks in this project today.',
+      )
+      await usage.locator('[data-toggles="period"] [data-value="30d"]').click()
       // every project has Shop's tasks
       await usage.locator('[data-key="all-projects"]').click()
       await expect(usage.locator('[data-key="flow-summary"] span').first()).toHaveText('5 task(s)')

@@ -21,6 +21,7 @@ import {
   periodBounds,
 } from '../core/usage/periods'
 import { buildUsage } from '../core/usage/report'
+import type { TasksPeriod } from '../core/usage/sections'
 import { importedStatuslineLogPath, statuslineLogPath } from '../core/usage/statusline'
 
 // Reads of the usage history, on a thread of their own: SQLite is synchronous.
@@ -47,7 +48,7 @@ export type Query =
     }
   | {
       readonly kind: 'flow'
-      readonly period: '7d' | '30d'
+      readonly period: TasksPeriod
       readonly project: { readonly id: string; readonly name: string } | null
       readonly scoped: boolean
     }
