@@ -18,3 +18,10 @@ the screen replay that runs main's `detectState` over captured bytes), run by ha
 
 > Replaced 2026-11-18: what the user sees was built (task 94). It was:
 What Menkar tells the user about their installed version (1.179, part 2) is not built yet.
+
+> Replaced 2026-11-19: Claude Code validated at 2.1.328 (task 121). It was:
+## Claude Code — validated at 2.1.327 (2026-11-18), owner: `claude-cli`
+| `--add-dir` stops every start at a trust dialog whose default is "No, exit"; the files folder goes as `permissions.additionalDirectories` in `--settings` instead | measured 2.1.327 (probes: `add-dir.mjs`) | `docs/project-files.md` |
+| The team block by `--append-system-prompt-file`: in the first request's system prompt, read once at start, kept on `--resume` until a compaction unless `--system-prompt-snapshot off`; a missing file exits at once | first request and missing file measured 2.1.327 (`team-block.mjs`); resume and snapshot measured 2.1.325 | `docs/session-control.md` |
+| The state screens: the permission card ("Do you want to proceed?"), auto mode's consecutive-block card with its 2-minute countdown (after which Claude Code blocks the call itself and the turn ends), the footer's background pills | cards measured 2.1.327 (`permission.mjs`), the countdown's expiry 2.1.326; pills read 2.1.323 | `docs/agent-state.md` |
+| Waking: a post to the registry's messaging socket wakes an idle session, leaves a permission card untouched, is held in bypass mode without `crossSessionInbound: "accept"`; identical repeats are dropped | idle wake and transcript record measured 2.1.327 (`wake.mjs`); the card and bypass cases 2.1.322 | `docs/session-control.md` |
