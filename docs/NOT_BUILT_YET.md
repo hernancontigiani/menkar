@@ -386,3 +386,15 @@ human, while a background worker's is not (decided 2026-11-18).
 **Trigger:** a session started from New stuck before its first turn goes unseen by the human.
 First question: whether to bind the expected id at start, as `start_session` does, or draw a row
 per waiting pane.
+
+### A symlinked `~/Menkar` or files folder, measured against Claude Code's symlink checks
+
+Claude Code 2.1.327 added checks on symlinked paths. Menkar grants a session its project's files
+folder through `permissions.additionalDirectories` in `--settings` (`docs/project-files.md`). If
+`~/Menkar`, a project's folder or its `files` is a symlink (another disk, say), those checks may
+turn the grant into permission prompts or refusals. Not measured; on the human's machine the three
+are plain directories (2026-11-19). Moved here from a queued probe of `claude-cli` (the human,
+2026-11-19).
+
+**Trigger:** a user has `~/Menkar` or a files folder as a symlink, or reports permission prompts
+on the files folder. First step: the probe in a throwaway home, on the current Claude Code.
