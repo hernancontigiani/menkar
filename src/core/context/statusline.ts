@@ -357,6 +357,9 @@ function inboxLine(value: unknown): InboxLine | null {
   return { seq, at, text }
 }
 
+// The keys of the inbox file main writes and the prompt hook reads.
+export const INBOX_KEYS = ['session_id', 'dropped', 'entries', 'away_since'] as const
+
 // The prompt hook: the inbox main wrote for this pane, as the prompt's additional context. It
 // writes nothing and clears nothing: main learns what the model was given from the transcript.
 // Whatever fails, it prints nothing: an error or a non-zero exit would show in the session, and
@@ -373,12 +376,18 @@ export function runPromptSubmit(
     if (!isObject(file) || file.session_id !== payload.session_id) return ''
     const raw = Array.isArray(file.entries) ? file.entries : []
     const entries = raw.map(inboxLine)
-    if (entries.length === 0 || entries.some((x) => x === null)) return ''
+    if (entries.some((x) => x === null)) return ''
+    const awaySince =
+      typeof file.away_since === 'number' && Number.isFinite(file.away_since)
+        ? file.away_since
+        : null
+    if (entries.length === 0 && awaySince === null) return ''
     const dropped = typeof file.dropped === 'number' && file.dropped > 0 ? file.dropped : 0
     const additionalContext = inboxText(
       entries.filter((x): x is InboxLine => x !== null),
       dropped,
       INBOX_TEXT_MAX_BYTES,
+      awaySince,
     )
     return JSON.stringify({
       hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext },

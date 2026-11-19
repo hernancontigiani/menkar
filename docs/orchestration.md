@@ -498,8 +498,36 @@ What the user sees and how the orchestrator acts on it is in the guide; the rule
 - **Topics while away** (`topicNoticeNow`): a topic notice raises nothing — no sound, toast,
   desktop notice or tray entry — and nothing is replayed on return; the topic waits in Topics.
   The sessions' own notifications are not silenced.
+- **Used while away, Menkar asks** (decision 1.188, the human, 2026-11-19, topics 68 and 70).
+  Nothing clears away by itself: not activity, not a timer, not Not yet (1.167). The window
+  marks (`activity:present`, `docs/usage.md`) also reach `noticeActivity`, before the journal's
+  minute across windows, so every window's mark counts; `noticed` turns `asking` on, except within
+  `ASK_AFTER_MS` (60 s) of going away — activity on the way out asks nothing — and a clock set back
+  asks at once. While `asking`, the banner (`.away-banner.asking`) reads "**You're using Menkar —
+  are you back?** · Away since HH:MM", a stronger amber, with "Not yet" and a filled "I'm back";
+  the chip is unchanged. The state is main's, so every main window asks at
+  once whichever window the activity came from, and an answer in one is every window's; the Usage
+  and Settings windows send no marks.
+  - **Not yet** (`notYet`, action `presenceNotYet`) puts the question away, still away.
+  - **A question nobody answers** goes back by itself after `BURST_GAP_SECONDS` (10 min) without
+    a mark (`quieted`, a timer main arms at `quietDue`).
+  - Either way it comes back only on activity after 10 quiet minutes (`resting`, `lastActive`):
+    steady use after Not yet asks nothing more. A new away starts not asking; back clears it all.
+  - It does not reach the orchestrator: its prompt carries only that the human is away
+    (`docs/session-control.md`, the inbox).
 
 ## Rejected
+
+- **Clearing away on activity, or after a while of it** (1.188, 1.167): away ends only by the
+  human.
+- **Back-dating "I'm back" to the first activity**: a back the human did not give, written into
+  the usage journal; and the question comes within seconds of using Menkar.
+- **Telling the orchestrator that Menkar saw activity**: not in 1.188; the orchestrator would act
+  on a guess the human did not confirm.
+- **Each window deciding to ask on its own**: two windows would disagree, and a window opened
+  later would not ask.
+- **A modal or a toast for the question**: the strip is where away already lives (1.167); a modal
+  would take a key meant for a terminal.
 
 - **A Team/Work switch with one default** (1.177): background workers must be found without
   knowing a second view exists.

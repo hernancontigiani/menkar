@@ -1,3 +1,5 @@
+import { BURST_GAP_SECONDS } from './usage/bursts'
+
 // The human's presence, away or here: one state for the whole app, held in memory only, so a
 // quit forgets it and every start is "here". It concerns the orchestrators alone.
 
@@ -5,12 +7,22 @@ export interface Presence {
   readonly away: boolean
   // When the human went away; null while here.
   readonly since: number | null
+  // Absent until Menkar is used while away. Asking: the strip asks whether the human is back.
+  readonly asking?: boolean
+  // The question was put away, by Not yet or by a quiet spell: it comes back only on activity
+  // after a quiet spell.
+  readonly resting?: boolean
+  // The last activity seen while away, or the Not yet.
+  readonly lastActive?: number
 }
 
 export const HERE: Presence = { away: false, since: null }
 
 // What the windows show: the switch only while some project has the orchestration mode on.
-export interface PresenceView extends Presence {
+export interface PresenceView {
+  readonly away: boolean
+  readonly since: number | null
+  readonly asking: boolean
   readonly shown: boolean
 }
 
@@ -19,7 +31,8 @@ export function presenceShown(modesOn: readonly boolean[]): boolean {
 }
 
 export function presenceView(presence: Presence, modesOn: readonly boolean[]): PresenceView {
-  return { ...presence, shown: presenceShown(modesOn) }
+  const { away, since } = presence
+  return { away, since, asking: presence.asking === true, shown: presenceShown(modesOn) }
 }
 
 // The sidebar's chip: while the mode is on somewhere, and while away even if it no longer is, so
@@ -31,7 +44,44 @@ export function chipShown(view: PresenceView): boolean {
 // Going away twice keeps the first time.
 export function setAway(presence: Presence, away: boolean, at: number): Presence {
   if (away === presence.away) return presence
-  return away ? { away: true, since: at } : HERE
+  return away ? { ...HERE, away: true, since: at } : HERE
+}
+
+// Activity on the way out, just after away was set, asks nothing.
+export const ASK_AFTER_MS = 60_000
+const QUIET_MS = BURST_GAP_SECONDS * 1000
+
+// Activity in a main window while away. It never touches `away` or `since`: nothing clears away
+// by itself. A clock set back asks at once.
+export function noticed(presence: Presence, at: number): Presence {
+  if (!presence.away || presence.since === null) return presence
+  const last = presence.lastActive
+  const setBack = at < presence.since || (last !== undefined && at < last)
+  const ask =
+    presence.asking ||
+    setBack ||
+    (presence.resting
+      ? last === undefined || at - last >= QUIET_MS
+      : at - presence.since >= ASK_AFTER_MS)
+  return { ...presence, asking: ask, resting: !ask && presence.resting === true, lastActive: at }
+}
+
+// The human answered Not yet: the plain strip again, still away.
+export function notYet(presence: Presence, at: number): Presence {
+  if (presence.asking !== true) return presence
+  return { ...presence, asking: false, resting: true, lastActive: at }
+}
+
+// When a question nobody answers goes back by itself: a quiet spell after the last activity.
+export function quietDue(presence: Presence): number | null {
+  if (presence.asking !== true || presence.lastActive === undefined) return null
+  return presence.lastActive + QUIET_MS
+}
+
+export function quieted(presence: Presence, at: number): Presence {
+  const due = quietDue(presence)
+  if (due === null || at < due) return presence
+  return { ...presence, asking: false, resting: true }
 }
 
 export function toggled(presence: Presence, at: number): Presence {

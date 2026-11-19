@@ -31,12 +31,14 @@ export interface Waker {
 // The orchestrator's inbox as its agent is given it: a file its prompt hook reads, and the
 // transcript's own record of what the model was given.
 export interface PromptInbox {
-  // Writes the pane's inbox file whole, or removes it when nothing is pending.
+  // Writes the pane's inbox file whole, or removes it when nothing is pending and the human is not
+  // away.
   publish(
     pane: string,
     sessionId: string,
     dropped: number,
     entries: readonly InboxLine[],
+    awaySince: number | null,
   ): Promise<void>
   // The highest entry the transcript's records after `from` show the model got, 0 if none, and
   // the offset read to.

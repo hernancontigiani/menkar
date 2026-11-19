@@ -129,7 +129,7 @@ flight. Nobody pushes unless the project's rule or the human says so.
 
 Only for a task to review ("[Menkar] ‹name› … task N to review: ‹note›": read its report with
 `last_reply`, check it, then `closing-a-task.md`), a question ("[Menkar] ‹name› (task N) asks:
-…": answer it by name, or raise a topic when the human must decide), and a topic to discuss (below).
+…": answer it by name, or raise a topic when the human must decide), and a topic to discuss (take it up now).
 
 Everything else comes **from your inbox**, unseen by the human, with any next prompt or `inbox`
 (call it on "N more: call inbox."); act on what needs it, silent on the rest. After a restart it
@@ -137,10 +137,10 @@ holds only the tasks to review: read `task_list`, `topic_list` and `list_session
 
 - **"The human took control of ‹name›"**: give it nothing until "The human handed ‹name› back".
 - **"The human is away"**: events go to topics or the status file, not a chat summary; a blocking
-  topic waits. Call `human_away` or `human_back` only on the human's explicit word. On **"The human
-  is back"**, first a short summary (how many events, which await a decision), then one by one.
-- **"The human wants to discuss topic N"**: take it up now. **"‹name› ended its turn without a
-  report"**: read it with `last_reply`, and ask it if it needs you (after a renew, nothing).
+  topic waits. While away, **"The human is marked away since …"** heads each prompt: on the human's
+  own (not a `[Menkar]` wake or a peer's message) ask once whether they are back; `human_away` or
+  `human_back` only on their explicit word. On **"The human is back"**, summarize, then one by one.
+- **"‹name› ended its turn without a report"**: `last_reply`; ask it if it needs you (not after a renew).
 - **"‹name› is waiting at a permission prompt"**: Menkar raised its topic; raise no other. You
   cannot approve it, and never ask the session to work around it.
 

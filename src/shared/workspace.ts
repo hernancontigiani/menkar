@@ -155,6 +155,8 @@ export type Action =
   | { readonly type: 'bringProject'; readonly project: string }
   // The human away or here; without `away`, the other one (Ctrl+B a).
   | { readonly type: 'setPresence'; readonly away?: boolean }
+  // Away, asked whether back: not yet. Away stays.
+  | { readonly type: 'presenceNotYet' }
   | { readonly type: 'createProject'; readonly name: string }
   | { readonly type: 'renameProject'; readonly project: string; readonly name: string }
   | { readonly type: 'deleteProject'; readonly project: string }

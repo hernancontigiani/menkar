@@ -2195,6 +2195,34 @@ button.team-heading.folded::before {
 #away-back:hover {
   background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
+/* Asking whether the human is back: a stronger amber, the answer filled. */
+.away-banner.asking {
+  background: color-mix(in srgb, var(--yellow) 38%, var(--bg));
+}
+.away-banner.asking .away-since {
+  opacity: 0.7;
+}
+#away-not-yet {
+  padding: 1px 10px;
+  border-radius: var(--control-radius);
+  border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent);
+  background: transparent;
+  color: var(--fg);
+}
+#away-not-yet[hidden] {
+  display: none;
+}
+#away-not-yet:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+}
+.away-banner.asking #away-back {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: var(--bg);
+}
+.away-banner.asking #away-back:hover {
+  background: color-mix(in srgb, var(--yellow) 85%, var(--fg));
+}
 /* An agent's version: the away strip's shape, red below the floor, amber for a large jump. */
 .versions-banner {
   --standing: var(--yellow);

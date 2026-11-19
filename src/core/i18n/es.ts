@@ -295,6 +295,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'presence.back': 'Ya volví',
   'presence.awaySince': 'Ausente desde las {time}',
   'presence.away': 'Ausente',
+  'presence.asking': 'Estás usando Menkar — ¿ya volviste?',
+  'presence.notYet': 'Todavía no',
   'shortcut.help': 'Esta ayuda',
   'shortcut.sendCtrlB': 'Enviar Ctrl+B a la terminal',
   'shortcut.switcherMove': 'Mover la selección',

@@ -135,6 +135,51 @@ describe("the inbox's text", () => {
     expect(lines(text)[0]).not.toContain('(events')
     expect(lines(text).at(-1)).toBe('1 more: call inbox.')
   })
+
+  // Decision 1.188: every prompt while the human is away carries it, so the orchestrator asks
+  // whether they are back. The line names no events, so nothing is confirmed from it.
+  const away = at(13, 5, 42)
+  const AWAY_LINE =
+    "The human is marked away since 13:05. If this prompt is the human's own, first ask whether " +
+    'they are back; call human_back only if they say yes.'
+
+  test('away and no entry → the away line alone, no inbox line', () => {
+    const text = inboxText([], 0, INBOX_TEXT_MAX_BYTES, away)
+    expect(text).toBe(AWAY_LINE)
+    expect(text).not.toContain("Menkar's inbox (events")
+  })
+
+  test('away and two entries → the away line first, then the inbox named "(events 1–2)"', () => {
+    const entries = [
+      { seq: 1, at: at(14, 0, 0), text: 'a' },
+      { seq: 2, at: at(14, 0, 1), text: 'b' },
+    ]
+    const text = inboxText(entries, 0, INBOX_TEXT_MAX_BYTES, away)
+    expect(lines(text)[0]).toBe(AWAY_LINE)
+    expect(lines(text)[1]).toContain("Menkar's inbox (events 1–2)")
+    expect(lines(text).slice(2)).toEqual(['- 14:00:00 a', '- 14:00:01 b'])
+  })
+
+  test('away and entries over the budget → the away line whole, the events cut and counted', () => {
+    const entries = Array.from({ length: 30 }, (_, i) => ({
+      seq: i + 1,
+      at: at(10, 0, i),
+      text: 'x'.repeat(120),
+    }))
+    const text = inboxText(entries, 0, INBOX_TEXT_MAX_BYTES, away)
+    expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(INBOX_TEXT_MAX_BYTES)
+    expect(lines(text)[0]).toBe(AWAY_LINE)
+    const given = lines(text).filter((x) => x.startsWith('- '))
+    expect(lines(text)[1]).toContain(`(events 1–${given.length})`)
+    expect(lines(text).at(-1)).toBe(`${30 - given.length} more: call inbox.`)
+  })
+
+  test('not away → no away line, the inbox line first', () => {
+    const entries = [{ seq: 1, at: at(14, 0, 0), text: 'a' }]
+    const text = inboxText(entries, 0, INBOX_TEXT_MAX_BYTES, null)
+    expect(lines(text)[0]).toMatch(/^Menkar's inbox \(events 1–1\)/)
+    expect(text).not.toContain('marked away')
+  })
 })
 
 // The statusline program runs under plain Node and imports this module: it may import nothing.

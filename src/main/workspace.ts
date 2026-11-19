@@ -101,12 +101,16 @@ import {
   awayTool,
   backTool,
   HERE,
+  noticed,
+  notYet,
   type Presence,
   type PresenceView,
   postRecipients,
   presenceAsked,
   presencePost,
   presenceView,
+  quietDue,
+  quieted,
   topicNoticeNow,
 } from '../core/presence'
 import { earlierIds, forgetSession, keptEarlier, releaseEarlier } from '../core/projects/earlier'
@@ -1716,7 +1720,34 @@ function askPresence(away: boolean, clearedBy?: string): void {
     recordPresence(presence.away)
     log.info('the human is now', { away: presence.away })
   }
+  // The orchestrator that changed it is asked too: its next prompt may be the human's, elsewhere.
+  inboxes.setAway(presence.away ? presence.since : null)
+  armQuiet()
   push()
+}
+
+// A key, click or scroll in a main window while away: the strip of every window asks whether the
+// human is back. Every window's mark counts, also one the journal's minute leaves out.
+export function noticeActivity(): void {
+  settle(noticed(presence, now()))
+}
+
+function settle(next: Presence): void {
+  if (next === presence) return
+  const asked = (next.asking === true) !== (presence.asking === true)
+  presence = next
+  armQuiet()
+  if (asked) push()
+}
+
+// A question nobody answers goes back to the plain strip after a quiet spell; away stays.
+let quietTimer: ReturnType<typeof setTimeout> | undefined
+function armQuiet(): void {
+  clearTimeout(quietTimer)
+  quietTimer = undefined
+  const due = quietDue(presence)
+  if (due === null) return
+  quietTimer = setTimeout(() => settle(quieted(presence, now())), Math.max(0, due - now()))
 }
 
 function sessionsForNames(projectId: string) {
@@ -3385,6 +3416,9 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       return {}
     case 'setPresence':
       askPresence(action.away ?? !presence.away)
+      return {}
+    case 'presenceNotYet':
+      settle(notYet(presence, now()))
       return {}
     case 'addProjectFolder':
       if (!isAbsoluteFolder(action.folder) || !(await isFolder(action.folder))) return {}

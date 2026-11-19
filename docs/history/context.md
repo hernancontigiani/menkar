@@ -45,6 +45,9 @@
     (measured, 2.1.322); null outside Menkar. Main watches the folder for `clear` and `resume`
     records naming a live pane, so the tab follows the pane's new session (`docs/sessions.md`).
 
+> Left on 2026-11-19: the prompt hook also gives the away line alone, from the file's `away_since` (decision 1.188, plan 45).
+    "UserPromptSubmit","additionalContext":…}}` with the inbox's text; otherwise, and on any
+
 ## `--settings`
 
 > Left on 2026-11-17: a session in a project gets a per-project file in the cache.

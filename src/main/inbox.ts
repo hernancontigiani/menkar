@@ -56,6 +56,8 @@ export class Inboxes {
   private readonly nextSeq = sequence()
   private readonly byProject = new Map<string, ProjectInbox>()
   private readonly locate: Locate
+  // The human's away, the app's and not a project's: every file carries it until they are back.
+  private awaySince: number | null = null
 
   constructor(locate: Locate) {
     this.locate = locate
@@ -84,6 +86,15 @@ export class Inboxes {
     if (!entry?.inbox.entries.some((x) => x.key === key)) return
     entry.inbox.retract(key)
     this.kick(projectId)
+  }
+
+  setAway(since: number | null): void {
+    if (since === this.awaySince) return
+    this.awaySince = since
+    for (const id of this.locate().keys()) {
+      this.entryOf(id)
+      this.kick(id)
+    }
   }
 
   // The mark went to another session: the inbox was the last one's, except that the human is away.
@@ -187,9 +198,15 @@ export class Inboxes {
     await confirm(entry.inbox, entry.reading, orchestrator.transcript, target.kit)
     between?.()
     const list = entry.inbox.entries
-    const held = JSON.stringify([target.sessionId, entry.inbox.dropped, list.map((x) => x.seq)])
+    const away = this.awaySince
+    const held = JSON.stringify([
+      target.sessionId,
+      entry.inbox.dropped,
+      list.map((x) => x.seq),
+      away,
+    ])
     if (entry.shown?.pane === target.pane && entry.shown.held === held) return
-    await target.kit.publish(target.pane, target.sessionId, entry.inbox.dropped, list)
+    await target.kit.publish(target.pane, target.sessionId, entry.inbox.dropped, list, away)
     entry.shown = { ...target, held }
   }
 }

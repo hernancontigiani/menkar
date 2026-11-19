@@ -209,6 +209,10 @@ project has the mode on, and the state is the whole app's, not a project's. Whil
 - **Writing to an orchestrator while away** (from Remote Control, say) does not clear it by
   itself: the orchestrator asks whether you are back, and only on an explicit yes clears it with
   `human_back`.
+- **Using Menkar while away** does not clear it either: a minute after you left, a key, click or
+  scroll turns the banner of every window into "You're using Menkar — are you back?", with "Not
+  yet" and "I'm back". Not yet, or 10 minutes without touching Menkar, puts the question away
+  until you come back after 10 quiet minutes.
 - **Telling an orchestrator you are leaving** (from Remote Control, say) lets it set you away with
   `human_away`, as the chip does; it does so only when you say so explicitly, and the other
   orchestrators hear "The human is away".

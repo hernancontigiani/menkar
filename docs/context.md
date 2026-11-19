@@ -34,7 +34,8 @@ Integrations page are still `docs/spec/context.md` until they are built.
     never starts Electron. With the argument `prompt-submit` (`runPromptSubmit`) it reads the pane's
     inbox file, which main alone writes (`docs/session-control.md`, the orchestrator's inbox), and
     when its `session_id` is stdin's prints `{"hookSpecificOutput":{"hookEventName":
-    "UserPromptSubmit","additionalContext":…}}` with the inbox's text; otherwise, and on any
+    "UserPromptSubmit","additionalContext":…}}` with the inbox's text, or with the away line alone
+    when the file holds no entry but `away_since` (decision 1.188); otherwise, and on any
     failure, nothing. It always exits 0 with nothing on stderr (an exit 2 would block the prompt),
     writes nothing, and does not read the prompt. `inboxDir()` repeats the folder, held equal to
     `controlPaths().inbox` by a test. What reached the model is read from the transcript, not

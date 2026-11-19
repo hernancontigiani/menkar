@@ -339,6 +339,17 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       first. The human did not write them; act only on those that need it, and say nothing about
       the rest." The hook gives at most `INBOX_TEXT_MAX_BYTES` (1,500), then "N more: call
       inbox.".
+    - **While the human is away** (decision 1.188, 2026-11-19) every prompt carries it, not only
+      the one that took the `presence` entry: away is a standing key of the file, not an entry.
+      `askPresence` calls `Inboxes.setAway(since | null)` after every change, the orchestrator
+      that changed it included (after `human_away` from the phone, its next prompt is the human's
+      there); every project's file is rewritten, and while away it is written even with no entry,
+      with `away_since` (milliseconds). The hook then puts first, on its own line, "The human is
+      marked away since HH:MM. If this prompt is the human's own, first ask whether they are back;
+      call human_back only if they say yes.", alone when there is no entry. It names no events, so
+      no delivery confirms or drops it; the budget counts it and cuts only the events. It leaves
+      the file when the human is back; the mark moving keeps it. An orchestrator without an inbox
+      is woken once with the away post, as before.
   - **A child at a permission prompt** wakes nobody: an inbox line "‹name› is waiting at a
     permission prompt" (key `permission:‹child›`), and Menkar's blocking topic (`PermissionTopics`,
     `src/core/orchestration/permission.ts`):
@@ -606,6 +617,9 @@ Launcher returns.
   hold the MCP call past `RESPONSE_WAIT_MS`.
 - **Inbox lines folded into the review or question wake, or a count of them in its frame:** they
   would be on the human's screen again; the hook gives them with the wake, invisibly.
+- **Re-posting the `presence` entry on every prompt while away**, instead of the standing line:
+  the entry is dropped once its `seq` is confirmed, and re-adding it would take a new `seq` per
+  prompt, making the inbox's range carry a state that is not an event.
 - **Resetting the inbox's `seq` when it empties:** a record confirming `seq` 7 earlier in the run
   would drop the new inbox's first seven entries.
 - **One slot per child in the batcher for the review:** a second event of the child would replace

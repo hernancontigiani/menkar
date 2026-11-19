@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ASK_AFTER_MS,
   AWAY_POST,
   awayTool,
   BACK_POST,
   backTool,
   chipShown,
   HERE,
+  noticed,
+  notYet,
   postRecipients,
   presenceAsked,
   presencePost,
   presenceView,
+  quietDue,
+  quieted,
   setAway,
   toggled,
   topicNoticeNow,
@@ -106,5 +111,75 @@ describe('human_away', () => {
   it('marks the human away for the orchestrator, and says so when already away', () => {
     expect(awayTool('orch', 'orch', HERE)).toMatchObject({ ok: true, set: true })
     expect(awayTool('orch', 'orch', away)).toMatchObject({ ok: true, set: false })
+  })
+})
+
+// Decision 1.188: using Menkar while away asks whether the human is back; nothing clears away by
+// itself. The human's answer to D1 (2026-11-19): "Not yet", and the question goes back by itself
+// after 10 quiet minutes; either way it comes back on the next activity after 10 quiet minutes.
+describe('the question while away', () => {
+  const GAP = 600_000
+  const asking = noticed(away, AT + ASK_AFTER_MS)
+
+  it('asks a minute after away was set, not before, and keeps away and its time', () => {
+    expect(ASK_AFTER_MS).toBe(60_000)
+    expect(noticed(away, AT + 59_999).asking).toBe(false)
+    expect(asking).toMatchObject({ away: true, since: AT, asking: true })
+  })
+
+  it('asks nothing while here; already asking it stays asking', () => {
+    expect(noticed(HERE, AT)).toBe(HERE)
+    expect(noticed(asking, AT + 120_000)).toMatchObject({ asking: true, away: true, since: AT })
+  })
+
+  it('a clock set back asks at once', () => {
+    expect(noticed(away, AT - 500).asking).toBe(true)
+  })
+
+  it('going away twice keeps the question and its time; back is here, not asking', () => {
+    expect(setAway(asking, true, AT + 300_000)).toBe(asking)
+    expect(setAway(asking, false, AT + 300_000)).toBe(HERE)
+    expect(setAway(HERE, true, AT + 400_000)).toEqual({ away: true, since: AT + 400_000 })
+  })
+
+  it('Not yet hides it and keeps away; activity within 10 minutes does not bring it back', () => {
+    const declined = notYet(asking, AT + 120_000)
+    expect(declined).toMatchObject({ away: true, since: AT, asking: false })
+    expect(noticed(declined, AT + 120_000 + GAP - 1).asking).toBe(false)
+  })
+
+  it('after Not yet, activity after 10 quiet minutes asks again', () => {
+    const declined = notYet(asking, AT + 120_000)
+    expect(noticed(declined, AT + 120_000 + GAP).asking).toBe(true)
+  })
+
+  it('after Not yet, steady activity keeps the quiet from ever reaching 10 minutes', () => {
+    let p = notYet(asking, AT + 120_000)
+    for (let m = 1; m <= 30; m++) p = noticed(p, AT + 120_000 + m * 60_000)
+    expect(p.asking).toBe(false)
+  })
+
+  it('10 quiet minutes while asking end the question with no click, and away stays', () => {
+    expect(quietDue(asking)).toBe(AT + ASK_AFTER_MS + GAP)
+    expect(quieted(asking, AT + ASK_AFTER_MS + GAP - 1)).toBe(asking)
+    const rested = quieted(asking, AT + ASK_AFTER_MS + GAP)
+    expect(rested).toMatchObject({ away: true, since: AT, asking: false })
+    expect(quietDue(rested)).toBeNull()
+    // The quiet that ended it is the 10 quiet minutes: the human's return asks again.
+    expect(noticed(rested, AT + ASK_AFTER_MS + GAP + 1).asking).toBe(true)
+  })
+
+  it('Not yet while not asking changes nothing', () => {
+    expect(notYet(away, AT)).toBe(away)
+    expect(notYet(HERE, AT)).toBe(HERE)
+  })
+
+  it('the view carries the question, not what only decides it', () => {
+    expect(presenceView(asking, [true])).toEqual({
+      away: true,
+      since: AT,
+      asking: true,
+      shown: true,
+    })
   })
 })

@@ -792,6 +792,14 @@ const inboxLines = (root: string): string[] => {
 }
 const presenceLines = (root: string) =>
   inboxLines(root).filter((line) => line.startsWith('The human is '))
+// The away the inbox files carry as a standing key (decision 1.188), one per file.
+const awaySinces = (root: string): unknown[] => {
+  const dir = join(root, 'cache', 'menkar', 'control', 'inbox')
+  return (existsSync(dir) ? readdirSync(dir) : []).map(
+    (name) =>
+      (JSON.parse(readFileSync(join(dir, name), 'utf8')) as { away_since?: unknown }).away_since,
+  )
+}
 
 test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears it; the orchestrator hears both through its inbox, never a post, and human_away and human_back set and clear it with nothing for itself (screenshots)", async () => {
   const { launched, page, root } = await open({ orchestrated: true, env: { MENKAR_LOG: 'info' } })
@@ -812,6 +820,13 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await expect
       .poll(() => presenceLines(root))
       .toEqual([expect.stringMatching(/^The human is away/)])
+    expect(awaySinces(root)).toEqual([expect.any(Number)])
+    // The orchestrator takes its inbox: the away stays in the file, with no entry.
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.type('INBOX')
+    await said(page, 'TOOL inbox:')
+    await expect.poll(() => inboxLines(root)).toEqual([])
+    expect(awaySinces(root)).toEqual([expect.any(Number)])
 
     // A topic raised while away waits in the sidebar: no toast, no sound, nothing replayed later.
     await page.locator('.xterm:visible').click()
@@ -839,8 +854,8 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     await other.locator('#away-back').click()
     await expect(banner(other)).toBeHidden()
     await expect(banner(page)).toBeHidden()
-    // Away then back leaves one line: the later replaces the earlier.
     await expect.poll(() => presenceLines(root)).toEqual(['The human is back'])
+    await expect.poll(() => awaySinces(root)).toEqual([undefined])
     await page.waitForTimeout(1000)
     await expect(topicToasts(page)).toHaveCount(0)
     await expect(topicToasts(other)).toHaveCount(0)
@@ -902,6 +917,110 @@ test("away or here: Ctrl+B a sets it, a banner in every window, I'm back clears 
     expect(socket.posted()).toEqual([])
   } finally {
     socket.close()
+    await launched.close()
+  }
+})
+
+// Moves the clock src/core/clock.ts reads, in main or in one window, forward by `ms` (cumulative).
+const shiftMain = (app: ElectronApplication, ms: number) =>
+  app.evaluate((_electron, by) => {
+    const g = globalThis as unknown as { __shift?: number; __realNow?: () => number }
+    if (!g.__realNow) {
+      const real = Date.now.bind(Date)
+      g.__realNow = real
+      Date.now = () => real() + (g.__shift ?? 0)
+    }
+    g.__shift = (g.__shift ?? 0) + by
+    return Date.now() - g.__realNow()
+  }, ms)
+const shiftWindow = (page: Page, ms: number) =>
+  page.evaluate((by) => {
+    const g = globalThis as unknown as { __shift?: number; __realNow?: () => number }
+    if (!g.__realNow) {
+      const real = Date.now.bind(Date)
+      g.__realNow = real
+      Date.now = () => real() + (g.__shift ?? 0)
+    }
+    g.__shift = (g.__shift ?? 0) + by
+  }, ms)
+// One mark from this window: its own minute passed, then a key nothing handles.
+const markFrom = async (page: Page) => {
+  await shiftWindow(page, 61_000)
+  await page.bringToFront()
+  await page.keyboard.press('Shift')
+}
+const asking = (page: Page) => page.locator('#away-banner.asking')
+const barText = (page: Page) => page.locator('#away-banner .bar-text')
+
+// Decision 1.188: using Menkar while away turns every window's strip into a question; nothing
+// clears away by itself. D1 as the human decided it (2026-11-19): Not yet, and the question comes
+// back only on activity after 10 quiet minutes (its going back by itself is held by the unit test).
+test("away and using Menkar: after a minute every window asks, Not yet hides it until 10 quiet minutes, I'm back in either clears both (screenshots)", async () => {
+  const { launched, page } = await open({ orchestrated: true })
+  const files = process.env.MENKAR_FILES
+  const app = launched.app
+  try {
+    const opened = app.waitForEvent('window')
+    await act(page, { type: 'newWindowWithProject', name: 'Other' })
+    const other = await opened
+    await page.bringToFront()
+    await page.locator('.xterm:visible').click()
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('a')
+    await expect(banner(page)).toBeVisible()
+    await expect(banner(other)).toBeVisible()
+
+    // The clock moves: main's as checked here, so a mark within the minute is read as such.
+    expect(await shiftMain(app, 30_000)).toBeGreaterThanOrEqual(30_000)
+    await markFrom(page)
+    await page.waitForTimeout(1000)
+    await expect(barText(page)).toHaveText(/^Away since \d\d:\d\d$/)
+    await expect(asking(page)).toHaveCount(0)
+
+    await shiftMain(app, 40_000)
+    await markFrom(page)
+    await expect(asking(page)).toBeVisible()
+    await expect(asking(other)).toBeVisible()
+    await expect(barText(other)).toHaveText(
+      /^You're using Menkar — are you back\? · Away since \d\d:\d\d$/,
+    )
+    await expect(chip(page)).toHaveText(/Away.*I'm back/)
+    await expect(other.locator('#away-not-yet')).toBeVisible()
+    if (files)
+      for (const scheme of ['dark', 'light'] as const) {
+        await setScheme(page, scheme)
+        await expect
+          .poll(() => page.evaluate(() => document.documentElement.style.colorScheme))
+          .toBe(scheme)
+        await page.screenshot({ path: join(files, `menkar-t125-away-asking-${scheme}.png`) })
+      }
+
+    // Not yet, in the other window: both back to the plain strip, still away.
+    await other.locator('#away-not-yet').click()
+    await expect(asking(page)).toHaveCount(0)
+    await expect(asking(other)).toHaveCount(0)
+    await expect(banner(page)).toBeVisible()
+    await expect(barText(page)).toHaveText(/^Away since \d\d:\d\d$/)
+    // Activity within 10 minutes of it asks nothing.
+    await shiftMain(app, 5 * 60_000)
+    await markFrom(page)
+    await page.waitForTimeout(1000)
+    await expect(asking(page)).toHaveCount(0)
+    // After 10 quiet minutes it asks again.
+    await shiftMain(app, 11 * 60_000)
+    await markFrom(page)
+    await expect(asking(page)).toBeVisible()
+    await expect(asking(other)).toBeVisible()
+
+    await other.locator('#away-back').click()
+    await expect(banner(page)).toBeHidden()
+    await expect(banner(other)).toBeHidden()
+    // A new away starts not asking.
+    await act(page, { type: 'setPresence', away: true })
+    await expect(banner(page)).toBeVisible()
+    await expect(asking(page)).toHaveCount(0)
+    await expect(asking(other)).toHaveCount(0)
+  } finally {
     await launched.close()
   }
 })

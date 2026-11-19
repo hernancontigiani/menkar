@@ -53,3 +53,16 @@ describe('the entries the model was given', () => {
     expect(await deliveredThrough(file, 0)).toEqual({ through: 0, offset: whole.length })
   })
 })
+
+test('a record holding only the away line confirms nothing', async () => {
+  const file = join(dir, 'd.jsonl')
+  writeFileSync(
+    file,
+    jsonl([
+      hookContext(
+        "The human is marked away since 13:05. If this prompt is the human's own, first ask whether they are back; call human_back only if they say yes.",
+      ),
+    ]),
+  )
+  expect((await deliveredThrough(file, 0)).through).toBe(0)
+})

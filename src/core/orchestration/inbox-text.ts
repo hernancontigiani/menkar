@@ -38,16 +38,31 @@ function build(lines: readonly InboxLine[], dropped: number, more: number): stri
 
 const bytes = (text: string): number => new TextEncoder().encode(text).length
 
+// A state, not an event: it names no range, so no delivery confirms or drops it.
+function awayLine(since: number): string {
+  const d = new Date(since)
+  return (
+    `The human is marked away since ${pad(d.getHours())}:${pad(d.getMinutes())}. If this prompt ` +
+    "is the human's own, first ask whether they are back; call human_back only if they say yes."
+  )
+}
+
 // Oldest first. With a budget, the oldest lines that fit, and a last line saying how many did not.
+// While the human is away the away line goes first, alone when there is no entry, and is never cut.
 export function inboxText(
   entries: readonly InboxLine[],
   dropped: number,
   maxBytes = Number.POSITIVE_INFINITY,
+  awaySince: number | null = null,
 ): string {
+  const head = awaySince === null ? null : awayLine(awaySince)
+  if (head !== null && entries.length === 0 && dropped === 0) return head
+  const budget = head === null ? maxBytes : maxBytes - bytes(head) - 1
+  const join = (text: string) => (head === null ? text : `${head}\n${text}`)
   const sorted = [...entries].sort((a, b) => a.seq - b.seq)
   for (let given = sorted.length; given > 0; given--) {
     const text = build(sorted.slice(0, given), dropped, sorted.length - given)
-    if (bytes(text) <= maxBytes) return text
+    if (bytes(text) <= budget) return join(text)
   }
-  return build([], dropped, sorted.length)
+  return join(build([], dropped, sorted.length))
 }

@@ -31,6 +31,7 @@ import {
   controlHandlers,
   deliverFiles,
   followPaneStart,
+  noticeActivity,
   openFirstWindowIfNone,
   paneBuffer,
   paneInput,
@@ -80,7 +81,10 @@ on('pty:input', (_event, { pane, data }) => paneInput(pane, data))
 on('pty:typed', (_event, { pane, data }) => paneTyped(pane, data))
 on('pty:resize', (_event, { pane, cols, rows }) => paneResize(pane, cols, rows))
 on('panes:reveal', (_event, { paneId }) => revealPane(paneId))
-on('activity:present', (event) => recordPresent(() => windowState(event.sender)?.shown))
+on('activity:present', (event) => {
+  noticeActivity()
+  recordPresent(() => windowState(event.sender)?.shown)
+})
 
 let language = chooseLanguage(undefined, [])
 

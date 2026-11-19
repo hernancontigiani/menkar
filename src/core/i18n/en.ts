@@ -290,6 +290,8 @@ export const en = {
   'presence.back': "I'm back",
   'presence.awaySince': 'Away since {time}',
   'presence.away': 'Away',
+  'presence.asking': "You're using Menkar — are you back?",
+  'presence.notYet': 'Not yet',
   'shortcut.help': 'This help',
   'shortcut.sendCtrlB': 'Send Ctrl+B to the terminal',
   'shortcut.switcherMove': 'Move the selection',

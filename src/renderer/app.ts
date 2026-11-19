@@ -393,7 +393,10 @@ export function render(next: WindowState): void {
 }
 
 // While the human is away, an amber strip under the header, across the sidebar and the content.
+// Used while away, it asks whether the human is back, in every window at once.
 function awayBanner(): HTMLElement {
+  const notYet = el('button', { id: 'away-not-yet', hidden: '' }, t('presence.notYet'))
+  notYet.addEventListener('click', () => void act({ type: 'presenceNotYet' }))
   const back = el('button', { id: 'away-back' }, t('presence.back'))
   back.addEventListener('click', () => void act({ type: 'setPresence', away: false }))
   return el(
@@ -401,17 +404,25 @@ function awayBanner(): HTMLElement {
     { id: 'away-banner', class: 'away-banner', role: 'status', hidden: '' },
     icon('moon'),
     el('span', { class: 'bar-text' }),
+    notYet,
     back,
   )
 }
 
 function renderAway(s: WindowState): void {
-  const { away, since } = s.presence
+  const { away, since, asking } = s.presence
   const banner = $('away-banner')
   banner.hidden = !away
   $('away-side').hidden = !away
-  const text = away && since !== null ? t('presence.awaySince', { time: formatClock(since) }) : ''
-  banner.querySelector('.bar-text')?.replaceChildren(text)
+  const question = away && asking
+  banner.classList.toggle('asking', question)
+  $('away-side').classList.toggle('asking', question)
+  $('away-not-yet').hidden = !question
+  const time = away && since !== null ? t('presence.awaySince', { time: formatClock(since) }) : ''
+  const text = question
+    ? [el('strong', {}, t('presence.asking')), el('span', { class: 'away-since' }, ` · ${time}`)]
+    : [time]
+  banner.querySelector('.bar-text')?.replaceChildren(...text)
   const chip = $('presence-chip')
   chip.hidden = !chipShown(s.presence)
   chip.classList.toggle('away', away)

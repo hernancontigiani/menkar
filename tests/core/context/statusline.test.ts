@@ -431,6 +431,30 @@ describe('the prompt hook', () => {
     expect(submit(setup({ session_id: 's1', entries: [{ seq: 'x' }] }).d)).toBe('')
   })
 
+  // Decision 1.188: while the human is away the file stays with no entry, for this line.
+  test('no entry and away_since → the away line alone; a bad or absent away_since → nothing', () => {
+    const since = Date.UTC(2026, 10, 18, 4, 5, 0) // 13:05 in Tokyo
+    const text = context(
+      submit(setup({ session_id: 's1', dropped: 0, entries: [], away_since: since }).d),
+    )
+    expect(text).toMatch(/^The human is marked away since 13:05\. /)
+    expect(text).not.toContain("Menkar's inbox")
+    expect(submit(setup({ session_id: 's1', dropped: 0, entries: [], away_since: 'x' }).d)).toBe('')
+    expect(submit(setup({ session_id: 's1', dropped: 0, entries: [] }).d)).toBe('')
+  })
+
+  test('entries and away_since → the away line, then the inbox; without it, as before', () => {
+    const since = Date.UTC(2026, 10, 18, 4, 5, 0)
+    const lines = context(
+      submit(setup({ session_id: 's1', dropped: 0, entries: entries(2), away_since: since }).d),
+    ).split('\n')
+    expect(lines[0]).toMatch(/^The human is marked away since 13:05\. /)
+    expect(lines[1]).toContain("Menkar's inbox (events 1–2)")
+    const plain = context(submit(setup({ session_id: 's1', dropped: 0, entries: entries(2) }).d))
+    expect(plain.split('\n')[0]).toContain("Menkar's inbox (events 1–2)")
+    expect(plain).not.toContain('The human is marked away')
+  })
+
   test('30 entries of 120 characters → under 1,500 bytes, the oldest given, the rest counted', () => {
     const { d } = setup({
       session_id: 's1',

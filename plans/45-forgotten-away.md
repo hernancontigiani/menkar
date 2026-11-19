@@ -314,4 +314,28 @@ Files: `src/core/presence.ts`, `src/main/workspace.ts` (`noticeActivity`, beside
 
 ## 6. Execution log
 
-(Written by the session that executes it.)
+Executed 2026-11-19 by `menkar-t125` (task 125), both blocks in order, one worker.
+
+- **Block 1** as §2.1. `inboxText` takes `awaySince`; with no entry and no drop the text is the
+  away line alone. The reader's keys are `INBOX_KEYS` in `src/core/context/statusline.ts`, held
+  equal to what Claude's kit writes by a parity test. `Inboxes` had no unit test: a new
+  `tests/main/inbox.test.ts` (it imports nothing of Electron) holds `setAway`, a confirmed delivery,
+  `moved` and the pane moving. The e2e reads the file's `away_since` through Ctrl+B a, the
+  orchestrator's `inbox` call (which takes the `presence` entry) and I'm back.
+- **Deviation, the skill's cap**: the bullet pushed the orchestrator's skill past the 200 lines
+  `tests/core/plugin.test.ts` allows. `set` chose: the bullet merged into "The human is away",
+  terse ("…, summarize, then one by one" without the parenthesis on how many events), and the
+  "discuss topic N" bullet folded into the paragraph above ("a topic to discuss (take it up now)").
+  Two lines of that are over 100 columns; `set` kept them.
+- **Block 2** with D1 as the human decided it: `Presence` gains optional `asking`, `resting`,
+  `lastActive` (absent while here, so `HERE` keeps its shape and its old test line); `noticed`,
+  `notYet`, `quietDue`, `quieted` in `src/core/presence.ts`, the gap `BURST_GAP_SECONDS`. Main's
+  `noticeActivity` (before `recordPresent`), a timer `armQuiet` at `quietDue`, and the action
+  `presenceNotYet`. `PresenceView` no longer extends `Presence`: it carries `asking` and not
+  what only decides it.
+- **Found**: `npm run ci`'s test-integrity check has no override for a changed `expect(` line; the
+  first form of the presence test changed `expect(HERE)`, and the optional fields avoid it.
+- **Not in the e2e**: the question going back by itself after 10 quiet minutes runs on a real
+  timer the patched `Date.now` does not advance; it is held by `tests/core/presence.test.ts`
+  (`quieted`, `quietDue`), not by Playwright. Patching `Date.now` in main through `app.evaluate`
+  does reach `src/core/clock.ts` (asserted in the test before relying on it).
