@@ -224,3 +224,25 @@ a nudge, and whether one helps at all, is read from the bursts Your time shows (
 
 **Trigger:** the human has looked at their bursts in the Usage window and asks for it. First
 question: the length, and whether away (1.167) or a quiet minute resets it.
+
+## Ending what outlives a hang-up on macOS and Windows
+
+> Replaced 2026-11-19 by decision 1.190: no Windows port is planned; native Windows is an entry of its own.
+**Trigger:** the Windows port. First question: how node-pty's ConPTY ends its child tree there,
+and whether macOS's `ps -o sess` gives the same session to follow.
+
+## The live Remote Control phone on macOS and Windows
+
+> Replaced 2026-11-19 by decision 1.190: no Windows port is planned; native Windows is an entry of its own.
+**Trigger:** the macOS or Windows port. First question: whether Claude Code's registry keeps the
+same shape there, and how each system lists a process's children.
+
+## More coding agents: Codex, OpenCode
+
+> Replaced 2026-11-19 by decision 1.190: no Windows release is planned.
+- **Enabled per platform.** A release may ship an agent on Linux before it is tested on Windows:
+
+## `menkar usage now` on Windows while the app rotates the journal
+
+> Replaced 2026-11-19 by decision 1.190: Menkar does not run on Windows until native Windows is built.
+**Trigger:** Menkar runs on Windows. First question: whether the app's rename of the journal

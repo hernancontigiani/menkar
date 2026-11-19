@@ -464,6 +464,8 @@ page, a link to a missing page.
   `<!-- plan 28: apt commands -->` … `<!-- /plan 28 -->` (and `rpm commands`) around pending
   blocks; plan 28 fills only those blocks and runs `npm run site:check`, or, if plan 46 has not
   landed, writes them in `docs/packaging.md` for plan 46 to copy.
+- **The Install page states only what a release supports**: Linux's `.deb` and `.rpm` (1.190).
+  No Windows, no WSL, and no macOS until it ships after 1.0 (1.191).
 - Whichever plan lands second adds the `site` job to `pr.yml`.
 - The first deploy is a step of plan 28's going-public checklist.
 
@@ -476,7 +478,7 @@ page, a link to a missing page.
 - Rewriting `plugin/guide/orchestration-mode.md` or any `docs/` file beyond the exit.
 - Changing the app to make a capture easier (a capture photographs the app as it is; a bug it
   finds is reported to `set`, not fixed in this plan).
-- Windows and macOS screenshots (the app is Linux-first; the install page says so).
+- Windows and macOS screenshots (a release supports Linux only, 1.190; macOS comes after 1.0, 1.191; the Install page says so).
 
 ## 5. Do not touch
 
@@ -495,7 +497,10 @@ page, a link to a missing page.
 address; **D3 (a)** a "What comes next" page with only what is decided; **D4 (a)** captures
 committed; **D5 (a)** a scripted stand-in terminal per session; **D6 (b), not the recommended
 one: Get started first**, then the orchestration mode, which stays the headline on the splash.
-**Windows leaves the roadmap page** while the human weighs dropping native Windows (topic 74).
+**No Windows on the site** (the human, 2026-11-19, decision 1.190, topic 74): the roadmap page
+names no Windows, the Install page states Linux's `.deb` and `.rpm` only, and no page mentions WSL.
+macOS is on the roadmap as "macOS, experimental, after 1.0" (1.191), labelled as tested on
+GitHub's runners only, not on a real Mac.
 
 **D1 — Does the Spanish site get its own captures?** *Taken as decided*: yes, in Spanish (the
 human's lean, relayed by `set` on 2026-11-19, "unless it adds a lot of complexity"). It adds no
@@ -513,8 +518,9 @@ back to the human.
 
 **D3 — How much roadmap goes out.**
 - **(a) A "What comes next" page listing only what `00-STATUS.md` records as decided and
-  user-visible (recommended)**: today Codex and OpenCode in the orchestration mode, Windows, then
-  macOS — one line each, no dates, no plan numbers, reviewed at each release.
+  user-visible (recommended)**: today Codex and OpenCode in the orchestration mode, and macOS,
+  experimental, after 1.0 (1.191; labelled: tested on GitHub's runners only, not on a real Mac)
+  — one line each, no dates, no plan numbers, reviewed at each release.
 - (b) No roadmap: the site shows only the released app (ccai's rule); the new main feature then
   looks finished and its next steps invisible.
 - (c) The public mirror of `00-STATUS.md` §3: internal order, plan numbers and states change

@@ -2134,3 +2134,81 @@ The next .deb's row, before the plan's name was swept:
 ## 2026-11-19 — the next .deb's row, before 0.1.0-387
 
 | — | The next .deb | 0.1.0-381.g778390ca installed 2026-11-19 (Task times' Today, `menkar usage now`, 1.186, 1.187, Claude Code 2.1.328). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+
+## 2026-11-19 — decision 1.190 swept (task 129, `menkar-t129`): plan 27 deleted, question 2.1 left §2
+
+> Replaced 2026-11-19 by decision 1.190: no native Windows; Linux, with macOS not decided.
+| 1.3 | Ubuntu first: the first finished version is Linux; Windows and macOS follow on the same code | 2026-11-08 | this row |
+
+> Replaced 2026-11-19: 1.190 swept into the files that own it (task 129).
+| 1.190 | **No native Windows** (the human, 2026-11-19, topic 74): native Windows goes to `docs/NOT_BUILT_YET.md`, its trigger users asking for it; **WSL2 is neither tested nor promised**; a release states only what it supports, **Linux's `.deb` and `.rpm`**, and people install them where they like. Plan 27 (Windows validation), question 2.1 (Windows' shell) and plan 28's Windows installer go; "Linux first, then Windows and macOS" becomes Linux, with macOS undecided | 2026-11-19 | this row (until swept) |
+
+> Left §2 on 2026-11-19: no native Windows (1.190); the shell is the first question of `docs/NOT_BUILT_YET.md`, "Native Windows".
+| 2.1 | The shell of Menkar's terminals on Windows: Git Bash (recommended), PowerShell as fallback, or WSL | Human | Windows |
+
+> Plan 27, `plans/27-windows-validation.md`, deleted 2026-11-19 unexecuted by decision 1.190 (the human, topic 74). Its Linux-only pieces moved to `docs/NOT_BUILT_YET.md`, "Native Windows". Its text, verbatim but for its headings, two levels down:
+
+### Plan 27: how Menkar is validated on Windows (and macOS)
+
+> **Status:** stub, written 2026-11-09 with the human; not before the Windows port starts (§2 2.1,
+> the shell, is the first decision it needs). Needs `/design-plan` then.
+>
+> **Exit, when executed:** `docs/platforms.md` (new: what differs per platform and where it lives),
+> `docs/toolchain.md` (how the suites run on each); decisions in `plans/00-STATUS.md` §1.
+
+#### Known Linux-only pieces (found 2026-11-09, not exhaustive)
+
+- `src/core/tilde.ts`: home prefix compared with `/`; Windows paths are `C:\Users\…`.
+- `src/core/remote/live.ts` / `src/main/remote-live.ts`: the agent's pid found through `/proc`.
+- `src/core/launch.ts` / `src/main/index.ts`: detaching uses `setsid` semantics; closing agents
+  relies on SIGHUP (decision 1.9).
+- Terminals start `bash` (§2 2.1: Git Bash, PowerShell or WSL).
+- Terminal links (1.53): Claude Code turns OSC 8 hyperlinks on from the environment; Menkar sets
+  `FORCE_HYPERLINK=1`. Check on Windows what Claude Code reads there (it also knows `WT_SESSION`)
+  and that links still span the rows it breaks, in the shell 2.1 picks. Not investigated yet.
+- Packaging: a `.deb` with an AppArmor profile; Windows needs an installer (NSIS/MSI), macOS a
+  signed `.dmg`.
+- e2e: runs under `xvfb` (`MENKAR_E2E_XVFB`), absent on Windows/macOS.
+- Notifications, the dock badge, `gsettings` reads in docs and scripts.
+
+#### The goal (the human, 2026-11-09)
+
+Not a Windows CI: `npm run ci` stays a Linux gate. The goal is that **the app works when it is
+shared with a developer on Windows who installs it** — once there is a Windows installer to offer.
+Validation serves that, before each Windows release, not every change.
+
+#### The proposed approach (to confirm when the port starts)
+
+1. **Audit and isolate**: every platform-specific call behind one module per concern, with a Linux
+   implementation and a Windows one; a code-rules check (on Linux, in `npm run ci`) that forbids
+   `/proc`, `setsid`, `'/bin/sh'` and similar outside those modules, so new Linux-only code cannot
+   slip in unnoticed.
+2. **Unit tests for the Windows implementations run on Linux** where they are pure (paths with `\`,
+   drive letters, `C:\Users\…`), so most of the Windows logic is checked without Windows.
+3. **Before a Windows release**: the installer built, installed on a Windows machine or VM, and a
+   smoke run there (Playwright drives Electron natively, no xvfb) plus a hand checklist: install,
+   the launcher, a Claude session in a terminal, Remote Control, notifications, uninstall.
+
+#### Carried over from the predecessor's validation (2026-11-08, Claude Code 2.1.319, Ubuntu only)
+
+Kept here because the predecessor's repository is being deleted. On Linux an Electron spike showed
+that xterm.js and `@xterm/headless` read the agent's working / blocked / idle states unchanged, that
+Shift+Enter, Ctrl+C, Esc, a 5,000-character bracketed paste, scrollback, `/exit` and resizing
+behave, and that Playwright's `_electron.launch` drives the real app reliably. **Nothing was checked
+on Windows or macOS.** What it left for them:
+- Windows terminals run on ConPTY through node-pty: the same `Terminal` class, a different backend
+  to verify (signals: there is no SIGHUP, so 1.9 / 1.48's hang-up needs its Windows equivalent).
+- The shell is decision 2.1 (Git Bash recommended, since Claude Code on Windows already needs Git
+  for Windows; PowerShell the fallback; WSL the other way).
+- Nothing on the agents' side may assume `python3`: the statusline and the hooks must run with what
+  Menkar ships (Node or its own binary).
+- WebKit is never the engine: Electron's Chromium on every platform, so the UI checks done on Linux
+  hold, but the native pieces (dialogs, the trash, `openPath`, drag out, the frameless window's
+  snapping) are checked by hand on each platform.
+
+> Replaced 2026-11-19 by decision 1.191: macOS experimental, after 1.0.
+| 1.3 | Linux first: the first finished version is Linux, and a release states only Linux's `.deb` and `.rpm`; native Windows is not built (1.190); macOS is not decided | 2026-11-19 | this row |
+
+## 2026-11-19 — plan 39's §3 row, before P1a waited on the project's folder
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` again, merging `main` in before each block; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |

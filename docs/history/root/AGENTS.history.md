@@ -62,3 +62,6 @@ human likes; the features are all of agent-tablet's.
 
 > Replaced 2026-11-18 by decision 1.177: the sidebar in the mode is one view.
 | `docs/orchestration.md` | The orchestration mode: its marks, topics and tasks, the Work and Team views, the Board, the first-time card and its guide, `Ctrl+\`` in the orchestrator's tab |
+
+> Replaced 2026-11-19 by decision 1.190: no native Windows; Linux, with macOS not decided.
+`claude` CLI; it does not reimplement the agent. **Linux first (Ubuntu), then Windows and macOS.**

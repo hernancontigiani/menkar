@@ -19,14 +19,15 @@
 >   workers measured there, the base-ref variables; the "Local CI" paragraph's "no hosted CI".
 > - `docs/release-checklist.md`: checks the draft release's assets, not a local build; install
 >   from the repository; the step that publishes.
-> - `README.md`: "Install" per platform (the repository, the single file as fallback), a link to
+> - `README.md`: "Install" for the `.deb` and the `.rpm` (the repository, the single file as
+>   fallback; no other platform, 1.190), a link to
 >   the site and to `releases/latest`; the "small site" wording goes.
 > - `AGENTS.md`: "Local CI" and "Git and the shared tree" for model A (branches, PRs, `-s`), in
 >   the going-public block only.
 > - `plans/00-STATUS.md` §1: 1.5's "no hosted CI" and 1.85 superseded by the new rows; D1–D7 as
 >   rows with their dates; topic 72 closed.
-> - `docs/NOT_BUILT_YET.md`: the Windows installer job (trigger: plan 27 executed), macOS, ARM,
->   the AppImage (if D4 defers it), a self-hosted repository.
+> - `docs/NOT_BUILT_YET.md`: macOS, ARM, the AppImage (if D4 defers it), a self-hosted
+>   repository. Native Windows is already there (1.190).
 > - Superseded text (1.5, 1.85, the "no hosted CI" sentences, the checklist's local-build
 >   install) leaves verbatim for `docs/history/` in the same change; the README's old install
 >   text goes to `git log` (README is not a decision document).
@@ -48,7 +49,7 @@ From the stub (the human, 2026-11-10), not reopened except where §3 D4 says so:
   worker) on Linux.
 - **The release workflow listens to `v*` tags only**: the full suite, the packages, a GitHub
   Release with them attached. Linux x64 on one Ubuntu runner (`.deb`, `.rpm`, AppImage — see D4);
-  Windows NSIS, per-user, unsigned, after plan 27; macOS later; no Flatpak or Snap.
+  no Windows installer (1.190, §3); macOS experimental, after 1.0 (1.191); no Flatpak or Snap.
 - **Distribution**: GitHub Releases for the binaries; the site on GitHub Pages (plan 46); no
   in-app update check.
 - **Contributing**: `CONTRIBUTING.md`, issue templates (bug, feature), a PR template, **DCO**
@@ -360,6 +361,10 @@ be up to 2 GiB, with no limit on total size or bandwidth
 - **Dependabot** (the human, 2026-11-19): turned on for the repository. Alerts and security
   updates are set in GitHub's settings by the human; version updates come from
   `.github/dependabot.yml`.
+- **No Windows** (the human, 2026-11-19, decision 1.190, topic 74): no Windows runner and no NSIS
+  installer. A release states only what it supports, Linux's `.deb` and `.rpm`; WSL2 is neither
+  tested nor promised. Native Windows waits in `docs/NOT_BUILT_YET.md`, its trigger users asking
+  for it. The stub's "Windows NSIS, per-user, unsigned" (§1) is withdrawn.
 
 Each with options and one recommendation; the plan's blocks are written for the recommendation,
 and say what changes otherwise.
@@ -455,10 +460,9 @@ only grows on this linear history"), and DCO needs the sign-off in what lands.
 ## 4. Out of scope
 
 - The site (plan 46), its workflow and its domain.
-- Windows (waits for plan 27; deferred with its trigger), macOS (needs an Apple Developer
-  account), ARM, Flatpak, Snap.
-- Signing the Windows installer; signing the `.deb` itself (`dpkg-sig`): the repository's signed
-  `InRelease` is what apt checks.
+- Windows (1.190: not built, in `docs/NOT_BUILT_YET.md`; no WSL2 promise), macOS (1.191:
+  experimental, after 1.0; signing it would need an Apple Developer account), ARM, Flatpak, Snap.
+- Signing the `.deb` itself (`dpkg-sig`): the repository's signed `InRelease` is what apt checks.
 - A CHANGELOG (none until the first tagged release, then only with the human's approval —
   `AGENTS.md`); the release notes are GitHub's generated list, edited by the human in the draft.
 - An in-app update check (never: nothing leaves the machine).
@@ -712,9 +716,8 @@ Precondition: ask `set` whether the `multi-agent` branch has merged for good (§
 - [ ] `plans/00-STATUS.md` §1: rows for model A, the hosted CI, the release pipeline, D1–D7 with
   their dates; 1.5's "no hosted CI" and 1.85 marked superseded (their text to the history);
   topic 72 closed.
-- [ ] `docs/NOT_BUILT_YET.md`: the Windows installer job (trigger: plan 27 executed — then a
-  `windows-latest` job in `release.yml` and the NSIS target), macOS (trigger: an Apple Developer
-  account), ARM (trigger: a user asks), and the AppImage if D4 = (a).
+- [ ] `docs/NOT_BUILT_YET.md`: macOS (1.191: experimental, after 1.0; trigger: 1.0 is out),
+  ARM (trigger: a user asks), and the AppImage if D4 = (a).
 - [ ] The 1.0 commit, prepared for `set`: `package.json` and `package-lock.json` to `1.0.0`;
   `README.md` and `docs/release-checklist.md` name 1.0.0. `set` merges it by PR (the first under
   the rulesets) and the human tags (§6 step 17).

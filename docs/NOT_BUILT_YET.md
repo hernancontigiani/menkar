@@ -130,14 +130,46 @@ translations nobody here can check, and a stale catalog shows a mix of languages
 **Trigger:** someone asks for a language. First question: who reviews its translation, and whether a
 partial catalog is acceptable or `check-i18n` holds it to complete like Spanish.
 
+### Native Windows
+
+Menkar ships for Linux only: a release states Linux's `.deb` and `.rpm`, and people install them
+where they like. **WSL2 is neither tested nor promised** (the human, 2026-11-19, decision 1.190).
+A Windows port is a second platform to build, package and check by hand before every release, with
+no user asking for it yet.
+
+What it would take, from the Linux-only pieces found on 2026-11-09 (not exhaustive):
+
+- `src/core/tilde.ts`: home prefix compared with `/`; Windows paths are `C:\Users\…`.
+- `src/core/remote/live.ts` / `src/main/remote-live.ts`: the agent's pid found through `/proc`.
+- `src/core/launch.ts` / `src/main/index.ts`: detaching uses `setsid` semantics; closing agents
+  relies on SIGHUP (decision 1.9).
+- Terminals start `bash` (`$SHELL`); Windows needs a shell chosen: Git Bash (Claude Code on
+  Windows already needs Git for Windows), PowerShell, or WSL.
+- Terminal links (1.53): Claude Code turns OSC 8 hyperlinks on from the environment; Menkar sets
+  `FORCE_HYPERLINK=1`. Check on Windows what Claude Code reads there (it also knows `WT_SESSION`)
+  and that links still span the rows it breaks, in the shell chosen. Not investigated yet.
+- Packaging: a `.deb` with an AppArmor profile; Windows needs an installer (NSIS/MSI).
+- e2e: runs under `xvfb` (`MENKAR_E2E_XVFB`), absent on Windows.
+- Notifications, the dock badge, `gsettings` reads in docs and scripts.
+- Terminals run on ConPTY through node-pty there: the same `Terminal` class, a different backend
+  to verify; there is no SIGHUP, so the hang-up of 1.9 / 1.48 needs its Windows equivalent (the
+  two entries below).
+- The native pieces (dialogs, the trash, `openPath`, drag out, the frameless window's snapping)
+  are checked by hand there; the UI itself is Electron's Chromium everywhere.
+
+**Trigger:** users ask for it. First question: the shell of Menkar's terminals on Windows (Git
+Bash, PowerShell or WSL), and whether every platform-specific call goes behind one module per
+concern, with a code-rules check that keeps new Linux-only calls out of shared code.
+
 ### Ending what outlives a hang-up on macOS and Windows
 
 After a pty is hung up, its session's survivors are found through Linux's `/proc` (sid = the
 shell's pid) and get SIGCONT, SIGTERM and then SIGKILL (`src/main/reap.ts`). macOS has no `/proc`,
 and Windows has neither sessions nor these signals, so there only the hang-up itself is sent.
 
-**Trigger:** the Windows port. First question: how node-pty's ConPTY ends its child tree there,
-and whether macOS's `ps -o sess` gives the same session to follow.
+**Trigger:** native Windows (the entry above) or a macOS port. First question: how node-pty's
+ConPTY ends its child tree on Windows, and whether macOS's `ps -o sess` gives the same session to
+follow.
 
 ### The live Remote Control phone on macOS and Windows
 
@@ -145,8 +177,8 @@ The claude process behind a pane is found through Linux's `/proc` (its shell's c
 command lines, and the start time that guards a reused pid). macOS and Windows have no `/proc`, so
 there the phone falls back to the app's own list.
 
-**Trigger:** the macOS or Windows port. First question: whether Claude Code's registry keeps the
-same shape there, and how each system lists a process's children.
+**Trigger:** native Windows (above) or a macOS port. First question: whether Claude Code's
+registry keeps the same shape there, and how each system lists a process's children.
 
 ### An MCP server for usage
 
@@ -177,7 +209,7 @@ agent that runs in a terminal fits.
 - **Remote Control per agent.** New's Remote Control switch already hides when the chosen agent
   is not Claude Code; the rule becomes "shown only for an agent that declares a remote mode", one
   field of the agent's entry, never a check on its name.
-- **Enabled per platform.** A release may ship an agent on Linux before it is tested on Windows:
+- **Enabled per platform.** A release may ship an agent on one platform before it is tested on another:
   each agent's entry says on which platforms it is enabled. On a platform where it is not enabled
   the agent **does not appear at all** — not even greyed; greyed means only "supported here, but
   not installed on this machine". Set in the code per release, not by the user.
@@ -316,7 +348,7 @@ break is the human's, not a project's. The export's `--project NAME` would scope
 it disturbs neither. Not checked on Windows, where renaming a file another process has open depends
 on how both opened it.
 
-**Trigger:** Menkar runs on Windows. First question: whether the app's rename of the journal
+**Trigger:** native Windows (above) is built. First question: whether the app's rename of the journal
 succeeds while `now` reads it, and what the app logs when it does not.
 
 ### Counting the messages typed while an agent works

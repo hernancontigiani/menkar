@@ -3,7 +3,8 @@
 Menkar is a desktop app for working with several Claude Code (and Cursor) sessions at once: a
 session list on the left, the real agent running in an embedded terminal on the right, with
 projects, tabs, split panes, several windows, usage tracking and file tabs. It runs the real
-`claude` CLI; it does not reimplement the agent. **Linux first (Ubuntu), then Windows and macOS.**
+`claude` CLI; it does not reimplement the agent. **Linux (Ubuntu first); macOS experimental, after
+1.0 (1.191); no native Windows** (1.190).
 
 It was **written from scratch** in Electron and TypeScript from a written specification —
 `docs/spec/` — not by translating any other program's files.

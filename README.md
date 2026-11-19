@@ -2,8 +2,8 @@
 
 A desktop app for working with several Claude Code (and Cursor) sessions at once: the session list
 on the left, the real agent in an embedded terminal on the right, with projects, tabs, split panes,
-several windows, usage tracking and file tabs. Electron and TypeScript; Linux first, then Windows
-and macOS.
+several windows, usage tracking and file tabs. Electron and TypeScript, for Linux; macOS
+experimental, after 1.0; there is no Windows version.
 
 **Status:** in construction, usable for daily work on Ubuntu: projects, sessions in tabs, split panes,
 several windows, the history of every session.
