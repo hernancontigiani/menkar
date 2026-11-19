@@ -335,6 +335,21 @@ be up to 2 GiB, with no limit on total size or bandwidth
 
 ## 3. Decisions for the human
 
+**The human, 2026-11-19 (topic 72), with a premise corrected:**
+- **The repository is already public**: `github.com/hernancontigiani/menkar` answers as public
+  (checked by `set` through the GitHub API, 2026-11-19), and its pushed history is public, about 160
+  commits behind the local `main`. **The account is GitHub Free.** Everything written below for "the
+  private repository" is wrong. Actions on a public repository have free standard runners, and
+  Pages publishes from it. D6's "what becomes public" is already public: it becomes a secrets scan
+  of what is already out.
+- **D1: Cloudsmith.**
+- **D4: the AppImage is deferred.**
+- **D5, replaced: not now.** The workflows are written and planned, but **nothing runs while the
+  work goes on**: until the first official release they trigger only by hand (`workflow_dispatch`),
+  never on a push, a PR or a tag. The team keeps committing to `main`. They are turned on for the
+  first official release, and so is the switch to branches and PRs (model A).
+- **Open:** D2, D3, D7, the release notes (below), and D6's scan.
+
 Each with options and one recommendation; the plan's blocks are written for the recommendation,
 and say what changes otherwise.
 
