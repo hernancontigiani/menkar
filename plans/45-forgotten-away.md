@@ -174,6 +174,15 @@ leaves the file only when the human is back.
 
 ### 2.4 Decisions for the human
 
+**Decided by the human, 2026-11-19 (topic 70):** D2 (A), D3 (A), D4 (A), D5 (A) as recommended.
+**D1 is neither A nor B, but both of the human's ideas together:** the asking strip has a **"Not
+yet"** button before "I'm back", and **the question also goes back by itself** to the plain away
+strip after 10 minutes with no key, click or scroll in a main window (the burst gap,
+`BURST_GAP_SECONDS`). In both cases the question comes back on the next activity after 10 quiet
+minutes; away is never cleared by either (1.167). Block 2 builds this, not the recommended D1, with
+tests for each: Not yet hides it; activity within 10 minutes of Not yet does not bring it back;
+activity after 10 quiet minutes does; 10 quiet minutes while asking end the question with no click.
+
 - **D1 — "Not yet".** (A) **No "Not yet"; the question stays until back** — *recommended*: the strip
   is thin and blocks nothing; a "Not yet" that hides it "until the next activity" would come back
   with the very next key, since the human is using Menkar, so it would need a timer (a third state
@@ -287,7 +296,7 @@ Files: `src/core/presence.ts`, `src/main/workspace.ts` (`noticeActivity`, beside
   - `setAway(asking, true, …)` keeps `since` and `asking` (going away twice); `setAway(asking,
     false, …)` is `HERE` with `asking` false; a new away starts not asking.
   - `presenceView` carries `asking`.
-- [ ] Build it as §2.2, with the recommended D1–D4. `.away-banner.asking` for the style; the
+- [ ] Build it as §2.2, with D1 as decided in §2.4 (Not yet and the 10-minute return) and the recommended D2–D4. `.away-banner.asking` for the style; the
   versions strip untouched. Strings `presence.asking` in both catalogs.
 - [ ] e2e (`e2e/session-control.spec.ts`, beside the presence test; screenshots to
   `$MENKAR_FILES` as `menkar-<session>-away-asking-{dark,light}.png`): set away; a key in the
