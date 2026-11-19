@@ -212,7 +212,7 @@
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` again, merging `main` in before each block; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |
 | — | Task times gets a Today period (the human, 2026-11-19; carried with Spend's Today and Your time's today) | Task 117, no plan |
 | 3 | 44 — `menkar usage now --json`, the burst in progress for the human's own break reminder (1.185) | Written (task 118), D1–D3 decided (topic 66). **Executing** (task 120), blocks 1–5 |
-| — | The next .deb | 0.1.0-368.gd57c2b82 installed 2026-11-18 (the activity and task-flow views, 1.183, tasks 79 and 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+| — | The next .deb | 0.1.0-381.g778390ca installed 2026-11-19 (Task times' Today, `menkar usage now`, 1.186, 1.187, Claude Code 2.1.328). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
 
 ## 4. Next plan number
 
