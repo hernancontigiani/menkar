@@ -491,6 +491,12 @@ page, a link to a missing page.
 
 ## 6. Decisions for the human
 
+**Decided by the human, 2026-11-19 (topic 73):** D1 yes (Spanish captures); **D2 (a)** GitHub's
+address; **D3 (a)** a "What comes next" page with only what is decided; **D4 (a)** captures
+committed; **D5 (a)** a scripted stand-in terminal per session; **D6 (b), not the recommended
+one: Get started first**, then the orchestration mode, which stays the headline on the splash.
+**Windows leaves the roadmap page** while the human weighs dropping native Windows (topic 74).
+
 **D1 — Does the Spanish site get its own captures?** *Taken as decided*: yes, in Spanish (the
 human's lean, relayed by `set` on 2026-11-19, "unless it adds a lot of complexity"). It adds no
 code: the locale is a parameter of the seed and the walk from the first version. Its cost is
