@@ -2130,3 +2130,7 @@ The next .deb's row, before the plan's name was swept:
 ## 2026-11-19 — the next .deb's row, before 0.1.0-381
 
 | — | The next .deb | 0.1.0-368.gd57c2b82 installed 2026-11-18 (the activity and task-flow views, 1.183, tasks 79 and 67). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+
+## 2026-11-19 — the next .deb's row, before 0.1.0-387
+
+| — | The next .deb | 0.1.0-381.g778390ca installed 2026-11-19 (Task times' Today, `menkar usage now`, 1.186, 1.187, Claude Code 2.1.328). Before cutting the next one, `set` lists for the human what goes in and what is in flight |
