@@ -29,6 +29,9 @@ When the task names a task number (Menkar's orchestration mode), the human follo
   something, give its waiting_on argument ("topic 4", or a session's name).
 - When it is done, `task_review` with a one-line note of what to look at, before your report;
   if it then waits on a pull request, say so in it: waiting on pr-approval or pr-merge, and the PR.
+  Read the PR's state, don't infer it: `gh pr view <n> --json reviewDecision,mergeStateStatus`.
+  pr-approval while reviewDecision is not APPROVED, pr-merge after; a session's approval or green
+  CI is not the PR's approval.
   It wakes the orchestrator at your turn's end, once your report is written. Never close it: the
   orchestrator closes it after reviewing.
 
