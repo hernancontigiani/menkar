@@ -84,3 +84,42 @@ They offered to review our draft tone rules.
 | Screenshots | Light/dark variants and zoom built in | A few lines of CSS for light/dark; `starlight-image-zoom` |
 
 Mintlify's free plan was already reshaped once (relaunched 2026-09-28).
+
+## ccai's Playwright capture scripts, as their `documentation` session read them (2026-11-19)
+
+The scripts are ccai's `publications/tooling/capture-*.mjs`, documented in its `MAINTAINING.md`,
+"Screenshots". What transfers to an Electron app launched by `_electron` in a temporary home:
+
+- **Own the process and readiness.** Wait for the first window, then for an element that exists
+  only once the app has loaded its state. Close the app in a `finally`; the temporary home
+  guarantees a clean run. ccai cannot do this, so it refuses a stack it does not recognise:
+  without that check, a run once photographed another product on the same port.
+- **Navigation is per-screen imperative code, not a declarative list.** Two primitives:
+  `goto(route, readyLocator)`, and `shot(name)` / `shotClip(name, clip)` (a region, for a strip of
+  the window). The body runs go, wait for proof that the screen is real, shoot.
+- **`CAPTURE_ONLY=prefix,…` filters what is written while still walking the whole flow**, because
+  screens are stateful.
+- **Guards:**
+  - a fixed viewport, and `deviceScaleFactor: 2`;
+  - one colour scheme by choice (ccai uses light only; a site can do both, at twice the captures
+    and the reviews);
+  - fonts from the app itself;
+  - **no `networkidle`**: wait on a locator, then a short settle;
+  - collect `pageerror` and report it at the end;
+  - reduce each PNG to a 256-colour palette (about 40% of the size, nothing visible lost on a
+    flat UI).
+- **Volatile content is owned by the seed, not masked in CSS**: anything derived from the current
+  time is a thing the seed controls. A frozen stand-in clock once made a card say "last heard 76m
+  ago".
+- **Name a capture by a stable slug of the screen, not by its reading order.** ccai's `NN-slug`
+  couples renumbering a document to renaming files.
+- **What they would change, in order:**
+  1. Seed and capture in **one command**, with the check inside it.
+  2. **Assert on what was written, not the exit code**: hash every image and report which changed
+     since the last run, and which two are identical (a failed navigation photographs the previous
+     screen again).
+  3. Replace the fixed delays with one condition: no spinner or skeleton visible.
+  4. Identify the app by something it stamps.
+- **For Menkar: the app's own storage is the seed.** Write the state through the app (its IPC, its
+  own writers), not by fabricating its files underneath it, or the seed becomes a second,
+  undocumented copy of the app's formats that drifts.
