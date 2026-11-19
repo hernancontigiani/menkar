@@ -348,7 +348,18 @@ be up to 2 GiB, with no limit on total size or bandwidth
   work goes on**: until the first official release they trigger only by hand (`workflow_dispatch`),
   never on a push, a PR or a tag. The team keeps committing to `main`. They are turned on for the
   first official release, and so is the switch to branches and PRs (model A).
-- **Open:** D2, D3, D7, the release notes (below), and D6's scan.
+- **D2, D3, D7 as recommended** (the human, 2026-11-19): a tag's version is the same formula as any
+  build; a failed candidate is a draft that is deleted and re-tagged at the same version; squash
+  only, linear history.
+- **D6 becomes a secrets scan now**, not at 1.0: gitleaks over the whole history, run by `set`
+  before pushing the 160 local commits (2026-11-19).
+- **Release notes: `CHANGELOG.md` is the one source**, a section per version. The release workflow
+  copies the version's section into the GitHub Release, and the site shows it as a page. `set`
+  drafts each section from the commits since the last tag, and the human approves it (AGENTS.md's
+  `CHANGELOG.md` rule). APT needs nothing: no changelog inside the `.deb`.
+- **Dependabot** (the human, 2026-11-19): turned on for the repository. Alerts and security
+  updates are set in GitHub's settings by the human; version updates come from
+  `.github/dependabot.yml`.
 
 Each with options and one recommendation; the plan's blocks are written for the recommendation,
 and say what changes otherwise.
