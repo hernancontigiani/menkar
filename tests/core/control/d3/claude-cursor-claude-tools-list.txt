@@ -1,0 +1,493 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "renew",
+        "description": "Ends this session once the current turn is over and starts a fresh one in the same Menkar tab, with the same name; this conversation becomes its earlier conversation. Use it when your task is done and its lessons are saved. Optionally give the fresh session's first prompt.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "The fresh session's first prompt."
+            }
+          }
+        }
+      },
+      {
+        "name": "start_session",
+        "description": "Starts a new Claude Code session in your Menkar project, without taking the focus. A worker you start runs in the background, with no tab of its own, until the human opens it; any other session gets a tab after yours. You become its parent: Menkar tells you when it waits at a permission prompt or finishes a turn. Its name, unique among the project's running sessions, is how you address it.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The session's name; with task, Menkar names it and it may be omitted."
+            },
+            "task": {
+              "type": "integer",
+              "description": "A task's number: Menkar names the session <project>-t<number> and assigns it the task. Only a task with no assignee."
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Its first prompt."
+            },
+            "prompt_file": {
+              "type": "string",
+              "description": "An absolute path to a file holding its first prompt, instead of prompt."
+            },
+            "remote_control": {
+              "type": "boolean",
+              "description": "Turn Remote Control on for it."
+            },
+            "group": {
+              "type": "string",
+              "description": "An existing group of the project to put it in."
+            },
+            "model": {
+              "type": "string",
+              "description": "The model the new session runs, as the agent names it, e.g. a smaller one for a generalist worker; omit it for the user's default."
+            },
+            "loose": {
+              "type": "boolean",
+              "description": "Start it with no parent, as a consultant: Menkar never wakes you for it and its tab is never read only."
+            },
+            "role": {
+              "type": "string",
+              "description": "The role label it is born with, as the human's Configure role… sets it; no tool changes it later."
+            },
+            "folder": {
+              "type": "string",
+              "description": "An absolute path: the folder it starts in, one of the project's folders (its sessions' folders and the ones the human added), e.g. another repository. Omit it to start in your own folder."
+            },
+            "agent": {
+              "type": "string",
+              "enum": [
+                "claude",
+                "cursor"
+              ],
+              "description": "The coding agent it runs; omit it for your own session's agent."
+            }
+          }
+        }
+      },
+      {
+        "name": "list_sessions",
+        "description": "Lists the sessions of your Menkar project: name, id, shown state (working, blocked, idle, done), context used, parent, whether it is running (tab) and its folder; in the orchestration mode also its role, marks and the skills the human set for it. Also the project's folders (folders), where start_session { folder } may start a session.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "last_reply",
+        "description": "Returns the last reply of a session of your Menkar project, by its name: a worker's report is its last message. At most 20,000 characters.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The session's name."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "topic_add",
+        "description": "Adds a topic for the human to your Menkar project's open topics, shown in Menkar's sidebar; you are recorded as who raised it, and its number is returned.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "A short title."
+            },
+            "context": {
+              "type": "string",
+              "description": "What the human needs to know to decide."
+            },
+            "blocking": {
+              "type": "boolean",
+              "description": "Work waits on it."
+            },
+            "task": {
+              "type": "integer",
+              "description": "The number of the task it belongs to, if any."
+            }
+          },
+          "required": [
+            "title",
+            "context"
+          ]
+        }
+      },
+      {
+        "name": "topic_update",
+        "description": "Changes an open topic of your Menkar project by its number: its title, context, whether it blocks, or its status (open or discussing).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The topic's number."
+            },
+            "title": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            },
+            "blocking": {
+              "type": "boolean"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "discussing"
+              ]
+            }
+          },
+          "required": [
+            "number"
+          ]
+        }
+      },
+      {
+        "name": "topic_close",
+        "description": "Closes a topic of your Menkar project by its number, keeping the decision taken so it can be looked up later.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The topic's number."
+            },
+            "decision": {
+              "type": "string",
+              "description": "What was decided."
+            }
+          },
+          "required": [
+            "number",
+            "decision"
+          ]
+        }
+      },
+      {
+        "name": "topic_list",
+        "description": "Lists your Menkar project's open topics, those of ★ tasks first, then blocking ones: number, title, who raised it, whether it blocks, status and context; with all, the closed ones too, with their decision.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "all": {
+              "type": "boolean",
+              "description": "Include closed topics and their decisions."
+            }
+          }
+        }
+      },
+      {
+        "name": "adopt_session",
+        "description": "Makes a session of your Menkar project your child, so Menkar tells you when it waits, ends its turn without a report, or sets its task to review. Only the orchestrator, in the orchestration mode; call it only when the human asks for it explicitly.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The session's name."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "task_add",
+        "description": "Adds a task to your Menkar project and returns its number; name that number in the session's handoff. Assign it to a session by its name, or leave it unassigned and start its worker with start_session's task. Only the orchestrator, in the orchestration mode. The task starts queued; its assignee splits it into steps.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "A short title."
+            },
+            "assignee": {
+              "type": "string",
+              "description": "The name of the session that does it."
+            },
+            "star": {
+              "type": "boolean",
+              "description": "Mark it urgent with the ★, when the human asks."
+            }
+          },
+          "required": [
+            "title"
+          ]
+        }
+      },
+      {
+        "name": "task_steps",
+        "description": "Splits a task assigned to you into 3 to 7 short steps; it goes in progress at step 1. Only its assignee.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The task's number."
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "3 to 7 short lines."
+            }
+          },
+          "required": [
+            "number",
+            "steps"
+          ]
+        }
+      },
+      {
+        "name": "task_progress",
+        "description": "Reports where a task assigned to you is: the step it is at and a one-line note. With waiting_on it is waiting (on a topic, \"topic 4\", or a session); without it, in progress. Only its assignee.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The task's number."
+            },
+            "step": {
+              "type": "integer",
+              "description": "The step it is at now, from 1; omit to keep it."
+            },
+            "note": {
+              "type": "string",
+              "description": "One line: where it is."
+            },
+            "waiting_on": {
+              "type": "string",
+              "description": "What it waits on: \"topic 4\" or a session."
+            }
+          },
+          "required": [
+            "number",
+            "note"
+          ]
+        }
+      },
+      {
+        "name": "task_review",
+        "description": "Says a task assigned to you is done and ready for the orchestrator to review; only the orchestrator closes it. At your turn's end it wakes the orchestrator. Only its assignee, who says whom it waits on: the orchestrator by default, the human, or a PR's approval or merge. The orchestrator may call it on a task in To review to change only whom it waits on.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The task's number."
+            },
+            "note": {
+              "type": "string",
+              "description": "One line: what to look at. The assignee's is required."
+            },
+            "waiting_on": {
+              "type": "string",
+              "enum": [
+                "orchestrator",
+                "human",
+                "pr-approval",
+                "pr-merge"
+              ],
+              "description": "Whom it waits on; omitted, the orchestrator."
+            },
+            "waiting_note": {
+              "type": "string",
+              "description": "One line beside it, e.g. the PR's number."
+            }
+          },
+          "required": [
+            "number"
+          ]
+        }
+      },
+      {
+        "name": "task_close",
+        "description": "Closes a task of your Menkar project after reviewing it, as done or dropped. Only the orchestrator, in the orchestration mode.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The task's number."
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "done",
+                "dropped"
+              ]
+            }
+          },
+          "required": [
+            "number",
+            "outcome"
+          ]
+        }
+      },
+      {
+        "name": "task_list",
+        "description": "Lists your Menkar project's open tasks, ★ first: number, title, assignee, state, step and note, with the steps; with all, the closed ones too.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "all": {
+              "type": "boolean",
+              "description": "Include closed tasks."
+            }
+          }
+        }
+      },
+      {
+        "name": "task_star",
+        "description": "Sets (true) or removes (false) the ★ of an open task of your Menkar project: a ★ task's reports and topics come first. Only the orchestrator, in the orchestration mode, and only when the human asks for it explicitly.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "integer",
+              "description": "The task's number."
+            },
+            "star": {
+              "type": "boolean",
+              "description": "true sets the ★, false removes it."
+            }
+          },
+          "required": [
+            "number",
+            "star"
+          ]
+        }
+      },
+      {
+        "name": "set_workers_cap",
+        "description": "Sets how many workers your Menkar project runs at once: started or resumed sessions you are the parent of, with no role. Null for any number. Only the orchestrator, in the orchestration mode, and only when the human asks for it explicitly.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "cap": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "A whole number from 1, or null for any number."
+            }
+          }
+        }
+      },
+      {
+        "name": "human_back",
+        "description": "Clears the human's away state in Menkar: they are back. Only the orchestrator, in the orchestration mode, and only when the human has said explicitly that they are back.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "human_away",
+        "description": "Marks the human away in Menkar, as their own switch does. Only the orchestrator, in the orchestration mode, and only when the human has said explicitly that they are leaving or want to be marked away.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "park_session",
+        "description": "Parks a worker you started whose task waits long (a PR under review): once its turn is over Menkar hangs it up, as Stop does, keeping its transcript, and marks it parked; resume it with resume_session when the wait ends. Only the orchestrator, for a worker with no role whose current task is waiting, or in To review waiting on a PR.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The worker's name."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "resume_session",
+        "description": "Resumes a parked or stopped session of your Menkar project by its name, with its conversation, without taking the focus: a worker runs in the background, with no tab of its own, until the human opens it; any other session gets a tab after yours; the optional prompt is its first message, e.g. what came back on its task. Only the orchestrator.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The session's name."
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Its first message once resumed."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "trash_files",
+        "description": "Moves files of your Menkar project's files folder to the system's trash, by their names in that folder (no paths). Answers which were trashed and which were not. Only the orchestrator, in the orchestration mode; a name outside the files folder is refused.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "File names in the project's files folder, e.g. menkar-t9-login.png."
+            }
+          },
+          "required": [
+            "names"
+          ]
+        }
+      },
+      {
+        "name": "ask",
+        "description": "Asks your parent session in Menkar a question now, as a message it sees at once. It does not wait for the answer, which comes later as a message from your parent: go on with what does not depend on it, or set your task waiting on your parent with task_progress and end your turn. Says whether the question was sent.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "question": {
+              "type": "string",
+              "description": "The question, at most 2,000 characters; put longer details in a file and name its path."
+            }
+          },
+          "required": [
+            "question"
+          ]
+        }
+      },
+      {
+        "name": "inbox",
+        "description": "Gives the events Menkar kept for you since you last read them, oldest first, and empties your inbox; the human did not write them. They also reach you with your next prompt. Only the orchestrator, in the orchestration mode; call it when your inbox's last line says to.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ]
+  }
+}

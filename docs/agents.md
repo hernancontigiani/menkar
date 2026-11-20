@@ -234,3 +234,31 @@ elicitation, which are left to the title.
 - **Context** (`codex/context.ts`): the last `token_count` with its window in the rollout's tail,
   turned into Codex's own footer figure (a 12,000-token baseline left out). It is refreshed at each
   turn's end; a `.zst` rollout shows none.
+
+## Messaging, and the tools each caller is listed
+
+- **`kit.messaging`** is the agent's own way of messaging a session by name, `null` where it has
+  none: Claude Code's `SendMessage` reaches Claude Code sessions only; Codex and Cursor have none.
+- **What a caller is listed** is computed once, in main, from the installed agents
+  (`toolsFile`, `src/core/control/shapes.ts`) and published to `control/tools.json` before any pane
+  starts; the MCP server program reads it and never imports a kit:
+  - `send_message` is listed to a caller when some installed agent is out of its own messaging's
+    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor lists none until
+    Cursor's Waker exists, a Codex-only user is listed it (nothing else messages by name), and a
+    Claude-only user is listed exactly the tools R10 recorded.
+  - `start_session` gains `agent`, an enum of the installed agents, once two or more are installed.
+  - `listChanged: true` is declared only when an agent other than the default is installed.
+- **The caller's agent** is `MENKAR_AGENT` in the server's environment, set by the agent's mount;
+  none means the default agent, so Claude Code's `--mcp-config` keeps its bytes.
+- **Claude Code re-lists on `notifications/tools/list_changed`** (`claude-cli`, measured on
+  2.1.329, 2026-11-20, a throwaway home and a stub server): `tools/list` is requested again 24–33 ms
+  after the notification, and the new tool is callable by name in the same turn and the next. The
+  re-list leaves the request's `tools` and `system` byte-identical: the new tool is announced in an
+  appended message, so the notification does not break the prompt cache's prefix (measured on the
+  request's bytes, not on the API's cache counters). Loading a deferred tool with ToolSearch is
+  what inserts it in `tools`, as for any tool. ToolSearch found the new tool only from the next
+  turn. Menkar sends no such notification yet: the installed agents are found once, at start, and
+  a restart starts every server again (`docs/NOT_BUILT_YET.md`).
+- **Not built yet on this branch:** `send_message`'s call is answered as an unknown tool until
+  its waking through the target's Waker exists, and main ignores `start_session`'s `agent` until
+  it starts another agent's session.

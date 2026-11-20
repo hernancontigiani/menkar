@@ -2,6 +2,7 @@ import { type FSWatcher, mkdirSync, watch } from 'node:fs'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
+import type { AgentId } from '../core/agents/ids'
 import { parseTurnEnd } from '../core/agents/shared/turn-end'
 import { now } from '../core/clock'
 import {
@@ -13,8 +14,10 @@ import {
 } from '../core/control/files'
 import { sweepPrompts, sweepTeamFiles } from '../core/control/prompt'
 import { RequestQueue } from '../core/control/requests'
+import { toolsFile } from '../core/control/shapes'
 import { log } from '../core/log'
 import { pluginFolder } from '../core/paths'
+import { mainKitOf } from './agents/registry'
 
 // Main's side of Menkar's MCP server: it says Menkar runs, answers the request files,
 // publishes each project's sessions, and hears each pane's turn end. What a tool does is the
@@ -158,5 +161,14 @@ export function dropSnapshot(projectId: string): void {
   snapshotTimers.delete(projectId)
   rm(join(controlPaths().snapshots, `${projectId}.json`), { force: true }).catch((error: unknown) =>
     log.warn('a project snapshot could not be removed', { projectId, error }),
+  )
+}
+
+// What the MCP server offers each installed agent's sessions, written before any pane starts; a
+// server that finds no file offers the list every caller had before.
+export async function publishTools(installed: readonly AgentId[]): Promise<void> {
+  const file = toolsFile(installed, (id) => mainKitOf(id).waker !== null)
+  await writeAtomic(controlPaths().root, 'tools.json', file).catch((error: unknown) =>
+    log.warn('the tools file could not be written', { error }),
   )
 }

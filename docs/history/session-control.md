@@ -214,3 +214,10 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
   handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The human is away: …" or
   "The human is back" (`docs/orchestration.md`) go to the orchestrator's inbox under their keys; to
   an orchestrator without one, through the batch as before. Team updates stay apart: they have
+
+## The shape
+
+> Left on 2026-11-20: the server reads the caller's agent too, and `tools/list` is shaped per caller (plan 39 P1b.1, task 158).
+    call without one.
+    - `initialize` echoes the client's protocol version and offers `tools`; `ping` gets `{}`.
+    - `tools/list` names nine tools; `tools/call` runs one.

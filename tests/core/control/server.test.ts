@@ -252,12 +252,12 @@ describe('the files between the server and main', () => {
         unlinkSync(join(requests, file))
         writeFileSync(
           join(responses, file),
-          JSON.stringify({ id: request.id, ok: true, text: `hi ${request.pane}` }),
+          JSON.stringify({ id: request.id, ok: true, text: `hi ${request.caller.pane}` }),
         )
       }
     })
     try {
-      const answer = await callMenkar({ pane: 'p1', tool: 'renew', args: {} })
+      const answer = await callMenkar({ caller: { pane: 'p1' }, tool: 'renew', args: {} })
       expect(answer).toEqual({ ok: true, text: 'hi p1' })
     } finally {
       watcher.close()
@@ -268,7 +268,7 @@ describe('the files between the server and main', () => {
 
   test('no alive.json: "Menkar is not running" at once, and no request is left', async () => {
     const started = performance.now()
-    const answer = await callMenkar({ pane: 'p1', tool: 'renew', args: {} })
+    const answer = await callMenkar({ caller: { pane: 'p1' }, tool: 'renew', args: {} })
     expect(answer.ok).toBe(false)
     expect(answer.text).toMatch(/Menkar is not running/)
     expect(performance.now() - started).toBeLessThan(500)
@@ -278,7 +278,7 @@ describe('the files between the server and main', () => {
     const { root, alive } = controlPaths()
     mkdirSync(root, { recursive: true })
     writeFileSync(alive, JSON.stringify({ pid: 2 ** 22 + 7, started: 1 }))
-    expect((await callMenkar({ pane: 'p1', tool: 'renew', args: {} })).text).toMatch(
+    expect((await callMenkar({ caller: { pane: 'p1' }, tool: 'renew', args: {} })).text).toMatch(
       /Menkar is not running/,
     )
   })
@@ -299,7 +299,7 @@ describe('the files between the server and main', () => {
 
   test('no response in time: the timeout sentence, and the request is taken back', async () => {
     aliveNow()
-    const answer = await callMenkar({ pane: 'p1', tool: 'renew', args: {} }, 300)
+    const answer = await callMenkar({ caller: { pane: 'p1' }, tool: 'renew', args: {} }, 300)
     expect(answer.ok).toBe(false)
     expect(answer.text).toMatch(/did not answer/)
     expect(readdirSync(controlPaths().requests)).toEqual([])

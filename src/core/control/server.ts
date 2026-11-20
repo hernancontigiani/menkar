@@ -1,10 +1,13 @@
 import { createInterface } from 'node:readline'
 import { pathToFileURL } from 'node:url'
+import { type AgentId, DEFAULT_AGENT, parseAgentId } from '../agents/ids'
 import {
+  AGENT_ENV,
   type ControlAnswer,
   callMenkar,
   menkarAlive,
   NOT_RUNNING,
+  readShape,
   sessionsAnswer,
   snapshotOfPane,
 } from './files'
@@ -12,7 +15,8 @@ import { answer, type ServerContext } from './protocol'
 
 // Menkar's MCP server. Claude Code starts it for each session Menkar starts, through
 // `--mcp-config`, as a program of its own run by Electron's binary as plain Node: no Electron, no
-// DOM. It inherits the pane's environment, so `MENKAR_PANE` says which tab is calling.
+// DOM. It inherits the pane's environment, so `MENKAR_PANE` says which tab is calling, and
+// `MENKAR_AGENT` which agent, when its mount names one.
 
 const NOT_LISTED = 'This session is not in a Menkar project yet; try again in a moment.'
 
@@ -23,18 +27,22 @@ async function listSessions(pane: string): Promise<ControlAnswer> {
   return { ok: true, text: sessionsAnswer(snapshot) }
 }
 
-export function serverContext(pane: string | null): ServerContext {
+export function serverContext(pane: string | null, agent: AgentId = DEFAULT_AGENT): ServerContext {
   return {
     pane,
+    shape: () => readShape(agent),
     call: (tool, args) =>
       pane && tool === 'list_sessions'
         ? listSessions(pane)
-        : callMenkar({ pane: pane ?? '', tool, args }),
+        : callMenkar({ caller: { pane: pane ?? '' }, tool, args }),
   }
 }
 
 function serve(): void {
-  const ctx = serverContext(process.env.MENKAR_PANE || null)
+  const ctx = serverContext(
+    process.env.MENKAR_PANE || null,
+    parseAgentId(process.env[AGENT_ENV]) ?? DEFAULT_AGENT,
+  )
   const send = (reply: object) => process.stdout.write(`${JSON.stringify(reply)}\n`)
   createInterface({ input: process.stdin }).on('line', (line) => {
     if (!line.trim()) return

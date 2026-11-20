@@ -236,6 +236,7 @@ import {
   type ControlHandlers,
   mcpServerScript,
   publishSnapshot,
+  publishTools,
   setSnapshotSource,
   skillsPluginDir,
 } from './control'
@@ -1487,7 +1488,7 @@ const prompted = async (id: string, prompt: unknown): Promise<string | ControlAn
 }
 
 async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
-  const pane = panes.get(request.pane)
+  const pane = 'pane' in request.caller ? panes.get(request.caller.pane) : undefined
   const agent = agentOf(pane)
   const sessionId = pane?.sessionId
   const project = sessionId ? projectOf(projects, sessionId) : undefined
@@ -3179,6 +3180,7 @@ export async function startWorkspace(): Promise<void> {
   installedAgents = []
   for (const agent of AGENT_IDS)
     if (await findOnPath(descriptorOf(agent).command)) installedAgents.push(agent)
+  await publishTools(installedAgents)
   startPhase('agents found')
   sessions.onChange((list) => {
     sessionList = list

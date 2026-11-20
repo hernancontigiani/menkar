@@ -8,6 +8,7 @@ import { state } from './state'
 export const kit: AgentKit = {
   launch,
   mcp: null,
+  messaging: null,
   namer,
   team: null,
   env: null,

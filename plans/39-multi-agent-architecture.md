@@ -1803,3 +1803,59 @@ P0's blocks run in turn.
   shows working, from a pane's join until its state next changes. `agentStates()` reads each pane's
   `sessionId()`, but the push (`refreshAgentStates`) is not resent when `joinSession`
   (`src/main/workspace.ts`) gives a pending pane its id. Reported to set; not fixed here.
+
+### P1b.1 (`menkar-t158`, task 158, 2026-11-20)
+
+- **Merged `main` into the branch first** (`73f7a0f`, no conflict). `main` then moved on
+  (`9d3c0e8`, task 160: the team part's load-by-name wording, R10's team files rewritten on
+  `main`), so CI's "R10 unchanged" step fails on `tests/core/r10/{plugin/team/claude.md,
+  team-blocks.txt,team-posts.txt}` until that commit is merged too: not this block's change.
+- **The measurement** (`claude-cli`, Claude Code 2.1.329, a throwaway home, a stub stdio server):
+  Claude **re-lists** on `notifications/tools/list_changed` (24–33 ms), the new tool is callable
+  in the same turn and the next; `tools` and `system` stay byte-identical, the tool announced in an
+  appended message, so the cache's prefix holds (measured on the request's bytes; the stand-in API
+  has no cache counters). ToolSearch found the new tool only from the next turn. The plan's
+  fallback is not needed; `docs/agents.md` states the measurement. Details:
+  `claude-cli-t158-list-changed.txt` in the project's files folder.
+- **Granted by set, 2026-11-20 — premise gaps G1–G6:**
+  - G1: the server program may not import a kit, and Waker is main's: the shapes are computed in
+    new `src/core/control/shapes.ts` (`toolsFile(installed, wakeable)`), published whole to
+    `control/tools.json` by `publishTools` in `src/main/control.ts`, called once in
+    `src/main/workspace.ts` right after the installed agents are found, before any pane starts.
+    The server reads it (`readShape` in `files.ts`) at `initialize` and `tools/list`; no file, a
+    malformed one, or a caller it does not list → the plain list (R10).
+  - G2: the caller's agent is `MENKAR_AGENT` (`AGENT_ENV`) in the server's environment, set by
+    an agent's mount (Codex's in P1b.2); none → `DEFAULT_AGENT`, so Claude's `--mcp-config` bytes
+    hold.
+  - G3: `ControlRequest.caller` (`{ pane } | { agentSession: { meta, id } }`) replaces `pane`;
+    `requests.ts` parses both branches; `handleControl`'s first line reads `request.caller`
+    (an `agentSession` caller finds no pane and is refused until P2).
+  - G4: `send_message`'s definition and `start_session`'s `agent` (an enum of the installed
+    agents) are listed now; `send_message` is not in `TOOL_NAMES`, so its call is refused as an
+    unknown tool until P1b.3, and main ignores `agent` until P1b.2.
+  - G5: `AgentKit.messaging: Messaging | null` (`{ tool, reaches(other) }`; the plan's `native`
+    wrapper folded into the nullness, as every other concern); Claude's in
+    `claude/messaging.ts`, `null` in `codex/index.ts` and `cursor/index.ts`.
+  - G6: `listChanged: true` is declared when an agent other than the default is installed, but
+    no notification is sent: the installed agents are found once, at start, and a restart starts
+    every server again. Deferred in `docs/NOT_BUILT_YET.md` with its trigger.
+- **The rule (S8)**: `send_message` is listed to caller A when some installed agent is out of A's
+  `messaging.reaches` and has a Waker. Today in the app no Waker exists but Claude's, so a Claude
+  caller with Codex installed is listed `agent` and not `send_message` until P1b.3; the D3
+  snapshot `{claude, codex}` is taken with Codex wakeable, as P1b.3 makes it (my choice: the
+  snapshots show the state the plan names; the rule's table covers both).
+- **Tests**: `tests/core/control/shapes.test.ts` — R10's `initialize` and `tools/list` bytes with
+  no file and with only Claude installed (compared with `tests/core/r10/`'s files, not rewritten);
+  D3's snapshots under `tests/core/control/d3/` (`.txt`: Biome would reformat `.json` and
+  `biome.json` is not this block's) for `{claude, cursor}` caller Claude and `{claude, codex}`
+  callers Claude and Codex; S8's table; `listChanged`; the agent enum; the file's malformed
+  cases; `send_message` refused. `requests.test.ts`: both caller branches reach main; an empty
+  pane and a session caller without its id are refused.
+- **Seen failing once**, each injected and reverted: `listChanged` always on (2 tests),
+  `wakeable` ignored (4), native reach ignored (5), `agent` with one agent (4), the caller's entry
+  ignored (1), an unknown agent kept (1), malformed JSON not plain (1), the plain shape changed
+  (1), the server ignoring its agent (1), any tool name called (2), the three caller-parse
+  defects (1 each).
+- **Integrity**: `check-test-integrity` reports P1a.2's six roster pins and **one more**,
+  `tests/core/control/server.test.ts`: `callMenkar({ pane: 'p1', … })` became
+  `callMenkar({ caller: { pane: 'p1' }, … })` on a line holding `expect(` (the type changed, G3).

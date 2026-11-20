@@ -233,6 +233,16 @@ agent that runs in a terminal fits.
 agent: the five facts above, read from its docs, agent-deck's code and a real session, before
 any code.
 
+### Telling running sessions their tool list changed
+
+Menkar's MCP server declares `listChanged` when an agent other than Claude Code is installed, and
+Claude Code re-lists on the notification (`docs/agents.md`), but the server never sends it: main
+finds the installed agents once, at its start, and every session's server starts again with
+Menkar. A notification now would have nothing to announce.
+
+**Trigger:** main finds an agent installed or removed while it runs. First question: whether only
+adding tools (never removing them mid-session, which leaves Claude a stale note) is enough.
+
 ### Waking an agent other than Claude Code
 
 Menkar wakes a parent session through Claude Code's documented cross-session messaging

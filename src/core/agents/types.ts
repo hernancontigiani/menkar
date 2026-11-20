@@ -63,6 +63,13 @@ export interface McpMount {
   words(ctx: LaunchContext): readonly string[]
 }
 
+// The agent's own way of messaging another session by name, where it has one.
+export interface Messaging {
+  // The tool's name, as the agent's model sees it.
+  readonly tool: string
+  reaches(other: AgentId): boolean
+}
+
 export interface Namer {
   // The words that give a new session its name; null when the CLI takes none at start.
   atStart(name: string): readonly string[] | null
@@ -262,6 +269,7 @@ export interface ContextSource {
 export interface AgentKit {
   readonly launch: Launcher
   readonly mcp: McpMount | null
+  readonly messaging: Messaging | null
   readonly namer: Namer
   readonly team: TeamDelivery | null
   readonly env: EnvRules | null

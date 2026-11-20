@@ -18,10 +18,17 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     argument the script, and `env: {"ELECTRON_RUN_AS_NODE": "1"}`. The config is not run through
     a shell, which is why the variable goes in `env`. Claude Code adds it to the pane's environment.
   - **Who is calling:** the server reads `MENKAR_PANE` from that environment and refuses every
-    call without one.
+    call without one, and `MENKAR_AGENT` for the caller's agent: a mount that names none is
+    Claude Code's, whose `--mcp-config` is unchanged. A request carries its `caller`, a pane, or
+    (from OpenCode's proxy, not built yet) a session named by a `_meta` key and its id.
   - **The protocol** (`protocol.ts`) is newline-delimited JSON-RPC written by hand:
-    - `initialize` echoes the client's protocol version and offers `tools`; `ping` gets `{}`.
-    - `tools/list` names nine tools; `tools/call` runs one.
+    - `initialize` echoes the client's protocol version and offers `tools`, declaring
+      `listChanged` only when an agent other than Claude Code is installed; `ping` gets `{}`.
+    - `tools/list` names the tools of `TOOL_NAMES`, shaped per caller from `tools.json` (below):
+      `start_session` gains `agent` once two or more agents are installed, and `send_message` is
+      added for a caller that must reach an installed agent its own messaging cannot reach and
+      Menkar can wake (`docs/agents.md`). With no file, every caller gets the plain list.
+      `tools/call` runs one.
     - Anything else with an id gets -32601, which is what Claude Code's first `server/discover`
       receives.
     - A failed call is `{content: [{type: "text", text}], isError: true}` with Menkar's own English
@@ -203,6 +210,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     - Main (`src/main/control.ts`, `RequestQueue`) passes over `requests/` on every change and once
       a second, and takes each id once. A request older than `REQUEST_MAX_AGE_MS` is dropped (Menkar
       was closed); a malformed one gets a refusal.
+  - **`tools.json`:** written by main once it has found the installed agents, before any pane
+    starts: whether `listChanged` is declared, and per installed agent whether its sessions get
+    `send_message` and which agents `start_session` may name.
   - **`snapshot/<project>.json`:** written by main, debounced, whenever a project's sessions change
     state, context, tab or membership. `list_sessions` reads the snapshot that lists its own pane,
     without asking main.

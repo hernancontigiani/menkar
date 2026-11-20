@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, watch } from 'node:fs'
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { type AgentId, parseAgentId } from '../agents/ids'
 import { now } from '../clock'
 import { appDirs } from '../paths'
 
@@ -37,9 +38,14 @@ export const TOOL_NAMES = [
 ] as const
 export type ToolName = (typeof TOOL_NAMES)[number]
 
+// Who calls a tool: a pane Menkar started, or a session an agent's server names in its request.
+export type Caller =
+  | { readonly pane: string }
+  | { readonly agentSession: { readonly meta: string; readonly id: string } }
+
 export interface ControlRequest {
   readonly id: string
-  readonly pane: string
+  readonly caller: Caller
   readonly tool: ToolName
   readonly args: Readonly<Record<string, unknown>>
   readonly at: number
@@ -69,6 +75,7 @@ export function controlPaths() {
     prompts: join(root, 'prompts'),
     // Each pane's team block, by pane id: Claude reads it once, at start.
     team: join(root, 'team'),
+    tools: join(root, 'tools.json'),
   }
 }
 
@@ -262,4 +269,60 @@ export async function snapshotOfPane(pane: string): Promise<Snapshot | null> {
     if (snapshot.sessions?.some((s) => s.pane === pane)) return snapshot
   }
   return null
+}
+
+// The agent whose session runs the server, named in the server's environment by its mount. A
+// mount that names none is the default agent's, whose mount predates the variable.
+export const AGENT_ENV = 'MENKAR_AGENT'
+
+// What one caller's tool list holds beyond the tools every caller has.
+export interface CallerShape {
+  readonly sendMessage: boolean
+  // The agents start_session may start; offered as its `agent` only when there are two or more.
+  readonly agents: readonly AgentId[]
+}
+
+// What main publishes once it has found the installed agents.
+export interface ToolsFile {
+  readonly listChanged: boolean
+  readonly callers: Readonly<Record<string, CallerShape>>
+}
+
+export interface ServerShape extends CallerShape {
+  readonly listChanged: boolean
+}
+
+// Without a published file, or for an agent it does not list, the list every caller had before.
+export const PLAIN_SHAPE: ServerShape = { listChanged: false, sendMessage: false, agents: [] }
+
+function shapeIn(value: unknown, agent: AgentId): ServerShape {
+  if (typeof value !== 'object' || value === null) return PLAIN_SHAPE
+  const file = value as { listChanged?: unknown; callers?: unknown }
+  if (typeof file.callers !== 'object' || file.callers === null) return PLAIN_SHAPE
+  const caller = (file.callers as Record<string, unknown>)[agent]
+  if (typeof caller !== 'object' || caller === null) return PLAIN_SHAPE
+  const { sendMessage, agents } = caller as { sendMessage?: unknown; agents?: unknown }
+  return {
+    listChanged: file.listChanged === true,
+    sendMessage: sendMessage === true,
+    agents: Array.isArray(agents)
+      ? agents.map(parseAgentId).filter((id): id is AgentId => id !== null)
+      : [],
+  }
+}
+
+export async function readShape(agent: AgentId): Promise<ServerShape> {
+  let text: string
+  try {
+    text = await readFile(controlPaths().tools, 'utf8')
+  } catch (error) {
+    if (errno(error) === 'ENOENT') return PLAIN_SHAPE
+    throw error
+  }
+  try {
+    return shapeIn(JSON.parse(text), agent)
+  } catch (error) {
+    if (error instanceof SyntaxError) return PLAIN_SHAPE
+    throw error
+  }
 }
