@@ -1,7 +1,7 @@
 // Decision 1.27: `menkar` started from a terminal gives the terminal back at once, as VS Code's
 // `code` does; the commands that print stay in the foreground.
 import { describe, expect, test } from 'vitest'
-import { cliArguments, DETACHED, shouldDetach } from '../../src/core/launch'
+import { asksVersion, cliArguments, DETACHED, shouldDetach, versionOf } from '../../src/core/launch'
 
 const packaged = (...args: string[]) => ['/opt/Menkar/menkar', ...args]
 const dev = (...args: string[]) => ['/repo/node_modules/electron/dist/electron', '.', ...args]
@@ -46,6 +46,7 @@ describe('whether menkar leaves the terminal', () => {
     ['-f with files', packaged('-f', 'open', 'notes.md')],
     ['--help', packaged('--help')],
     ['--version', packaged('--version')],
+    ['-v', packaged('-v')],
     ['the detached child itself', packaged(DETACHED)],
   ])('%s stays in the foreground', (_name, argv) => {
     expect(decide(argv)).toBe(false)
@@ -88,5 +89,49 @@ describe("the command's own arguments", () => {
       'open',
       'a.md',
     ])
+  })
+})
+
+describe('asking for the version', () => {
+  test.each([
+    ['--version', packaged('--version')],
+    ['-v', packaged('-v')],
+    ['--version after a Chromium switch', packaged('--ozone-platform=x11', '--version')],
+    ['--version with -f', packaged('-f', '--version')],
+    ['-v after the detached marker', packaged(DETACHED, '-v')],
+  ])('%s asks for it', (_name, argv) => {
+    expect(asksVersion(argv, true)).toBe(true)
+  })
+
+  test.each([
+    ['the app alone', packaged()],
+    ['a file named -v to open', packaged('open', '-v')],
+    ['a usage report', packaged('usage', 'today')],
+    ['--help', packaged('--help')],
+  ])('%s does not', (_name, argv) => {
+    expect(asksVersion(argv, true)).toBe(false)
+  })
+
+  test('unpackaged, after the app folder', () => {
+    expect(asksVersion(dev('--version'), false)).toBe(true)
+    expect(asksVersion(dev('-v'), false)).toBe(true)
+    expect(asksVersion(dev(), false)).toBe(false)
+  })
+})
+
+describe('the version printed', () => {
+  test("a package's build gives its whole version, as dpkg shows it", () => {
+    expect(versionOf({ version: '0.1.0', packageVersion: '0.1.0-412.g0d1bd1a2' })).toBe(
+      '0.1.0-412.g0d1bd1a2',
+    )
+  })
+
+  test("without one (the dev app, the UI checks) it is the app's own", () => {
+    expect(versionOf({ version: '0.1.0' })).toBe('0.1.0')
+    expect(versionOf({ version: '0.1.0', packageVersion: '' })).toBe('0.1.0')
+  })
+
+  test.each([[null], ['0.1.0'], [{}], [{ version: 1 }]])('%j gives none', (json) => {
+    expect(versionOf(json)).toBeNull()
   })
 })

@@ -1,0 +1,173 @@
+---
+// Starlight's title with the Copy page menu beside it. Starlight shows no title on a page with a
+// hero, so the splash has no menu. The menu is a <details>, so it opens without script; only the
+// two copies need it. Every link out is a plain link: nothing is loaded from another origin.
+import Default from '@astrojs/starlight/components/PageTitle.astro'
+import { markdownPath } from '../remark/menkar.mjs'
+
+const { t } = Astro.locals
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const md = `${base}/${markdownPath(Astro.locals.starlightRoute.id)}`
+const mdUrl = new URL(md, Astro.site).href
+const prompt = t('menkar.prompt', { url: mdUrl })
+---
+
+<div class="menkar-title">
+  <Default />
+  <details class="menkar-page-menu" data-menkar-page-menu>
+    <summary>
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16"
+        ><path
+          fill="currentColor"
+          d="M16 3H6a2 2 0 0 0-2 2v12h2V5h10V3Zm3 4H10a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Zm0 12h-9V9h9v10Z"
+        ></path></svg
+      >
+      <span>{t('menkar.pageMenu')}</span>
+    </summary>
+    <ul role="list">
+      <li>
+        <button type="button" data-copy-markdown={md} data-done={t('menkar.copied')} data-failed={t('menkar.copyFailed')}>
+          <span class="label">{t('menkar.copyPage')}</span>
+          <span class="hint">{t('menkar.copyPageHint')}</span>
+        </button>
+      </li>
+      <li><a href={md}><span class="label">{t('menkar.viewMarkdown')}</span></a></li>
+      <li><a href={`${base}/llms.txt`}><span class="label">{t('menkar.llmsTxt')}</span></a></li>
+      <li>
+        <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" data-copy-prompt={prompt}>
+          <span class="label">{t('menkar.openClaude')} ↗</span>
+          <span class="hint" data-prompt-note hidden>{t('menkar.openClaudeHint')}</span>
+        </a>
+      </li>
+      <li>
+        <a href={`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`} target="_blank" rel="noopener noreferrer">
+          <span class="label">{t('menkar.openChatGpt')} ↗</span>
+        </a>
+      </li>
+    </ul>
+  </details>
+</div>
+
+<script>
+  async function copyMarkdown(button: HTMLButtonElement): Promise<void> {
+    const path = button.dataset.copyMarkdown ?? ''
+    const label = button.querySelector('.label')
+    const before = label?.textContent ?? ''
+    try {
+      const text = fetch(path).then((response) => {
+        if (!response.ok) throw new Error(String(response.status))
+        return response.text()
+      })
+      // ClipboardItem takes the pending text, so the copy keeps the click's permission while the
+      // page's Markdown arrives.
+      if (typeof ClipboardItem === 'function') {
+        const blob = text.then((value) => new Blob([value], { type: 'text/plain' }))
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })])
+      } else {
+        await navigator.clipboard.writeText(await text)
+      }
+      if (label) label.textContent = button.dataset.done ?? before
+    } catch (error) {
+      console.warn('menkar: the page could not be copied', error)
+      if (label) label.textContent = button.dataset.failed ?? before
+    }
+    setTimeout(() => {
+      if (label) label.textContent = before
+    }, 2000)
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy-markdown]')) {
+    button.addEventListener('click', () => void copyMarkdown(button))
+  }
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-copy-prompt]')) {
+    link.addEventListener('click', () => {
+      navigator.clipboard.writeText(link.dataset.copyPrompt ?? '').then(
+        () => link.querySelector<HTMLElement>('[data-prompt-note]')?.removeAttribute('hidden'),
+        (error: unknown) => console.warn('menkar: the prompt could not be copied', error),
+      )
+    })
+  }
+  // A click outside closes the menu, as a menu does.
+  document.addEventListener('click', (event) => {
+    for (const menu of document.querySelectorAll<HTMLDetailsElement>('[data-menkar-page-menu][open]')) {
+      if (!menu.contains(event.target as Node)) menu.open = false
+    }
+  })
+</script>
+
+<style>
+  .menkar-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+  }
+  .menkar-page-menu {
+    position: relative;
+    margin-top: 1rem;
+    font-size: var(--sl-text-sm);
+  }
+  summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.4rem;
+    color: var(--sl-color-gray-2);
+    background: var(--sl-color-bg);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:hover,
+  .menkar-page-menu[open] summary {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-4);
+  }
+  ul {
+    position: absolute;
+    inset-inline-end: 0;
+    z-index: 10;
+    min-width: 16rem;
+    margin: 0.3rem 0 0;
+    padding: 0.3rem;
+    list-style: none;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg-nav);
+    box-shadow: var(--sl-shadow-md);
+  }
+  li {
+    margin: 0;
+  }
+  li a,
+  li button {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 0;
+    border-radius: 0.3rem;
+    font: inherit;
+    text-align: start;
+    text-decoration: none;
+    color: var(--sl-color-white);
+    background: none;
+    cursor: pointer;
+  }
+  li a:hover,
+  li button:hover,
+  li a:focus-visible,
+  li button:focus-visible {
+    background: var(--sl-color-gray-6);
+  }
+  .hint {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+</style>

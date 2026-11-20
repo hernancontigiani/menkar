@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { resolve as resolvePath } from 'node:path'
+import { join, resolve as resolvePath } from 'node:path'
 import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain, Menu } from 'electron'
 import { terminalPathExists } from '../core/files/exists'
 import { flavorFacts } from '../core/flavor'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
-import { cliArguments, DETACHED, shouldDetach } from '../core/launch'
+import { asksVersion, cliArguments, DETACHED, shouldDetach, versionOf } from '../core/launch'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile } from '../core/paths'
 import { settingsOf } from '../core/settings'
@@ -194,7 +195,22 @@ const command = cliArguments(process.argv, app.isPackaged)
 // they travel to the running app.
 const openFiles =
   command[0] === 'open' ? command.slice(1).map((file) => resolvePath(process.cwd(), file)) : []
-if (startedDetached()) app.exit(0)
+// The app's package.json, inside the asar when packaged: the build adds the package's version to it.
+function printVersion(): number {
+  let packageJson: unknown = null
+  try {
+    packageJson = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'))
+  } catch (error) {
+    log.warn("the app's package.json could not be read; printing Electron's app version", {
+      error,
+    })
+  }
+  process.stdout.write(`${versionOf(packageJson) ?? app.getVersion()}\n`)
+  return 0
+}
+
+if (asksVersion(process.argv, app.isPackaged)) app.exit(printVersion())
+else if (startedDetached()) app.exit(0)
 else if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
 else if (command[0] === 'open' && openFiles.length === 0) {
   process.stderr.write(`Usage: ${flavorFacts().command} open <file> [<file>…]\n`)

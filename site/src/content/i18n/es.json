@@ -1,0 +1,15 @@
+{
+  "menkar.pageMenu": "Copiar página",
+  "menkar.copyPage": "Copiar página",
+  "menkar.copyPageHint": "Esta página en Markdown, para un agente",
+  "menkar.copied": "Copiada",
+  "menkar.copyFailed": "No se pudo copiar",
+  "menkar.viewMarkdown": "Ver como Markdown",
+  "menkar.llmsTxt": "llms.txt",
+  "menkar.openClaude": "Abrir en Claude",
+  "menkar.openClaudeHint": "Prompt copiado — pegalo",
+  "menkar.openChatGpt": "Abrir en ChatGPT",
+  "menkar.prompt": "Leé {{url}} y respondé mis preguntas sobre Menkar.",
+  "menkar.shortcuts.action": "Acción",
+  "menkar.shortcuts.keys": "Teclas"
+}

@@ -131,7 +131,7 @@ e2e/captures/
   captures.run.ts                  the Playwright entry, one test per locale × theme
 playwright.captures.config.ts      testDir e2e/captures, testMatch captures.run.ts
 tests/site/*.test.ts               the structural checks, in npm run ci
-.github/workflows/docs.yml         build on every push to main touching site/**, deploy when public
+.github/workflows/docs.yml         build and deploy, by hand only until the first release
 ```
 
 - **Its own `package.json`.** The app's install, `npm run ci` and the `.deb` never pull Astro;
@@ -143,7 +143,8 @@ tests/site/*.test.ts               the structural checks, in npm run ci
   { label: 'Español', lang: 'es' } }`, so English is at `/` and Spanish at `/es/`. Pagefind
   builds one index per `lang`.
 - **Plain Markdown, not MDX.** Pages are `.md`, so the `.md` an agent copies is the page itself.
-  Two extensions, both handled by one remark plugin (`src/remark/menkar.mjs`) used by the HTML
+  Two extensions, both handled by one plugin (`src/remark/menkar.mjs`; a Sätteri mdast plugin, Astro 7's
+  Markdown processor, not remark — block 5) used by the HTML
   build and by the `.md` endpoint:
   - `![](shot:<slug>)` — a capture. In HTML it becomes the light and the dark image of the page's
     locale, each wrapped with `dark:sl-hidden` / `light:sl-hidden`, through Astro's image
@@ -157,21 +158,22 @@ tests/site/*.test.ts               the structural checks, in npm run ci
 - **The keyboard reference page is generated** from `SHORTCUTS` and the catalogs, in each locale:
   its table cannot drift from the keys.
 - **Deploy**: `.github/workflows/docs.yml`, its own file (plan 28 owns `pr.yml` and the release
-  workflow). Triggers: `push` to `main` with `paths: ['site/**', 'e2e/captures/registry.ts',
-  'e2e/captures/strings/**', 'src/core/i18n/**', 'src/core/shortcuts.ts']`, and
-  `workflow_dispatch`. Job `build`: checkout, Node from `site/package.json`'s `engines`, `npm
-  --prefix site ci`, `npm run site:check -- --release` (which builds), upload with
+  workflow). **Trigger: `workflow_dispatch` only** — every workflow runs only by hand until the
+  first official release (the human, 2026-11-19, plan 28's §3); turning triggers on is a step of
+  plan 28's first-release block (then a `push` to `main` with `paths: ['site/**',
+  'e2e/captures/registry.ts', 'e2e/captures/strings/**', 'src/core/i18n/**',
+  'src/core/shortcuts.ts']`). Job `build`: checkout, Node `22.23.x` (Astro needs ≥ 22.23.4), `npm
+  --prefix site ci`, `npm --prefix site run check -- --release` (which builds; not `npm run
+  site:check -- --release`, whose inner npm drops the flag), upload `site/dist` with
   `actions/upload-pages-artifact`. Job `deploy`: `actions/deploy-pages`, permissions `pages:
-  write`, `id-token: write`, and **`if: ${{ !github.event.repository.private }}`**. Actions are
-  pinned by full commit SHA, the version in a comment. `ASTRO_TELEMETRY_DISABLED=1` in the
+  write`, `id-token: write`, environment `github-pages`. Actions are pinned by full commit SHA, the
+  version in a comment, as plan 28's workflows pin them. `ASTRO_TELEMETRY_DISABLED=1` in the
   workflow's `env` too.
-- **What the private repository changes**: on GitHub Free a private repository cannot publish to
-  Pages. Until 1.0 the `build` job runs on every push (it checks the site), and `deploy` is
-  skipped by its `if`, so nothing fails and nothing is published; the site is previewed locally
-  (`npm run site:dev`, or `site:build` then `npx --prefix site astro preview`). The first deploy
-  is a step of plan 28's going-public checklist: make the repository public → Settings › Pages,
-  source "GitHub Actions" → run `docs.yml` by dispatch. Upgrading to Pro to publish earlier would
-  publish a public site of a private product: not proposed.
+- **The repository is public**, so Pages can publish from it and nothing in the workflow guards
+  the deploy but its trigger: a run deploys. Until the human runs it, the site is previewed
+  locally (`npm run site:dev`, or `site:build` then `npx --prefix site astro preview`). The first
+  deploy is the human's, at the first release: Settings › Pages, source "GitHub Actions" → run
+  `docs.yml` by dispatch.
 - **Base and site URL** (D2): with GitHub's address, `site: 'https://<owner>.github.io'`, `base:
   '/menkar'`; with a custom domain, `site` is the domain, no `base`, and `site/public/CNAME`.
 
@@ -295,8 +297,11 @@ environment: `CAPTURE_LOCALES=es`, `CAPTURE_THEMES=dark`, `CAPTURE_ONLY=slug,pre
     everything and writes no image — ccai's `--check`.
   - **The app identified**: the window's title is Menkar's and the build is this tree's `out/`
     (`MENKAR_E2E_EXECUTABLE` unset), checked once per run.
-  - **No `networkidle`, no fixed sleeps**: the ready locator, then one condition — no spinner
-    visible and fonts loaded (`document.fonts.ready`).
+  - **No `networkidle`, no fixed sleeps**: the ready locator, then one condition — the screen
+    settled: no spinner visible, fonts loaded (`document.fonts.ready`), every running session's
+    context ring drawn and its dot at the state it was seeded with, nothing focused, no terminal
+    scrollbar shown or fading — held both before and after the shot, or the shot is taken again.
+    The pointer rests on the header first (Xvfb leaves it over the terminal).
   - **A fixed window**: 1280 × 800 at device scale factor 2 (`--force-device-scale-factor=2`),
     maximised state off. **My choice**: scale 2 for sharp images on HiDPI screens; the importer's
     palette reduction pays for most of the size.
@@ -310,12 +315,19 @@ environment: `CAPTURE_LOCALES=es`, `CAPTURE_THEMES=dark`, `CAPTURE_ONLY=slug,pre
   - Raw PNGs go to a temporary folder, never into `$MENKAR_FILES` (a worker copies a contact
     sheet there by hand, as `docs/toolchain.md` says for specs).
 - **The importer** (`site/scripts/import-captures.mjs`, run by the same command; `sharp` is a
-  `site` devDependency): for each raw PNG, reduce it to a 256-colour palette, then compare its
-  decoded pixels with the committed file — **equal pixels keep the old file** (no git churn) —
-  else write it. Then:
-  - **hash every image written** and report which changed since the last run;
-  - **two images of one run with the same pixels fail the run** (a navigation that did not happen
-    photographs the previous screen again), unless the registry marks the pair `same: true`;
+  `site` devDependency): for each raw PNG, reduce it to a 256-colour palette (no dithering), then
+  draw the raw capture in the committed file's own palette and compare the two — **the same
+  picture keeps the old file** (no git churn) — else write it. **The same picture** (`set`,
+  2026-11-20, task 139): both hold — every differing pixel within **64** of 255 in each colour
+  channel, and at most **0.1 %** of the image's pixels differ at all
+  (`site/scripts/same-picture.ts`). Why not equal pixels: the terminals' glyph antialiasing moves
+  a little between two runs of the same screen, and a palette re-picked from such a capture moves
+  much of a translucent one; a changed word moves far more (measured in block 4's log).
+  `tests/site/captures.test.ts` holds both bounds and both numbers. Then:
+  - **hash every image written** and report which changed since the last run, and by how much;
+  - **two images of one run showing the same picture fail the run** (a navigation that did not
+    happen photographs the previous screen again), unless the registry lists one in the other's
+    `same`;
   - **an image that is one flat colour fails**;
   - write a **contact sheet** per locale × theme (`/tmp/menkar-captures/sheet-<locale>-<theme>.png`,
     every changed capture with its slug) for the human.
@@ -612,15 +624,15 @@ Files: `e2e/captures/scenes.ts`, `e2e/captures/captures.run.ts`, `e2e/captures/r
 `playwright.captures.config.ts`, `site/scripts/import-captures.mjs`, `site/package.json`
 (`sharp`), root `package.json` (`captures`, `captures:reviewed`),
 `site/src/assets/captures/**`, `reviewed.json`, `tests/site/captures.test.ts`.
-- [ ] Every guard of §2.3: ready proof and seeded numbers, the app identified, no fixed sleep,
+- [x] Every guard of §2.3: ready proof and seeded numbers, the app identified, no fixed sleep,
   1280 × 800 at scale 2, `CAPTURE_ONLY` filtering writes, `pageerror` collected,
   `CAPTURE_CHECK=1` writes nothing.
-- [ ] The importer: palette, unchanged-pixels keep, hashes, duplicates fail, flat image fails,
+- [x] The importer: palette, unchanged-pixels keep, hashes, duplicates fail, flat image fails,
   contact sheets.
-- [ ] Injected defects, each seen failing: a scene whose navigation is removed (duplicate
+- [x] Injected defects, each seen failing: a scene whose navigation is removed (duplicate
   caught), a ready locator that never appears (no image written), an image edited after review
   (`captures.test.ts` fails).
-- [ ] Open every image written (2 locales × 2 themes × 3), then `captures:reviewed`.
+- [x] Open every image written (2 locales × 2 themes × 3), then `captures:reviewed`.
 - **Verify**: `npm run captures` twice — the second run writes no file (`git status` clean under
   `site/src/assets/captures/`); report the run's time and the images' total size (D1, D4);
   `npm run ci` green; `npm run ui-check` unaffected (the captures file is not a spec).
@@ -631,8 +643,8 @@ Files: `site/src/remark/menkar.mjs`, `site/src/components/PageTitle.astro`,
 `site/astro.config.mjs` (the remark plugin, the override), `site/src/content/docs/reference/shortcuts.md`
 and its `es/` twin (generated table), `tests/site/locales.test.ts`, `ui-keys.test.ts`,
 `headings.test.ts`.
-- [ ] Tests first (§2.7), each seen failing on its injected defect.
-- [ ] `shot:` (until block 4 lands, a registry fixture in the test), `:ui[...]`, the `.md`
+- [x] Tests first (§2.7), each seen failing on its injected defect.
+- [x] `shot:` (until block 4 lands, a registry fixture in the test), `:ui[...]`, the `.md`
   endpoint, the Copy page menu (§2.5), the tracking scan and `--release` markers (§2.6).
 - **Verify**: `npm run site:check` green; the built HTML of a test page holds two optimised
   `<img>` per shot, each in its theme wrapper; its `.md` has the absolute image and the label
@@ -643,13 +655,23 @@ and its `es/` twin (generated table), `tests/site/locales.test.ts`, `ui-keys.tes
 
 ### Block 6 — the Pages workflow (parallel with 2, 3, 5)
 Files: `.github/workflows/docs.yml`.
-- [ ] Per §2.1: triggers, the two jobs, `if` on `private`, SHA-pinned actions, telemetry off.
+- [x] Per §2.1: `workflow_dispatch` only, the two jobs, SHA-pinned actions, telemetry off.
 - **Verify**: `actionlint` if available, else `npx --yes @action-validator/cli` in a scratch
-  folder, never added to the repository; reading the file against §2.1. It cannot run until
-  pushed: `set` checks the first run's `build` job after its commit (deploy skipped while
-  private).
+  folder, never added to the repository; reading the file against §2.1. It runs only when the
+  human dispatches it, and a run deploys.
 
 ### Block 7 — every capture (after 4 and 5; needs D4, D5)
+
+**Seen in block 4's images (`menkar-t139`, 2026-11-20), to settle in this block:**
+- In Spanish a waiting task reads "esperando topic 2": the seed passes `waiting_on: 'topic 2'` and
+  the app shows it as it is. Either the seed writes what the app would show in that locale, or the
+  app translates a topic waiter (an app change: ask `set`).
+- The first-time card's new session is named "orchestrator" in Spanish too.
+- The Spanish session order differs from the English one (sorted by name).
+- The seeded orchestrator is named `lead`/`coordinador`, words the tone guide's vocabulary lists as
+  not used for the orchestrator. Rename it in the seed.
+- At 1280 px the Board's Done column is cut and scrolls.
+- `tsconfig.node.json` does not include `playwright.captures.config.ts`.
 Files: `e2e/captures/registry.ts`, `scenes.ts`, `seed.ts`, `strings/*`, `site/src/assets/captures/**`,
 `reviewed.json`.
 - [ ] The rest of §2.4's slugs, each with its alt text in both locales.
@@ -790,3 +812,152 @@ Deviations and what the plan did not anticipate:
 - **Left for blocks 4 and 7**: the chat tab's process is also `claude` on the PATH; the chat
   stand-ins of `tests/data/chat` speak its stream, and the walk must put them first for the chat
   scene. The away strip (`away-strip`) needs the human's presence state, not seeded here.
+
+### Block 4 — `menkar-t139`, 2026-11-20 (task 139)
+
+Done: `e2e/captures/scenes.ts` (three scenes: `team`, `board`, `firstTimeCard`),
+`captures.run.ts`, the registry's three entries and a `same?` field, `playwright.captures.config.ts`,
+`site/scripts/import-captures.mjs` and `same-picture.ts`, `sharp` 0.35.5 in `site/package.json`
+only, the root `captures` and `captures:reviewed`, the twelve images and `reviewed.json`, and
+`tests/site/captures.test.ts` (registry, alt text in every locale, files for every locale × theme
+and none outside, hashes signed off, `shot:` slugs in pages, the importer's two bounds). The alt
+text is `alt:<slug>` in `strings/en.ts` and `es.ts`, agreed with `menkar-t140` for `shot:`.
+
+Measured: `npm run captures` takes about 14 s on this machine (build, four launches in parallel,
+import); the twelve images weigh 1,126,238 bytes (1.1 MB), so §2.4's 22 slugs would be about 8 MB.
+
+Granted by `set` outside the block's list, 2026-11-20:
+- **`e2e/app.ts`**: `prepare` may return a Promise (the seed is async, through `writeJson`), and
+  `LaunchOptions.args` adds Chromium switches (`--force-device-scale-factor=2`).
+- **`e2e/captures/seed.ts`**: `notify_idle` and `notify_sound` off. A session turning blocked
+  raised a toast only while the window had focus, which varies under Xvfb.
+- **`e2e/captures/stand-in-claude.mjs`**: the stand-in hides the terminal's cursor
+  (`ESC[?25l`), as Claude Code does; the cursor box came and went between runs.
+- **"The same picture" replaces "equal pixels"** in §2.3 (`set`, 2026-11-20). The line it
+  replaced: "decoded pixels with the committed file — **equal pixels keep the old file** (no git
+  churn) —". Measured: glyph antialiasing moved up to 56 levels on 820–936 pixels between two runs
+  of the same screen; a palette re-picked from the first-time card's translucent backdrop moved
+  48,547 pixels by up to 51; one seeded word changed ("Three tasks" → "Four tasks") moved 10,317
+  pixels by up to 163, and the importer wrote both images that show it. With the bounds loosened
+  to 255 and 1 % it kept them.
+
+What the plan did not anticipate (each found by running twice and diffing the raw images):
+- **The screen settles after the ready locator.** The shot waits for one condition (§2.3): every
+  running session's context ring drawn and its dot at the seeded state, nothing focused, no
+  terminal scrollbar shown or fading, no spinner, fonts loaded; it holds before and after the shot
+  or the shot is taken again (five times at most).
+- **Xvfb leaves the pointer over the terminal**, which keeps xterm's scrollbar shown: the pointer
+  rests on the header first.
+- **The orchestrator's row can be drawn from a state sent before its terminal started**, without
+  its context ring, until the next state change; for 15 s once. The `team` scene folds Done today
+  and back to bring a fresh state. Reported to `set` as an app bug, not fixed here (§4).
+- **The quantizer re-picks the palette** from a capture whose pixels moved by one level, so the
+  importer compares the new raw capture drawn in the committed file's own palette (no dithering).
+- **The sidebar lists three open tasks** (`TASKS_SHOWN`) and counts all four in See all: the proof
+  checks both.
+- `tsconfig.node.json` does not include `playwright.captures.config.ts` (Biome lints it); not in
+  this block's files.
+
+Seen red: navigation removed from the `board` scene (the importer: "hero-orchestration and
+board-default show the same picture", nothing imported); a ready locator that never appears (the
+walk fails, `board-default` and `first-time-card` not written, the importer not run); a flat raw
+image ("is one flat colour", nothing imported); and in `captures.test.ts` an image edited after
+review, an alt text removed, a file outside the registry, a page with `shot:nope-t139`, and the
+bounds loosened (two tests). `CAPTURE_CHECK=1` wrote no raw file; `CAPTURE_ONLY='board-*'` wrote
+only the four `board-default` images and walked every scene.
+
+### Block 5 — `menkar-t140`, 2026-11-20 (task 140)
+
+Done: `site/src/remark/menkar.mjs` (`shot:`, `:ui[…]`, and `::shortcuts` for the generated
+keyboard page), `site/src/pages/[...slug].md.ts`, `site/src/components/PageTitle.astro` (the Copy
+page menu), `site/src/content/i18n/en.json` and `es.json`, `site/scripts/check.mjs` and
+`twins.mjs`, `site/src/content/docs/reference/shortcuts.md` and its twin, `site/astro.config.mjs`
+(the processor and the override), `site/src/content.config.ts` (the i18n collection),
+`site/package.json` (`check` runs `check.mjs`; eight direct dependencies, agreed with
+`menkar-t139`), `tests/site/locales`, `ui-keys`, `headings`, `menkar` and `check.test.ts`.
+
+How it holds:
+- **`shot:<slug>`** reads `CAPTURES` and `alt:<slug>` from `e2e/captures/strings/<locale>.ts`
+  (agreed with `menkar-t139`); in HTML, the light and the dark image of the page's locale, each in
+  a `<span>` with Starlight's `dark:sl-hidden` / `light:sl-hidden`, as relative paths into
+  `src/assets/captures/`, so Astro optimises them (seen: two `.webp` per shot); in the `.md`, the
+  light image's absolute URL. An unknown slug, or one without its alt text, throws and the build
+  fails.
+- **`:ui[key]`** renders the app's label bold in the page's locale; an unknown key throws.
+- **The shortcuts page is `::shortcuts`**, a heading and a table per group of `SHORTCUTS`, in the
+  app's order, from the catalogs; the same plugin writes it into the HTML and the `.md`.
+- **The twins' parity is in `site/scripts/twins.mjs`**, read by `locales.test.ts` (in `ci`) and by
+  `check.mjs` (in `site:check`), so the tone guide's "the build fails" holds too: no twin either
+  way, headings' count and levels (every level, outside code), capture slugs in order,
+  `sidebar.order`.
+- **Links**: `starlight-links-validator` already fails a missing page and a missing section (seen
+  with both, in both locales), generated headings included.
+- **The tracking scan** fails a foreign `src`, `srcset`, `poster`, `data`, `action`, `<link href>`,
+  `<use href>`, CSS `url()` and `@import` (in `.css`, `<style>` and `style=`), a beacon anywhere, and
+  `fetch`, XHR `open`, `import()`, `WebSocket`/`EventSource`/`Worker` or `.src =` with an absolute
+  URL in code. The site's own origin (from `astro.config.mjs`) and `<a href>` pass.
+- **`--release`** reads the pages' sources for `<!-- plan N: …` (an HTML comment may not reach the
+  build).
+- **The menu**: `<details>`, no script to open; Copy page fetches the same-origin `.md` and copies
+  it (a `ClipboardItem` holding the pending text, so the click's permission holds); Open in Claude
+  copies the prompt and shows "Prompt copied — paste it"; Open in ChatGPT is a `?q=` link. Checked
+  under Xvfb from `astro preview` in both locales and themes: the copy equals the `.md`, no request
+  to another origin, no page error.
+- Seen red: a page without its twin, headings of another level, captures swapped, another
+  `sidebar.order`, a numbered heading, an unknown `:ui` key (test and build), an unknown slug
+  (build), `<script src="https://example.com/a.js">` in a page, a link to a missing page and to a
+  missing section, a `plan 28` marker under `--release` (and passing without it), a third locale
+  in `astro.config.mjs`, the theme classes swapped, a missing alt text accepted, code fences not
+  skipped.
+
+Deviations and what the plan did not anticipate:
+- **Astro 7's Markdown processor is Sätteri, not remark**: `markdown.remarkPlugins` would not run.
+  The plugin is a Sätteri mdast plugin (`satteri({ mdastPlugins })` in `astro.config.mjs`, a visitor
+  per node type), ahead of Starlight's, whose directive restoration turns any directive left
+  unclaimed back into text. The `.md` endpoint parses with `mdast-util-from-markdown` and writes with
+  `mdast-util-to-markdown`; both drivers share `transformNode`. §2.1 says so now.
+- **`src/content/i18n/en.json` too**, and the i18n collection in `content.config.ts`: Starlight
+  falls back to the default locale's file, and the schema takes every key English has.
+- **The shortcuts table needs two site strings** (Action, Keys) the app's catalog does not have;
+  they are in the site's i18n files. Several chords of one row are separated by a comma, so no
+  "or" is translated.
+- **`site:check` runs the parity too** (above), and **`menkar.test.ts` and `check.test.ts`** test
+  the plugin over a fixture registry and the scan's cases: §2.7 named neither file.
+- **A request built at run time** (`fetch(path)`) cannot be read by a scan; one written as an
+  absolute URL is caught. Pagefind's and Starlight's scripts pass.
+- **The `.md` endpoint imports every capture**, so the original PNGs are emitted beside the
+  optimised `.webp` (only the `.md` links them).
+- **`llms-full.txt` holds both images of a shot**: `starlight-llms-txt` turns the HTML back into
+  Markdown. Left as is.
+- **Playwright 1.65 wants `chromium_headless_shell-1254`**, not installed; the screenshots used the
+  installed `chromium-1234` by `executablePath`, and nothing was downloaded.
+- **The site's TypeScript is not in any gate**: `tsc -p site` passes now; `npm run ci` does not run
+  it.
+
+### Block 6 — `menkar-t144`, 2026-11-20 (task 144)
+
+Done: `.github/workflows/docs.yml`, `workflow_dispatch` only. `build` (ubuntu-24.04): checkout,
+`setup-node` with `22.23.x` and the npm cache keyed on `site/package-lock.json`, `npm --prefix site
+ci`, `npm --prefix site run check -- --release`, `upload-pages-artifact` of `site/dist`. `deploy`:
+`deploy-pages`, `pages: write` and `id-token: write` on that job only, environment
+`github-pages` with the page's URL. `contents: read` at the top, `ASTRO_TELEMETRY_DISABLED: 1` in
+the workflow's `env`, one `pages` concurrency group that does not cancel a run in progress.
+Checkout and setup-node at plan 28's SHAs; `upload-pages-artifact` v5.0.0 (`fc324d35…`) and
+`deploy-pages` v5.0.1 (`368f8252…`), both lightweight tags read with `git ls-remote`, so the SHA is
+the commit's.
+
+Seen red: `tests/scripts/workflows.test.ts` with a `push:` trigger and `upload-pages-artifact@v5`
+put into `docs.yml` ("triggered by push…", "…is not pinned to a full commit SHA"), then put back.
+`actionlint` 1.7.12 in docker: 0 errors in the four workflows.
+
+Deviations and what the plan did not anticipate:
+- **§2.1 corrected** for a public repository and dispatch-only workflows (the old text is in
+  `docs/history/plans/00-STATUS.md`): no `push` trigger, no `if` on `private`.
+- **`npm run site:check -- --release` drops `--release`**: the root script is `npm --prefix site
+  run check`, so the flag reaches the inner npm as its own option, and `check.mjs` never sees it
+  (checked with a stand-in package: `[]` against `['--release']`). The workflow calls `npm --prefix
+  site run check -- --release`. The root script and the exit's line for
+  `docs/release-checklist.md` still carry the broken form; `package.json` is not this block's.
+- **No `configure-pages`**: Astro sets `base` itself, so its output is not needed.
+- **The build was not run here**: it rewrites `site/dist`, which other sessions use; `site:check`
+  passed in blocks 4 and 5.

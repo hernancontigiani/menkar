@@ -91,4 +91,11 @@ export const en = {
     '# Interviews, week 46\n\nFive people who use the app every day.\n\n## What they asked for\n\n- **Offline mode**: three of five work on trains.\n- **CSV export**: two of five copy tables by hand.\n\n## Next\n\n1. Share this with the team.\n2. Pick one request for 2.4.\n',
   filePlan: 'release-plan.md',
   filePlanText: '# Release 2.4\n\n- CSV export\n- A longer login timeout\n- New onboarding copy\n',
+
+  'alt:hero-orchestration':
+    'Menkar with the Northwind app team: the orchestrator’s terminal on the right, and in the sidebar what is awaiting you, the tasks with their steps and the sessions.',
+  'alt:board-default':
+    'The Board open under the header: Awaiting you, Queued, In progress, Waiting, To review and Done, one column each, with the tasks as cards.',
+  'alt:first-time-card':
+    'The card that turns on the orchestration mode for Harbor site: the orchestrator to choose, its folder and how many workers at once.',
 } as const

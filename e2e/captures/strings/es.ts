@@ -90,4 +90,11 @@ export const es: Record<keyof typeof en, string> = {
   filePlan: 'plan-de-version.md',
   filePlanText:
     '# Versión 2.4\n\n- Exportar a CSV\n- Un vencimiento del login más largo\n- Textos de bienvenida nuevos\n',
+
+  'alt:hero-orchestration':
+    'Menkar con el equipo de App Northwind: la terminal del orquestador a la derecha y, en la barra lateral, lo que está pendiente tuyo, las tareas con sus pasos y las sesiones.',
+  'alt:board-default':
+    'El Tablero abierto bajo el encabezado: Pendientes tuyos, En cola, En curso, Esperando, Para revisar y Hecho, una columna cada una, con las tareas como tarjetas.',
+  'alt:first-time-card':
+    'La tarjeta que activa el modo de orquestación en Sitio Harbor: el orquestador a elegir, su carpeta y cuántos workers a la vez.',
 }

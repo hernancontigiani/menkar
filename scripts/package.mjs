@@ -24,6 +24,17 @@ export function debianRevision({ count, hash, dirty, now }) {
   return `${base}.dirty.${stamp}`
 }
 
+/**
+ * The package's full version as dpkg and rpm show it, carried into the app's package.json so that
+ * `menkar --version` prints it.
+ * @param {string} version
+ * @param {string} revision
+ * @returns {string}
+ */
+export function packageVersion(version, revision) {
+  return `${version}-${revision}`
+}
+
 /** @param {string[]} args */
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim()
 
@@ -97,6 +108,7 @@ function main() {
     dirty: git('status', '--porcelain') !== '',
     now: new Date(),
   })
+  const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
   console.log(`package: ${flavour} (${targets.join(', ')}), revision ${revision}`)
   execFileSync(
     'npx',
@@ -108,6 +120,7 @@ function main() {
       '--config',
       BUILDER_CONFIG[flavour],
       `-c.buildNumber=${revision}`,
+      `-c.extraMetadata.packageVersion=${packageVersion(version, revision)}`,
     ],
     { cwd: ROOT, stdio: 'inherit' },
   )

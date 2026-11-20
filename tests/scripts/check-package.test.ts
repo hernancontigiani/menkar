@@ -11,7 +11,12 @@ import {
   type Rpm,
   sharedPaths,
 } from '../../scripts/check-package.mjs'
-import { debianRevision, packageFlavour, packageTargets } from '../../scripts/package.mjs'
+import {
+  debianRevision,
+  packageFlavour,
+  packageTargets,
+  packageVersion,
+} from '../../scripts/package.mjs'
 
 // The post-install, profile and launcher recorded from a real `npm run package`
 // (electron-builder 26.18.0), so a template change upstream shows here as a red, not as a broken
@@ -149,6 +154,12 @@ describe('the Debian revision of a build', () => {
       }),
     ).toEqual([])
     expect(checkPackage(dirty).filter((p) => p.includes('Version'))).toEqual([])
+  })
+
+  test("the version the app is told is the package's whole Version, as dpkg shows it", () => {
+    expect(packageVersion('0.1.0', clean(412, '0d1bd1a2'))).toBe('0.1.0-412.g0d1bd1a2')
+    const control = good().control.replace('12.gabcdef12', clean(412, '0d1bd1a2'))
+    expect(control).toContain(` Version: ${packageVersion('0.1.0', clean(412, '0d1bd1a2'))}\n`)
   })
 
   // dpkg is the judge of the order apt upgrades in; a machine without it has no apt either.

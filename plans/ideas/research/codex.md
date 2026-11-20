@@ -207,6 +207,36 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
       (4). Nothing of the queue stays after delivery except the revision counter. The message
       itself goes into the rollout as a `UserMessage`.
 
+**Fourth run, no login** (2026-11-20, for plan 39's id binding).
+- A throwaway `CODEX_HOME` with no `auth.json`. The `config.toml` named a custom provider
+  (`model_providers.stub`, `wire_api = "responses"`, `env_key`) pointing at a local stand-in that
+  answered `POST /v1/responses` with three SSE events: `response.created`,
+  `response.output_item.done`, `response.completed`.
+- A real TUI turn completed this way, so **later probes need no login**.
+- Every process was stopped by PID and the home deleted.
+
+18. **The rollout file is created at the first user message, not at start.**
+    - After start, the trust prompt and an idle composer, there was no file.
+    - It appeared **66 ms after the first submit**.
+    - **Its name carries the session-start time** (11-04-50), although the file was created at
+      11:05:30 (r: `deferred_creation` for new threads).
+    - With a positional first prompt the two coincide, which is why earlier runs looked like "at
+      start".
+19. **Thread ids are UUIDv7, minted when the thread is created.** Their first 48 bits decode to
+    the session start (11:04:50.1), not to the first message.
+    - Fork also mints a new id, with `session_meta.forked_from_id` set (r).
+    - The title thread gets its own fresh id.
+20. **The fd is not closed on `/new`.** After `/new` and a message, the codex process (one native
+    binary, no node) held **both** rollouts open. `/new` first shows a worktree picker.
+21. **notify's environment** is the Codex process's whole inherited environment (83 variables,
+    `MENKAR_PANE` included, no `CODEX_THREAD_ID`).
+    - Codex spawns it without waiting.
+    - The configured argv comes first, and the JSON is appended last.
+    - The title thread's notify (no rollout) fired on each new thread's first turn. It came
+      **after** the real one here and before it on 2026-11-14, so the order is not fixed.
+22. **Typed text followed by an immediate Enter is not submitted.** The paste-burst detector keeps
+    it in the composer; an Enter about 1 s later submits it.
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming

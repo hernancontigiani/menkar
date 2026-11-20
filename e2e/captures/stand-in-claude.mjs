@@ -38,7 +38,8 @@ const dim = (s) => `\x1b[2m${s}\x1b[22m`
 const accent = (s) => `\x1b[38;5;173m${s}\x1b[39m`
 
 function draw() {
-  const out = [`\x1b]0;${TITLE[screen.state]} ${screen.title}\x07`, '\x1b[2J\x1b[H']
+  // Claude Code draws its own cursor and hides the terminal's, so no cursor box appears either.
+  const out = [`\x1b]0;${TITLE[screen.state]} ${screen.title}\x07`, '\x1b[?25l\x1b[2J\x1b[H']
   const line = (s = '') => out.push(`${s}\r\n`)
   if (screen.prompt) {
     line(bold(`> ${screen.prompt}`))

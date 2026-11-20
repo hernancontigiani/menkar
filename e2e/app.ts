@@ -31,7 +31,12 @@ export interface LaunchOptions {
   readonly prepare?: (dirs: {
     readonly root: string
     readonly home: string
-  }) => Readonly<Record<string, string>> | undefined
+  }) =>
+    | Readonly<Record<string, string>>
+    | undefined
+    | Promise<Readonly<Record<string, string>> | undefined>
+  // Chromium switches added to the launch, such as a fixed device scale factor.
+  readonly args?: readonly string[]
 }
 
 export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedApp> {
@@ -46,7 +51,7 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
   const root = mkdtempSync(join(tmpdir(), 'menkar-e2e-'))
   const home = join(root, 'home')
   mkdirSync(home)
-  const extraEnv = options.prepare?.({ root, home }) ?? {}
+  const extraEnv = (await options.prepare?.({ root, home })) ?? {}
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined) env[key] = value
@@ -72,10 +77,9 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
   env.XDG_SESSION_TYPE = 'x11'
   // MENKAR_E2E_EXECUTABLE runs the suite against a packaged build instead of `out/`.
   const executable = process.env.MENKAR_E2E_EXECUTABLE
+  const args = ['--ozone-platform=x11', ...(options.args ?? [])]
   const app = await _electron.launch(
-    executable
-      ? { executablePath: executable, args: ['--ozone-platform=x11'], env }
-      : { args: ['--ozone-platform=x11', '.'], env },
+    executable ? { executablePath: executable, args, env } : { args: [...args, '.'], env },
   )
   const window = await app.firstWindow()
   return {
