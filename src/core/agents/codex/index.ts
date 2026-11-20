@@ -1,10 +1,12 @@
 import type { AgentKit } from '../types'
 import { follow } from './binding'
 import { catalog } from './catalog'
+import { context } from './context'
 import { env, envPatterns } from './env'
 import { ids } from './ids'
 import { launch, namer } from './launch'
 import { state } from './state'
+import { usage } from './usage'
 
 export const kit: AgentKit = {
   launch,
@@ -20,4 +22,6 @@ export const kit: AgentKit = {
   fork: null,
   chat: null,
   writes: { created: [], changed: [] },
+  usage,
+  context,
 }

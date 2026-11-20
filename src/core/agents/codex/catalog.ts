@@ -23,7 +23,7 @@ import { codexHome } from './config'
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 // `rollout-<local time>-<thread>[_<rollout>].jsonl[.zst]`: a reverted thread goes on in a new file
 // named after its thread and the new rollout.
-const ROLLOUT = new RegExp(
+export const ROLLOUT = new RegExp(
   `^rollout-\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-(${UUID})(?:_${UUID})?\\.jsonl(\\.zst)?$`,
 )
 const PREVIEW_CHARS = 120

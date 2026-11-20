@@ -8,6 +8,7 @@ import { launch, namer } from './launch'
 import { mcp } from './mcp'
 import { state } from './state'
 import { team } from './team'
+import { context, usage } from './usage'
 import { writes } from './writes'
 
 export const kit: AgentKit = {
@@ -24,4 +25,6 @@ export const kit: AgentKit = {
   fork,
   chat,
   writes,
+  usage,
+  context,
 }

@@ -1636,3 +1636,130 @@ P0's blocks run in turn.
 - **`npm run ci`**: biome, tsc, vitest (2113/2113), R10 unchanged (47 files), code rules, i18n pass;
   test integrity reports only P1a.2's six roster pins against `main`; flaky and history pass when
   run after it.
+
+### P1a.6 (`menkar-t148`, task 148, 2026-11-20)
+
+- **Decided by set, 2026-11-20 (Q1–Q3, as recommended):**
+  - Q1: `TurnSource.catchUp` (null when an agent has nothing it must stream) reads a never-seen
+    `.zst` in the usage worker only, before the same synchronous pass (`runStreamingPass`).
+    `runPass`, `menkar usage` and the classifier stay synchronous. So `menkar usage` counts a
+    never-seen `.zst` only after the app's next pass (P1a.7 writes it in `docs/usage.md`). A turn
+    whose rollout became `.zst` gives `turnText` null, as a vanished transcript does.
+  - Q2: `PassPaths = Roots & { cache, history }` (the scanner's `${id}Projects` keys, so every
+    test's literal `{ claudeProjects, cache, history }` reads Claude only). `defaultPassPaths()`
+    names every agent's catalog root. A source whose root does not exist reads nothing and creates
+    no file, so a pass reads every agent whose data exists, installed or not, and R10's cache
+    listing is unchanged.
+  - Q3: `src/main/classifier-worker.ts` opens every source and routes `turnText`/`textAt` to the
+    one that owns the uuid (`textsOf`; each answers null for a uuid not its own).
+- **Granted by set, 2026-11-20 — files beyond §5's row:**
+  - `src/core/agents/types.ts`: `TurnSource`, `TurnTexts`, `TurnUsage`, `UsageSource`,
+    `ContextSource`, and `AgentKit.usage` and `.context`.
+  - The three kits' `index.ts`. Claude: `claude/usage.ts`, today's `UsageCache` wrapped and today's
+    `readingFor`. Cursor: both null.
+  - `src/main/usage-worker.ts`, `src/main/context.ts` and `src/main/workspace.ts`:
+    `trackContext(id, file, kit.context)`, so a session whose kit reads no context is not tracked.
+    `turnEnded` also requests a fresh reading, so Codex's ring follows each turn end. For Claude
+    that is one more read per Stop record, which `sameReading` suppresses (CTX-17).
+  - `tests/core/agents/parity.test.ts`: the `context` pair now names `kitOf(id).context`.
+  - `scripts/check-code-rules.mjs`: `pass.ts`'s `ALLOWED` entry is gone, since no agent's name is
+    left there. An injected `const claudeRoot` failed the rule.
+- **Contradicted premise (codex, measured on 0.169.0 and read in its source, 2026-11-20): tokens
+  do not come from `token_count`.**
+  - `token_count` is written after each request, but also repeated with no new request: a
+    rate-limits update, a task's start, and the window's re-estimate after `compacted`. It also
+    fills the window when the context overflowed.
+  - Codex writes one **`token_usage_record`** line per completed response. Its `usage` is that
+    request's, with a `response_id` and a `turn_id`. These records are what is summed, each keyed
+    by its response.
+  - A rollout with no record (an older Codex) falls back to `token_count`'s `last_token_usage`,
+    keyed by the thread's `total_token_usage`, so a repeat is the entry already kept. A count with
+    no input and no output (the overflow fill) is skipped.
+  - `input_tokens` includes the cached part: Menkar's input = input − cached − written, its cache
+    read = cached. The model is the `turn_context` of the same `turn_id`, which for a compaction
+    comes after its request.
+- **Turns** (1.143, "one Usage turn per user message"):
+  - A `UserMessage` item (paginated rollouts) or `user_message` event (legacy rollouts) opens a
+    turn at its time: `codex:<turn id>`, and `codex:<turn id>:<n>` for the n-th message steered
+    into the same task (my choice: the plan named only `codex:<turn id>`).
+  - Origin is `peer` when the text starts with `[Menkar]` (the wake frame), else `human` (my
+    choice: codex measured that a `codex queue` message is otherwise indistinguishable).
+  - A task with no user message (a `/compact`, review mode) opens none: its tokens fall to the turn
+    in effect by time, as Claude's do.
+  - A subagent's rollout (`parent_thread_id`) opens no turn; its tokens count for its parent's
+    session, as Claude's subagents do.
+  - Working time is the gaps between the turn's lines up to `task_complete` or `turn_aborted`, a
+    gap over two hours being idle. No blocked time (my choice: approvals were not measured in
+    rollouts).
+- **A fork that copies its parent's history** (`ForkPersistence::Copied`) counts nothing twice: a
+  copied turn keeps its parent's session (`INSERT OR IGNORE` by uuid), and a copied record falls
+  before the fork's first turn, so it lands in none.
+- **`.zst`**:
+  - The synchronous ingest skips compressed rollouts.
+  - `catchUp` streams each `.zst` not yet read, once (its path is then in `files`). When the `.zst`
+    replaces a plain rollout already read, it goes on from that file's offset and state (same
+    bytes), and records keyed by response make a re-read count nothing twice.
+  - The fixture's `.zst` (C) is read by the contract test through `catchUp`.
+- **Prices** (D15):
+  - OpenAI's Standard tier, copied 2026-11-20 from `https://developers.openai.com/api/docs/pricing`
+    (where `platform.openai.com/docs/pricing` redirects): `OPENAI_SOURCE`/`OPENAI_COPIED` beside
+    the rows.
+  - Rows: the flagships gpt-6.2-astra, gpt-6.2-sol, gpt-6-astra, gpt-6.1-sol, gpt-6.1-terra,
+    gpt-6-luna, gpt-6-sol, gpt-5.6-sol/terra/luna and gpt-5.5, each with its `@long` row (over
+    272,000 input tokens per request, `OPENAI_LONG_PROMPT`); and gpt-5.3-codex, which has no long
+    row.
+  - Cached input is the cache-read column. The 30-minute and 12-hour writes take the two
+    write columns (my choice). gpt-5.5 has no write price on the page, so its writes are priced at
+    its input price (my choice; Codex reports no writes for OpenAI).
+  - **Codex 0.169.0's default model is gpt-6.1-sol** (codex measured, ChatGPT login, no `-m`).
+    Its `/model` picker offers gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol,
+    gpt-6.1-terra, gpt-5.6-terra, gpt-5.6-luna and gpt-5.5.
+  - The page says gpt-5.6-sol's price is a promotion until 2026-11-30: its later price needs a new
+    row from that day.
+  - `requestModel` generalises Haiku's long-prompt rule: a model with an `@long` row takes it per
+    request (Haiku at 100,000, OpenAI at 272,000). Claude's keys are unchanged.
+- **Context** (`codex/context.ts`): the last `token_count` with an info in the rollout's tail
+  (64 KB, 1 MB, 8 MB). The figure is Codex's footer (codex read it in `tui/src/token_usage.rs`):
+  used = 100 − round((W − B − max(last.total − B, 0)) / (W − B) · 100), B = 12,000. Source
+  `statusline` (exact). A `.zst` rollout shows no reading.
+- **Fixture regenerated through `make.mjs`:**
+  - A gains its records and a `/compact` task (`task_started`, a record, a `token_count`,
+    `compacted`, a late `turn_context`, the re-estimate, `task_complete`).
+  - E (no records) gains a repeated count. F gains its record.
+  - `expected.json`'s two sizes follow; nothing else in the catalog's contract moved.
+  - New `usage.json` per agent (Claude's and Codex's), held by
+    `tests/core/agents/contract/usage.test.ts` and checked by hand: A's first turn sums its own
+    request, the compaction's and subagent D's (input 8,816 = 2,882 + 2,934 + 3,000).
+- **Seen failing once:**
+  - a fork owning its parent's copied turn;
+  - a count keyed by time (the repeat counted, contract and unit);
+  - the overflow fill kept;
+  - steered messages merged;
+  - `[Menkar]` read as human;
+  - no long row;
+  - a turn opened a minute late (midnight and seven others);
+  - `catchUp` doing nothing (three tests);
+  - the `.zst` re-read from 0 with records keyed by file (not with either alone: each covers the
+    other);
+  - Codex's cache in Claude's file (the Claude-unchanged test and three others);
+  - the previous prompt dropped;
+  - no baseline (five tests), the first count taken instead of the last;
+  - `sameReading` bypassed (CTX-16, CTX-17);
+  - a price digit (USG-23b);
+  - Codex's `context` null (parity);
+  - `claudeRoot` in `pass.ts` (the code rule).
+- **Claude unchanged** (R10, §2.15): R10's 47 files are equal to `main`'s, every existing usage and
+  classifier test passes unchanged, and a new test shows Claude's cache rows and history rows equal
+  with and without Codex's sessions read beside them.
+- **`npm run ui-check`**: the new `e2e/usage-codex.spec.ts` shows Usage with a Codex session
+  beside a Claude one in both themes (`menkar-t148-usage-codex-{dark,light}.png` in the files
+  folder). It was seen failing with Codex's `usage` null. The whole run: 420 passed and one
+  failed, orchestration's "Ctrl+` in the orchestrator's tab": a stand-in's first line was not
+  drawn within 15 s under the full run's load. It passed alone, and the whole orchestration spec
+  then passed (29/29); it is not in this block's files.
+- **`npm run ci`**: biome, tsc, vitest (2149/2149), R10 unchanged (47 files), code rules and i18n
+  pass. Test integrity reports only P1a.2's six roster pins against `main`. Flaky and history
+  pass when run after it.
+- **Left for P1a.7**: `docs/usage.md` (`menkar usage` counts a never-seen `.zst` only after the
+  app's next pass; Codex's turns, tokens and prices), `docs/agents.md`'s Codex usage and context
+  notes, and whether `e2e/usage-codex.spec.ts` folds into `e2e/codex.spec.ts`.

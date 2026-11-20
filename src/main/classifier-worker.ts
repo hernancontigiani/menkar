@@ -6,8 +6,8 @@ import {
   estimate,
   findClaude,
 } from '../core/classifier/run'
-import { cachePath, UsageCache } from '../core/usage/cache'
 import { historyPath, UsageHistory } from '../core/usage/history'
+import { closeSources, defaultPassPaths, openSources, textsOf } from '../core/usage/pass'
 
 // One classification job on a thread of its own: its SQLite reads and its calls to `claude` are
 // synchronous. `flags` is shared with main: [stop requested, sent, total].
@@ -20,19 +20,21 @@ interface Job {
 
 const job = workerData as Job
 const history = new UsageHistory(historyPath())
-const cache = new UsageCache(cachePath())
+// Every agent's cache, each answering for its own turns' text.
+const sources = openSources(defaultPassPaths())
+const texts = textsOf(sources)
 try {
   if (job.kind === 'estimate') {
-    parentPort?.postMessage(estimate(history, cache, job.since, job.now))
+    parentPort?.postMessage(estimate(history, texts, job.since, job.now))
   } else {
     const cli = findClaude()
     const call = cli === null ? null : claudeCall(cli)
     parentPort?.postMessage(
       job.kind === 'hourly'
-        ? classifyPass(history, cache, job.since, job.now, call)
+        ? classifyPass(history, texts, job.since, job.now, call)
         : classifyEarlier(
             history,
-            cache,
+            texts,
             job.since,
             job.now,
             call,
@@ -46,5 +48,5 @@ try {
   }
 } finally {
   history.close()
-  cache.close()
+  closeSources(sources)
 }

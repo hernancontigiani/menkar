@@ -247,4 +247,21 @@ describe('keeping it current', () => {
     await tracker.fileChanged('s.json')
     expect(changes).toEqual(['s'])
   })
+
+  // A turn's end asks every followed session for its reading again (Codex's is in its rollout):
+  // for a Claude session it is one more read of the same files, which changes nothing shown.
+  test("CTX-17 a turn's end re-reads its session, and the same reading signals nothing", async () => {
+    let reads = 0
+    const tracker = new ReadingTracker(async () => {
+      reads += 1
+      return { percentage: 40, window: 200000, source: 'statusline' }
+    })
+    const changes: string[] = []
+    tracker.onChange((sessionId) => changes.push(sessionId))
+    await tracker.track('s', '/t/s.jsonl')
+    await tracker.request('s')
+    await tracker.request('not-followed')
+    expect(reads).toBe(2)
+    expect(changes).toEqual(['s'])
+  })
 })

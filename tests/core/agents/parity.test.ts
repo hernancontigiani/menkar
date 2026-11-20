@@ -15,7 +15,7 @@ const PAIRS: Readonly<
   fork: { block: 'P0.6', concern: (id) => kitOf(id).fork },
   trash: { block: 'P0.4', concern: (id) => kitOf(id).catalog.trash },
   chat: { block: 'P0.7', concern: (id) => kitOf(id).chat },
-  context: { block: 'P1a.6', concern: null },
+  context: { block: 'P1a.6', concern: (id) => kitOf(id).context },
 }
 
 describe('descriptors and kits', () => {

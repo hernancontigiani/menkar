@@ -1,4 +1,5 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
+import type { TurnTexts } from '../agents/types'
 import type { UsageCache } from '../usage/cache'
 import type { UsageHistory } from '../usage/history'
 import type { TurnText } from './input'
@@ -93,11 +94,11 @@ export function readyTurns(
     .map((t) => t.uuid)
 }
 
-// The earlier turns whose transcript may still hold them, and how many it surely no longer does.
-// Only the file's size is looked at: reading thousands of turns made the dialog wait.
+// The earlier turns whose text may still be read, and how many surely can no longer be. Only the
+// file's size is looked at: reading thousands of turns made the dialog wait.
 export function earlierTurns(
   history: UsageHistory,
-  cache: UsageCache,
+  texts: TurnTexts,
   since: number,
   nowSeconds: number,
   origins: readonly string[],
@@ -106,15 +107,15 @@ export function earlierTurns(
   const found: string[] = []
   let missing = 0
   for (const uuid of readyTurns(history, since, nowSeconds, origins)) {
-    const extent = cache.extent(uuid)
-    if (extent !== null && !sizes.has(extent.file)) {
+    const at = texts.textAt(uuid)
+    if (at !== null && !sizes.has(at.file)) {
       try {
-        sizes.set(extent.file, statSync(extent.file).size)
+        sizes.set(at.file, statSync(at.file).size)
       } catch {
-        sizes.set(extent.file, -1)
+        sizes.set(at.file, -1)
       }
     }
-    if (extent === null || (sizes.get(extent.file) ?? -1) <= extent.start) missing += 1
+    if (at === null || (sizes.get(at.file) ?? -1) <= at.start) missing += 1
     else found.push(uuid)
   }
   return { found, missing }

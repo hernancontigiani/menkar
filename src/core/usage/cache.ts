@@ -1,5 +1,7 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import type { TurnText } from '../classifier/input'
+import { readTurn } from '../classifier/turns'
 import { type Db, openDb } from '../db'
 import { appDirs } from '../paths'
 import { listTranscripts } from './files'
@@ -447,6 +449,15 @@ export class UsageCache {
       )
       .get(uuid)
     return row ? str(row, 'uuid') : null
+  }
+
+  turnText(uuid: string): TurnText | null {
+    return readTurn(this, uuid)
+  }
+
+  textAt(uuid: string): { file: string; start: number } | null {
+    const extent = this.extent(uuid)
+    return extent === null ? null : { file: extent.file, start: extent.start }
   }
 
   // The transcript a turn was read from and the byte its opening line starts at.

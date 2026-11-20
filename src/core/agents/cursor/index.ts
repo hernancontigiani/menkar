@@ -19,4 +19,6 @@ export const kit: AgentKit = {
   fork: null,
   chat,
   writes: { created: [], changed: [] },
+  usage: null,
+  context: null,
 }

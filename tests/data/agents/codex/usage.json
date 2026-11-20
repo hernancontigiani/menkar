@@ -1,0 +1,108 @@
+[
+  {
+    "uuid": "codex:0199fe10-3c10-7000-8000-0000000000c1",
+    "session": "0199fe10-3c00-7c33-8c03-00000000000c",
+    "origin": "human",
+    "opened": "2026-10-20T14:00:03.000Z",
+    "working": 2.200000047683716,
+    "tokens": [
+      {
+        "model": "gpt-6.1-sol",
+        "hour": "2026-10-20T14:00:00.000Z",
+        "input": 5000,
+        "output": 20,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0
+      }
+    ]
+  },
+  {
+    "uuid": "codex:019a4f2c-1e10-7000-8000-0000000000a1",
+    "session": "019a4f2c-1e00-7a11-8a01-00000000000a",
+    "origin": "human",
+    "opened": "2026-11-02T12:15:04.000Z",
+    "working": 2.200000047683716,
+    "tokens": [
+      {
+        "model": "gpt-6.1-sol",
+        "hour": "2026-11-02T12:00:00.000Z",
+        "input": 8816,
+        "output": 440,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 23808
+      }
+    ]
+  },
+  {
+    "uuid": "codex:019a4f2c-1e20-7000-8000-0000000000a2",
+    "session": "019a4f2c-1e00-7a11-8a01-00000000000a",
+    "origin": "human",
+    "opened": "2026-11-02T12:41:00.000Z",
+    "working": 2.200000047683716,
+    "tokens": [
+      {
+        "model": "gpt-6.1-sol",
+        "hour": "2026-11-02T12:00:00.000Z",
+        "input": 1120,
+        "output": 31,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 8000
+      }
+    ]
+  },
+  {
+    "uuid": "codex:019a5400-2b10-7000-8000-0000000000b1",
+    "session": "019a5400-2b00-7b22-8b02-00000000000b",
+    "origin": "human",
+    "opened": "2026-11-03T21:02:12.000Z",
+    "working": 3.200000047683716,
+    "tokens": []
+  },
+  {
+    "uuid": "codex:019a5400-2b20-7000-8000-0000000000b2",
+    "session": "019a5400-2b00-7b22-8b02-00000000000b",
+    "origin": "human",
+    "opened": "2026-11-03T21:05:00.000Z",
+    "working": 4,
+    "tokens": []
+  },
+  {
+    "uuid": "codex:019a5a00-5e10-7000-8000-0000000000e1",
+    "session": "019a5a00-5e00-7e66-8e06-00000000000e",
+    "origin": "human",
+    "opened": "2026-11-04T11:00:01.000Z",
+    "working": 2.200000047683716,
+    "tokens": [
+      {
+        "model": "gpt-6.1-sol",
+        "hour": "2026-11-04T11:00:00.000Z",
+        "input": 2000,
+        "output": 9,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0
+      }
+    ]
+  },
+  {
+    "uuid": "codex:019a5a10-6f10-7000-8000-0000000000f1",
+    "session": "019a5a10-6f00-7f77-8f07-00000000000f",
+    "origin": "human",
+    "opened": "2026-11-04T12:30:02.000Z",
+    "working": 2.200000047683716,
+    "tokens": [
+      {
+        "model": "gpt-6.1-sol",
+        "hour": "2026-11-04T12:00:00.000Z",
+        "input": 4000,
+        "output": 12,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0
+      }
+    ]
+  }
+]

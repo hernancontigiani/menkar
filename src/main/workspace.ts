@@ -224,7 +224,7 @@ import { recordPresence, recordPromptedStart } from './activity'
 import { mainKitOf } from './agents/registry'
 import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
-import { contextReading, trackContext } from './context'
+import { contextReading, trackContext, turnEndedContext } from './context'
 import {
   type ControlHandlers,
   mcpServerScript,
@@ -734,9 +734,10 @@ function readingsOf(projectId: string): Record<string, Reading> {
   for (const id of projects.projects.find((p) => p.id === projectId)?.members ?? []) {
     const info = sessionInfo(id)
     if (!info) continue
-    if (!tracked.has(id)) {
+    const source = kitOf(info.agent).context
+    if (source !== null && !tracked.has(id)) {
       tracked.add(id)
-      trackContext(id, info.file)
+      trackContext(id, info.file, source)
     }
     const reading = contextReading(id)
     if (reading) out[id] = reading
@@ -2036,6 +2037,7 @@ function turnEnded(paneId: string, sessionId: string): void {
     joinSession(pane, sessionId)
   else if (pane?.sessionId && pane.sessionId !== sessionId) followPane(pane, sessionId, null)
   stopRecorded(paneId, sessionId)
+  turnEndedContext(sessionId)
   if (stopRequests.get(paneId)?.sessionId === sessionId) stopNow(paneId)
   const request = renewRequests.get(paneId)
   if (request && panes.get(paneId)?.sessionId === sessionId && request.sessionId === sessionId)

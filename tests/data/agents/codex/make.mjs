@@ -63,6 +63,19 @@ const injected = (at, cwd) => [
   said(at, 'user', '# AGENTS.md instructions for the folder\n\nRun the tests before replying.'),
 ]
 
+// One response's usage, as Codex records it beside the turn's events.
+const record = (at, thread, turnId, response, usage) =>
+  line(at, 'token_usage_record', {
+    thread_id: thread,
+    turn_id: turnId,
+    session_id: thread,
+    root_turn_id: turnId,
+    response_id: response,
+    usage,
+    turn_token_usage: usage,
+    thread_token_usage: usage,
+  })
+
 // One paginated turn: its context, start, the user's and the agent's items, tools, tokens and end.
 function turn(thread, turnId, at, cwd, text, reply, tokens, tools = []) {
   const ms = Date.parse(at)
@@ -122,6 +135,10 @@ function turn(thread, turnId, at, cwd, text, reply, tokens, tools = []) {
       completed_at_ms: ms + 2000,
     }),
     said(new Date(ms + 2000).toISOString(), 'assistant', reply),
+    // Codex 0.169.0 writes one record per response before its token_count; an older one, none.
+    ...(tokens.response
+      ? [record(new Date(ms + 2100).toISOString(), thread, turnId, tokens.response, tokens.last)]
+      : []),
     line(new Date(ms + 2100).toISOString(), 'event_msg', {
       type: 'token_count',
       info: {
@@ -156,7 +173,10 @@ const files = {}
 // A: two turns in /home/demo/api, a compaction between them. Its file name is local time (UTC-3).
 const a1 = usage(14786, 11904, 52, 12)
 const a2 = usage(9120, 8000, 31, 0)
-const aTotal = usage(14786 + 9120, 11904 + 8000, 52 + 31, 12)
+const AC = '019a4f2c-1e15-7000-8000-0000000000ac' // the compaction's task
+const compaction = usage(14838, 11904, 380, 0)
+const aCompacted = usage(14786 + 14838, 11904 + 11904, 52 + 380, 12)
+const aTotal = usage(14786 + 14838 + 9120, 11904 + 11904 + 8000, 52 + 380 + 31, 12)
 files[`sessions/2026/11/02/rollout-2026-11-02T09-15-00-${A}.jsonl`] = jsonl([
   meta(A, '2026-11-02T12:15:00.000Z', '/home/demo/api'),
   ...injected('2026-11-02T12:15:00.000Z', '/home/demo/api'),
@@ -167,8 +187,28 @@ files[`sessions/2026/11/02/rollout-2026-11-02T09-15-00-${A}.jsonl`] = jsonl([
     '/home/demo/api',
     'List the API routes',
     'There are three routes: /health, /items and /items/:id.',
-    { last: a1, total: a1 },
+    { last: a1, total: a1, response: 'resp_a1' },
   ),
+  // `/compact`: a task of its own with no user message, its request recorded, then the window's
+  // new size in a token_count whose total did not move.
+  line('2026-11-02T12:40:00.000Z', 'event_msg', {
+    type: 'task_started',
+    turn_id: AC,
+    started_at: seconds('2026-11-02T12:40:00.000Z'),
+    model_context_window: 258400,
+    collaboration_mode_kind: 'default',
+  }),
+  record('2026-11-02T12:40:00.000Z', A, AC, 'resp_ac', compaction),
+  line('2026-11-02T12:40:00.000Z', 'event_msg', {
+    type: 'token_count',
+    info: {
+      total_token_usage: aCompacted,
+      last_token_usage: compaction,
+      last_usage_includes_reasoning: true,
+      model_context_window: 258400,
+    },
+    rate_limits: null,
+  }),
   line('2026-11-02T12:40:00.000Z', 'compacted', {
     message: 'The user asked for the API routes; there are three.',
     replacement_history: [],
@@ -177,6 +217,33 @@ files[`sessions/2026/11/02/rollout-2026-11-02T09-15-00-${A}.jsonl`] = jsonl([
     previous_window_id: 'w-a-1',
     window_id: 'w-a-2',
   }),
+  line('2026-11-02T12:40:00.000Z', 'turn_context', {
+    turn_id: AC,
+    cwd: '/home/demo/api',
+    approval_policy: 'on-request',
+    model: 'gpt-6.1-sol',
+    effort: 'low',
+  }),
+  line('2026-11-02T12:40:00.100Z', 'event_msg', {
+    type: 'token_count',
+    info: {
+      total_token_usage: aCompacted,
+      last_token_usage: usage(1200, 0, 0, 0),
+      last_usage_includes_reasoning: true,
+      model_context_window: 258400,
+    },
+    rate_limits: null,
+  }),
+  line('2026-11-02T12:40:00.200Z', 'event_msg', {
+    type: 'task_complete',
+    turn_id: AC,
+    root_turn_id: AC,
+    last_agent_message: '',
+    started_at: seconds('2026-11-02T12:40:00.000Z'),
+    completed_at: seconds('2026-11-02T12:40:00.000Z'),
+    duration_ms: 200,
+    time_to_first_token_ms: null,
+  }),
   ...turn(
     A,
     '019a4f2c-1e20-7000-8000-0000000000a2',
@@ -184,7 +251,7 @@ files[`sessions/2026/11/02/rollout-2026-11-02T09-15-00-${A}.jsonl`] = jsonl([
     '/home/demo/api',
     'Add a test for /health',
     'Added a test for /health in tests/health.test.ts.',
-    { last: a2, total: aTotal },
+    { last: a2, total: aTotal, response: 'resp_a2' },
     [
       {
         type: 'CommandExecution',
@@ -349,6 +416,17 @@ files[`sessions/2026/11/04/rollout-2026-11-04T08-00-00-${E}.jsonl`] = jsonl([
     'Three fixes and one feature.',
     { last: usage(2000, 0, 9, 0), total: usage(2000, 0, 9, 0) },
   ),
+  // A rate-limits update repeats the last count: no new request.
+  line('2026-11-04T11:00:04.000Z', 'event_msg', {
+    type: 'token_count',
+    info: {
+      total_token_usage: usage(2000, 0, 9, 0),
+      last_token_usage: usage(2000, 0, 9, 0),
+      last_usage_includes_reasoning: true,
+      model_context_window: 258400,
+    },
+    rate_limits: null,
+  }),
 ])
 
 // F: a thread whose last reply asks the user something; it was named, then its name cleared.
@@ -362,7 +440,7 @@ files[`sessions/2026/11/04/rollout-2026-11-04T09-30-00-${F}.jsonl`] = jsonl([
     '/home/demo/web',
     'Change the header to green',
     'Done. Should I also change the footer?',
-    { last: usage(4000, 0, 12, 0), total: usage(4000, 0, 12, 0) },
+    { last: usage(4000, 0, 12, 0), total: usage(4000, 0, 12, 0), response: 'resp_f1' },
   ),
 ])
 

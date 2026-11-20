@@ -14,7 +14,13 @@ import {
 } from '../../../src/core/usage/history'
 import { runPass } from '../../../src/core/usage/pass'
 import { type Bounds, midnight, periodBounds } from '../../../src/core/usage/periods'
-import { cost, modelName } from '../../../src/core/usage/prices'
+import {
+  cost,
+  modelName,
+  OPENAI_COPIED,
+  OPENAI_SOURCE,
+  requestModel,
+} from '../../../src/core/usage/prices'
 import {
   buildReport,
   buildSeries,
@@ -362,6 +368,40 @@ describe('cost', () => {
     expect(cost('claude-haiku-5-5-20261001@long', noon, sum)).toBe(
       cost('claude-haiku-5-5@long', noon, sum),
     )
+  })
+
+  // D15: Codex's cost is the price table's, from OpenAI's Standard tier as copied on OPENAI_COPIED
+  // from OPENAI_SOURCE: [input, cached input, output] per million tokens, short context and over
+  // 272K input tokens.
+  test.each([
+    ['gpt-6.2-astra', [8, 0.4, 40], [16, 0.8, 60]],
+    ['gpt-6.2-sol', [2, 0.1, 10], [4, 0.2, 15]],
+    ['gpt-6-astra', [10, 1, 50], [20, 2, 75]],
+    ['gpt-6.1-sol', [2, 0.1, 10], [4, 0.2, 15]],
+    ['gpt-6.1-terra', [1, 0.05, 5], [2, 0.1, 7.5]],
+    ['gpt-6-luna', [0.1, 0.01, 0.5], [0.2, 0.02, 0.75]],
+    ['gpt-6-sol', [2, 0.2, 10], [4, 0.4, 15]],
+    ['gpt-5.6-sol', [4, 0.4, 20], [8, 0.8, 30]],
+    ['gpt-5.6-terra', [2, 0.2, 12], [4, 0.4, 18]],
+    ['gpt-5.6-luna', [0.2, 0.02, 1.2], [0.4, 0.04, 1.8]],
+    ['gpt-5.5', [5, 0.5, 30], [10, 1, 45]],
+    ['gpt-5.3-codex', [1.75, 0.175, 14], null],
+  ] as const)("USG-23b %s at OpenAI's list price", (model, short, long) => {
+    const million = tokens({ input: 1_000_000, cacheRead: 1_000_000, output: 1_000_000 })
+    expect(cost(model, noon, million)).toBeCloseTo(short[0] + short[1] + short[2], 10)
+    if (long === null) expect(cost(`${model}@long`, noon, million)).toBeNull()
+    else expect(cost(`${model}@long`, noon, million)).toBeCloseTo(long[0] + long[1] + long[2], 10)
+  })
+
+  test("USG-23c OpenAI's long-context row is a request's, over 272,000 input tokens; Haiku's line is unchanged", () => {
+    const request = (input: number) => tokens({ input: input - 200_000, cacheRead: 200_000 })
+    expect(requestModel('gpt-6.1-sol', request(272_000))).toBe('gpt-6.1-sol')
+    expect(requestModel('gpt-6.1-sol', request(272_001))).toBe('gpt-6.1-sol@long')
+    expect(requestModel('gpt-5.3-codex', request(400_000))).toBe('gpt-5.3-codex')
+    expect(requestModel('claude-haiku-5-5', request(100_001))).toBe('claude-haiku-5-5@long')
+    expect(requestModel('claude-opus-5-5', request(400_000))).toBe('claude-opus-5-5')
+    expect(OPENAI_SOURCE).toBe('https://developers.openai.com/api/docs/pricing')
+    expect(OPENAI_COPIED).toBe('2026-11-20')
   })
 
   describe("Haiku 5.5's long prompt, per request (decision 1.26)", () => {

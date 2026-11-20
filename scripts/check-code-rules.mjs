@@ -130,9 +130,6 @@ export const ALLOWED = {
       reason: "permanent: the history's SQL column `claude`, kept for its bytes",
     },
   },
-  'src/core/usage/pass.ts': {
-    'agent-identifier': { count: 2, reason: "P1a.6: TurnSource replaces PassPaths' root" },
-  },
   'src/renderer/terminals.ts': {
     'agent-property': {
       count: 2,

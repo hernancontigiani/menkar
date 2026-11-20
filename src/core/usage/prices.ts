@@ -5,6 +5,10 @@
 
 export const SOURCE = 'https://platform.claude.com/docs/en/about-claude/pricing'
 export const COPIED = '2026-11-06'
+// OpenAI's models, which Codex runs: the Standard tier. platform.openai.com/docs/pricing redirects
+// here.
+export const OPENAI_SOURCE = 'https://developers.openai.com/api/docs/pricing'
+export const OPENAI_COPIED = '2026-11-20'
 
 export interface Price {
   readonly input: number
@@ -16,6 +20,8 @@ export interface Price {
 
 // Rows copied without a known start apply to every earlier day too.
 const SINCE = '2000-01-01'
+// The key of a request priced at its model's long-prompt row.
+const LONG = '@long'
 
 const p = (
   input: number,
@@ -26,6 +32,36 @@ const p = (
 ) => [{ since: SINCE, price: { input, cacheWrite5m, cacheWrite1h, cacheRead, output } }] as const
 
 type Rows = readonly { readonly since: string; readonly price: Price }[]
+
+// An OpenAI model's short-context row and its long-context one (`@long`). Cached input is a cache
+// read; OpenAI's 30-minute and 12-hour cache writes take the two write columns. A model the page
+// gives no write price is written at its input price (Codex reports no cache writes for OpenAI).
+const openai = (
+  id: string,
+  short: readonly [
+    input: number,
+    output: number,
+    cached: number,
+    write30m?: number,
+    write12h?: number,
+  ],
+  long?: readonly [
+    input: number,
+    output: number,
+    cached: number,
+    write30m?: number,
+    write12h?: number,
+  ],
+): [string, Rows][] => {
+  const row = ([input, output, cached, write30m, write12h]: NonNullable<typeof long>) =>
+    p(input, write30m ?? input, write12h ?? input, cached, output)
+  return long === undefined
+    ? [[id, row(short)]]
+    : [
+        [id, row(short)],
+        [`${id}${LONG}`, row(long)],
+      ]
+}
 
 export const TABLE: Readonly<Record<string, Rows>> = {
   'claude-fable-5-1': p(10, 12.5, 20, 0.25, 50),
@@ -48,6 +84,23 @@ export const TABLE: Readonly<Record<string, Rows>> = {
   'claude-haiku-5-5': p(0.1, 0.125, 0.2, 0.01, 0.5),
   'claude-haiku-5-5@long': p(0.5, 0.625, 1, 0.05, 2.5),
   'claude-haiku-4-5': p(1, 1.25, 2, 0.1, 5),
+  // From OPENAI_SOURCE on OPENAI_COPIED; gpt-6.1-sol is Codex 0.169.0's default, and the rest
+  // its /model picker's choices and the page's newer flagships. The page says gpt-5.6-sol's
+  // price is a promotion until 2026-11-30: its later price is a new row from that day.
+  ...Object.fromEntries([
+    ...openai('gpt-6.2-astra', [8, 40, 0.4, 10, 20], [16, 60, 0.8, 20, 40]),
+    ...openai('gpt-6.2-sol', [2, 10, 0.1, 2.5, 5], [4, 15, 0.2, 5, 10]),
+    ...openai('gpt-6-astra', [10, 50, 1, 12.5, 25], [20, 75, 2, 25, 50]),
+    ...openai('gpt-6.1-sol', [2, 10, 0.1, 2.5, 5], [4, 15, 0.2, 5, 10]),
+    ...openai('gpt-6.1-terra', [1, 5, 0.05, 1.25, 2.5], [2, 7.5, 0.1, 2.5, 5]),
+    ...openai('gpt-6-luna', [0.1, 0.5, 0.01, 0.125, 0.25], [0.2, 0.75, 0.02, 0.25, 0.5]),
+    ...openai('gpt-6-sol', [2, 10, 0.2, 2.5, 5], [4, 15, 0.4, 5, 10]),
+    ...openai('gpt-5.6-sol', [4, 20, 0.4, 5, 10], [8, 30, 0.8, 10, 20]),
+    ...openai('gpt-5.6-terra', [2, 12, 0.2, 2.5, 5], [4, 18, 0.4, 5, 10]),
+    ...openai('gpt-5.6-luna', [0.2, 1.2, 0.02, 0.25, 0.5], [0.4, 1.8, 0.04, 0.5, 1]),
+    ...openai('gpt-5.5', [5, 30, 0.5], [10, 45, 1]),
+    ...openai('gpt-5.3-codex', [1.75, 14, 0.175]),
+  ]),
 }
 
 // Haiku 5.5 is priced by the size of each request's prompt (input + cache reads + cache writes):
@@ -55,15 +108,21 @@ export const TABLE: Readonly<Record<string, Rows>> = {
 // size, so the tier is chosen when the tokens are stored and kept in the model key; a sum of
 // requests is never sized.
 export const HAIKU_5_5_LONG_PROMPT = 100_000
-const LONG = '@long'
+// OpenAI's flagships take their long-context row over this many input tokens, cached included.
+export const OPENAI_LONG_PROMPT = 272_000
 
-// The stored key for one request's tokens: its model, marked long when Haiku 5.5's prompt is over
-// the line.
+// The prompt size over which a model is priced at its long-prompt row: each model with one.
+function longPrompt(model: string): number | null {
+  if (model === 'claude-haiku-5-5') return HAIKU_5_5_LONG_PROMPT
+  return `${model}${LONG}` in TABLE ? OPENAI_LONG_PROMPT : null
+}
+
+// The stored key for one request's tokens: its model, marked long when its prompt is over its
+// model's line.
 export function requestModel(model: string, tokens: TokenCounts): string {
   const prompt = tokens.input + tokens.cacheWrite + tokens.cacheRead
-  return normalizeModel(model) === 'claude-haiku-5-5' && prompt > HAIKU_5_5_LONG_PROMPT
-    ? `${model}${LONG}`
-    : model
+  const line = longPrompt(normalizeModel(model))
+  return line !== null && prompt > line ? `${model}${LONG}` : model
 }
 
 // The model a stored key stands for, as the user knows it: the long-prompt mark dropped.

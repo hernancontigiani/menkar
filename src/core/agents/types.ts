@@ -1,12 +1,15 @@
 import type { RawState } from '../agentstate/raw'
 import type { Chat } from '../chat/session'
+import type { TurnText } from '../classifier/input'
 import type { Start } from '../command'
 import type { PaneStartSource } from '../context/statusline'
+import type { Reading } from '../context/types'
 import type { Key } from '../i18n'
 import type { Badge, Details, Head } from '../sessions/details'
 import type { DiscoveredSession } from '../sessions/scanner'
 import type { TeamAgent } from '../team/block'
 import type { TeamText } from '../team/posts'
+import type { CachedSpan, CachedTurn, HourTokens, PendingRow } from '../usage/cache'
 import type { AgentId } from './ids'
 import type { Names, ReadRange } from './shared/jsonl'
 
@@ -215,6 +218,47 @@ export interface DeclaredWrites {
   readonly changed: readonly RegExp[]
 }
 
+// A turn as its agent's usage cache has it now: its spans, and its tokens per (model, UTC hour).
+export interface TurnUsage {
+  readonly turn: CachedTurn
+  readonly spans: readonly CachedSpan[]
+  readonly tokens: readonly HourTokens[]
+}
+
+// What the classifier reads of a turn: its text, and where that text starts, so an estimate can
+// tell from a file's size alone whether the text is still there. Each answers null for a turn that
+// is not its own.
+export interface TurnTexts {
+  turnText(uuid: string): TurnText | null
+  textAt(uuid: string): { readonly file: string; readonly start: number } | null
+}
+
+// One agent's derived usage cache, open for a pass. Synchronous: a pass runs off the UI path.
+export interface TurnSource extends TurnTexts {
+  // Reads what the agent's files gained since the last pass and marks the turns it touched pending.
+  ingest(): void
+  // What can only be read as a stream (a compressed file never seen), read before the pass; null
+  // when the agent has nothing of the kind. A pass without it reads that later.
+  readonly catchUp: (() => Promise<void>) | null
+  pending(): PendingRow[]
+  turnUsage(sessionId: string, uuid: string): TurnUsage | null
+  // The agent's name for each of these sessions it has one for, and whether it was given (1).
+  names(sessions: Iterable<string>): Map<string, { name: string; given: number }>
+  written(rows: readonly PendingRow[]): void
+  close(): void
+}
+
+export interface UsageSource {
+  // `root` is where the agent keeps its sessions; `cache` is the pass's cache file, beside which
+  // an agent's own cache lives. Null when the root does not exist: nothing is read or created.
+  open(root: string, cache: string): TurnSource | null
+}
+
+// How full a session's context window is, read from the agent's own data.
+export interface ContextSource {
+  read(sessionId: string, locator: string): Promise<Reading | null>
+}
+
 export interface AgentKit {
   readonly launch: Launcher
   readonly mcp: McpMount | null
@@ -229,4 +273,6 @@ export interface AgentKit {
   readonly fork: Fork | null
   readonly chat: ChatStrategy | null
   readonly writes: DeclaredWrites
+  readonly usage: UsageSource | null
+  readonly context: ContextSource | null
 }

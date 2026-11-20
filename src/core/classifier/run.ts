@@ -3,9 +3,9 @@ import { accessSync, constants, mkdirSync, statSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { descriptorOf } from '../agents/descriptors'
 import { CLASSIFIER_AGENT } from '../agents/ids'
+import type { TurnTexts } from '../agents/types'
 import { log } from '../log'
 import { appDirs } from '../paths'
-import type { UsageCache } from '../usage/cache'
 import type { UsageHistory } from '../usage/history'
 import { batchInput, command, environment, parseReply, type TurnText } from './input'
 import {
@@ -18,7 +18,7 @@ import {
   STDERR_KEPT,
   TIMEOUT_MS,
 } from './prompt'
-import { callsFor, earlierTurns, readTurn, readyTurns } from './turns'
+import { callsFor, earlierTurns, readyTurns } from './turns'
 
 // What a run did, kept as the setting `classify_last` and shown under the switch.
 export interface RunResult {
@@ -101,7 +101,7 @@ function send(
 // was turned on. A turn whose text cannot be read counts a try and is left out.
 export function classifyPass(
   history: UsageHistory,
-  cache: UsageCache,
+  source: TurnTexts,
   since: number,
   nowSeconds: number,
   call: Call | null,
@@ -112,7 +112,7 @@ export function classifyPass(
   for (let n = 0; n < CALLS_PER_PASS; n += 1) {
     const chunk = waiting.slice(n * BATCH, (n + 1) * BATCH)
     if (chunk.length === 0) break
-    const texts = chunk.map((uuid) => [uuid, readTurn(cache, uuid)] as const)
+    const texts = chunk.map((uuid) => [uuid, source.turnText(uuid)] as const)
     history.countTry(texts.filter(([, text]) => text === null).map(([uuid]) => uuid))
     const sent = texts.filter((entry): entry is [string, TurnText] => entry[1] !== null)
     if (sent.length === 0) continue
@@ -136,11 +136,11 @@ export interface Estimate {
 // What classifying the turns since a moment would send, before anything is sent.
 export function estimate(
   history: UsageHistory,
-  cache: UsageCache,
+  source: TurnTexts,
   since: number,
   nowSeconds: number,
 ): Estimate {
-  const { found, missing } = earlierTurns(history, cache, since, nowSeconds, EARLIER_ORIGINS)
+  const { found, missing } = earlierTurns(history, source, since, nowSeconds, EARLIER_ORIGINS)
   const calls = callsFor(found.length)
   return {
     turns: found.length,
@@ -156,7 +156,7 @@ export function estimate(
 // with no try counted.
 export function classifyEarlier(
   history: UsageHistory,
-  cache: UsageCache,
+  source: TurnTexts,
   since: number,
   nowSeconds: number,
   call: Call | null,
@@ -164,14 +164,14 @@ export function classifyEarlier(
   stopped: () => boolean = () => false,
 ): RunResult {
   if (call === null) return { at: nowSeconds, classified: 0, failed: true }
-  const { found } = earlierTurns(history, cache, since, nowSeconds, EARLIER_ORIGINS)
+  const { found } = earlierTurns(history, source, since, nowSeconds, EARLIER_ORIGINS)
   let classified = 0
   progress(0, found.length)
   for (let start = 0; start < found.length; start += BATCH) {
     if (stopped()) break
     const batch = found
       .slice(start, start + BATCH)
-      .map((uuid) => [uuid, readTurn(cache, uuid)] as const)
+      .map((uuid) => [uuid, source.turnText(uuid)] as const)
       .filter((entry): entry is [string, TurnText] => entry[1] !== null)
     const answered = batch.length > 0 ? send(history, call, batch) : 0
     if (answered === null) return { at: nowSeconds, classified, failed: true }
