@@ -15,7 +15,8 @@ what neither says: why each piece, and what was rejected.
   `unstable/` entry points, and the code-rule and test-integrity checks parse the sources with that
   API. Moving to 7 is a version bump once its API is stable.
 - **Biome** lints and formats, with `noExplicitAny` as an error. It looks only at code
-  (`src/`, `tests/`, `e2e/`, `scripts/`, root configs), never at the Markdown documents.
+  (`src/`, `tests/`, `e2e/`, `scripts/`, root configs, and the site's scripts and TypeScript),
+  never at the Markdown documents or the site's pages.
 - **Vitest** for `src/core/` and main-side logic. `tests/setup.ts` points `HOME` and the XDG
   directories at a temporary directory before any test runs.
 - **Playwright's `_electron.launch`** on the built app, under `xvfb-run -a`, with `forbidOnly`, no
@@ -105,6 +106,28 @@ plan 34 only the full run caught a new popover icon taking the place of the butt
 clicks. Specs write their screenshots to `/tmp/menkar-shots/` only; a worker copies its own into
 `$MENKAR_FILES` by hand, because a spec that wrote there would fill the human's folder whenever a
 Menkar session runs it (2026-11-12).
+
+## The public site's checks (2026-11-20)
+
+The site (`site/`, `docs/site.md`) has its own `package.json`, so `npm run ci` must not need its
+`node_modules`:
+
+- **`tests/site/*.test.ts` run in `npm run ci`** with the rest of Vitest, reading the site's
+  sources, the capture registry and the committed images: the twins, the locale lists, the captures
+  and their sign-off, the `:ui` keys, the headings, the seed, the Markdown plugin and the tracking
+  scan's cases. `vitest.config.ts` names its tsconfig, because `site/tsconfig.json` extends a
+  package installed only under `site/node_modules` (`tests/site/vitest-tsconfig.test.ts`).
+- **`npm run site:check`** needs `npm run site:install` first and is not in `npm run ci`: the
+  build with its links validator, then `site/scripts/check.mjs` (nothing loaded from another
+  origin, every image in the build, the twins); `-- --release` also fails a page holding a pending
+  `<!-- plan N: … -->` block. Run it after changing a page, the plugin or the captures.
+- **The site needs a newer Node 22 than the app**: Astro sets the minimum, written in
+  `site/package.json`'s `engines`, and `site/.npmrc`'s `engine-strict=true` makes `site:install`
+  refuse an older one at once. The app's own `engines` is unchanged.
+- **The site's TypeScript is in no gate**: `tsc -p site` is run by hand.
+- **`npm run captures`** is not a check of the app and not part of `npm run ui-check`
+  (`playwright.captures.config.ts` matches only `e2e/captures/captures.run.ts`); it needs
+  `xvfb-run`, like `ui-check`.
 
 ## The hosted CI (2026-11-20)
 

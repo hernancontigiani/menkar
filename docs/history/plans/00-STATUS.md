@@ -2291,3 +2291,416 @@ until the first official release. The lines that stopped being true:
   folder, never added to the repository; reading the file against §2.1. It cannot run until
   pushed: `set` checks the first run's `build` job after its commit (deploy skipped while
   private).
+
+## 2026-11-20 — plan 46 closed (blocks 1–10, tasks 134, 137, 136, 139, 140, 144, 149, 152, 153, 155)
+
+Plan 46 (the public documentation site, 1.189) built in blocks 1–9 (last cb6c3fd) and closed by block 10 (task 155, `menkar-t155`): `site/` with its tone guide `site/AGENTS.md`, 22 captures in two languages and two themes, the Copy page menu and `llms.txt`, the checks in `tests/site/` and `npm run site:check`, and `docs.yml` by hand only. Not published until the first release. Its exit: `docs/site.md` (new), `AGENTS.md` (a layer row, the subsystem row, the recapture rule), `docs/toolchain.md`, `docs/release-checklist.md` (step 11), `docs/NOT_BUILT_YET.md` (Spanish `llms.txt`, a CSP, a custom domain), `README.md`; its decisions are 1.193 (D1–D6, topic 73) and 1.194 (topics 77, 78). The rows as they were:
+
+| 1.189 | **The public documentation site is Astro Starlight on GitHub Pages** (the human, 2026-11-19, topic 71; rejected: Mintlify — telemetry on by default and every visit through its servers, export and self-hosting only on Enterprise, a free plan already reshaped once; MkDocs Material): its source lives in the repository, separate from the internal `docs/`; **English by default and fully in Spanish**; many screenshots generated from the real app, with the **orchestration mode as the headline**; per page a "Copy page" menu (copy as Markdown, view as Markdown, llms.txt, Open in Claude/ChatGPT); **a tone guide** for client-facing text, from ccai's as a reference. What was learned for it: `plans/ideas/docs-site.md`. Plan 46 | 2026-11-19 | plan 46 |
+| 1.190 | **No native Windows** (the human, 2026-11-19, topic 74): native Windows goes to `docs/NOT_BUILT_YET.md`, its trigger users asking for it; **WSL2 is neither tested nor promised**; a release states only what it supports, **Linux's `.deb` and `.rpm`**, and people install them where they like. Plan 27 (Windows validation), question 2.1 (Windows' shell) and plan 28's Windows installer go; "Linux first, then Windows and macOS" becomes Linux, with macOS undecided | 2026-11-19 | `docs/NOT_BUILT_YET.md` ("Native Windows") · `AGENTS.md` · `README.md` · plans 28 and 46 |
+
+| 6 | 46 — the public documentation site (1.189) | **Blocks 1–5 built** (c9050a3, 272f2aa, 7048307, 121ccf4): the skeleton en/es, the reviewed tone guide (its vocabulary to confirm, topic 77), the seed, the capture run with three captures, the machinery and the Copy page menu. Next: block 6 (Pages workflow, by hand only until the first release), then 7–10 |
+
+Its sections 7 and 9, verbatim:
+
+### Plan 46 §7, Before block 1 (for `set` and the human)
+
+
+- **Node**: update the machine's Node 22 to ≥ 22.23.4 (Astro 7's minimum); the app's `engines`
+  (`>=22.12.0 <23`) still holds. A worker does not install system software.
+
+### Plan 46 §9, Execution log
+
+
+(Written by the sessions that execute it.)
+
+### Block 1 — `menkar-t134`, 2026-11-20 (task 134)
+
+Done: `site/` (Astro 7.4.13, Starlight 0.43.1, `starlight-links-validator` 0.27.0,
+`starlight-image-zoom` 0.16.3, `starlight-llms-txt` 0.12.0, exact versions), en at `/` and es at
+`/es/`, `site: https://hernancontigiani.github.io`, `base: /menkar` (D2 (a); the owner from the
+root `package.json`'s `homepage`), sidebar groups in D6's order, `site/AGENTS.md` = §2.2's draft
+verbatim, `site/CLAUDE.md`, the registry's types with an empty `CAPTURES`, empty strings, the
+root `site:*` scripts, Biome's site paths, `tests/site/rules-file.test.ts`, and `site/AGENTS.md`
+mirrored by the history check.
+
+Deviations and what the plan did not anticipate:
+- **Page paths moved into folders** (`set`, 2026-11-20): Starlight's `autogenerate` needs a
+  folder, and an explicit sidebar `slug` fails the build while its page does not exist. Get
+  started is `start/install.md`, `start/first-sessions.md`, `start/agents.md`; the roadmap is
+  `reference/roadmap.md`. §2.4 and blocks 8–9's file lists say so now. No page is named in
+  `astro.config.mjs`.
+- **Starlight 0.39+ dropped `autogenerate` with a `label`**: a group is `{ label, translations,
+  items: [{ autogenerate: { directory } }] }`.
+- **The history mirror of a nested rules file is flattened** by replacing `/` with `-` in
+  `rootMirror` (`site/AGENTS.md` → `docs/history/root/site-AGENTS.history.md`), so a later
+  nested `AGENTS.md` needs only its entry in `ROOT_FILES`.
+- **`site/.npmrc` has `engine-strict=true`**, so `site:install` on a Node below Astro's minimum
+  fails at once with `EBADENGINE` instead of installing a tree that cannot build; `site:build` on
+  such a Node stops with Astro's own "Node.js v22.21.1 is not supported". The root scripts use
+  whatever `node` is on `PATH`: until the machine's default Node is ≥ 22.23.4 they need
+  `PATH=$HOME/.nvm/versions/node/v22.23.5/bin:$PATH`. The app's `npm run ci` passes on 22.21.1 and
+  on 22.23.5.
+- **`site:check` is `astro build` for now** (it already runs the links validator); block 5 adds
+  `scripts/check.mjs` to it.
+- **`site/.gitignore`** (`dist/`, `.astro/`, `node_modules/`): the root one ignores only `/dist/`.
+- **The splash has no Install button yet**: its link would point at a page that does not exist
+  until block 9; block 8 writes the splash with it.
+- Two build warnings are expected until block 5: the `i18n` collection is empty (no
+  `src/content/i18n/es.json` yet), and the 404 entry is Starlight's own.
+- `sharp` already arrives as Astro's own dependency; block 4 still adds it as a direct `site`
+  dependency, since the importer imports it.
+
+### Block 2 — `menkar-t137`, 2026-11-20 (task 137)
+
+Done: `site/AGENTS.md` takes the review of ccai's `documentation` session (kept as
+`$MENKAR_FILES/set-tone-guide-review.md`): its seven comments, who reads the site, which version it
+describes (the current release only), second person and imperative in the prose, and a vocabulary
+table of 22 rows (English, Spanish, the words not used, the catalog key). Each comment's rule went
+in, its story stayed in the report. The lines that left are in
+`docs/history/root/site-AGENTS.history.md`, created here. The table waits on the human.
+
+Deviations and what the plan did not anticipate:
+- **Alt text stays in the strings files**, not inline as the review's comment 5 wrote it
+  (`![a short description](shot:<slug>)`): §2.1 resolves it from `e2e/captures/strings/<locale>.ts`
+  with no second list. The guide requires it there and says a capture without it fails the build;
+  §2.7 has no check for it yet (`captures.test.ts`, block 4 or 5, is where it fits).
+- **The twins' parity is the number and levels of their headings, not their heading slugs**: a
+  translated heading gets another slug. §2.7's `locales.test.ts` (block 5) counts `##` headings;
+  the guide asks for every level.
+- **"What is not built yet" became "Who reads it, and which app"**, holding the readers, the
+  version rule and the roadmap rule, so the version is said once.
+- **§2.2's draft above is now stale**: `site/AGENTS.md` is the guide.
+- **The catalogs name a topic two ways** in each language: "topic"/"item" and "tema"/"pendiente"
+  (the section is "Awaiting you"/"Pendientes tuyos", decision 1.146). The table's pick is
+  topic/tema, for the human to confirm with the rest. `usage.tasks.onTopic` in `es.ts` says
+  "un tema (tú)", tuteo where the app speaks voseo.
+
+### Block 3 — `menkar-t136`, 2026-11-20 (task 136)
+
+Done: `e2e/captures/seed.ts`, `strings/en.ts` and `es.ts` (complete, voseo), `stand-in-claude.mjs`,
+`tests/site/seed.test.ts`. One world per launch: "Northwind app" with the mode on (orchestrator
+`lead`, consultant `api-review` with a role and two skills, workers `northwind-app-t1`…`t4` named
+by `workerName`, tasks 1 done today, 2 ★ in progress 3/5, 3 waiting on topic 2 at 2/4, 4 in To
+review waiting on the human, 5 queued, 6 dropped two days ago; topics open, discussing and closed
+today), "Harbor site" with the mode off (for the first-time card) and one two-pane tab, "Field
+notes" with its files folder and two Markdown files, two sessions in no project (for Add
+session), and a week of usage per session. The workers' tabs are saved in the background.
+
+How it holds:
+- **Through the app's writers to explicit paths**: `taskTool`, `topicTool`, the projects'
+  `createProject`/`addMember`/`setParent`/`setMode`/`setOrchestrator`/`setRole`/`setSkills`/
+  `setFilesFolder`, `serialize*` and `writeJson`; the usage history through `runPass` with
+  explicit `PassPaths`. File names come from the app (`basename(tasksPath())` and the like, the
+  folder from `flavorFacts().dirName`), directories from the root given. A test points the
+  process's own HOME and XDG at empty folders and asserts they stay empty.
+- **The two locales compared** with every text of `vocabulary(locale)` (the catalog and the
+  sessions' names) replaced by its key, the root by `<root>`, and in the usage cache the byte
+  offsets and inodes zeroed: every file written, the two SQLite databases dumped, equal.
+- **Time**: at 00:03, 12:00 and 23:55 in `America/Argentina/Buenos_Aires`; and two seeds at the
+  same `now` under two different system clocks write the same JSON and the same mtimes.
+- **The stand-in** reuses the title format of `src/core/agents/claude/state.ts:9`
+  (`TITLE_WORKING`: a Braille spinner, `⠋ `; idle `✳ `) and its blocked words ("Do you want to
+  proceed?", `detect()` in the same file). Run under `script` and read with `ScreenMirror` and
+  `detectState` (a probe outside the tree): working, blocked, idle and working as seeded, in both
+  locales. It answers `--version` with 2.1.329.
+- Seen red: an extra task in Spanish only (structure), no squeeze of today (three time tests), a
+  timestamp derived from `Date.now()` (the clock test), a write to `tasksPath()` (the paths test),
+  a key removed from `es.ts` (`tsc`: TS2741).
+
+Deviations and what the plan did not anticipate:
+- **`seed(dirs, locale, theme, now)`**, not `(dirs, locale, scene, now)` (`set`, 2026-11-20): one
+  launch per locale × theme cannot take a per-scene seed, and the theme is `state.json`'s. §2.3
+  says so now.
+- **Claude Code's chrome stays English** in both locales (`set`, 2026-11-20): the permission card,
+  its choices and "esc to interrupt" are the real CLI's text, and the state reading matches those
+  words; only the conversation is in the locale. The strings file's header says so.
+- **The time rule is a squeeze, not a clamp**: clamping every event to 00:01 would tie them and
+  break their order; at 00:03 "2 h ago" reads "just now", but every event of today stays today
+  and in order. The wait also covers 00:00–00:02. §2.3 says so now.
+- **`state.json` has no serializer**: the seed writes `{ ...rest, names, hidden }` as
+  `saveState` does, with the settings through `withSetting`. `src/` is not this plan's to touch.
+- **Folder names must not equal a seed string** (`~/work/research`, `~/work/search-trial`): the
+  comparison replaces whole words, and a folder named like an English session would read as text.
+- **Left for blocks 4 and 7**: the chat tab's process is also `claude` on the PATH; the chat
+  stand-ins of `tests/data/chat` speak its stream, and the walk must put them first for the chat
+  scene. The away strip (`away-strip`) needs the human's presence state, not seeded here.
+
+### Block 4 — `menkar-t139`, 2026-11-20 (task 139)
+
+Done: `e2e/captures/scenes.ts` (three scenes: `team`, `board`, `firstTimeCard`),
+`captures.run.ts`, the registry's three entries and a `same?` field, `playwright.captures.config.ts`,
+`site/scripts/import-captures.mjs` and `same-picture.ts`, `sharp` 0.35.5 in `site/package.json`
+only, the root `captures` and `captures:reviewed`, the twelve images and `reviewed.json`, and
+`tests/site/captures.test.ts` (registry, alt text in every locale, files for every locale × theme
+and none outside, hashes signed off, `shot:` slugs in pages, the importer's two bounds). The alt
+text is `alt:<slug>` in `strings/en.ts` and `es.ts`, agreed with `menkar-t140` for `shot:`.
+
+Measured: `npm run captures` takes about 14 s on this machine (build, four launches in parallel,
+import); the twelve images weigh 1,126,238 bytes (1.1 MB), so §2.4's 22 slugs would be about 8 MB.
+
+Granted by `set` outside the block's list, 2026-11-20:
+- **`e2e/app.ts`**: `prepare` may return a Promise (the seed is async, through `writeJson`), and
+  `LaunchOptions.args` adds Chromium switches (`--force-device-scale-factor=2`).
+- **`e2e/captures/seed.ts`**: `notify_idle` and `notify_sound` off. A session turning blocked
+  raised a toast only while the window had focus, which varies under Xvfb.
+- **`e2e/captures/stand-in-claude.mjs`**: the stand-in hides the terminal's cursor
+  (`ESC[?25l`), as Claude Code does; the cursor box came and went between runs.
+- **"The same picture" replaces "equal pixels"** in §2.3 (`set`, 2026-11-20). The line it
+  replaced: "decoded pixels with the committed file — **equal pixels keep the old file** (no git
+  churn) —". Measured: glyph antialiasing moved up to 56 levels on 820–936 pixels between two runs
+  of the same screen; a palette re-picked from the first-time card's translucent backdrop moved
+  48,547 pixels by up to 51; one seeded word changed ("Three tasks" → "Four tasks") moved 10,317
+  pixels by up to 163, and the importer wrote both images that show it. With the bounds loosened
+  to 255 and 1 % it kept them.
+
+What the plan did not anticipate (each found by running twice and diffing the raw images):
+- **The screen settles after the ready locator.** The shot waits for one condition (§2.3): every
+  running session's context ring drawn and its dot at the seeded state, nothing focused, no
+  terminal scrollbar shown or fading, no spinner, fonts loaded; it holds before and after the shot
+  or the shot is taken again (five times at most).
+- **Xvfb leaves the pointer over the terminal**, which keeps xterm's scrollbar shown: the pointer
+  rests on the header first.
+- **The orchestrator's row can be drawn from a state sent before its terminal started**, without
+  its context ring, until the next state change; for 15 s once. The `team` scene folds Done today
+  and back to bring a fresh state. Reported to `set` as an app bug, not fixed here (§4).
+- **The quantizer re-picks the palette** from a capture whose pixels moved by one level, so the
+  importer compares the new raw capture drawn in the committed file's own palette (no dithering).
+- **The sidebar lists three open tasks** (`TASKS_SHOWN`) and counts all four in See all: the proof
+  checks both.
+- `tsconfig.node.json` does not include `playwright.captures.config.ts` (Biome lints it); not in
+  this block's files.
+
+Seen red: navigation removed from the `board` scene (the importer: "hero-orchestration and
+board-default show the same picture", nothing imported); a ready locator that never appears (the
+walk fails, `board-default` and `first-time-card` not written, the importer not run); a flat raw
+image ("is one flat colour", nothing imported); and in `captures.test.ts` an image edited after
+review, an alt text removed, a file outside the registry, a page with `shot:nope-t139`, and the
+bounds loosened (two tests). `CAPTURE_CHECK=1` wrote no raw file; `CAPTURE_ONLY='board-*'` wrote
+only the four `board-default` images and walked every scene.
+
+### Block 5 — `menkar-t140`, 2026-11-20 (task 140)
+
+Done: `site/src/remark/menkar.mjs` (`shot:`, `:ui[…]`, and `::shortcuts` for the generated
+keyboard page), `site/src/pages/[...slug].md.ts`, `site/src/components/PageTitle.astro` (the Copy
+page menu), `site/src/content/i18n/en.json` and `es.json`, `site/scripts/check.mjs` and
+`twins.mjs`, `site/src/content/docs/reference/shortcuts.md` and its twin, `site/astro.config.mjs`
+(the processor and the override), `site/src/content.config.ts` (the i18n collection),
+`site/package.json` (`check` runs `check.mjs`; eight direct dependencies, agreed with
+`menkar-t139`), `tests/site/locales`, `ui-keys`, `headings`, `menkar` and `check.test.ts`.
+
+How it holds:
+- **`shot:<slug>`** reads `CAPTURES` and `alt:<slug>` from `e2e/captures/strings/<locale>.ts`
+  (agreed with `menkar-t139`); in HTML, the light and the dark image of the page's locale, each in
+  a `<span>` with Starlight's `dark:sl-hidden` / `light:sl-hidden`, as relative paths into
+  `src/assets/captures/`, so Astro optimises them (seen: two `.webp` per shot); in the `.md`, the
+  light image's absolute URL. An unknown slug, or one without its alt text, throws and the build
+  fails.
+- **`:ui[key]`** renders the app's label bold in the page's locale; an unknown key throws.
+- **The shortcuts page is `::shortcuts`**, a heading and a table per group of `SHORTCUTS`, in the
+  app's order, from the catalogs; the same plugin writes it into the HTML and the `.md`.
+- **The twins' parity is in `site/scripts/twins.mjs`**, read by `locales.test.ts` (in `ci`) and by
+  `check.mjs` (in `site:check`), so the tone guide's "the build fails" holds too: no twin either
+  way, headings' count and levels (every level, outside code), capture slugs in order,
+  `sidebar.order`.
+- **Links**: `starlight-links-validator` already fails a missing page and a missing section (seen
+  with both, in both locales), generated headings included.
+- **The tracking scan** fails a foreign `src`, `srcset`, `poster`, `data`, `action`, `<link href>`,
+  `<use href>`, CSS `url()` and `@import` (in `.css`, `<style>` and `style=`), a beacon anywhere, and
+  `fetch`, XHR `open`, `import()`, `WebSocket`/`EventSource`/`Worker` or `.src =` with an absolute
+  URL in code. The site's own origin (from `astro.config.mjs`) and `<a href>` pass.
+- **`--release`** reads the pages' sources for `<!-- plan N: …` (an HTML comment may not reach the
+  build).
+- **The menu**: `<details>`, no script to open; Copy page fetches the same-origin `.md` and copies
+  it (a `ClipboardItem` holding the pending text, so the click's permission holds); Open in Claude
+  copies the prompt and shows "Prompt copied — paste it"; Open in ChatGPT is a `?q=` link. Checked
+  under Xvfb from `astro preview` in both locales and themes: the copy equals the `.md`, no request
+  to another origin, no page error.
+- Seen red: a page without its twin, headings of another level, captures swapped, another
+  `sidebar.order`, a numbered heading, an unknown `:ui` key (test and build), an unknown slug
+  (build), `<script src="https://example.com/a.js">` in a page, a link to a missing page and to a
+  missing section, a `plan 28` marker under `--release` (and passing without it), a third locale
+  in `astro.config.mjs`, the theme classes swapped, a missing alt text accepted, code fences not
+  skipped.
+
+Deviations and what the plan did not anticipate:
+- **Astro 7's Markdown processor is Sätteri, not remark**: `markdown.remarkPlugins` would not run.
+  The plugin is a Sätteri mdast plugin (`satteri({ mdastPlugins })` in `astro.config.mjs`, a visitor
+  per node type), ahead of Starlight's, whose directive restoration turns any directive left
+  unclaimed back into text. The `.md` endpoint parses with `mdast-util-from-markdown` and writes with
+  `mdast-util-to-markdown`; both drivers share `transformNode`. §2.1 says so now.
+- **`src/content/i18n/en.json` too**, and the i18n collection in `content.config.ts`: Starlight
+  falls back to the default locale's file, and the schema takes every key English has.
+- **The shortcuts table needs two site strings** (Action, Keys) the app's catalog does not have;
+  they are in the site's i18n files. Several chords of one row are separated by a comma, so no
+  "or" is translated.
+- **`site:check` runs the parity too** (above), and **`menkar.test.ts` and `check.test.ts`** test
+  the plugin over a fixture registry and the scan's cases: §2.7 named neither file.
+- **A request built at run time** (`fetch(path)`) cannot be read by a scan; one written as an
+  absolute URL is caught. Pagefind's and Starlight's scripts pass.
+- **The `.md` endpoint imports every capture**, so the original PNGs are emitted beside the
+  optimised `.webp` (only the `.md` links them).
+- **`llms-full.txt` holds both images of a shot**: `starlight-llms-txt` turns the HTML back into
+  Markdown. Left as is.
+- **Playwright 1.65 wants `chromium_headless_shell-1254`**, not installed; the screenshots used the
+  installed `chromium-1234` by `executablePath`, and nothing was downloaded.
+- **The site's TypeScript is not in any gate**: `tsc -p site` passes now; `npm run ci` does not run
+  it.
+
+### Block 6 — `menkar-t144`, 2026-11-20 (task 144)
+
+Done: `.github/workflows/docs.yml`, `workflow_dispatch` only. `build` (ubuntu-24.04): checkout,
+`setup-node` with `22.23.x` and the npm cache keyed on `site/package-lock.json`, `npm --prefix site
+ci`, `npm --prefix site run check -- --release`, `upload-pages-artifact` of `site/dist`. `deploy`:
+`deploy-pages`, `pages: write` and `id-token: write` on that job only, environment
+`github-pages` with the page's URL. `contents: read` at the top, `ASTRO_TELEMETRY_DISABLED: 1` in
+the workflow's `env`, one `pages` concurrency group that does not cancel a run in progress.
+Checkout and setup-node at plan 28's SHAs; `upload-pages-artifact` v5.0.0 (`fc324d35…`) and
+`deploy-pages` v5.0.1 (`368f8252…`), both lightweight tags read with `git ls-remote`, so the SHA is
+the commit's.
+
+Seen red: `tests/scripts/workflows.test.ts` with a `push:` trigger and `upload-pages-artifact@v5`
+put into `docs.yml` ("triggered by push…", "…is not pinned to a full commit SHA"), then put back.
+`actionlint` 1.7.12 in docker: 0 errors in the four workflows.
+
+Deviations and what the plan did not anticipate:
+- **§2.1 corrected** for a public repository and dispatch-only workflows (the old text is in
+  `docs/history/plans/00-STATUS.md`): no `push` trigger, no `if` on `private`.
+- **`npm run site:check -- --release` drops `--release`**: the root script is `npm --prefix site
+  run check`, so the flag reaches the inner npm as its own option, and `check.mjs` never sees it
+  (checked with a stand-in package: `[]` against `['--release']`). The workflow calls `npm --prefix
+  site run check -- --release`. The root script and the exit's line for
+  `docs/release-checklist.md` still carry the broken form; `package.json` is not this block's.
+- **No `configure-pages`**: Astro sets `base` itself, so its output is not needed.
+- **The build was not run here**: it rewrites `site/dist`, which other sessions use; `site:check`
+  passed in blocks 4 and 5.
+
+### Block 7 — `menkar-t149`, 2026-11-20 (task 149)
+
+Done: §2.4's 22 slugs in `registry.ts`, walked by nine scenes in `scenes.ts` (`team`, `board`,
+`workers`, `role`, `harbor`, `notes`, `settings`, `usage`, `away`), each with its alt text in
+`strings/en.ts` and `es.ts`; the 88 images and `reviewed.json`. Measured: `npm run captures` takes
+about 105 s on this machine (build, four launches in parallel, import), and the 88 images weigh
+5,376,995 bytes (5.1 MB). Two runs in a row wrote nothing and left every image byte-identical.
+
+Block 4's findings, settled as `set` said (2026-11-20):
+- **"esperando topic 2"**: task 3 now waits on a session, the consultant (`api-review` /
+  `analisis-api`), shown as the app shows any waiter; the app has no localized rendering for a
+  waiting task's waiter (`waitsOn` in `src/renderer/work.ts` returns it as written).
+- **The orchestrator** is `planning` / `planificacion`.
+- **Names sort the same in both locales**: the first-time card sorts sessions by name
+  (`src/renderer/orchestration.ts:265`) and the Usage window sorts projects by name, so the Spanish
+  names were chosen to sort as the English ones: `docs-redactor`/`sitio-build`, `analisis-api`,
+  skills `api-estilo`/`cambios`/`lint-openapi`, and the team project is **"Atlas app" / "App
+  Atlas"** (it was "Northwind app": "App Northwind" sorted before "Notas de campo" and "Sitio
+  Harbor" in Spanish only). §2.3's example name follows.
+- **"orchestrator" in the first-time card** is the app's own default, a literal at
+  `src/renderer/orchestration.ts:272` (not an `orch.*` key): left as is.
+- **The Board's Done column**: `board-default` and `task-to-review` hide the sidebar
+  (`#toggle-sidebar`) first, so every column fits at 1280 px; it is shown again after.
+- `tsconfig.node.json` was not touched: nothing here needed it.
+
+Seen red: the near-tie test with the rule off (`TIE_LEVELS` at -1000), the changed-word test with
+ties too loose (200); and the seed's mtime test, when the new skill files kept the real clock's
+time.
+
+Granted by `set` outside the block's list, 2026-11-20:
+- **`e2e/captures/stand-in-claude.mjs`**: a stream-json mode (`-p`) for the chat tab, answering
+  with the seed's line in the locale and asking Bash for the seed's command.
+- **`e2e/captures/captures.run.ts`**: the Walker gets the Electron app, `ui()` (the app's own
+  labels), `openWindow` (Settings at its own 860 × 640, Usage at the main window's size),
+  `shotWindow` (settled when two shots in a row are equal), an `area` for a part of the window,
+  and `holdClockAt`. Toasts count as unsettled; file and chat tabs need no context ring.
+- **`site/scripts/same-picture.ts`, `import-captures.mjs`, `tests/site/captures.test.ts`**: the
+  near-tie rule now in §2.3. The line it extended: "draw the raw capture in the committed file's
+  own palette and compare the two". Measured: en/dark/project-dropdown flipped between two files
+  every run; its raws differed by 3 pixels by 1 level, the two quantizations by 87,760 pixels (2.1
+  %) up to 50, and of the 5,157 pixels where the nearest-colour drawing differed from the committed
+  file, 4,925 were ties within 4 levels.
+
+What the plan did not anticipate:
+- **Playwright's clipped screenshot makes a terminal show its scrollbar**, and it stays shown: a
+  part of the window is taken with Electron's `capturePage` instead.
+- **"Away since HH:MM" is main's clock**: the `away` scene, last, shifts main's `Date.now` so the
+  click lands on the current whole hour; the app closes right after. Seen identical in both runs
+  ("Away since 12:00").
+- **The Your time week follows the clock** (today's row and its now line): `usage-your-time` shows
+  yesterday by the hour.
+- **The role dialog reads skills from disk**: the seed writes three under the team's folder
+  (`.claude/skills/`), with a `.git` so it is a repository.
+- **"Your time" was empty**: one prompt per turn makes no burst; each sitting now has two to four
+  prompts six minutes apart.
+- **A click on a project row's middle can hit its rename button**: the walk clicks the name.
+- **A double-click on a file opened nothing once in eight launches**: it is tried again.
+- Seen in the app, not changed here: Settings' and Usage's lists scroll sideways in Spanish
+  ("Retención de transcript…", "Tiempos de tare…"); the first-time card says "temas" in Spanish
+  where the tone guide's word is "pendientes"; "1 anteriores".
+
+### Block 8 — `menkar-t152`, 2026-11-20 (task 152)
+
+Done: the splash (`index.md`: a hero titled with §2.4's line, **Install Menkar** to
+`start/install/` and a second action to the orchestration mode, `hero-orchestration` under it,
+four short sections), the nine `orchestration/` pages in §2.4's order (`sidebar.order` 1–9), and
+`reference/roadmap.md` (`sidebar.order` 3, after the shortcuts at 1 and room for privacy at 2), each
+with its Spanish twin. Every capture §2.4 names for these pages is placed once, where it proves its
+sentence; every app label is `:ui[…]`. Checked against `docs/orchestration.md`,
+`plugin/guide/orchestration-mode.md`, the catalogs and the captures themselves.
+
+Deviations and what the plan did not anticipate:
+- **`orchestration/topics-and-tasks.md` is titled "Answer what awaits you" / "Respondé tus
+  pendientes"**, not §2.4's "Decide on topics": the tone guide's table never says topic to the
+  reader. The path stays.
+- **`board-default` is shown on the Board's page only**, not also on the orchestration index
+  (§2.4 listed it on both): nothing twice; the index shows `work-view-overview`.
+- **A label with a placeholder cannot be `:ui[…]`**: `uiLabel` returns the catalog's text as is,
+  so `work.tasks` would print "Tasks · {n}". The pages name such a section in prose ("Under the
+  items are the open tasks") instead of typing its label by hand.
+- **Links are absolute with the base** (`/menkar/…`, `/menkar/es/…`, trailing slash), hero
+  actions included; `starlight-links-validator` checks the hero's links too.
+- **Ten links reach block 9's pages** (`start/install`, `sessions/tabs-and-panes`, `usage/window`,
+  `reference/privacy`, `sessions/remote-control`, in both locales): `site:check` fails on them
+  until block 9 writes those pages. Run with throwaway stubs at those paths (removed after), it
+  passed whole.
+- **The roadmap names Codex and OpenCode "in the orchestration mode too" and macOS after 1.0** as
+  D3 and 1.191 say; no Windows, no WSL, no dates, no plan numbers.
+- Seen in the app, not changed here: `orch.bannerWithYou` in `es.ts` says "Esta sesión está
+  contigo." (tuteo where the app speaks voseo, and "con vos" is the table's word); the sidebar
+  group in `astro.config.mjs` is "Modo orquestación", where the table says "el modo de
+  orquestación".
+
+### Block 9 — `menkar-t153`, 2026-11-20 (task 153)
+
+Done: the twelve pages of §2.4 left to write, each with its Spanish twin: `start/install.md`,
+`start/first-sessions.md`, `start/agents.md`; `sessions/tabs-and-panes.md`, `projects.md`,
+`windows.md`, `files.md`, `chat.md`, `remote-control.md`; `usage/window.md`, `usage/cli.md`;
+`settings/look.md`, `settings/integrations.md`; `reference/privacy.md` (`sidebar.order` 2, between
+the shortcuts and the roadmap). Every capture §2.4 names for them is placed once, beside the
+sentence it proves; every app label without a placeholder is `:ui[…]`. Block 8's ten links to these
+pages now resolve. Checked against `README.md`, `docs/packaging.md`, the subsystem docs, the
+catalogs, `src/core/settings.ts`, `src/core/theme.ts`, the agents' descriptors and the captures.
+
+- **The Install page** gives the download-and-install form for both packages from
+  `releases/latest` (the asset names of `release.yml`, `sha256sum --check --ignore-missing
+  SHA256SUMS`, then `apt install ./…` or `dnf install ./…`), with plan 28's `apt commands` and
+  `rpm commands` markers, empty, at the top of each section: plan 28's block 6 fills them with the
+  Cloudsmith lines (and the attribution and privacy line §2 of plan 28 asks for). `site:check --
+  --release` fails on them, as designed. Linux on amd64 only; no Windows sentence beyond "There is
+  no Windows version", no WSL, no macOS.
+- **The privacy page** says only what the tree holds: no connection of Menkar's own (AGENTS.md's
+  rule, the CSP, `publish: null`); the agents' own connections; the two Menkar starts through Claude
+  Code when turned on (Remote Control, the classifier's prompts to Haiku); the only writes under
+  `~/.claude`; the three XDG folders and `~/Menkar/<project>/`; the history's columns (no prompt
+  text, from `HISTORY_SCHEMA`).
+
+Deviations and what the plan did not anticipate:
+- **Labels with a placeholder are prose**, as in block 8: `add.moveFrom` ("Move from {name}"),
+  `chat.alwaysAllow`, `files.heading`. The Cursor chat modes use `chat.modeAskReadOnly` and
+  `chat.modeTrustedAutoRun`, which have none.
+- **The context ring's red is 90 %**, not the 80 % `docs/spec/README.md` (F35) still says:
+  `DEFAULT_THRESHOLDS` in `src/core/context/levels.ts` is `{ warn: 60, full: 90 }`.
+- **"Chat" names the chat tab only** (the app's own "Continue in chat"), never a session, as the
+  vocabulary table asks.
+- Seen in the app, not changed here: the Spend section's footer (`usage.hint`, in the
+  `usage-spend` capture) says "Preferences → Integrations", where the classifier's switch is in
+  Settings › Usage & classifier; `es.ts` names transcripts both "transcript" and "transcripciones"
+  (`settings.section.retention` against `integrations.retention`); the pages follow "transcript".

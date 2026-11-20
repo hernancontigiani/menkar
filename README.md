@@ -8,6 +8,10 @@ experimental, after 1.0; there is no Windows version.
 **Status:** in construction, usable for daily work on Ubuntu: projects, sessions in tabs, split panes,
 several windows, the history of every session.
 
+**Documentation:** the public site, in English and Spanish, will be at
+<https://hernancontigiani.github.io/menkar/>. It is not published until the first release; until
+then, preview it locally (`npm run site:dev`, below).
+
 ## Install (Ubuntu)
 
 **0.1.0** is the first release candidate, for Ubuntu 24.04 on amd64. Build the package and install
@@ -147,6 +151,18 @@ npm run ui-check                     # builds, then Playwright on the real app u
 npm run package                      # the .deb, into release/ (takes about a minute)
 npm run package:check                # inspects the built .deb; installs nothing
 npm run package:smoke                # the e2e suite against the packaged app, under xvfb-run
+```
+
+The public site lives in `site/`, with its own dependencies; it needs the Node 22 release Astro
+asks for (`site/package.json`'s `engines`). Its tone guide is `site/AGENTS.md`.
+
+```sh
+npm run site:install                 # the site's own dependencies, once
+npm run site:dev                     # the site with live reload, English at / and Spanish at /es/
+npm run site:build                   # the static site, into site/dist/
+npm run site:check                   # builds, then checks links, twins and that nothing loads from elsewhere
+npm run captures                     # screenshots of the real app under xvfb-run, into the site
+npm run captures:reviewed -- <slug>… # signs off the changed images you opened (or --all-changed)
 ```
 
 `node scripts/classify-eval.mjs <labels.json>…` measures how often the turn classifier agrees with

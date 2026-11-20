@@ -246,3 +246,22 @@ same shape there, and how each system lists a process's children.
 
 > Replaced 2026-11-19 by decision 1.190: Menkar does not run on Windows until native Windows is built.
 **Trigger:** Menkar runs on Windows. First question: whether the app's rename of the journal
+
+## A documentation site
+
+> Left on 2026-11-20: the public site is built (`site/`, `docs/site.md`), not yet published.
+### A documentation site
+
+`README.md` is the user's guide and `docs/` is internal; nothing is published. A site is one more
+thing to keep true.
+
+**Trigger:** the README stops fitting on a few screens, or someone other than the human uses the
+app. First question: whether it is generated from `README.md` or written apart.
+
+## The orchestration mode's guide online
+
+> Left on 2026-11-20: the site exists, unpublished until the first release; the trigger became its publishing.
+(decisions 1.90, 1.91). Nothing links to an online copy: no site exists, and the app opens no URL
+of its own.
+**Trigger:** the documentation site exists ("A documentation site" above). First question: whether
+the card links to it, and whether that link counts as the app opening a URL of its own.
