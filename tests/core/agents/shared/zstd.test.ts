@@ -3,7 +3,7 @@
 import { mkdtempSync, readdirSync, readlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { zstdCompressSync } from 'node:zlib'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { streamLines } from '../../../../src/core/agents/shared/zstd'
 
 const folder = () => mkdtempSync(join(process.env.MENKAR_TEST_ROOT ?? '', 'zstd-'))
@@ -61,7 +61,9 @@ test('stopping after the first line closes the file', async () => {
     break
   }
   expect(first).toBe(lines[0])
-  await new Promise((resolve) => setImmediate(resolve))
+  // The descriptor is closed on libuv's thread pool, after any read in flight: under load that
+  // takes longer than a turn of the event loop, so the test waits for it, with a deadline.
+  await vi.waitUntil(() => !openFiles().includes(path), { timeout: 2000, interval: 10 })
   expect(openFiles()).not.toContain(path)
 })
 
