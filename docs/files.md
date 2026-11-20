@@ -93,3 +93,13 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
   focused one asks "Open in which window?". With none, a window opens on the current project.
   Each file goes through the file check; a refused one is an error dialog in that window. No file
   given prints the usage and exits with 2.
+
+## From a terminal's `Ctrl+click`
+
+- **Decision 1.192** (the human, 2026-11-20): `Ctrl+click` on a path a terminal printed, or on a
+  `file:` OSC 8 link, opens in a file tab of that window when the file check takes it
+  (`terminalOpensIn`, `src/core/files/exists.ts`, the same `checkFile` every way of opening runs),
+  as `menkar open` opens it: an editor tab, a Markdown file's preview behind its Preview button.
+  A folder and a file the check refuses (a PDF, an image) go to the system's app, and
+  `Ctrl+Shift+click` sends any path there. Where the link is found and how it is clicked:
+  `docs/window.md`, "Panes and terminals".

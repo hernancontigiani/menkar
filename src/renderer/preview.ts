@@ -69,7 +69,7 @@ function onLink(event: MouseEvent, path: string): void {
   event.preventDefault()
   const href = anchor.getAttribute('href') ?? ''
   if (/^https?:\/\//i.test(href)) {
-    void act({ type: 'openExternal', url: href })
+    void act({ type: 'openExternal', url: href, system: true })
     return
   }
   if (href.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(href.replace(/^file:/, ''))) return
