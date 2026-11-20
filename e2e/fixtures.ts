@@ -26,7 +26,8 @@ export const CLEARED_SESSION = '9e9e9e9e-0000-4000-8000-0000000000c1'
 // Each answer is printed as "TOOL <name>: <text>". The session FAKE_CLAUDE_QUERY names asks the
 // terminal for the cursor's position (CSI 6n) as it starts, as Claude Code queries its terminal.
 // With FAKE_CLAUDE_QUIET it starts with no transcript, as a session stopped before its first turn
-// is, until FIRSTTURN writes it with its -n name.
+// is, until FIRSTTURN writes it with its -n name; FIRSTWORK shows the working footer first, writes it
+// half a second later and stays working eight seconds, as a first turn the session joins during.
 // The team block: --version prints FAKE_CLAUDE_VERSION (2.1.325 by default) and exits;
 // --append-system-prompt-file is read at start, as Claude Code reads it, into claude-team.jsonl, and
 // a missing one stops it with Claude Code's error. With FAKE_CLAUDE_SOCKET set, unless a registry
@@ -180,6 +181,16 @@ process.stdin.on('data', (d) => {
     const name = args.includes('-n') ? args[args.indexOf('-n') + 1] : null
     record([...(name ? [{ type: 'custom-title', customTitle: name }] : []), { type: 'user', cwd: process.cwd(), message: { content: 'the first turn' } }])
     process.stdout.write('stand-in wrote its transcript\\r\\n')
+  }
+  if (typed.endsWith('FIRSTWORK')) {
+    typed = ''
+    process.stdout.write('esc to interrupt\\r\\n')
+    setTimeout(() => {
+      fs.mkdirSync(folder, { recursive: true })
+      const name = args.includes('-n') ? args[args.indexOf('-n') + 1] : null
+      record([...(name ? [{ type: 'custom-title', customTitle: name }] : []), { type: 'user', cwd: process.cwd(), message: { content: 'the first turn' } }])
+    }, 500)
+    setTimeout(() => process.stdout.write('\\x1b[2J\\x1b[Hstand-in idle\\r\\n'), 8000)
   }
   if (typed.endsWith('COMPACT')) {
     typed = ''
