@@ -97,6 +97,40 @@ describe("Codex's waker", () => {
     await expect(waker().wake(THREAD, 'hello', undefined)).rejects.toThrow(/ended with 3/)
   })
 
+  test('codex queue runs with plugins disabled: no marketplace sync, no git folder left', async () => {
+    rollout(THREAD)
+    expect(await waker().wake(THREAD, 'hello', undefined)).toBe('posted')
+    const runs = readFileSync(join(home, 'codex-args.txt'), 'utf8').trim().split('\n')
+    expect(runs).toHaveLength(1)
+    expect(runs[0]).toMatch(/^queue --disable plugins --thread /)
+    expect(existsSync(join(codexHome, '.tmp'))).toBe(false)
+  })
+
+  test("with Codex's daemon running, its refusal of the override is answered by the plain call", async () => {
+    rollout(THREAD)
+    vi.stubEnv('FAKE_CODEX_DAEMON', '1')
+    expect(await waker().wake(THREAD, 'hello', undefined)).toBe('posted')
+    const runs = readFileSync(join(home, 'codex-args.txt'), 'utf8').trim().split('\n')
+    expect(runs.map((r) => r.split(' --message')[0])).toEqual([
+      `queue --disable plugins --thread ${THREAD}`,
+      `queue --thread ${THREAD}`,
+    ])
+    expect(queued()).toEqual([{ thread_id: THREAD, text: wakeText('hello', undefined) }])
+    expect(existsSync(join(codexHome, '.tmp'))).toBe(false)
+  })
+
+  test('any other failure is not retried', async () => {
+    rollout(THREAD)
+    const runs = join(root, 'runs.txt')
+    writeFileSync(
+      join(failing, 'codex'),
+      `#!/bin/sh\necho run >> ${runs}\necho "Error: the queue is busy" >&2\nexit 3\n`,
+    )
+    vi.stubEnv('PATH', `${failing}:${process.env.PATH}`)
+    await expect(waker().wake(THREAD, 'hello', undefined)).rejects.toThrow(/ended with 3/)
+    expect(readFileSync(runs, 'utf8')).toBe('run\n')
+  })
+
   test("Menkar's own session variables are not handed to codex queue", async () => {
     rollout(THREAD)
     vi.stubEnv('CODEX_THREAD_ID', 'the-thread-menkar-runs-in')

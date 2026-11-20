@@ -58,3 +58,15 @@ ends; elsewhere than Linux it binds when the first turn ends.
 > Left on 2026-11-20: `send_message` is answered through the target's Waker (plan 39 P1b.3, task 164).
 - **Not built yet on this branch:** `send_message`'s call is answered as an unknown tool until
   its waking through the target's Waker exists.
+
+## Codex: starting it
+
+> Left on 2026-11-20: Codex's `DeclaredWrites` hold what `codex queue` writes (plan 39 P1b.4, task 165).
+- **Its `DeclaredWrites` are empty**: no call Menkar makes has Codex write into its own data (no
+  name at start, no queued message yet).
+
+## Codex: waking
+
+> Left on 2026-11-20: the waker runs `codex queue --disable plugins`, plain only on the daemon's refusal (plan 39 P1b.4, task 165).
+- **Never with a `-c`:** with Codex's shared daemon running, a queue that would run its own
+  embedded server is refused.

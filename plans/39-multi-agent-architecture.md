@@ -1977,3 +1977,43 @@ P0's blocks run in turn.
   pane: a message sent then is queued and waits for the next resume (`'posted'`). A resume of a
   Codex session with a prompt while a message waits runs both in one turn (`resume_session` and
   `renew` pass prompts): for P1b.5/P1b.6 to weigh.
+
+### P1b.4, first half (`menkar-t165`, task 165, 2026-11-20)
+
+- **The namer is not built: D5 is back with the human (topic 82).** `codex` measured
+  `thread/name/set` on 0.169.0 (its research file, item 25): a separate `codex app-server
+  --disable plugins` on the same home serves it as soon as the rollout exists (first message);
+  it appends to `session_index.jsonl` and sets `threads.name`; the running TUI never sees it.
+  The TUI generates a title at every user message while it holds no name of its own, saved only
+  if the name is still empty, ~37 ms after the first message with the stand-in API. A user's
+  `/rename` and a generated title are stored identically, and no per-run switch turns the
+  generation off, so a thread Menkar names costs one hidden model request per message. set put D5
+  back to the human with that cost; the namer comes as its own follow-up.
+- **Granted by set, 2026-11-20 — files beyond §5's row:** new `src/core/agents/codex/writes.ts`
+  and `src/core/agents/codex/index.ts` (Codex's `DeclaredWrites`, the queue row P1b.3 left
+  undeclared); `src/main/agents/codex/waker.ts`, `e2e/standins/codex.ts`,
+  `tests/main/agents/codex/waker.test.ts` (the waker without the plugin sync); the shared harness
+  `tests/core/agents/contract/nowrite-harness.ts` (moved out of `nowrite.test.ts`) and the new
+  `tests/main/agents/contract/nowrite.test.ts`.
+- **Why the harness missed P1b.3's queue row:** it ran only each catalog's read side, in core;
+  what main runs of an agent's own (`codex queue`) never ran under it. Now main's contract test
+  wakes every session found in each agent's fixture home, for every agent whose main kit has a
+  waker, with the agent's stand-in on the PATH, and compares the home with the kit's
+  `DeclaredWrites` (the stand-in's own records at the home's root excluded). The listing also
+  holds folders (by presence; their mtime moves with any file), so an empty folder appearing is
+  seen.
+- **Codex's `DeclaredWrites`** (`codex` measured `codex queue` by snapshot diffs, item 24, in a
+  home that exists): changed `queue_1.sqlite` and `logs_2.sqlite` with their `-wal`/`-shm`,
+  `state_5`/`goals_1`/`memories_1` `.sqlite-shm`; created `.sqlite-maintenance.lock`. Delivery
+  (the TUI taking the row) is Codex's own turn, not Menkar's write.
+- **The waker without the plugin sync:** a plain `codex queue` syncs Codex's plugin marketplace
+  (`git ls-remote` to GitHub, an empty `.tmp/git-XXXXXX/` left). It now runs `codex queue
+  --disable plugins …`; Codex's shared daemon refuses any override with "cannot queue through an
+  embedded app server while a local app-server daemon is running", and on that line alone the
+  plain call is made, served by the daemon (nothing synced here). The stand-in learns both: the
+  sync's folder without `--disable plugins`, and `FAKE_CODEX_DAEMON`'s refusal.
+- **Seen failing once**, each injected and reverted: Codex's writes undeclared (main's no-write
+  test: `created .codex/queue_1.sqlite`); `--disable plugins` dropped (main's no-write test on
+  `.codex/.tmp/git-*`, the waker's disabled test, the daemon test); no retry on the refusal (the
+  daemon test); a retry on any failure (the "not retried" test); folders left out of the listing
+  (the harness's folder test).

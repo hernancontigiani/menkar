@@ -102,3 +102,8 @@ without `state.json` and `projects.json` is the first start that imports agent-t
 
 > Left on 2026-11-20: Codex's sessions are found, watched and followed (plan 39, P1a).
 - **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only
+
+## Reading a transcript
+
+> Left on 2026-11-20: main's agent commands pass the no-write test too (plan 39 P1b.4, task 165).
+  names (`docs/agents.md`).

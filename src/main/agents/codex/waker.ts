@@ -12,18 +12,26 @@ import type { Waker } from '../types'
 // it sends can answer one.
 export const QUEUE_WAIT_MS = 10_000
 
-// Codex's own channel into a running thread: no keystroke reaches the terminal. Never given a
-// `-c`: with Codex's shared daemon running, a queue that would run its own server is refused.
+// Codex's own channel into a running thread: no keystroke reaches the terminal. `--disable plugins`
+// keeps the command from syncing Codex's plugin marketplace over the network and leaving a git
+// folder in its home on every wake. Codex's shared daemon, when it runs, refuses any override; the
+// plain call then goes through the daemon, which syncs nothing here.
 // A thread with no rollout (before its first message) fails exactly as an unknown id does, so the
 // rollout is looked for first.
+export const DAEMON_REFUSAL =
+  'cannot queue through an embedded app server while a local app-server daemon is running'
+
 export const waker: Waker = {
   wake: async (sessionId, text, counts) => {
     if ((await findRollout(join(codexHome(), 'sessions'), sessionId)) === null) return 'no session'
-    const end = await runWakeCommand(
+    const message = ['--thread', sessionId, '--message', wakeText(text, counts)]
+    let end = await runWakeCommand(
       descriptor.command,
-      ['queue', '--thread', sessionId, '--message', wakeText(text, counts)],
+      ['queue', '--disable', 'plugins', ...message],
       QUEUE_WAIT_MS,
     )
+    if (end.code !== 0 && end.stderr.includes(DAEMON_REFUSAL))
+      end = await runWakeCommand(descriptor.command, ['queue', ...message], QUEUE_WAIT_MS)
     if (end.code === 0) return 'posted'
     log.warn('codex queue failed', { session: sessionId, code: end.code, stderr: end.stderr })
     throw new Error(`codex queue ended with ${end.code ?? 'a signal'}`)

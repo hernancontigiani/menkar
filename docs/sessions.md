@@ -49,7 +49,8 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
   a rescan leave every transcript's bytes and mtime unchanged. Each agent's catalog passes the
   no-write test over its fixture home (`tests/core/agents/contract/nowrite.test.ts`): every file
   keeps its bytes and mtime and the tree its listing, except what the agent's `DeclaredWrites`
-  names (`docs/agents.md`).
+  names (`docs/agents.md`). What main runs of the agent's own (its waker's command) passes the same
+  test against the same home, with the agent's stand-in (`tests/main/agents/contract/`).
 
 ## Keeping it current
 

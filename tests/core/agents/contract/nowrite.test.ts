@@ -2,59 +2,14 @@
 // writes nothing there but what the agent's kit declares (DeclaredWrites). Every registered
 // agent's catalog reads its fixture home here; every file keeps its bytes and mtime and the tree
 // its listing, except a declared path.
-import { cpSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { AGENT_IDS, type AgentId } from '../../../../src/core/agents/ids'
 import { kitOf } from '../../../../src/core/agents/registry'
 import { readRange } from '../../../../src/core/agents/shared/jsonl'
 import type { DeclaredWrites } from '../../../../src/core/agents/types'
-
-const DATA = join(import.meta.dirname, '..', '..', '..', 'data', 'agents')
-
-interface Entry {
-  readonly bytes: Buffer
-  readonly mtime: number
-}
-
-// Every file under the home, by its path relative to the home.
-function filesOf(home: string): Map<string, Entry> {
-  const files = new Map<string, Entry>()
-  const walk = (dir: string) => {
-    for (const item of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, item.name)
-      if (item.isDirectory()) walk(path)
-      else
-        files.set(relative(home, path).split(sep).join('/'), {
-          bytes: readFileSync(path),
-          mtime: statSync(path).mtimeMs,
-        })
-    }
-  }
-  walk(home)
-  return files
-}
-
-// The paths that changed beyond what the agent declares: a file that appeared, vanished or whose
-// bytes or mtime differ, unless a declared pattern allows it.
-function undeclared(
-  before: Map<string, Entry>,
-  after: Map<string, Entry>,
-  writes: DeclaredWrites,
-): string[] {
-  const matches = (patterns: readonly RegExp[], path: string) => patterns.some((p) => p.test(path))
-  const out: string[] = []
-  for (const [path, entry] of after) {
-    const was = before.get(path)
-    if (!was) {
-      if (!matches([...writes.created, ...writes.changed], path)) out.push(`created ${path}`)
-    } else if (!was.bytes.equals(entry.bytes) || was.mtime !== entry.mtime) {
-      if (!matches(writes.changed, path)) out.push(`changed ${path}`)
-    }
-  }
-  for (const path of before.keys()) if (!after.has(path)) out.push(`removed ${path}`)
-  return out.sort()
-}
+import { DATA, type Entry, filesOf, undeclared } from './nowrite-harness'
 
 let n = 0
 
@@ -93,6 +48,19 @@ describe('the harness', () => {
     ['a removed file', new Map<string, Entry>(), ['removed .x/a.jsonl']],
   ])('sees %s', (_, after, seen) => {
     expect(undeclared(before, after, none)).toEqual(seen)
+  })
+
+  test('sees a folder that appears empty, and not a folder whose mtime moved', () => {
+    const home = join(process.env.MENKAR_TEST_ROOT ?? '', 'nowrite-folders')
+    mkdirSync(join(home, '.x'), { recursive: true })
+    const was = filesOf(home)
+    writeFileSync(join(home, '.x', 'a.jsonl'), 'a')
+    mkdirSync(join(home, '.x', '.tmp', 'git-1'), { recursive: true })
+    const writes: DeclaredWrites = { created: [/^\.x\/a\.jsonl$/], changed: [] }
+    expect(undeclared(was, filesOf(home), writes)).toEqual([
+      'created .x/.tmp/',
+      'created .x/.tmp/git-1/',
+    ])
   })
 
   test('a declared creation allows a new file and not a change to an existing one', () => {

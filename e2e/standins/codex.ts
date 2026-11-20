@@ -19,7 +19,10 @@ import { join } from 'node:path'
 //   rollout stays open, as Codex keeps it.
 // - `codex queue --thread <id> --message <text>` puts the message in $CODEX_HOME/queue_1.sqlite,
 //   or exits 1 when the thread has no rollout; a running stand-in holding that thread takes it as
-//   its next turn and deletes the row.
+//   its next turn and deletes the row. Without `--disable plugins` it first syncs Codex's plugin
+//   marketplace as 0.169 does, leaving a `.tmp/git-XXXXXX/` behind in $CODEX_HOME. With
+//   FAKE_CODEX_DAEMON set (Codex's shared daemon running), any `-c` or `--disable` is refused with
+//   Codex's own line and exit 1, and a plain call is served by the daemon: nothing synced here.
 // - With `-c mcp_servers.menkar.*` given, `/menkar <tool> [<JSON arguments>]` typed calls that
 //   tool of the server the keys name, started as Codex 0.169 starts a stdio server: its environment is only Codex's few
 //   variables, then the names in `env_vars` taken from its own environment, then `env`. The
@@ -63,6 +66,17 @@ function queueDb() {
 }
 
 if (args[0] === 'queue') {
+  const overridden = args.includes('-c') || args.includes('--disable')
+  if (process.env.FAKE_CODEX_DAEMON && overridden) {
+    process.stderr.write('Error: cannot queue through an embedded app server while a local app-server daemon is running; remove configuration overrides or use --remote\\n')
+    process.exit(1)
+  }
+  const disabled = args.some((word, i) => args[i - 1] === '--disable' && word === 'plugins')
+  if (!process.env.FAKE_CODEX_DAEMON && !disabled) {
+    const git = path.join(home, '.tmp', 'git-' + crypto.randomBytes(3).toString('hex'))
+    for (const dir of ['objects', 'refs']) fs.mkdirSync(path.join(git, dir), { recursive: true })
+    fs.writeFileSync(path.join(git, 'HEAD'), '')
+  }
   const thread = args[args.indexOf('--thread') + 1]
   const message = args[args.indexOf('--message') + 1]
   if (!rolloutOf(thread)) {

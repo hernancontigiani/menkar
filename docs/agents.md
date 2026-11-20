@@ -144,8 +144,11 @@ its kit, and the renderer offers none of them for a Codex session.
   `CODEX_NETWORK_PROXY_SNAPSHOT_BROKERED_*` by prefix (`EnvPatterns.prefixes`) and the plugin
   folders `PLUGIN_ROOT`/`PLUGIN_DATA` only when `CODEX_THREAD_ID` is inherited too
   (`EnvPatterns.gated`). Codex's configuration (`CODEX_HOME`, keys) is the user's and kept.
-- **Its `DeclaredWrites` are empty**: no call Menkar makes has Codex write into its own data (no
-  name at start, no queued message yet).
+- **Its `DeclaredWrites`** (`src/core/agents/codex/writes.ts`) are what `codex queue` writes at
+  Menkar's wake, measured by `codex` (0.169.0, snapshot diffs in a home that exists): its queue row
+  in `queue_1.sqlite`, its log in `logs_2.sqlite`, their `-wal`/`-shm`, the `-shm` of `state_5`,
+  `goals_1` and `memories_1`, and `.sqlite-maintenance.lock` created once. The session taking the
+  row is Codex's own turn, not Menkar's write.
 
 ## Codex: its sessions
 
@@ -284,8 +287,12 @@ Plan 39 P1b.3, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
   within seconds, a busy one as its next turn. At an approval card the message waits and the card
   stays as it is until the human answers it: a queued message never answers an approval. Text is
   delivered byte for byte (newlines, quotes, 2,000+ characters), and two messages run as two turns.
-- **Never with a `-c`:** with Codex's shared daemon running, a queue that would run its own
-  embedded server is refused.
+- **`--disable plugins`, and the daemon:** a plain `codex queue` runs its own server, which syncs
+  Codex's plugin marketplace (`git ls-remote` to GitHub, an empty `.tmp/git-XXXXXX/` left in its
+  home) at every wake; `--disable plugins` does none of it. With Codex's shared daemon running, any
+  override (`-c`, `--disable`) is refused ("cannot queue through an embedded app server while a
+  local app-server daemon is running"); on that line alone the plain call is made, and the daemon
+  queues it, syncing nothing here.
 - **The outcome:** exit 0 → `posted`; another exit → a failure, logged with its error output.
   **A thread with no rollout** (a Codex session before its first message, or a provisional id)
   fails exactly as an unknown id does, so the rollout is looked for first and the answer is
