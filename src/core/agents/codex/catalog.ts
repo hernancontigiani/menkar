@@ -403,7 +403,7 @@ async function watchTargets(root: string): Promise<string[]> {
 // The names in `session_index.jsonl`, read as it grows. Codex appends a line per name, a title it
 // made or a rename alike; the last line for a thread wins whatever its `updated_at`, and an empty
 // name clears it.
-class NameIndex {
+export class NameIndex {
   #ino = -1
   #offset = 0
   #names = new Map<string, string>()

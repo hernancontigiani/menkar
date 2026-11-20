@@ -1,5 +1,5 @@
-// R9 of the multi-agent design on main's side: what Menkar runs of an agent's own (its waker's
-// command) writes nothing in the agent's data but what the agent's kit declares. The core contract
+// R9 of the multi-agent design on main's side: what Menkar runs of an agent's own (its waker's and
+// its namer's commands) writes nothing in the agent's data but what the agent's kit declares. The core contract
 // reads each agent's sessions; this runs each main kit's commands against the same fixture home,
 // with the agent's stand-in on the PATH, so a write the kit forgot to declare fails here.
 import { cpSync } from 'node:fs'
@@ -22,6 +22,7 @@ const STAND_INS: Partial<Record<AgentId, (bin: string) => void>> = { codex: code
 const STAND_IN_RECORDS = /^codex-(args|env|mcp-env|threads)\.(txt|json)$/
 
 const WAKING = AGENT_IDS.filter((id) => mainKitOf(id).waker !== null)
+const NAMING = AGENT_IDS.filter((id) => mainKitOf(id).namer !== null)
 
 let n = 0
 
@@ -44,24 +45,37 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-test('every agent that can be woken is checked, Codex among them', () => {
+test('every agent that can be woken or named after its start is checked, Codex among them', () => {
   expect(WAKING).toContain('codex')
+  expect(NAMING).toContain('codex')
 })
+
+// A compressed rollout is an old session's, which the stand-in does not look in.
+async function sessionsOf(id: AgentId): Promise<string[]> {
+  const found = await kitOf(id).catalog.find(kitOf(id).catalog.root())
+  const live = found.filter((f) => !f.locator.endsWith('.zst')).map((f) => f.id)
+  expect(live.length).toBeGreaterThan(0)
+  return live
+}
 
 describe.each(WAKING.map((id) => [id]))('%s', (id) => {
   test('waking a session writes nothing it does not declare', async () => {
     const home = homeOf(id)
     const before = agentData(filesOf(home))
     expect(before.size).toBeGreaterThan(0)
-    const found = await kitOf(id).catalog.find(kitOf(id).catalog.root())
-    expect(found.length).toBeGreaterThan(0)
+    for (const session of await sessionsOf(id))
+      await mainKitOf(id).waker?.wake(session, 'hello', undefined)
 
-    // A compressed rollout is an old session's, which the stand-in does not look in.
-    const outcomes = []
-    for (const item of found.filter((f) => !f.locator.endsWith('.zst')))
-      outcomes.push(await mainKitOf(id).waker?.wake(item.id, 'hello', undefined))
-    expect(outcomes.length).toBeGreaterThan(0)
+    expect(undeclared(before, agentData(filesOf(home)), kitOf(id).writes)).toEqual([])
+  })
+})
 
+describe.each(NAMING.map((id) => [id]))('%s', (id) => {
+  test('naming a session writes nothing it does not declare', async () => {
+    const home = homeOf(id)
+    const before = agentData(filesOf(home))
+    for (const session of await sessionsOf(id))
+      expect(await mainKitOf(id).namer?.after(session, 'a-worker')).toBe('named')
     expect(undeclared(before, agentData(filesOf(home)), kitOf(id).writes)).toEqual([])
   })
 })

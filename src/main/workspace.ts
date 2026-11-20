@@ -4,6 +4,7 @@ import { stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
+import { agentNamedList, withAgentNamed } from '../core/agent-named'
 import { descriptorOf, paneAgentLabel } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT, parseAgentId } from '../core/agents/ids'
 import { isDefault, kitOf } from '../core/agents/registry'
@@ -331,6 +332,8 @@ let remoteIds = new Set<string>()
 let mutedIds = new Set<string>()
 // state.json's `session_agents`, kept the same way.
 let savedAgents: Readonly<Record<string, string>> = {}
+// state.json's `agent_named`, kept the same way.
+let namedIds = new Set<string>()
 
 // The orientation of a tab that is not a session tab in the layout (a transient tab split).
 const tabOrientation = new Map<string, 'horizontal' | 'vertical'>()
@@ -367,6 +370,16 @@ let joinTimer: ReturnType<typeof setInterval> | undefined
 const sessionInfo = (id: string) => sessionList.find((s) => s.id === id)
 // The name a session another one started has until its transcript gives Claude's.
 const startedNames = new Map<string, string>()
+// Sessions the orchestration started whose agent is named once its thread exists (decision 1.195),
+// by the id they started under, until it binds.
+const toName = new Map<string, { readonly name: string; readonly agent: AgentId }>()
+// Named at the bind and looked at once more when their first turn ends: a title Codex generated
+// in that turn is its own, and is overwritten.
+const firstTurnNames = new Map<string, { readonly name: string; readonly agent: AgentId }>()
+// The watches that hasten a pane's bind while its session waits to be named, by pane.
+const nameWatches = new Map<string, () => void>()
+// One naming at a time per session.
+const namings = new Map<string, Promise<void>>()
 const sessionName = (id: string) => sessionInfo(id)?.name ?? startedNames.get(id) ?? id.slice(0, 8)
 // A name of its own: Claude's custom title, or the one Menkar started it with; not a derived title.
 const ownName = (id: string): string | undefined => {
@@ -1186,6 +1199,11 @@ function onPaneExit(paneId: string): void {
   const pane = panes.get(paneId)
   if (!pane) return
   panes.delete(paneId)
+  stopNameWatch(paneId)
+  if (pane.sessionId) {
+    toName.delete(pane.sessionId)
+    firstTurnNames.delete(pane.sessionId)
+  }
   if (turns.get(paneId) === 'open' && pane.sessionId) turnEnd(paneId, pane.sessionId, agentOf(pane))
   turns.delete(paneId)
   permissions.exited(paneId)
@@ -1451,6 +1469,13 @@ function bindPane(pane: Pane, from: string, to: string, pending: Pending): void 
     startedNames.delete(from)
     startedNames.set(to, name)
   }
+  const naming = toName.get(from)
+  if (naming) {
+    toName.delete(from)
+    stopNameWatch(pane.id)
+    firstTurnNames.set(to, naming)
+    nameSession(to, naming)
+  }
   const stop = stopRequests.get(pane.id)
   if (stop?.sessionId === from) stopRequests.set(pane.id, { ...stop, sessionId: to })
   const renewal = renewRequests.get(pane.id)
@@ -1460,6 +1485,60 @@ function bindPane(pane: Pane, from: string, to: string, pending: Pending): void 
     recordPromptedStart(to, projectOf(projects, to)?.id)
   }
   log.info('a started session bound its id', { from, to })
+}
+
+// ---------------------------------------------------------------- naming a session after its start
+
+// A session the orchestration started, of an agent that cannot be named at start (decision 1.195):
+// named as soon as its thread exists. Its pane's bind is looked for at each change where the
+// thread's files appear, not only at the join poll, so the name lands before the agent names the
+// thread itself.
+function nameWhenBound(sessionId: string, name: string, agent: AgentId): void {
+  const namer = mainKitOf(agent).namer
+  if (!namer) return
+  if (!isProvisional(sessionId)) {
+    firstTurnNames.set(sessionId, { name, agent })
+    nameSession(sessionId, { name, agent })
+    return
+  }
+  toName.set(sessionId, { name, agent })
+  const pane = [...panes.values()].find((p) => p.sessionId === sessionId)
+  if (!pane) return
+  stopNameWatch(pane.id)
+  nameWatches.set(
+    pane.id,
+    namer.watch(pane.startedAt, () => probeBinds([pane])),
+  )
+}
+
+function stopNameWatch(paneId: string): void {
+  nameWatches.get(paneId)?.()
+  nameWatches.delete(paneId)
+}
+
+function nameSession(
+  sessionId: string,
+  naming: { readonly name: string; readonly agent: AgentId },
+): void {
+  const namer = mainKitOf(naming.agent).namer
+  if (!namer) return
+  const previous = namings.get(sessionId) ?? Promise.resolve()
+  const next = previous
+    .then(() => namer.after(sessionId, naming.name))
+    .then(async (outcome) => {
+      if (outcome === 'no session') return
+      if (outcome === 'named') log.info('a started session was named', { session: sessionId })
+      if (namedIds.has(sessionId)) return
+      namedIds.add(sessionId)
+      await sessions.updateState((state) => withAgentNamed(state, sessionId))
+    })
+    .catch((error: unknown) =>
+      log.warn('a started session could not be named', { session: sessionId, error }),
+    )
+    .finally(() => {
+      if (namings.get(sessionId) === next) namings.delete(sessionId)
+    })
+  namings.set(sessionId, next)
 }
 
 // ---------------------------------------------------------------- a terminal link
@@ -2143,9 +2222,13 @@ async function requestRenew(
 // follows it as its agent says.
 function turnEnded(paneId: string, sessionId: string): void {
   const pane = panes.get(paneId)
+  // Named before this turn ended: looked at once more. Named now, as this turn binds it: not again.
+  const recheck = firstTurnNames.get(sessionId)
   if (pane?.pending && pane.pending.expectedId === null && !inSomeTab(sessionId))
     joinSession(pane, sessionId)
   else if (pane?.sessionId && pane.sessionId !== sessionId) followPane(pane, sessionId, null)
+  firstTurnNames.delete(sessionId)
+  if (recheck) nameSession(sessionId, recheck)
   stopRecorded(paneId, sessionId)
   turnEndedContext(sessionId)
   if (stopRequests.get(paneId)?.sessionId === sessionId) stopNow(paneId)
@@ -2209,6 +2292,7 @@ async function renew(paneId: string): Promise<void> {
       ...(remote ? { remote } : {}),
       ...(request.promptFile ? { promptFile: request.promptFile } : {}),
     })
+    if (name && namedIds.has(from)) nameWhenBound(to, name, agent)
   } finally {
     releaseStart(tabId)
   }
@@ -2380,6 +2464,7 @@ async function startForAgent(
     ...(remote ? { remote: remoteName(name, cwd, id) } : {}),
     ...(promptFile ? { promptFile } : {}),
   })
+  nameWhenBound(id, name, agent)
   changed({ projects: true })
   return {
     ok: true,
@@ -3343,6 +3428,7 @@ export async function startWorkspace(): Promise<void> {
   remoteIds = new Set(remoteControlList(await sessions.currentState()))
   mutedIds = new Set(mutedList(await sessions.currentState()))
   savedAgents = sessionAgents(await sessions.currentState())
+  namedIds = new Set(agentNamedList(await sessions.currentState()))
   installedAgents = []
   for (const agent of AGENT_IDS)
     if (await findOnPath(descriptorOf(agent).command)) installedAgents.push(agent)
@@ -3355,6 +3441,7 @@ export async function startWorkspace(): Promise<void> {
       remoteIds = new Set(remoteControlList(state))
       mutedIds = new Set(mutedList(state))
       savedAgents = sessionAgents(state)
+      namedIds = new Set(agentNamedList(state))
       push()
       teamFactsMayChange()
     })

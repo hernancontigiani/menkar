@@ -1,5 +1,6 @@
 import type { MainAgentKit } from '../types'
 import { bind } from './bind'
+import { namer } from './namer'
 import { waker } from './waker'
 
 export const mainKit: MainAgentKit = {
@@ -9,4 +10,5 @@ export const mainKit: MainAgentKit = {
   waker,
   inbox: null,
   bind,
+  namer,
 }

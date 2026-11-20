@@ -109,6 +109,8 @@ describe("Codex's waker", () => {
   test("with Codex's daemon running, its refusal of the override is answered by the plain call", async () => {
     rollout(THREAD)
     vi.stubEnv('FAKE_CODEX_DAEMON', '1')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 20, 23, 59, 58))
     expect(await waker().wake(THREAD, 'hello', undefined)).toBe('posted')
     const runs = readFileSync(join(home, 'codex-args.txt'), 'utf8').trim().split('\n')
     expect(runs.map((r) => r.split(' --message')[0])).toEqual([

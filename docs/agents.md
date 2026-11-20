@@ -302,6 +302,35 @@ Plan 39 P1b.3, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
   only a session with a pane; a Codex that ended with an error leaves its shell, and so its pane,
   open, and a message queued then waits for the thread's next resume.
 
+## Codex: naming
+
+Decision 1.195 (the human, 2026-11-20, amending D5), measured by `codex` on codex-cli 0.169.0.
+
+- **Which sessions:** only the Codex sessions `start_session` starts (workers, consultants), which
+  the team addresses by name, and a renew of one of them, whose new thread is named the same.
+  Each named session is kept in `state.json`'s `agent_named` (`docs/sessions.md`), so a renew
+  after a restart still names. A session the human opens from New keeps Codex's own title, and a
+  name on a session Menkar did not start is never touched.
+- **The call** (`src/main/agents/codex/namer.ts`): `thread/name/set` sent to a separate `codex
+  app-server --disable plugins` on the same home (`initialize` with a client name and version,
+  `initialized`, the call, then its input closed: it exits 0 whatever it answered, so the answer is
+  read). Codex appends the name to `session_index.jsonl` and sets `threads.name`; the running TUI
+  never sees it, and its footer keeps no name. A thread with no rollout and an unknown id answer
+  alike, `no rollout found…`: `no session`. A thread that already has the name is not called.
+- **As soon as the rollout appears:** Codex accepts the call from the thread's first message.
+  While a named session's pane waits for its id, Codex's home and the day folder its rollout will
+  be in are watched, and each change looks for the pane's thread at once (the `/proc` bind), not
+  only at the 1.5 s poll; the call follows the bind.
+- **Codex's generated title:** while the TUI holds no name of its own it asks the model for a
+  title at every user message and saves it only if the thread still has no name. Named from
+  outside, the TUI never learns it, so **each message of a named thread costs one hidden title
+  request** (accepted by 1.195). A title that landed before Menkar's call is Codex's own and is
+  overwritten, and the name is looked at once more when the first turn ends, for the title saved
+  between the TUI's check and its write. After that, a change is the human's `/rename`, which
+  Codex stores exactly as a generated title: never overwritten.
+- **Names are not unique** in Codex: two threads may share one, and `codex resume <name>` or
+  `codex queue --thread <name>` then refuse. Menkar addresses threads by id only.
+
 ## Codex as a worker
 
 Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).

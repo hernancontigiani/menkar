@@ -7,4 +7,5 @@ export const mainKit: MainAgentKit = {
   waker: null,
   inbox: null,
   bind: null,
+  namer: null,
 }

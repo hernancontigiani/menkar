@@ -139,6 +139,11 @@ later area's settings survive a save. It is written whole through `jsonstate`.
 keeps running in the background" has been shown, the first time ever a worker's tab was closed
 into the background; it never shows again. Written only then, through `updateState`.
 
+`agent_named` (decision 1.195, `src/core/agent-named.ts`): the sorted ids of the sessions Menkar
+named through their agent's own call — the Codex sessions `start_session` started, and a renew of
+one of them, whose new session is named too, after a restart as well. Written once a naming
+succeeds; a session not listed is never named after its start (`docs/agents.md`, "Codex: naming").
+
 ## Formats
 
 `src/core/format.ts`: sizes (`B`, then `KB`/`MB`/`GB` in 1024 steps with one decimal, GB the

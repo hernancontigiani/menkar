@@ -14,6 +14,7 @@ import { join } from 'node:path'
 //   default): its lines are appended to the rollout, then each `-c notify=[…]` program runs with
 //   Codex's one JSON argument. The first turn of a new thread notifies first for a title thread
 //   that has no rollout, as Codex's title generation does.
+// - `/rename <name>` typed names the thread in session_index.jsonl, as Codex's /rename does.
 // - `/new` typed starts another thread, whose rollout appears at its next message; `/fork` forks
 //   the thread, its rollout written at once with `forked_from_id`. Either way the earlier
 //   rollout stays open, as Codex keeps it.
@@ -23,6 +24,14 @@ import { join } from 'node:path'
 //   marketplace as 0.169 does, leaving a `.tmp/git-XXXXXX/` behind in $CODEX_HOME. With
 //   FAKE_CODEX_DAEMON set (Codex's shared daemon running), any `-c` or `--disable` is refused with
 //   Codex's own line and exit 1, and a plain call is served by the daemon: nothing synced here.
+// - `codex app-server [--disable plugins]` serves Codex's protocol on stdio, one JSON object per
+//   line, as far as naming goes: `initialize`, `initialized`, then `thread/name/set`, which appends
+//   the name to $CODEX_HOME/session_index.jsonl, or answers Codex's error for a thread with no
+//   rollout. It syncs the plugin marketplace as `codex queue` does unless `--disable plugins`, and
+//   exits 0 when its input closes.
+// - With FAKE_CODEX_TITLE set, a new thread's first message has the TUI name the thread so, after
+//   FAKE_CODEX_TITLE_MS (0 by default), only if the thread has no name by then, as Codex's
+//   generated title is saved.
 // - With `-c mcp_servers.menkar.*` given, `/menkar <tool> [<JSON arguments>]` typed calls that
 //   tool of the server the keys name, started as Codex 0.169 starts a stdio server: its environment is only Codex's few
 //   variables, then the names in `env_vars` taken from its own environment, then `env`. The
@@ -57,6 +66,61 @@ function rolloutOf(id) {
   return walk(sessions)
 }
 
+// Codex's plugin marketplace sync, which leaves an empty git folder behind, unless disabled.
+function syncPlugins() {
+  if (args.some((word, i) => args[i - 1] === '--disable' && word === 'plugins')) return
+  const git = path.join(home, '.tmp', 'git-' + crypto.randomBytes(3).toString('hex'))
+  for (const dir of ['objects', 'refs']) fs.mkdirSync(path.join(git, dir), { recursive: true })
+  fs.writeFileSync(path.join(git, 'HEAD'), '')
+}
+
+// The thread's name in session_index.jsonl: its last line wins, an empty name clears it.
+function nameOf(thread) {
+  const file = path.join(home, 'session_index.jsonl')
+  if (!fs.existsSync(file)) return null
+  let name = null
+  for (const text of fs.readFileSync(file, 'utf8').split('\\n')) {
+    if (!text.trim()) continue
+    const entry = JSON.parse(text)
+    if (entry.id === thread) name = entry.thread_name.trim() || null
+  }
+  return name
+}
+function setName(thread, name) {
+  fs.mkdirSync(home, { recursive: true })
+  fs.appendFileSync(path.join(home, 'session_index.jsonl'), JSON.stringify({ id: thread, thread_name: name, updated_at: new Date().toISOString() }) + '\\n')
+}
+
+if (args[0] === 'app-server') {
+  syncPlugins()
+  const reply = (message) => process.stdout.write(JSON.stringify(message) + '\\n')
+  let input = ''
+  process.stdin.on('data', (d) => {
+    input += d
+    const lines = input.split('\\n')
+    input = lines.pop()
+    for (const text of lines) {
+      if (!text.trim()) continue
+      const call = JSON.parse(text)
+      if (call.method === 'initialize') {
+        reply({ id: call.id, result: { userAgent: 'stand-in', codexHome: home } })
+        reply({ method: 'remoteControl/status/changed', params: {} })
+      } else if (call.method === 'thread/name/set') {
+        const { threadId, name } = call.params
+        if (!name.trim()) reply({ id: call.id, error: { code: -32600, message: 'thread name must not be empty' } })
+        else if (!rolloutOf(threadId)) reply({ id: call.id, error: { code: -32600, message: 'no rollout found for thread id ' + threadId } })
+        else {
+          setName(threadId, name.trim())
+          reply({ id: call.id, result: {} })
+          reply({ method: 'thread/name/updated', params: { threadId, threadName: name.trim() } })
+        }
+      }
+    }
+  })
+  process.stdin.on('end', () => process.exit(0))
+  return
+}
+
 function queueDb() {
   const { DatabaseSync } = require('node:sqlite')
   fs.mkdirSync(home, { recursive: true })
@@ -71,12 +135,7 @@ if (args[0] === 'queue') {
     process.stderr.write('Error: cannot queue through an embedded app server while a local app-server daemon is running; remove configuration overrides or use --remote\\n')
     process.exit(1)
   }
-  const disabled = args.some((word, i) => args[i - 1] === '--disable' && word === 'plugins')
-  if (!process.env.FAKE_CODEX_DAEMON && !disabled) {
-    const git = path.join(home, '.tmp', 'git-' + crypto.randomBytes(3).toString('hex'))
-    for (const dir of ['objects', 'refs']) fs.mkdirSync(path.join(git, dir), { recursive: true })
-    fs.writeFileSync(path.join(git, 'HEAD'), '')
-  }
+  if (!process.env.FAKE_CODEX_DAEMON) syncPlugins()
   const thread = args[args.indexOf('--thread') + 1]
   const message = args[args.indexOf('--message') + 1]
   if (!rolloutOf(thread)) {
@@ -185,6 +244,11 @@ function turn(text) {
     callMenkar(text.slice('/menkar '.length))
     return
   }
+  if (text.startsWith('/rename ')) {
+    setName(id, text.slice('/rename '.length).trim())
+    process.stdout.write('\\x1b[2J\\x1b[H• Thread renamed\\r\\n› Ask Codex to do anything\\r\\n')
+    return
+  }
   if (text === '/new' || text === '/fork') {
     const from = id
     id = v7()
@@ -197,7 +261,15 @@ function turn(text) {
     process.stdout.write('\\x1b[2J\\x1b[H• ' + text.slice(1) + ' thread\\r\\n› Ask Codex to do anything\\r\\n')
     return
   }
-  if (!file) open({})
+  if (!file) {
+    open({})
+    const title = process.env.FAKE_CODEX_TITLE
+    const thread = id
+    if (title && fresh)
+      setTimeout(() => {
+        if (nameOf(thread) === null) setName(thread, title)
+      }, Number(process.env.FAKE_CODEX_TITLE_MS || 0))
+  }
   busy = true
   turns += 1
   const turnId = crypto.randomUUID()

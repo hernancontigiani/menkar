@@ -296,11 +296,11 @@ block that adds the interface to `types.ts`.
 | **Fork** (core): `plan(source, newId) → Start` (B2) | P0.6 | `--resume <src> --fork-session --session-id <id>` | `null` | `null` (38 §7) | `null` (38 §7) | `forkSession` asks it; `null` → no Fork entry (the cap) |
 | **Remote** (main): `live(pane) → boolean`, reading Claude's registry (B2) | P0.5 | `remote-live.ts`'s reader, moved to `src/main/agents/claude/remote.ts` | `null` | `null` | `null` | `remote-live.ts` keeps the loop, asks the kit |
 | **TeamDelivery** (core + main), the team block's three pieces (`docs/session-control.md`, "The team block"; §2.5.6) | P0.3 | `part` `claude.md`; `skill`/`own` names; `atStart`: the file and the flags (snapshot off on every resume); `heldAtStart`: new and resume → the block, fork → `null`; `afterCompaction` → `started`; `tell` → a post | P3: `sessionStart` hook's `additional_context`; resume → the recorded (persisted) block; idle facts change waits for the next wake (1.159) | `-c developer_instructions`, chaining the user's own; resume → recorded until compaction; compaction from the rollout's `compacted` item (S7) | instruction entry; `tell` updates the entry, no post | Methods, not a `holds` tag (S2); `skill` names a skill (a name; for Codex a `SKILL.md` path, 1.155 Q1) |
-| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | after the first turn, `thread/name/set` (main, D5) | `title` at create | Two methods, not a `kind` (S2) |
+| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | only `start_session`'s sessions and their renews, as soon as the rollout appears, `thread/name/set` (main, D5 as amended by 1.195) | `title` at create | Two methods, not a `kind` (S2) |
 | **EnvRules** (core, data) | P0.3 | today's `SESSION_ENV` | `cursor.md` §1.7, marker `CURSOR_AGENT` | `CODEX_THREAD_ID`, … | `opencode.md` §1.7 | `withoutSessionEnv` applies **every** registered agent's rules |
 | **ContextSource** (core) | P1a.6 | the statusline (today) | `null` (D8) | `token_count` from the rollout tail | `GET …/context` (main) | `null` is a type the sidebar handles |
 | **IntegrationItems** (core + main) | P3.1 | statusline, retention (today, not moved in P0) | D13 hooks, D7 allow entries | none | none | Items greyed when the CLI is not found (1.140) |
-| **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5), `queue_1.sqlite` rows | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
+| **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5, 1.195), `queue_1.sqlite` rows, the server's own sidecars | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
 | **ChatStrategy** (core + main) | P0.7 | today's variant | today's two | `null` | `null` | Today's `VARIANTS` and `AGENT_CLIS` move into the kits |
 | **Classifier** (core + main, §2.17) | P4 | `claude -p` with a model | where feasible | where feasible | where feasible | `null` where the agent cannot classify |
 
@@ -1038,8 +1038,9 @@ P0's blocks run in turn.
   `send_message { name, text }` through the target's waker; Claude→Claude refused with "use
   SendMessage" (Messaging `reaches`); the bridged frame. Tests: each D2/D3 case; the stand-in's queue
   receives the frame bytes. **Verify:** `npm run ci`, `npm run ui-check`.
-- **P1b.4** — Codex naming after the first turn (`Namer.after`, `thread/name/set`, D5); until then
-  the pane holds the name. **Verify:** `npm run ci`.
+- **P1b.4** — Codex naming as soon as the rollout appears, only for `start_session`'s sessions and
+  their renews (`Namer.after`, `thread/name/set`, D5 as amended by 1.195); until then the pane
+  holds the name. **Verify:** `npm run ci`.
 - **P1b.5** — Codex's team part and delivery (§2.5.6): `atStart` (`developer_instructions` through
   `LaunchPlan.files`, then the user's own), `heldAtStart` (`recorded` on resume, persisted),
   `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),
@@ -2017,3 +2018,62 @@ P0's blocks run in turn.
   `.codex/.tmp/git-*`, the waker's disabled test, the daemon test); no retry on the refusal (the
   daemon test); a retry on any failure (the "not retried" test); folders left out of the listing
   (the harness's folder test).
+
+### P1b.4, second half: the namer (`menkar-t165`, task 165, 2026-11-20)
+
+- **Decided by the human, 2026-11-20 (1.195, topic 82, option c):** Menkar names only the Codex
+  sessions `start_session` starts, as soon as possible after the first message (codex's route a:
+  the rollout watched, then `thread/name/set`), overwriting a name present at Menkar's first bind
+  of such a thread as Codex's own (route b); later changes are the human's; a session from New
+  keeps Codex's title; the hidden title request per message on a named thread is accepted. §2.3's
+  Namer and DeclaredWrites rows and §5's P1b.4 line corrected; their old text in
+  `docs/history/plans/00-STATUS.md`.
+- **Decided by set, 2026-11-20:** a renew of a named worker names its new thread too, and "Menkar
+  named this session" is the app's own data, `agent_named` in `state.json` (`src/core/agent-named.ts`,
+  `docs/sessions.md`), so a renew follows it after a restart and a session the human parented later
+  is never reached. **Granted files beyond §5's row:** `src/main/agents/types.ts` (`AfterNamer`,
+  `MainAgentKit.namer`), the three main kits, `src/main/workspace.ts`, `src/core/agent-named.ts`,
+  `src/core/agents/codex/{catalog,writes}.ts` (`NameIndex` exported), `e2e/standins/codex.ts`,
+  `e2e/codex-naming.spec.ts`, the tests below, `docs/agents.md` ("Codex: naming"),
+  `docs/sessions.md`.
+- **Built:** `AfterNamer { after(sessionId, name), watch(since, changed) }` on main's kit, Codex's in
+  `src/main/agents/codex/namer.ts`: `after` reads Codex's index (`NameIndex`) and answers `kept`
+  when the thread has the name; else one `codex app-server --disable plugins` (no shell, Menkar's
+  session variables removed, a 10 s bound) gets `initialize`, `initialized` and `thread/name/set`;
+  `{}` → `named`, `no rollout found…` → `no session`, anything else rejects. `watch` watches Codex's
+  home and the day folder of the pane's start (each level taken up as it is made). In
+  `workspace.ts`: `start_session` (and a renew of a session in `agent_named`) marks the provisional
+  id in `toName` and arms the watch, whose changes run the `/proc` bind at once; the bind
+  (`bindPane`) names the thread and keeps it in `firstTurnNames`; the first turn's end looks once
+  more and names again if the name differs (**set accepted it**: a title the TUI saves between its
+  check and its write is still Codex's own); a later turn never names. One naming at a time per
+  session; a success writes `agent_named` once.
+- **DeclaredWrites** gained, from codex's item 25: `session_index.jsonl` and `state_5.sqlite`
+  (with its `-wal`). An empty home's extra files (`installation_id`, `skills/.system/**`, the other
+  databases) are not declared: Menkar names only a thread whose rollout exists, so the home is
+  Codex's own, already made (my choice).
+- **My choices:** the client's version sent to Codex is the constant `1` (Codex requires one and
+  acts on none); `nameWhenBound` names at once a session whose id is real at start (no agent does
+  today); a pane that exits before its bind drops its naming.
+- **Tests:** `tests/main/agents/codex/namer.test.ts` (named with plugins disabled and no `.tmp`; a
+  generated title overwritten; `kept` with codex not run; `no session`; another refusal rejects;
+  Menkar's session variables not handed on; the watch from a day folder made after it starts, and
+  silent once closed; Claude and Cursor have no namer). Main's no-write test names every session
+  of each agent with a namer. `tests/core/agent-named.test.ts` (lenient read, once and sorted,
+  survives a save and a load). E2E `e2e/codex-naming.spec.ts`: a worker named over the stand-in's
+  generated title before its first turn ends (6 s turn), then a `/rename` kept through two turns;
+  a renewed worker's new thread named the same, both in `agent_named`; a Codex session from New
+  keeps the generated title and no `app-server` runs. The stand-in learned `app-server`,
+  `FAKE_CODEX_TITLE` (the TUI's title, saved only on an unnamed thread) and `/rename`.
+- **Seen failing once**, each injected and reverted: no naming at the bind (the worker e2e, once it
+  asserted the name before the turn's end — the first version passed through the turn-end check, so
+  the assertion was tightened); no renew naming (renew e2e); every Codex session named (New e2e);
+  a recheck at every turn end (the `/rename` e2e); `--disable plugins` dropped (2 unit tests); the
+  `kept` check dropped; `no rollout` not mapped; the watch never arming; `session_index.jsonl`
+  undeclared (main's no-write test); `agent_named` written twice.
+- **Not covered:** the race the first-turn check answers cannot be produced with the stand-in (it
+  saves a title only on an unnamed thread, as Codex does); the watch's speed-up is not observable
+  in an e2e (the 1.5 s poll binds within the turn too), only in the unit test.
+- **Found in the first half's own test:** "with Codex's daemon running…" read the real clock, so a
+  wake across a second boundary failed it (the frame's time differed): it now fakes the date. It
+  was committed in aae3358.

@@ -2738,3 +2738,11 @@ Deviations and what the plan did not anticipate:
   `usage-spend` capture) says "Preferences → Integrations", where the classifier's switch is in
   Settings › Usage & classifier; `es.ts` names transcripts both "transcript" and "transcripciones"
   (`settings.section.retention` against `integrations.retention`); the pages follow "transcript".
+
+## 2026-11-20 — plan 39's §2.3 and P1b.4, before 1.195 amended D5 (task 165)
+
+> Left plan 39 §2.3 and §5 P1b.4 on 2026-11-20: Menkar names only the Codex sessions start_session starts, as soon as the rollout appears (the human, 1.195, topic 82).
+| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | after the first turn, `thread/name/set` (main, D5) | `title` at create | Two methods, not a `kind` (S2) |
+| **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5), `queue_1.sqlite` rows | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
+- **P1b.4** — Codex naming after the first turn (`Namer.after`, `thread/name/set`, D5); until then
+  the pane holds the name. **Verify:** `npm run ci`.

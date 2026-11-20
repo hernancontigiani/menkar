@@ -11,4 +11,5 @@ export const mainKit: MainAgentKit = {
   waker,
   inbox,
   bind: null,
+  namer: null,
 }
