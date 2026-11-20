@@ -27,6 +27,8 @@ export interface LaunchContext {
   readonly promptFile?: string
   // Menkar's MCP server, as `--mcp-config` JSON.
   readonly mcpConfig?: string
+  // Menkar's MCP server program, for an agent that mounts it by its path.
+  readonly mcpServer?: string
   // Menkar's skills plugin folder.
   readonly pluginDir?: string
   // The session's team block, written before the command is built.

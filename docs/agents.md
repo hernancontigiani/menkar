@@ -120,11 +120,12 @@ with more hits than its entry fails, so a count only goes down. What is left:
 ## Codex: starting it
 
 Codex's kit is `src/core/agents/codex/` and `src/main/agents/codex/`; measured on codex-cli 0.169.0
-(2026-11-20). It has no MCP mount, team block, fork, chat, trash, Remote Control, waker or inbox:
-each is `null` in its kit, and the renderer offers none of them for a Codex session.
+(2026-11-20). It has no team block, fork, chat, trash, Remote Control, waker or inbox: each is
+`null` in its kit, and the renderer offers none of them for a Codex session.
 
-- **The command**: `codex [-m <model>] [--add-dir <files>] [-c notify=[…]] [-- "<prompt>"]`, and
-  `codex resume [--add-dir …] [-c notify=[…]] <id> [-- "<prompt>"]`. Options go after `resume`;
+- **The command**: `codex [-m <model>] [--add-dir <files>] [-c notify=[…]] [-c
+  mcp_servers.menkar.…] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] [-c
+  mcp_servers.menkar.…] <id> [-- "<prompt>"]`. Options go after `resume`;
   `--` goes before the prompt, or a prompt starting with `-` is read as an option. A resume takes
   no `-m`: it would switch the thread's model. `--add-dir` names the project's files folder.
 - **A `-c` value is a TOML basic string** (`tomlString`): Codex parses `-c` values as TOML and
@@ -260,5 +261,38 @@ elicitation, which are left to the title.
   turn. Menkar sends no such notification yet: the installed agents are found once, at start, and
   a restart starts every server again (`docs/NOT_BUILT_YET.md`).
 - **Not built yet on this branch:** `send_message`'s call is answered as an unknown tool until
-  its waking through the target's Waker exists, and main ignores `start_session`'s `agent` until
-  it starts another agent's session.
+  its waking through the target's Waker exists.
+
+## Codex as a worker
+
+Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
+
+- **Menkar's MCP server** is mounted on every Codex start by one `-c mcp_servers.menkar.<key>=…`
+  per key (`src/core/agents/codex/mcp.ts`), each value a TOML string: `command` Electron's binary,
+  `args` the server program (`LaunchContext.mcpServer`), `env` `ELECTRON_RUN_AS_NODE`,
+  `MENKAR_PANE` and `MENKAR_AGENT=codex`, `env_vars` the three XDG names, and
+  `default_tools_approval_mode="approve"`, so Menkar's tools run with no approval card. Codex gives
+  a stdio server only `HOME, LOGNAME, PATH, SHELL, USER, LANG, LC_ALL, TERM, TMPDIR, TZ`, then
+  `env_vars`' names from its own environment (one not set is left out), then `env`: the pane's
+  environment is not inherited, so the caller is named in `env`, and the server finds Menkar's
+  state directories through the forwarded XDG names. Names, never values, are passed for them.
+  The pane's environment reaches Codex's MCP client because any `-c` runs the TUI embedded.
+- **`start_session`'s `agent`** is the caller's agent when absent; a name no agent has, an agent
+  not installed, or one whose kit has no MCP mount (Cursor until P3) is refused.
+  `remote_control` is refused for an agent with no Remote Control.
+- **A provisional id.** Codex has no id until its first message, so `start_session` and `renew`
+  place the new session under `pending:<random uuid>` (`src/core/projects/provisional.ts`) as
+  member, child, assignee, name and model, and start its pane waiting for its real id as a New
+  tab does (`/proc` at each join poll, else the first turn-end record). At the bind the real id
+  takes the provisional one's place (`bindProvisional`: `followNewId`, then the provisional id
+  forgotten), with its tab, task, name, model, mute, and a park or renew asked meanwhile; a first
+  prompt is recorded as prompted then. A worker started with a prompt binds at its first poll.
+  The provisional id never reaches `session_agents`, the sandbox's `started_sessions` or the
+  activity log.
+- **Menkar stopped before the bind**: at the next start every provisional id leaves its project
+  (`dropProvisional`, as a forgotten session), its tasks lose their assignee (`unassign`) and keep
+  their state, and its saved tab is dropped as an unknown session's; one log line names them. The
+  thread, if Codex made one, stays in Codex's data and shows in Add session.
+- **`renew`** ends the session and starts a new thread in its tab, as for Claude; `park_session`,
+  `resume_session` (`codex resume <id>`) and `adopt_session` work as for any agent whose kit has
+  an MCP mount.

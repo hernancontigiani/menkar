@@ -5,7 +5,7 @@ import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
 import { descriptorOf, paneAgentLabel } from '../core/agents/descriptors'
-import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
+import { AGENT_IDS, type AgentId, DEFAULT_AGENT, parseAgentId } from '../core/agents/ids'
 import { isDefault, kitOf } from '../core/agents/registry'
 import type { FollowKind } from '../core/agents/types'
 import { backgroundToastShown, markBackgroundToast } from '../core/background-toast'
@@ -72,6 +72,7 @@ import {
   type TaskTool,
   tasksOf,
   taskTool,
+  unassign,
   untakenRefusal,
 } from '../core/orchestration/tasks'
 import {
@@ -184,6 +185,12 @@ import {
   tabGroupColor,
 } from '../core/projects/orchestration'
 import { clearParent, keptParents, setParent } from '../core/projects/parents'
+import {
+  bindProvisional,
+  dropProvisional,
+  isProvisional,
+  provisionalId,
+} from '../core/projects/provisional'
 import {
   followNewId,
   followNewIdInLayout,
@@ -309,6 +316,8 @@ interface Pane {
   readonly terminal: Terminal
   handle: PaneHandle | undefined
   pending: Pending | undefined
+  // Started with a first prompt under a provisional id: recorded as prompted once the id binds.
+  promptedUnbound?: true | undefined
   readonly cwd: string | null
   readonly startedAt: number
   // Started with `--remote-control`: kept until the pane goes.
@@ -1081,6 +1090,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         ...(settings ? { settings } : {}),
         ...(spec.remote ? { remoteControl: spec.remote } : {}),
         mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
+        mcpServer: mcpServerScript(),
         pluginDir: skillsPluginDir(),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
         ...(teamFile ? { teamFile } : {}),
@@ -1099,7 +1109,8 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
       command = commandLine(plan)
       env = plan.env
       const promptedId = spec.sessionId ?? start.id
-      if (spec.promptFile && promptedId) recordPromptedStart(promptedId, projectId)
+      if (spec.promptFile && promptedId && !isProvisional(promptedId))
+        recordPromptedStart(promptedId, projectId)
     }
   }
   const size = { cols: 80, rows: 24 }
@@ -1132,12 +1143,15 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     terminal,
     handle: undefined,
     pending: spec.pending,
+    ...(spec.promptFile && spec.sessionId && isProvisional(spec.sessionId)
+      ? { promptedUnbound: true }
+      : {}),
     cwd: spec.cwd,
     startedAt: now(),
     remote:
       spec.agent !== 'shell' && mainKitOf(spec.agent).remote !== null && spec.remote !== undefined,
   }
-  if (spec.sessionId) noteStarted(spec.sessionId)
+  if (spec.sessionId) noteBound(spec.sessionId)
   if (spec.sessionId && spec.start) recordAgent(spec.sessionId, spec.agent)
   const self = pane
   if (spec.agent !== 'shell') {
@@ -1370,18 +1384,31 @@ function probeBinds(list: readonly Pane[]): void {
 // A session of an agent other than the default is recorded with its agent when its pane starts or
 // its id binds, so a restore that finds no files for it still knows it.
 function recordAgent(sessionId: string, agent: PaneAgent): void {
-  if (agent === 'shell' || isDefault(agent) || savedAgents[sessionId] === agent) return
+  if (
+    isProvisional(sessionId) ||
+    agent === 'shell' ||
+    isDefault(agent) ||
+    savedAgents[sessionId] === agent
+  )
+    return
   savedAgents = { ...savedAgents, [sessionId]: agent }
   sessions
     .updateState((state) => withSessionAgent(state, sessionId, agent))
     .catch((error: unknown) => log.error('a session’s agent could not be recorded', { error }))
 }
 
+// The sandbox's list of the sessions it started holds only real ids.
+function noteBound(sessionId: string): void {
+  if (!isProvisional(sessionId)) noteStarted(sessionId)
+}
+
 function joinSession(pane: Pane, sessionId: string): void {
   const pending = pane.pending
   if (!pending) return
   pane.pending = undefined
-  projects = addMember(projects, joinTarget(projects, pending.startedIn), sessionId)
+  const from = pane.sessionId
+  if (from && isProvisional(from)) bindPane(pane, from, sessionId, pending)
+  else projects = addMember(projects, joinTarget(projects, pending.startedIn), sessionId)
   pane.sessionId = sessionId
   noteStarted(sessionId)
   recordAgent(sessionId, pane.agent)
@@ -1402,6 +1429,34 @@ function joinSession(pane: Pane, sessionId: string): void {
   }
   changed({ projects: true })
   refreshAgentStates()
+}
+
+// The real id takes the provisional one's place everywhere a start placed it: project, tab, task,
+// name, model, mute, and what was asked of the pane meanwhile.
+function bindPane(pane: Pane, from: string, to: string, pending: Pending): void {
+  const bound = bindProvisional(projects, from, to)
+  projects =
+    bound !== projects
+      ? bound
+      : addMember(forgetSession(projects, from), joinTarget(projects, pending.startedIn), to)
+  layout = followNewIdInLayout(layout, from, to)
+  followMute(from, to)
+  followTaskAssignee(from, to)
+  void followSessionModel(from, to)
+  const name = startedNames.get(from)
+  if (name !== undefined) {
+    startedNames.delete(from)
+    startedNames.set(to, name)
+  }
+  const stop = stopRequests.get(pane.id)
+  if (stop?.sessionId === from) stopRequests.set(pane.id, { ...stop, sessionId: to })
+  const renewal = renewRequests.get(pane.id)
+  if (renewal?.sessionId === from) renewRequests.set(pane.id, { ...renewal, sessionId: to })
+  if (pane.promptedUnbound) {
+    pane.promptedUnbound = undefined
+    recordPromptedStart(to, projectOf(projects, to)?.id)
+  }
+  log.info('a started session bound its id', { from, to })
 }
 
 // ---------------------------------------------------------------- a terminal link
@@ -1673,7 +1728,8 @@ async function resumeFor(
   const id = found.id
   if (inSomeTab(id)) return refuse(`"${named.trim()}" is already running.`)
   const agent = sessionInfo(id)?.agent
-  if (!agent || kitOf(agent).mcp === null) return refuse('Only a Claude Code session is resumed.')
+  if (!agent || kitOf(agent).mcp === null)
+    return refuse(`"${named.trim()}" cannot use Menkar's tools, so it is not resumed from here.`)
   if (isWorker(team, id)) {
     const full = capRefusal(team, runningIn(project.id))
     if (full) return refuse(full)
@@ -2083,7 +2139,8 @@ async function renew(paneId: string): Promise<void> {
   renewing.set(paneId, null)
   const from = request.sessionId
   const info = sessionInfo(from)
-  const to = randomUUID()
+  const realId = kitOf(agent).ids.newId()
+  const to = realId ?? provisionalId(randomUUID())
   const model = modelOf(await sessions.currentState(), from)
   if (!followClear(pane, from, to)) {
     if (renewing.get(paneId) === null) renewing.delete(paneId)
@@ -2101,11 +2158,18 @@ async function renew(paneId: string): Promise<void> {
     })
     if (!tabById(tabId)) return
     const remote = remoteIds.has(to) ? remoteName(name ?? '', pane.cwd, to) : undefined
+    const project = projectOf(projects, to)
     await startPane(tabId, {
       agent,
-      start: { kind: 'new', id: to, ...(name ? { name } : {}), ...(model ? { model } : {}) },
+      start: {
+        kind: 'new',
+        ...(realId ? { id: realId } : {}),
+        ...(name ? { name } : {}),
+        ...(model ? { model } : {}),
+      },
       cwd: pane.cwd,
       sessionId: to,
+      ...(realId || !project ? {} : { pending: unboundPending(project.id, pane.cwd ?? '', agent) }),
       ...(remote ? { remote } : {}),
       ...(request.promptFile ? { promptFile: request.promptFile } : {}),
     })
@@ -2146,6 +2210,35 @@ function whereStarted(tab: Tab): string {
     : 'in a tab after yours'
 }
 
+// start_session's agent: the one named, among the installed agents whose sessions can use Menkar's
+// tools, or the caller's own.
+function startAgent(value: unknown, callerAgent: PaneAgent): AgentId | ControlAnswer {
+  if (value === undefined || value === null || value === '')
+    return callerAgent === 'shell' ? DEFAULT_AGENT : callerAgent
+  const agent = parseAgentId(value)
+  if (agent === null) return refuse(`Menkar knows no agent called "${String(value)}".`)
+  if (!installedAgents.includes(agent))
+    return refuse(`The agent "${agent}" is not installed on this machine.`)
+  if (kitOf(agent).mcp === null)
+    return refuse(
+      `Sessions of the agent "${agent}" cannot use Menkar's tools yet, so they are not started from here.`,
+    )
+  return agent
+}
+
+// A pane started under a provisional id waits for its agent's real one, as a new session from the
+// New menu does.
+function unboundPending(projectId: string, folder: string, agent: AgentId): Pending {
+  return {
+    startedIn: projectId,
+    expectedId: null,
+    folder,
+    startedAt: now(),
+    tries: 0,
+    ...(mainKitOf(agent).bind !== null ? { told: true } : {}),
+  }
+}
+
 async function startForAgent(
   caller: Pane,
   callerId: string,
@@ -2169,8 +2262,13 @@ async function startForAgent(
   const project = projects.projects.find((p) => p.id === projectId)
   const group = groupName ? project?.groups.find((g) => g.name === groupName) : undefined
   if (groupName && !group) return refuse(`The project has no group called "${groupName}".`)
+  const agent = startAgent(args.agent, caller.agent)
+  if (typeof agent !== 'string') return agent
   const model = readModel(args.model)
   if ('refusal' in model) return refuse(model.refusal)
+  const remote = args.remote_control === true
+  if (remote && mainKitOf(agent).remote === null)
+    return refuse(`Sessions of the agent "${agent}" have no Remote Control.`)
   const placement = readPlacement(args)
   if ('refusal' in placement) return refuse(placement.refusal)
   const known = owner ? foldersOfProject(owner).map((f) => f.path) : []
@@ -2201,7 +2299,10 @@ async function startForAgent(
     promptFile = saved
   }
   if (!tabById(caller.tabId)) return refuse(NOT_KNOWN)
-  const id = randomUUID()
+  // An agent that picks its own id has none until its first message: a provisional one holds its
+  // place meanwhile.
+  const realId = kitOf(agent).ids.newId()
+  const id = realId ?? provisionalId(randomUUID())
   startedNames.set(id, name)
   const namesakes = projectSessions(projectId)
     .filter((s) => sessionName(s) === name && !inSomeTab(s))
@@ -2221,7 +2322,6 @@ async function startForAgent(
     const assigned = assignTask(currentTasks(), projectId, task, id, topicsNow(), sessionName)
     if ('tasks' in assigned) setTasks(assigned.tasks)
   }
-  const remote = args.remote_control === true
   if (remote) {
     remoteIds.add(id)
     await sessions.updateState((state) => setRemoteControl(state, id, true))
@@ -2236,10 +2336,11 @@ async function startForAgent(
   }
   layout = insertTabAfter(layout, caller.tabId, tab)
   await startPane(tab.id, {
-    agent: DEFAULT_AGENT,
-    start: { kind: 'new', id, name, ...model },
+    agent,
+    start: { kind: 'new', ...(realId ? { id: realId } : {}), name, ...model },
     cwd,
     sessionId: id,
+    ...(realId ? {} : { pending: unboundPending(projectId, cwd ?? '', agent) }),
     ...(remote ? { remote: remoteName(name, cwd, id) } : {}),
     ...(promptFile ? { promptFile } : {}),
   })
@@ -2395,6 +2496,19 @@ function restoreReviews(): void {
 }
 
 // Every permission topic a quit left open: the process at the prompt is gone.
+// A session whose id was still provisional when Menkar stopped can never bind: its tab, parent and
+// task go with it. Its agent's data keeps whatever it wrote, which Add session lists.
+function forgetUnbound(): void {
+  const { projects: kept, dropped } = dropProvisional(projects)
+  if (dropped.length === 0) return
+  projects = kept
+  const tasks = unassign(currentTasks(), isProvisional)
+  if (tasks !== currentTasks()) setTasks(tasks)
+  log.info('sessions that had not bound their id before Menkar stopped were dropped', {
+    sessions: dropped,
+  })
+}
+
 function closeLeftPermissionTopics(): void {
   let topics = currentTopics()
   for (const [projectId, own] of Object.entries(topics.projects))
@@ -2757,7 +2871,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
   projects = next
   layout = followNewIdInLayout(layout, from, to)
   pane.sessionId = to
-  noteStarted(to)
+  noteBound(to)
   recordAgent(to, pane.agent)
   tabLabels.delete(pane.tabId)
   if (remoteIds.has(from)) {
@@ -3154,6 +3268,7 @@ export async function startWorkspace(): Promise<void> {
   const loaded = currentProjects()
   if (!loaded) throw new Error('projects were not loaded before the workspace started')
   projects = loaded
+  forgetUnbound()
   closeLeftPermissionTopics()
   // The window does not wait for the first scan of the agents' folders: the list fills in when it
   // ends, and the shown project's saved tabs start then (`startShownTabs` waits for it).

@@ -5,12 +5,13 @@ import { context } from './context'
 import { env, envPatterns } from './env'
 import { ids } from './ids'
 import { launch, namer } from './launch'
+import { mcp } from './mcp'
 import { state } from './state'
 import { usage } from './usage'
 
 export const kit: AgentKit = {
   launch,
-  mcp: null,
+  mcp,
   messaging: null,
   namer,
   team: null,

@@ -20,6 +20,11 @@ import { join } from 'node:path'
 // - `codex queue --thread <id> --message <text>` puts the message in $CODEX_HOME/queue_1.sqlite,
 //   or exits 1 when the thread has no rollout; a running stand-in holding that thread takes it as
 //   its next turn and deletes the row.
+// - With `-c mcp_servers.menkar.*` given, `/menkar <tool>` typed calls that tool of the server the
+//   keys name, started as Codex 0.169 starts a stdio server: its environment is only Codex's few
+//   variables, then the names in `env_vars` taken from its own environment, then `env`. The
+//   environment it was given goes to codex-mcp-env.json in HOME, and the answer is printed as
+//   "TOOL <name>: <text>".
 // Timestamps inside the rollout are UTC; its file name and folders are local time, as Codex's.
 // - Typing EXIT0 ends it.
 const FAKE_CODEX = `#!/usr/bin/env node
@@ -81,6 +86,37 @@ args.forEach((word, i) => {
   config[word.slice(0, eq)] = word.slice(eq + 1)
 })
 const notify = config.notify ? JSON.parse(config.notify) : null
+function menkarServer() {
+  const key = (name) => config['mcp_servers.menkar.' + name]
+  if (!key('command')) return null
+  const env = {}
+  const names = ['HOME', 'LOGNAME', 'PATH', 'SHELL', 'USER', 'LANG', 'LC_ALL', 'TERM', 'TMPDIR', 'TZ', ...(key('env_vars') ? JSON.parse(key('env_vars')) : [])]
+  for (const name of names) if (process.env[name] !== undefined) env[name] = process.env[name]
+  for (const m of (key('env') || '').matchAll(/([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*("(?:[^"\\\\]|\\\\.)*")/g)) env[m[1]] = JSON.parse(m[2])
+  return { command: JSON.parse(key('command')), args: JSON.parse(key('args')), env }
+}
+function callMenkar(name) {
+  const server = menkarServer()
+  if (!server) {
+    process.stdout.write('TOOL ' + name + ': no Menkar server\\r\\n')
+    return
+  }
+  fs.writeFileSync(path.join(process.env.HOME, 'codex-mcp-env.json'), JSON.stringify(server.env))
+  const child = require('node:child_process').spawn(server.command, server.args, { env: server.env, stdio: ['pipe', 'pipe', 'inherit'] })
+  let out = ''
+  child.stdout.on('data', (d) => {
+    out += d
+    const lines = out.split('\\n')
+    out = lines.pop()
+    for (const reply of lines.map((l) => JSON.parse(l))) {
+      if (reply.id !== 2) continue
+      process.stdout.write('TOOL ' + name + ': ' + reply.result.content[0].text.replace(/\\s+/g, ' ') + '\\r\\n')
+      child.kill()
+    }
+  })
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }) + '\\n')
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: {} } }) + '\\n')
+}
 const valued = new Set(['-c', '-m', '--model', '-C', '--cd', '--add-dir', '-s', '-a', '-p', '--profile'])
 const words = args.filter((word, i) => !word.startsWith('-') && !valued.has(args[i - 1]))
 const resuming = words[0] === 'resume'
@@ -128,6 +164,10 @@ function run(program, payload) {
   require('node:child_process').spawnSync(program[0], [...program.slice(1), JSON.stringify(payload)], { stdio: 'ignore' })
 }
 function turn(text) {
+  if (text.startsWith('/menkar ')) {
+    callMenkar(text.slice('/menkar '.length))
+    return
+  }
   if (text === '/new' || text === '/fork') {
     const from = id
     id = v7()

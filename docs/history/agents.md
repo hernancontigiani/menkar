@@ -22,7 +22,21 @@ Menkar runs more than one coding agent (Claude Code and Cursor today). What diff
   (`ChatStrategy`). An interface enters with the first
   fork, no Remote Control, no team block, no waker, no inbox.
 
+## Codex: starting it
+
+> Left on 2026-11-20: Codex mounts Menkar's MCP server (plan 39, P1b.2).
+(2026-11-20). It has no MCP mount, team block, fork, chat, trash, Remote Control, waker or inbox:
+each is `null` in its kit, and the renderer offers none of them for a Codex session.
+- **The command**: `codex [-m <model>] [--add-dir <files>] [-c notify=[…]] [-- "<prompt>"]`, and
+  `codex resume [--add-dir …] [-c notify=[…]] <id> [-- "<prompt>"]`. Options go after `resume`;
+
 ## Codex: binding a tab to its thread
 
 > Left on 2026-11-20: the real check through Menkar's build adds its numbers (plan 39, P1a.7).
 ends; elsewhere than Linux it binds when the first turn ends.
+
+## Messaging, and the tools each caller is listed
+
+> Left on 2026-11-20: main starts the agent `start_session` names (plan 39, P1b.2).
+  its waking through the target's Waker exists, and main ignores `start_session`'s `agent` until
+  it starts another agent's session.

@@ -17,6 +17,7 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     inline JSON (`mcpConfig` in `src/core/command.ts`): the command is Electron's binary, the
     argument the script, and `env: {"ELECTRON_RUN_AS_NODE": "1"}`. The config is not run through
     a shell, which is why the variable goes in `env`. Claude Code adds it to the pane's environment.
+    Another agent mounts it its own way (Codex: `docs/agents.md`, "Codex as a worker").
   - **Who is calling:** the server reads `MENKAR_PANE` from that environment and refuses every
     call without one, and `MENKAR_AGENT` for the caller's agent: a mount that names none is
     Claude Code's, whose `--mcp-config` is unchanged. A request carries its `caller`, a pane, or

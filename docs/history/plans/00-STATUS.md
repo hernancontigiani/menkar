@@ -2276,6 +2276,13 @@ a trial PR and an AppImage. The lines that stated something as decided and stopp
   argument Codex gave, waiting at most `CHAINED_TIMEOUT_MS` (as the statusline chains,
   `src/core/context/statusline.ts:20`).
 
+## 2026-11-20 — plan 39's §2.5.2, before the provisional id was built (task 162)
+
+> Left plan 39 §2.5.2 on 2026-11-20: the provisional id is minted by start_session and renew before the pane exists, so it cannot be the pane's id (set, 2026-11-20).
+   - For a session `start_session` starts (P1b) the pane holds a **provisional id**
+     `pending:<pane-id>` as member, child and assignee until bound, re-keyed to the real id through
+     the path a `/clear` uses today (`followNewIdInLayout`, the follow functions). **The loss
+
 ## 2026-11-20 — §3's rows for plans 39, 28 and 46, before the day's work
 
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` (fast-forwarded to `main` b95026a on 2026-11-19), merging `main` in before each block; **waits for the human to add `/home/hernan/git/menkar-multi-agent` to the project's folders**, so its worker can start there; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |

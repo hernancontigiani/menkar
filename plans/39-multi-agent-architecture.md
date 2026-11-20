@@ -358,9 +358,11 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
    - **Codex's title thread**: its `notify` carries a thread with no rollout; **the notify program
      writes no record for it** (S4: it checks that the rollout exists before writing), so no other
      code needs to know about it.
-   - For a session `start_session` starts (P1b) the pane holds a **provisional id**
-     `pending:<pane-id>` as member, child and assignee until bound, re-keyed to the real id through
-     the path a `/clear` uses today (`followNewIdInLayout`, the follow functions). **The loss
+   - For a session `start_session` starts, or a `renew` restarts (P1b), the pane holds a
+     **provisional id** `pending:<random uuid>` (minted before the pane exists, since the start
+     places it first) as member, child and assignee until bound, re-keyed to the real id through
+     the path a `/clear` uses today (`followNewId`, then the provisional id forgotten;
+     `followNewIdInLayout`, the follow functions). **The loss
      window** (S5): Menkar quitting or crashing before the bind — until the first message and up to
      one poll after it with the early bind on Linux, the whole first turn without it — drops the
      provisional id on load with
@@ -1859,3 +1861,64 @@ P0's blocks run in turn.
 - **Integrity**: `check-test-integrity` reports P1a.2's six roster pins and **one more**,
   `tests/core/control/server.test.ts`: `callMenkar({ pane: 'p1', … })` became
   `callMenkar({ caller: { pane: 'p1' }, … })` on a line holding `expect(` (the type changed, G3).
+
+### P1b.2 (`menkar-t162`, task 162, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row:** G1 `src/core/orchestration/tasks.ts`
+  (`unassign`) with its test, `src/core/agents/codex/{index,launch}.ts` (the mount wired),
+  `src/core/agents/types.ts` (`LaunchContext.mcpServer`); `e2e/standins/codex.ts` (`/menkar
+  <tool>` calls the mounted server with Codex's environment rule) and the new
+  `e2e/codex-worker.spec.ts`; unit tests in `tests/core/projects/` and `tests/core/agents/codex/`.
+  G2: the provisional id is `pending:<random uuid>`, minted by `start_session` and `renew` before
+  the pane exists (§2.5.2 corrected, the old lines in `docs/history/plans/00-STATUS.md`).
+- **The mount** (`codex/mcp.ts`; `codex` measured each point on 0.169.0, 2026-11-20, recorded in
+  its research file): one `-c mcp_servers.menkar.<key>=…` per key, values TOML strings —
+  `command`, `args`, `env` {`ELECTRON_RUN_AS_NODE`, `MENKAR_PANE`, `MENKAR_AGENT`}, `env_vars`
+  [the three XDG names], `default_tools_approval_mode="approve"`. Codex gives a stdio server only
+  ten variables of its own, then `env_vars` from its environment (an unset name left out), then
+  `env`: without the XDG names a run with `XDG_CACHE_HOME` set (every e2e, any user who sets it)
+  finds no Menkar. Names are forwarded, never values (set). `env` and `env_vars` are separate keys
+  and merge, each `-c` applied by its dotted path. Mounted on every Codex start, as Claude's
+  `--mcp-config` is.
+- **`LaunchContext.mcpServer`** (my choice): the server program's path, which Codex's mount needs
+  and P1a's tests never set, so every existing line of `codex/launch.test.ts` holds; R10 equal.
+- **`start_session`'s `agent`** (D4): absent → the caller's agent; unknown → refused;
+  not installed → refused; **an agent whose kit has no McpMount → refused** (my choice: Cursor's
+  sessions could not use Menkar's tools nor be followed until P3; today the enum lists it when
+  installed). `remote_control` is refused for an agent whose main kit has no Remote. The refusals
+  name the agent by its id (tools answer in English; `agentName` is the user's language).
+- **The provisional id** (`src/core/projects/provisional.ts`): `bindProvisional` is `followNewId`
+  then `forgetSession` of the provisional id, so the real id takes its place, group, hidden flag,
+  parent, children, marks and the earlier conversations it took over by name, and the provisional
+  id is not left as an earlier conversation. Main's `bindPane` (from `joinSession`) also moves the
+  tab, task, name, model, mute, a park or renew asked meanwhile, and records a first prompt as
+  prompted once real. The provisional id never reaches `session_agents`, `started_sessions`
+  (`noteBound`) or the activity log. `dropProvisional` + `unassign` run once at
+  `startWorkspace`, with one `log.info`; the saved tab goes through `dropUnknownSessions`.
+- **`renew`** mints a provisional id for an agent with no `newId`, and its pane waits as a New
+  tab's does. `resume_session`'s refusal is agent-neutral; `park_session`, `adopt_session` needed
+  no change. `handleControl` already served any kit with an McpMount (P0.6).
+- **Tests** — unit: the mount's table, its quoting, nothing of the pane's values but its id, left
+  out without the program, Electron or the pane; `isProvisional`, the bind, the earlier
+  conversations kept, no change when nothing applies, the drop on load; `unassign`. E2E
+  (`codex-worker.spec.ts`): a Codex worker started by a Claude session's `start_session` → member
+  and child by its provisional id, then by its thread's, nothing `pending:` left; its own
+  `list_sessions` through the server Codex starts (with Codex's environment rule) answers, its
+  `XDG_CACHE_HOME` the run's; `gemini` and an uninstalled `cursor` refused; a provisional worker
+  saved by a Menkar that stopped is dropped at start with its tab, parent and assignee, its task
+  still queued, and the log line.
+- **Seen failing once:** the approval mode and the XDG list (unit), unquoted `env` values and a
+  mount without its program or Electron (15 unit tests), the thread not last, the pane's value
+  passed (unit); `isProvisional` by a prefix without its colon, the bind keeping the provisional
+  id (2), the drop finding none, `unassign` keeping the assignee; in the e2e, a join without
+  `bindPane` (members), no `env_vars` (Menkar not found: "Menkar is not running"), the caller's
+  agent always taken (the refusals), `forgetUnbound` skipped (the tab and the members).
+- **Not covered, known limit:** a worker stopped before it binds (its tab closed, parked) keeps
+  its provisional id as a member until the next start drops it.
+- **`npm run ci`**: biome, tsc, vitest (2188/2188), R10 unchanged (47 files), code rules, i18n
+  pass; test integrity reports P1a.2's six roster pins and P1b.1's `callMenkar` line against
+  `main`, nothing more; flaky and history pass when run after it. **`npm run ui-check`**: 427
+  passed, 1 failed — `e2e/unknown-agent.spec.ts` "a saved tab whose session nothing records and no
+  reader finds is dropped, as before": `projects.json`'s windows still hold the dropped tab after
+  15 s. It fails the same, three runs out of three, on a copy of HEAD (376eb2b) without this
+  block's changes: not this block's, reported to set.

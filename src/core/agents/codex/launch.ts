@@ -3,6 +3,7 @@ import { shellQuote } from '../../command'
 import { PANE_ENV } from '../../context/statusline'
 import type { LaunchContext, Launcher, LaunchFile, Namer } from '../types'
 import { readUserConfig, tomlString } from './config'
+import { mcp } from './mcp'
 
 // Codex takes no name at start.
 export const namer: Namer = { atStart: () => null }
@@ -54,7 +55,7 @@ export const launch: Launcher = {
     }
     if (ctx.filesFolder) words.push('--add-dir', shellQuote(ctx.filesFolder))
     const { words: notifyWords, files } = notify(ctx)
-    words.push(...notifyWords)
+    words.push(...notifyWords, ...mcp.words(ctx))
     if (start.kind === 'resume') words.push(shellQuote(start.id))
     // After `--`, so a prompt that starts with `-` is not read as an option. Double quotes keep it
     // one argument whatever it holds.

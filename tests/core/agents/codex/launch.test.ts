@@ -182,3 +182,70 @@ describe("the user's notify, chained through a file", () => {
       expect(JSON.parse(await chainText(fixture)), String(fixture)).toEqual([])
   })
 })
+
+// P1b.2: Menkar's MCP server mounted by `-c mcp_servers.menkar.*`, one key per `-c`. Codex hands a
+// stdio server only a few variables of its own, so the caller's pane and agent are in `env` and the
+// XDG names are forwarded by name, never by value.
+describe("Menkar's MCP server, mounted for the session", () => {
+  const MOUNTED = { ...CTX, mcpServer: '/opt/Menkar/resources/app.asar/out/main/mcp-server.js' }
+
+  // Each `-c mcp_servers.menkar.<key>=<value>` read as Codex reads it: a dotted key over TOML.
+  function menkarTable(argv: readonly string[]): Record<string, unknown> {
+    const table: Record<string, unknown> = {}
+    argv.forEach((arg, i) => {
+      if (argv[i - 1] !== '-c' || !arg.startsWith('mcp_servers.menkar.')) return
+      const at = arg.indexOf('=')
+      const key = arg.slice('mcp_servers.menkar.'.length, at)
+      table[key] = parse(`v = ${arg.slice(at + 1)}`).v
+    })
+    return table
+  }
+
+  test('names the program, the pane, the agent, the forwarded XDG names, and no approval card', () => {
+    for (const start of [{ kind: 'new' }, { kind: 'resume', id: ID }] as const)
+      expect(menkarTable(argvOf(start, MOUNTED)), start.kind).toEqual({
+        command: '/opt/Menkar/menkar',
+        args: ['/opt/Menkar/resources/app.asar/out/main/mcp-server.js'],
+        env: { ELECTRON_RUN_AS_NODE: '1', MENKAR_PANE: 'p1', MENKAR_AGENT: 'codex' },
+        env_vars: ['XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME'],
+        default_tools_approval_mode: 'approve',
+      })
+  })
+
+  test('a resume still names its thread last', () => {
+    const argv = argvOf({ kind: 'resume', id: ID }, MOUNTED)
+    expect(argv.at(-1)).toBe(ID)
+    expect(argv.indexOf('mcp_servers.menkar.command="/opt/Menkar/menkar"')).toBeGreaterThan(0)
+  })
+
+  test('no value of the pane environment but the pane id reaches the command', () => {
+    const words = kit.launch
+      .plan({ kind: 'new' }, { ...MOUNTED, env: { ...MOUNTED.env, XDG_CACHE_HOME: '/secret/x' } })
+      .words.join(' ')
+    expect(words).not.toContain('/secret/x')
+  })
+
+  test('paths and a pane id with quotes and a dollar stay whole', () => {
+    const ctx = {
+      ...MOUNTED,
+      env: { MENKAR_PANE: `p"1 $x` },
+      execPath: "/opt/Me nkar/it's $x",
+      mcpServer: '/opt/"q"/mcp\nserver.js',
+    }
+    const table = menkarTable(argvOf({ kind: 'new' }, ctx))
+    expect(table.command).toBe("/opt/Me nkar/it's $x")
+    expect(table.args).toEqual(['/opt/"q"/mcp\nserver.js'])
+    expect(table.env).toEqual({
+      ELECTRON_RUN_AS_NODE: '1',
+      MENKAR_PANE: `p"1 $x`,
+      MENKAR_AGENT: 'codex',
+    })
+  })
+
+  test('is left out without the program, Electron or the pane', () => {
+    const { mcpServer: _, ...noProgram } = MOUNTED
+    const { execPath: __, ...noElectron } = MOUNTED
+    for (const ctx of [noProgram, noElectron, { ...MOUNTED, env: {} }])
+      expect(kit.launch.plan({ kind: 'new' }, ctx).words.join(' ')).not.toContain('mcp_servers')
+  })
+})
