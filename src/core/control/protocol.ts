@@ -1,5 +1,6 @@
 import { REVIEW_WAITERS } from '../orchestration/taskState'
 import {
+  CALLABLE_TOOL_NAMES,
   type ControlAnswer,
   PLAIN_SHAPE,
   type ServerShape,
@@ -355,8 +356,7 @@ const TOOLS: readonly (Tool & { name: ToolName })[] = [
   },
 ]
 
-// Listed only to a caller some installed agent cannot be reached from by its own messaging; its
-// call is answered from P1b.3 on, so until then it is refused as an unknown tool.
+// Listed only to a caller some installed agent cannot be reached from by its own messaging.
 const SEND_MESSAGE: Tool = {
   name: 'send_message',
   description:
@@ -411,7 +411,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const isTool = (name: unknown): name is ToolName =>
-  typeof name === 'string' && (TOOL_NAMES as readonly string[]).includes(name)
+  typeof name === 'string' && (CALLABLE_TOOL_NAMES as readonly string[]).includes(name)
 
 const toolResult = (answer: ControlAnswer) => ({
   content: [{ type: 'text', text: answer.text }],

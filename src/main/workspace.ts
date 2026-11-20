@@ -25,13 +25,14 @@ import {
 import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
 import { readModel } from '../core/control/model'
 import { promptText, readPromptFile, savePrompt } from '../core/control/prompt'
+import { type MessageTarget, messageRoute, sendMessageTool } from '../core/control/send'
 import { trashCheck } from '../core/control/trash'
 import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
 import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
 import { terminalOpensIn, terminalPathExists } from '../core/files/exists'
 import { flavorFacts, paneFlavorEnv, refusalFor } from '../core/flavor'
-import { type Key, t, translate } from '../core/i18n'
+import { catalog, type Key, t, translate } from '../core/i18n'
 import { linkTarget } from '../core/links'
 import { log } from '../core/log'
 import { followModel, modelOf, setModel } from '../core/models'
@@ -1590,6 +1591,8 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return resumeFor(pane, project, sessionId, request)
     case 'ask':
       return askFor(project, sessionId, request.args.question)
+    case 'send_message':
+      return sendFor(project, sessionId, agent, request.args)
     case 'inbox': {
       const info = orchestrationInfo(project)
       return inboxes.read(project.id, (inbox) =>
@@ -1601,6 +1604,37 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return checked.ok ? trashNamed(project.id, checked.names) : refuse(checked.text)
     }
   }
+}
+
+// A session's agent: its pane's while it runs, else the one its reader found it by.
+const agentOfSession = (id: string): AgentId | null =>
+  agentOf(paneOfSession(id)) ?? sessionInfo(id)?.agent ?? null
+
+// The receiver reads the sender's agent in English, as the rest of Menkar's frame.
+function sendFor(
+  project: Project,
+  sessionId: string,
+  agent: AgentId,
+  args: Readonly<Record<string, unknown>>,
+): Promise<ControlAnswer> {
+  const target = (name: string): MessageTarget | { refusal: string } => {
+    const found = sessionOfProject(name, sessionsForNames(project.id))
+    return 'refusal' in found
+      ? found
+      : { id: found.id, ...messageRoute(agent, agentOfSession(found.id)) }
+  }
+  return sendMessageTool(
+    {
+      name: args.name,
+      text: args.text,
+      sender: {
+        id: sessionId,
+        name: sessionName(sessionId),
+        agent: catalog('en')[descriptorOf(agent).label],
+      },
+    },
+    { target, post: (id, text) => wakeTarget(id, text, false) },
+  )
 }
 
 // A number per question, so two of one session never share an inbox key.
@@ -2757,7 +2791,12 @@ function turnEnd(paneId: string, sessionId: string, agent: AgentId | null): void
     .then((found) => act(route({ ...known, ...found })))
 }
 
-async function wakeSession(parent: string, text: string): Promise<WakeOutcome> {
+function wakeSession(parent: string, text: string): Promise<WakeOutcome> {
+  return wakeTarget(parent, text, true)
+}
+
+// A message another session sent carries no counts: they are the orchestrator's, for its wakes.
+async function wakeTarget(parent: string, text: string, withCounts: boolean): Promise<WakeOutcome> {
   const agent = agentOf(paneOfSession(parent))
   const waker = agent ? mainKitOf(agent).waker : null
   if (!waker) {
@@ -2766,12 +2805,14 @@ async function wakeSession(parent: string, text: string): Promise<WakeOutcome> {
   }
   try {
     const project = projectOf(projects, parent)
-    const counts = postCounts(
-      project ? orchestrationInfo(project) : undefined,
-      parent,
-      project ? topicsOf(currentTopics(), project.id) : [],
-      project ? tasksOf(currentTasks(), project.id) : [],
-    )
+    const counts = withCounts
+      ? postCounts(
+          project ? orchestrationInfo(project) : undefined,
+          parent,
+          project ? topicsOf(currentTopics(), project.id) : [],
+          project ? tasksOf(currentTasks(), project.id) : [],
+        )
+      : undefined
     const outcome = await waker.wake(parent, text, counts)
     if (outcome === 'posted') log.info('a parent session was woken', { parent })
     else log.warn('a parent session could not be woken', { parent, outcome })

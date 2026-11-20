@@ -20,8 +20,8 @@ import { join } from 'node:path'
 // - `codex queue --thread <id> --message <text>` puts the message in $CODEX_HOME/queue_1.sqlite,
 //   or exits 1 when the thread has no rollout; a running stand-in holding that thread takes it as
 //   its next turn and deletes the row.
-// - With `-c mcp_servers.menkar.*` given, `/menkar <tool>` typed calls that tool of the server the
-//   keys name, started as Codex 0.169 starts a stdio server: its environment is only Codex's few
+// - With `-c mcp_servers.menkar.*` given, `/menkar <tool> [<JSON arguments>]` typed calls that
+//   tool of the server the keys name, started as Codex 0.169 starts a stdio server: its environment is only Codex's few
 //   variables, then the names in `env_vars` taken from its own environment, then `env`. The
 //   environment it was given goes to codex-mcp-env.json in HOME, and the answer is printed as
 //   "TOOL <name>: <text>".
@@ -95,7 +95,10 @@ function menkarServer() {
   for (const m of (key('env') || '').matchAll(/([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*("(?:[^"\\\\]|\\\\.)*")/g)) env[m[1]] = JSON.parse(m[2])
   return { command: JSON.parse(key('command')), args: JSON.parse(key('args')), env }
 }
-function callMenkar(name) {
+function callMenkar(call) {
+  const space = call.indexOf(' ')
+  const name = space < 0 ? call : call.slice(0, space)
+  const toolArgs = space < 0 ? {} : JSON.parse(call.slice(space + 1))
   const server = menkarServer()
   if (!server) {
     process.stdout.write('TOOL ' + name + ': no Menkar server\\r\\n')
@@ -115,7 +118,7 @@ function callMenkar(name) {
     }
   })
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }) + '\\n')
-  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: {} } }) + '\\n')
+  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: toolArgs } }) + '\\n')
 }
 const valued = new Set(['-c', '-m', '--model', '-C', '--cd', '--add-dir', '-s', '-a', '-p', '--profile'])
 const words = args.filter((word, i) => !word.startsWith('-') && !valued.has(args[i - 1]))

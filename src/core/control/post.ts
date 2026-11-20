@@ -13,13 +13,28 @@ export const PEER_PROTOCOL = 1
 // The time closes every text: Claude Code drops a message identical to the sender's previous one,
 // so a child that finished two turns in a row would wake its parent once.
 export function wakeFrame(text: string, msgId: string, counts?: WorkCounts): string {
-  const tail = counts ? ` · ${countsText(counts)}` : ''
   return `${JSON.stringify({
     type: 'user',
-    message: { content: `[Menkar] ${text} (${timeOfDay(now())})${tail}` },
+    message: { content: wakeText(text, counts) },
     from: 'menkar',
     msg_id: msgId,
   })}\n`
+}
+
+// What every agent's session reads when Menkar wakes it, whatever carries it there.
+export function wakeText(text: string, counts?: WorkCounts): string {
+  const tail = counts ? ` · ${countsText(counts)}` : ''
+  return `[Menkar] ${text} (${timeOfDay(now())})${tail}`
+}
+
+// A message one session sends another through Menkar: nothing else tells the receiver who wrote
+// it, and a receiver would answer with its own messaging tool, which cannot reach the sender.
+export function bridgedText(
+  from: { readonly name: string; readonly agent: string },
+  replyWith: string,
+  text: string,
+): string {
+  return `from ${from.name} (${from.agent}); reply with ${replyWith}: ${text}`
 }
 
 // English, like the rest of the frame: it is read by an agent, not shown in the UI.

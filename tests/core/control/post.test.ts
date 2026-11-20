@@ -5,7 +5,7 @@ import { createServer, type Server } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { postToSession, wakeFrame } from '../../../src/core/control/post'
+import { postToSession, wakeFrame, wakeText } from '../../../src/core/control/post'
 
 const servers: Server[] = []
 afterEach(() => {
@@ -47,6 +47,19 @@ function listen(socket: string): Promise<{ lines: () => string; closed: Promise<
 }
 
 describe('posting to a session', () => {
+  test("wakeText is the frame's content, what every agent's session reads", () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 20, 23, 59, 59))
+    const counts = { topics: 1, working: 0, waiting: 2 }
+    expect(wakeText('cx finished its turn', counts)).toBe(
+      '[Menkar] cx finished its turn (23:59:59) · 1 topic · 0 working · 2 waiting',
+    )
+    expect(JSON.parse(wakeFrame('cx finished its turn', 'm-1', counts)).message.content).toBe(
+      wakeText('cx finished its turn', counts),
+    )
+    expect(wakeText('a\nb')).toBe('[Menkar] a\nb (23:59:59)')
+  })
+
   test('the frame is the measured one line, the local time closing the text', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 10, 13, 14, 32, 5))

@@ -135,21 +135,26 @@ describe('the tools file, read by the server', () => {
     expect((await readShape('claude')).agents).toEqual(['claude', 'codex'])
   })
 
-  test('send_message is refused by name until its call is built (P1b.3)', async () => {
+  test("send_message's call reaches main with its arguments, as every tool's does", async () => {
     publish(['claude', 'codex'], wakeable('claude', 'codex'))
     const calls: unknown[] = []
     const ctx = {
       ...serverContext('p1', 'codex'),
-      call: async () => {
-        calls.push(1)
-        return { ok: true, text: '' }
+      call: async (tool: string, args: Record<string, unknown>) => {
+        calls.push([tool, args])
+        return { ok: true, text: 'Sent to cx.' }
       },
     }
     const reply = await answer(
-      { id: 3, method: 'tools/call', params: { name: 'send_message', arguments: {} } },
+      {
+        id: 3,
+        method: 'tools/call',
+        params: { name: 'send_message', arguments: { name: 'cx', text: 'hi' } },
+      },
       ctx,
     )
-    expect(reply).toMatchObject({ result: { isError: true } })
-    expect(calls).toEqual([])
+    expect(reply).toMatchObject({ result: { content: [{ type: 'text', text: 'Sent to cx.' }] } })
+    expect(reply).not.toMatchObject({ result: { isError: true } })
+    expect(calls).toEqual([['send_message', { name: 'cx', text: 'hi' }]])
   })
 })

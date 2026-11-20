@@ -1922,3 +1922,58 @@ P0's blocks run in turn.
   reader finds is dropped, as before": `projects.json`'s windows still hold the dropped tab after
   15 s. It fails the same, three runs out of three, on a copy of HEAD (376eb2b) without this
   block's changes: not this block's, reported to set.
+
+### P1b.3 (`menkar-t164`, task 164, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row:** new `src/core/control/send.ts`
+  (send_message's pure logic, as `ask.ts`) with `tests/core/control/send.test.ts`;
+  `src/core/control/{files,protocol,requests}.ts` (send_message callable);
+  `src/main/agents/codex/index.ts` and `src/main/workspace.ts`; `e2e/standins/codex.ts`
+  (`/menkar <tool> <JSON arguments>`) and the new `e2e/send-message.spec.ts`;
+  `tests/main/agents/codex/waker.test.ts`. P1b.1's interim test "send_message is refused by name
+  until its call is built" replaced by one that its call reaches main (accepted by set: it was
+  meant to go here; the integrity step does not list it, since `main` never had it).
+- **The measurement** (`codex`, codex-cli 0.169.0, a throwaway home, the stand-in API; its research
+  file, item 24): `codex queue` with no `-c` returns in 50–75 ms; exit 0 = queued (idle: next turn
+  in ~4 s; busy: its own turn right after; at an approval card: the card untouched, the message
+  run after the human's answer — **a queued message never answers an approval**). A stopped TUI:
+  exit 0, the row waits, delivered at the next resume as the first turn, or **in the same turn as
+  a resume's prompt**. No rollout yet and an unknown id: the same exit 1 and line, so the waker
+  looks for the rollout first. Text byte-exact (2,071 characters, newlines, quotes, emoji); two
+  messages, two turns. With the shared daemon running, any `-c` makes `codex queue` refuse.
+- **Built:** Codex's Waker (`src/main/agents/codex/waker.ts`): no rollout → `'no session'`, the
+  command not run (a provisional id too); else `codex queue --thread <id> --message
+  <wakeText(text, counts)>` through `runWakeCommand` (`src/main/agents/shared/wake.ts`: argv, no
+  shell, `withoutSessionEnv`, a 10 s bound); exit 0 → `'posted'`, anything else logged and
+  thrown, so `wakeSession` answers `'error'`. `wakeText` is split out of `wakeFrame` (its bytes
+  and R10 unchanged). `send_message { name, text }` (`sendMessageTool`): by name in the caller's
+  project, posted at once through the receiver's Waker; `messageRoute` from the two kits'
+  Messaging gives the refusal (the caller's own tool reaches it: "use SendMessage") and the tool
+  to reply with. The bridged frame: `bridgedText` → `from <name> (<agent, English>); reply with
+  <tool>: <text>` inside `wakeText`. `wakeSession` became `wakeTarget(…, withCounts)`: a message
+  carries no counts; Claude's parent wakes go as before.
+- **My choices:** a message is at most 2,000 characters, as `ask`'s question, and trimmed; the
+  caller itself is refused; `send_message` is answered for any caller, listed or not (main's
+  checks decide, as for every tool); a session's agent is its pane's, else its reader's
+  (`agentOfSession`); the 10 s bound on `codex queue`.
+- **Tests:** `send.test.ts` (each D2 pair from the real kits, the refusals, each outcome's
+  sentence, the frame's text), `post.test.ts` (`wakeText` is the frame's content), `requests` and
+  `shapes` (send_message reaches main), `tests/main/agents/codex/waker.test.ts` with the stand-in
+  `codex` on PATH: **the stand-in's `queue_1.sqlite` row holds the exact bytes**
+  (`[Menkar] from orchestrator (Claude Code); reply with send_message: "look"\nat …(23:59:58) · 2
+  topics · 1 working · 0 waiting`), no rollout and a provisional id → `'no session'` with nothing
+  run, a failing exit rejects, Menkar's `CODEX_THREAD_ID` not handed on. E2E
+  (`send-message.spec.ts`): Claude → a Codex worker before its first message refused ("has not
+  started yet"), then queued and run as its next turn with the frame matched whole in its
+  rollout; Codex → Claude through the messaging socket with the frame naming Codex;
+  Claude → Claude refused naming SendMessage, an unknown name refused, nothing posted.
+- **Seen failing once**, each injected and reverted: native reach ignored, the reply tool fixed,
+  `reaches` always true (2), the cap off by one, the caller itself allowed, a changed sentence,
+  the frame without its reply tool (2), `wakeText`'s counts inverted (6), send_message not
+  callable in the server, not parsed by main, no rollout check (2), the raw text queued, the exit
+  status ignored, the environment not stripped; in the e2e, the raw text queued and the native
+  reach ignored (both tests red).
+- **Known limits, not this block's:** a Codex that exits with an error leaves its shell and so its
+  pane: a message sent then is queued and waits for the next resume (`'posted'`). A resume of a
+  Codex session with a prompt while a message waits runs both in one turn (`resume_session` and
+  `renew` pass prompts): for P1b.5/P1b.6 to weigh.

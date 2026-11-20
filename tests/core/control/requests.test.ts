@@ -88,4 +88,19 @@ describe('the request queue', () => {
       expect(seen).toEqual([caller])
     },
   )
+
+  test('a send_message request reaches main, though not every caller is listed it', async () => {
+    const seen: unknown[] = []
+    const queue = new RequestQueue(
+      async (request) => {
+        seen.push([request.tool, request.args])
+        return { ok: true, text: '' }
+      },
+      () => 1,
+    )
+    const args = { name: 'cx', text: 'hi' }
+    put('m1.json', { id: 'm1', caller: { pane: 'p1' }, tool: 'send_message', args, at: 1 })
+    await queue.pass()
+    expect(seen).toEqual([['send_message', args]])
+  })
 })

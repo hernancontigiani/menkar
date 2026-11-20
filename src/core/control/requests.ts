@@ -2,11 +2,11 @@ import { readdir, readFile, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { log } from '../log'
 import {
+  CALLABLE_TOOL_NAMES,
   type Caller,
   type ControlAnswer,
   type ControlRequest,
   controlPaths,
-  TOOL_NAMES,
   writeAtomic,
 } from './files'
 
@@ -43,7 +43,8 @@ function parseRequest(text: string): ControlRequest | null {
   if (typeof r.id !== 'string' || !ID.test(r.id)) return null
   const caller = parseCaller(r.caller)
   if (!caller) return null
-  if (typeof r.tool !== 'string' || !(TOOL_NAMES as readonly string[]).includes(r.tool)) return null
+  if (typeof r.tool !== 'string' || !(CALLABLE_TOOL_NAMES as readonly string[]).includes(r.tool))
+    return null
   if (typeof r.at !== 'number') return null
   const args: Record<string, unknown> =
     typeof r.args === 'object' && r.args !== null && !Array.isArray(r.args)

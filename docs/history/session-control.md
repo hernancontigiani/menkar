@@ -232,3 +232,9 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
 
 > Left on 2026-11-20: the kit's `byName` says how a skill is loaded by name (task 160).
 | How it names skills, its protocol part | `skill`, `own`, `part` | `` `name` ``, `` `menkar:name` ``, `claude.md` |
+
+## The shape
+
+> Left on 2026-11-20: Codex has a waker, `codex queue` (plan 39 P1b.3, task 164).
+    - A parent whose tab's agent has no waker (`mainKit.waker`, Claude's alone today), or no entry
+      in the registry, is logged and not woken. `wakeSession` returns what the post did.

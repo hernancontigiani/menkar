@@ -21,8 +21,8 @@ shaped this way and what was rejected.
 - **A kit per agent** groups its strategies: `src/core/agents/<id>/index.ts` (`AgentKit`, plain
   Node) and `src/main/agents/<id>/index.ts` (`MainAgentKit`, what needs Electron's main process).
   **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
-  fork, no Remote Control, no team block, no waker, no inbox; Codex has none of those either, and
-  no MCP mount, chat or trash yet.
+  fork, no Remote Control, no team block, no waker, no inbox; Codex has no fork, Remote Control,
+  team block or inbox either, and no chat or trash.
 - **The registries choose**: `kitOf(id)` (`src/core/agents/registry.ts`) and `mainKitOf(id)`
   (`src/main/agents/registry.ts`) are `Record<AgentId, …>` literals, so `tsc` refuses an agent
   registered without a kit. They are the only code that imports an agent's folder. A pane keeps
@@ -120,8 +120,8 @@ with more hits than its entry fails, so a count only goes down. What is left:
 ## Codex: starting it
 
 Codex's kit is `src/core/agents/codex/` and `src/main/agents/codex/`; measured on codex-cli 0.169.0
-(2026-11-20). It has no team block, fork, chat, trash, Remote Control, waker or inbox: each is
-`null` in its kit, and the renderer offers none of them for a Codex session.
+(2026-11-20). It has no team block, fork, chat, trash, Remote Control or inbox: each is `null` in
+its kit, and the renderer offers none of them for a Codex session.
 
 - **The command**: `codex [-m <model>] [--add-dir <files>] [-c notify=[…]] [-c
   mcp_servers.menkar.…] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] [-c
@@ -260,8 +260,40 @@ elicitation, which are left to the title.
   what inserts it in `tools`, as for any tool. ToolSearch found the new tool only from the next
   turn. Menkar sends no such notification yet: the installed agents are found once, at start, and
   a restart starts every server again (`docs/NOT_BUILT_YET.md`).
-- **Not built yet on this branch:** `send_message`'s call is answered as an unknown tool until
-  its waking through the target's Waker exists.
+- **`send_message { name, text }`** (`src/core/control/send.ts`; D2) is answered for any caller,
+  listed or not. It finds the session by name in the caller's project, as `last_reply` does, and
+  posts at once through the receiver's Waker, so its answer says what the post did. It refuses a
+  receiver the caller's own messaging reaches, naming that tool ("use SendMessage": a Claude
+  session never takes the slower, unattributed path), the caller itself, and a message over 2,000
+  characters. **The bridged frame** is the wake's own text (`wakeText`, `src/core/control/post.ts`,
+  the content Claude's socket frame carries) around `from <name> (<agent>); reply with <tool>:
+  <message>`: the agent in English, read by an agent, and the tool the receiver answers with, its
+  own messaging when that reaches the sender, else `send_message`. A message carries no counts:
+  those are the orchestrator's wakes'.
+
+## Codex: waking
+
+Plan 39 P1b.3, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
+
+- **The Waker is `codex queue --thread <id> --message <text>`** (`src/main/agents/codex/waker.ts`),
+  Codex's own channel: the message goes to `$CODEX_HOME/queue_1.sqlite` and the session takes it
+  as a turn of its own once its current turn is over, so nothing is typed into its terminal. It
+  runs through `runWakeCommand` (`src/main/agents/shared/wake.ts`): the message as one argument,
+  no shell, Menkar's own session variables removed, its `CODEX_HOME` the panes'.
+- **Measured:** it returns in 50–75 ms; exit 0 means queued. An idle session takes the message
+  within seconds, a busy one as its next turn. At an approval card the message waits and the card
+  stays as it is until the human answers it: a queued message never answers an approval. Text is
+  delivered byte for byte (newlines, quotes, 2,000+ characters), and two messages run as two turns.
+- **Never with a `-c`:** with Codex's shared daemon running, a queue that would run its own
+  embedded server is refused.
+- **The outcome:** exit 0 → `posted`; another exit → a failure, logged with its error output.
+  **A thread with no rollout** (a Codex session before its first message, or a provisional id)
+  fails exactly as an unknown id does, so the rollout is looked for first and the answer is
+  `no session`, the command not run.
+- **A stopped session:** `codex queue` still exits 0 and the message waits in the queue until the
+  thread is resumed, where it is the first turn, or the same turn as a resume's prompt. Menkar wakes
+  only a session with a pane; a Codex that ended with an error leaves its shell, and so its pane,
+  open, and a message queued then waits for the thread's next resume.
 
 ## Codex as a worker
 

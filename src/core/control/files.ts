@@ -36,7 +36,9 @@ export const TOOL_NAMES = [
   'ask',
   'inbox',
 ] as const
-export type ToolName = (typeof TOOL_NAMES)[number]
+// Answered for any caller, but listed only to the callers whose shape offers it.
+export const CALLABLE_TOOL_NAMES = [...TOOL_NAMES, 'send_message'] as const
+export type ToolName = (typeof CALLABLE_TOOL_NAMES)[number]
 
 // Who calls a tool: a pane Menkar started, or a session an agent's server names in its request.
 export type Caller =

@@ -40,3 +40,21 @@ ends; elsewhere than Linux it binds when the first turn ends.
 > Left on 2026-11-20: main starts the agent `start_session` names (plan 39, P1b.2).
   its waking through the target's Waker exists, and main ignores `start_session`'s `agent` until
   it starts another agent's session.
+
+## The pattern: a kit of strategies per agent, chosen once
+
+> Left on 2026-11-20: Codex has a waker, `codex queue` (plan 39 P1b.3, task 164).
+  fork, no Remote Control, no team block, no waker, no inbox; Codex has none of those either, and
+  no MCP mount, chat or trash yet.
+
+## Codex: starting it
+
+> Left on 2026-11-20: Codex has a waker, `codex queue` (plan 39 P1b.3, task 164).
+(2026-11-20). It has no team block, fork, chat, trash, Remote Control, waker or inbox: each is
+`null` in its kit, and the renderer offers none of them for a Codex session.
+
+## Messaging, and the tools each caller is listed
+
+> Left on 2026-11-20: `send_message` is answered through the target's Waker (plan 39 P1b.3, task 164).
+- **Not built yet on this branch:** `send_message`'s call is answered as an unknown tool until
+  its waking through the target's Waker exists.
