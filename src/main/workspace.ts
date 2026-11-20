@@ -883,8 +883,10 @@ function recordMaximized(windowId: string): void {
 // A project's saved session tabs start the first time its window shows it, not at boot; once
 // started they keep running when the window shows another project. A session tab with no panes
 // that is not being started is such a deferred tab.
-let firstScanFailed = false
-const sessionsLoading = () => !sessions.scanned && !firstScanFailed
+// Ended when the first scan's sessions are applied and the unknown ones dropped, or when it
+// failed: a tab started before then would miss its agent, or start a session that goes.
+let firstScanEnded = false
+const sessionsLoading = () => !firstScanEnded
 
 function startShownTabs(): void {
   if (sessionsLoading()) return
@@ -3273,17 +3275,25 @@ export async function startWorkspace(): Promise<void> {
   // The window does not wait for the first scan of the agents' folders: the list fills in when it
   // ends, and the shown project's saved tabs start then (`startShownTabs` waits for it).
   sessionList = sessions.listNow()
+  // The scan can end before the saved layout is reopened below; the unknown sessions are dropped
+  // from that layout, not from the empty one before it.
+  let layoutReopened = () => {}
+  const reopened = new Promise<void>((resolve) => {
+    layoutReopened = resolve
+  })
   firstScan = sessions.start().then(
     async () => {
+      await reopened
       savedAgents = sessionAgents(await sessions.currentState())
       sessionList = sessions.listNow()
       dropUnknownSessions()
+      firstScanEnded = true
       firstScanDone(sessionList.length)
       changed()
     },
     // Logged where the scan is started; the window stops waiting for it all the same.
     () => {
-      firstScanFailed = true
+      firstScanEnded = true
       changed()
     },
   )
@@ -3323,6 +3333,7 @@ export async function startWorkspace(): Promise<void> {
     }
     putWindow({ ...w, tabs: kept })
   }
+  layoutReopened()
   onBufferUpdate((update) => {
     const markChanged = lastDirty.get(update.path) !== update.dirty || update.changes === undefined
     lastDirty.set(update.path, update.dirty)
