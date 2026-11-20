@@ -464,6 +464,10 @@ export async function seed(
   settings = withSetting(settings, 'color_scheme', theme)
   settings = withSetting(settings, 'terminal_theme', catppuccin(theme))
   settings = withSetting(settings, 'terminal_colors', 'theme')
+  // A session turning blocked raises a toast only while the window has focus, which varies under
+  // Xvfb: off, the same screen comes out every run, and no sound plays.
+  settings = withSetting(settings, 'notify_idle', false)
+  settings = withSetting(settings, 'notify_sound', false)
   await writeJson(join(config, basename(statePath())), {
     ...settings.rest,
     names: settings.names,

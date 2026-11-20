@@ -28,7 +28,9 @@
     "site:install": "npm --prefix site ci",
     "site:dev": "npm --prefix site run dev",
     "site:build": "npm --prefix site run build",
-    "site:check": "npm --prefix site run check"
+    "site:check": "npm --prefix site run check",
+    "captures": "rm -rf /tmp/menkar-captures/raw && MENKAR_FLAVOR_BUILD=menkar electron-vite build && xvfb-run -a env MENKAR_E2E_XVFB=1 playwright test -c playwright.captures.config.ts && node site/scripts/import-captures.mjs",
+    "captures:reviewed": "node site/scripts/import-captures.mjs --reviewed"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
