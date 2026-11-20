@@ -588,7 +588,7 @@ and `tests/scripts/nothing-lost.test.ts` (`site/AGENTS.md` mirrored to
 
 ### Block 2 — the tone guide reviewed (parallel with 3, 5, 6)
 Files: `site/AGENTS.md` only.
-- [ ] Ask `set` to forward `site/AGENTS.md` to ccai's `documentation` session for review (never
+- [x] Ask `set` to forward `site/AGENTS.md` to ccai's `documentation` session for review (never
   directly). Apply each comment, each with its case; what is declined is said in the report with
   why.
 - **Verify**: `npm run ci` (history check: lines removed from `site/AGENTS.md` are mirrored).
@@ -715,6 +715,31 @@ Deviations and what the plan did not anticipate:
   `src/content/i18n/es.json` yet), and the 404 entry is Starlight's own.
 - `sharp` already arrives as Astro's own dependency; block 4 still adds it as a direct `site`
   dependency, since the importer imports it.
+
+### Block 2 — `menkar-t137`, 2026-11-20 (task 137)
+
+Done: `site/AGENTS.md` takes the review of ccai's `documentation` session (kept as
+`$MENKAR_FILES/set-tone-guide-review.md`): its seven comments, who reads the site, which version it
+describes (the current release only), second person and imperative in the prose, and a vocabulary
+table of 22 rows (English, Spanish, the words not used, the catalog key). Each comment's rule went
+in, its story stayed in the report. The lines that left are in
+`docs/history/root/site-AGENTS.history.md`, created here. The table waits on the human.
+
+Deviations and what the plan did not anticipate:
+- **Alt text stays in the strings files**, not inline as the review's comment 5 wrote it
+  (`![a short description](shot:<slug>)`): §2.1 resolves it from `e2e/captures/strings/<locale>.ts`
+  with no second list. The guide requires it there and says a capture without it fails the build;
+  §2.7 has no check for it yet (`captures.test.ts`, block 4 or 5, is where it fits).
+- **The twins' parity is the number and levels of their headings, not their heading slugs**: a
+  translated heading gets another slug. §2.7's `locales.test.ts` (block 5) counts `##` headings;
+  the guide asks for every level.
+- **"What is not built yet" became "Who reads it, and which app"**, holding the readers, the
+  version rule and the roadmap rule, so the version is said once.
+- **§2.2's draft above is now stale**: `site/AGENTS.md` is the guide.
+- **The catalogs name a topic two ways** in each language: "topic"/"item" and "tema"/"pendiente"
+  (the section is "Awaiting you"/"Pendientes tuyos", decision 1.146). The table's pick is
+  topic/tema, for the human to confirm with the rest. `usage.tasks.onTopic` in `es.ts` says
+  "un tema (tú)", tuteo where the app speaks voseo.
 
 ### Block 3 — `menkar-t136`, 2026-11-20 (task 136)
 
