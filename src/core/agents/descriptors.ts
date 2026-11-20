@@ -1,5 +1,6 @@
 import type { Key } from '../i18n'
 import { descriptor as claude } from './claude/descriptor'
+import { descriptor as codex } from './codex/descriptor'
 import { descriptor as cursor } from './cursor/descriptor'
 import type { AgentId } from './ids'
 import type { AgentVersions } from './versions'
@@ -38,7 +39,7 @@ export interface AgentDescriptor {
   readonly versions: AgentVersions
 }
 
-export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor }
+export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor, codex }
 
 export function descriptorOf(id: AgentId): AgentDescriptor {
   return DESCRIPTORS[id]

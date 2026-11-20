@@ -58,7 +58,8 @@
   },
   "dependencies": {
     "@xterm/headless": "6.0.0",
-    "node-pty": "1.1.0"
+    "node-pty": "1.1.0",
+    "smol-toml": "1.9.1"
   },
   "author": {
     "name": "Hernan Contigiani",

@@ -13,7 +13,7 @@ import {
 } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { SESSION_ENV } from '../src/core/sessionenv'
+import { kitOf } from '../src/core/agents/registry'
 import { type LaunchedApp, launchApp } from './app'
 import { cursorStandIn, prepare, SESSION } from './fixtures'
 
@@ -51,7 +51,9 @@ const act = (page: Page, action: Record<string, unknown>) =>
 // of its own for each variable the pane sets, so it shows as set whatever the terminal the run was
 // started from already had.
 const INHERITED: Readonly<Record<string, string>> = {
-  ...Object.fromEntries(Object.values(SESSION_ENV).flatMap((keys) => keys.map((k) => [k, 'x']))),
+  ...Object.fromEntries(
+    Object.values(kitOf('claude').env ?? {}).flatMap((keys) => keys.map((k) => [k, 'x'])),
+  ),
   ANTHROPIC_MODEL: 'claude-opus-5-5',
   CLAUDE_CODE_DISABLE_AUTOUPDATER: '1',
   R10_USER_VARIABLE: 'kept',

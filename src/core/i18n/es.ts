@@ -26,6 +26,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'layout.sharesTab': 'Comparte una pestaña con otra sesión allá',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
+  'agent.codex': 'Codex',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'aviso: la carpeta del proyecto {cwd} ya no existe, se empieza en HOME',
   'drawer.hide': 'Ocultar la terminal (Ctrl+`)',

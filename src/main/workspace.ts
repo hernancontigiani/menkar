@@ -16,8 +16,10 @@ import { type Route, route, WakeBatcher, type WakeEntry, wakesParent } from '../
 import {
   type ControlAnswer,
   type ControlRequest,
+  controlPaths,
   type Snapshot,
   sessionsAnswer,
+  writeTextAtomic,
 } from '../core/control/files'
 import { lastReplyAnswer, sessionOfProject } from '../core/control/lastreply'
 import { readModel } from '../core/control/model'
@@ -1071,7 +1073,18 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         pluginDir: skillsPluginDir(),
         ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
         ...(teamFile ? { teamFile } : {}),
+        execPath: process.execPath,
+        programs: dirname(mcpServerScript()),
+        paneFiles: join(controlPaths().root, 'panes', id),
+        ...(filesFolder ? { filesFolder } : {}),
       })
+      for (const file of plan.files ?? [])
+        await file
+          .text()
+          .then((text) => writeTextAtomic(dirname(file.path), basename(file.path), text))
+          .catch((error: unknown) => {
+            log.warn('a file the agent command names could not be written', { pane: id, error })
+          })
       command = commandLine(plan)
       env = plan.env
       const promptedId = spec.sessionId ?? start.id

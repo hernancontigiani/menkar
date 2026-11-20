@@ -28,12 +28,27 @@ export interface LaunchContext {
   readonly pluginDir?: string
   // The session's team block, written before the command is built.
   readonly teamFile?: string
+  // Electron's binary, which runs Menkar's programs as plain Node.
+  readonly execPath?: string
+  // The folder holding the programs Menkar ships for agents to run.
+  readonly programs?: string
+  // The pane's own folder, where its plan's files are written.
+  readonly paneFiles?: string
+  // The project's files folder, granted to the session.
+  readonly filesFolder?: string
+}
+
+// A file the command names, written whole before the command runs; its text is read then.
+export interface LaunchFile {
+  readonly path: string
+  text(): Promise<string>
 }
 
 export interface LaunchPlan {
   // Shell words, each already quoted for the user's shell.
   readonly words: readonly string[]
   readonly env: Readonly<Record<string, string>>
+  readonly files?: readonly LaunchFile[]
 }
 
 export interface Launcher {
@@ -53,6 +68,14 @@ export interface Namer {
 // The variables that describe a running session of the agent, grouped by what they say: an agent
 // started with them inherited takes itself for that session's child.
 export type EnvRules = Readonly<Record<string, readonly string[]>>
+
+// What names alone cannot say: variables known by their prefix, always dropped, and un-namespaced
+// ones the agent injects, which may be the user's own and are dropped only when the agent's marker
+// is inherited with them.
+export interface EnvPatterns {
+  readonly prefixes: readonly string[]
+  readonly gated: { readonly marker: string; readonly names: readonly string[] } | null
+}
 
 // The oldest CLI that takes the team flags, and how its version is read.
 export interface VersionFloor {
@@ -186,6 +209,7 @@ export interface AgentKit {
   readonly namer: Namer
   readonly team: TeamDelivery | null
   readonly env: EnvRules | null
+  readonly envPatterns: EnvPatterns | null
   readonly catalog: SessionCatalog
   readonly state: StateRules
   readonly ids: SessionIds

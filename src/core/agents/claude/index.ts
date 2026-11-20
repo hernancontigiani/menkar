@@ -16,6 +16,7 @@ export const kit: AgentKit = {
   namer,
   team,
   env,
+  envPatterns: null,
   catalog,
   state,
   ids,

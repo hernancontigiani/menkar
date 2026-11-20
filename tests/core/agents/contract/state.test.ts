@@ -24,7 +24,15 @@ interface Case {
 const screensOf = (id: AgentId): readonly Case[] =>
   JSON.parse(readFileSync(join(DATA, id, 'screens.json'), 'utf8')) as Case[]
 
-describe.each(AGENT_IDS.map((id) => [id]))('%s', (id) => {
+// An agent registered before its state rules read its screen: it has no screens.json until then, and the block that builds it.
+const LANDS_IN: Partial<Record<AgentId, string>> = { codex: 'P1a.5' }
+const BUILT = AGENT_IDS.filter((id) => LANDS_IN[id] === undefined)
+
+test('only an agent still to be built is left out', () => {
+  for (const id of Object.keys(LANDS_IN)) expect(AGENT_IDS).toContain(id)
+})
+
+describe.each(BUILT.map((id) => [id]))('%s', (id) => {
   const cases = screensOf(id)
 
   test('its fixtures reach every raw state', () => {
@@ -56,6 +64,7 @@ describe("the agent's name in a notification", () => {
     expect(AGENT_IDS.map((id) => translate(descriptorOf(id).label))).toEqual([
       'Claude Code',
       'Cursor',
+      'Codex',
     ])
   })
 })

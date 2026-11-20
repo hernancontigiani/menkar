@@ -114,7 +114,15 @@ describe('the harness', () => {
   })
 })
 
-describe.each(AGENT_IDS.map((id) => [id]))('%s', (id) => {
+// An agent registered before its catalog reads its sessions: until then it reads nothing to check, and the block that builds it.
+const LANDS_IN: Partial<Record<AgentId, string>> = { codex: 'P1a.3' }
+const BUILT = AGENT_IDS.filter((id) => LANDS_IN[id] === undefined)
+
+test('only an agent still to be built is left out', () => {
+  for (const id of Object.keys(LANDS_IN)) expect(AGENT_IDS).toContain(id)
+})
+
+describe.each(BUILT.map((id) => [id]))('%s', (id) => {
   const kit = kitOf(id)
 
   test('reading its sessions writes nothing it does not declare', async () => {

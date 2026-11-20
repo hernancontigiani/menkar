@@ -29,7 +29,7 @@ describe('descriptors and kits', () => {
     }
   })
 
-  test("the descriptors say what the app shows today: Claude's and Cursor's command, name and glyph", () => {
+  test("the descriptors say what the app shows: each agent's command, name and glyph", () => {
     expect(
       AGENT_IDS.map((id) => [
         descriptorOf(id).command,
@@ -39,6 +39,7 @@ describe('descriptors and kits', () => {
     ).toEqual([
       ['claude', 'agent.claude', '✳'],
       ['cursor-agent', 'agent.cursor', '➤'],
+      ['codex', 'agent.codex', '⬡'],
     ])
   })
 
@@ -50,6 +51,7 @@ describe('descriptors and kits', () => {
         .sort()
     expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'trash'])
     expect(caps('cursor')).toEqual(['chat', 'trash'])
+    expect(caps('codex')).toEqual(['context'])
   })
 
   test('every cap has its concern named, and a built concern matches its cap for every agent', () => {
@@ -70,7 +72,7 @@ describe('descriptors and kits', () => {
   test('namedAtStart mirrors the Namer for every agent', () => {
     for (const id of AGENT_IDS)
       expect(kitOf(id).namer.atStart('x') !== null, id).toBe(descriptorOf(id).namedAtStart)
-    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([true, false])
+    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([true, false, false])
   })
 
   // The chat variants are data the renderer reads; the kit's ChatStrategy runs them.

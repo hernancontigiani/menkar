@@ -67,6 +67,11 @@ what neither says: why each piece, and what was rejected.
 - **node-pty is rebuilt for Electron** by `postinstall` (`@electron/rebuild`): the binary npm
   builds is for Node's ABI and does not load in Electron. Nothing under Vitest loads node-pty.
 - **`npm install` may not fetch Electron's binary**; `node node_modules/electron/install.js` does.
+- **A runtime dependency ships in every installer, so it is pinned exactly.** `smol-toml` (BSD-3-Clause, no dependencies of its own) parses the user's Codex
+  `config.toml`, read only: Menkar's `-c notify` replaces the user's own `notify` for its sessions,
+  so the user's value is read and chained, and a wrong parse would chain a wrong command or drop
+  their own instructions silently. A file it cannot parse means nothing is chained, never a
+  refused start.
 
 ## The checks in `npm run ci`
 

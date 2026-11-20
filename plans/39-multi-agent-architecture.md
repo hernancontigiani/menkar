@@ -468,8 +468,10 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
 ### 2.8 Reading `~/.codex/config.toml` (D6, the team block's chaining)
 
 Menkar reads the user's `notify` (an array of strings) and `developer_instructions` (a string,
-possibly multi-line) from `$CODEX_HOME/config.toml` (default `~/.codex`), honouring a top-level
-`profile = "<p>"` whose `[profiles.<p>]` table overrides them. **`smol-toml` (pinned,
+possibly multi-line) from `$CODEX_HOME/config.toml` (default `~/.codex`), **the base file only**: a
+profile is chosen only with `-p`, which Menkar does not pass, and codex-cli 0.169.0 refuses to
+start on a top-level `profile` key (`codex`, measured 2026-11-20), so a file with one chains
+nothing. A `-c` value wins over the file and over a profile. **`smol-toml` (pinned,
 BSD-3-Clause, no dependencies)** parses it: the new runtime dependency, justified because a wrong
 parse of the user's file means chaining a wrong command or dropping their own instructions
 silently. Read only; a file that does not parse → no chaining and a log line, never a refused
@@ -1399,3 +1401,78 @@ P0's blocks run in turn.
   `codex queue` through `queue_1.sqlite` (refused for a thread with no rollout), the running
   stand-in taking the row as its next turn and deleting it. Run once by hand in a scratch home;
   no e2e uses it yet (P1a.4 on).
+
+### P1a.2 (`menkar-t135`, task 135, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row (premise gaps G1–G5):**
+  - G1: registering Codex needs a whole `AgentKit`, and P0's contract tests iterate `AGENT_IDS`
+    (`expected.json` arrives with P1a.3, `screens.json` with P1a.5). Codex is registered now with
+    an **interim catalog that finds nothing** (`codex/catalog.ts`, replaced by P1a.3) and **interim
+    state rules that answer `idle`** (`codex/state.ts`, replaced by P1a.5). The three contract
+    tests (`catalog`, `state`, `nowrite`) gain a `LANDS_IN` map (`codex: 'P1a.3'` / `'P1a.5'`) and
+    a test that it names only registered agents; P1a.3 and P1a.5 remove their entries. So Codex
+    joins the no-write test with P1a.3, not here: its catalog reads nothing yet. Branch only: the
+    interim picker entry ships nowhere.
+  - G2: `src/core/agents/types.ts` gains `LaunchPlan.files` (`LaunchFile { path, text() }`, text
+    read when it is written) and the context fields `execPath`, `programs`, `paneFiles`,
+    `filesFolder`; `src/main/workspace.ts` `startPaneHeld` passes them and writes `plan.files`
+    whole (`writeTextAtomic`) before the command, logging a failure and starting anyway. The pane's
+    files go to `control/panes/<pane>/` in the cache (my choice of place; nothing sweeps them yet,
+    one small file per Codex pane). **`programs` names the folder of `mcp-server.js`, and the notify
+    path is `<programs>/codex-notify.js`, which P1a.4 builds**: until then a Codex session's `-c
+    notify` names a program not yet shipped.
+  - G3: `agent.codex` in `src/core/i18n/{en,es}.ts`.
+  - G4: the glyph is drawn only in Add session's rows (`addsession.ts`), not in the New picker
+    (labels): proposed in a mock render of those rows with the app's CSS, beside the real New
+    picker with Codex greyed.
+  - G5: no `developer_instructions` and no MCP mount in P1a.2 (P1b.5, P1b.2): the user's own
+    `developer_instructions` stays in effect; `LaunchPlan.files` carries only the notify chain file.
+  - Also touched as consequences: `claude/index.ts` and `cursor/index.ts` (`envPatterns: null`);
+    `tests/core/r10.test.ts` (its `CASES` typed by its own `OPTIONS` keys instead of `Agent`, which
+    now includes Codex; no snapshot changed).
+- **Contradicted premise, §2.8 fixed** (H1, set 2026-11-20): `codex` measured on 0.169.0 that a
+  top-level `profile` key in `config.toml` is an error ("legacy profile config is no longer
+  supported; use --profile p with p.config.toml"); a profile is only `-p`, layering
+  `$CODEX_HOME/<name>.config.toml`; a `-c` value beats the user's file and any profile (layer 30
+  against 20/21). Menkar passes no `-p`, so `config.ts` reads the base file only and a file with a
+  top-level `profile` chains nothing. The old §2.8 lines are in `docs/history/plans/00-STATUS.md`.
+- **D12 needed two shapes `EnvRules` could not say** (H2, set 2026-11-20): `EnvPatterns { prefixes,
+  gated }` on the kit (`envPatterns`), applied by `withoutSessionEnv` — a prefix
+  (`CODEX_NETWORK_PROXY_SNAPSHOT_BROKERED_`) always dropped, and `PLUGIN_ROOT`/`PLUGIN_DATA`
+  dropped only when `CODEX_THREAD_ID` is inherited. Claude's rules untouched; R10 unchanged.
+  Codex's names, from `codex` (2026-11-20): identity (`CODEX_THREAD_ID`, `CODEX_TOOL_CALL_ID`,
+  `CODEX_PERMISSION_PROFILE`), sandbox markers, the proxy's variables; kept: its configuration
+  and the display tuning its shell forces (D12).
+- **`ELECTRON_RUN_AS_NODE` is not put in Codex's environment** (H3, set 2026-11-20; §2.9 said it
+  would be): it would reach every command Codex's shell runs, and an Electron app started there
+  would run as Node. The notify argv starts `/usr/bin/env ELECTRON_RUN_AS_NODE=1 <electron>
+  <program> --pane <pane> --chain-file <file>`.
+- **The command** (from `codex`, 0.169.0, measured): `codex [-m <model>] [--add-dir <files>] [-c
+  notify=[…]] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] <id> [-- "<prompt>"]`.
+  Options after `resume`; **`--` before the prompt** (without it a prompt starting with `-` is an
+  unknown option); **no `-m` on a resume**, which would switch the thread's model (nor any `-c
+  model…`). The prompt is `"$(cat '<file>')"`, as Claude's. A fork throws: Codex's `fork` is
+  `null`.
+- **A `-c` value is a TOML basic string** (`tomlString`): Codex parses `-c` values as TOML and
+  takes an unparsable one as a string with edge spaces and quotes trimmed, so `42` or `true`
+  changes type (`codex`, measured). JSON's escapes are TOML's except a lone surrogate (replaced by
+  U+FFFD) and DEL (escaped: JSON leaves it raw, which TOML forbids — my finding, smol-toml refuses
+  it). P1b.5 writes `developer_instructions` the same way, into a file passed as `-c
+  "developer_instructions=$(cat '<file>')"` (`codex` measured it byte-exact).
+- **The chain file** holds the user's `notify` argv as JSON, `[]` when none (my choice of format;
+  P1a.4's program reads it). A `notify` that is not a non-empty array of strings, or a
+  `developer_instructions` that is not a string, is not passed on (Codex would refuse it).
+- **`smol-toml` 1.9.1**, pinned exactly; its reason in `docs/toolchain.md`.
+- **Glyph**: `⬡` in the descriptor, **proposed, not decided** — the human chooses from the
+  screenshots `menkar-t135-codex-glyph-*.png`.
+- **Six roster pins changed** (set, 2026-11-20): `ids.test.ts`, `check-code-rules.test.ts` (two),
+  `parity.test.ts` (`namedAtStart`) and `e2e/remote.spec.ts` SES-72 (two: both installed, and
+  Claude only) now list Codex; `check-test-integrity` reports exactly those six removed `expect(`
+  lines, which set accepts in the commit (a new agent registered).
+- **`e2e/r10.spec.ts`'s inherited environment** (set, 2026-11-20) is built from Claude's kit's
+  `env`, as its comment said, not from `SESSION_ENV`: with Codex registered, `SESSION_ENV` grew by
+  Codex's names and each R10 file's `removed:` list with it, though Claude got the same for the
+  same input. The R10 files stay byte-equal.
+- **Seen failing once**: no `--` (8 tests), the prompt path unquoted (6), the notify argv not
+  TOML-escaped (1), a top-level profile honoured (2), no surrogate or DEL handling (2), the prefix
+  ignored (1), the gate ignored (1), a `LANDS_IN` naming an unregistered agent (1).

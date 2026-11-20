@@ -1,0 +1,9 @@
+model = "gpt-5.5"
+notify = ["/home/ana/bin/notify-me", "--sound", "it's done"]
+developer_instructions = """
+  Answer in English.
+Keep "quotes" and $HOME as written.
+"""
+
+[projects."/home/ana/work"]
+trust_level = "trusted"

@@ -26,6 +26,17 @@ test('the variables a running session gives its children are dropped', () => {
     CLAUDE_PLUGIN_ROOT: '/home/ana/.claude/plugins/p',
     CLAUDE_PLUGIN_DATA: '/home/ana/.claude/plugins/data/p',
     CLAUDE_CODE_SSE_PORT: '12345',
+    // As codex-cli 0.169.0 sets them for a command its shell tool runs.
+    CODEX_THREAD_ID: '019a3f1e-7c2d-7b40-9e11-2f4a6b8c0d1e',
+    CODEX_TOOL_CALL_ID: 'call_01',
+    CODEX_PERMISSION_PROFILE: 'workspace-write',
+    CODEX_CI: '1',
+    CODEX_SANDBOX: 'seatbelt',
+    CODEX_SANDBOX_NETWORK_DISABLED: '1',
+    CODEX_NETWORK_PROXY_ACTIVE: '1',
+    CODEX_NETWORK_PROXY_ATTRIBUTION: 'attr',
+    CODEX_NETWORK_PROXY_CREDENTIAL_BROKER_ACTIVE: '1',
+    CODEX_NETWORK_ALLOW_LOCAL_BINDING: '1',
   }
   expect(Object.keys(fromASession).sort()).toEqual(Object.values(SESSION_ENV).flat().sort())
   expect(withoutSessionEnv({ ...fromASession, PATH: '/usr/bin' })).toEqual({ PATH: '/usr/bin' })
@@ -45,4 +56,40 @@ test("the user's own configuration stays, Claude Code's settings among it", () =
   }
   expect(withoutSessionEnv(configured)).toEqual(configured)
   expect(withoutSessionEnv({ GONE: undefined, KEPT: '' })).toEqual({ KEPT: '' })
+})
+
+test("a variable known by its prefix is dropped: Codex's proxy snapshot", () => {
+  expect(
+    withoutSessionEnv({
+      CODEX_NETWORK_PROXY_SNAPSHOT_BROKERED_HTTPS: 'x',
+      CODEX_NETWORK_PROXY_SNAPSHOT_BROKERED_: 'y',
+      CODEX_NETWORK_PROXY_SNAPSHOT: 'kept: not the prefix',
+      PATH: '/usr/bin',
+    }),
+  ).toEqual({ CODEX_NETWORK_PROXY_SNAPSHOT: 'kept: not the prefix', PATH: '/usr/bin' })
+})
+
+test("a plugin's folders are dropped only when a Codex thread handed them on", () => {
+  const plugin = { PLUGIN_ROOT: '/home/ana/.codex/plugins/p', PLUGIN_DATA: '/home/ana/.codex/d' }
+  expect(withoutSessionEnv({ ...plugin, PATH: '/usr/bin' })).toEqual({
+    ...plugin,
+    PATH: '/usr/bin',
+  })
+  expect(withoutSessionEnv({ ...plugin, CODEX_THREAD_ID: 't', PATH: '/usr/bin' })).toEqual({
+    PATH: '/usr/bin',
+  })
+})
+
+test("Codex's configuration and the display tuning its shell forces are kept", () => {
+  const configured = {
+    CODEX_HOME: '/home/ana/.codex-work',
+    CODEX_SQLITE_HOME: '/home/ana/.codex-db',
+    OPENAI_API_KEY: 'sk-x',
+    CODEX_API_KEY: 'k',
+    CODEX_CA_CERTIFICATE: '/etc/ssl/ca.pem',
+    NO_COLOR: '1',
+    TERM: 'dumb',
+    PAGER: 'cat',
+  }
+  expect(withoutSessionEnv(configured)).toEqual(configured)
 })

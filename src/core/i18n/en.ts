@@ -24,6 +24,7 @@ export const en = {
   'layout.sharesTab': 'It shares a tab with another session there',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
+  'agent.codex': 'Codex',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'warning: project dir {cwd} no longer exists, starting in HOME',
   'drawer.hide': 'Hide the shell (Ctrl+`)',
