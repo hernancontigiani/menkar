@@ -1,0 +1,170 @@
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+// A stand-in `codex` (never the real one), with the files Codex 0.169 writes in their shapes:
+// - `--version` prints FAKE_CODEX_VERSION (0.169.0 by default) and exits.
+// - It records its arguments in codex-args.txt and its environment in codex-env.json, in HOME.
+// - `codex [options] [prompt]` starts a thread: its rollout appears under
+//   $CODEX_HOME/sessions/YYYY/MM/DD/ (CODEX_HOME defaults to ~/.codex) with its `session_meta`
+//   line, before any turn, and the process holds it open while it runs, as Codex does.
+//   `codex resume <id> [prompt]` reopens that thread's rollout, or exits 1 when none exists.
+// - The prompt, or a line typed and ended with Enter, runs a turn: its lines are appended to the
+//   rollout, then each `-c notify=[…]` program runs with Codex's one JSON argument. The first turn
+//   of a new thread notifies first for a title thread that has no rollout, as Codex's title
+//   generation does.
+// - `codex queue --thread <id> --message <text>` puts the message in $CODEX_HOME/queue_1.sqlite,
+//   or exits 1 when the thread has no rollout; a running stand-in holding that thread takes it as
+//   its next turn and deletes the row.
+// Timestamps inside the rollout are UTC; its file name and folders are local time, as Codex's.
+// - Typing EXIT0 ends it.
+const FAKE_CODEX = `#!/usr/bin/env node
+const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto')
+const args = process.argv.slice(2)
+if (args[0] === '--version') {
+  process.stdout.write('codex-cli ' + (process.env.FAKE_CODEX_VERSION || '0.169.0') + '\\n')
+  process.exit(0)
+}
+fs.appendFileSync(path.join(process.env.HOME, 'codex-args.txt'), args.join(' ') + '\\n')
+fs.writeFileSync(path.join(process.env.HOME, 'codex-env.json'), JSON.stringify(process.env))
+const home = process.env.CODEX_HOME || path.join(process.env.HOME, '.codex')
+const sessions = path.join(home, 'sessions')
+
+function rolloutOf(id) {
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return null
+    for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+      const at = path.join(dir, item.name)
+      if (item.isDirectory()) {
+        const found = walk(at)
+        if (found) return found
+      } else if (item.name.endsWith('-' + id + '.jsonl')) return at
+    }
+    return null
+  }
+  return walk(sessions)
+}
+
+function queueDb() {
+  const { DatabaseSync } = require('node:sqlite')
+  fs.mkdirSync(home, { recursive: true })
+  const db = new DatabaseSync(path.join(home, 'queue_1.sqlite'))
+  db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS queued_items (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, payload_json TEXT NOT NULL, queue_order INTEGER NOT NULL, created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL)')
+  return db
+}
+
+if (args[0] === 'queue') {
+  const thread = args[args.indexOf('--thread') + 1]
+  const message = args[args.indexOf('--message') + 1]
+  if (!rolloutOf(thread)) {
+    process.stderr.write('Error: no rollout found for thread id ' + thread + '\\n')
+    process.exit(1)
+  }
+  const db = queueDb()
+  const at = Date.now()
+  const order = db.prepare('SELECT COUNT(*) AS n FROM queued_items WHERE thread_id = ?').get(thread).n
+  const payload = { UserInput: { content: [{ type: 'text', text: message, text_elements: [] }], client_id: crypto.randomUUID() } }
+  db.prepare('INSERT INTO queued_items VALUES (?, ?, ?, ?, ?, ?)').run(crypto.randomUUID(), thread, JSON.stringify(payload), order, at, at)
+  db.close()
+  process.exit(0)
+}
+
+// -c key=value, as many as given; the value is TOML, and notify's array of strings reads as JSON.
+const config = {}
+args.forEach((word, i) => {
+  if (args[i - 1] !== '-c') return
+  const eq = word.indexOf('=')
+  config[word.slice(0, eq)] = word.slice(eq + 1)
+})
+const notify = config.notify ? JSON.parse(config.notify) : null
+const valued = new Set(['-c', '-m', '--model', '-C', '--cd', '--add-dir', '-s', '-a', '-p', '--profile'])
+const words = args.filter((word, i) => !word.startsWith('-') && !valued.has(args[i - 1]))
+const resuming = words[0] === 'resume'
+const prompt = resuming ? words[2] : words[0]
+const cwd = args.includes('-C') ? path.resolve(args[args.indexOf('-C') + 1]) : process.cwd()
+
+let id, file
+if (resuming) {
+  id = words[1]
+  file = rolloutOf(id)
+  if (!file) {
+    process.stderr.write('Error: no rollout found for thread id ' + id + '\\n')
+    process.exit(1)
+  }
+} else {
+  id = crypto.randomUUID()
+  const now = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const day = [String(now.getFullYear()), pad(now.getMonth() + 1), pad(now.getDate())]
+  const time = [pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds())].join('-')
+  const dir = path.join(sessions, ...day)
+  fs.mkdirSync(dir, { recursive: true })
+  file = path.join(dir, 'rollout-' + day.join('-') + 'T' + time + '-' + id + '.jsonl')
+}
+// Held open for appends while it runs: the open file is how a running Codex's thread is found.
+const fd = fs.openSync(file, 'a')
+const line = (type, payload) => fs.writeSync(fd, JSON.stringify({ timestamp: new Date().toISOString(), type, payload }) + '\\n')
+if (!resuming) {
+  const at = new Date().toISOString()
+  line('session_meta', { session_id: id, id, timestamp: at, cwd, originator: 'codex-tui', cli_version: '0.169.0', source: 'cli', thread_source: 'user', model_provider: 'openai', base_instructions: { text: 'Stand-in instructions.' }, history_mode: 'paginated' })
+}
+
+const inputs = []
+let turns = 0
+let busy = false
+function run(program, payload) {
+  require('node:child_process').spawnSync(program[0], [...program.slice(1), JSON.stringify(payload)], { stdio: 'ignore' })
+}
+function turn(text) {
+  busy = true
+  turns += 1
+  const turnId = crypto.randomUUID()
+  inputs.push(text)
+  process.stdout.write('\\x1b[2J\\x1b[H• Working (0s • esc to interrupt)\\r\\n› Ask Codex to do anything\\r\\n')
+  setTimeout(() => {
+    const reply = 'Done: ' + text
+    const started = Math.floor(Date.now() / 1000)
+    const usage = { input_tokens: 1200, cached_input_tokens: 800, cache_write_input_tokens: 0, output_tokens: 40, reasoning_output_tokens: 10, total_tokens: 1240 }
+    line('turn_context', { turn_id: turnId, cwd, approval_policy: 'on-request', model: 'gpt-stand-in', effort: 'low' })
+    line('event_msg', { type: 'task_started', turn_id: turnId, started_at: started, model_context_window: 258400, collaboration_mode_kind: 'default' })
+    line('event_msg', { type: 'item_completed', thread_id: id, turn_id: turnId, item: { type: 'UserMessage', id: crypto.randomUUID(), client_id: crypto.randomUUID(), content: [{ type: 'text', text, text_elements: [] }] }, completed_at_ms: Date.now() })
+    line('event_msg', { type: 'item_completed', thread_id: id, turn_id: turnId, item: { type: 'AgentMessage', id: 'msg_' + turns, content: [{ type: 'Text', text: reply }] }, completed_at_ms: Date.now() })
+    line('event_msg', { type: 'token_count', info: { total_token_usage: usage, last_token_usage: usage, last_usage_includes_reasoning: true, model_context_window: 258400 }, rate_limits: null })
+    line('event_msg', { type: 'task_complete', turn_id: turnId, root_turn_id: turnId, last_agent_message: reply, started_at: started, completed_at: started + 1, duration_ms: 1000, time_to_first_token_ms: 300 })
+    const payload = { type: 'agent-turn-complete', 'thread-id': id, 'turn-id': turnId, cwd, client: 'codex-tui', 'input-messages': inputs, 'last-assistant-message': reply }
+    if (notify && !resuming && turns === 1) run(notify, { ...payload, 'thread-id': crypto.randomUUID(), 'turn-id': crypto.randomUUID(), 'input-messages': [text], 'last-assistant-message': 'A title' })
+    if (notify) run(notify, payload)
+    process.stdout.write('\\x1b[2J\\x1b[H• ' + reply + '\\r\\n› Ask Codex to do anything\\r\\n')
+    busy = false
+  }, 1000)
+}
+
+process.stdout.write('› Ask Codex to do anything\\r\\n')
+if (prompt) turn(prompt)
+setInterval(() => {
+  if (busy || !fs.existsSync(path.join(home, 'queue_1.sqlite'))) return
+  const db = queueDb()
+  const row = db.prepare('SELECT id, payload_json FROM queued_items WHERE thread_id = ? ORDER BY queue_order LIMIT 1').get(id)
+  if (row) db.prepare('DELETE FROM queued_items WHERE id = ?').run(row.id)
+  db.close()
+  if (row) turn(JSON.parse(row.payload_json).UserInput.content[0].text)
+}, 500).unref()
+if (process.stdin.isTTY) process.stdin.setRawMode(true)
+let typed = ''
+process.stdin.on('data', (d) => {
+  typed += d.toString()
+  if (typed.includes('EXIT0')) process.exit(0)
+  const enter = typed.indexOf('\\r')
+  if (enter >= 0) {
+    const text = typed.slice(0, enter).trim()
+    typed = typed.slice(enter + 1)
+    if (text && !busy) turn(text)
+  }
+})
+`
+
+// Puts the stand-in `codex` in `bin`, beside the stand-in claude.
+export function codexStandIn(bin: string): void {
+  mkdirSync(bin, { recursive: true })
+  writeFileSync(join(bin, 'codex'), FAKE_CODEX)
+  chmodSync(join(bin, 'codex'), 0o755)
+}

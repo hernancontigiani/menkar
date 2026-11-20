@@ -1,0 +1,148 @@
+// §2.6 of the multi-agent architecture (R9, S6): an agent's SQLite database is read without a
+// file appearing or changing beside it, with no writer, with a live writer, and after a writer
+// crashed and left its `-wal` without the `-shm`.
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import { openAgentDb, UNREADABLE } from '../../../../src/core/agents/shared/db'
+import { addSink } from '../../../../src/core/log'
+
+const folder = () => mkdtempSync(join(process.env.MENKAR_TEST_ROOT ?? '', 'agent-db-'))
+
+// A WAL database, as the agents keep theirs, whose writer closed: only the file is left.
+function closedDatabase(dir: string): string {
+  const path = join(dir, 'state_5.sqlite')
+  const db = new DatabaseSync(path)
+  db.exec(
+    "PRAGMA journal_mode=WAL; CREATE TABLE threads (id TEXT PRIMARY KEY, name TEXT); INSERT INTO threads VALUES ('t1', 'first')",
+  )
+  db.close()
+  return path
+}
+
+const names = (db: DatabaseSync) =>
+  db
+    .prepare('SELECT name FROM threads ORDER BY id')
+    .all()
+    .map((row) => row.name)
+
+// What a reader can see change beside the database: the listing, and each file's bytes and mtime.
+function snapshot(dir: string): unknown {
+  return readdirSync(dir)
+    .sort()
+    .map((name) => {
+      const stats = statSync(join(dir, name))
+      return {
+        name,
+        mtime: stats.mtimeMs,
+        bytes: name.endsWith('-shm') ? null : readFileSync(join(dir, name)),
+      }
+    })
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe('openAgentDb', () => {
+  test('with no writer it reads the file and creates no -wal or -shm beside it', () => {
+    const dir = folder()
+    const path = closedDatabase(dir)
+    expect(readdirSync(dir)).toEqual(['state_5.sqlite'])
+    const before = snapshot(dir)
+    expect(openAgentDb(path, names)).toEqual(['first'])
+    expect(readdirSync(dir)).toEqual(['state_5.sqlite'])
+    expect(snapshot(dir)).toEqual(before)
+  })
+
+  test("with a live writer it reads the writer's frames still in the -wal, and leaves the files as they were", () => {
+    const dir = folder()
+    const path = closedDatabase(dir)
+    const writer = new DatabaseSync(path)
+    try {
+      writer.exec("PRAGMA wal_autocheckpoint=0; INSERT INTO threads VALUES ('t2', 'second')")
+      expect(readdirSync(dir).sort()).toEqual([
+        'state_5.sqlite',
+        'state_5.sqlite-shm',
+        'state_5.sqlite-wal',
+      ])
+      // The -shm is shared memory every reader writes into; its bytes are not the agent's data.
+      const before = snapshot(dir)
+      expect(openAgentDb(path, names)).toEqual(['first', 'second'])
+      expect(snapshot(dir)).toEqual(before)
+    } finally {
+      writer.close()
+    }
+  })
+
+  test('after a writer crashed, leaving its -wal and no -shm, it opens nothing and says so once', () => {
+    const live = folder()
+    const source = closedDatabase(live)
+    const writer = new DatabaseSync(source)
+    const dir = folder()
+    const path = join(dir, 'state_5.sqlite')
+    try {
+      writer.exec("PRAGMA wal_autocheckpoint=0; INSERT INTO threads VALUES ('t2', 'second')")
+      copyFileSync(source, path)
+      copyFileSync(`${source}-wal`, `${path}-wal`)
+    } finally {
+      writer.close()
+    }
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const lines: string[] = []
+    const remove = addSink((line) => lines.push(line))
+    try {
+      const before = snapshot(dir)
+      const read = vi.fn(names)
+      expect(openAgentDb(path, read)).toBe(UNREADABLE)
+      expect(openAgentDb(path, read)).toBe(UNREADABLE)
+      expect(read).not.toHaveBeenCalled()
+      expect(readdirSync(dir).sort()).toEqual(['state_5.sqlite', 'state_5.sqlite-wal'])
+      expect(snapshot(dir)).toEqual(before)
+      expect(lines.filter((line) => line.includes('agent database left unread'))).toHaveLength(1)
+    } finally {
+      remove()
+    }
+  })
+
+  test("Codex's state_5.sqlite, as its writer leaves it, gives its threads and gains no sidecar", () => {
+    const dir = folder()
+    const path = join(dir, 'state_5.sqlite')
+    copyFileSync(
+      join(
+        import.meta.dirname,
+        '..',
+        '..',
+        '..',
+        'data',
+        'agents',
+        'codex',
+        'home',
+        '.codex',
+        'state_5.sqlite',
+      ),
+      path,
+    )
+    const before = snapshot(dir)
+    const threads = openAgentDb(path, (db) =>
+      db
+        .prepare("SELECT name FROM threads WHERE thread_source = 'user' ORDER BY created_at")
+        .all()
+        .map((row) => row.name),
+    )
+    expect(threads).toEqual(['release-notes', 'api-routes', null])
+    expect(snapshot(dir)).toEqual(before)
+  })
+
+  test('the database is closed when the read returns', () => {
+    const path = closedDatabase(folder())
+    let opened: DatabaseSync | null = null
+    openAgentDb(path, (db) => {
+      opened = db
+      return names(db)
+    })
+    expect(opened).not.toBeNull()
+    expect(() => (opened as unknown as DatabaseSync).prepare('SELECT 1')).toThrow()
+  })
+})

@@ -170,6 +170,16 @@ export interface ChatStrategy {
   send(chat: Chat, text: string, env: NodeJS.ProcessEnv): void
 }
 
+// What Menkar's calls make the agent write into its own data (a title at a session's start, a queued
+// wake), and the items the user accepted in the integrations menu; every other file under the
+// user's home is only read. Each pattern matches a path relative to the home, parts joined by '/'.
+export interface DeclaredWrites {
+  // Files that may appear.
+  readonly created: readonly RegExp[]
+  // Files that may change, or appear.
+  readonly changed: readonly RegExp[]
+}
+
 export interface AgentKit {
   readonly launch: Launcher
   readonly mcp: McpMount | null
@@ -182,4 +192,5 @@ export interface AgentKit {
   readonly follow: PaneFollow | null
   readonly fork: Fork | null
   readonly chat: ChatStrategy | null
+  readonly writes: DeclaredWrites
 }

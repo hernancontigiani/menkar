@@ -1,0 +1,9 @@
+{
+  "type": "agent-turn-complete",
+  "thread-id": "019a4f2c-1d00-7e55-8e05-0000000000ee",
+  "turn-id": "019a4f2c-1d10-7000-8000-0000000000e1",
+  "cwd": "/home/demo/api",
+  "client": "codex-tui",
+  "input-messages": ["List the API routes"],
+  "last-assistant-message": "API routes"
+}

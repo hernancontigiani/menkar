@@ -17,4 +17,5 @@ export const kit: AgentKit = {
   follow: null,
   fork: null,
   chat,
+  writes: { created: [], changed: [] },
 }

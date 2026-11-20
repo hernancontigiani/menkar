@@ -1355,3 +1355,47 @@ P0's blocks run in turn.
   `context/files.ts` 1, `context/integrations.ts` 1, `files/check.ts` 1, `sessions/info.ts` 1,
   `sessions/service.ts` 1). No renderer or `src/shared/` file has a hit.
 - The quit list's `agentName('shell')` is untouched (task 67).
+
+### P1a.1 (`menkar-t133`, task 133, 2026-11-20)
+
+- **Decided by set, 2026-11-20 — files beyond §5's row (a premise gap):** §2.3 puts
+  `DeclaredWrites` in P1a.1 as a kit concern, but the row named no kit file. It is in
+  `src/core/agents/types.ts` (`DeclaredWrites { created, changed }`, `AgentKit.writes`), Claude's
+  rows in the new `src/core/agents/claude/writes.ts`, Cursor's empty in `cursor/index.ts` (D7 and
+  D13 enter with P3). Codex joins the no-write test by registering its kit (P1a.2).
+- **`DeclaredWrites` is two lists of patterns over home-relative paths** (my choice): `created`
+  (files that may appear) and `changed` (files that may change, or appear). One list of exempt
+  paths would have exempted every Claude transcript from the check; Claude's `-n` only creates
+  the new session's transcript, so an existing transcript changing still fails.
+- **`openAgentDb(path, read)`** (my choice of shape): it opens, runs `read`, and closes in a
+  `finally`, so no caller can hold the database open across passes. It returns
+  `UNREADABLE` (`'unreadable for now'`) when exactly one sidecar exists — §2.6 named the `-wal`
+  without `-shm` case; a `-shm` without `-wal` is treated the same (my choice: a plain open would
+  create the `-wal`). Logged once per path until it reads again. The immutable open goes through
+  `pathToFileURL(path)` so a path with `?`, `#` or `%` stays a path.
+- **Measured on Node 22.23.5:** a read-only open of a WAL database with no sidecars creates both
+  `-wal` and `-shm` beside it; with `immutable=1` it creates neither; with a `-wal` and no `-shm`, a
+  plain read-only open reads the `-wal`'s frames (and so would create the `-shm`). Dropping
+  `immutable=1` fails two tests (the generated database and Codex's fixture); dropping the
+  one-sidecar check fails the crashed-writer test.
+- **The no-write test runs each catalog's read side** (set's scope, 2026-11-20): `watchTargets`,
+  `find`, each session's `read`, `lastReply`, `details`, `exportMarkdown`, `location`,
+  `trash.target`, `turnEnd`; then every file under the fixture home is compared (bytes, mtime,
+  listing). The fixture home is copied with `preserveTimestamps`. Seen failing on an injected
+  append to a file of Claude's fixture home; the harness's own cases assert that a declared
+  creation does not excuse a change to an existing file.
+- **Codex's fixtures** (`tests/data/agents/codex/`) are invented and written by `make.mjs` (run
+  from the root, then `biome format` on `notify/`), in the shapes `codex` gave on 2026-11-20 from
+  0.169.0's source and its measured files: a paginated rollout with a compaction between two turns
+  and two `session_index.jsonl` names (the last wins); a legacy-events rollout, unnamed, with a
+  `token_count` whose `info` is null; a subagent rollout (`thread_source: subagent`, an edge in
+  `thread_spawn_edges`); a `.jsonl.zst` older than 7 days; `state_5.sqlite` in WAL with Codex's
+  `threads` and `thread_spawn_edges` DDL, writer closed; `notify/turn.json` and
+  `notify/title.json` (the title thread, no rollout). File names are local time (UTC−3), the lines
+  UTC, as Codex writes them. **No `expected.json` yet**: P1a.3 writes it with the catalog.
+- **The stand-in** (`e2e/standins/codex.ts`, `codexStandIn(bin)`): rollout created at start and
+  held open (seen in `/proc/<pid>/fd`), turns from the positional prompt or a typed line, the
+  title thread's notify before the real one on a new thread's first turn, `resume <id>`, and
+  `codex queue` through `queue_1.sqlite` (refused for a thread with no rollout), the running
+  stand-in taking the row as its next turn and deleting it. Run once by hand in a scratch home;
+  no e2e uses it yet (P1a.4 on).
