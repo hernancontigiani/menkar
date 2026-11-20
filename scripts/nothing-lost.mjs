@@ -17,8 +17,9 @@ const HISTORY = 'docs/history/'
 // The documents that hold decisions, and where each one's history goes. The mirror keeps the rest
 // of the path, so one is computed from the other. A root file's mirror is renamed: agents load a
 // `CLAUDE.md` or `AGENTS.md` in any folder they touch as instructions, and the mirror holds rules
-// that are no longer true.
-const ROOT_FILES = new Set(['AGENTS.md'])
+// that are no longer true. A nested one is flattened into that one folder (`site/AGENTS.md` →
+// `root/site-AGENTS.history.md`).
+const ROOT_FILES = new Set(['AGENTS.md', 'site/AGENTS.md'])
 // A document's previous path: while HEAD does not hold the document yet, its text and its history
 // are compared against what HEAD holds under the previous path, so a move loses nothing it carries.
 const PREVIOUSLY = new Map([['AGENTS.md', 'CLAUDE.md']])
@@ -31,7 +32,8 @@ const MARKUP = /^(\s*|[-|:\s]+|```[\w-]*)$/
 const HUNK = /^@@ -(\d+)(?:,\d+)? /
 
 /** @param {string} name */
-const rootMirror = (name) => `${HISTORY}root/${name.replace(/\.md$/, '.history.md')}`
+const rootMirror = (name) =>
+  `${HISTORY}root/${name.replaceAll('/', '-').replace(/\.md$/, '.history.md')}`
 
 /** @param {string} path @returns {string | null} */
 export function mirrorOf(path) {

@@ -27,6 +27,8 @@ describe('nothing-lost', () => {
   test.each([
     ['AGENTS.md', 'docs/history/root/AGENTS.history.md'],
     ['CLAUDE.md', null],
+    ['site/AGENTS.md', 'docs/history/root/site-AGENTS.history.md'],
+    ['site/CLAUDE.md', null],
     ['plans/00-STATUS.md', 'docs/history/plans/00-STATUS.md'],
     ['docs/spec/sessions.md', 'docs/history/spec/sessions.md'],
     ['docs/history/README.md', null],
@@ -54,6 +56,23 @@ describe('nothing-lost', () => {
       'docs/history/root/AGENTS.history.md': '# History\n\n> Left on 2026-11-08.\n- drop this\n',
     })
     expect(check(root, 'AGENTS.md')).toEqual([])
+  })
+
+  test("a line that left the site's tone guide without reaching its history is lost", () => {
+    const root = repo({
+      'site/AGENTS.md': '# Tone\n\n- keep this\n- drop this\n',
+      'docs/history/root/site-AGENTS.history.md': '# History\n',
+    })
+    write(root, { 'site/AGENTS.md': '# Tone\n\n- keep this\n' })
+    expect(check(root, 'site/AGENTS.md')).toEqual([
+      'site/AGENTS.md:4: not in docs/history/root/site-AGENTS.history.md: - drop this',
+    ])
+    write(root, {
+      'docs/history/root/site-AGENTS.history.md':
+        '# History\n\n> Left on 2026-11-20.\n- drop this\n',
+    })
+    expect(check(root, 'site/AGENTS.md')).toEqual([])
+    expect(mirroredDocuments(root)).toContain('site/AGENTS.md')
   })
 
   test('on a clean checkout of a commit that dropped a line, only MENKAR_HISTORY_BASE sees the loss', () => {
