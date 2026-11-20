@@ -2704,3 +2704,7 @@ Deviations and what the plan did not anticipate:
   `usage-spend` capture) says "Preferences → Integrations", where the classifier's switch is in
   Settings › Usage & classifier; `es.ts` names transcripts both "transcript" and "transcripciones"
   (`settings.section.retention` against `integrations.retention`); the pages follow "transcript".
+
+## 2026-11-20 — plan 39's §3 row, before P1b
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (127d4f1). **P1a on the branch `multi-agent`** (worktree `/home/hernan/git/menkar-multi-agent`, a project folder since 2026-11-20): P1a.1 (ee4a651), P1a.2 (5d04055; Codex's glyph ⬡ proposed, topic 76), P1a.3 (01ab93f) committed; P1a.4 in flight (task 142). The integrity step shows P1a.2's six roster pins against `main` until the branch merges |
