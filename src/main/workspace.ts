@@ -219,7 +219,14 @@ import type {
 } from '../shared/workspace'
 import { recordPresence, recordPromptedStart } from './activity'
 import { mainKitOf } from './agents/registry'
-import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
+import {
+  agentStates,
+  notifyTopic,
+  onShownChange,
+  paneShown,
+  refreshAgentStates,
+  syncTopicNotices,
+} from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
 import { contextReading, trackContext } from './context'
 import {
@@ -1358,6 +1365,7 @@ function joinSession(pane: Pane, sessionId: string): void {
     )
   }
   changed({ projects: true })
+  refreshAgentStates()
 }
 
 // ---------------------------------------------------------------- a terminal link
@@ -2664,6 +2672,7 @@ export function followPaneStart(paneId: string, sessionId: string, source: PaneS
   noteStarted(sessionId)
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
+  refreshAgentStates()
 }
 
 // The session in a pane took a new id the way a `/clear` gives one: the new id takes the old one's
@@ -2691,6 +2700,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
   followTaskAssignee(from, to)
   void followSessionModel(from, to)
   changed({ projects: true })
+  refreshAgentStates()
   return true
 }
 
