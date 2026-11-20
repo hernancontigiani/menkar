@@ -1,0 +1,15 @@
+(libXtst or libXtst6)
+(libuuid or libuuid1)
+/bin/sh
+/bin/sh
+alsa-lib
+at-spi2-core
+gtk3
+libXScrnSaver
+libnotify
+nss
+rpmlib(CompressedFileNames) <= 3.0.4-1
+rpmlib(PayloadFilesHavePrefix) <= 4.0-1
+rpmlib(PayloadIsXz) <= 5.2-1
+rpmlib(RichDependencies) <= 4.12.0-1
+xdg-utils

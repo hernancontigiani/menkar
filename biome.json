@@ -11,10 +11,14 @@
       "tests/**",
       "e2e/**",
       "scripts/**",
+      "site/scripts/**",
+      "site/src/**/*.ts",
+      "site/src/**/*.mjs",
+      "site/*.mjs",
       "*.json",
       "*.ts",
       "!package-lock.json",
-      "!tests/core/r10/**"
+      "!tests/core/r10"
     ]
   },
   "formatter": {

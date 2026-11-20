@@ -57,9 +57,10 @@ The profile grants the namespace to that one executable and confines nothing els
 
 **Rejected:** a post-install of our own forcing `chrome-sandbox` to `root:root 4755`. That adds a
 setuid-root binary, which is what Ubuntu is moving away from, and leaves a script for us to
-maintain (decided 2026-11-08). **AppImage first:** it cannot carry a setuid helper or install a
-profile, so it needs `--no-sandbox`; it can come later as a second target. **Snap and Flatpak:**
-each is a sandbox of its own, with `claude` and `~/.claude` outside it.
+maintain (decided 2026-11-08). **The AppImage:** it cannot carry a setuid helper or install a
+profile, so on Ubuntu 24.04 it starts only with `--no-sandbox`; deferred at 1.0 (the human,
+2026-11-19), with its trigger in `docs/NOT_BUILT_YET.md`. **Snap and Flatpak:** each is a sandbox
+of its own, with `claude` and `~/.claude` outside it.
 
 ## The command in a terminal
 
@@ -154,6 +155,44 @@ installed side by side, `dpkg -L menkar` and `/opt/Menkar` unchanged by the sand
 both apps running at once with their own windows. AppArmor profiles cannot be loaded inside a
 container, so there only their files are checked. The human installs the sandbox at the end of the
 branch's first phase.
+
+## The RPM
+
+The same app as the `.deb`, for Fedora and the other RPM systems, built by the same command with
+`--targets deb,rpm`: `npm run package -- --targets deb,rpm` writes `release/menkar_<version>_amd64.deb`
+and `release/menkar-<version>.x86_64.rpm`. With no `--targets` only the `.deb` is built, so a
+local build needs no `rpmbuild` (`sudo apt-get install rpm` provides it on Ubuntu). The sandbox is
+never released and stays a `.deb` alone: `package.mjs` refuses `rpm` with its flavour.
+
+- **Its version** is the `.deb`'s: Version is the app's, and Release is the build's revision
+  (`<commits>.g<hash>[.dirty.<UTC time>]`), which `package.mjs` hands to electron-builder as the
+  build number for both formats. `dnf` orders builds as `apt` does.
+- **Requires**: electron-builder's own list plus `alsa-lib`, for the same reason as the `.deb`'s
+  ALSA line: Electron links `libasound.so.2`.
+- **It owns `/opt/Menkar`** (`fpm: ['--directories', '/opt/Menkar']` in `electron-builder.yml`).
+  fpm lists only files in an `.rpm`, so before it `dnf remove menkar` took every file and left
+  `/opt/Menkar`'s directories behind, empty (seen 2026-11-20 on Fedora 45).
+- **The post-install is the `.deb`'s**, from electron-builder's one template for both formats
+  (`tests/data/package/rpm/scripts` holds it, and a test asserts it equals the `.deb`'s). On
+  Fedora, `update-alternatives` is `alternatives` and links `/usr/bin/menkar`; there is no
+  AppArmor, so the profile branch is skipped without a word; SELinux does not restrict
+  unprivileged user namespaces, so the template leaves `chrome-sandbox` `0755` and Chromium's
+  sandbox works without a profile. On a distribution with AppArmor 4 (openSUSE) the profile is
+  installed as on Ubuntu: not tried.
+- **A container is not a host**: Docker's default seccomp profile refuses `unshare --user`, so in
+  a plain `docker run` the template sets `chrome-sandbox` to `4755` (seen 2026-11-20). With
+  `--security-opt seccomp=unconfined`, as a Fedora host behaves, it stays `0755`.
+- **`package:check -- --targets deb,rpm`** checks both; on the `.rpm` it reads `rpm -qp --info`,
+  `--requires`, `--scripts` and `rpm2cpio | cpio -t` (so it needs `rpm` and `cpio`) and fails when
+  the Name is not `menkar`, the Version is not the app's, the Release is not a build revision,
+  `alsa-lib` is not required, `/opt/Menkar` is not the package's, or anything the `.deb` must hold
+  is missing (the same files, post-install lines, profile and launcher, and no update feed).
+  Vitest runs it on the recorded `tests/data/package/rpm/` (the packager's address scrubbed from
+  `info`).
+- **Checked in containers** (2026-11-20): built in Ubuntu 24.04 with `rpm` installed, then in
+  `fedora:latest` (Fedora 45) `dnf install ./menkar-*.rpm`, `rpm -q menkar` with the revision,
+  `/usr/bin/menkar` → `/opt/Menkar/menkar`, `chrome-sandbox` `0755`, the app's window shown under
+  `xvfb-run`, and `dnf remove menkar` taking `/opt/Menkar` and the link away.
 
 ## Cutting a release
 

@@ -5,6 +5,8 @@
 // Exits 1 listing each removed line missing from the mirror, and also when a mirror itself lost a
 // line: the mirror only grows. Compares against HEAD, so a document with someone else's uncommitted
 // edits reads as a loss — check `git diff --quiet HEAD -- <document>` before starting to cut.
+// MENKAR_HISTORY_BASE names another commit to compare against: on a clean checkout the tree equals
+// HEAD and nothing would be compared, so the hosted CI passes the commit the change started from.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -15,8 +17,9 @@ const HISTORY = 'docs/history/'
 // The documents that hold decisions, and where each one's history goes. The mirror keeps the rest
 // of the path, so one is computed from the other. A root file's mirror is renamed: agents load a
 // `CLAUDE.md` or `AGENTS.md` in any folder they touch as instructions, and the mirror holds rules
-// that are no longer true.
-const ROOT_FILES = new Set(['AGENTS.md'])
+// that are no longer true. A nested one is flattened into that one folder (`site/AGENTS.md` →
+// `root/site-AGENTS.history.md`).
+const ROOT_FILES = new Set(['AGENTS.md', 'site/AGENTS.md'])
 // A document's previous path: while HEAD does not hold the document yet, its text and its history
 // are compared against what HEAD holds under the previous path, so a move loses nothing it carries.
 const PREVIOUSLY = new Map([['AGENTS.md', 'CLAUDE.md']])
@@ -29,7 +32,8 @@ const MARKUP = /^(\s*|[-|:\s]+|```[\w-]*)$/
 const HUNK = /^@@ -(\d+)(?:,\d+)? /
 
 /** @param {string} name */
-const rootMirror = (name) => `${HISTORY}root/${name.replace(/\.md$/, '.history.md')}`
+const rootMirror = (name) =>
+  `${HISTORY}root/${name.replaceAll('/', '-').replace(/\.md$/, '.history.md')}`
 
 /** @param {string} path @returns {string | null} */
 export function mirrorOf(path) {
@@ -69,23 +73,23 @@ export function removedLines(diff) {
   return removed.filter(([, text]) => !MARKUP.test(text))
 }
 
-/** @param {string} root @param {string} path */
-function inHead(root, path) {
-  return spawnSync('git', ['cat-file', '-e', `HEAD:${path}`], { cwd: root }).status === 0
+/** @param {string} root @param {string} base @param {string} path */
+function inBase(root, base, path) {
+  return spawnSync('git', ['cat-file', '-e', `${base}:${path}`], { cwd: root }).status === 0
 }
 
 /**
- * The lines `path` lost since HEAD held it at `before`.
- * @param {string} root @param {string} before @param {string} path
+ * The lines `path` lost since `base` held it at `before`.
+ * @param {string} root @param {string} base @param {string} before @param {string} path
  */
-function removedSince(root, before, path) {
+function removedSince(root, base, before, path) {
   if (before === path) {
-    return removedLines(git(root, 'diff', '--no-color', '--no-ext-diff', '-U0', 'HEAD', '--', path))
+    return removedLines(git(root, 'diff', '--no-color', '--no-ext-diff', '-U0', base, '--', path))
   }
   const dir = mkdtempSync(join(tmpdir(), 'nothing-lost-'))
   try {
     const old = join(dir, 'HEAD')
-    writeFileSync(old, git(root, 'show', `HEAD:${before}`))
+    writeFileSync(old, git(root, 'show', `${base}:${before}`))
     const now = join(root, path)
     const diff = spawnSync(
       'git',
@@ -110,14 +114,20 @@ function removedSince(root, before, path) {
   }
 }
 
-/** @param {string} root @param {string} path @returns {string} */
-function pathInHead(root, path) {
+/** @param {string} root @param {string} base @param {string} path @returns {string} */
+function pathInBase(root, base, path) {
   const previous = PREVIOUSLY.get(path)
-  return previous !== undefined && !inHead(root, path) && inHead(root, previous) ? previous : path
+  return previous !== undefined && !inBase(root, base, path) && inBase(root, base, previous)
+    ? previous
+    : path
 }
 
-/** @param {string} root @param {string} path @returns {string[]} */
-export function check(root, path) {
+/**
+ * @param {string} root @param {string} path
+ * @param {string} [base] the commit compared against; HEAD unless given
+ * @returns {string[]}
+ */
+export function check(root, path, base = 'HEAD') {
   const mirror = mirrorOf(path)
   if (mirror === null) throw new Error(`${path}: not a document this check mirrors`)
   const mirrorPath = join(root, mirror)
@@ -128,13 +138,13 @@ export function check(root, path) {
           .map((line) => line.trim())
       : [],
   )
-  const before = pathInHead(root, path)
+  const before = pathInBase(root, base, path)
   const mirrorBefore = before === path ? mirror : rootMirror(before)
-  const problems = removedSince(root, before, path)
+  const problems = removedSince(root, base, before, path)
     .filter(([, text]) => !kept.has(text.trim()))
     .map(([n, text]) => `${path}:${n}: not in ${mirror}: ${text.trim()}`)
-  const mirrorWas = inHead(root, mirrorBefore) ? mirrorBefore : mirror
-  for (const [n, text] of removedSince(root, mirrorWas, mirror)) {
+  const mirrorWas = inBase(root, base, mirrorBefore) ? mirrorBefore : mirror
+  for (const [n, text] of removedSince(root, base, mirrorWas, mirror)) {
     problems.push(`${mirror}:${n}: the mirror lost a line: ${text.trim()}`)
   }
   return problems
@@ -156,8 +166,12 @@ export function mirroredDocuments(root) {
   return [...new Set(listed.filter((path) => mirrorOf(path) !== null))].sort()
 }
 
-/** @param {string[]} paths @returns {number} */
-export function main(paths) {
+/**
+ * @param {string[]} paths
+ * @param {string} [base] the commit compared against: MENKAR_HISTORY_BASE, else HEAD
+ * @returns {number}
+ */
+export function main(paths, base = process.env.MENKAR_HISTORY_BASE || 'HEAD') {
   const root = git(process.cwd(), 'rev-parse', '--show-toplevel').trim()
   const documents = paths.length
     ? paths.map((p) => relative(root, resolve(p)).split(sep).join('/'))
@@ -167,7 +181,7 @@ export function main(paths) {
     console.error(`${unmirrored}: not a document this check mirrors`)
     return 1
   }
-  const problems = documents.flatMap((path) => check(root, path))
+  const problems = documents.flatMap((path) => check(root, path, base))
   for (const problem of problems) console.log(problem)
   console.log(`${documents.length} document(s) checked, ${problems.length} line(s) lost`)
   return problems.length ? 1 : 0

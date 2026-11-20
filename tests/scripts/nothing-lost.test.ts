@@ -27,6 +27,8 @@ describe('nothing-lost', () => {
   test.each([
     ['AGENTS.md', 'docs/history/root/AGENTS.history.md'],
     ['CLAUDE.md', null],
+    ['site/AGENTS.md', 'docs/history/root/site-AGENTS.history.md'],
+    ['site/CLAUDE.md', null],
     ['plans/00-STATUS.md', 'docs/history/plans/00-STATUS.md'],
     ['docs/spec/sessions.md', 'docs/history/spec/sessions.md'],
     ['docs/history/README.md', null],
@@ -54,6 +56,43 @@ describe('nothing-lost', () => {
       'docs/history/root/AGENTS.history.md': '# History\n\n> Left on 2026-11-08.\n- drop this\n',
     })
     expect(check(root, 'AGENTS.md')).toEqual([])
+  })
+
+  test("a line that left the site's tone guide without reaching its history is lost", () => {
+    const root = repo({
+      'site/AGENTS.md': '# Tone\n\n- keep this\n- drop this\n',
+      'docs/history/root/site-AGENTS.history.md': '# History\n',
+    })
+    write(root, { 'site/AGENTS.md': '# Tone\n\n- keep this\n' })
+    expect(check(root, 'site/AGENTS.md')).toEqual([
+      'site/AGENTS.md:4: not in docs/history/root/site-AGENTS.history.md: - drop this',
+    ])
+    write(root, {
+      'docs/history/root/site-AGENTS.history.md':
+        '# History\n\n> Left on 2026-11-20.\n- drop this\n',
+    })
+    expect(check(root, 'site/AGENTS.md')).toEqual([])
+    expect(mirroredDocuments(root)).toContain('site/AGENTS.md')
+  })
+
+  test('on a clean checkout of a commit that dropped a line, only MENKAR_HISTORY_BASE sees the loss', () => {
+    const root = repo({
+      'AGENTS.md': '# Rules\n\n- keep this\n- drop this\n',
+      'docs/history/root/AGENTS.history.md': '# History\n',
+    })
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' })
+    const base = git('rev-parse', 'HEAD').trim()
+    write(root, { 'AGENTS.md': '# Rules\n\n- keep this\n' })
+    git('commit', '-q', '-am', 'drop a rule')
+    expect(check(root, 'AGENTS.md')).toEqual([])
+    expect(check(root, 'AGENTS.md', base)).toEqual([
+      'AGENTS.md:4: not in docs/history/root/AGENTS.history.md: - drop this',
+    ])
+    write(root, {
+      'docs/history/root/AGENTS.history.md': '# History\n\n> Left on 2026-11-20.\n- drop this\n',
+    })
+    git('commit', '-q', '-am', 'its history')
+    expect(check(root, 'AGENTS.md', base)).toEqual([])
   })
 
   test('the history only grows', () => {

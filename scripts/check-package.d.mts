@@ -7,6 +7,16 @@ export interface Package {
   desktop: string
 }
 export function checkPackage(pkg: Package, flavour?: 'menkar' | 'sandbox'): string[]
+export interface Rpm {
+  version: string
+  info: string
+  requires: string[]
+  files: string[]
+  postinst: string
+  profile: string
+  desktop: string
+}
+export function checkRpm(rpm: Rpm): string[]
 export const FLAVOURS: Readonly<
   Record<
     'menkar' | 'sandbox',

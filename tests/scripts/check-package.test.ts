@@ -2,8 +2,15 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
-import { checkPackage, FLAVOURS, type Package, sharedPaths } from '../../scripts/check-package.mjs'
-import { debianRevision, packageFlavour } from '../../scripts/package.mjs'
+import {
+  checkPackage,
+  checkRpm,
+  FLAVOURS,
+  type Package,
+  type Rpm,
+  sharedPaths,
+} from '../../scripts/check-package.mjs'
+import { debianRevision, packageFlavour, packageTargets } from '../../scripts/package.mjs'
 
 // The post-install, profile and launcher recorded from a real `npm run package`
 // (electron-builder 26.18.0), so a template change upstream shows here as a red, not as a broken
@@ -250,5 +257,90 @@ describe('the sandbox package', () => {
     expect(() => packageFlavour(['--flavour', 'menkar'], 'sandbox')).toThrow(/built as sandbox/)
     expect(() => packageFlavour([], null)).toThrow(/electron-vite build/)
     expect(() => packageFlavour(['--flavour', 'daily'], 'menkar')).toThrow(/daily/)
+  })
+})
+
+describe('the package formats to build', () => {
+  test('the .deb alone unless --targets says, so a local build needs no rpmbuild', () => {
+    expect(packageTargets([], 'menkar')).toEqual(['deb'])
+    expect(packageTargets(['--targets', 'deb,rpm'], 'menkar')).toEqual(['deb', 'rpm'])
+    expect(packageTargets(['--targets', 'rpm'], 'menkar')).toEqual(['rpm'])
+    expect(packageTargets(['--targets', 'deb,deb'], 'menkar')).toEqual(['deb'])
+    expect(packageTargets(['--targets', 'deb'], 'sandbox')).toEqual(['deb'])
+  })
+
+  test('an unknown target, a missing value, and an .rpm of the sandbox are refused', () => {
+    expect(() => packageTargets(['--targets', 'deb,appimage'], 'menkar')).toThrow(/appimage/)
+    expect(() => packageTargets(['--targets', 'deb,'], 'menkar')).toThrow(/empty target/)
+    expect(() => packageTargets(['--targets'], 'menkar')).toThrow(/missing its value/)
+    expect(() => packageTargets(['--targets', '--flavour'], 'menkar')).toThrow(/missing/)
+    expect(() => packageTargets(['--targets', 'deb,rpm'], 'sandbox')).toThrow(/\.deb only/)
+  })
+})
+
+// `rpm -qp --info`, `--requires` and `--scripts` recorded from a real `--targets deb,rpm` build
+// (electron-builder 26.18.0, in an Ubuntu 24.04 container; the packager's email scrubbed).
+const rpmData = (name: string) => data(join('rpm', name))
+
+const goodRpm = (): Rpm => ({
+  ...good(),
+  files: [...good().files, '/opt/Menkar'],
+  info: rpmData('info').replace(/^Release {5}: .*$/m, 'Release     : 12.gabcdef12'),
+  requires: rpmData('requires').split('\n').filter(Boolean),
+  postinst: rpmData('scripts'),
+})
+
+describe('package:check on the .rpm', () => {
+  test('the .rpm as built passes, with the same post-install as the .deb', () => {
+    expect(checkRpm(goodRpm())).toEqual([])
+    expect(rpmData('scripts')).toContain(data('postinst').trim())
+  })
+
+  test('a dirty build passes too: its Release is the same revision as the .deb', () => {
+    expect(checkRpm({ ...goodRpm(), info: rpmData('info') })).toEqual([])
+  })
+
+  test.each([
+    [
+      'its ALSA library (the app cannot start without it)',
+      (r: Rpm) => ({ ...r, requires: r.requires.filter((line) => line !== 'alsa-lib') }),
+    ],
+    [
+      'its build revision',
+      (r: Rpm) => ({ ...r, info: r.info.replace(/^Release {5}: .*$/m, 'Release     : 1') }),
+    ],
+    [
+      "the app's version",
+      (r: Rpm) => ({ ...r, info: r.info.replace('Version     : 0.1.0', 'Version     : 0.2.0') }),
+    ],
+    [
+      'its name (dnf would take it for another package)',
+      (r: Rpm) => ({ ...r, info: r.info.replace('Name        : menkar', 'Name        : Menkar') }),
+    ],
+    [
+      'its folder (dnf remove would leave /opt/Menkar behind)',
+      (r: Rpm) => ({ ...r, files: r.files.filter((f) => f !== '/opt/Menkar') }),
+    ],
+    ['the launcher', (r: Rpm) => ({ ...r, files: r.files.filter((f) => !f.endsWith('.desktop')) })],
+    [
+      'the profile install in its post-install',
+      (r: Rpm) => ({ ...r, postinst: r.postinst.replace('APPARMOR_PROFILE_TARGET=', 'X=') }),
+    ],
+  ])('an .rpm that lost %s fails', (_what, mutate) => {
+    expect(checkRpm(mutate(goodRpm()))).toHaveLength(1)
+  })
+
+  test('an update feed in the .rpm fails', () => {
+    const r = goodRpm()
+    expect(checkRpm({ ...r, files: [...r.files, '/opt/Menkar/resources/app-update.yml'] })).toEqual(
+      ['an update feed is packaged: /opt/Menkar/resources/app-update.yml'],
+    )
+  })
+
+  test('its builder config adds alsa-lib to the .rpm and owns /opt/Menkar', () => {
+    const config = readFileSync(join(__dirname, '..', '..', 'electron-builder.yml'), 'utf8')
+    const rpm = config.slice(config.indexOf('\nrpm:'))
+    expect(rpm).toMatch(/^ {4}- alsa-lib$/m)
+    expect(rpm).toMatch(/fpm: \['--directories', '\/opt\/Menkar'\]/)
   })
 })

@@ -2,9 +2,10 @@
 // the icon), the post-install that links `menkar` and lets Chromium's sandbox run, and no update
 // feed. Run after `npm run package`.
 import { execFileSync } from 'node:child_process'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { packageTargets } from './package.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
@@ -41,8 +42,7 @@ const literal = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
  * @returns {string[]} what is wrong, empty when the package is right
  */
 export function checkPackage(pkg, flavour = 'menkar') {
-  const { name: NAME, app: APP } = FLAVOURS[flavour]
-  const quoted = { app: literal(APP), name: literal(NAME) }
+  const { name: NAME } = FLAVOURS[flavour]
   /** @type {string[]} */
   const problems = []
   const field = (/** @type {string} */ name) =>
@@ -55,14 +55,29 @@ export function checkPackage(pkg, flavour = 'menkar') {
     problems.push(
       'control: Depends lacks libasound2t64 | libasound2 (the app cannot start without it)',
     )
-  const revision = new RegExp(
-    `^${pkg.version.replaceAll('.', '\\.')}-\\d+\\.g[0-9a-f]{7,}(\\.dirty\\.\\d{14})?$`,
-  )
+  const revision = new RegExp(`^${pkg.version.replaceAll('.', '\\.')}-${REVISION}$`)
   if (!revision.test(field('Version') ?? ''))
     problems.push(
       `control: Version is ${field('Version')}, not ${pkg.version}-<commits>.g<hash>[.dirty.<time>]`,
     )
+  return [...problems, ...checkContents(pkg, flavour)]
+}
 
+// The build revision `package.mjs` hands as the build number: the Debian revision of a .deb, the
+// Release of an .rpm.
+const REVISION = '\\d+\\.g[0-9a-f]{7,}(\\.dirty\\.\\d{14})?'
+
+/**
+ * What a .deb and an .rpm must both hold: the files, the post-install, the profile, the launcher.
+ * @param {{ files: string[], postinst: string, profile: string, desktop: string }} pkg
+ * @param {'menkar' | 'sandbox'} flavour
+ * @returns {string[]}
+ */
+function checkContents(pkg, flavour) {
+  const { name: NAME, app: APP } = FLAVOURS[flavour]
+  const quoted = { app: literal(APP), name: literal(NAME) }
+  /** @type {string[]} */
+  const problems = []
   const files = new Set(pkg.files)
   for (const path of [
     `${APP}/${NAME}`,
@@ -133,6 +148,31 @@ export function checkPackage(pkg, flavour = 'menkar') {
   return problems
 }
 
+/**
+ * @typedef {{ version: string, info: string, requires: string[], files: string[], postinst: string, profile: string, desktop: string }} Rpm
+ * The .rpm, read with `rpm -qp`: `info` is `--info`, `requires` the lines of `--requires`,
+ * `postinst` the `--scripts` output; `files` as for the .deb. Only the daily Menkar has one.
+ * @param {Rpm} rpm
+ * @returns {string[]} what is wrong, empty when the package is right
+ */
+export function checkRpm(rpm) {
+  /** @type {string[]} */
+  const problems = []
+  const field = (/** @type {string} */ name) =>
+    new RegExp(`^${name}\\s*: (.*)$`, 'm').exec(rpm.info)?.[1]?.trim()
+  if (field('Name') !== 'menkar') problems.push(`rpm: Name is ${field('Name')}, not menkar`)
+  if (field('Architecture') !== 'x86_64') problems.push('rpm: Architecture is not x86_64')
+  if (field('Version') !== rpm.version)
+    problems.push(`rpm: Version is ${field('Version')}, not ${rpm.version}`)
+  if (!new RegExp(`^${REVISION}$`).test(field('Release') ?? ''))
+    problems.push(`rpm: Release is ${field('Release')}, not <commits>.g<hash>[.dirty.<time>]`)
+  if (!rpm.requires.some((line) => /^alsa-lib\b/.test(line.trim())))
+    problems.push('rpm: Requires lacks alsa-lib (the app cannot start without it)')
+  if (!rpm.files.includes('/opt/Menkar'))
+    problems.push("rpm: /opt/Menkar is not the package's, so removing it leaves its folders behind")
+  return [...problems, ...checkContents(rpm, 'menkar')]
+}
+
 /** @param {string[]} args */
 const run = (...args) =>
   execFileSync(args[0] ?? '', args.slice(1), { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
@@ -162,23 +202,64 @@ function flavourArg(argv) {
 }
 
 function main() {
-  const flavour = flavourArg(process.argv.slice(2))
+  const argv = process.argv.slice(2)
+  const flavour = flavourArg(argv)
+  const targets = packageTargets(argv, flavour)
   const { name: NAME, app: APP, release } = FLAVOURS[flavour]
   const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
-  const name = `${NAME}_${version}_amd64.deb`
-  const deb = join(ROOT, release, name)
   let present = []
   try {
     present = readdirSync(join(ROOT, release))
   } catch (error) {
     if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error
   }
-  if (!present.includes(name)) {
-    console.error(
-      `✗ package:check: ${release}/${name} not found; run \`npm run ${flavour === 'menkar' ? 'package' : 'package:sandbox'}\` first`,
-    )
-    process.exit(1)
+  let failed = false
+  for (const target of targets) {
+    const name = target === 'deb' ? `${NAME}_${version}_amd64.deb` : `${NAME}-${version}.x86_64.rpm`
+    const file = join(ROOT, release, name)
+    if (!present.includes(name)) {
+      const command = flavour === 'menkar' ? 'package' : 'package:sandbox'
+      const flag = target === 'rpm' ? ' -- --targets deb,rpm' : ''
+      console.error(
+        `✗ package:check: ${release}/${name} not found; run \`npm run ${command}${flag}\` first`,
+      )
+      failed = true
+      continue
+    }
+    if (target === 'rpm' && !onPath('rpm2cpio')) {
+      console.error(
+        '✗ package:check: reading the .rpm needs rpm and cpio: sudo apt-get install rpm cpio',
+      )
+      failed = true
+      continue
+    }
+    const { problems, summary } =
+      target === 'deb' ? readDeb(file, version, flavour, NAME, APP) : readRpm(file, version, APP)
+    for (const problem of problems) console.error(`✗ package:check: ${problem}`)
+    if (problems.length) failed = true
+    else
+      console.log(
+        `package:check: ${release}/${name} — ${summary}, launcher, command and sandbox profile in place`,
+      )
   }
+  if (failed) process.exit(1)
+}
+
+/** @param {string} command */
+function onPath(command) {
+  return (process.env.PATH ?? '')
+    .split(':')
+    .some((dir) => dir !== '' && existsSync(join(dir, command)))
+}
+
+/**
+ * @param {string} deb
+ * @param {string} version
+ * @param {'menkar' | 'sandbox'} flavour
+ * @param {string} NAME
+ * @param {string} APP
+ */
+function readDeb(deb, version, flavour, NAME, APP) {
   const fileFromData = (/** @type {string} */ path) =>
     execFileSync('sh', ['-c', `dpkg-deb --fsys-tarfile "$1" | tar -xO ".${path}"`, 'sh', deb], {
       encoding: 'utf8',
@@ -186,20 +267,66 @@ function main() {
   const pkg = {
     version,
     control: run('dpkg-deb', '-I', deb),
-    files: run('dpkg-deb', '-c', deb)
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => line.split(/\s+/).slice(5).join(' ').replace(/^\./, '').replace(/\/$/, '')),
+    files: listed(run('dpkg-deb', '-c', deb), 5),
     postinst: run('dpkg-deb', '-I', deb, 'postinst'),
     profile: fileFromData(`${APP}/resources/apparmor-profile`),
     desktop: fileFromData(`/usr/share/applications/${NAME}.desktop`),
   }
-  const problems = checkPackage(pkg, flavour)
-  for (const problem of problems) console.error(`✗ package:check: ${problem}`)
-  if (problems.length) process.exit(1)
-  console.log(
-    `package:check: ${release}/${name} — version ${/^\s*Version: (.*)$/m.exec(pkg.control)?.[1]}, ${pkg.files.length} entries, launcher, command and sandbox profile in place`,
-  )
+  const shown = /^\s*Version: (.*)$/m.exec(pkg.control)?.[1]
+  return {
+    problems: checkPackage(pkg, flavour),
+    summary: `version ${shown}, ${pkg.files.length} entries`,
+  }
+}
+
+/**
+ * @param {string} file
+ * @param {string} version
+ * @param {string} APP
+ */
+function readRpm(file, version, APP) {
+  const fileFromData = (/** @type {string} */ path) =>
+    execFileSync(
+      'sh',
+      ['-c', `rpm2cpio "$1" | cpio --quiet -i --to-stdout ".${path}"`, 'sh', file],
+      {
+        encoding: 'utf8',
+      },
+    )
+  const rpm = {
+    version,
+    info: run('rpm', '-qp', '--info', file),
+    requires: run('rpm', '-qp', '--requires', file).split('\n').filter(Boolean),
+    files: listed(
+      execFileSync('sh', ['-c', 'rpm2cpio "$1" | cpio --quiet -t', 'sh', file], {
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+      }),
+      0,
+    ),
+    postinst: run('rpm', '-qp', '--scripts', file),
+    profile: fileFromData(`${APP}/resources/apparmor-profile`),
+    desktop: fileFromData('/usr/share/applications/menkar.desktop'),
+  }
+  const field = (/** @type {string} */ name) =>
+    new RegExp(`^${name}\\s*: (.*)$`, 'm').exec(rpm.info)?.[1]?.trim()
+  return {
+    problems: checkRpm(rpm),
+    summary: `version ${field('Version')}-${field('Release')}, ${rpm.files.length} entries`,
+  }
+}
+
+/**
+ * Absolute paths from a listing: `dpkg-deb -c` (the path is its sixth column) or `cpio -t` (the
+ * whole line), each `./opt/...` or `./opt/.../`.
+ * @param {string} text
+ * @param {number} column
+ */
+function listed(text, column) {
+  return text
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/).slice(column).join(' ').replace(/^\./, '').replace(/\/$/, ''))
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()

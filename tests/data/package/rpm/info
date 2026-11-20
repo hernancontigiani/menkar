@@ -1,0 +1,19 @@
+Name        : menkar
+Version     : 0.1.0
+Release     : 399.g43fd6aa5.dirty.20261120123942
+Architecture: x86_64
+Install Date: (not installed)
+Group       : default
+Size        : 294842265
+License     : GPL-3.0-or-later
+Signature   : (none)
+Source RPM  : menkar-0.1.0-399.g43fd6aa5.dirty.20261120123942.src.rpm
+Build Date  : Fri Nov 20 12:43:17 2026
+Build Host  : builder
+Relocations : / 
+Packager    : Hernan Contigiani <maintainer@example.com>
+Vendor      : Hernan Contigiani <maintainer@example.com>
+URL         : https://github.com/hernancontigiani/menkar
+Summary     : Several Claude Code sessions at once, each in a real terminal
+Description :
+A desktop app for working with several Claude Code sessions at once
