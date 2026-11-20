@@ -343,22 +343,27 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
    `last_reply` (read by the agent's UsageSource and catalog, never by shared code). A **parity
    test** between the writer's keys and `control.ts`'s reader.
 2. **Binding a late id.** A pane with no session (`Pending`, `join.ts`) binds on the first evidence
-   its kit's `isRealId` accepts:
-   - **Codex, early (S5; `codex`, 2026-11-16):** the rollout file appears when the session starts,
-     before the first turn's end (m), its uuid is the thread id `codex resume` takes (m). On Linux,
-     main reads the pane's agent process's open files (`/proc/<pid>/fd`) for a
-     `rollout-*-<uuid>.jsonl` under `$CODEX_HOME/sessions/`, about 1 s after start, three tries
-     (agent-deck's method, read by `codex`, not measured by us). That ties the id to the pane's own
-     process, so two Codex sessions in one folder cannot be confused. Elsewhere, and if it finds
-     nothing, the first turn-end record binds (today's plan).
+   its agent gives of its own id; an agent that tells it (Codex: `MainAgentKit.bind`) is never
+   guessed by folder and time:
+   - **Codex, early (S5; `codex`, measured 2026-11-20 on 0.169.0):** a thread's id is a UUIDv7
+     minted when the thread is made, and its rollout file appears **at the first user message**
+     (+66 ms after the submit, measured by `codex`; ~10 ms in P1a.4's own run), or at once with a
+     positional prompt; while the TUI idles there is none. The Codex process (`bash → codex`, one
+     native binary) holds the rollout open, and keeps a `/new` thread's old rollout open beside the
+     new one. On Linux, main reads the open files of every process under the pane's shell
+     (`/proc/<pid>/fd`) for a `rollout-*-<uuid>.jsonl` under `$CODEX_HOME/sessions/` **at each join
+     poll (1.5 s) while the pane waits**, and binds when exactly one rollout is held. That ties the
+     id to the pane's own process, so two Codex sessions in one folder cannot be confused.
+     Elsewhere, and while it finds nothing, the first turn-end record binds.
    - **Codex's title thread**: its `notify` carries a thread with no rollout; **the notify program
      writes no record for it** (S4: it checks that the rollout exists before writing), so no other
      code needs to know about it.
    - For a session `start_session` starts (P1b) the pane holds a **provisional id**
      `pending:<pane-id>` as member, child and assignee until bound, re-keyed to the real id through
      the path a `/clear` uses today (`followNewIdInLayout`, the follow functions). **The loss
-     window** (S5): Menkar quitting or crashing before the bind — seconds with the early bind on
-     Linux, the whole first turn without it — drops the provisional id on load with
+     window** (S5): Menkar quitting or crashing before the bind — until the first message and up to
+     one poll after it with the early bind on Linux, the whole first turn without it — drops the
+     provisional id on load with
      `forgetSession` and a log line: the worker's tab, parent and assignee are lost; its rollout
      stays in Codex's data and shows in Add session. `codex` measures the window (P1a.4).
 3. **Waking.** `wakeSession(parent, text)` keeps the batcher, the counts and the frame; it calls
@@ -482,11 +487,11 @@ written to files under the pane's folder and named on the command line by path, 
 
 ### 2.9 Programs shipped
 
-- **Codex's `notify`**: `-c notify=["<electron>","<resources>/codex-notify.cjs","--pane","<pane>","--chain-file","<file of the user's notify>"]`
-  with `ELECTRON_RUN_AS_NODE=1` in Codex's environment for it — it writes the turn-end record
-  (only for a thread whose rollout exists, §2.5.2), then runs the user's own `notify` with the same
-  argument Codex gave, waiting at most `CHAINED_TIMEOUT_MS` (as the statusline chains,
-  `src/core/context/statusline.ts:20`).
+- **Codex's `notify`**: `-c notify=["/usr/bin/env","ELECTRON_RUN_AS_NODE=1","<electron>","<resources>/app.asar/out/main/codex-notify.js","--pane","<pane>","--chain-file","<file of the user's notify>"]`
+  — it writes the turn-end record (only for a thread whose rollout exists, §2.5.2), then starts the
+  user's own `notify` with the same argument Codex gave and does not wait for it: Codex itself
+  spawns `notify` with no wait and no timeout, and gives it its whole environment (`codex`,
+  2026-11-20).
 - **Cursor's hooks** (P3): one program for `beforeSubmitPrompt`, `stop`, `afterAgentResponse`,
   `sessionStart`; it exits at once without `MENKAR_PANE` (1.140) and acts only on panes of its own
   flavour (§2.12); it writes turn records and the tokens to Menkar's hook log, the prompt text only
@@ -1542,3 +1547,54 @@ P0's blocks run in turn.
 - **`npm run ci`:** biome, tsc, vitest (1990/1990), R10 unchanged, code rules, i18n, flaky, history
   pass; test integrity reports only P1a.2's six roster pins against `main` (accepted by set for
   that commit).
+
+### P1a.4 (`menkar-t142`, task 142, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row:** `src/core/agents/types.ts`
+  (`PaneChange`, `FollowKind`; `PaneFollow.classify(source, change?)`, which may return a Promise),
+  `src/core/agents/claude/ids.ts` (a null source follows nothing: Claude unchanged),
+  `src/core/agents/codex/index.ts` (`follow`), `src/main/agents/types.ts` (`EarlyBind`,
+  `MainAgentKit.bind`) and the three `src/main/agents/*/index.ts`, the new
+  `src/core/agents/shared/turn-end.ts`, `scripts/check-package.d.mts`, `e2e/standins/codex.ts`,
+  the new `e2e/codex-bind.spec.ts`, and tests under `tests/core/agents/{shared,codex,claude}/`,
+  `tests/core/sessions/join.test.ts`, `tests/scripts/check-package.test.ts`; `docs/agents.md`.
+- **Contradicted premises, granted by set on codex's measurements of 2026-11-20** (§2.5.2 and §2.9
+  corrected, the old lines in `docs/history/plans/00-STATUS.md`): a rollout appears at the first
+  user message, not at start (at once only with a positional prompt); the process keeps a `/new`
+  thread's old rollout open; Codex spawns `notify` with no wait and its whole environment. So:
+  - **the `/proc` read runs at each join poll (1.5 s) while a Codex tab waits**, not "about 1 s
+    after start, three tries", and binds only when exactly one rollout is held; it is
+    `MainAgentKit.bind`, null for Claude and Cursor (no cost for them);
+  - **the notify program starts the user's own `notify` detached and does not wait**, instead of
+    §2.9's `CHAINED_TIMEOUT_MS`.
+- **A fork is 'resume'** (set, 2026-11-20): a thread minted after the pane started is a `/new`
+  ('clear'), unless its rollout's first line names `forked_from_id`; a fork is an in-tab switch, so
+  1.63 applies as to a `/resume`: the fork takes the source's place and group, the source becomes
+  its earlier conversation, and its parent link is not carried (only a clear carries parents and
+  Remote Control). Codex's `classify` reads that line, so it returns a Promise; Claude's stays
+  synchronous and its path unchanged.
+- **My choices, confirmed by set:** (a) no `isRealId` in the interface — no shared consumer: the
+  notify program checks the rollout itself and a `/proc` find is real by construction; (b) a
+  pending pane whose agent tells its own id (`Pending.told`, set from `bind !== null`) is never
+  guessed by folder and time in `lookUp`, and waits as long as the tab lives; (c) `turnEnded`: a
+  pending pane with no expected id joins the record's id (only Codex produces one today), and a
+  bound pane whose record names another id is followed through its kit's `classify` (source null).
+- **The record**: `{ pane, session_id, at }`, written by `shared/turn-end.ts`'s `writeTurnEnd`;
+  `parseTurnEnd` is main's reader (`control.ts`). The parity test runs both writers (this one and
+  Claude's Stop hook, unchanged) through it. No `tokens`/`last_reply` yet: no consumer.
+- **The program** is `out/main/codex-notify.js` (P1a.2's name, not §2.9's `.cjs`), inside app.asar;
+  `check-package.mjs` reads app.asar's header from the package (`asarEntries`, by hand, as
+  `packager` asked) and requires `index`, `statusline`, `mcp-server` and `codex-notify`.
+- **The stand-in** now creates the rollout at the first message, takes `FAKE_CODEX_TURN_MS`,
+  `/new` and `/fork`, keeps earlier rollouts open, mints UUIDv7 ids and lists them in
+  `codex-threads.txt`.
+- **Measured on the real CLI** (throwaway HOME and CODEX_HOME, stand-in API on 127.0.0.1, no
+  login): the numbers are in `docs/agents.md`, "Codex: binding a tab to its thread".
+- **Seen failing once:** the reader taking another key (parity, 2); no rollout check (title thread);
+  Codex's argument not passed on (D6); a fork classified as clear, two held rollouts taken as one, an
+  older thread taken as new (binding); `told` ignored (join); Claude following a null source;
+  `codex-notify.js` not required (check-package, 2); and in `e2e/codex-bind.spec.ts`, each of its
+  five tests against its own defect: the guess allowed, any pending pane joined by a record, a fork
+  as clear, no `/proc` probe, no Codex follow.
+- **Not covered:** §2.15's "with a profile override → the profile's" (D6): P1a.2 found profiles
+  are not read (a top-level `profile` key is refused by Codex), so there is no profile to test.

@@ -6,4 +6,5 @@ export const mainKit: MainAgentKit = {
   remote: null,
   waker: null,
   inbox: null,
+  bind: null,
 }

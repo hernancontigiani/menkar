@@ -49,6 +49,12 @@ export interface PromptInbox {
   forget(pane: string): Promise<void>
 }
 
+// How a pane whose agent picks its own session id learns it before the first turn ends.
+export interface EarlyBind {
+  // The session the agent under this shell runs; null while it cannot be told.
+  find(shellPid: number): Promise<string | null>
+}
+
 export interface MainAgentKit {
   // The settings file the agent's sessions are started with, written when it changed; null when
   // the agent takes none.
@@ -59,4 +65,5 @@ export interface MainAgentKit {
   readonly remote: Remote | null
   readonly waker: Waker | null
   readonly inbox: PromptInbox | null
+  readonly bind: EarlyBind | null
 }

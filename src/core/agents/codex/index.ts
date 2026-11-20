@@ -1,4 +1,5 @@
 import type { AgentKit } from '../types'
+import { follow } from './binding'
 import { catalog } from './catalog'
 import { env, envPatterns } from './env'
 import { ids } from './ids'
@@ -15,7 +16,7 @@ export const kit: AgentKit = {
   catalog,
   state,
   ids,
-  follow: null,
+  follow,
   fork: null,
   chat: null,
   writes: { created: [], changed: [] },

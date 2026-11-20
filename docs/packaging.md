@@ -84,6 +84,18 @@ as any start does, single-instance hand-off included. The decision is `shouldDet
 - **The test** (`e2e/detach.spec.ts`) runs the built app under a pseudo-terminal with those
   variables removed, and against the packaged one under `package:smoke`.
 
+## The programs agents run
+
+Three programs ship inside app.asar beside the app, each its own `electron.vite.config.ts` entry
+under `out/main/`, and each run by an agent as `ELECTRON_RUN_AS_NODE=1 <electron> <app.asar>/out/main/<program>.js`:
+Electron serves the script from the archive, so none is unpacked (`asarUnpack` is only for native
+modules and for files another program opens itself).
+
+- `statusline.js`: Claude Code's statusline and Menkar's hooks, through `--settings`.
+- `mcp-server.js`: Menkar's MCP server, through `--mcp-config`.
+- `codex-notify.js`: Codex's `notify`, through `-c notify=[…]`, its argv starting
+  `/usr/bin/env ELECTRON_RUN_AS_NODE=1` so the variable never enters Codex's own environment.
+
 ## Checks
 
 - **`npm run package:check`** (`scripts/check-package.mjs`) installs nothing. It reads the `.deb`
@@ -93,6 +105,10 @@ as any start does, single-instance hand-off included. The decision is `shouldDet
   the package also fails it. Vitest runs the same check on the post-install, profile and launcher
   recorded from a real build (`tests/data/package/`), so an upstream template change shows as a red.
   It also fails a Version that is not the app's plus a build revision.
+  **It reads app.asar's header** (the first megabyte of the archive, out of the package, parsed by
+  hand: a pickle holding the header's size, then the JSON tree) and fails when one of the programs
+  Electron's binary runs is missing from it: `out/main/index.js`, and the three agents run as plain
+  Node, `statusline.js` and `mcp-server.js` (Claude Code) and `codex-notify.js` (Codex's `notify`).
 - **`npm run package:smoke`** runs the e2e suite against `release/linux-unpacked/menkar`, under
   `xvfb-run` with Playwright's `--no-sandbox`. It proves the packaged app starts, loads node-pty
   from the asar and keeps Chromium's data out of the config directory. It cannot prove the sandbox.

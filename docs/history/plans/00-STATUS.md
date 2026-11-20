@@ -2255,3 +2255,23 @@ a trial PR and an AppImage. The lines that stated something as decided and stopp
 
 - **The first Pages deploy** is a step of block 8 (going public): Pages on a private repository
   needs a paid plan.
+
+## 2026-11-20 — plan 39's §2.5.2 and §2.9, before codex measured where a rollout appears (task 142)
+
+> Left plan 39 §2.5.2 and §2.9 on 2026-11-20: codex-cli 0.169.0 creates a rollout at the first user message, keeps a /new thread's old rollout open, and does not wait for `notify`.
+2. **Binding a late id.** A pane with no session (`Pending`, `join.ts`) binds on the first evidence
+   its kit's `isRealId` accepts:
+   - **Codex, early (S5; `codex`, 2026-11-16):** the rollout file appears when the session starts,
+     before the first turn's end (m), its uuid is the thread id `codex resume` takes (m). On Linux,
+     main reads the pane's agent process's open files (`/proc/<pid>/fd`) for a
+     `rollout-*-<uuid>.jsonl` under `$CODEX_HOME/sessions/`, about 1 s after start, three tries
+     (agent-deck's method, read by `codex`, not measured by us). That ties the id to the pane's own
+     process, so two Codex sessions in one folder cannot be confused. Elsewhere, and if it finds
+     nothing, the first turn-end record binds (today's plan).
+     window** (S5): Menkar quitting or crashing before the bind — seconds with the early bind on
+     Linux, the whole first turn without it — drops the provisional id on load with
+- **Codex's `notify`**: `-c notify=["<electron>","<resources>/codex-notify.cjs","--pane","<pane>","--chain-file","<file of the user's notify>"]`
+  with `ELECTRON_RUN_AS_NODE=1` in Codex's environment for it — it writes the turn-end record
+  (only for a thread whose rollout exists, §2.5.2), then runs the user's own `notify` with the same
+  argument Codex gave, waiting at most `CHAINED_TIMEOUT_MS` (as the statusline chains,
+  `src/core/context/statusline.ts:20`).

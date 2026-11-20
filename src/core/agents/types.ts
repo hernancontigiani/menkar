@@ -173,10 +173,20 @@ export interface SessionIds {
   newId(): string | null
 }
 
+export type FollowKind = 'clear' | 'resume' | null
+
+// The id a pane's agent now runs under, and when the pane started.
+export interface PaneChange {
+  readonly to: string
+  readonly paneStartedAt: number
+}
+
 // How a pane's session changing id is followed; null when the agent tells Menkar of no such change.
 export interface PaneFollow {
   // A clear gives the pane a new session in the old one's place; a resume, another session.
-  classify(source: PaneStartSource): 'clear' | 'resume' | null
+  // `source` is the session start record's, or null when a turn ended under another id.
+  // An agent that must read its own data to tell answers later.
+  classify(source: PaneStartSource | null, change?: PaneChange): FollowKind | Promise<FollowKind>
 }
 
 export interface Fork {

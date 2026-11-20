@@ -7,6 +7,7 @@ import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from '
 import { descriptorOf, paneAgentLabel } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { isDefault, kitOf } from '../core/agents/registry'
+import type { FollowKind } from '../core/agents/types'
 import { backgroundToastShown, markBackgroundToast } from '../core/background-toast'
 import { now } from '../core/clock'
 import { commandLine, mcpConfig, type Start } from '../core/command'
@@ -301,6 +302,7 @@ interface Pane {
   handle: PaneHandle | undefined
   pending: Pending | undefined
   readonly cwd: string | null
+  readonly startedAt: number
   // Started with `--remote-control`: kept until the pane goes.
   readonly remote: boolean
 }
@@ -1122,6 +1124,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     handle: undefined,
     pending: spec.pending,
     cwd: spec.cwd,
+    startedAt: now(),
     remote:
       spec.agent !== 'shell' && mainKitOf(spec.agent).remote !== null && spec.remote !== undefined,
   }
@@ -1322,6 +1325,7 @@ function ensureJoinPolling(): void {
       joinTimer = undefined
       return
     }
+    probeBinds(pending)
     void checkPending(pending)
   }, JOIN_POLL_MS)
 }
@@ -1334,6 +1338,23 @@ async function checkPending(list: readonly Pane[]): Promise<void> {
     const result = lookUp(pane.pending, sessionList)
     if (result.kind === 'joined') joinSession(pane, result.sessionId)
     else pane.pending = result.kind === 'waiting' ? result.pending : undefined
+  }
+}
+
+// An agent that picks its own session id and can tell it from its process is asked at each poll
+// while its pane waits: Codex has none until the first message, and binds then, before the turn
+// ends.
+function probeBinds(list: readonly Pane[]): void {
+  for (const pane of list) {
+    const agent = agentOf(pane)
+    const early = agent ? mainKitOf(agent).bind : null
+    if (!early || !pane.pending || pane.pending.expectedId !== null) continue
+    early
+      .find(pane.terminal.pid)
+      .then((id) => {
+        if (id && pane.pending && panes.has(pane.id) && !inSomeTab(id)) joinSession(pane, id)
+      })
+      .catch((error: unknown) => log.warn('a pane’s session could not be read early', { error }))
   }
 }
 
@@ -2006,8 +2027,14 @@ async function requestRenew(
   }
 }
 
-// The Stop hook's record: the turn in this pane ended, under this session id.
+// The agent's turn-end record: the turn in this pane ended, under this session id. A pane waiting
+// for an id it could not know at start takes this one; a pane whose session now has another id
+// follows it as its agent says.
 function turnEnded(paneId: string, sessionId: string): void {
+  const pane = panes.get(paneId)
+  if (pane?.pending && pane.pending.expectedId === null && !inSomeTab(sessionId))
+    joinSession(pane, sessionId)
+  else if (pane?.sessionId && pane.sessionId !== sessionId) followPane(pane, sessionId, null)
   stopRecorded(paneId, sessionId)
   if (stopRequests.get(paneId)?.sessionId === sessionId) stopNow(paneId)
   const request = renewRequests.get(paneId)
@@ -2637,11 +2664,39 @@ const inSomeTab = (sessionId: string) =>
 export function followPaneStart(paneId: string, sessionId: string, source: PaneStartSource): void {
   const pane = panes.get(paneId)
   teamStartRecord(paneId, source, pane?.sessionId === sessionId)
-  const from = pane?.sessionId
-  const tab = pane ? tabById(pane.tabId) : undefined
+  if (pane) followPane(pane, sessionId, source)
+}
+
+function followPane(pane: Pane, sessionId: string, source: PaneStartSource | null): void {
+  const from = pane.sessionId
   const agent = agentOf(pane)
-  const change = agent ? (kitOf(agent).follow?.classify(source) ?? null) : null
-  if (!pane || !change || !from || from === sessionId || tab?.kind !== 'session') return
+  const change = agent
+    ? (kitOf(agent).follow?.classify(source, { to: sessionId, paneStartedAt: pane.startedAt }) ??
+      null)
+    : null
+  if (change instanceof Promise) {
+    change
+      .then((later) => {
+        if (panes.get(pane.id) === pane && pane.sessionId === from)
+          applyFollow(pane, from, sessionId, source, later)
+      })
+      .catch((error: unknown) =>
+        log.warn('a pane’s new session could not be classified', { from, to: sessionId, error }),
+      )
+    return
+  }
+  applyFollow(pane, from, sessionId, source, change)
+}
+
+function applyFollow(
+  pane: Pane,
+  from: string | null,
+  sessionId: string,
+  source: PaneStartSource | null,
+  change: FollowKind,
+): void {
+  const tab = tabById(pane.tabId)
+  if (!change || !from || from === sessionId || tab?.kind !== 'session') return
   // A session is in one tab at most: a resume of one another tab holds leaves this tab as it was.
   if (inSomeTab(sessionId)) {
     log.warn('a pane’s new session is open in another tab; the pane is not followed', {
@@ -2666,6 +2721,7 @@ export function followPaneStart(paneId: string, sessionId: string, source: PaneS
   void followSessionModel(from, sessionId)
   pane.sessionId = sessionId
   noteStarted(sessionId)
+  recordAgent(sessionId, pane.agent)
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
 }
@@ -2681,6 +2737,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
   layout = followNewIdInLayout(layout, from, to)
   pane.sessionId = to
   noteStarted(to)
+  recordAgent(to, pane.agent)
   tabLabels.delete(pane.tabId)
   if (remoteIds.has(from)) {
     remoteIds.delete(from)
@@ -3236,7 +3293,7 @@ async function startNewSession(
     start,
     cwd: action.folder,
     sessionId: null,
-    pending: newSessionPending(windowId, action.folder, id),
+    pending: newSessionPending(windowId, action.folder, id, action.agent),
     ...(action.remoteControl && id ? { remote: remoteName(name, action.folder, id) } : {}),
     ...(promptFile ? { promptFile } : {}),
   })
@@ -3244,9 +3301,22 @@ async function startNewSession(
   return {}
 }
 
-function newSessionPending(windowId: string, folder: string, expectedId: string | null): Pending {
+function newSessionPending(
+  windowId: string,
+  folder: string,
+  expectedId: string | null,
+  agent: AgentId,
+): Pending {
   const shown = layout.windows.find((x) => x.id === windowId)?.shown ?? projects.current
-  return { startedIn: shown, expectedId, folder, startedAt: now(), tries: 0 }
+  const told = expectedId === null && mainKitOf(agent).bind !== null
+  return {
+    startedIn: shown,
+    expectedId,
+    folder,
+    startedAt: now(),
+    tries: 0,
+    ...(told ? { told } : {}),
+  }
 }
 
 export async function runAction(contents: WebContents, action: Action): Promise<ActionResult> {
@@ -3843,7 +3913,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         start: kit.fork.plan(action.session, id),
         cwd: info.cwd,
         sessionId: null,
-        pending: newSessionPending(windowId, info.cwd ?? '', id),
+        pending: newSessionPending(windowId, info.cwd ?? '', id, info.agent),
       })
       changed()
       return {}

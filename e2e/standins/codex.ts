@@ -4,14 +4,19 @@ import { join } from 'node:path'
 // A stand-in `codex` (never the real one), with the files Codex 0.169 writes in their shapes:
 // - `--version` prints FAKE_CODEX_VERSION (0.169.0 by default) and exits.
 // - It records its arguments in codex-args.txt and its environment in codex-env.json, in HOME.
-// - `codex [options] [prompt]` starts a thread: its rollout appears under
-//   $CODEX_HOME/sessions/YYYY/MM/DD/ (CODEX_HOME defaults to ~/.codex) with its `session_meta`
-//   line, before any turn, and the process holds it open while it runs, as Codex does.
+// - `codex [options] [prompt]` starts a thread, its id a UUIDv7 minted then. Its rollout appears
+//   under $CODEX_HOME/sessions/YYYY/MM/DD/ (CODEX_HOME defaults to ~/.codex), named with that
+//   time, at its first message (the prompt's, at once), with its `session_meta` line, and the
+//   process holds it open while it runs, as Codex 0.169 does. Each thread's id is appended to
+//   codex-threads.txt in HOME when its rollout appears.
 //   `codex resume <id> [prompt]` reopens that thread's rollout, or exits 1 when none exists.
-// - The prompt, or a line typed and ended with Enter, runs a turn: its lines are appended to the
-//   rollout, then each `-c notify=[…]` program runs with Codex's one JSON argument. The first turn
-//   of a new thread notifies first for a title thread that has no rollout, as Codex's title
-//   generation does.
+// - The prompt, or a line typed and ended with Enter, runs a turn of FAKE_CODEX_TURN_MS (1000 by
+//   default): its lines are appended to the rollout, then each `-c notify=[…]` program runs with
+//   Codex's one JSON argument. The first turn of a new thread notifies first for a title thread
+//   that has no rollout, as Codex's title generation does.
+// - `/new` typed starts another thread, whose rollout appears at its next message; `/fork` forks
+//   the thread, its rollout written at once with `forked_from_id`. Either way the earlier
+//   rollout stays open, as Codex keeps it.
 // - `codex queue --thread <id> --message <text>` puts the message in $CODEX_HOME/queue_1.sqlite,
 //   or exits 1 when the thread has no rollout; a running stand-in holding that thread takes it as
 //   its next turn and deletes the row.
@@ -82,7 +87,30 @@ const resuming = words[0] === 'resume'
 const prompt = resuming ? words[2] : words[0]
 const cwd = args.includes('-C') ? path.resolve(args[args.indexOf('-C') + 1]) : process.cwd()
 
-let id, file
+const pad = (n) => String(n).padStart(2, '0')
+// A UUIDv7: the first 48 bits are the time it was minted.
+function v7() {
+  const hex = Date.now().toString(16).padStart(12, '0') + crypto.randomBytes(10).toString('hex')
+  const variant = ((parseInt(hex[16], 16) & 3) | 8).toString(16)
+  return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-7' + hex.slice(13, 16) + '-' + variant + hex.slice(17, 20) + '-' + hex.slice(20, 32)
+}
+const opened = []
+let id, file = null, fd = null, minted = new Date(), fresh = !resuming
+function open(meta) {
+  if (!file) {
+    const day = [String(minted.getFullYear()), pad(minted.getMonth() + 1), pad(minted.getDate())]
+    const time = [pad(minted.getHours()), pad(minted.getMinutes()), pad(minted.getSeconds())].join('-')
+    const dir = path.join(sessions, ...day)
+    fs.mkdirSync(dir, { recursive: true })
+    file = path.join(dir, 'rollout-' + day.join('-') + 'T' + time + '-' + id + '.jsonl')
+  }
+  // Held open for appends while it runs: the open file is how a running Codex's thread is found.
+  fd = fs.openSync(file, 'a')
+  opened.push(fd)
+  if (meta) line('session_meta', { session_id: id, id, timestamp: minted.toISOString(), cwd, originator: 'codex-tui', cli_version: '0.169.0', source: 'cli', thread_source: 'user', model_provider: 'openai', base_instructions: { text: 'Stand-in instructions.' }, history_mode: 'paginated', ...meta })
+  fs.appendFileSync(path.join(process.env.HOME, 'codex-threads.txt'), id + '\\n')
+}
+const line = (type, payload) => fs.writeSync(fd, JSON.stringify({ timestamp: new Date().toISOString(), type, payload }) + '\\n')
 if (resuming) {
   id = words[1]
   file = rolloutOf(id)
@@ -90,23 +118,8 @@ if (resuming) {
     process.stderr.write('Error: no rollout found for thread id ' + id + '\\n')
     process.exit(1)
   }
-} else {
-  id = crypto.randomUUID()
-  const now = new Date()
-  const pad = (n) => String(n).padStart(2, '0')
-  const day = [String(now.getFullYear()), pad(now.getMonth() + 1), pad(now.getDate())]
-  const time = [pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds())].join('-')
-  const dir = path.join(sessions, ...day)
-  fs.mkdirSync(dir, { recursive: true })
-  file = path.join(dir, 'rollout-' + day.join('-') + 'T' + time + '-' + id + '.jsonl')
-}
-// Held open for appends while it runs: the open file is how a running Codex's thread is found.
-const fd = fs.openSync(file, 'a')
-const line = (type, payload) => fs.writeSync(fd, JSON.stringify({ timestamp: new Date().toISOString(), type, payload }) + '\\n')
-if (!resuming) {
-  const at = new Date().toISOString()
-  line('session_meta', { session_id: id, id, timestamp: at, cwd, originator: 'codex-tui', cli_version: '0.169.0', source: 'cli', thread_source: 'user', model_provider: 'openai', base_instructions: { text: 'Stand-in instructions.' }, history_mode: 'paginated' })
-}
+  open(null)
+} else id = v7()
 
 const inputs = []
 let turns = 0
@@ -115,6 +128,19 @@ function run(program, payload) {
   require('node:child_process').spawnSync(program[0], [...program.slice(1), JSON.stringify(payload)], { stdio: 'ignore' })
 }
 function turn(text) {
+  if (text === '/new' || text === '/fork') {
+    const from = id
+    id = v7()
+    minted = new Date()
+    file = null
+    inputs.length = 0
+    turns = 0
+    fresh = true
+    if (text === '/fork') open({ forked_from_id: from })
+    process.stdout.write('\\x1b[2J\\x1b[H• ' + text.slice(1) + ' thread\\r\\n› Ask Codex to do anything\\r\\n')
+    return
+  }
+  if (!file) open({})
   busy = true
   turns += 1
   const turnId = crypto.randomUUID()
@@ -131,11 +157,11 @@ function turn(text) {
     line('event_msg', { type: 'token_count', info: { total_token_usage: usage, last_token_usage: usage, last_usage_includes_reasoning: true, model_context_window: 258400 }, rate_limits: null })
     line('event_msg', { type: 'task_complete', turn_id: turnId, root_turn_id: turnId, last_agent_message: reply, started_at: started, completed_at: started + 1, duration_ms: 1000, time_to_first_token_ms: 300 })
     const payload = { type: 'agent-turn-complete', 'thread-id': id, 'turn-id': turnId, cwd, client: 'codex-tui', 'input-messages': inputs, 'last-assistant-message': reply }
-    if (notify && !resuming && turns === 1) run(notify, { ...payload, 'thread-id': crypto.randomUUID(), 'turn-id': crypto.randomUUID(), 'input-messages': [text], 'last-assistant-message': 'A title' })
+    if (notify && fresh && turns === 1) run(notify, { ...payload, 'thread-id': crypto.randomUUID(), 'turn-id': crypto.randomUUID(), 'input-messages': [text], 'last-assistant-message': 'A title' })
     if (notify) run(notify, payload)
     process.stdout.write('\\x1b[2J\\x1b[H• ' + reply + '\\r\\n› Ask Codex to do anything\\r\\n')
     busy = false
-  }, 1000)
+  }, Number(process.env.FAKE_CODEX_TURN_MS || 1000))
 }
 
 process.stdout.write('› Ask Codex to do anything\\r\\n')

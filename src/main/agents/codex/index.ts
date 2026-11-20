@@ -1,4 +1,5 @@
 import type { MainAgentKit } from '../types'
+import { bind } from './bind'
 
 export const mainKit: MainAgentKit = {
   settings: null,
@@ -6,4 +7,5 @@ export const mainKit: MainAgentKit = {
   remote: null,
   waker: null,
   inbox: null,
+  bind,
 }

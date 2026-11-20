@@ -2,6 +2,8 @@ export interface Package {
   version: string
   control: string
   files: string[]
+  // app.asar's files, `/out/main/index.js`
+  asar: string[]
   postinst: string
   profile: string
   desktop: string
@@ -12,6 +14,8 @@ export interface Rpm {
   info: string
   requires: string[]
   files: string[]
+  // app.asar's files, `/out/main/index.js`
+  asar: string[]
   postinst: string
   profile: string
   desktop: string
@@ -24,3 +28,5 @@ export const FLAVOURS: Readonly<
   >
 >
 export function sharedPaths(sandbox: string[], menkar: string[], directories: string[]): string[]
+export const ASAR_HEADER_BYTES: number
+export function asarEntries(bytes: Buffer): string[]

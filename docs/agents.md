@@ -112,3 +112,34 @@ with more hits than its entry fails, so a count only goes down. What is left:
   `agents/shared/screen.ts` for the state rules), never from the facade that asks the registry; or
   it is handed the value: a chat's environment is passed in, because `sessionenv.ts` reads every
   kit's `EnvRules` when it loads.
+
+## Codex: binding a tab to its thread
+
+Codex picks a new thread's id, so a Codex tab starts with none and binds to it later. Two sources,
+in this order:
+
+- **Its own process, on Linux** (`src/main/agents/codex/bind.ts`). At each join poll while the tab
+  waits (1.5 s), main reads the open files of every process under the pane's shell and binds when
+  exactly one `sessions/YYYY/MM/DD/rollout-*-<id>.jsonl` is held. A Codex tab is never joined by
+  folder and time, a guess that can take another tab's thread in the same folder.
+- **The turn-end record** Codex's `notify` program writes (`src/core/agents/codex/notify.ts`), only
+  for a thread whose rollout exists: Codex's title generation notifies for a thread that never has
+  one. The same record shows a thread change in a running tab: a thread minted after the tab
+  started is a `/new` (the tab follows it as a clear), an older one a `/resume`, and a fork, whose
+  rollout's first line names `forked_from_id`, is followed as a resume (1.63).
+
+Measured on codex-cli 0.169.0 in a throwaway home with a stand-in API on 127.0.0.1 (2026-11-20,
+P1a.4):
+
+| What | Measured |
+|---|---|
+| A rollout while the TUI idles, before any message | none: the tab cannot be bound yet |
+| The rollout after the first message is submitted | 9–24 ms (four runs) |
+| The rollout with a positional prompt, from the command's start | 590 ms |
+| The `/proc` read under the pane's shell, finding the thread | 8–24 ms |
+| The process tree | `bash → codex`, one native binary holding the rollout open |
+| After `/new` (measured by `codex`) | both rollouts held open: `/proc` serves only the first bind |
+| `notify` | run once for the thread and once for the title thread; a record for the thread only; the user's own `notify` chained with its words and Codex's argument |
+
+So a tab waits for its first message, and binds at the next poll after it, long before the turn
+ends; elsewhere than Linux it binds when the first turn ends.

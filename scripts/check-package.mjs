@@ -1,6 +1,6 @@
-// Inspects the built .deb without installing it: the files a user needs (the app, the launcher,
-// the icon), the post-install that links `menkar` and lets Chromium's sandbox run, and no update
-// feed. Run after `npm run package`.
+// Inspects the built .deb without installing it: the files a user needs (the app and the programs
+// in its app.asar, the launcher, the icon), the post-install that links `menkar` and lets Chromium's
+// sandbox run, and no update feed. Run after `npm run package`.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -35,8 +35,9 @@ export const FLAVOURS = {
 const literal = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
 
 /**
- * @typedef {{ version: string, control: string, files: string[], postinst: string, profile: string, desktop: string }} Package
+ * @typedef {{ version: string, control: string, files: string[], asar: string[], postinst: string, profile: string, desktop: string }} Package
  * `version` is the app's (package.json); the package's own is it with a revision of its build.
+ * `asar` lists app.asar's files, `/out/main/index.js`.
  * @param {Package} pkg `files` are absolute paths inside the package, `/opt/...`
  * @param {'menkar' | 'sandbox'} [flavour]
  * @returns {string[]} what is wrong, empty when the package is right
@@ -63,13 +64,50 @@ export function checkPackage(pkg, flavour = 'menkar') {
   return [...problems, ...checkContents(pkg, flavour)]
 }
 
+// What Electron's binary runs from inside app.asar: the app, and the programs the agents run as
+// plain Node (Claude Code's statusline and Menkar's MCP server, Codex's notify).
+const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify'].map(
+  (name) => `/out/main/${name}.js`,
+)
+
+// How many bytes of app.asar are read for its header.
+export const ASAR_HEADER_BYTES = 1024 * 1024
+
+/**
+ * The files app.asar holds, from its first bytes: a pickle holding the header's size, then a
+ * pickle holding the header, a JSON tree of `{ files: { <name>: <entry> } }`.
+ * @param {Buffer} bytes
+ * @returns {string[]} absolute inside the archive, `/out/main/index.js`
+ */
+export function asarEntries(bytes) {
+  if (bytes.length < 16 || bytes.readUInt32LE(0) !== 4) throw new Error('not an asar archive')
+  const length = bytes.readUInt32LE(12)
+  if (16 + length > bytes.length)
+    throw new Error(`the asar header (${length} bytes) is longer than the ${bytes.length} read`)
+  /** @type {{ files?: Record<string, unknown> }} */
+  const root = JSON.parse(bytes.subarray(16, 16 + length).toString('utf8'))
+  /** @type {string[]} */
+  const paths = []
+  /** @param {{ files?: Record<string, unknown> }} node @param {string} prefix */
+  const walk = (node, prefix) => {
+    for (const [name, entry] of Object.entries(node.files ?? {})) {
+      const path = `${prefix}/${name}`
+      const child = /** @type {{ files?: Record<string, unknown> }} */ (entry)
+      if (child.files) walk(child, path)
+      else paths.push(path)
+    }
+  }
+  walk(root, '')
+  return paths
+}
+
 // The build revision `package.mjs` hands as the build number: the Debian revision of a .deb, the
 // Release of an .rpm.
 const REVISION = '\\d+\\.g[0-9a-f]{7,}(\\.dirty\\.\\d{14})?'
 
 /**
  * What a .deb and an .rpm must both hold: the files, the post-install, the profile, the launcher.
- * @param {{ files: string[], postinst: string, profile: string, desktop: string }} pkg
+ * @param {{ files: string[], asar: string[], postinst: string, profile: string, desktop: string }} pkg
  * @param {'menkar' | 'sandbox'} flavour
  * @returns {string[]}
  */
@@ -99,6 +137,10 @@ function checkContents(pkg, flavour) {
   }
   for (const path of files) {
     if (path.endsWith('/app-update.yml')) problems.push(`an update feed is packaged: ${path}`)
+  }
+  const asar = new Set(pkg.asar)
+  for (const path of PROGRAMS) {
+    if (!asar.has(path)) problems.push(`missing from app.asar: ${path}`)
   }
 
   /** @type {Array<[RegExp, string]>} */
@@ -149,7 +191,7 @@ function checkContents(pkg, flavour) {
 }
 
 /**
- * @typedef {{ version: string, info: string, requires: string[], files: string[], postinst: string, profile: string, desktop: string }} Rpm
+ * @typedef {{ version: string, info: string, requires: string[], files: string[], asar: string[], postinst: string, profile: string, desktop: string }} Rpm
  * The .rpm, read with `rpm -qp`: `info` is `--info`, `requires` the lines of `--requires`,
  * `postinst` the `--scripts` output; `files` as for the .deb. Only the daily Menkar has one.
  * @param {Rpm} rpm
@@ -264,10 +306,22 @@ function readDeb(deb, version, flavour, NAME, APP) {
     execFileSync('sh', ['-c', `dpkg-deb --fsys-tarfile "$1" | tar -xO ".${path}"`, 'sh', deb], {
       encoding: 'utf8',
     })
+  const asarHead = execFileSync(
+    'sh',
+    [
+      '-c',
+      `dpkg-deb --fsys-tarfile "$1" | tar -xO ".$2" | head -c ${ASAR_HEADER_BYTES}`,
+      'sh',
+      deb,
+      `${APP}/resources/app.asar`,
+    ],
+    { maxBuffer: 2 * ASAR_HEADER_BYTES },
+  )
   const pkg = {
     version,
     control: run('dpkg-deb', '-I', deb),
     files: listed(run('dpkg-deb', '-c', deb), 5),
+    asar: asarEntries(asarHead),
     postinst: run('dpkg-deb', '-I', deb, 'postinst'),
     profile: fileFromData(`${APP}/resources/apparmor-profile`),
     desktop: fileFromData(`/usr/share/applications/${NAME}.desktop`),
@@ -293,9 +347,21 @@ function readRpm(file, version, APP) {
         encoding: 'utf8',
       },
     )
+  const asarHead = execFileSync(
+    'sh',
+    [
+      '-c',
+      `rpm2cpio "$1" | cpio --quiet -i --to-stdout ".$2" | head -c ${ASAR_HEADER_BYTES}`,
+      'sh',
+      file,
+      `${APP}/resources/app.asar`,
+    ],
+    { maxBuffer: 2 * ASAR_HEADER_BYTES },
+  )
   const rpm = {
     version,
     info: run('rpm', '-qp', '--info', file),
+    asar: asarEntries(asarHead),
     requires: run('rpm', '-qp', '--requires', file).split('\n').filter(Boolean),
     files: listed(
       execFileSync('sh', ['-c', 'rpm2cpio "$1" | cpio --quiet -t', 'sh', file], {

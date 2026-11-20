@@ -83,6 +83,27 @@ describe('a started tab waiting for its transcript', () => {
   })
 })
 
+// Choice (b) of P1a.4, set 2026-11-20: an agent whose own process tells its id (Codex) is never
+// joined by folder and time, a guess that can take another tab's session in the same folder.
+describe('a started tab whose agent tells its own id', () => {
+  it('never takes a typed session of its folder for its own, and waits as long as the tab lives', () => {
+    let pending: Pending = {
+      startedIn: 'p',
+      expectedId: null,
+      folder: '/w',
+      startedAt: STARTED,
+      tries: 0,
+      told: true,
+    }
+    const other = session({ id: 'other-tab', cwd: '/w', mtimeMs: STARTED + 500, preview: 'hi' })
+    for (let i = 0; i < UNKNOWN_ID_TRIES + 10; i += 1) {
+      const result = lookUp(pending, [other])
+      expect(result.kind).toBe('waiting')
+      if (result.kind === 'waiting') pending = result.pending
+    }
+  })
+})
+
 describe('a session with a pane and no transcript yet', () => {
   const named = (id: string) => (id === 'w1' ? 'worker' : id.slice(0, 8))
   it('stands in with the name it was started with, once, until the catalog has its own row', () => {
