@@ -1598,3 +1598,41 @@ P0's blocks run in turn.
   as clear, no `/proc` probe, no Codex follow.
 - **Not covered:** §2.15's "with a profile override → the profile's" (D6): P1a.2 found profiles
   are not read (a top-level `profile` key is refused by Codex), so there is no profile to test.
+
+### P1a.5 (`menkar-t146`, task 146, 2026-11-20)
+
+- **The screens are measured**, not guessed: `codex` drove a real 0.169.0 TUI (120×40, throwaway
+  `CODEX_HOME`, its stand-in API, no login, `-s read-only -a on-request`) through every state and
+  sent the last ≤15 non-empty lines of each with the pane's title. Twenty of
+  `tests/data/agents/codex/screens.json`'s 29 cases are those captures, with the probe's folder
+  replaced by `/home/dev/work`; the other nine are named as derived (a measured screen under
+  another title, a line quoted in a reply, the 2026-11-14 MCP startup line over a measured
+  composer, the exec card without its footer). `codex` keeps the summary as `codex.md` item 23 in
+  the main tree.
+- **The title is the strongest signal**: a Braille spinner and a space while a turn runs (the only
+  sign while a reply streams: the working line is gone then); `[ ! ] Action Required | <cwd>`,
+  blinking to `[ . ]`, at the exec card and the question card; the cwd's basename otherwise,
+  pickers and the trust prompt included. The fresh composer's Braille logo is in the body.
+- **Blocked**: that title, or in the last 14 lines the exec card's footer `Press enter to confirm or
+  esc to cancel`, the question card's `enter to submit answer`, or `Trust this folder?` with its
+  footer `enter continue` (its title is plain). **Working**: the spinner title, or `esc to
+  interrupt)` in the last 8 lines (the working line, and the MCP startup line). **Idle** otherwise:
+  the composer stays drawn while working, so it is never read; `N background terminal(s) running`
+  stays after a turn ends; `■` banners (an interrupt, an error) end idle; `/model`, `/resume` and
+  `/new`'s pickers (`enter select · esc back`, `enter resume`) are not questions.
+- **Not measured** (my choice to rely on the title for them): the apply-patch card, a network
+  approval and an MCP elicitation (the stand-in's model had no `apply_patch` tool). Each is an
+  approval, so the title should say `Action Required`; if one also ends in the exec card's footer,
+  the body catches it too. A "↳ queued" or "? 1 question" marker was not seen: a message sent
+  mid-turn is steered into the turn.
+- **Window sizes** (my choice): 14 lines for the cards (Claude's), 8 for the working line (it sits
+  over the composer and two footer lines; a case quotes it 9 lines up and reads idle).
+- `state.test.ts`'s `LANDS_IN` is empty; Codex's `screens.json` reaches the three raw states.
+- **Seen failing once**, each rule against its own case: the title's `Action Required` (a card the
+  body rules do not read), each footer (the card under a plain title), the trust prompt and its
+  footer requirement (a reply quoting the question), the spinner title (4 streaming cases), the
+  working line (2), the working window widened to 14, a background terminal read as working, the
+  pickers read as blocked (2).
+- **`npm run ci`**: biome, tsc, vitest (2113/2113), R10 unchanged (47 files), code rules, i18n pass;
+  test integrity reports only P1a.2's six roster pins against `main`; flaky and history pass when
+  run after it.

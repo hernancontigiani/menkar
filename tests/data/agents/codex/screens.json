@@ -1,0 +1,176 @@
+[
+  {
+    "name": "the trust prompt",
+    "title": "dev",
+    "screen": "  Folder access\n  /home/dev/work\n  Trust this folder? Codex can read, edit, and run files here, subject to your permission settings. Folder settings\n  can run code automatically, even without a model request. Continue only if you trust these files. Your trust\n  decision will be saved.\n› 1. Trust and continue\n  2. Back to Agent Command Center\n  enter continue · esc back",
+    "state": "blocked"
+  },
+  {
+    "name": "just after trust, the logo and the composer",
+    "title": "work",
+    "screen": "                                             ⣰⣿⣿⡿⢿⣿⣿⡇ ⢸⣿⣿⢀⣤⣶⣿⣿⣿⠟⠛⠻⣿⣿⣿⣿⣮⣿⣿⡷\n                                            ⢰⣿⣿⡟⠁⢸⣿⣿⡇ ⢸⣿⣿⣿⣿⠿⠿⣿⣿⣿⣦⣄⡀⠈⠛⠿⣿⣿⣿⣧⡀\n                                            ⣾⣿⣿⠃ ⢸⣿⣿⡇ ⢸⣿⣿⠋⠁  ⠈⠙⢻⣿⣿⣿⣶⣤⡀ ⠹⢿⣿⣷⡄\n                                            ⢸⣿⣿⣇ ⠸⣿⣿⣷⣦⣼⣿⣿      ⢸⣿⣿⠻⢿⣿⣿⡇ ⠘⣿⣿⣿\n                                            ⠈⢿⣿⣿⣦⡀⠈⠛⠿⣿⣿⣿⣿⣄⡀  ⢀⣠⣼⣿⣿  ⣿⣿⡇  ⣿⣿⣿⠇\n                                              ⢻⣿⣿⣿⣷⣦⣀⠈⠙⠻⣿⣿⣿⣶⣶⣿⣿⣿⣿⣿  ⣿⣿⡇ ⣠⣿⣿⣿\n                                              ⢸⣿⣿⡿⢿⣿⣿⣿⣦⣠⣴⣿⣿⣿⡿⠟⠋⢸⣿⣿  ⣿⣿⣷⣴⣿⣿⣿⠃\n                                              ⠘⣿⣿⣷ ⠈⠛⢿⣿⣿⣿⠿⠋⠉ ⣠⣴⣿⣿⣿  ⣿⣿⣿⣿⣿⠟⠁\n                                               ⠻⣿⣿⣿⣤⣀ ⠈⠉ ⢀⣤⣶⣿⣿⣿⠿⠟⠁ ⣰⣿⣿⡟⠋⠁\n                                                ⠈⠿⣿⣿⣿⣿⣶⣾⣿⣿⣿⣿⠟⠋⠁  ⣠⣼⣿⣿⡟\n                                                   ⠙⠛⠛⠛⠻⠛⢿⣿⣿⣿⣿⣷⣾⣿⣿⣿⡿⠏\n                                                          ⠈⠙⠛⠿⠿⠿⠿⠛⠉\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts",
+    "state": "idle"
+  },
+  {
+    "name": "a fresh composer before any turn",
+    "title": "work",
+    "screen": "                                             ⣰⣿⣿⡿⢿⣿⣿⡇ ⢸⣿⣿⢀⣤⣶⣿⣿⣿⠟⠛⠻⣿⣿⣿⣿⣮⣿⣿⡷\n                                            ⢰⣿⣿⡟⠁⢸⣿⣿⡇ ⢸⣿⣿⣿⣿⠿⠿⣿⣿⣿⣦⣄⡀⠈⠛⠿⣿⣿⣿⣧⡀\n                                            ⣾⣿⣿⠃ ⢸⣿⣿⡇ ⢸⣿⣿⠋⠁  ⠈⠙⢻⣿⣿⣿⣶⣤⡀ ⠹⢿⣿⣷⡄\n                                            ⢸⣿⣿⣇ ⠸⣿⣿⣷⣦⣼⣿⣿      ⢸⣿⣿⠻⢿⣿⣿⡇ ⠘⣿⣿⣿\n                                            ⠈⢿⣿⣿⣦⡀⠈⠛⠿⣿⣿⣿⣿⣄⡀  ⢀⣠⣼⣿⣿  ⣿⣿⡇  ⣿⣿⣿⠇\n                                              ⢻⣿⣿⣿⣷⣦⣀⠈⠙⠻⣿⣿⣿⣶⣶⣿⣿⣿⣿⣿  ⣿⣿⡇ ⣠⣿⣿⣿\n                                              ⢸⣿⣿⡿⢿⣿⣿⣿⣦⣠⣴⣿⣿⣿⡿⠟⠋⢸⣿⣿  ⣿⣿⣷⣴⣿⣿⣿⠃\n                                              ⠘⣿⣿⣷ ⠈⠛⢿⣿⣿⣿⠿⠋⠉ ⣠⣴⣿⣿⣿  ⣿⣿⣿⣿⣿⠟⠁\n                                               ⠻⣿⣿⣿⣤⣀ ⠈⠉ ⢀⣤⣶⣿⣿⣿⠿⠟⠁ ⣰⣿⣿⡟⠋⠁\n                                                ⠈⠿⣿⣿⣿⣿⣶⣾⣿⣿⣿⣿⠟⠋⠁  ⣠⣼⣿⣿⡟\n                                                   ⠙⠛⠛⠛⠻⠛⢿⣿⣿⣿⣿⣷⣾⣿⣿⣿⡿⠏\n                                                          ⠈⠙⠛⠿⠿⠿⠿⠛⠉\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts",
+    "state": "idle"
+  },
+  {
+    "name": "text typed in the composer, not sent",
+    "title": "work",
+    "screen": "  >_ OpenAI Codex (v0.169.0)\n     /home/dev/work\n› slow reply please\n  stub-model low · /home/dev/work",
+    "state": "idle"
+  },
+  {
+    "name": "early in a turn, the spinner in the title",
+    "title": "⠏ work",
+    "screen": "  >_ OpenAI Codex (v0.169.0)\n     /home/dev/work\n› slow reply please\n• word0 word1\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "working"
+  },
+  {
+    "name": "a reply streaming, no working line",
+    "title": "⠏ work",
+    "screen": "  >_ OpenAI Codex (v0.169.0)\n     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "working"
+  },
+  {
+    "name": "after a finished turn",
+    "title": "work",
+    "screen": "  >_ OpenAI Codex (v0.169.0)\n     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 8s • 11:27 AM\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "the exec approval card",
+    "title": "[ . ] Action Required | work",
+    "screen": "     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 8s • 11:27 AM\n› make a file\n• Running touch b.txt\n  Would you like to run the following command?\n  Environment: local\n  Reason: Create b.txt for the probe?\n  $ touch b.txt\n› 1. Yes, proceed (y)\n  2. Yes, and don't ask again for commands that start with `touch b.txt` (p)\n  3. No, and tell Codex what to do differently (esc)\n  Press enter to confirm or esc to cancel",
+    "state": "blocked"
+  },
+  {
+    "name": "request_user_input refused in Default mode",
+    "title": "work",
+    "screen": "  word18 word19\n  Worked for 8s • 11:27 AM\n› make a file\n✔ You approved codex to run touch b.txt this time\n• Ran touch b.txt\n  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  └ Tip: Press ^g to edit your current draft in an external editor.\n  Worked for <1s • 11:28 AM\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "plan mode switched on",
+    "title": "work",
+    "screen": "  word18 word19\n  Worked for 8s • 11:27 AM\n› make a file\n✔ You approved codex to run touch b.txt this time\n• Ran touch b.txt\n  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› Ask Codex to do anything\n  stub-model medium · /home/dev/work\n  ← for agents · ? for shortcuts                              Plan mode (shift+tab to cycle) · ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "the request_user_input question card",
+    "title": "[ . ] Action Required | work",
+    "screen": "• Ran touch b.txt\n  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› ask me something now\n  Question 1/1 (1 unanswered)\n  Which color should the probe use?\n  › 1. Red (Recommended)  The default.\n    2. Blue               The other one.\n    3. None of the above  Optionally, add details in notes (tab)\n  tab to add notes | enter to submit answer | esc to interrupt",
+    "state": "blocked"
+  },
+  {
+    "name": "after an interrupted turn",
+    "title": "work",
+    "screen": "› make a file\n✔ You approved codex to run touch b.txt this time\n• Ran touch b.txt\n  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› ask me something now\n■ Conversation interrupted - use /feedback if something went wrong\n› Ask Codex to do anything\n  stub-model medium · /home/dev/work\n  ← for agents · ? for shortcuts                              Plan mode (shift+tab to cycle) · ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "after an error banner",
+    "title": "work",
+    "screen": "  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› ask me something now\n■ Conversation interrupted - use /feedback if something went wrong\n• Model changed to stub-model low for Default mode.\n› this will fail\n■ stream disconnected before completion: probe server error\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "a background terminal left running after the turn",
+    "title": "work",
+    "screen": "  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› ask me something now\n■ Conversation interrupted - use /feedback if something went wrong\n• Model changed to stub-model low for Default mode.\n› this will fail\n■ stream disconnected before completion: probe server error\n› start a background job\n• done after tool 25\n  └ Tip: Use /feedback to send logs to the maintainers when something looks off.\n  Worked for <1s • 11:29 AM\n  1 background terminal running · /ps to view · /stop to close\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "a reply streaming while a background terminal runs",
+    "title": "⠧ work",
+    "screen": "• Model changed to stub-model medium for Plan mode.\n› ask me something now\n■ Conversation interrupted - use /feedback if something went wrong\n• Model changed to stub-model low for Default mode.\n› this will fail\n■ stream disconnected before completion: probe server error\n› start a background job\n• done after tool 25\n  Worked for <1s • 11:29 AM\n› slow again\n• word0 word1 word2 word3\n  1 background terminal running · /ps to view · /stop to close\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "working"
+  },
+  {
+    "name": "a follow-up steered into the running turn",
+    "title": "⠧ work",
+    "screen": "› ask me something now\n■ Conversation interrupted - use /feedback if something went wrong\n• Model changed to stub-model low for Default mode.\n› this will fail\n■ stream disconnected before completion: probe server error\n› start a background job\n• done after tool 25\n  Worked for <1s • 11:29 AM\n› slow again\n› queued follow-up\n• word0 word1 word2 word3 word4 word5 word0 word1 word2\n  1 background terminal running · /ps to view · /stop to close\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "working"
+  },
+  {
+    "name": "the working line over the composer",
+    "title": "⠧ work",
+    "screen": "› this will fail\n■ stream disconnected before completion: probe server error\n› start a background job\n• done after tool 25\n  Worked for <1s • 11:29 AM\n› slow again\n› queued follow-up\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 11s • 11:30 AM\n› run a foreground command\n• Working (2s • esc to interrupt) · 2 background terminals running · /ps to view · /stop to close\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "working"
+  },
+  {
+    "name": "the /model picker",
+    "title": "work",
+    "screen": "• Ran sleep 6\n  └ (no output)\n• done after tool 32\n  Worked for 6s • 11:30 AM\n  Select Model and Effort\n› 1. GPT-6.1-Sol    Latest workhorse model for coding and everyday work.\n  2. GPT-6-Astra    Frontier intelligence for the most demanding work.\n  3. GPT-6-Sol      Previous generation workhorse model.\n  4. GPT-6-Luna     Fast and affordable model for easier tasks.\n  5. GPT-5.6-Sol    Older generation workhorse model.\n  6. GPT-6.1 Terra  GPT-6.1 Terra Codex model.\n  7. GPT-5.6-Terra  Older balanced model for straightforward work.\n  8. GPT-5.6-Luna   Older fast and efficient model.\n↓\n  enter select · esc back",
+    "state": "idle"
+  },
+  {
+    "name": "the /resume picker",
+    "title": "work",
+    "screen": " Resume a previous session\n Filter:  Cwd  All    Status:  Active  Archived    Sort:  Updated  Created\n Type to search\n  › now         slow reply please\n───────────────────────────────────────────────────────────────────────────────────────────────────────── 1 / 1 · 100% ─\n enter resume   ^a archive   esc exit   ^c exit   tab focus sort/filter   ←/→ change option\n ^o comfortable view   ^t transcript   ^e expand   ↑/↓ browse",
+    "state": "idle"
+  },
+  {
+    "name": "/new's worktree picker",
+    "title": "work",
+    "screen": "  Worked for <1s • 11:29 AM\n› slow again\n› queued follow-up\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 11s • 11:30 AM\n› run a foreground command\n• Ran sleep 6\n  └ (no output)\n• done after tool 32\n  Worked for 6s • 11:30 AM\n  Where should the new conversation run?\n› 1. Use current Git worktree  Keep using the current working directory\n  2. Create new Git worktree   Create a separate checkout of this repository in another directory\n  enter select · esc back",
+    "state": "idle"
+  },
+  {
+    "name": "the exec card while the title still reads plain",
+    "title": "work",
+    "screen": "     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 8s • 11:27 AM\n› make a file\n• Running touch b.txt\n  Would you like to run the following command?\n  Environment: local\n  Reason: Create b.txt for the probe?\n  $ touch b.txt\n› 1. Yes, proceed (y)\n  2. Yes, and don't ask again for commands that start with `touch b.txt` (p)\n  3. No, and tell Codex what to do differently (esc)\n  Press enter to confirm or esc to cancel",
+    "state": "blocked"
+  },
+  {
+    "name": "the exec card under the blinking title",
+    "title": "[ ! ] Action Required | work",
+    "screen": "     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 8s • 11:27 AM\n› make a file\n• Running touch b.txt\n  Would you like to run the following command?\n  Environment: local\n  Reason: Create b.txt for the probe?\n  $ touch b.txt\n› 1. Yes, proceed (y)\n  2. Yes, and don't ask again for commands that start with `touch b.txt` (p)\n  3. No, and tell Codex what to do differently (esc)\n  Press enter to confirm or esc to cancel",
+    "state": "blocked"
+  },
+  {
+    "name": "the question card while the title still reads plain",
+    "title": "work",
+    "screen": "• Ran touch b.txt\n  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› ask me something now\n  Question 1/1 (1 unanswered)\n  Which color should the probe use?\n  › 1. Red (Recommended)  The default.\n    2. Blue               The other one.\n    3. None of the above  Optionally, add details in notes (tab)\n  tab to add notes | enter to submit answer | esc to interrupt",
+    "state": "blocked"
+  },
+  {
+    "name": "the working line while the title still reads plain",
+    "title": "work",
+    "screen": "› this will fail\n■ stream disconnected before completion: probe server error\n› start a background job\n• done after tool 25\n  Worked for <1s • 11:29 AM\n› slow again\n› queued follow-up\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 11s • 11:30 AM\n› run a foreground command\n• Working (2s • esc to interrupt) · 2 background terminals running · /ps to view · /stop to close\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "working"
+  },
+  {
+    "name": "MCP servers starting (the line measured on 2026-11-14)",
+    "title": "work",
+    "screen": "  >_ OpenAI Codex (v0.169.0)\n     /home/dev/work\n• Starting MCP servers (2/3): codex_apps (0s • esc to interrupt)\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts",
+    "state": "working"
+  },
+  {
+    "name": "a working line quoted far above the composer",
+    "title": "work",
+    "screen": "• The status reads “Working (5s • esc to interrupt)” while a turn runs.\n  Worked for 3s • 11:20 AM\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 8s • 11:27 AM\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "a turn interrupted, then a new prompt typed",
+    "title": "work",
+    "screen": "› make a file\n✔ You approved codex to run touch b.txt this time\n• Ran touch b.txt\n  └ (no output)\n• done after tool 5\n  Worked for 11s • 11:28 AM\n› ask me something\n• done after tool 7\n  Worked for <1s • 11:28 AM\n• Model changed to stub-model medium for Plan mode.\n› ask me something now\n■ Conversation interrupted - use /feedback if something went wrong\n› try again\n  stub-model medium · /home/dev/work\n  ← for agents · ? for shortcuts                              Plan mode (shift+tab to cycle) · ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  },
+  {
+    "name": "a card these rules do not read, under the blocking title",
+    "title": "[ ! ] Action Required | work",
+    "screen": "     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n  word18 word19\n  Worked for 8s • 11:27 AM\n› make a file\n• Running touch b.txt\n  Would you like to run the following command?\n  Environment: local\n  Reason: Create b.txt for the probe?\n  $ touch b.txt\n› 1. Yes, proceed (y)\n  2. Yes, and don't ask again for commands that start with `touch b.txt` (p)\n  3. No, and tell Codex what to do differently (esc)",
+    "state": "blocked"
+  },
+  {
+    "name": "the trust question quoted in a reply",
+    "title": "work",
+    "screen": "  >_ OpenAI Codex (v0.169.0)\n     /home/dev/work\n› slow reply please\n• word0 word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 word14 word15 word16 word17\n• It asked “Trust this folder?” when the session started.\n  Worked for 8s • 11:27 AM\n› Ask Codex to do anything\n  stub-model low · /home/dev/work\n  ← for agents · ? for shortcuts                                                               ⚠ 1 warning · f2 to view",
+    "state": "idle"
+  }
+]
