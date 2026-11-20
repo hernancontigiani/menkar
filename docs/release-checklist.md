@@ -102,6 +102,30 @@ launcher, header and About say "Menkar Sandbox", with the amber icon (1.166).
 daily session is offered for resume, trash or delete, the classifier is absent, and nothing it
 does shows up in the daily Menkar's projects or sessions.
 
+## 8d. Codex as a session (P1a)
+
+Codex runs as a session beside Claude Code and Cursor (plan 39, phase P1a), checked in Menkar
+Sandbox with your own `codex` installed and logged in. The orchestration mode with Codex is not
+part of this check.
+
+1. New → Codex, in a folder of a `sandbox-` project. Before typing, the tab has no session yet.
+   Send a first message that makes Codex run a command needing your approval.
+2. While the turn runs, then at the approval, then after it ends, look at the tab's and the row's
+   state dot.
+3. Wait for Codex to title the thread (or rename it in Codex); look at the row.
+4. With a `notify` of your own in `~/.codex/config.toml`, check that it still ran.
+5. In the same tab, `/new` and a message; then `/fork` and a message.
+6. Close the tab; open the session again from its row and send a message.
+7. Open Usage and run `menkar usage`.
+
+**Passes when** the row appears in the project as soon as the first message is sent, before the
+turn ends; the dot shows working, then blocked at the approval, then idle or done; the row shows
+Codex's name for the thread; your own `notify` ran as before; after `/new` the tab runs the new
+thread and the old one is under "Earlier conversations ▸", and after `/fork` the tab runs the fork
+the same way; reopening resumes the same thread (its earlier messages are on screen), not a new
+one; the tab's ring shows the context Codex's own footer shows; Usage lists the Codex session's
+turns under the project, with tokens and a cost marked as an estimate, and `menkar usage` agrees.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in

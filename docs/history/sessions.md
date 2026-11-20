@@ -71,3 +71,34 @@ without `state.json` and `projects.json` is the first start that imports agent-t
 > Left on 2026-11-17: each agent's state rules and Remote Control reading are its kit's (plan 39, P0.5).
   - **How it is read** (`src/core/remote/live.ts`, `src/main/remote-live.ts`): the agent is found
     as the descendant of the pane's shell named `claude` (or a `node …/claude` script), by
+
+## Sessions — how they are found, read and named
+
+> Left on 2026-11-20: Codex's sessions are found, watched and followed (plan 39, P1a).
+`src/core/sessions/` finds every Claude Code and Cursor session on the machine, reads what a row
+
+## Reading a transcript
+
+> Left on 2026-11-20: Codex's sessions are found, watched and followed (plan 39, P1a).
+  `<id>.jsonl` or else its first `*.jsonl` by name. An agent contributes only when its CLI
+  (`claude`, `cursor-agent`) is an executable on the `PATH` (`installed.ts`), checked on every
+  scan. The list is newest modification first, ties by id.
+  a rescan leave every transcript's bytes and mtime unchanged.
+
+## Keeping it current
+
+> Left on 2026-11-20: Codex's sessions are found, watched and followed (plan 39, P1a).
+  it, and on `~/.cursor/projects/`, each folder in it and each `agent-transcripts/` in those. They
+  are set again after every scan, so a folder created later is watched too. Not recursive:
+  a running session's `subagents/` and `tool-results/` change constantly and hold no session.
+  finds it (the refresh, or an event elsewhere).
+
+## A session that changes id in its tab
+
+> Left on 2026-11-20: Codex's sessions are found, watched and followed (plan 39, P1a).
+  another id. A start Menkar made with `--resume` names the pane's own id, so nothing moves.
+
+## On screen
+
+> Left on 2026-11-20: Codex's sessions are found, watched and followed (plan 39, P1a).
+- **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only

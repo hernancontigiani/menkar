@@ -1763,3 +1763,43 @@ P0's blocks run in turn.
 - **Left for P1a.7**: `docs/usage.md` (`menkar usage` counts a never-seen `.zst` only after the
   app's next pass; Codex's turns, tokens and prices), `docs/agents.md`'s Codex usage and context
   notes, and whether `e2e/usage-codex.spec.ts` folds into `e2e/codex.spec.ts`.
+
+### P1a.7 (`menkar-t151`, task 151, 2026-11-20)
+
+- **`e2e/codex.spec.ts`** (two tests, the session end to end with the stand-in): started from New
+  with `--add-dir <the project's files folder>` and Menkar's `-c notify=[…]`; bound to its thread;
+  the tab's dot working while the turn runs; the user's own `notify` from `config.toml` given
+  Codex's argument; the row named from `session_index.jsonl`; a closed tab stops it, and opening
+  its row runs `codex resume … <id>` with no `-m`, the same thread going on. The binding cases
+  (/new, a fork, two tabs in one folder) stay in `e2e/codex-bind.spec.ts` and Usage in
+  `e2e/usage-codex.spec.ts` (my choice: one file per concern, not folded). **Seen failing once:**
+  the user's notify given `{}` instead of Codex's argument (in the built program), and the resume's
+  thread list inverted.
+- **Docs**: `docs/agents.md` gains "Codex: starting it", "Codex: its sessions", "Codex: its
+  state", "Codex: usage and context", the real check's binding numbers, and the interfaces P1a
+  added (`LaunchPlan.files`, `EnvPatterns`, `EarlyBind`, `UsageSource`/`TurnSource`,
+  `ContextSource`, `DeclaredWrites`); `docs/sessions.md` Codex's discovery, its watch and the cost
+  of an absent `~/.codex`, the no-write test per agent, the follow, no trash; `docs/usage.md` "Per
+  agent" and the `.zst` limit of `menkar usage`; `docs/release-checklist.md` "8d. Codex as a
+  session (P1a)". The lines that left are in their histories.
+- **The real check** (codex-cli 0.169.0 symlinked into a throwaway root's `bin`, `CODEX_HOME` in
+  the throwaway home, `codex`'s stand-in API on 127.0.0.1, Menkar from the worktree's `out/` under
+  Xvfb; driven by a Playwright script of mine, read by `codex`): the start's argv as above; with
+  an instant reply the turn-end record arrived before the next poll (bound 1.57 s after Enter);
+  with an 8 s reply the tab bound about 1.5 s after Enter from `/proc`, no record yet, and its dot
+  was working until the turn ended; the user's notify ran for the thread and the title thread, the
+  title thread made no record; `/new` and `/fork` (each through Codex's checkout picker) were
+  followed as a clear and a resume, the fork's earlier conversations being both older threads;
+  `codex resume … <fork id>`, no `-m`, no new rollout; `menkar usage --json`: four turns, one per
+  user message, the title thread's requests not counted; the ring "0% of 258k".
+  **`codex` read the outputs and the rollouts: nothing contradicts its measurements.** The fork's
+  rollout references its parent's history rather than copying it (only its own records), so four
+  turns of 100/5 tokens is exact; resume appends to the fork's own file; the ring is Codex's own
+  figure (105 tokens under the 12,000 baseline). The title request at every turn (8 requests for 4
+  turns) is the stub's: it answers the title prompt in plain text, so no title is saved and Codex
+  asks again; with a real model it stops after the first turn, and no row name came from the index
+  in this run.
+- **Found, not mine** (pre-existing, Claude's New the same): a row's dot stays idle while its tab
+  shows working, from a pane's join until its state next changes. `agentStates()` reads each pane's
+  `sessionId()`, but the push (`refreshAgentStates`) is not resent when `joinSession`
+  (`src/main/workspace.ts`) gives a pending pane its id. Reported to set; not fixed here.

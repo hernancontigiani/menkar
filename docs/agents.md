@@ -1,6 +1,6 @@
 # Agents — how the code is organised
 
-Menkar runs more than one coding agent (Claude Code and Cursor today). What differs per agent is
+Menkar runs more than one coding agent: Claude Code, Cursor and Codex. What differs per agent is
 kept in one place per agent, so a change to one agent cannot break another and shared code never
 asks which agent it has (1.135). The code says what each piece does; this file keeps why it is
 shaped this way and what was rejected.
@@ -8,17 +8,21 @@ shaped this way and what was rejected.
 ## The pattern: a kit of strategies per agent, chosen once
 
 - **One interface per concern** (`src/core/agents/types.ts`, `src/main/agents/types.ts`): starting
-  (`Launcher`, `McpMount`, `Namer`, `EnvRules`), the team block's delivery (`TeamDelivery`,
-  `MainTeamDelivery`), the sessions (`SessionCatalog`), the state read from the screen
-  (`StateRules`), ids (`SessionIds`, `PaneFollow`), `Fork`, Remote Control (`Remote`), waking
-  (`Waker`), the orchestrator's inbox file and its delivery read back from the transcript
-  (`PromptInbox`, `MainAgentKit.inbox`; decision 1.178), the settings file and chat tabs
-  (`ChatStrategy`). An interface enters with the first
+  (`Launcher`, with the files a start writes in `LaunchPlan.files`; `McpMount`, `Namer`, `EnvRules`
+  and `EnvPatterns`), the team block's delivery (`TeamDelivery`, `MainTeamDelivery`), the sessions
+  (`SessionCatalog`), the state read from the screen (`StateRules`), ids (`SessionIds`,
+  `PaneFollow`, and `EarlyBind`, `MainAgentKit.bind`, for an agent that picks its own id), `Fork`,
+  Remote Control (`Remote`), waking (`Waker`), the orchestrator's inbox file and its delivery read
+  back from the transcript (`PromptInbox`, `MainAgentKit.inbox`; decision 1.178), the settings file
+  and chat tabs (`ChatStrategy`), usage (`UsageSource`, which opens a `TurnSource`), the context
+  reading (`ContextSource`), and what the agent itself writes under its home while Menkar reads it
+  (`DeclaredWrites`, the allow-list of the no-write test). An interface enters with the first
   agent that implements it, never ahead of its consumer.
 - **A kit per agent** groups its strategies: `src/core/agents/<id>/index.ts` (`AgentKit`, plain
   Node) and `src/main/agents/<id>/index.ts` (`MainAgentKit`, what needs Electron's main process).
   **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
-  fork, no Remote Control, no team block, no waker, no inbox.
+  fork, no Remote Control, no team block, no waker, no inbox; Codex has none of those either, and
+  no MCP mount, chat or trash yet.
 - **The registries choose**: `kitOf(id)` (`src/core/agents/registry.ts`) and `mainKitOf(id)`
   (`src/main/agents/registry.ts`) are `Record<AgentId, …>` literals, so `tsc` refuses an agent
   registered without a kit. They are the only code that imports an agent's folder. A pane keeps
@@ -113,6 +117,56 @@ with more hits than its entry fails, so a count only goes down. What is left:
   it is handed the value: a chat's environment is passed in, because `sessionenv.ts` reads every
   kit's `EnvRules` when it loads.
 
+## Codex: starting it
+
+Codex's kit is `src/core/agents/codex/` and `src/main/agents/codex/`; measured on codex-cli 0.169.0
+(2026-11-20). It has no MCP mount, team block, fork, chat, trash, Remote Control, waker or inbox:
+each is `null` in its kit, and the renderer offers none of them for a Codex session.
+
+- **The command**: `codex [-m <model>] [--add-dir <files>] [-c notify=[…]] [-- "<prompt>"]`, and
+  `codex resume [--add-dir …] [-c notify=[…]] <id> [-- "<prompt>"]`. Options go after `resume`;
+  `--` goes before the prompt, or a prompt starting with `-` is read as an option. A resume takes
+  no `-m`: it would switch the thread's model. `--add-dir` names the project's files folder.
+- **A `-c` value is a TOML basic string** (`tomlString`): Codex parses `-c` values as TOML and
+  takes an unparsable one as a string, so a bare `42` or `true` would change type.
+- **`notify`**: Menkar's `-c notify=[…]` runs its own program (`codex-notify.js`, shipped in the
+  package, `docs/packaging.md`) through `/usr/bin/env ELECTRON_RUN_AS_NODE=1 <electron>`, never
+  with that variable in Codex's environment, where every command Codex's shell runs would inherit
+  it. A `-c` value outranks the user's `config.toml`, so the user's own `notify` is read at start
+  (`config.ts`, with `smol-toml`) into the pane's chain file (`LaunchPlan.files`), and the program
+  starts it detached with Codex's argument after writing its record, without waiting for it. A
+  `notify` that is not a non-empty array of strings is not passed on.
+- **Profiles are not read**: a top-level `profile` key in `config.toml` is an error in 0.169.0; a
+  profile is only `-p`, which Menkar never passes.
+- **The environment** (`env.ts`): a Codex started from Codex's own shell would inherit its parent
+  thread's identity, sandbox markers and network proxy; those are dropped, with
+  `CODEX_NETWORK_PROXY_SNAPSHOT_BROKERED_*` by prefix (`EnvPatterns.prefixes`) and the plugin
+  folders `PLUGIN_ROOT`/`PLUGIN_DATA` only when `CODEX_THREAD_ID` is inherited too
+  (`EnvPatterns.gated`). Codex's configuration (`CODEX_HOME`, keys) is the user's and kept.
+- **Its `DeclaredWrites` are empty**: no call Menkar makes has Codex write into its own data (no
+  name at start, no queued message yet).
+
+## Codex: its sessions
+
+`src/core/agents/codex/catalog.ts` reads Codex's rollouts, never its SQLite files:
+
+- **The conversation** comes from `event_msg` lines: `item_completed` in paginated rollouts
+  (`UserMessage`, `AgentMessage`, and tool items), `user_message`/`agent_message` in legacy ones.
+  `response_item` messages are never read: they repeat each message and carry the injected
+  environment and `AGENTS.md` text as if the user typed it.
+- **Left out of the list**, as Codex's own picker does: subagent and guardian threads, `codex exec`
+  runs, a rollout with no user message yet, and `archived_sessions/`.
+- **Names** come from `session_index.jsonl`, read incrementally by offset; the last line per thread
+  wins whatever its `updated_at`, and an empty name clears it. Codex's automatic titles and the
+  user's renames look the same there; both show as the session's name.
+- **A `.jsonl.zst`** (Codex compresses older rollouts) is streamed asynchronously
+  (`shared/zstd.ts`, zlib's zstd, so Node `>=22.15.0`): the list reads its head and stops, and its
+  badge is not shown, since its tail is not read; details, export and the last reply stream it
+  whole. A plain `.jsonl` hides a `.zst` of the same name while both exist.
+- **The watch** costs something: nothing is watched while Codex's home does not exist
+  (`docs/sessions.md`, "Keeping it current"), so a Codex run for the first time after Menkar
+  started shows its sessions at the next scan something else starts, or at Menkar's next start.
+
 ## Codex: binding a tab to its thread
 
 Codex picks a new thread's id, so a Codex tab starts with none and binds to it later. Two sources,
@@ -142,4 +196,41 @@ P1a.4):
 | `notify` | run once for the thread and once for the title thread; a record for the thread only; the user's own `notify` chained with its words and Codex's argument |
 
 So a tab waits for its first message, and binds at the next poll after it, long before the turn
-ends; elsewhere than Linux it binds when the first turn ends.
+ends; elsewhere than Linux it binds when the first turn ends. Through Menkar's own build with the
+real CLI (2026-11-20, P1a.7), a tab bound about 1.5 s after the first message was sent, from its
+process, while an 8-second reply was still running; with an instant reply the turn-end record came
+first.
+
+## Codex: its state
+
+`src/core/agents/codex/state.ts`, from Codex's screens captured on a real 0.169.0 TUI
+(`tests/data/agents/codex/screens.json`). The pane's title is the strongest signal: a Braille
+spinner while a turn runs (the only sign while a reply streams), `[ ! ] Action Required` at an
+approval or a question. In the body, blocked is an approval or question card's footer, or the trust
+prompt with its footer, in the last 14 lines; working is `esc to interrupt)` in the last 8. The
+composer stays drawn while working, so it is never read; the pickers of `/model`, `/resume` and
+`/new` are not questions. Not measured: the apply-patch card, a network approval and an MCP
+elicitation, which are left to the title.
+
+## Codex: usage and context
+
+- **Tokens come from `token_usage_record` lines**, one per completed response, keyed by its
+  `response_id`. `token_count` is not summed: Codex repeats it with no new request (a rate-limits
+  update, a task's start, the re-estimate after a compaction). A rollout with no record (an older
+  Codex) falls back to `token_count`'s `last_token_usage`, keyed by the thread's total so a repeat
+  counts once. Codex's input includes the cached and written parts: Menkar's input is input − cached −
+  written, its cache read the cached tokens.
+- **Turns**: one per user message (`codex:<turn id>`, and `codex:<turn id>:<n>` for a message
+  steered into the same task). A message starting with `[Menkar]` is a peer's. A task with no user
+  message (a compaction) and a subagent's rollout open none: their tokens fall to the turn in effect,
+  in the parent's session. Working time is the gaps between a turn's lines up to its end, a gap
+  over two hours being idle; no blocked time is measured.
+- **A fork that copies its parent's history counts nothing twice**: a copied turn keeps its
+  parent's session.
+- **Its cache is its own file**, `usage-cache-codex.sqlite`, beside Claude's, which is unchanged.
+  A `.zst` is read only by the app's usage worker (`TurnSource.catchUp`), once; `docs/usage.md`
+  says what that means for `menkar usage`.
+- **Prices** are OpenAI's Standard tier rows in `prices.ts`, with their source and date.
+- **Context** (`codex/context.ts`): the last `token_count` with its window in the rollout's tail,
+  turned into Codex's own footer figure (a 12,000-token baseline left out). It is refreshed at each
+  turn's end; a `.zst` rollout shows none.
