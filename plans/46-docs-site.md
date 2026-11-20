@@ -661,6 +661,17 @@ Files: `.github/workflows/docs.yml`.
   private).
 
 ### Block 7 — every capture (after 4 and 5; needs D4, D5)
+
+**Seen in block 4's images (`menkar-t139`, 2026-11-20), to settle in this block:**
+- In Spanish a waiting task reads "esperando topic 2": the seed passes `waiting_on: 'topic 2'` and
+  the app shows it as it is. Either the seed writes what the app would show in that locale, or the
+  app translates a topic waiter (an app change: ask `set`).
+- The first-time card's new session is named "orchestrator" in Spanish too.
+- The Spanish session order differs from the English one (sorted by name).
+- The seeded orchestrator is named `lead`/`coordinador`, words the tone guide's vocabulary lists as
+  not used for the orchestrator. Rename it in the seed.
+- At 1280 px the Board's Done column is cut and scrolls.
+- `tsconfig.node.json` does not include `playwright.captures.config.ts`.
 Files: `e2e/captures/registry.ts`, `scenes.ts`, `seed.ts`, `strings/*`, `site/src/assets/captures/**`,
 `reviewed.json`.
 - [ ] The rest of §2.4's slugs, each with its alt text in both locales.
