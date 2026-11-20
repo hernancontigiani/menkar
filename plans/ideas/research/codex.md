@@ -84,6 +84,14 @@ The start command was `codex -C <repo> -c 'mcp_servers.menkar.command=…' -c
    - The server's environment was only `HOME, LANG, LOGNAME, PATH, SHELL, TERM, USER`.
      `MENKAR_PANE` set on the pty did **not** reach it.
    - With `-c 'mcp_servers.menkar.env={MENKAR_PANE="cfg-pane"}'` the server saw `cfg-pane`.
+   - **`env_vars` forwards names from Codex's own environment** (measured 2026-11-20, task 162):
+     with `-c 'mcp_servers.menkar.env={ELECTRON_RUN_AS_NODE="1", MENKAR_PANE="p",
+     MENKAR_AGENT="codex"}'` and a separate `-c 'mcp_servers.menkar.env_vars=["XDG_CACHE_HOME",
+     "XDG_CONFIG_HOME","XDG_DATA_HOME"]'`, the server saw all three `env` keys plus
+     `XDG_CACHE_HOME` and `XDG_CONFIG_HOME`; the unset `XDG_DATA_HOME` was absent, with no error.
+     Each `-c` sets its own key, so the two do not overwrite each other (r:
+     `config/src/overrides.rs:18-70`; unset names drop at `env::var_os` in
+     `rmcp-client/src/utils.rs:16-26`).
    - With `default_tools_approval_mode="approve"`, the model's call to the tool ran **with no
      approval card**, even under `-s read-only`.
 7. **`notify` by `-c`** fired at every turn's end, about 1 s after it, already on the first turn.
@@ -169,7 +177,7 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
     - **Correction to item 9:** session B had **a generated name before any rename**:
       `session_index.jsonl` held `"thread_name":"Reply with OK"`, and the footer showed
       "· Reply with OK". Session A, started a minute earlier in the same home, got no generated
-      name. When Codex names a thread by itself is unknown.
+      name. When Codex names a thread by itself: see item 25.
     - **Before the first turn:** the rollout file, whose name ends in the thread id, appears when
       the session starts (run 1: its timestamp was the trust acceptance). So the id could be learned
       from the folder before any turn, but that is a race with any other session starting in the
@@ -260,6 +268,140 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
       title then stays the bare name, with no Action Required.
     - **Not reached with the stand-in:** an apply-patch card (the stand-in's model was offered no
       `apply_patch` tool), a network approval, an MCP elicitation.
+24. **`codex queue`, case by case** (2026-11-20, for plan 39's Waker, task 164; the stand-in API,
+    no login).
+    - **Setup:** a TUI started embedded (`-a on-request -s read-only -c …`). `codex queue --thread
+      <uuid> --message <text>` was run with **no `-c`**, from a process with the same
+      `CODEX_HOME`. Every call returned in **50–75 ms**.
+    - **Accepted:** exit 0, stdout `Queued message <uuid7> for thread <uuid>.`, stderr empty apart
+      from the PATH-aliases warning, which only a home under `/tmp` gets:
+      - **(a) idle:** delivered as the next turn about 3.7 s later.
+      - **(b) mid-turn** (the stand-in held its reply 25 s): delivered as its own turn, 5 ms after
+        that turn's `task_complete`. While waiting, the TUI showed nothing about it.
+      - **(c) at an exec approval card:** after 25 s the card was untouched, `b.txt` was not
+        created and the message was not delivered. After a `y` by hand, the message ran as the
+        next turn, 5 ms after the approved turn ended. That re-confirms item 2 on this version.
+      - **(d) the TUI stopped:** the row stayed in `queue_1.sqlite` (`queued_items`, the
+        `UserInput` payload).
+        - `codex resume <uuid> -c …` with no prompt delivered it about 1 s after start, as the
+          first turn.
+        - `codex resume <uuid> -c … "<prompt>"` with a message queued put **both in one turn**:
+          the queued `UserMessage` first, then the prompt's `UserMessage` 25 ms later, under one
+          `task_started`/`task_complete`.
+    - **Refused:** exit 1, stdout empty, one line on stderr:
+      - **(e) a thread with no rollout yet** (started, `/status` showed its id, no message sent)
+        and **(f) an unknown uuid** gave the same line: `Error: failed to queue session message:
+        thread/queue/add failed: failed to read thread: invalid thread-store request: no rollout
+        found for thread id <uuid> (code -32603)`. Nothing was queued. (r: `require_thread` →
+        `thread_store.read_thread`, `app-server/src/request_processors/thread_queue_processor.rs:255-295`.)
+      - A non-uuid name with no match: `Error: No active session found matching '<name>'.`
+    - **Text:** a 2,071-character message with newlines, a blank line, tabs, quotes, backticks,
+      `$HOME`, `ñ`, `⠧` and an emoji arrived **byte-exact**, both in the `item_completed`
+      `UserMessage` and in the `response_item` user message.
+    - **Two messages queued back to back ran as two turns**, in order, 4 ms apart.
+    - **With a shared daemon running in that home** (`codex app-server --listen unix://`):
+      - `codex queue` with no `-c` connected to the daemon's socket
+        (`/tmp/codex-daemon-<uid>/<hash>`, strace). It was accepted the same way and reached the
+        embedded TUI 2.6 s later.
+      - An unknown uuid was refused with the same line.
+      - **`codex queue -c …` was refused**, exit 1: `Error: cannot queue through an embedded app
+        server while a local app-server daemon is running; remove configuration overrides or use
+        --remote`. With no daemon, the same `-c` would have run embedded (r,
+        `tui/src/session_queue_commands.rs:39-56`).
+    - **Files written** (snapshot diffs in a home that exists; task 165):
+      - **`codex queue` itself:**
+        - `queue_1.sqlite-wal` and `-shm`, and `logs_2.sqlite` and `-shm`;
+        - on some runs, a touched `state_5.sqlite-shm`, `goals_1.sqlite-shm` or
+          `memories_1.sqlite-shm`;
+        - its embedded server may also checkpoint into `queue_1.sqlite`, `logs_2.sqlite-wal` or
+          `.sqlite-maintenance.lock` (inferred from the app-server's set, item 25).
+      - **With no `-c`, `codex queue` also runs the plugin marketplace sync:**
+        `git ls-remote https://github.com/openai/plugins.git`, a GitHub connection, and an empty
+        `.tmp/git-XXXXXX/` left behind.
+        - **`codex queue --disable plugins` does no sync** (no git, no network) and was accepted
+          with no daemon running.
+        - With a daemon running it would be refused like any override (see below); the daemon
+          then does the work.
+      - **Delivery, by the idle TUI that runs the message:**
+        - `queue_1.sqlite-wal` and `-shm` (the row deleted);
+        - the rollout;
+        - `state_5.sqlite-wal` and `-shm`;
+        - `thread_history_1.sqlite-wal` and `-shm`.
+    - **The daemon starts `git ls-remote https://github.com/openai/plugins.git`** (the plugin
+      marketplace) when it starts. That is Codex's own network use.
+25. **Naming from outside: `thread/name/set`, and the TUI's generated name** (2026-11-20, for plan
+    39's naming, task 165; the stand-in API answered the title request with `{"title":…}`).
+    - **The call:** a separate `codex app-server` (stdio, the same `CODEX_HOME`). The client sends
+      one JSON object per line:
+      1. `{"id":1,"method":"initialize","params":{"clientInfo":{"name":…,"version":…}}}`.
+         `clientInfo.name` and `version` are required (r, `app-server-protocol/src/protocol/v1.rs:29-41`).
+      2. The answer is `{userAgent, codexHome, …}`, plus a `remoteControl/status/changed`
+         notification.
+      3. `{"method":"initialized"}`, then
+         `{"id":2,"method":"thread/name/set","params":{"threadId","name"}}`.
+      4. That answers `{}`, then `thread/name/updated {threadId, threadName}`.
+      5. Closing stdin makes it exit 0. End to end it took **120–240 ms**.
+      The name is trimmed, and an empty one is refused ("thread name must not be empty", r).
+    - **The daemon:** `codex app-server` with a daemon running in that home ran on its own. strace
+      showed no connection to the daemon's socket. It starts no daemon and leaves none. `-c` and
+      `--disable` are accepted.
+    - **By default it syncs the plugin marketplace**:
+      - it runs `git ls-remote https://github.com/openai/plugins.git` (a connection to GitHub's
+        443) and clones into `$CODEX_HOME/.tmp/plugins` (5,487 files, plus `plugins.sha` and
+        `plugins.sync.lock`);
+      - every run leaves an empty `.tmp/git-XXXXXX/` (`objects/`, `refs/`, `HEAD`). The sync
+        removes these only once they are older than 10 minutes (r, `startup_sync.rs:40,400`).
+      - **`codex app-server --disable plugins` does none of it**: no git, no network, no `.tmp`
+        (measured; r, `plugins_enabled` gates it at `core-plugins/src/manager.rs:3000`).
+    - **Accepted when:** as soon as the rollout exists, which is at the first user message (item 18).
+      A call during the first turn, before it ended, answered `{}`.
+    - **Refused, as the JSON-RPC error `-32600`
+      `no rollout found for thread id <uuid>`:** a thread with no rollout yet (started, no
+      message) and an unknown uuid. The process still exits 0 after stdin closes.
+    - **Writes, in a home that already exists** (with `--disable plugins`):
+      - always: one line appended to `session_index.jsonl`, plus `state_5.sqlite-wal` and
+        `state_5.sqlite-shm`;
+      - on some runs: `logs_2.sqlite` (and its `-wal`/`-shm`), `memories_1.sqlite-shm`, and an
+        empty `.sqlite-maintenance.lock` created once.
+      - **In an empty home**, initialize alone creates `installation_id`, `skills/.system/`, and
+        `{state_5,logs_2,goals_1,memories_1,queue_1}.sqlite` each with `-wal` and `-shm`.
+      - The rollout gets no line.
+    - **The generated name** (r, `tui/src/app/thread_title.rs`, `tui/src/app/thread_routing.rs:2176-2210`,
+      `tui/src/app_server_session.rs:436-455`; measured):
+      - **The trigger:** the TUI starts it at **every completed user message while the TUI's own
+        idea of the name is empty**. It runs a hidden temporary thread with a structured-output
+        request (`text.format` = json_schema `codex_output_schema`, "Generate a concise,
+        single-line task title of at most 36 characters…"). The model is `gpt-5.6-luna` on
+        ChatGPT accounts, else the session's model.
+      - **Before saving, it re-reads the thread and saves only if `name` is still empty.** With
+        the title's answer held 6 s and `menkar-c` set 1.5 s into the first turn, the generated
+        title was **not** written.
+      - **It does not stop asking:** the TUI never sees an outside rename (item 15), so it asked
+        again at the second message, and again skipped saving. That is one extra model request
+        per user message. A `/rename` in the TUI sets its own name and stops it.
+      - With no outside name, the generated one was saved 37 ms after the first message, mid-turn.
+      - A race is left: if the outside set lands between that read and that write
+        (milliseconds), the generated name wins (inferred from the code).
+      - **No per-run switch turns it off** (r). There is no config key, no feature flag and no
+        `--name` on `codex`. The generation is skipped only when:
+        - the TUI already holds a name (for example, a resumed named thread);
+        - the message is in a side chat;
+        - the TUI runs in Cloud mode (`ThreadParamsMode::Cloud`;
+          `tui/src/app_server_session.rs:488-492`).
+        Embedded and `--remote` both generate.
+      - **Why item 15's session A got none** (inferred): its title request failed or returned no
+        title.
+    - **A `/rename` cannot be told from a generated name.** Both go through `thread/name/set`,
+      both append the same `{"id","thread_name","updated_at"}` line, and both set `threads.name`.
+      `threads.title` stays the first prompt. The rollout records neither. A rename while a
+      generated name is pending cancels it (r).
+      - The TUI's `/rename` dialog opens prefilled with a fresh suggestion ("Suggested from this
+        conversation"). Submitting it is the human's rename.
+      - The TUI shows a name (footer `· <name>`) only if it set that name itself.
+    - **Names are not unique.** Two threads set to `dupname` were both accepted.
+      `codex resume dupname` then refused: `Error: Multiple sessions match 'dupname' (including
+      <id> and <id>); use a session UUID to disambiguate.` `codex queue --thread <name>` uses the
+      same lookup (r).
 
 ## 1. The five facts
 
