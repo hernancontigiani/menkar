@@ -2,11 +2,21 @@
 // the registry's order, each image written raw for site/scripts/import-captures.mjs to import.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { type ElectronApplication, expect, type Locator, type Page, test } from '@playwright/test'
 import { now } from '../../src/core/clock'
+import { en as appEn } from '../../src/core/i18n/en'
+import { es as appEs } from '../../src/core/i18n/es'
 import { TASKS_SHOWN } from '../../src/core/orchestration/rows'
 import { launchApp } from '../app'
-import { CAPTURES, type Capture, LOCALES, type Locale, type Slug, THEMES } from './registry'
+import {
+  CAPTURES,
+  type Capture,
+  type Clip,
+  LOCALES,
+  type Locale,
+  type Slug,
+  THEMES,
+} from './registry'
 import { SCENES, type Walker } from './scenes'
 import { SESSION, STRINGS, seed, seedWait } from './seed'
 
@@ -18,6 +28,10 @@ const SCALE = 2
 // Where the pointer waits during a shot: the header, right of the window's title.
 const REST = { x: 1000, y: 16 }
 const SHOT_ATTEMPTS = 5
+const APP_STRINGS: Readonly<Record<Locale, Partial<Record<keyof typeof appEn, string>>>> = {
+  en: appEn,
+  es: appEs,
+}
 
 const pick = <T extends string>(all: readonly T[], env: string | undefined): readonly T[] => {
   if (!env) return all
@@ -68,7 +82,7 @@ for (const locale of pick(LOCALES, process.env.CAPTURE_LOCALES))
         await size(launched.app, page)
         const out = join(RAW, locale, theme)
         rmSync(out, { recursive: true, force: true })
-        const walker = makeWalker(page, locale, out, seededStates(launched.root))
+        const walker = makeWalker(launched.app, page, locale, out, seededStates(launched.root))
         for (const scene of scenes) await SCENES[scene](walker)
         expect(errors, 'the renderer reported errors').toEqual([])
       } catch (error) {
@@ -107,20 +121,70 @@ async function size(app: App, page: Page): Promise<void> {
 }
 
 function makeWalker(
+  app: ElectronApplication,
   page: Page,
   locale: Locale,
   out: string,
   seeded: Readonly<Record<string, string>>,
 ): Walker {
   const text = (key: Parameters<Walker['text']>[0]) => STRINGS[locale][key]
+  const save = (slug: Slug, image: Buffer) => {
+    mkdirSync(out, { recursive: true })
+    writeFileSync(join(out, `${slug}.png`), image)
+  }
   return {
     page,
+    app,
     text,
+    ui: (key) => APP_STRINGS[locale][key] ?? appEn[key],
+    async openWindow(open, title, size) {
+      const [win] = await Promise.all([app.waitForEvent('window'), open()])
+      await win.waitForLoadState('domcontentloaded')
+      await app.evaluate(
+        ({ BrowserWindow }, [title, w, h]) => {
+          const found = BrowserWindow.getAllWindows().find((x) => x.getTitle() === title)
+          if (!found) throw new Error(`no window titled ${title}`)
+          if (found.isMaximized()) found.unmaximize()
+          found.setContentSize(Number(w), Number(h))
+        },
+        [title, size.width, size.height] as const,
+      )
+      await expect
+        .poll(() => win.evaluate(() => [innerWidth, innerHeight, devicePixelRatio]))
+        .toEqual([size.width, size.height, SCALE])
+      return win
+    },
+    async shotWindow(slug, win) {
+      const [width = 1, height = 1] = await win.evaluate(() => [innerWidth, innerHeight])
+      await win.mouse.move(width - 1, height - 1)
+      await win.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+      await win.evaluate(() => document.fonts.ready.then(() => undefined))
+      // Without the main window's rows to read, settled means two shots in a row draw the same.
+      let last = await win.screenshot({ animations: 'disabled', caret: 'hide' })
+      for (let attempt = 1; ; attempt++) {
+        const image = await win.screenshot({ animations: 'disabled', caret: 'hide' })
+        if (image.equals(last)) {
+          if (!checkOnly && written(slug)) save(slug, image)
+          return
+        }
+        if (attempt === SHOT_ATTEMPTS) throw new Error(`${slug}: the window kept changing`)
+        last = image
+      }
+    },
+    async holdClockAt(at) {
+      // Main's clock only, in the last scene: the app closes right after, so nothing later reads
+      // the shifted time.
+      await app.evaluate((_, at) => {
+        const shift = Date.now() - at
+        const real = Date.now
+        Date.now = () => real() - shift
+      }, at)
+    },
     async go(action, ready) {
       await action()
       await expect(ready).toBeVisible()
     },
-    async shot(slug, proof) {
+    async shot(slug, proof, area) {
       await expect(page.locator('#project-button .project-name')).toHaveText(text(proof.project))
       if (proof.openTasks !== undefined) {
         await expect(page.locator('#session-list .task-row')).toHaveCount(
@@ -140,16 +204,15 @@ function makeWalker(
       for (let attempt = 1; ; attempt++) {
         await expect.poll(() => unsettled(page, seeded)).toEqual([])
         if (checkOnly || !written(slug)) return
-        const clip = clipOf(slug)
-        const image = await page.screenshot({
-          animations: 'disabled',
-          caret: 'hide',
-          ...(clip ? { clip } : {}),
-        })
+        const clip = clipOf(slug) ?? (area ? await around(area) : undefined)
+        // A part of the window comes from Electron itself: Playwright's clipped screenshot makes
+        // the terminal show its scrollbar, and it stays shown.
+        const image = clip
+          ? await capture(app, clip)
+          : await page.screenshot({ animations: 'disabled', caret: 'hide' })
         const after = await unsettled(page, seeded)
         if (after.length === 0) {
-          mkdirSync(out, { recursive: true })
-          writeFileSync(join(out, `${slug}.png`), image)
+          save(slug, image)
           return
         }
         if (attempt === SHOT_ATTEMPTS)
@@ -157,6 +220,32 @@ function makeWalker(
       }
     },
   }
+}
+
+// The main window's `clip`, at the window's scale.
+async function capture(app: ElectronApplication, clip: Clip): Promise<Buffer> {
+  const png = await app.evaluate(async ({ BrowserWindow }, rect) => {
+    const win = BrowserWindow.getAllWindows().find((w) => w.getTitle() === 'Menkar')
+    if (!win) throw new Error('no main window')
+    return (await win.webContents.capturePage(rect)).toPNG().toString('base64')
+  }, clip)
+  return Buffer.from(png, 'base64')
+}
+
+// The smallest box holding every element `area` matches, within the window.
+async function around(area: readonly Locator[]): Promise<Clip> {
+  const boxes = []
+  for (const locator of area)
+    for (const one of await locator.all()) {
+      const box = await one.boundingBox()
+      if (box) boxes.push(box)
+    }
+  if (boxes.length === 0) throw new Error('the area to capture matches nothing')
+  const x = Math.max(0, Math.floor(Math.min(...boxes.map((b) => b.x))))
+  const y = Math.max(0, Math.floor(Math.min(...boxes.map((b) => b.y))))
+  const right = Math.min(WIDTH, Math.ceil(Math.max(...boxes.map((b) => b.x + b.width))))
+  const bottom = Math.min(HEIGHT, Math.ceil(Math.max(...boxes.map((b) => b.y + b.height))))
+  return { x, y, width: right - x, height: bottom - y }
 }
 
 // Each seeded session's state, as the seed wrote it for its stand-in.
@@ -171,18 +260,31 @@ function seededStates(root: string): Record<string, string> {
 
 // Why the screen is not ready for a shot yet, empty once it is: a context ring still being read
 // from its transcript, a running session not yet showing the state its stand-in was seeded with,
-// a focused element, a terminal scrollbar shown or fading, a loading indicator.
+// a focused element, a terminal scrollbar shown or fading, a toast, a loading indicator.
 function unsettled(page: Page, seeded: Readonly<Record<string, string>>): Promise<string[]> {
   return page.evaluate(async (seeded) => {
     const menkar = (
       globalThis as unknown as {
-        menkar: { window: { state(): Promise<{ open: readonly string[] }> } }
+        menkar: {
+          window: {
+            state(): Promise<{
+              open: readonly string[]
+              tabs: readonly { id: string; kind: string; chat?: string }[]
+            }>
+          }
+        }
       }
     ).menkar
-    const open = new Set((await menkar.window.state()).open)
+    const state = await menkar.window.state()
+    const open = new Set(state.open)
+    // Only a session's terminal tab draws a context ring; a file or chat tab never does.
+    const ringed = new Set(
+      state.tabs.filter((t) => t.kind === 'session' && !t.chat).map((t) => t.id),
+    )
     const why: string[] = []
     for (const tab of document.querySelectorAll<HTMLElement>('#tab-strip .tab'))
-      if (!tab.querySelector('.ring')) why.push(`tab ${tab.textContent ?? ''}: no ring`)
+      if (ringed.has(tab.dataset.tab ?? '') && !tab.querySelector('.ring'))
+        why.push(`tab ${tab.textContent ?? ''}: no ring`)
     for (const row of document.querySelectorAll<HTMLElement>('#session-list .row[data-session]')) {
       const id = row.dataset.session ?? ''
       if (!open.has(id)) continue
@@ -196,6 +298,8 @@ function unsettled(page: Page, seeded: Readonly<Record<string, string>>): Promis
     for (const bar of document.querySelectorAll('.xterm .scrollbar'))
       if (bar.classList.contains('visible') || getComputedStyle(bar).opacity !== '0')
         why.push('a terminal scrollbar shows')
+    // A toast leaves by itself a few seconds after it came.
+    if (document.querySelector('#toasts .toast')) why.push('a toast shows')
     for (const spinner of document.querySelectorAll<HTMLElement>('.turning, .turning-star'))
       if (spinner.checkVisibility()) why.push('a loading indicator shows')
     return why

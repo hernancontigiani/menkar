@@ -10,8 +10,10 @@ import { es } from '../../e2e/captures/strings/es'
 import {
   MAX_CHANGED_SHARE,
   MAX_CHANNEL_DELTA,
+  onPalette,
   type Pixels,
   samePicture,
+  TIE_LEVELS,
 } from '../../site/scripts/same-picture'
 
 const SITE = join(__dirname, '..', '..', 'site')
@@ -110,9 +112,10 @@ describe('the importer keeps an image only when it shows the same picture', () =
     return { ...p, data }
   }
 
-  test('the bounds are 64 levels in a channel and 0.1 % of the pixels', () => {
+  test('the bounds are 64 levels in a channel and 0.1 % of the pixels; a tie is within 8 levels', () => {
     expect(MAX_CHANNEL_DELTA).toBe(64)
     expect(MAX_CHANGED_SHARE).toBe(0.001)
+    expect(TIE_LEVELS).toBe(8)
   })
 
   test('antialiasing within the delta, on few pixels, is the same picture', () => {
@@ -128,6 +131,26 @@ describe('the importer keeps an image only when it shows the same picture', () =
     const allowed = Math.floor(W * H * MAX_CHANGED_SHARE)
     expect(samePicture(blank(), edges(blank(), allowed + 1, 1))).toBe(false)
     expect(samePicture(blank(), edges(blank(), 1, MAX_CHANNEL_DELTA + 1))).toBe(false)
+  })
+
+  test('a near tie keeps the committed colour, so the same capture reads as the same picture', () => {
+    // The committed file holds two colours 6 levels apart; the quantizer drew a pixel halfway
+    // between them with the farther one, everywhere in the lower half.
+    const committed = paint(blank(), 0, 0, W, H / 2, [100, 100, 100])
+    const reduced = paint(committed, 0, H / 2, W, H / 2, [106, 106, 106])
+    const raw = paint(blank(), 0, 0, W, H, [102, 102, 102])
+    const drawn = onPalette(raw, reduced)
+    expect(drawn.data.subarray((H - 1) * W * 4, (H - 1) * W * 4 + 3)).toEqual(
+      new Uint8Array([106, 106, 106]),
+    )
+    expect(samePicture(drawn, reduced)).toBe(true)
+  })
+
+  test('a changed word drawn on the committed palette is still a new picture', () => {
+    const reduced = word(blank())
+    const raw = paint(blank(), 0, 0, 1, 1, [76, 79, 105])
+    expect(samePicture(onPalette(raw, reduced), reduced)).toBe(false)
+    expect(samePicture(onPalette(reduced, raw), raw)).toBe(false)
   })
 
   test('a different size is a new picture', () => {

@@ -13,6 +13,18 @@ export interface Pixels {
 export const MAX_CHANNEL_DELTA = 64
 // The largest share of the image's pixels that may differ at all.
 export const MAX_CHANGED_SHARE = 0.001
+// How much farther from a new capture's pixel, in its largest channel difference, the committed
+// file's colour there may be than the nearest palette colour and still be drawn as it is.
+export const TIE_LEVELS = 8
+
+// The largest difference in any colour channel between a pixel and a colour.
+function levels(r: number, g: number, b: number, colour: ArrayLike<number>): number {
+  return Math.max(
+    Math.abs((colour[0] ?? 0) - r),
+    Math.abs((colour[1] ?? 0) - g),
+    Math.abs((colour[2] ?? 0) - b),
+  )
+}
 
 export interface Tolerance {
   readonly maxChannelDelta: number
@@ -56,7 +68,8 @@ export function samePicture(a: Pixels, b: Pixels, tolerance: Tolerance = DEFAULT
   )
 }
 
-// `raw` drawn with only the colours `reduced` uses, each pixel the nearest of them. A committed
+// `raw` drawn with only the colours `reduced` uses, each pixel the nearest of them or, in a near
+// tie, the colour `reduced` has there. A committed
 // image is reduced to a palette the quantizer picks from the whole picture, and a few pixels moved
 // by antialiasing can make it pick another one: comparing a new capture through the old palette
 // asks whether the picture changed, not whether the palette did.
@@ -72,6 +85,7 @@ export function onPalette(raw: Pixels, reduced: Pixels): Pixels {
     seen.add(rgb)
     palette.push([rgb >> 16, (rgb >> 8) & 255, rgb & 255])
   }
+  const sameSize = raw.width === reduced.width && raw.height === reduced.height
   const nearest = new Map<number, number[]>()
   const data = new Uint8Array(raw.data.length)
   for (let i = 0; i < raw.data.length; i += 4) {
@@ -92,7 +106,12 @@ export function onPalette(raw: Pixels, reduced: Pixels): Pixels {
       best ??= [r, g, b]
       nearest.set(rgb, best)
     }
-    data.set(best, i)
+    // The quantizer does not always pick the nearest colour: among near ties it may take another
+    // one as good, and which one moves with a pixel elsewhere. The committed file's own colour there
+    // is drawn when it is almost as near as the nearest, so a tie is not read as a change.
+    const own = sameSize ? reduced.data.subarray(i, i + 3) : undefined
+    if (own && levels(r, g, b, own) <= levels(r, g, b, best) + TIE_LEVELS) data.set(own, i)
+    else data.set(best, i)
     data[i + 3] = raw.data[i + 3] ?? 255
   }
   return { width: raw.width, height: raw.height, data }

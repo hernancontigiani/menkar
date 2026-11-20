@@ -283,7 +283,7 @@ environment: `CAPTURE_LOCALES=es`, `CAPTURE_THEMES=dark`, `CAPTURE_ONLY=slug,pre
     today" holds whenever it runs; earlier days are local wall times (`daysAgo`). `seedWait(now)`
     says how long to wait first: within 10 minutes before midnight, until 00:02, rather than
     straddle it; in the two minutes after midnight, until 00:02 too.
-  - **Invented names only**: a project "Northwind app", sessions `api-review`, `docs-writer`,
+  - **Invented names only**: a project "Atlas app", sessions `api-review`, `docs-writer`,
     folders under `~/work/`, people by role — the strings file's header says so.
 - **The stand-in agent for captures** (`stand-in-claude.mjs`, D5): reads its session's screen
   from the seed (a short scripted screen per session, in the locale) and prints it, sets the
@@ -323,7 +323,11 @@ environment: `CAPTURE_LOCALES=es`, `CAPTURE_THEMES=dark`, `CAPTURE_ONLY=slug,pre
   (`site/scripts/same-picture.ts`). Why not equal pixels: the terminals' glyph antialiasing moves
   a little between two runs of the same screen, and a palette re-picked from such a capture moves
   much of a translucent one; a changed word moves far more (measured in block 4's log).
-  `tests/site/captures.test.ts` holds both bounds and both numbers. Then:
+  **A near tie** (`set`, 2026-11-20, task 149): drawn in the committed palette, a pixel takes the
+  committed file's own colour there when that is within **8** levels (largest channel difference)
+  as near to the raw pixel as the nearest palette colour, else the nearest. Why: the quantizer
+  picks among near ties, and which one moves with a pixel elsewhere (measured in block 7's log).
+  `tests/site/captures.test.ts` holds the bounds, the tie and their numbers. Then:
   - **hash every image written** and report which changed since the last run, and by how much;
   - **two images of one run showing the same picture fail the run** (a navigation that did not
     happen photographs the previous screen again), unless the registry lists one in the other's
@@ -674,8 +678,8 @@ Files: `.github/workflows/docs.yml`.
 - `tsconfig.node.json` does not include `playwright.captures.config.ts`.
 Files: `e2e/captures/registry.ts`, `scenes.ts`, `seed.ts`, `strings/*`, `site/src/assets/captures/**`,
 `reviewed.json`.
-- [ ] The rest of §2.4's slugs, each with its alt text in both locales.
-- [ ] Open every image; `captures:reviewed`; contact sheets into `$MENKAR_FILES`
+- [x] The rest of §2.4's slugs, each with its alt text in both locales.
+- [x] Open every image; `captures:reviewed`; contact sheets into `$MENKAR_FILES`
   (`menkar-tNNN-sheet-<locale>-<theme>.png`) for the human.
 - **Verify**: `npm run captures` green and idempotent; `npm run ci`.
 
@@ -961,3 +965,64 @@ Deviations and what the plan did not anticipate:
 - **No `configure-pages`**: Astro sets `base` itself, so its output is not needed.
 - **The build was not run here**: it rewrites `site/dist`, which other sessions use; `site:check`
   passed in blocks 4 and 5.
+
+### Block 7 — `menkar-t149`, 2026-11-20 (task 149)
+
+Done: §2.4's 22 slugs in `registry.ts`, walked by nine scenes in `scenes.ts` (`team`, `board`,
+`workers`, `role`, `harbor`, `notes`, `settings`, `usage`, `away`), each with its alt text in
+`strings/en.ts` and `es.ts`; the 88 images and `reviewed.json`. Measured: `npm run captures` takes
+about 105 s on this machine (build, four launches in parallel, import), and the 88 images weigh
+5,376,995 bytes (5.1 MB). Two runs in a row wrote nothing and left every image byte-identical.
+
+Block 4's findings, settled as `set` said (2026-11-20):
+- **"esperando topic 2"**: task 3 now waits on a session, the consultant (`api-review` /
+  `analisis-api`), shown as the app shows any waiter; the app has no localized rendering for a
+  waiting task's waiter (`waitsOn` in `src/renderer/work.ts` returns it as written).
+- **The orchestrator** is `planning` / `planificacion`.
+- **Names sort the same in both locales**: the first-time card sorts sessions by name
+  (`src/renderer/orchestration.ts:265`) and the Usage window sorts projects by name, so the Spanish
+  names were chosen to sort as the English ones: `docs-redactor`/`sitio-build`, `analisis-api`,
+  skills `api-estilo`/`cambios`/`lint-openapi`, and the team project is **"Atlas app" / "App
+  Atlas"** (it was "Northwind app": "App Northwind" sorted before "Notas de campo" and "Sitio
+  Harbor" in Spanish only). §2.3's example name follows.
+- **"orchestrator" in the first-time card** is the app's own default, a literal at
+  `src/renderer/orchestration.ts:272` (not an `orch.*` key): left as is.
+- **The Board's Done column**: `board-default` and `task-to-review` hide the sidebar
+  (`#toggle-sidebar`) first, so every column fits at 1280 px; it is shown again after.
+- `tsconfig.node.json` was not touched: nothing here needed it.
+
+Seen red: the near-tie test with the rule off (`TIE_LEVELS` at -1000), the changed-word test with
+ties too loose (200); and the seed's mtime test, when the new skill files kept the real clock's
+time.
+
+Granted by `set` outside the block's list, 2026-11-20:
+- **`e2e/captures/stand-in-claude.mjs`**: a stream-json mode (`-p`) for the chat tab, answering
+  with the seed's line in the locale and asking Bash for the seed's command.
+- **`e2e/captures/captures.run.ts`**: the Walker gets the Electron app, `ui()` (the app's own
+  labels), `openWindow` (Settings at its own 860 × 640, Usage at the main window's size),
+  `shotWindow` (settled when two shots in a row are equal), an `area` for a part of the window,
+  and `holdClockAt`. Toasts count as unsettled; file and chat tabs need no context ring.
+- **`site/scripts/same-picture.ts`, `import-captures.mjs`, `tests/site/captures.test.ts`**: the
+  near-tie rule now in §2.3. The line it extended: "draw the raw capture in the committed file's
+  own palette and compare the two". Measured: en/dark/project-dropdown flipped between two files
+  every run; its raws differed by 3 pixels by 1 level, the two quantizations by 87,760 pixels (2.1
+  %) up to 50, and of the 5,157 pixels where the nearest-colour drawing differed from the committed
+  file, 4,925 were ties within 4 levels.
+
+What the plan did not anticipate:
+- **Playwright's clipped screenshot makes a terminal show its scrollbar**, and it stays shown: a
+  part of the window is taken with Electron's `capturePage` instead.
+- **"Away since HH:MM" is main's clock**: the `away` scene, last, shifts main's `Date.now` so the
+  click lands on the current whole hour; the app closes right after. Seen identical in both runs
+  ("Away since 12:00").
+- **The Your time week follows the clock** (today's row and its now line): `usage-your-time` shows
+  yesterday by the hour.
+- **The role dialog reads skills from disk**: the seed writes three under the team's folder
+  (`.claude/skills/`), with a `.git` so it is a repository.
+- **"Your time" was empty**: one prompt per turn makes no burst; each sitting now has two to four
+  prompts six minutes apart.
+- **A click on a project row's middle can hit its rename button**: the walk clicks the name.
+- **A double-click on a file opened nothing once in eight launches**: it is tried again.
+- Seen in the app, not changed here: Settings' and Usage's lists scroll sideways in Spanish
+  ("Retención de transcript…", "Tiempos de tare…"); the first-time card says "temas" in Spanish
+  where the tone guide's word is "pendientes"; "1 anteriores".
