@@ -256,7 +256,9 @@ environment: `CAPTURE_LOCALES=es`, `CAPTURE_THEMES=dark`, `CAPTURE_ONLY=slug,pre
   without a registry entry, is a compile error. The site imports `registry.ts` and the strings
   (plain TypeScript, no Playwright import) to resolve `shot:` slugs and alt text: there is no
   second list.
-- **The seed** (`seed.ts`, `seed(dirs, locale, scene, now)`):
+- **The seed** (`seed.ts`, `seed(dirs, locale, theme, now)`, one world per launch holding every
+  scene, which the walk reaches through the UI; it returns what the launch adds to the app's
+  environment — `set`, 2026-11-20, task 136):
   - **The app's storage is written through the app's own writers**: `addTopic`, `topicTool`,
     `addTask`, `taskTool`, `serializeTopics/Tasks/Projects`, `serializeOrchestration`, and the
     usage history's own writer in `src/core/usage/` for the Usage window — then `writeJson` to
@@ -273,10 +275,12 @@ environment: `CAPTURE_LOCALES=es`, `CAPTURE_THEMES=dark`, `CAPTURE_ONLY=slug,pre
   - **The structure is code, the text is data**, so both locales are structurally identical by
     construction; a Vitest test seeds both into two temporary roots and compares the written JSON
     with every string replaced by its key: equal.
-  - **Time is the seed's**: every timestamp is `at(offset)` from the `now` it is given, clamped
-    to after today's local midnight + 1 minute, so "Done today" and "2 h ago" read the same
-    whenever it runs; a run within 10 minutes before midnight waits for midnight to pass rather
-    than straddle it.
+  - **Time is the seed's**: every timestamp comes from the `now` it is given (`seedClock`):
+    today's events are `today(minutes)` before it, squeezed in order between today's local
+    midnight + 1 minute and `now` when the day is younger than their span (600 minutes), so "Done
+    today" holds whenever it runs; earlier days are local wall times (`daysAgo`). `seedWait(now)`
+    says how long to wait first: within 10 minutes before midnight, until 00:02, rather than
+    straddle it; in the two minutes after midnight, until 00:02 too.
   - **Invented names only**: a project "Northwind app", sessions `api-review`, `docs-writer`,
     folders under `~/work/`, people by role — the strings file's header says so.
 - **The stand-in agent for captures** (`stand-in-claude.mjs`, D5): reads its session's screen
@@ -592,13 +596,13 @@ Files: `site/AGENTS.md` only.
 ### Block 3 — the seed (parallel with 2, 5, 6)
 Files: `e2e/captures/seed.ts`, `e2e/captures/strings/en.ts`, `es.ts`,
 `e2e/captures/stand-in-claude.mjs`, `tests/site/seed.test.ts`.
-- [ ] Tests first: both locales seed the same structure; the time function at 00:03, 12:00,
+- [x] Tests first: both locales seed the same structure; the time function at 00:03, 12:00,
   23:55; `strings/es.ts` typed complete (a missing key is a `tsc` error — seen once).
-- [ ] The seed per §2.3, through the app's writers, explicit paths only; one team project
+- [x] The seed per §2.3, through the app's writers, explicit paths only; one team project
   ("Northwind app": an orchestrator, two workers with tasks at different steps, a consultant, a
   role with skills, topics open/discussing/closed, a task in To review waiting on the human, Done
   today), usage history for a week, and the plainer scenes (Add session, files, chat, settings).
-- [ ] The stand-in prints the seeded screen and sets the title for its state (find how
+- [x] The stand-in prints the seeded screen and sets the title for its state (find how
   `e2e/agent-state`-related specs drive the states and reuse that title format; cite the line).
 - **Verify**: `npm run ci` green.
 
@@ -711,3 +715,53 @@ Deviations and what the plan did not anticipate:
   `src/content/i18n/es.json` yet), and the 404 entry is Starlight's own.
 - `sharp` already arrives as Astro's own dependency; block 4 still adds it as a direct `site`
   dependency, since the importer imports it.
+
+### Block 3 — `menkar-t136`, 2026-11-20 (task 136)
+
+Done: `e2e/captures/seed.ts`, `strings/en.ts` and `es.ts` (complete, voseo), `stand-in-claude.mjs`,
+`tests/site/seed.test.ts`. One world per launch: "Northwind app" with the mode on (orchestrator
+`lead`, consultant `api-review` with a role and two skills, workers `northwind-app-t1`…`t4` named
+by `workerName`, tasks 1 done today, 2 ★ in progress 3/5, 3 waiting on topic 2 at 2/4, 4 in To
+review waiting on the human, 5 queued, 6 dropped two days ago; topics open, discussing and closed
+today), "Harbor site" with the mode off (for the first-time card) and one two-pane tab, "Field
+notes" with its files folder and two Markdown files, two sessions in no project (for Add
+session), and a week of usage per session. The workers' tabs are saved in the background.
+
+How it holds:
+- **Through the app's writers to explicit paths**: `taskTool`, `topicTool`, the projects'
+  `createProject`/`addMember`/`setParent`/`setMode`/`setOrchestrator`/`setRole`/`setSkills`/
+  `setFilesFolder`, `serialize*` and `writeJson`; the usage history through `runPass` with
+  explicit `PassPaths`. File names come from the app (`basename(tasksPath())` and the like, the
+  folder from `flavorFacts().dirName`), directories from the root given. A test points the
+  process's own HOME and XDG at empty folders and asserts they stay empty.
+- **The two locales compared** with every text of `vocabulary(locale)` (the catalog and the
+  sessions' names) replaced by its key, the root by `<root>`, and in the usage cache the byte
+  offsets and inodes zeroed: every file written, the two SQLite databases dumped, equal.
+- **Time**: at 00:03, 12:00 and 23:55 in `America/Argentina/Buenos_Aires`; and two seeds at the
+  same `now` under two different system clocks write the same JSON and the same mtimes.
+- **The stand-in** reuses the title format of `src/core/agents/claude/state.ts:9`
+  (`TITLE_WORKING`: a Braille spinner, `⠋ `; idle `✳ `) and its blocked words ("Do you want to
+  proceed?", `detect()` in the same file). Run under `script` and read with `ScreenMirror` and
+  `detectState` (a probe outside the tree): working, blocked, idle and working as seeded, in both
+  locales. It answers `--version` with 2.1.329.
+- Seen red: an extra task in Spanish only (structure), no squeeze of today (three time tests), a
+  timestamp derived from `Date.now()` (the clock test), a write to `tasksPath()` (the paths test),
+  a key removed from `es.ts` (`tsc`: TS2741).
+
+Deviations and what the plan did not anticipate:
+- **`seed(dirs, locale, theme, now)`**, not `(dirs, locale, scene, now)` (`set`, 2026-11-20): one
+  launch per locale × theme cannot take a per-scene seed, and the theme is `state.json`'s. §2.3
+  says so now.
+- **Claude Code's chrome stays English** in both locales (`set`, 2026-11-20): the permission card,
+  its choices and "esc to interrupt" are the real CLI's text, and the state reading matches those
+  words; only the conversation is in the locale. The strings file's header says so.
+- **The time rule is a squeeze, not a clamp**: clamping every event to 00:01 would tie them and
+  break their order; at 00:03 "2 h ago" reads "just now", but every event of today stays today
+  and in order. The wait also covers 00:00–00:02. §2.3 says so now.
+- **`state.json` has no serializer**: the seed writes `{ ...rest, names, hidden }` as
+  `saveState` does, with the settings through `withSetting`. `src/` is not this plan's to touch.
+- **Folder names must not equal a seed string** (`~/work/research`, `~/work/search-trial`): the
+  comparison replaces whole words, and a folder named like an English session would read as text.
+- **Left for blocks 4 and 7**: the chat tab's process is also `claude` on the PATH; the chat
+  stand-ins of `tests/data/chat` speak its stream, and the walk must put them first for the chat
+  scene. The away strip (`away-strip`) needs the human's presence state, not seeded here.
