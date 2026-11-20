@@ -1026,3 +1026,35 @@ What the plan did not anticipate:
 - Seen in the app, not changed here: Settings' and Usage's lists scroll sideways in Spanish
   ("Retención de transcript…", "Tiempos de tare…"); the first-time card says "temas" in Spanish
   where the tone guide's word is "pendientes"; "1 anteriores".
+
+### Block 8 — `menkar-t152`, 2026-11-20 (task 152)
+
+Done: the splash (`index.md`: a hero titled with §2.4's line, **Install Menkar** to
+`start/install/` and a second action to the orchestration mode, `hero-orchestration` under it,
+four short sections), the nine `orchestration/` pages in §2.4's order (`sidebar.order` 1–9), and
+`reference/roadmap.md` (`sidebar.order` 3, after the shortcuts at 1 and room for privacy at 2), each
+with its Spanish twin. Every capture §2.4 names for these pages is placed once, where it proves its
+sentence; every app label is `:ui[…]`. Checked against `docs/orchestration.md`,
+`plugin/guide/orchestration-mode.md`, the catalogs and the captures themselves.
+
+Deviations and what the plan did not anticipate:
+- **`orchestration/topics-and-tasks.md` is titled "Answer what awaits you" / "Respondé tus
+  pendientes"**, not §2.4's "Decide on topics": the tone guide's table never says topic to the
+  reader. The path stays.
+- **`board-default` is shown on the Board's page only**, not also on the orchestration index
+  (§2.4 listed it on both): nothing twice; the index shows `work-view-overview`.
+- **A label with a placeholder cannot be `:ui[…]`**: `uiLabel` returns the catalog's text as is,
+  so `work.tasks` would print "Tasks · {n}". The pages name such a section in prose ("Under the
+  items are the open tasks") instead of typing its label by hand.
+- **Links are absolute with the base** (`/menkar/…`, `/menkar/es/…`, trailing slash), hero
+  actions included; `starlight-links-validator` checks the hero's links too.
+- **Ten links reach block 9's pages** (`start/install`, `sessions/tabs-and-panes`, `usage/window`,
+  `reference/privacy`, `sessions/remote-control`, in both locales): `site:check` fails on them
+  until block 9 writes those pages. Run with throwaway stubs at those paths (removed after), it
+  passed whole.
+- **The roadmap names Codex and OpenCode "in the orchestration mode too" and macOS after 1.0** as
+  D3 and 1.191 say; no Windows, no WSL, no dates, no plan numbers.
+- Seen in the app, not changed here: `orch.bannerWithYou` in `es.ts` says "Esta sesión está
+  contigo." (tuteo where the app speaks voseo, and "con vos" is the table's word); the sidebar
+  group in `astro.config.mjs` is "Modo orquestación", where the table says "el modo de
+  orquestación".
