@@ -1058,3 +1058,40 @@ Deviations and what the plan did not anticipate:
   contigo." (tuteo where the app speaks voseo, and "con vos" is the table's word); the sidebar
   group in `astro.config.mjs` is "Modo orquestación", where the table says "el modo de
   orquestación".
+
+### Block 9 — `menkar-t153`, 2026-11-20 (task 153)
+
+Done: the twelve pages of §2.4 left to write, each with its Spanish twin: `start/install.md`,
+`start/first-sessions.md`, `start/agents.md`; `sessions/tabs-and-panes.md`, `projects.md`,
+`windows.md`, `files.md`, `chat.md`, `remote-control.md`; `usage/window.md`, `usage/cli.md`;
+`settings/look.md`, `settings/integrations.md`; `reference/privacy.md` (`sidebar.order` 2, between
+the shortcuts and the roadmap). Every capture §2.4 names for them is placed once, beside the
+sentence it proves; every app label without a placeholder is `:ui[…]`. Block 8's ten links to these
+pages now resolve. Checked against `README.md`, `docs/packaging.md`, the subsystem docs, the
+catalogs, `src/core/settings.ts`, `src/core/theme.ts`, the agents' descriptors and the captures.
+
+- **The Install page** gives the download-and-install form for both packages from
+  `releases/latest` (the asset names of `release.yml`, `sha256sum --check --ignore-missing
+  SHA256SUMS`, then `apt install ./…` or `dnf install ./…`), with plan 28's `apt commands` and
+  `rpm commands` markers, empty, at the top of each section: plan 28's block 6 fills them with the
+  Cloudsmith lines (and the attribution and privacy line §2 of plan 28 asks for). `site:check --
+  --release` fails on them, as designed. Linux on amd64 only; no Windows sentence beyond "There is
+  no Windows version", no WSL, no macOS.
+- **The privacy page** says only what the tree holds: no connection of Menkar's own (AGENTS.md's
+  rule, the CSP, `publish: null`); the agents' own connections; the two Menkar starts through Claude
+  Code when turned on (Remote Control, the classifier's prompts to Haiku); the only writes under
+  `~/.claude`; the three XDG folders and `~/Menkar/<project>/`; the history's columns (no prompt
+  text, from `HISTORY_SCHEMA`).
+
+Deviations and what the plan did not anticipate:
+- **Labels with a placeholder are prose**, as in block 8: `add.moveFrom` ("Move from {name}"),
+  `chat.alwaysAllow`, `files.heading`. The Cursor chat modes use `chat.modeAskReadOnly` and
+  `chat.modeTrustedAutoRun`, which have none.
+- **The context ring's red is 90 %**, not the 80 % `docs/spec/README.md` (F35) still says:
+  `DEFAULT_THRESHOLDS` in `src/core/context/levels.ts` is `{ warn: 60, full: 90 }`.
+- **"Chat" names the chat tab only** (the app's own "Continue in chat"), never a session, as the
+  vocabulary table asks.
+- Seen in the app, not changed here: the Spend section's footer (`usage.hint`, in the
+  `usage-spend` capture) says "Preferences → Integrations", where the classifier's switch is in
+  Settings › Usage & classifier; `es.ts` names transcripts both "transcript" and "transcripciones"
+  (`settings.section.retention` against `integrations.retention`); the pages follow "transcript".
