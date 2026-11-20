@@ -2,6 +2,7 @@
 // the real `claude` under a pseudo-terminal, and a replay of its output through Menkar's own screen
 // reading. Nothing here may touch the human's home, sessions or sockets.
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
@@ -79,7 +80,8 @@ export async function startApi(answer) {
 
 function reply(res, body, blocks, stop) {
   const message = {
-    id: 'msg_probe',
+    // One id per reply: Claude Code merges replies that share an id into one assistant message.
+    id: `msg_${randomUUID()}`,
     type: 'message',
     role: 'assistant',
     model: body.model ?? 'probe',

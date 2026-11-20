@@ -5,6 +5,9 @@ import type { TeamDelivery } from '../types'
 export const team: TeamDelivery = {
   skill: (name) => `\`${name}\``,
   own: (name) => `\`menkar:${name}\``,
+  // A turn a peer message opens gets no skill listing until its first tool call; Skill by name
+  // works before that.
+  byName: 'with the Skill tool, by name, even if not in your listing yet',
   part: 'claude.md',
   // A fork carries its source's block, not its own.
   heldAtStart: (start, block) => (start.kind === 'fork' ? null : block),

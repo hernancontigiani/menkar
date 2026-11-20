@@ -221,3 +221,14 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
     call without one.
     - `initialize` echoes the client's protocol version and offers `tools`; `ping` gets `{}`.
     - `tools/list` names nine tools; `tools/call` runs one.
+
+## The team block
+
+> Left on 2026-11-20: a turn a peer message opens has no skill listing until its first tool call; the facts say to load a skill by name (task 160).
+    stored ones: maintained, read only with their maintainer, or not found), `menkar:worker` when
+    a task is handed to it, and when to renew, with the human's `ring_warn`/`ring_full`.
+
+### Per agent
+
+> Left on 2026-11-20: the kit's `byName` says how a skill is loaded by name (task 160).
+| How it names skills, its protocol part | `skill`, `own`, `part` | `` `name` ``, `` `menkar:name` ``, `claude.md` |

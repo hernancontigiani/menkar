@@ -1172,7 +1172,7 @@ test('the team block, mode on: a resume rebuilds it and gets no post; the humanâ
       'You are `api`, a session of the Menkar project "Client work", in orchestration mode. You are its orchestrator.',
     )
     expect(own?.text).toContain(
-      'Skills to have loaded (load any that is not): `menkar:orchestrator`.',
+      'Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `menkar:orchestrator`.',
     )
     expect(own?.text).toContain('## How the team works')
     expect(own?.text).toContain('`SendMessage`')

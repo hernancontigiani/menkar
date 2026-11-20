@@ -28,6 +28,8 @@ export interface TeamAgent {
   readonly skill: (name: string) => string
   /** How the agent is told to load one of Menkar's own skills. */
   readonly own: (name: string) => string
+  /** How the agent loads a skill by name, one its listing may not show yet: a clause. */
+  readonly byName: string
   /** The agent's part of the protocol, a file in the plugin's `team/` folder. */
   readonly part: string
 }
@@ -94,7 +96,7 @@ function skills(input: TeamInput, agent: TeamAgent): string | null {
     else items.push(`${name}, read only`)
   }
   if (items.length === 0) return null
-  return `Skills to have loaded (load any that is not): ${items.join('; ')}.`
+  return `Skills to have loaded (any not loaded yet you load ${agent.byName}): ${items.join('; ')}.`
 }
 
 function renewal(input: TeamInput, agent: TeamAgent, role: string): string | null {
@@ -116,7 +118,9 @@ export function teamFacts(input: TeamInput, agent: TeamAgent): string {
   const load = skills(input, agent)
   if (load) lines.push(load)
   if (input.orchestrator !== 'self')
-    lines.push(`When a session hands you a task, load ${agent.own('worker')} first.`)
+    lines.push(
+      `When a session hands you a task, load ${agent.own('worker')} first, ${agent.byName}.`,
+    )
   const renew = renewal(input, agent, role)
   if (renew) lines.push(renew)
   return lines.join('\n')

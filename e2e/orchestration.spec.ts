@@ -265,7 +265,7 @@ test('the card: "A new session" starts a tab named as typed, marked orchestrator
     const args = () => (existsSync(argsFile) ? readFileSync(argsFile, 'utf8') : '')
     // The orchestration is new: the prompt names Menkar's guide by its absolute path.
     const told =
-      /-n lead Load `menkar:orchestrator`\. You are the orchestrator of the project Client work\. Its orchestration is new: read Menkar's guide at (\/\S+\/orchestration-mode\.md) first, then help me configure it\./
+      /-n lead Load `menkar:orchestrator` with the Skill tool, by that name, even if it is not in your skill listing yet\. You are the orchestrator of the project Client work\. Its orchestration is new: read Menkar's guide at (\/\S+\/orchestration-mode\.md) first, then help me configure it\./
     await expect.poll(args).toMatch(told)
     expect(existsSync(told.exec(args())?.[1] ?? '')).toBe(true)
     const id = /--session-id (\S+) -n lead/.exec(args())?.[1]
@@ -1785,7 +1785,7 @@ test('Configure role…: Remove and Save drop the not-found skills, a Maintainer
       .poll(() => postsTo(home, ROLE.expert), { timeout: 15_000 })
       .toEqual([
         expect.stringContaining(
-          'Your role: "Packaging expert". Your parent is `orchestrator`, the orchestrator.\nSkills to have loaded (load any that is not): `packager`, which you maintain (only you change it, with `menkar:distill`); `review-branch`, read only; `late-skill`, read only.',
+          'Your role: "Packaging expert". Your parent is `orchestrator`, the orchestrator.\nSkills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `packager`, which you maintain (only you change it, with `menkar:distill`); `review-branch`, read only; `late-skill`, read only.',
         ),
       ])
     await page.waitForTimeout(6000)
