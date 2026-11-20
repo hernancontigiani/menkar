@@ -214,3 +214,14 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
   handed ‹name› back" (a read-only tab's banner, decision 1.101), and "The human is away: …" or
   "The human is back" (`docs/orchestration.md`) go to the orchestrator's inbox under their keys; to
   an orchestrator without one, through the batch as before. Team updates stay apart: they have
+
+## The team block
+
+> Left on 2026-11-20: a turn a peer message opens has no skill listing until its first tool call; the facts say to load a skill by name (task 160).
+    stored ones: maintained, read only with their maintainer, or not found), `menkar:worker` when
+    a task is handed to it, and when to renew, with the human's `ring_warn`/`ring_full`.
+
+### Per agent
+
+> Left on 2026-11-20: the kit's `byName` says how a skill is loaded by name (task 160).
+| How it names skills, its protocol part | `skill`, `own`, `part` | `` `name` ``, `` `menkar:name` ``, `claude.md` |

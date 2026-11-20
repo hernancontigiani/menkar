@@ -428,7 +428,9 @@ What a Claude session of a project in the orchestration mode needs to work in th
     `TeamInput` (`teamInput`, `src/core/team/input.ts`): who it is, its role, its parent and the
     orchestrator, the skills to have loaded (`menkar:orchestrator` for the orchestrator, then the
     stored ones: maintained, read only with their maintainer, or not found), `menkar:worker` when
-    a task is handed to it, and when to renew, with the human's `ring_warn`/`ring_full`.
+    a task is handed to it, each loaded as the kit's `byName` says (for Claude: with the Skill
+    tool, by name, even if not in its listing yet), and when to renew, with the
+    human's `ring_warn`/`ring_full`.
   - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`.
     `package:check` requires both in the .deb.
   - **A name** in the facts is a custom title or the name Menkar started the session with; Claude's
@@ -490,6 +492,10 @@ What a Claude session of a project in the orchestration mode needs to work in th
   no team post reads nothing. A team update is a user line with `origin.kind` `peer` and
   `origin.from` `menkar` whose delivered text (after the line Claude Code puts before a peer's)
   **starts** with "[Menkar] Team update:", as Claude Code 2.1.325 records it.
+- **A turn opened by a peer message gets no attachments** (measured on Claude Code 2.1.329): the
+  skill listing and the deferred tools arrive after its first tool call; Skill and ToolSearch by
+  name work before that. So the facts say to load a skill by name, `claude.md` says to load a
+  `mcp__menkar__*` tool with ToolSearch `select:`, and waiting before a post does not help.
 - **Three pieces kept apart,** so another agent can bring its own: what a session holds at start,
   how a start delivers, how a change is told. `teamPost`, its triggers and the posts'
   consequences are agent-neutral.
@@ -502,7 +508,7 @@ flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 
 | Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) |
 |---|---|---|
-| How it names skills, its protocol part | `skill`, `own`, `part` | `` `name` ``, `` `menkar:name` ``, `claude.md` |
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` |
 | (1) What a start holds | `heldAtStart(start, block)` | new and resume → the block; fork → `null` |
 | (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume |
 | The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast |

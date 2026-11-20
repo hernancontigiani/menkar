@@ -57,8 +57,8 @@ const EXPERT: TeamInput = input({
 
 const EXPERT_FACTS = `# Your team in Menkar
 You are \`packager\`, a session of the Menkar project "menkar", in orchestration mode. Your role: "Packaging". Your parent is \`set\`, the orchestrator.
-Skills to have loaded (load any that is not): \`packager\`, which you maintain (only you change it, with \`menkar:distill\`); \`claude-cli\`, read only (\`claude-cli\` maintains it).
-When a session hands you a task, load \`menkar:worker\` first.
+Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): \`packager\`, which you maintain (only you change it, with \`menkar:distill\`); \`claude-cli\`, read only (\`claude-cli\` maintains it).
+When a session hands you a task, load \`menkar:worker\` first, with the Skill tool, by name, even if not in your listing yet.
 Your parent decides when you renew; when your context (your row in \`list_sessions\`) passes 90%, tell it by name.`
 
 describe('the facts', () => {
@@ -138,7 +138,7 @@ describe('the facts', () => {
           { name: 'deb-notes', maintainer: true, found: true },
         ],
       },
-      'Skills to have loaded (load any that is not): `packager`, which you maintain (only you change it, with `menkar:distill`); `deb-notes`, which you maintain.',
+      'Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `packager`, which you maintain (only you change it, with `menkar:distill`); `deb-notes`, which you maintain.',
     ],
     [
       'read only with a maintainer',
@@ -147,12 +147,12 @@ describe('the facts', () => {
           { name: 'claude-cli', maintainer: false, maintainedBy: 'claude-cli', found: true },
         ],
       },
-      'Skills to have loaded (load any that is not): `claude-cli`, read only (`claude-cli` maintains it).',
+      'Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `claude-cli`, read only (`claude-cli` maintains it).',
     ],
     [
       'read only with none',
       { skills: [{ name: 'review-branch', maintainer: false, found: true }] },
-      'Skills to have loaded (load any that is not): `review-branch`, read only.',
+      'Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `review-branch`, read only.',
     ],
     [
       'not found for this session',
@@ -162,7 +162,7 @@ describe('the facts', () => {
           { name: 'review-branch', maintainer: false, found: true },
         ],
       },
-      'Skills to have loaded (load any that is not): `gone` (not found: tell the human); `review-branch`, read only.',
+      'Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `gone` (not found: tell the human); `review-branch`, read only.',
     ],
     [
       "the orchestrator's starts with its own skill",
@@ -172,7 +172,7 @@ describe('the facts', () => {
         parent: undefined,
         skills: [{ name: 'review-branch', maintainer: false, found: true }],
       },
-      'Skills to have loaded (load any that is not): `menkar:orchestrator`; `review-branch`, read only.',
+      'Skills to have loaded (any not loaded yet you load with the Skill tool, by name, even if not in your listing yet): `menkar:orchestrator`; `review-branch`, read only.',
     ],
     ['nothing to load: no line', {}, undefined],
   ])('line 3, %s', (_, over, expected) => {
@@ -181,7 +181,8 @@ describe('the facts', () => {
   })
 
   // Line 4: a task handed over loads menkar:worker first (1.148); the orchestrator hands out.
-  const WORKER = 'When a session hands you a task, load `menkar:worker` first.'
+  const WORKER =
+    'When a session hands you a task, load `menkar:worker` first, with the Skill tool, by name, even if not in your listing yet.'
   test('line 4 is there for every session but the orchestrator', () => {
     expect(lines()).toContain(WORKER)
     expect(lines({ parent: undefined, orchestrator: null })).toContain(WORKER)
@@ -240,12 +241,12 @@ describe('the block', () => {
   })
 
   // Growth of what every request carries is a deliberate change of this test.
-  test('common and Claude parts are under 800 bytes, the expert block under 1,400', () => {
+  test('common and Claude parts are under 900 bytes, the expert block under 1,600', () => {
     const parts = Buffer.byteLength(common()) + Buffer.byteLength(claudePart())
     expect(parts).toBeGreaterThan(0)
-    expect(parts).toBeLessThan(800)
+    expect(parts).toBeLessThan(900)
     const block = teamBlock(teamFacts(EXPERT, claude()), common(), claudePart())
-    expect(Buffer.byteLength(block)).toBeLessThan(1400)
+    expect(Buffer.byteLength(block)).toBeLessThan(1600)
   })
 })
 

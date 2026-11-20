@@ -1,1 +1,2 @@
 - Message a session with `SendMessage`, `to` set to its name.
+- A Menkar tool you don't see yet: load it with ToolSearch `select:mcp__menkar__<name>`.
