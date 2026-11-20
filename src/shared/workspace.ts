@@ -260,9 +260,10 @@ export type Action =
       readonly folder: string
       readonly name: string
       readonly remoteControl?: boolean
-      // Its first prompt, as start_session passes one; Claude only.
+      // Its first prompt, as start_session passes one.
       readonly prompt?: string
-      // Marked as the shown project's orchestrator as it starts (the first-time card); Claude only.
+      // Marked as the shown project's orchestrator as it starts (the first-time card), with its
+      // agent's first prompt for an orchestrator instead of `prompt`.
       readonly orchestrator?: boolean
     }
   // "Ask an agent" on a Markdown file tab (decision 1.95); `pane` is the project's focused agent

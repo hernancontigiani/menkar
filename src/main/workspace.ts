@@ -679,7 +679,7 @@ function stateFor(windowId: string): WindowState | undefined {
     topics: topicViews(w.shown),
     tasks: tasksView(w.shown),
     doneToday: doneTodayView(w.shown),
-    guidePath: join(skillsPluginDir(), 'guide', 'orchestration-mode.md'),
+    guidePath: guidePath(),
     presence: presenceNow(),
   }
 }
@@ -3564,7 +3564,10 @@ async function startNewSession(
 ): Promise<ActionResult> {
   if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
   const name = action.name.trim()
-  const id = kitOf(action.agent).ids.newId()
+  const realId = kitOf(action.agent).ids.newId()
+  // An orchestrator of an agent that picks its own id is marked at once under a provisional one,
+  // as start_session places its sessions; the real id takes its place when it binds.
+  const id = realId ?? (action.orchestrator ? provisionalId(randomUUID()) : null)
   const tab = addTransientTab(
     windowId,
     name || basename(action.folder),
@@ -3580,10 +3583,11 @@ async function startNewSession(
   }
   const start: Start = {
     kind: 'new',
-    ...(id ? { id } : {}),
+    ...(realId ? { id: realId } : {}),
     ...(name ? { name } : {}),
   }
-  const promptFile = id && action.prompt ? await savePrompt(randomUUID(), action.prompt) : undefined
+  const prompt = action.orchestrator ? orchestratorPrompt(action.agent, shown) : action.prompt
+  const promptFile = prompt ? await savePrompt(randomUUID(), prompt) : undefined
   if (id && action.orchestrator) {
     // A member at once, as start_session's sessions are, so the mark has a session to name.
     if (name) startedNames.set(id, name)
@@ -3596,13 +3600,42 @@ async function startNewSession(
     agent: action.agent,
     start,
     cwd: action.folder,
-    sessionId: null,
-    pending: newSessionPending(windowId, action.folder, id, action.agent),
-    ...(action.remoteControl && id ? { remote: remoteName(name, action.folder, id) } : {}),
+    sessionId: realId === null ? id : null,
+    pending: newSessionPending(windowId, action.folder, realId, action.agent),
+    ...(action.remoteControl && realId ? { remote: remoteName(name, action.folder, realId) } : {}),
     ...(promptFile ? { promptFile } : {}),
   })
+  // The name the human gave the orchestrator is the one the team addresses it by: an agent that
+  // takes no name at start is named once its thread exists, as start_session's sessions are.
+  if (id && action.orchestrator && name && realId === null) nameWhenBound(id, name, action.agent)
   changed({ projects: Boolean(id && action.orchestrator) })
   return {}
+}
+
+// The first prompt of an orchestrator the first-time card starts, in its agent's words.
+function orchestratorPrompt(agent: AgentId, projectId: string): string | undefined {
+  const team = kitOf(agent).team
+  const project = projects.projects.find((p) => p.id === projectId)
+  if (!team || !project) return undefined
+  return translate(team.orchestratorPrompt, {
+    name: project.name,
+    guide: guidePath(),
+    skill: join(skillsPluginDir(), 'skills', 'orchestrator', 'SKILL.md'),
+  })
+}
+
+function guidePath(): string {
+  return join(skillsPluginDir(), 'guide', 'orchestration-mode.md')
+}
+
+// "Ask an agent" (decision 1.155 Q2): the focused agent pane's agent, else the agent last started,
+// each only while installed and able to be told to read the file; else Claude Code.
+function askAgent(paneId: string | undefined, last: string): AgentId {
+  const focused = agentOf(paneId ? panes.get(paneId) : undefined)
+  const asks = (a: AgentId | null | undefined): a is AgentId =>
+    !!a && installedAgents.includes(a) && descriptorOf(a).firstPrompt
+  const remembered = installedAgents.find((a) => a === last)
+  return (asks(focused) ? focused : undefined) ?? (asks(remembered) ? remembered : DEFAULT_AGENT)
 }
 
 function newSessionPending(
@@ -4162,7 +4195,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
         w.shown,
         {
           type: 'startNew',
-          agent: DEFAULT_AGENT,
+          agent: askAgent(action.pane, settingsOf(await sessions.currentState()).last_agent),
           folder,
           name: askName(basename(tab.path), takenNames(w.shown)),
           prompt: t('files.askPrompt', { path: tab.path }),

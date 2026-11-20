@@ -32,8 +32,11 @@ How file tabs are built and why that way. The behaviour is `docs/spec/files.md`.
   then, and `saveBuffer` refuses the agents' data
   **again right before writing**. An e2e asserts a refused save leaves the file's bytes and mtime.
 - **Ask an agent** (decision 1.95, the human, 2026-11-12): every Markdown editor tab, read only or
-  not, has the button at the left of its Save and Preview row. It starts a new Claude session in a
-  tab right after the file's tab, in the shown project, through the same path as a new session
+  not, has the button at the left of its Save and Preview row. It starts a new session in a
+  tab right after the file's tab, of the project's focused agent pane's agent, else of the agent
+  last started, each only while installed and able to be given a first prompt (the descriptor's
+  `firstPrompt`; not Cursor's until its launcher takes one), else Claude Code (decision 1.155 Q2
+  as `set` read it on 2026-11-20, `askAgent`), in the shown project, through the same path as a new session
   (`startNewSession` in `src/main/workspace.ts`), with the first prompt "Read ‹absolute path› and
   answer my questions about it." Its name is "about ‹file name›", made unique among the project's
   sessions with a tab, and the ones still starting, by " 2", " 3"… (`askName`,

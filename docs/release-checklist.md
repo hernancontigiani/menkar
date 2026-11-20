@@ -126,6 +126,34 @@ the same way; reopening resumes the same thread (its earlier messages are on scr
 one; the tab's ring shows the context Codex's own footer shows; Usage lists the Codex session's
 turns under the project, with tokens and a cost marked as an estimate, and `menkar usage` agrees.
 
+## 8e. Codex in the orchestration mode (P1b)
+
+A Claude Code orchestrator with Codex workers (plan 39, phase P1b), checked in Menkar Sandbox with
+your own `claude` and `codex` installed and logged in, in a `sandbox-` project with no orchestrator
+yet.
+
+1. Switch the orchestration mode on. On the first-time card, look at the "Agent" line under "A new
+   session" and at the agent named beside each listed session; pick Codex, then Claude Code, and
+   Start with a new Claude Code orchestrator.
+2. Ask the orchestrator to start a Codex worker for a small task (`start_session` with
+   `agent: "codex"` and a task), and let the worker do it and report with `task_review`.
+3. Ask the orchestrator for the worker's last reply (`last_reply`), then to send it a message;
+   have the worker answer with `send_message`.
+4. Give the worker a role ("Configure role…") while it runs.
+5. On a second `sandbox-` project, open the first-time card again; then start a new Codex
+   orchestrator from it and send it nothing.
+6. On a Markdown file tab, "Ask an agent" with a Codex tab focused, then with no agent tab open.
+
+**Passes when** the card shows the Agent line only because two agents are installed, Cursor greyed
+saying its sessions can't use Menkar's tools yet; the worker runs in the background under the
+orchestrator, named `<project>-t<N>`, with its team block (it loads the worker skill by reading its
+`SKILL.md`); its review wakes the orchestrator once, at its turn's end; `last_reply` returns the
+worker's last answer; each message arrives as "[Menkar] from ‹name› (‹agent›)…" in the other's
+next turn; the role reaches the worker as a team update that wakes nobody; the second card
+defaults to the agent last started; the new Codex orchestrator is marked at once, reads the
+orchestrator skill by its path and is named "orchestrator" once its thread exists; "Ask an agent"
+starts Codex with a Codex tab focused, and the agent last started with none.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in

@@ -25,6 +25,7 @@ export const team: TeamDelivery = {
   // TOML string read by the shell inside double quotes reaches Codex byte for byte.
   atStart: (_start, file) => ['-c', `"developer_instructions=$(cat ${shellQuote(file)})"`],
   floor: null,
+  orchestratorPrompt: 'orch.firstPromptByFile',
 }
 
 // The file `atStart` names: Menkar's block, then the user's own instructions.

@@ -26,4 +26,5 @@ export const team: TeamDelivery = {
     accepts: teamFlagsAllowed,
     notice: 'team.oldClaude',
   },
+  orchestratorPrompt: 'orch.firstPrompt',
 }

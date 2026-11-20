@@ -119,9 +119,21 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   one radio per listed session (with a tab first, then by name) and "A new session" (a name,
   "orchestrator" by default, and a folder among the project's folders — the list `Ctrl+\``
   offers — or, with none, the recent folders Add session offers).
+  - **With two or more agents installed** (decision 1.155 Q2; the human chose mock-up A on
+    2026-11-20): an "Agent" line under the new session's name and folder, Add session's picker,
+    defaulting to the agent last started (`last_agent`, which starting the new orchestrator
+    writes, so the next card defaults to it); an agent not installed is greyed with its tooltip,
+    and so is one whose sessions can't use Menkar's tools (`caps.tools`; Cursor until it can).
+    Each listed session names its agent, dim, beside its name. With one agent the card has
+    neither.
+  - **An agent with limits** (the descriptor's `teamLimits`; Cursor's: waking it when idle
+    restarts it, and it asks before each tool not allowed) is said so under what chose it, never
+    forbidden: under the choices when it is picked to orchestrate, under "Sessions the
+    orchestrator manages" for each checked session of it.
   - **Start** switches the mode on first, so a new orchestrator starts with its team block and a
     running session chosen hears of the whole change in one post (`startTeam`); then it marks the
-    chosen session, or starts the new one through `startNew` with a first prompt telling it to
+    chosen session, or starts the new one, of the agent chosen, through `startNew` with its
+    agent's first prompt (`docs/agents.md`, "Codex as the orchestrator") telling it to
     load `menkar:orchestrator`, that the project's orchestration is new, and to read the guide at
     its absolute path first (2026-11-13), marked as it starts; then it hands the chosen sessions
     over and saves the cap. A refused start switches the mode back off and shows the refusal.

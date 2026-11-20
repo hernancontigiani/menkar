@@ -79,3 +79,9 @@ its kit, and the renderer offers none of them for a Codex session.
   mcp_servers.menkar.…] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] [-c
   mcp_servers.menkar.…] <id> [-- "<prompt>"]`. Options go after `resume`;
   `default_tools_approval_mode="approve"`, so Menkar's tools run with no approval card. Codex gives
+
+## The pattern: a kit of strategies per agent, chosen once
+
+> Left on 2026-11-20: the caps gained `tools` (⇔ `kit.mcp`) and the descriptor `teamLimits`, `firstPrompt` and `versionWord` (plan 39 P1b.6).
+  variants), in `src/core/agents/<id>/descriptor.ts`, gathered by `src/core/agents/descriptors.ts`,
+  (and a non-empty `chat` list), `namedAtStart` ⇔ `kit.namer.atStart(…) !== null`.

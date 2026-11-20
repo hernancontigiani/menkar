@@ -1651,6 +1651,7 @@ function syncBanner(paneId: string, sessionId: string | null, project: ProjectIn
   const banners: Record<typeof kind, PaneBanner> = {
     reports: {
       kind,
+      session: sessionId,
       tone: 'warning',
       text: t('orch.bannerReports'),
       button: t('orch.takeControl'),
@@ -1658,6 +1659,7 @@ function syncBanner(paneId: string, sessionId: string | null, project: ProjectIn
     },
     permission: {
       kind,
+      session: sessionId,
       tone: 'warning',
       text: t('orch.bannerPermission'),
       button: t('orch.takeControl'),
@@ -1665,6 +1667,7 @@ function syncBanner(paneId: string, sessionId: string | null, project: ProjectIn
     },
     withYou: {
       kind,
+      session: sessionId,
       tone: 'info',
       text: t('orch.bannerWithYou'),
       button: t('orch.handBack'),

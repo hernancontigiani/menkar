@@ -1643,6 +1643,25 @@ button.team-heading.folded::before {
   flex: 1;
   min-width: 0;
 }
+.orch-card .card-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 24px;
+}
+.orch-card .card-agent-name {
+  white-space: nowrap;
+}
+.orch-card .card-limits {
+  margin: 4px 0 0 24px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 9pt;
+  background: color-mix(in srgb, var(--yellow) 30%, transparent);
+}
+.orch-card .card-limits[hidden] {
+  display: none;
+}
 .orch-card .responses button {
   font-size: 9pt;
 }

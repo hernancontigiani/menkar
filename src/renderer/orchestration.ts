@@ -1,4 +1,5 @@
-import { DEFAULT_AGENT } from '../core/agents/ids'
+import { descriptorOf } from '../core/agents/descriptors'
+import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { membersFolders, type ProjectFolder, presentFolders } from '../core/orchestration/folders'
 import { topicsFolded } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
@@ -224,6 +225,7 @@ interface HiddenCard {
   readonly pick: string
   readonly name: string
   readonly folder: string
+  readonly agent: AgentId
   guideTab: string | null
 }
 let hiddenCard: HiddenCard | null = null
@@ -277,15 +279,59 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
     ...folders.map((f) => el('option', { value: f }, tilde(f, s.home))),
   )
   if (kept && folders.includes(kept.folder)) folder.value = kept.folder
+  // Decision 1.155 Q2, and the human's of 2026-11-20 (mock-up A): with two or more agents
+  // installed, the new session's agent is chosen on a line of its own, defaulting to the agent last
+  // started; only an agent whose sessions can use Menkar's tools can be chosen. Each listed session
+  // names its agent.
+  const several = s.agents.length >= 2
+  const team = s.agents.filter((a) => descriptorOf(a).caps.tools)
+  let agent: AgentId =
+    kept?.agent ??
+    team.find((a) => a === s.settings.last_agent) ??
+    (team.includes(DEFAULT_AGENT) ? DEFAULT_AGENT : team[0]) ??
+    DEFAULT_AGENT
+  const agentName = (info: SessionInfo) =>
+    several
+      ? el('span', { class: 'dim card-agent-name' }, translate(descriptorOf(info.agent).label))
+      : null
+  const picker = el('div', { class: 'segmented agent-picker', 'data-picker': 'agent' })
+  for (const a of AGENT_IDS) {
+    const label = translate(descriptorOf(a).label)
+    const button = el('button', { 'data-agent': a, 'aria-pressed': String(a === agent) }, label)
+    if (!s.agents.includes(a)) {
+      button.disabled = true
+      button.title = t('add.agentMissing', { command: descriptorOf(a).command })
+    } else if (!team.includes(a)) {
+      button.disabled = true
+      button.title = t('orch.cardAgentNoTools', { agent: label })
+    }
+    button.addEventListener('click', () => {
+      agent = a
+      for (const b of picker.children) b.setAttribute('aria-pressed', String(b === button))
+      syncLimits()
+    })
+    picker.append(button)
+  }
+  const agentRow = several
+    ? el('div', { class: 'card-agent' }, el('span', { class: 'dim' }, t('orch.cardAgent')), picker)
+    : null
   const choices = el(
     'div',
     { class: 'card-choices' },
-    ...candidates.map((info, i) =>
-      radio(info.id, info.name, kept ? kept.pick === info.id : i === 0),
-    ),
+    ...candidates.map((info, i) => {
+      const row = radio(info.id, info.name, kept ? kept.pick === info.id : i === 0)
+      const tag = agentName(info)
+      if (tag) row.append(tag)
+      return row
+    }),
     radio(NEW, t('orch.cardNew'), kept ? kept.pick === NEW : candidates.length === 0),
     el('div', { class: 'card-new' }, name, folder),
+    agentRow,
   )
+  // An agent that orchestrates or works with limits is said so under what chose it; nothing is
+  // forbidden (the multi-agent design's "Mixed projects").
+  const orchestratorLimits = el('div', { class: 'card-limits', 'data-limits': 'orchestrator' })
+  const workerLimits = el('div', { class: 'card-choices' })
   const chosen = () =>
     choices.querySelector<HTMLInputElement>('input[name="orchestrator"]:checked')?.value ?? NEW
   // Decision 1.102: the sessions the orchestrator manages, all checked; the one chosen to
@@ -298,14 +344,38 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
       { class: 'card-managed', 'data-session': info.id },
       box,
       el('span', {}, info.name),
+      agentName(info),
     )
   })
   const managedList = el('div', { class: 'card-choices' }, ...boxes)
+  const syncLimits = () => {
+    const pick = chosen()
+    const orchestrating = pick === NEW ? agent : byId.get(pick)?.agent
+    const said = orchestrating ? descriptorOf(orchestrating).teamLimits : null
+    orchestratorLimits.hidden = said === null
+    orchestratorLimits.textContent = said ? translate(said.orchestrator) : ''
+    workerLimits.replaceChildren(
+      ...candidates.flatMap((info) => {
+        const row = boxes.find((b) => b.dataset.session === info.id)
+        const limits = descriptorOf(info.agent).teamLimits
+        if (!limits || !row || row.hidden || !row.querySelector('input')?.checked) return []
+        return [
+          el(
+            'div',
+            { class: 'card-limits', 'data-limits': info.id },
+            translate(limits.worker, { name: info.name }),
+          ),
+        ]
+      }),
+    )
+  }
   const syncManaged = () => {
     const pick = chosen()
     for (const row of boxes) row.hidden = row.dataset.session === pick
+    syncLimits()
   }
   choices.addEventListener('change', syncManaged)
+  managedList.addEventListener('change', syncLimits)
   syncManaged()
   const cap = capField(p.orchestration.workersCap)
   const managed = () =>
@@ -335,6 +405,7 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
         pick: chosen(),
         name: name.value,
         folder: folder.value,
+        agent,
         guideTab: null,
       }
       close()
@@ -355,10 +426,10 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
       void startTeam(
         p,
         pick,
+        agent,
         name.value.trim() || 'orchestrator',
         folder.value,
         sessions,
-        s.guidePath,
         workers,
       )
     })
@@ -373,8 +444,10 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
         el('div', { class: 'body dim' }, t('orch.cardOrchestrator')),
         el('div', { class: 'card-question' }, t('orch.cardWho')),
         choices,
+        orchestratorLimits,
         candidates.length > 0 ? el('div', { class: 'card-question' }, t('orch.cardManaged')) : null,
         candidates.length > 0 ? managedList : null,
+        workerLimits,
         el('div', { class: 'card-question' }, t('orch.workersCap')),
         cap.node,
       ),
@@ -401,10 +474,10 @@ function cardFolders(s: WindowState, p: ProjectInfo): string[] {
 async function startTeam(
   p: ProjectInfo,
   pick: string,
+  agent: AgentId,
   name: string,
   folder: string,
   managed: readonly string[],
-  guide: string,
   cap: number | null,
 ): Promise<void> {
   if (pick === NEW && !folder) return
@@ -414,10 +487,9 @@ async function startTeam(
   if (pick === NEW) {
     const { refusal } = await act({
       type: 'startNew',
-      agent: DEFAULT_AGENT,
+      agent,
       folder,
       name,
-      prompt: t('orch.firstPrompt', { name: p.name, guide }),
       orchestrator: true,
     })
     if (refusal) {

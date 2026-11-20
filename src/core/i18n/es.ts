@@ -26,6 +26,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'layout.sharesTab': 'Comparte una pestaña con otra sesión allá',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
+  'agent.cursorOrchestrates':
+    'Cursor puede orquestar, con límites: despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
+  'agent.cursorWorks':
+    '“{name}” es una sesión de Cursor: puede trabajar para el orquestador, con límites — despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.codex': 'Codex',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'aviso: la carpeta del proyecto {cwd} ya no existe, se empieza en HOME',
@@ -146,8 +150,11 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.cardWhat':
     'Hablás con una sola sesión, el orquestador; reparte el trabajo entre las demás y guarda los temas que tenés que decidir.',
   'orch.cardOrchestrator':
-    'El orquestador es una sesión de Claude común que carga la skill de orquestador de Menkar.',
+    'El orquestador es una sesión común que carga la skill de orquestador de Menkar.',
   'orch.cardWho': '¿Quién orquesta?',
+  'orch.cardAgent': 'Agente',
+  'orch.cardAgentNoTools':
+    'Las sesiones de {agent} todavía no pueden usar las herramientas de Menkar',
   'orch.cardNew': 'Una sesión nueva',
   'orch.cardGuide': 'Abrir la guía',
   'orch.cardCopy': 'Copiar un prompt para otra sesión',
@@ -158,6 +165,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
     'Leé {path} — la guía de Menkar sobre su modo de orquestación — y ayudame a configurarlo en este proyecto.',
   'orch.firstPrompt':
     'Cargá `menkar:orchestrator` con la herramienta Skill, por ese nombre, aunque todavía no esté en tu lista de skills. Sos el orquestador del proyecto {name}. Su orquestación es nueva: leé primero la guía de Menkar en {guide} y después ayudame a configurarla.',
+  'orch.firstPromptByFile':
+    'Cargá `menkar:orchestrator` leyendo su SKILL.md en {skill}, completo. Sos el orquestador del proyecto {name}. Su orquestación es nueva: leé primero la guía de Menkar en {guide} y después ayudame a configurarla.',
   'header.usageTooltip': 'Uso: tiempo, tokens y costo',
   'menu.newWindow': 'Ventana nueva',
   'menu.newSession': 'Nueva sesión',

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { descriptorOf } from '../../../src/core/agents/descriptors'
-import { AGENT_IDS } from '../../../src/core/agents/ids'
+import { AGENT_IDS, type AgentId } from '../../../src/core/agents/ids'
 import { kitOf } from '../../../src/core/agents/registry'
 import {
   type AgentVersionView,
@@ -54,6 +54,15 @@ describe('an installed version against the validated one and the floor', () => {
     expect(readVersion('2.1.327 (Claude Code)\n')).toBe('2.1.327')
     expect(readVersion('2026.11.13-eacade1\n')).toBe('2026.11.13-eacade1')
     expect(readVersion('  \n')).toBeNull()
+  })
+
+  // Each agent says where its version is in what `--version` prints, as each CLI prints it.
+  test("each agent's version is read from its own --version output", () => {
+    const of = (id: AgentId, output: string) => readVersion(output, descriptorOf(id).versionWord)
+    expect(of('claude', '2.1.329 (Claude Code)\n')).toBe('2.1.329')
+    expect(of('cursor', '2026.11.13-eacade1\n')).toBe('2026.11.13-eacade1')
+    expect(of('codex', 'codex-cli 0.169.0\n')).toBe('0.169.0')
+    expect(of('codex', 'codex-cli\n')).toBeNull()
   })
 })
 

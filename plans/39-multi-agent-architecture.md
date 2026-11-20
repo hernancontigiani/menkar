@@ -686,6 +686,10 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
   - **Q2** — The first-time card shows an **agent choice only when two or more agents are
     installed**, defaulting to `last_agent`; its place by mock-up in P1b.6. "Ask an agent" starts the
     focused agent pane's agent, else `last_agent`. → P1b.6.
+    **The human, 2026-11-20 (topic 83, from `menkar-t167`'s mock-ups):** layout A, the picker on an
+    "Agent" line of its own under the new session's name and folder; the Cursor warning under what
+    chose it; each listed session names its agent, dim; "an ordinary session" in the card's text;
+    the card's choice writes `last_agent`, so the next card defaults to it.
   - **Q3** — The branch's build is tried in a **sandbox** (§2.12). → P0.0 and every hand check.
   - **Q4** — `main` restores a saved tab of an agent it does not know **without starting it** (§2.4).
     → P0.6.
@@ -2162,3 +2166,100 @@ P0's blocks run in turn.
 - **`npm run ci`**: biome, tsc, vitest (176 files, 2260 tests), R10 unchanged, code rules, i18n
   pass; test integrity as above; flaky and history pass when run after it. **`npm run ui-check`**:
   434 passed, exit 0.
+
+### P1b.6 (`menkar-t167`, task 167, 2026-11-20)
+
+- **Mock-ups first** (part 1): drawn in the real app under Xvfb with stand-in claude, codex and
+  cursor, both themes, the new parts injected into the card's DOM; sheet
+  `$MENKAR_FILES/menkar-t167-sheet.png`. **The human chose, 2026-11-20 (topic 83):** layout A (the
+  "Agent" line under name and folder), the Cursor warning as drawn under what chose it, each listed
+  session naming its agent, "an ordinary session", and the card's choice remembered as
+  `last_agent` (recorded in §2.14's Q2).
+- **Decided by set, 2026-11-20, during the build:**
+  - **Cursor is not choosable for a new orchestrator yet**: the picker enables only the installed
+    agents whose sessions can use Menkar's tools — the rule `start_session` applies — so Claude
+    Code and Codex; Cursor is greyed with "Cursor sessions can't use Menkar's tools yet" and
+    becomes choosable by itself in P3, when its kit has an MCP mount. The Cursor warning shows now
+    for an existing Cursor session picked to orchestrate or checked to work. New cap
+    `tools` ⇔ `kit.mcp` (the parity test holds it), new descriptor field `teamLimits` (Cursor's two
+    keys; no agent named in shared code).
+  - **The first prompt comes from the kit** (`TeamDelivery.orchestratorPrompt`, an i18n key built
+    in main with the project's name, the guide and the orchestrator skill's `SKILL.md`): Claude's
+    `orch.firstPrompt` byte for byte (argv read from `/proc` equal to HEAD's), Codex's new
+    `orch.firstPromptByFile` reads the `SKILL.md` by path. The renderer no longer sends it.
+  - **The card's Codex orchestrator is named** as the human typed it ("orchestrator" by default),
+    through `nameWhenBound` and the same `agent_named` mark: set's reading of 1.195, a name the
+    human typed is the human's.
+  - **The pane banner's stale session** (found by this block's e2e, fixed in its own hunk for set
+    to carry to `main`): `setPaneBanner` kept a banner of the same kind, so its button's closure
+    held the id the pane had when it was drawn — a Codex worker's provisional id, or a Claude
+    worker's id before a followed `/clear` — and Take control / Back to reporting did nothing.
+    The banner carries its session (`data-session`) and is redrawn when it changes
+    (`src/renderer/terminals.ts`, `src/renderer/app.ts`).
+  - **"Ask an agent" by set's reading of Q2** (found by the full ui-check: `e2e/files.spec.ts`'s
+    focused pane is a Cursor tab, and Cursor's launcher takes no first prompt until P3): the
+    focused pane's agent only when it can be given a first prompt, then `last_agent` by the same
+    rule, else Claude Code. New descriptor fact `firstPrompt` (Claude, Codex; not Cursor), held
+    by a parity test that runs each kit's launcher with a prompt file; `files.spec.ts` unchanged.
+  - **Version reading per agent** (from `codex`'s real check: `readVersion` took the first word
+    of `--version`, and Codex prints `codex-cli 0.169.0`, so Menkar read "codex-cli"): the
+    descriptor's `versionWord` says which word is the version (Claude, Cursor 0; Codex 1),
+    `readVersion(output, word)`, `src/main/agent-versions.ts` passes it; Claude's and Cursor's
+    readings unchanged. A test with each CLI's real output, seen failing with "codex-cli" first.
+- **Granted by set — files beyond §5's row:** `src/main/workspace.ts` (`startNewSession`: an
+  orchestrator of an agent that picks its own id is marked under a provisional id, started with
+  `sessionId` that id and a pending with no expected id, named once bound; its prompt from the kit;
+  a prompt no longer needs an id at start; `askAboutFile`'s agent by `askAgent`), the descriptors
+  (`src/core/agents/{descriptors,claude,codex,cursor}/descriptor.ts`), `src/core/agents/types.ts`
+  and `{claude,codex}/team.ts` (`orchestratorPrompt`), `src/shared/workspace.ts` (the `startNew`
+  comments), `src/renderer/{terminals,app}.ts` (the banner), `src/renderer/style.css`,
+  `tests/core/agents/parity.test.ts`, `src/core/agents/versions.ts`, `src/main/agent-versions.ts`,
+  `tests/core/agents/versions.test.ts`.
+- **Built:** the card (`src/renderer/orchestration.ts`): with two or more agents installed, the
+  "Agent" line (Add session's picker, `last_agent` among the choosable agents, else Claude Code,
+  else the first; kept with the card while the guide is open), each listed session's agent, dim;
+  the limits notes (`.card-limits`) under the choices for the orchestrator and under the managed
+  list for each checked session, recomputed on any change; Start passes the agent. "Ask an
+  agent": `askAgent` as set read Q2 (above).
+- **E2E `e2e/orchestration-codex.spec.ts`** (6 tests): one agent → the card as today; two → the
+  Agent line, Claude by default, Cursor greyed (not installed), Codex chosen starts a Codex
+  orchestrator marked at once, told to read its skill by path, named "orchestrator" in
+  `session_index.jsonl`, the mark following its thread, and the next card (another project)
+  defaulting to Codex; Cursor installed with a Cursor member → Cursor greyed ("can't use Menkar's
+  tools yet"), the worker note while checked and not when unchecked, the orchestrator note when it
+  is picked, and Start marks it; "Ask an agent" with no agent pane → Codex (`last_agent`), with the
+  login's Claude pane focused → Claude; **a Claude orchestrator with a Codex worker**:
+  `start_session` for task 1, its row under the orchestrator, Take control, `task_steps` and
+  `task_review` through `/menkar`, its turn's end wakes the orchestrator once ("set task 1 to
+  review: ready"), `last_reply` reads "Done: wrap up", `send_message` Claude → Codex through
+  `codex queue` and Codex → Claude through the socket, each framed, and a role change's team
+  update reaches the worker as a turn and posts nothing to the orchestrator; a Claude worker taken
+  control of, then `/clear`ed: Back to reporting acts on the new id. Screenshots in
+  `/tmp/menkar-shots/` (`card-*.png`, `codex-worker-*.png`), copied to `$MENKAR_FILES` as
+  `menkar-t167-*.png`.
+- **Seen failing once**, each injected and reverted: the agent line at three agents (two-agents
+  test), the orchestrator note always hidden (Cursor test), `askAgent` ignoring the focused pane,
+  Cursor's `firstPrompt` true (the parity test),
+  no naming of the card's Codex orchestrator ("orchestrator" never in `session_index.jsonl`), the
+  banner kept by kind only (both the Codex worker and the `/clear` tests).
+- **The real checks.** **`claude-cli`**, Claude Code 2.1.329, its harness, a throwaway home and a
+  recording stand-in API, the card's argv as built (read from `/proc`): 9 of 9 PASS — started with
+  no trust dialog, the first user text the prompt byte for byte, the team block in the system
+  prompt, `menkar:orchestrator` listed and loaded by the Skill tool, the review wake and the
+  `send_message` post each waking a turn intact, recorded `turnOrigin: "peer"`
+  (`$MENKAR_FILES/claude-cli-t167-p1b6-check.txt`; a stand-in MCP server in place of Menkar's).
+  **`codex`**, reading a run of mine: codex-cli 0.169.0 (its release binary behind a wrapper that
+  logs argv), `codex`'s Responses-API stand-in scripted to call Menkar's tools, Menkar from `out/`
+  under Xvfb, the stand-in claude as orchestrator: every check PASS — the worker's team block
+  first in the second developer message, `mcp__menkar` direct with its 25 schemas, `task_steps`,
+  `task_review`, `send_message` called with no approval, the review waking the orchestrator once,
+  `last_reply` equal to the rollout's last agent message, both `codex queue` messages byte-exact
+  as turns, the team update's turn posting nothing, the card's Codex orchestrator reading its
+  `SKILL.md` with no approval and named "orchestrator" (two `session_index` lines, no generated
+  title: 0.169.0's title generation fails on the `-c` MCP server, its item 27), no `.tmp/git-*`.
+  Not exercised: `codex queue`'s path while Codex's daemon runs.
+- **Integrity:** the branch's eight known lines and one more, `caps('claude')` gaining `tools`.
+- **`npm run ci`**: biome, tsc, vitest (176 files, 2262 tests), R10 unchanged, code rules, i18n
+  pass; test integrity as above; flaky and history pass when run after it. **`npm run ui-check`**:
+  the first full run 439 passed, 1 failed (`files.spec.ts`, fixed by set's reading of Ask an agent);
+  the second, after every fix, 440 passed, exit 0.

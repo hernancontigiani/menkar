@@ -29,12 +29,18 @@ shaped this way and what was rejected.
   its kit from its start; a session's kit is looked up from `SessionInfo.agent` where it is needed.
 - **What the renderer and the MCP server program need is data**: the `AgentDescriptor` (id, the
   CLI's command, label key, glyph, caps, whether a new session is named at start, its chat
-  variants), in `src/core/agents/<id>/descriptor.ts`, gathered by `src/core/agents/descriptors.ts`,
+  variants, its versions and which word of its `--version` output is the version — Codex prints
+  `codex-cli 0.169.0`), in `src/core/agents/<id>/descriptor.ts`, gathered by `src/core/agents/descriptors.ts`,
   which imports nothing from Node. The renderer reads `descriptorOf(info.agent).caps.fork`, never
   the agent's name, and never a kit.
 - **A capability is a fact the renderer shows, mirrored by a kit's nullness**: `fork` ⇔
   `kit.fork`, `remote` ⇔ `mainKit.remote`, `trash` ⇔ `kit.catalog.trash`, `chat` ⇔ `kit.chat`
-  (and a non-empty `chat` list), `namedAtStart` ⇔ `kit.namer.atStart(…) !== null`.
+  (and a non-empty `chat` list), `context` ⇔ `kit.context`, `tools` (its sessions can use Menkar's
+  tools, so the orchestration mode can start them) ⇔ `kit.mcp`, `namedAtStart` ⇔
+  `kit.namer.atStart(…) !== null`, `firstPrompt` ⇔ the launcher puts a prompt file on the command
+  line (what "Ask an agent" needs). The descriptor's `teamLimits` is what the first-time card says
+  of an agent that orchestrates or works for the orchestrator with limits (Cursor's, an idle wake
+  being a restart and each tool asking unless allowed), `null` for the others.
   `tests/core/agents/parity.test.ts` asserts each pair for every registered agent. Shared main code
   reads the kit, never the cap.
 - **Shared mechanisms stay shared and are fed by the strategies**: one way a pending pane binds its
@@ -375,6 +381,21 @@ Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
   queue` opens included, and is called as `task_review` of the namespace. Spelled without
   `features.` the key is ignored, with a warning. A model outside Codex's catalog always lists
   them directly. The user's own value of that key, if any, is replaced for the session.
+
+## Codex as the orchestrator
+
+Plan 39 P1b.6. The first-time card (`docs/orchestration.md`) can start a new orchestrator of any
+installed agent whose sessions can use Menkar's tools (`caps.tools`).
+
+- **Marked at once under a provisional id**: `startNewSession` with `orchestrator: true` places an
+  agent that picks its own id under `pending:<uuid>` as member and orchestrator, as
+  `start_session` places its sessions; the real id takes its place at the bind.
+- **Its first prompt is its agent's** (`TeamDelivery.orchestratorPrompt`, an i18n key built in
+  main with the project's name, the guide's path and the orchestrator skill's `SKILL.md`): Claude
+  Code's loads the skill with the Skill tool, Codex's reads its `SKILL.md` by path.
+- **Named as the human typed it** (`set`, 2026-11-20, reading 1.195: a name the human typed is the
+  human's): through the same namer as `start_session`'s Codex sessions, once its thread exists,
+  with the same `agent_named` mark, so a renew keeps it.
 
 ## Codex: the team block
 

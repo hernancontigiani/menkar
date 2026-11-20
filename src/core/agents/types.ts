@@ -109,6 +109,9 @@ export interface TeamDelivery extends TeamAgent {
   // The words that hand the block's file to the CLI.
   atStart(start: Start, file: string): readonly string[]
   readonly floor: VersionFloor | null
+  // The first prompt of an orchestrator the first-time card starts, given the project's name, the
+  // guide's path and the orchestrator skill's SKILL.md.
+  readonly orchestratorPrompt: Key
 }
 
 // A session an agent's catalog found. Only that agent's catalog interprets `locator`.
