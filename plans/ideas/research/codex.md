@@ -236,6 +236,30 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
       **after** the real one here and before it on 2026-11-14, so the order is not fixed.
 22. **Typed text followed by an immediate Enter is not submitted.** The paste-burst detector keeps
     it in the composer; an Enter about 1 s later submits it.
+23. **Screens and the terminal title, per state** (2026-11-20, 120×40, the stand-in API, for plan
+    39's state rules; plan 39's state rules record the strings):
+    - **The title (OSC)** is the most reliable signal:
+      - `⠧ work` while working, with a Braille spinner prefix;
+      - **`[ ! ] Action Required | work`**, alternating with `[ . ] …` about every second, at an
+        exec approval card and at a `request_user_input` question;
+      - the bare cwd name (`work`) when idle.
+    - **While a reply streams there is no "Working (…)" line**: only the growing `• <text>` and the
+      composer. The `• Working (2s • esc to interrupt)` line shows only while no text streams,
+      e.g. during a command.
+    - **`■` at column 0 is not only an error**: an Esc interrupt prints
+      `■ Conversation interrupted - use /feedback if something went wrong`. A failed stream prints
+      `■ stream disconnected before completion: …`. Both are followed by the idle composer.
+    - **`1 background terminal running · /ps to view · /stop to close` stays visible while idle.**
+      While working, it joins the working line.
+    - **A message sent while a turn streams is steered into that turn**, shown at once as
+      `› <text>`; no "queued" marker was seen.
+    - **`request_user_input` exists only in Plan mode** ("request_user_input is unavailable in
+      Default mode").
+    - **Pickers** (`/model` "Select Model and Effort", `/resume` "Resume a previous session", `/new`
+      "Where should the new conversation run?") all end `enter select · esc back` or similar. The
+      title then stays the bare name, with no Action Required.
+    - **Not reached with the stand-in:** an apply-patch card (the stand-in's model was offered no
+      `apply_patch` tool), a network approval, an MCP elicitation.
 
 ## 1. The five facts
 
