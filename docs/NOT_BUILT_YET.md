@@ -15,14 +15,6 @@ Why it is deferred, and what would go wrong if it were built now.
 **Trigger:** the concrete situation that reopens it, and the first question to answer then.
 ```
 
-### A documentation site
-
-`README.md` is the user's guide and `docs/` is internal; nothing is published. A site is one more
-thing to keep true.
-
-**Trigger:** the README stops fitting on a few screens, or someone other than the human uses the
-app. First question: whether it is generated from `README.md` or written apart.
-
 ### Sessions that survive quitting the app
 
 Quitting stops every agent; the next start resumes the ones that were in tabs (`docs/spec/projects.md`).
@@ -265,11 +257,11 @@ First question: how the CLI names its pane or project without `MENKAR_PANE`.
 
 The guide ships inside Menkar (`plugin/guide/orchestration-mode.md`), read from disk by any
 session, and the first-time card opens it in a file tab and copies a prompt naming its path
-(decisions 1.90, 1.91). Nothing links to an online copy: no site exists, and the app opens no URL
-of its own.
+(decisions 1.90, 1.91). Nothing links to an online copy: the public site (`docs/site.md`) is not
+published until the first release, and the app opens no URL of its own.
 
-**Trigger:** the documentation site exists ("A documentation site" above). First question: whether
-the card links to it, and whether that link counts as the app opening a URL of its own.
+**Trigger:** the public site is published. First question: whether the card links to it, and
+whether that link counts as the app opening a URL of its own.
 
 ### A session reporting what it waits on
 
@@ -456,3 +448,29 @@ sandboxed app the README promises would not be the one users get. Menkar ships a
 
 **Trigger:** a user on a distribution with neither APT nor RPM asks for Menkar. First question:
 whether that distribution restricts user namespaces, and so whether `--no-sandbox` is the price.
+
+### The public site's `llms.txt` in Spanish
+
+`llms.txt`, `llms-full.txt` and `llms-small.txt` are English only: `starlight-llms-txt` reads the
+default locale. Each Spanish page has its own `.md`, and an agent reads English.
+
+**Trigger:** a Spanish reader asks for it, or the plugin gains locales. First question: whether a
+second set under `/es/` is the plugin's or our own endpoint's.
+
+### A Content-Security-Policy for the public site
+
+The site has no `<meta>` CSP: Starlight's inline theme script would need a hash kept in step with
+each Starlight release. The build's scan (`site/scripts/check.mjs`) fails anything loaded from
+another origin instead.
+
+**Trigger:** the site gets a script the scan cannot read, such as a third-party plugin's that builds
+its URLs at run time. First question: whether the hash can be computed at build time.
+
+### A custom domain for the public site
+
+The site lives at GitHub's address, `<owner>.github.io/menkar` (decided 2026-11-19): free, HTTPS,
+no DNS. Moving later loses the links already shared, since Pages cannot redirect but with a page
+per URL.
+
+**Trigger:** the project leaves GitHub, or the human wants an address of its own. First question:
+which old URLs must keep working, and how (a page per URL, or a host that redirects).

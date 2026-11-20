@@ -21,6 +21,7 @@ what matters from being lost when a plan is deleted.
 | Layer | Dies when | Lives in |
 |---|---|---|
 | What the app is, how to install and use it | Never | `README.md` |
+| What the public site tells users, in English and Spanish, with its captures | When the app it describes changes | `site/` (its tone guide: `site/AGENTS.md`) |
 | What the app must do, feature by feature, with the look to match | When the feature is built and its doc says it | `docs/spec/` |
 | Rules that constrain code not written yet | When the code makes them obvious | This file |
 | How a subsystem is built and why that way | With the code it describes | `docs/<subsystem>.md`, one row in the table below |
@@ -56,6 +57,7 @@ what matters from being lost when a plan is deleted.
 | `docs/release-checklist.md` | Cutting a release: what the human checks on a real desktop before a build is called a version |
 | `docs/agents.md` | Adding or changing a coding agent: its kit, its descriptor, the registries, and the rule that keeps agent names out of shared code |
 | `docs/agent-versions.md` | Checking a coding agent's new version, or which one Menkar is validated with |
+| `docs/site.md` | The public site under `site/`: its pages' extensions, the captures and their seed, the site's checks, its deploy |
 
 ## Product rules the code must hold
 
@@ -95,6 +97,9 @@ Each one is broken by an ordinary-looking line of code.
   an Enter approves the highlighted choice, and a half-written message would be sent.
 - **License: GPL-3.0-or-later.** Credit to Agent Session Manager is one line in `README.md` and
   About, with no link; no code is carried over from it, and nothing names agent-tablet.
+- **A change to a screen the site captures recaptures it** (`npm run captures`), and each image
+  that changed is opened and signed off (`npm run captures:reviewed`) in the same change: the site
+  shows the app as it is, and `npm run ci` fails on an image nobody signed off.
 
 ## TypeScript and Electron
 

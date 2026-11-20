@@ -159,16 +159,16 @@ export function vocabulary(locale: Locale): Readonly<Record<string, string>> {
 }
 
 const FOLDER: Readonly<Record<SessionKey, string>> = {
-  lead: 'northwind',
-  reviewer: 'northwind',
-  w1: 'northwind',
-  w2: 'northwind',
-  w3: 'northwind',
-  w4: 'northwind',
+  lead: 'atlas',
+  reviewer: 'atlas',
+  w1: 'atlas',
+  w2: 'atlas',
+  w3: 'atlas',
+  w4: 'atlas',
   docs: 'harbor-site',
   siteBuild: 'harbor-site',
   notes: 'research',
-  release: 'northwind',
+  release: 'atlas',
   spike: 'search-trial',
 }
 
@@ -186,6 +186,8 @@ export interface Screen {
 
 export const SCREENS_ENV = 'MENKAR_STAND_IN_SCREENS'
 export const DEFAULT_SCREEN = 'default'
+// What a chat tab's stand-in answers, and the command it asks to run.
+export const CHAT_SCREEN = 'chat'
 
 function screens(locale: Locale): Record<SessionKey | typeof DEFAULT_SCREEN, Screen> {
   const s = STRINGS[locale]
@@ -331,7 +333,7 @@ function work(locale: Locale, clock: SeedClock): { tasks: Tasks; topics: Topics 
   task(
     'w3',
     'task_progress',
-    { number: 3, step: 2, note: s.task3Note, waiting_on: 'topic 2' },
+    { number: 3, step: 2, note: s.task3Note, waiting_on: n.reviewer },
     t(60),
   )
   task('lead', 'task_add', { title: s.task4, assignee: n.w4 }, t(220))
@@ -373,6 +375,8 @@ function work(locale: Locale, clock: SeedClock): { tasks: Tasks; topics: Topics 
 }
 
 type Line = Record<string, unknown>
+// Minutes between two of the human's messages in one sitting: under the usage's burst gap.
+const SITTING_GAP_MINUTES = 6
 
 // A week of turns per session, as Claude Code writes them: a prompt that opens the turn and the
 // responses with their tokens. The same shape every run, at the seed's times.
@@ -420,12 +424,21 @@ function turns(
     }
   }
   let n = 0
+  // A sitting: a few short exchanges a few minutes apart, so the human's time reads as a burst,
+  // then a last turn of `minutes`.
+  const sitting = (start: number, exchanges: number, minutes: number) => {
+    for (let k = 0; k < exchanges; k++) {
+      const at = start + k * SITTING_GAP_MINUTES * MINUTE
+      const last = k === exchanges - 1
+      turn(++n, at, at + (last ? minutes : SITTING_GAP_MINUTES - 2) * MINUTE)
+    }
+  }
   for (let day = 6; day >= 1; day--) {
     if ((day + index) % 4 === 0) continue // a day off
     const morning = clock.daysAgo(day, 9 + (index % 4), (7 * day + 11 * index) % 50)
-    turn(++n, morning, morning + (12 + ((day * 7 + index * 5) % 25)) * MINUTE)
+    sitting(morning, 2 + ((day + index) % 3), 12 + ((day * 7 + index * 5) % 25))
     const afternoon = clock.daysAgo(day, 14 + (index % 3), (5 * day + 3 * index) % 50)
-    turn(++n, afternoon, afternoon + (8 + ((day * 3 + index) % 20)) * MINUTE)
+    sitting(afternoon, 2 + ((day * 2 + index) % 2), 8 + ((day * 3 + index) % 20))
   }
   // Today's turn ends before now, whatever the hour.
   const since = 300 - 25 * index
@@ -492,6 +505,22 @@ export async function seed(
     utimesSync(file, mtime / 1000, mtime / 1000)
   })
 
+  // The project's own skills, as a repository keeps them, for the role dialog to find.
+  const repo = join(dirs.home, 'work', FOLDER.lead)
+  mkdirSync(join(repo, '.git'), { recursive: true })
+  for (const [name, description] of [
+    [s.skillApiStyle, s.skillApiStyleText],
+    [s.skillOpenapi, s.skillOpenapiText],
+    [s.skillChangelog, s.skillChangelogText],
+  ] as const) {
+    const dir = join(repo, '.claude', 'skills', name)
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, 'SKILL.md')
+    writeFileSync(file, `---\nname: ${name}\ndescription: ${description}\n---\n\n${description}\n`)
+    const at = clock.daysAgo(6, 9, 0) / 1000
+    utimesSync(file, at, at)
+  }
+
   const members = new Map<string, { id: string; name: string }>()
   for (const p of state.projects)
     for (const id of p.members) members.set(id, { id: p.id, name: p.name })
@@ -525,6 +554,10 @@ export async function seed(
     const id = key === DEFAULT_SCREEN ? DEFAULT_SCREEN : SESSION[key as SessionKey]
     writeFileSync(join(screenDir, `${id}.json`), `${JSON.stringify(screen, null, 2)}\n`)
   }
+  writeFileSync(
+    join(screenDir, `${CHAT_SCREEN}.json`),
+    `${JSON.stringify({ answer: s.chatAnswer, ask: s.chatAsk }, null, 2)}\n`,
+  )
   const script = join(screenDir, 'claude.mjs')
   copyFileSync(fileURLToPath(new URL('./stand-in-claude.mjs', import.meta.url)), script)
   const bin = join(dirs.root, 'bin')

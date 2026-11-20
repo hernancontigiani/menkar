@@ -144,3 +144,16 @@ Cursor) takes the newest session of that folder modified since the tab started, 
 
 > Left on 2026-11-18: closing a worker's tab sends it to the background (decision 1.176; plan 41).
 - **Closing hangs up** (decision 1.9, amended 2026-11-10): closing a tab, Stop, closing a window,
+
+## Panes and terminals (links, file tabs)
+
+> Left on 2026-11-20: a path the editor opens goes to a file tab; Ctrl+Shift+click forces the system's app (decision 1.192).
+    with the path as printed; main expands `~/` to the home folder, checks it again and hands it to
+    `shell.openPath`, as a `file:` link: the file's default app, a folder in the file manager.
+  - **A `file:` link** opens with `shell.openPath` on its decoded path: the file's default app, a
+    folder in the file manager. It must name this machine: an empty host, `localhost` or this
+    host's name. An escaped `/` or NUL is not a path. The error string `openPath` returns is
+    logged. On Linux both `openPath` and `openExternal` go through `xdg-open`; `openPath` was
+  `openExternal` when the link parses as a URL (`linkUrl`, `src/core/links.ts`); a bare string is
+  no link. Main checks it again and hands it to the system, as GNOME Terminal does (`linkTarget`):
+    chosen because it takes a path and returns that error string.

@@ -52,7 +52,7 @@ rather than appending an exception to it.
 | A session's short label | role | rol | title, tag / título, etiqueta | `orch.roleLabel` |
 | What a role loads | skill | skill | plugin, command / habilidad, plugin, comando | `orch.roleSkills` |
 | A piece of work handed to a session | task | tarea | job, ticket, issue, to-do / trabajo, ticket, incidencia | `work.doneTask` |
-| What a task waits on the human for | topic | tema | item, question, issue / pendiente, ítem, asunto | `board.tooltip` |
+| What waits on the human's answer (the sidebar's section and the Board's column) | item; the section is "Awaiting you" | pendiente; la sección es "Pendientes tuyos" | topic, question, issue / tema, ítem, asunto | `topics.noticeTitle`, `orch.topics` |
 | A task's mark of first place | the ★ | la ★ | priority, urgent / prioridad, urgente | `work.star` |
 | A task's state before it closes | To review | Para revisar | in review, pending review / en revisión, pendiente | `board.toReview` |
 | Every topic and task of a project on one screen | the Board | el Tablero | kanban, dashboard / kanban, panel | `board.button` |

@@ -37,3 +37,7 @@ it, so the next page does not repeat the mistake.
 ## What is not built yet
 - Only the roadmap page names what is not built, and only what `plans/00-STATUS.md` records as
   decided, with no dates and no plan numbers. Every other page describes the released app.
+
+## 2026-11-20 — the vocabulary follows the app's 1.146 (the human, topic 78)
+
+| What a task waits on the human for | topic | tema | item, question, issue / pendiente, ítem, asunto | `board.tooltip` |

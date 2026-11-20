@@ -308,9 +308,10 @@ export type Action =
       readonly key: 'default' | 'ask' | 'trusted'
     }
   | { readonly type: 'openInGhostty'; readonly session: string }
-  | { readonly type: 'openExternal'; readonly url: string }
-  // A plain path a terminal printed, as printed (`~/…` included).
-  | { readonly type: 'openTerminalPath'; readonly path: string }
+  // `system`: Shift was held, so a file: link goes to the system's app, never to a file tab.
+  | { readonly type: 'openExternal'; readonly url: string; readonly system: boolean }
+  // A plain path a terminal printed, as printed (`~/…` included); `system` as above.
+  | { readonly type: 'openTerminalPath'; readonly path: string; readonly system: boolean }
   | { readonly type: 'copyText'; readonly text: string }
   | {
       readonly type: 'splitPane'

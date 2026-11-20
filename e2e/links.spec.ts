@@ -1,6 +1,7 @@
 // Links in a terminal open with Ctrl+click, as in GNOME Terminal: an address in the output, whole
 // across the rows it wraps over, an OSC 8 hyperlink of any scheme, a file: one with the file's
-// default app, and a plain path that is on disk. A plain click selects and opens nothing; the hand shows only while Ctrl is held.
+// default app, and a plain path that is on disk. A file the editor opens goes to a file tab instead,
+// unless Shift is held too. A plain click selects and opens nothing; the hand shows only while Ctrl is held.
 // Nothing is ever opened: main's shell.openExternal and shell.openPath are replaced by recorders.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -29,6 +30,12 @@ let filePath = ''
 // A path Claude printed as plain text, with a place in the file, and one that is not on disk.
 let picked = ''
 let pickedFolder = ''
+// A Markdown file the editor opens (decision 1.192), printed as plain text.
+let notes = ''
+// The bytes that make a real PDF and a PNG what the editor does not open: a PDF's binary marker
+// line, a PNG's header with its NULs.
+const PDF = Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n', 'latin1')
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13])
 
 async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
   const launched = await launchApp({
@@ -36,7 +43,7 @@ async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
       writeFileSync(join(dirs.home, 'url.txt'), `${OAUTH}\n`)
       mkdirSync(join(dirs.home, 'generated docs'))
       filePath = join(dirs.home, 'generated docs', 'report.pdf')
-      writeFileSync(filePath, '%PDF-1.4\n')
+      writeFileSync(filePath, PDF)
       writeFileSync(
         join(dirs.home, 'osc.txt'),
         `\x1b]8;;${OSC8}\x1b\\the docs\x1b]8;;\x1b\\ and \x1b]8;;${pathToFileURL(filePath).href}\x1b\\a file\x1b]8;;\x1b\\\n`,
@@ -47,7 +54,10 @@ async function launch(): Promise<{ launched: LaunchedApp; page: Page }> {
       pickedFolder = join(dirs.home, 'vis')
       mkdirSync(pickedFolder)
       picked = join(pickedFolder, 'pick-1-default.png')
-      writeFileSync(picked, '')
+      writeFileSync(picked, PNG)
+      notes = join(dirs.home, 'notes.md')
+      writeFileSync(notes, '# Notes\n\nA line.\n')
+      writeFileSync(join(dirs.home, 'md.txt'), `See ${notes} for more.\n`)
       writeFileSync(
         join(dirs.home, 'paths.txt'),
         `Saved ${picked}:12:3, not ${join(pickedFolder, 'missing.png')}\nin \`~/vis\`.\n`,
@@ -303,6 +313,58 @@ test('a plain path on disk is a link: Ctrl+click opens it, ~/ under the home fol
     await page.keyboard.up('Control')
     await expect.poll(() => openedPaths(launched)).toEqual([picked, pickedFolder])
     await page.waitForTimeout(300)
+    expect(await opened(launched)).toEqual([])
+  } finally {
+    await launched.close()
+  }
+})
+
+test('Ctrl+click on a Markdown path opens it in a file tab; Ctrl+Shift+click hands it to the system; Shift types nothing', async () => {
+  const { launched, page } = await launch()
+  try {
+    await page.keyboard.type('cat md.txt')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toContain('for more.')
+    const line = row(page, /^See /)
+    const tabs = page.locator('.tab')
+    const before = await tabs.count()
+
+    await hoverLink(page, line, await wordX(line, 'notes.md'))
+    await page.keyboard.down('Control')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    await expect(page.locator('.tab.selected')).toHaveAttribute('title', notes)
+    await expect(tabs).toHaveCount(before + 1)
+    expect(await openedPaths(launched)).toEqual([])
+
+    // Back to the terminal's tab, where the path was printed.
+    await tabs.first().click()
+    await expect(line).toBeVisible()
+    const shown = await terminalText(page)
+    // The pointer never left the link's place while the editor was shown: it moves across the
+    // terminal to it, as a hand does, for xterm to see it arrive.
+    const box = await line.boundingBox()
+    if (!box) throw new Error('row not laid out')
+    await page.mouse.move(box.x + 20, box.y + 60)
+    await page.mouse.move(box.x + 20, box.y + box.height / 2, { steps: 5 })
+    await hoverLink(page, line, await wordX(line, 'notes.md'))
+    await page.keyboard.down('Control')
+    await page.keyboard.down('Shift')
+    // The hand and the underline are Ctrl's alone: Shift changes neither.
+    await expect.poll(() => cursorOver(page)).toBe('pointer')
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.keyboard.up('Shift')
+    await page.keyboard.up('Control')
+    await expect.poll(() => openedPaths(launched)).toEqual([notes])
+    await expect(tabs).toHaveCount(before + 1)
+    // Nothing reached the shell: its line is as it was, and what is typed next is all it gets.
+    await page.waitForTimeout(300)
+    expect(await terminalText(page)).toBe(shown)
+    await page.keyboard.type('echo done-$((40+2))')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => terminalText(page)).toMatch(/^done-42$/m)
     expect(await opened(launched)).toEqual([])
   } finally {
     await launched.close()

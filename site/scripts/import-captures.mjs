@@ -8,7 +8,7 @@
 // two showing the same picture, fails it (a navigation that did not happen photographs the
 // previous screen again). An image that, drawn in the committed file's palette, shows the same
 // picture as it keeps the old file, so a run that changed nothing leaves git clean. No dithering,
-// so a reduced image is each pixel's nearest palette colour, as that comparison draws it.
+// so a reduced pixel is a palette colour as near as any to its own, as that comparison draws it.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'

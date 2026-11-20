@@ -3,16 +3,17 @@ import type { IBufferLine, ILink, ILinkProvider, Terminal } from '@xterm/xterm'
 import { now } from '../core/clock'
 import { findPaths, linkUrl } from '../core/links'
 
-// Links in a terminal open with Ctrl+click, handed to the system, as in GNOME Terminal: a plain
-// click still selects. Three kinds: an address printed in the output, joined across the rows it
-// wraps over, an OSC 8 hyperlink of any scheme, and a plain path that is on disk. A link is underlined on hover; the hand shows only while Ctrl is
+// Links in a terminal open with Ctrl+click, as in GNOME Terminal: a plain click still selects. A
+// file the editor opens goes to a file tab, anything else to the system; Ctrl+Shift+click sends a
+// file to the system's app too. Three kinds: an address printed in the output, joined across the
+// rows it wraps over, an OSC 8 hyperlink of any scheme, and a plain path that is on disk. A link is underlined on hover; the hand shows only while Ctrl is
 // held, by `ctrl-held` on the terminal under the pointer, and only while a link is under it: the
 // rest of the window is never restyled for a Ctrl press.
 
 function open(event: MouseEvent, uri: string): void {
   if (!event.ctrlKey) return
   const url = linkUrl(uri)
-  if (url) void window.menkar.window.act({ type: 'openExternal', url })
+  if (url) void window.menkar.window.act({ type: 'openExternal', url, system: event.shiftKey })
 }
 
 let over: HTMLElement | null = null
@@ -91,7 +92,11 @@ function pathLinks(term: Terminal): ILinkProvider {
               text: f.path,
               activate: (event) => {
                 if (event.ctrlKey)
-                  void window.menkar.window.act({ type: 'openTerminalPath', path: f.path })
+                  void window.menkar.window.act({
+                    type: 'openTerminalPath',
+                    path: f.path,
+                    system: event.shiftKey,
+                  })
               },
               hover: (event) => hover(term, event),
               leave,

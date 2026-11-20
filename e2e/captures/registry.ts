@@ -25,8 +25,27 @@ export interface Capture {
 
 export const CAPTURES = [
   { slug: 'hero-orchestration', scene: 'team' },
+  { slug: 'work-view-awaiting', scene: 'team' },
+  { slug: 'topic-discussing', scene: 'team' },
+  { slug: 'task-steps', scene: 'team' },
+  { slug: 'work-view-overview', scene: 'team' },
   { slug: 'board-default', scene: 'board' },
-  { slug: 'first-time-card', scene: 'firstTimeCard' },
+  { slug: 'task-to-review', scene: 'board' },
+  { slug: 'background-workers', scene: 'workers' },
+  { slug: 'peek-tab', scene: 'workers' },
+  { slug: 'configure-role', scene: 'role' },
+  { slug: 'project-dropdown', scene: 'harbor' },
+  { slug: 'split-panes', scene: 'harbor' },
+  { slug: 'first-time-card', scene: 'harbor' },
+  { slug: 'markdown-preview', scene: 'notes' },
+  { slug: 'add-session-existing', scene: 'notes' },
+  { slug: 'add-session-new', scene: 'notes' },
+  { slug: 'chat-permission', scene: 'notes' },
+  { slug: 'settings-look', scene: 'settings' },
+  { slug: 'settings-integrations', scene: 'settings' },
+  { slug: 'usage-spend', scene: 'usage' },
+  { slug: 'usage-your-time', scene: 'usage' },
+  { slug: 'away-strip', scene: 'away' },
 ] as const satisfies readonly Capture[]
 
 export type Slug = (typeof CAPTURES)[number]['slug']

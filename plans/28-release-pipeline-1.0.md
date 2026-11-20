@@ -7,8 +7,8 @@
 > block 5 waits on the Cloudsmith set-up (§6 steps 4–8); blocks 6–7 are the first release (§7).
 >
 > **Comes from:** the stub written with the human on 2026-11-10; topic 72 (the APT and RPM
-> service, and the answers of 2026-11-19); decision 1.189 (the public site, plan 46, which owns
-> everything under `site/`); decision 1.190 (no native Windows).
+> service, and the answers of 2026-11-19); decision 1.189 (the public site, built under `site/`,
+> `docs/site.md`); decision 1.190 (no native Windows).
 >
 > **Exit, when executed:**
 > - `CONTRIBUTING.md` (new): fork, branch from `main`, `npm run ci`, a draft PR, "Ready for
@@ -66,7 +66,7 @@ From the stub (the human, 2026-11-10), as amended by §3 (2026-11-19):
   first release it is started by hand with the tag as input; from then on the tag's push starts it.
 - **Release notes: `CHANGELOG.md` is the one source** (§3): the release workflow copies the
   version's section into the GitHub Release.
-- **Distribution**: GitHub Releases for the binaries; the site on GitHub Pages (plan 46); no
+- **Distribution**: GitHub Releases for the binaries; the site on GitHub Pages (`docs/site.md`); no
   in-app update check.
 - **Contributing**: `CONTRIBUTING.md`, issue templates (bug, feature), a PR template, **DCO**
   rather than a CLA.
@@ -81,8 +81,8 @@ From the stub (the human, 2026-11-10), as amended by §3 (2026-11-19):
 - **Dependabot** is on (§3): version updates from `.github/dependabot.yml` (npm and GitHub
   Actions, weekly), alerts and security updates in the repository's settings. Until the triggers
   are on, its PRs run no workflow.
-- **The site** (1.189) is plan 46's, whole. The boundary agreed with `menkar-t128` on
-  2026-11-19 is in §2.8.
+- **The site** (1.189) is built and owned apart (`site/`, `docs/site.md`). The boundary agreed
+  with `menkar-t128` on 2026-11-19 is in §2.8.
 
 ## 2. Goal, what exists, and the design
 
@@ -337,9 +337,9 @@ https://docs.github.com/en/get-started/learning-about-github/githubs-plans). A R
 be up to 2 GiB, with no limit on total size or bandwidth
 (https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
 
-### 2.8 The boundary with plan 46 (agreed with `menkar-t128`, 2026-11-19)
+### 2.8 The boundary with the site (agreed with `menkar-t128`, 2026-11-19)
 
-- **Plan 46 owns** `site/` whole, `.github/workflows/docs.yml`, the domain, and every page,
+- **The site's work owns** `site/` whole, `.github/workflows/docs.yml`, the domain, and every page,
   including the Install page's text in English and Spanish.
 - **Plan 28 owns** `release.yml`, `publish.yml`, `pr.yml`, `checks.yml`, the packages and their
   asset names, the package service and its key, `CONTRIBUTING.md`, and replaces README's "small
@@ -347,17 +347,17 @@ be up to 2 GiB, with no limit on total size or bandwidth
 - **The site links the latest release only as `https://github.com/hernancontigiani/menkar/releases/latest`**,
   so a release never needs a site change.
 - **The install commands' source of truth is `docs/packaging.md`** ("Installing from the
-  repository", block 6). If plan 46 has landed when block 6 runs, block 6 also fills the pending
-  blocks in `site/src/content/docs/install.md` and `site/src/content/docs/es/install.md` —
+  repository", block 6). The site is built (2026-11-20), so block 6 also fills the pending
+  blocks in `site/src/content/docs/start/install.md` and `site/src/content/docs/es/start/install.md` —
   only between the markers `<!-- plan 28: apt commands -->` … `<!-- /plan 28 -->` and `<!-- plan
   28: rpm commands -->` … `<!-- /plan 28 -->`, nothing else on the page — and runs `npm run
-  site:check`. If not, plan 46 copies them from `docs/packaging.md`. The site check fails a page
-  still holding a `plan 28:` marker only with `--release`.
-- **The site's check in the PR workflow**: whichever plan lands second adds a `site` job to
-  `pr.yml` (path filter `site/**`, `npm run site:check`). **It is not a required check**: a
-  required check that a path filter skips stays pending and blocks the merge.
-- **The first Pages deploy** is a step of block 7 (the first release), unless plan 46 has
-  deployed already: Pages works from this public repository on Free.
+  site:check -- --release`. The site check fails a page still holding a `plan 28:` marker only
+  with `--release`.
+- **The site's check in the PR workflow**: the site landed first (2026-11-20), so this plan adds a
+  `site` job to `pr.yml` (path filter `site/**`, `npm run site:check`). **It is not a required
+  check**: a required check that a path filter skips stays pending and blocks the merge.
+- **The first Pages deploy** is a step of block 7 (the first release): Pages works from this
+  public repository on Free.
 
 ### 2.9 Rejected, and why
 
@@ -446,7 +446,7 @@ What each decision means, as the blocks build it:
 
 ## 4. Out of scope
 
-- The site (plan 46), its workflow and its domain; the page that shows `CHANGELOG.md`.
+- The site (`docs/site.md`), its workflow and its domain; the page that shows `CHANGELOG.md`.
 - Windows (1.190: not built, in `docs/NOT_BUILT_YET.md`; no WSL2 promise), macOS (1.191:
   experimental, after 1.0; signing it would need an Apple Developer account), ARM, Flatpak, Snap,
   the AppImage (D4).
@@ -517,8 +517,8 @@ says so and waits.
     triggers are on: a required check that never runs blocks every merge.)
 12. Settings → Rules → **"Review"** on the default branch: 1 approving review, require review
     from Code Owners, dismiss stale approvals on new commits; **bypass list: Repository admin**.
-13. Settings → Pages → Source: **GitHub Actions**; then Actions → `docs` → Run workflow (plan
-    46's first deploy), unless plan 46 has deployed already.
+13. Settings → Pages → Source: **GitHub Actions**; then Actions → `docs` → Run workflow (the
+    site's first deploy).
 14. Verify the two rulesets (the stub's check): a throwaway PR of yours merges green with no
     review and is refused while red; a PR from a second account is refused until you approve.
     Close and delete both.
@@ -656,9 +656,9 @@ comment (Dependabot's `github-actions` updates keep them current).
   from §6 step 6, and the single-file fallback (`/tmp` or `dpkg -i` + `apt -f install`). **The
   manual commands, not `curl … | sudo bash`**: a reader sees what is added to their system.
   The 200 GB limit and its trigger; Cloudsmith's download logs.
-- [ ] If plan 46 has landed: the same commands between the markers in
-  `site/src/content/docs/install.md` and `site/src/content/docs/es/install.md` (§2.8), then
-  `npm run site:check`.
+- [ ] The same commands between the markers in
+  `site/src/content/docs/start/install.md` and `site/src/content/docs/es/start/install.md` (§2.8),
+  then `npm run site:check -- --release`.
 - [ ] `docs/release-checklist.md`, "1. Install": from the draft's `.deb` (download, `apt install
   /tmp/…`), and a new last step: after Publish, on a clean Ubuntu 24.04 container, the repository
   setup from `docs/packaging.md` then `apt install menkar` with no signature warning; the same on
@@ -684,6 +684,8 @@ comment (Dependabot's `github-actions` updates keep them current).
 - Verification: `npm run ci`; the README's commands are the same text as `docs/packaging.md`'s.
 
 ### Block 7 — the first release: the triggers on, model A, 1.0
+
+- [ ] Add the `site` job to `pr.yml` (the site's build and `site:check`, Node 22.23.x), as §2.8 assigns to the plan that lands second; the site landed first (`set`, 2026-11-20).
 
 - [ ] The measured run (§6 steps 1 and 10): the human runs `pr` by hand on `main` with
   `MENKAR_E2E_WORKERS` 2, 3 and 4 (a temporary input of `pr.yml`, or one commit per value, `set`'s

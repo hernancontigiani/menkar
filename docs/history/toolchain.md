@@ -10,3 +10,7 @@ The test-integrity check compares against `main`, so on `main` itself it measure
 work against the last commit. It writes both sides to temporary directories and diffs those:
 `git diff <ref>` sees only tracked files, and a session's new tests are untracked until `set`
 commits them.
+
+> Replaced 2026-11-20: Biome also lints the public site's scripts and TypeScript. It was:
+- **Biome** lints and formats, with `noExplicitAny` as an error. It looks only at code
+  (`src/`, `tests/`, `e2e/`, `scripts/`, root configs), never at the Markdown documents.

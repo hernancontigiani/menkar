@@ -29,7 +29,7 @@ import { trashCheck } from '../core/control/trash'
 import { type DrawerPane, DrawerRegistry, drawerFolder } from '../core/drawers'
 import { askName } from '../core/files/ask'
 import { checkFile, checkTyped, expandInput } from '../core/files/check'
-import { terminalPathExists } from '../core/files/exists'
+import { terminalOpensIn, terminalPathExists } from '../core/files/exists'
 import { flavorFacts, paneFlavorEnv, refusalFor } from '../core/flavor'
 import { type Key, t, translate } from '../core/i18n'
 import { linkTarget } from '../core/links'
@@ -222,7 +222,14 @@ import type {
 } from '../shared/workspace'
 import { recordPresence, recordPromptedStart } from './activity'
 import { mainKitOf } from './agents/registry'
-import { agentStates, notifyTopic, onShownChange, paneShown, syncTopicNotices } from './agentstate'
+import {
+  agentStates,
+  notifyTopic,
+  onShownChange,
+  paneShown,
+  refreshAgentStates,
+  syncTopicNotices,
+} from './agentstate'
 import { closeChat, ghosttyInstalled, openInGhostty, startChat } from './chat'
 import { contextReading, trackContext, turnEndedContext } from './context'
 import {
@@ -1393,14 +1400,15 @@ function joinSession(pane: Pane, sessionId: string): void {
     )
   }
   changed({ projects: true })
+  refreshAgentStates()
 }
 
 // ---------------------------------------------------------------- a terminal link
 
-// Ctrl+click on a terminal link (decision 1.59): a file opens with its default app, a folder in
-// the file manager, anything else through the system's handler for its scheme. The renderer's
-// check is made again here, since main is what hands it on.
-async function openLink(uri: string): Promise<void> {
+// Ctrl+click on a terminal link (decision 1.59): a file opens as a printed path does, anything
+// else through the system's handler for its scheme. The renderer's check is made again here, since
+// main is what hands it on.
+async function openLink(windowId: string, uri: string, system: boolean): Promise<void> {
   const target = linkTarget(uri, hostname())
   if (!target) return
   if (target.kind === 'url') {
@@ -1411,15 +1419,24 @@ async function openLink(uri: string): Promise<void> {
       )
     return
   }
-  const error = await shell.openPath(target.path)
-  if (error) log.warn('a terminal file link could not be opened', { path: target.path, error })
+  await openClickedPath(windowId, target.path, system)
 }
 
 // Ctrl+click on a plain path a terminal printed (decision 1.64), opened as a file: link is. It was
 // on disk when the renderer asked; it is asked again, since main is what hands it on.
-async function openTerminalPath(text: string): Promise<void> {
+async function openTerminalPath(windowId: string, text: string, system: boolean): Promise<void> {
   const path = await terminalPathExists(text, homedir())
-  if (!path) return
+  if (path) await openClickedPath(windowId, path, system)
+}
+
+// What the editor opens goes to a file tab of the window (decision 1.192); the rest, and anything
+// with Shift held, to the system's app: a folder in the file manager. A file that changed between
+// the two checks, and is refused by the tab's, goes to the system's app too.
+async function openClickedPath(windowId: string, path: string, system: boolean): Promise<void> {
+  if ((await terminalOpensIn(path, homedir(), system)) === 'tab') {
+    const refusal = await openFileTab(windowId, path)
+    if (!refusal) return
+  }
   const error = await shell.openPath(path)
   if (error) log.warn('a terminal path could not be opened', { path, error })
 }
@@ -2726,6 +2743,7 @@ function applyFollow(
   recordAgent(sessionId, pane.agent)
   tabLabels.delete(pane.tabId)
   changed({ projects: true })
+  refreshAgentStates()
 }
 
 // The session in a pane took a new id the way a `/clear` gives one: the new id takes the old one's
@@ -2754,6 +2772,7 @@ function followClear(pane: Pane, from: string, to: string): boolean {
   followTaskAssignee(from, to)
   void followSessionModel(from, to)
   changed({ projects: true })
+  refreshAgentStates()
   return true
 }
 
@@ -3786,10 +3805,10 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       togglePreview(windowId, action.tab)
       return {}
     case 'openExternal':
-      await openLink(action.url)
+      await openLink(windowId, action.url, action.system)
       return {}
     case 'openTerminalPath':
-      await openTerminalPath(action.path)
+      await openTerminalPath(windowId, action.path, action.system)
       return {}
     case 'closeAllTabs':
       return backgroundedResult(w.tabs.flatMap((tab) => closeOrHide(tab.id) ?? []))

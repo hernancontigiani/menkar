@@ -141,3 +141,21 @@ sudo apt remove menkar
 **Passes when** the launcher, `/opt/Menkar`, `/usr/bin/menkar` and `/etc/apparmor.d/menkar` are
 gone, and Menkar's own data (`~/.config/menkar`, `~/.local/share/menkar`) is still there for a
 reinstall.
+
+## 11. The public site
+
+A session recaptures and checks the site; the human looks and deploys.
+
+```sh
+npm run captures                       # every screen; writes only the images that changed
+npm run captures:reviewed -- --all-changed   # after opening each changed image
+npm run site:install && npm run site:check -- --release
+```
+
+Then read the "What comes next" page (`site/src/content/docs/reference/roadmap.md` and its Spanish
+twin) against `plans/00-STATUS.md`: it names only what is decided, with no dates. Deploy by hand:
+Actions → `docs` → Run workflow (the first time, Settings › Pages → Source: GitHub Actions first).
+
+**Passes when** `site:check -- --release` ends without a problem (no pending install block left),
+the contact sheets in `/tmp/menkar-captures/` show this version's screens, and the published site
+opens at `https://hernancontigiani.github.io/menkar/` in English and in Spanish.

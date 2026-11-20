@@ -133,21 +133,31 @@ It registers what it needs from a function app calls, such as `buildFrame` (2026
     Whether it exists is asked of main with `terminal:paths-exist`, a row's paths in one call
     (`stat`, async); the renderer keeps each answer a few seconds, since xterm asks again each time
     the pointer enters a row. Only a path on disk is a link. `Ctrl+click` sends `openTerminalPath`
-    with the path as printed; main expands `~/` to the home folder, checks it again and hands it to
-    `shell.openPath`, as a `file:` link: the file's default app, a folder in the file manager.
+    with the path as printed and whether Shift was held; main expands `~/` to the home folder,
+    checks it again and opens it as a `file:` link (below).
   All three are underlined on hover, and show the hand only while Ctrl is held (`ctrl-held` on
   the terminal under the pointer, set only while a link is under it). Restyling the whole body on
   every Ctrl press delayed the terminal's own handling enough for an Enter typed right after
   `Ctrl+Shift+V` to arrive before the paste. A plain click selects. `Ctrl+click` sends
-  `openExternal` when the link parses as a URL (`linkUrl`, `src/core/links.ts`); a bare string is
-  no link. Main checks it again and hands it to the system, as GNOME Terminal does (`linkTarget`):
-  - **A `file:` link** opens with `shell.openPath` on its decoded path: the file's default app, a
-    folder in the file manager. It must name this machine: an empty host, `localhost` or this
-    host's name. An escaped `/` or NUL is not a path. The error string `openPath` returns is
-    logged. On Linux both `openPath` and `openExternal` go through `xdg-open`; `openPath` was
-    chosen because it takes a path and returns that error string.
+  `openExternal`, with whether Shift was held, when the link parses as a URL (`linkUrl`,
+  `src/core/links.ts`); a bare string is no link. Main checks it again and hands it to the system,
+  as GNOME Terminal does (`linkTarget`):
+  - **A `file:` link** opens its decoded path. It must name this machine: an empty host,
+    `localhost` or this host's name. An escaped `/` or NUL is not a path. The error string
+    `openPath` returns is logged. On Linux both `openPath` and `openExternal` go through
+    `xdg-open`; `openPath` was chosen because it takes a path and returns that error string.
   - **Any other scheme** goes as it was written through `shell.openExternal`, to the system's
     handler for it. One that has none fails there, and is logged.
+  **A path opens in Menkar when its editor opens it** (decision 1.192, 2026-11-20), for a plain
+  path and a `file:` link alike (`openClickedPath`, `src/main/workspace.ts`). A file that passes
+  the file check every file tab passes (`terminalOpensIn`, `src/core/files/exists.ts`) opens in a
+  file tab of the window, as `menkar open` opens it; a Markdown file's preview is its Preview
+  button. Anything else, a folder or a file the check refuses (a PDF, an image: a NUL or bytes that
+  are not UTF-8), goes to `shell.openPath`: the file's default app, a folder in the file manager.
+  **`Ctrl+Shift+click` hands any path to the system's app**; the renderer sends `event.shiftKey`
+  as `system`. Shift changes neither the hand nor the underline, which are Ctrl's. A bare Shift
+  reaches no agent: xterm sends nothing for a modifier pressed alone. Not Alt: xterm moves the
+  prompt's cursor with arrow keys on Alt+click.
   **One link across the rows Claude Code breaks** (decision 1.53, 2026-11-11). Claude Code breaks
   a long address with its own newlines, a row each (also inside an indented `⎿` block), so to the
   terminal the rows are separate lines. Every pty gets `FORCE_HYPERLINK=1` beside `COLORTERM`: a
