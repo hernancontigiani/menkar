@@ -81,6 +81,13 @@ what neither says: why each piece, and what was rejected.
 | `scripts/check-flaky.mjs` | A row of `e2e/FLAKY.md` whose date has passed fails the run |
 | `scripts/nothing-lost.mjs` | Every line that left a decision document since `HEAD` is in its history under `docs/history/`, and no history lost a line |
 
+**Three variables point the checks that compare against a base at another commit** (2026-11-20),
+for a checkout that has no local `main` or whose tree is its `HEAD`, as the hosted CI's is:
+`MENKAR_TEST_BASELINE` (test integrity's baseline), `MENKAR_HISTORY_BASE` (`nothing-lost.mjs`
+compares the tree with that commit instead of `HEAD`; on a clean checkout `HEAD` would compare
+nothing) and `MENKAR_R10_BASE` (the ref R10's files are compared with instead of the local `main`;
+when it is set, being on `main` skips nothing). Unset, each check behaves as the table says.
+
 The first two parse the sources with the TypeScript compiler API rather than grep, so a mention
 inside a comment or a string does not count and one split over two lines does.
 
@@ -98,6 +105,34 @@ plan 34 only the full run caught a new popover icon taking the place of the butt
 clicks. Specs write their screenshots to `/tmp/menkar-shots/` only; a worker copies its own into
 `$MENKAR_FILES` by hand, because a spec that wrote there would fill the human's folder whenever a
 Menkar session runs it (2026-11-12).
+
+## The hosted CI (2026-11-20)
+
+The repository is public on GitHub Free, so its Actions run on free standard runners (4 vCPU,
+16 GB). **Until the first official release every workflow runs only by hand**
+(`workflow_dispatch`): no push, pull request or tag starts one, and `npm run ci` stays the gate
+(the human, 2026-11-19, topic 72). `tests/scripts/workflows.test.ts` fails a workflow with any
+other trigger; the first release turns the triggers on and changes that assertion with them.
+
+| Workflow | What it runs |
+|---|---|
+| `.github/workflows/checks.yml` | Called by the others (`ref`, `base`): `ci` runs `npm run ci` with the three base variables above set from `base`; `e2e` runs `npm run ui-check` under Xvfb (4 workers, the default, until measured on the runner), keeping `test-results/` for 7 days on failure; `dco` runs `scripts/check-dco.mjs` over `base..HEAD` |
+| `.github/workflows/pr.yml` | A branch against `origin/<base>` (by hand: the branch it is run on, `base` default `main`); drafts skipped and an older run of the same PR or ref cancelled, ready for when `pull_request` is added |
+
+The release workflow checks its tag with `scripts/release-version.mjs` (the tag is `v` +
+`package.json`'s version, no pre-release) and writes its notes with `scripts/release-notes.mjs`
+(the version's section of `CHANGELOG.md`, the notes' only source; a release without one is
+refused).
+
+Every job runs on `ubuntu-24.04`, not `ubuntu-latest`: the label would move to a new Ubuntu with
+no change in the tree, and pinned, the move is a reviewed change. Every action is pinned to a full
+commit SHA with its version in a comment; Dependabot's weekly `github-actions` updates move them.
+**No path filter on the PR jobs**: a required check that a filter skips stays "Expected — waiting"
+and the PR cannot merge, and at one maintainer's PR volume the full run costs less than a filter
+to maintain. The sign-off check is a script of ours rather than a DCO GitHub App, so nothing is
+installed on the account. Workflows are linted locally with `actionlint` in a container
+(`docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -no-color`), since nothing
+runs them before they are pushed.
 
 ## A long-lived branch (1.136, 1.160)
 

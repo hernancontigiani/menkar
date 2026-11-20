@@ -1,33 +1,41 @@
 # Plan 28: going public at 1.0 — branches, GitHub CI, releases, packages, contributing
 
-> **Status:** written 2026-11-19 (task 127) from the stub of 2026-11-10, whose decisions are kept
-> as given (§1). **D1–D7 are the human's (§3)**; blocks 1–4 can run on the private repository
-> once D2, D3 and D5 are answered; blocks 5–6 wait on D1, blocks 7–8 on D6 and D7 (§7).
+> **Status:** written 2026-11-19 (task 127) from the stub of 2026-11-10; **brought in line with
+> the human's answers of 2026-11-19 (topic 72, §3) on 2026-11-20 (task 131)**. The repository is
+> already public, the account is GitHub Free, and **until the first official release every
+> workflow runs only by hand** (`workflow_dispatch`). Blocks 1–4 need nothing from the human;
+> block 5 waits on the Cloudsmith set-up (§6 steps 4–8); blocks 6–7 are the first release (§7).
 >
 > **Comes from:** the stub written with the human on 2026-11-10; topic 72 (the APT and RPM
-> service); decision 1.189 (the public site, plan 46, which owns everything under `site/`).
+> service, and the answers of 2026-11-19); decision 1.189 (the public site, plan 46, which owns
+> everything under `site/`); decision 1.190 (no native Windows).
 >
 > **Exit, when executed:**
 > - `CONTRIBUTING.md` (new): fork, branch from `main`, `npm run ci`, a draft PR, "Ready for
 >   review", the DCO sign-off.
-> - `.github/` (new): `workflows/checks.yml`, `pr.yml`, `release.yml`, `publish.yml`;
->   `CODEOWNERS`; `ISSUE_TEMPLATE/bug.yml`, `feature.yml`; `pull_request_template.md`.
+> - `.github/` (new files beside the existing `dependabot.yml`): `workflows/checks.yml`, `pr.yml`,
+>   `release.yml`, `publish.yml`; `CODEOWNERS`; `ISSUE_TEMPLATE/bug.yml`, `feature.yml`,
+>   `config.yml`; `pull_request_template.md`.
 > - `docs/packaging.md`: the formats (.deb, .rpm), the version at a tag, the release pipeline
 >   (tag → draft → checklist → publish → the package service), installing from the repository
 >   (the commands, source of truth for the site's Install page), and what was rejected (§2.9).
-> - `docs/toolchain.md`: "The hosted CI" — what runs on a PR and on a tag, the runner, the e2e
->   workers measured there, the base-ref variables; the "Local CI" paragraph's "no hosted CI".
+> - `docs/toolchain.md`: "The hosted CI" — the workflows, by hand until the first release then on
+>   a PR and on a tag, the runner, the e2e workers measured there, the base-ref variables, the
+>   release notes from `CHANGELOG.md`; the "Local CI" paragraph's "no hosted CI" at the first
+>   release.
 > - `docs/release-checklist.md`: checks the draft release's assets, not a local build; install
 >   from the repository; the step that publishes.
 > - `README.md`: "Install" for the `.deb` and the `.rpm` (the repository, the single file as
->   fallback; no other platform, 1.190), a link to
->   the site and to `releases/latest`; the "small site" wording goes.
+>   fallback; no other platform, 1.190), a link to the site and to `releases/latest`; the "small
+>   site" wording goes.
 > - `AGENTS.md`: "Local CI" and "Git and the shared tree" for model A (branches, PRs, `-s`), in
->   the going-public block only.
-> - `plans/00-STATUS.md` §1: 1.5's "no hosted CI" and 1.85 superseded by the new rows; D1–D7 as
->   rows with their dates; topic 72 closed.
-> - `docs/NOT_BUILT_YET.md`: macOS, ARM, the AppImage (if D4 defers it), a self-hosted
->   repository. Native Windows is already there (1.190).
+>   the first-release block only.
+> - `CHANGELOG.md` (new, at the first release): one section per version, the release notes' only
+>   source; written by `set` and approved by the human (`AGENTS.md`).
+> - `plans/00-STATUS.md` §1: 1.5's "no hosted CI" and 1.85 superseded by the new rows; the
+>   decisions of §3 as rows with their dates; topic 72 closed.
+> - `docs/NOT_BUILT_YET.md`: ARM, the AppImage (D4), a self-hosted repository. Native Windows is
+>   already there (1.190); macOS is decision 1.191's row until taken up.
 > - Superseded text (1.5, 1.85, the "no hosted CI" sentences, the checklist's local-build
 >   install) leaves verbatim for `docs/history/` in the same change; the README's old install
 >   text goes to `git log` (README is not a decision document).
@@ -35,9 +43,10 @@
 
 ## 1. Decided, used as given
 
-From the stub (the human, 2026-11-10), not reopened except where §3 D4 says so:
+From the stub (the human, 2026-11-10), as amended by §3 (2026-11-19):
 
-- **Public on GitHub at 1.0**, `git@github.com:hernancontigiani/menkar.git` (checked by `set`).
+- **Public on GitHub**, `git@github.com:hernancontigiani/menkar.git`: the repository is already
+  public and the account is GitHub Free (§3).
 - **Model A**: `main` is the development line and the default branch; all work on a branch
   (`feature/…`, `fix/…`) entering `main` by a pull request; `main` protected, no merge without
   green CI. **Releases are tags** `vX.Y.Z`; a fix for an older version goes on `release/X.Y` cut
@@ -47,9 +56,16 @@ From the stub (the human, 2026-11-10), not reopened except where §3 D4 says so:
   to `pull_request` (`opened`, `synchronize`, `reopened`, `ready_for_review`), skips drafts,
   `concurrency` with `cancel-in-progress` per PR. It runs `npm run ci` and the e2e (one Xvfb per
   worker) on Linux.
-- **The release workflow listens to `v*` tags only**: the full suite, the packages, a GitHub
-  Release with them attached. Linux x64 on one Ubuntu runner (`.deb`, `.rpm`, AppImage — see D4);
-  no Windows installer (1.190, §3); macOS experimental, after 1.0 (1.191); no Flatpak or Snap.
+- **Until the first official release every workflow triggers only by hand** (§3, D5 replaced):
+  the workflows are written now, `on: workflow_dispatch` alone; no push, PR or tag trigger and no
+  trial PR. The team keeps committing to `main`. Turning the triggers on, and model A with them,
+  is a step of the first release (block 7).
+- **The release workflow** builds from a `v*` tag: the full suite, the packages, a GitHub Release
+  with them attached. Linux x64 on one Ubuntu runner, **`.deb` and `.rpm` only**: no AppImage
+  (D4), no Windows (1.190), macOS experimental after 1.0 (1.191), no Flatpak or Snap. Until the
+  first release it is started by hand with the tag as input; from then on the tag's push starts it.
+- **Release notes: `CHANGELOG.md` is the one source** (§3): the release workflow copies the
+  version's section into the GitHub Release.
 - **Distribution**: GitHub Releases for the binaries; the site on GitHub Pages (plan 46); no
   in-app update check.
 - **Contributing**: `CONTRIBUTING.md`, issue templates (bug, feature), a PR template, **DCO**
@@ -57,11 +73,14 @@ From the stub (the human, 2026-11-10), not reopened except where §3 D4 says so:
 - **Who may merge**: two rulesets on `main` — "CI green" (required checks, no bypass) and
   "Review" (1 approving review from a code owner, `CODEOWNERS` = the maintainer for `*`, bypass:
   the repository admin role).
-- **An APT repository and an RPM one on a hosted service with a free open-source plan,
-  Cloudsmith or packagecloud** (to choose: D1); the release uploads each tag's `.deb` and `.rpm`
-  there; the single downloaded file stays documented as the fallback; a self-hosted bucket is the
-  later option. GitHub Pages cannot host it: the `.deb` of 0.1.0-387 is 102,659,364 bytes, above
-  Pages' 100 MB file limit (checked by `set`).
+- **An APT repository and an RPM one on Cloudsmith** (D1), on its free open-source plan; the
+  release uploads each published tag's `.deb` and `.rpm` there; the single downloaded file stays
+  documented as the fallback; a self-hosted bucket is the later option. GitHub Pages cannot host
+  it: the `.deb` of 0.1.0-387 is 102,659,364 bytes, above Pages' 100 MB file limit (checked by
+  `set`).
+- **Dependabot** is on (§3): version updates from `.github/dependabot.yml` (npm and GitHub
+  Actions, weekly), alerts and security updates in the repository's settings. Until the triggers
+  are on, its PRs run no workflow.
 - **The site** (1.189) is plan 46's, whole. The boundary agreed with `menkar-t128` on
   2026-11-19 is in §2.8.
 
@@ -72,87 +91,109 @@ From the stub (the human, 2026-11-10), not reopened except where §3 D4 says so:
 At 1.0 a stranger can install Menkar with `apt install menkar` (or `dnf install menkar`), get
 updates with `apt upgrade`, and send a pull request that is checked by the same gate the team
 uses; the maintainer cuts a release by pushing a tag and pressing Publish after the checklist.
+Until then the workflows exist and can be run by hand, and nothing runs on its own.
 
-### 2.2 What exists in the tree (verified 2026-11-19)
+### 2.2 What exists in the tree (verified 2026-11-20)
 
 - `electron-builder.yml`: `linux.target` is `deb` x64 only; `publish: null`; `deb.depends` adds
   `libasound2t64 | libasound2`. No `rpm` section.
 - `scripts/package.mjs`: computes `debianRevision` (`<count>.g<hash>[.dirty.<UTC>]`) from
-  `git rev-list --count HEAD` and hands it as `buildNumber`; runs `electron-builder --linux deb
-  --x64`. **It needs the full history**: a shallow clone counts 1 commit.
-- `electron.vite.config.ts`: the flavour comes from the branch (`git rev-parse --abbrev-ref
-  HEAD`) unless `MENKAR_FLAVOR_BUILD` is set; **a tag checkout is a detached HEAD and builds
-  `sandbox`** (`docs/packaging.md` records it, seen 2026-11-18). `ui-check` sets
-  `MENKAR_FLAVOR_BUILD=menkar`; `npm run package` does not.
+  `git rev-list --count HEAD` and hands it as `buildNumber`; takes the flavour from
+  `out/main/flavor.txt` (`packageFlavour`, `--flavour` only as a check) and the builder config
+  from `BUILDER_CONFIG`; runs `electron-builder --linux deb --x64`. **It needs the full
+  history**: a shallow clone counts 1 commit.
+- `electron.vite.config.ts`: the flavour comes from the branch unless `MENKAR_FLAVOR_BUILD` is
+  set (`resolveBuildFlavor`); **a tag checkout is a detached HEAD and builds `sandbox`**
+  (`docs/packaging.md`). `ui-check` sets `MENKAR_FLAVOR_BUILD=menkar`; `npm run package` does not.
 - `scripts/ci.mjs`: Biome, tsc, Vitest (`CI=1`), "R10 unchanged" (compares with the local branch
   `main`; skipped when `HEAD` is `main`), code rules, i18n, test integrity, flaky quarantine,
   history.
 - `scripts/check-test-integrity.mjs`: baseline `MENKAR_TEST_BASELINE` or `git merge-base main
-  HEAD` — **a local branch `main`, absent in an Actions checkout** (only `origin/main` after a
-  full fetch).
+  HEAD` — **a local branch `main`, absent in an Actions checkout of anything else** (only
+  `origin/main` after a full fetch).
 - `scripts/nothing-lost.mjs`: compares the tree with `HEAD` only — **on a clean CI checkout it
   checks nothing**: a PR that drops a decision line without its history passes.
-- `scripts/check-package.mjs`: reads the `.deb` with `dpkg-deb`; checks the Version is
-  `<package.json version>-<commits>.g<hash>[.dirty.<time>]`. Nothing reads an `.rpm`.
+- `scripts/check-package.mjs`: reads the `.deb` with `dpkg-deb` (`--flavour menkar|sandbox`);
+  checks the Version is `<package.json version>-<commits>.g<hash>[.dirty.<time>]`. Nothing reads
+  an `.rpm`. Its recorded inputs are in `tests/data/package/`.
 - `playwright.config.ts`: `MENKAR_E2E_WORKERS` (4 by default), `retries: 0`, `forbidOnly`.
   `e2e/display.ts` starts one Xvfb per worker; `xvfb-run -a` wraps the run.
 - electron-builder 26.18.0 (`app-builder-lib/out/targets/FpmTarget.js:68`) uses **the same
   `after-install.tpl` for `deb` and `rpm`**, so the AppArmor profile and `update-alternatives`
-  steps run on RPM systems too; its default `rpm` depends
-  (`linuxOptions.d.ts:100`) has **no ALSA** — the same gap the `.deb` had.
-- No `.github/`, no `CONTRIBUTING.md`, no `CODEOWNERS`. `rpmbuild` is not installed on the
-  human's machine; `docker` is.
-- 55 e2e spec files; the suite takes 4–5 minutes locally (the task's figure; 107 s at 4 workers
-  was measured on 2026-11-10 with 260 tests, `docs/toolchain.md`).
+  steps run on RPM systems too; its default `rpm` depends (`linuxOptions.d.ts:100`) has **no
+  ALSA** — the same gap the `.deb` had.
+- `.github/dependabot.yml` exists (npm grouped minor-and-patch, GitHub Actions; weekly). No
+  workflow, no `CONTRIBUTING.md`, no `CODEOWNERS`, no `CHANGELOG.md`.
+- The `multi-agent` branch is alive (plan 39, P1a next), so R10's rule holds (§2.4).
+- `rpmbuild` is not installed on the human's machine; `docker` is.
+- 55 e2e spec files; the suite takes 4–5 minutes locally (107 s at 4 workers was measured on
+  2026-11-10 with 260 tests, `docs/toolchain.md`).
 
 ### 2.3 The workflows
 
-Four files, so a PR and a tag run the same checks from one place:
+Four files, so a PR and a tag run the same checks from one place. **Until the first release each
+has `workflow_dispatch` as its only trigger** (`checks.yml` is also callable, `workflow_call`,
+which is not a trigger: it runs only when another workflow calls it). Each is written so that
+turning its trigger on in block 7 adds lines to `on:` and changes nothing else:
 
-- **`checks.yml`** (`on: workflow_call`, input `base`): three jobs on `ubuntu-24.04` (pinned, not
-  `ubuntu-latest`, so an image switch is a change we make):
-  - **`ci`**: `actions/checkout` with `fetch-depth: 0`; `actions/setup-node` with
-    `node-version-file: package.json`'s engines (22) and npm cache; `npm ci`; `node
-    node_modules/electron/install.js` when the binary is missing; then, with
-    `MENKAR_TEST_BASELINE=$(git merge-base origin/<base> HEAD)`,
-    `MENKAR_HISTORY_BASE=<same>`, `MENKAR_R10_BASE=origin/<base>`: `npm run ci`.
+- **`checks.yml`** (`on: workflow_call`, inputs `ref` — what to check out, empty for the
+  caller's — and `base` — a commit or remote ref the base-diff checks compare against): three jobs
+  on `ubuntu-24.04` (pinned, not `ubuntu-latest`, so an image switch is a change we make):
+  - **`ci`**: `actions/checkout` with `ref` and `fetch-depth: 0`; `actions/setup-node` with
+    `node-version: 22` and npm cache; `npm ci`; then, with
+    `MENKAR_TEST_BASELINE=$(git merge-base <base> HEAD)`, `MENKAR_HISTORY_BASE=<same>`,
+    `MENKAR_R10_BASE=<base>`: `npm run ci`.
   - **`e2e`**: the same set-up plus `sudo apt-get install -y xvfb xauth` and the Electron
-    libraries the image lacks (block 1 finds the list); `MENKAR_E2E_WORKERS=<measured>` `npm run
-    ui-check`; on failure, upload `test-results/` as an artifact (7 days).
+    libraries the image lacks; `npm run ui-check` with `MENKAR_E2E_WORKERS` unset (4, the
+    public runner's vCPUs) until block 7 measures it; on failure, upload `test-results/` as an
+    artifact (7 days).
   - **`dco`**: every commit in the range `<base>..HEAD` (excluding merges) has a `Signed-off-by:`
     line matching its author's email; a script of ours, `scripts/check-dco.mjs`, with a Vitest
     test — no third-party GitHub App, so nothing is installed on the account.
-- **`pr.yml`**: `on: pull_request` with the four types, `if: github.event.pull_request.draft ==
-  false`, `concurrency: { group: pr-${{ github.event.pull_request.number }},
-  cancel-in-progress: true }`, `permissions: contents: read`; calls `checks.yml` with `base:
-  ${{ github.base_ref }}`. The required checks are its three jobs (`checks / ci`, `checks / e2e`,
-  `checks / dco`).
-- **`release.yml`**: `on: push: tags: ['v*']`. Jobs:
-  1. **`verify`**: the tag is `v` + `package.json`'s version (refused otherwise), and the tagged
-     commit is reachable from `origin/main` or from `origin/release/X.Y` (refused otherwise).
-  2. **`checks`**: `checks.yml` with base = the tag's commit itself — the code was gated by its
-     PR; here the suite proves the tagged tree, and the base-diff checks (integrity, history,
-     R10, DCO) have nothing to compare, by design.
-  3. **`package`** (needs both): `fetch-depth: 0`; `MENKAR_FLAVOR_BUILD=menkar`; `sudo apt-get
-     install -y rpm`; `npm run package -- --targets deb,rpm`; `npm run package:check -- --targets
-     deb,rpm`; `npm run package:smoke`; `sha256sum` into `SHA256SUMS`; `gh release create
-     "$TAG" --draft --verify-tag --title "Menkar X.Y.Z" --notes-file <generated>` with the
+- **`pr.yml`**: today `on: workflow_dispatch` with an input `base` (default `main`): checks the
+  branch it is run on against `origin/<base>`. Block 7 adds `pull_request` with the four types;
+  the job already carries `if: github.event_name != 'pull_request' ||
+  !github.event.pull_request.draft`, `concurrency: { group: pr-${{
+  github.event.pull_request.number || github.ref }}, cancel-in-progress: true }`, `permissions:
+  contents: read`, and calls `checks.yml` with `base: origin/${{ github.base_ref || inputs.base
+  }}`. The required checks are its three jobs (`checks / ci`, `checks / e2e`, `checks / dco`).
+- **`release.yml`**: today `on: workflow_dispatch` with a required input `tag`; every step reads
+  `TAG: ${{ inputs.tag || github.ref_name }}`, so block 7's `push: tags: ['v*']` needs no other
+  change. Jobs:
+  1. **`verify`**: the tag is `v` + `package.json`'s version at the tagged commit
+     (`scripts/release-version.mjs`, refused otherwise); the tagged commit is reachable from
+     `origin/main` or from `origin/release/X.Y` (refused otherwise); `CHANGELOG.md` at the tag
+     has a non-empty section for the version (`scripts/release-notes.mjs`, refused otherwise).
+  2. **`checks`**: `checks.yml` with `ref` and `base` = the tag — the code was gated before it
+     reached `main`; here the suite proves the tagged tree, and the base-diff checks (integrity,
+     history, R10, DCO) have nothing to compare, by design.
+  3. **`package`** (needs both): checkout of the tag with `fetch-depth: 0`;
+     `MENKAR_FLAVOR_BUILD=menkar`; `sudo apt-get install -y rpm`; `npm run package -- --targets
+     deb,rpm`; `npm run package:check -- --targets deb,rpm`; `npm run package:smoke`; `sha256sum`
+     into `SHA256SUMS`; the version's `CHANGELOG.md` section into a notes file; `gh release
+     create "$TAG" --draft --verify-tag --title "Menkar X.Y.Z" --notes-file <notes>` with the
      `.deb`, the `.rpm` and `SHA256SUMS`. `permissions: contents: write` on this job only.
-- **`publish.yml`**: `on: release: types: [published]`, skipped for a prerelease. Downloads the
-  release's assets with `gh release download`, verifies `SHA256SUMS`, and pushes the `.deb` and
-  `.rpm` to the package service (D1) with its official action or CLI. A secret
-  (`PACKAGES_API_KEY`) lives in a GitHub **environment** `packages` whose only allowed ref is
-  tags `v*`, so no PR workflow can reach it.
+- **`publish.yml`**: `on: workflow_dispatch` with a `tag` input; block 7 adds `release: types:
+  [published]`, skipped for a prerelease. Downloads the release's assets with `gh release
+  download`, verifies `SHA256SUMS`, and pushes the `.deb` and `.rpm` to Cloudsmith with its
+  official action. Its upload credential (OIDC, or an API key as fallback) is reachable only from
+  a GitHub **environment** `packages` whose only allowed ref is tags `v*`, so no PR workflow can
+  reach it.
 
 **Why a draft and a second workflow:** `docs/release-checklist.md` says a build is a version only
 after the human's checks pass on a real desktop. The draft is the candidate; the human checks the
 draft's own `.deb` (the bytes that will ship, not a local build of the same commit); Publish is
 the act that makes it a version, and only then does the APT repository get it. A Release that the
 `GITHUB_TOKEN` creates would not trigger another workflow, but the human pressing Publish does.
-(D3 decides what happens to a candidate that fails.)
+A candidate that fails is deleted with its tag and the same version is tagged again (D3).
 
 **Fork PRs:** `pull_request` from a fork runs with a read-only token and no secrets; the PR
 checks need neither. `pull_request_target` is never used.
+
+**The test that holds "by hand only"** (`tests/scripts/workflows.test.ts`, block 2): every file
+under `.github/workflows/` has, as its `on:` keys, only `workflow_dispatch` and `workflow_call`.
+Case: a `pr.yml` with `pull_request` added fails, naming the file and the trigger. Block 7 replaces
+this assertion with the triggers of §1.
 
 ### 2.4 Base-ref variables (code changes)
 
@@ -167,23 +208,23 @@ Three checks compare against "main" or "HEAD" in ways an Actions checkout breaks
 Each gets a Vitest case with the variable set and unset. **R10's own rule ("written on `main`
 only") cannot survive model A as is**: once every change reaches `main` by PR, a PR that refreshes
 R10 legitimately is indistinguishable from the multi-agent branch changing it. R10 lives only while
-the `multi-agent` branch does (`docs/toolchain.md`). **Precondition of block 2: ask `set` whether
-the branch has merged for good;** if it has, the R10 step and its rule leave for their history in
-that block and `MENKAR_R10_BASE` is not built; if not, the PR workflow skips R10 for PRs whose head
-is not `multi-agent` and runs it with `MENKAR_R10_BASE=origin/main` for that one.
+the `multi-agent` branch does (`docs/toolchain.md`), and that branch is alive (§2.2), so block 1
+builds `MENKAR_R10_BASE`. **Block 7 settles R10 for model A**: if the branch has merged for good,
+the step and its rule leave for their history; if not, `pr.yml` sets `MENKAR_R10_BASE` only for
+the `multi-agent` head and skips the step for any other.
 
 ### 2.5 The version at 1.0
 
 Today (1.45): `package.json` is `0.1.0`; the `.deb`'s Version is `0.1.0-<commits>.g<hash>`
-(`.dirty.<UTC>` for an uncommitted tree); the file is `menkar_0.1.0_amd64.deb`. D2 decides the
-tag's version; the recommendation keeps one scheme for every build:
+(`.dirty.<UTC>` for an uncommitted tree); the file is `menkar_0.1.0_amd64.deb`. D2 keeps one scheme
+for every build:
 
 - **A release `X.Y.Z`** is one commit on `main` (or `release/X.Y`) that sets `package.json` and
-  `package-lock.json` to `X.Y.Z`, then the tag `vX.Y.Z` on it. The `.deb` is
-  `X.Y.Z-<commits>.g<hash>` — the same formula as any local build of that commit — and the
-  `.rpm` `X.Y.Z-<commits>.g<hash>` (fpm's `--iteration` gives the RPM Release; RPM forbids `-`
-  there, and the revision has none). Files: `menkar_X.Y.Z_amd64.deb`, `menkar-X.Y.Z.x86_64.rpm`
-  (confirmed by block 4's first build).
+  `package-lock.json` to `X.Y.Z` and adds `CHANGELOG.md`'s section for it, then the tag `vX.Y.Z`
+  on it. The `.deb` is `X.Y.Z-<commits>.g<hash>` — the same formula as any local build of that
+  commit — and the `.rpm` `X.Y.Z-<commits>.g<hash>` (fpm's `--iteration` gives the RPM Release;
+  RPM forbids `-` there, and the revision has none). Files: `menkar_X.Y.Z_amd64.deb`,
+  `menkar-X.Y.Z.x86_64.rpm` (confirmed by block 4's first build).
 - **Ordering**: dpkg and rpm compare the upstream version first, so `1.0.1-…` sorts after every
   `1.0.0-…`; within one upstream version the commit count orders builds. A local build of `main`
   after the tag (`1.0.0-450.g…`) sorts above the release `1.0.0-412.g…`, which is what the human
@@ -194,17 +235,20 @@ tag's version; the recommendation keeps one scheme for every build:
   one commit sets `X.Y.(Z+1)`; tag. Its commit count is that branch's, and its upstream version is
   new, so the order holds.
 - **Pre-1.0 local builds stay as 1.45 says.** The `0.1.0` → `1.0.0` bump is the 1.0 release
-  commit itself (block 8).
-- **The test**: `debianRevision` gains no case; block 3 adds `releaseVersion(tag, packageJson)`
-  (`v1.0.0` + `1.0.0` → ok; `v1.0.0` + `0.1.0` → refused; `v1.0` → refused; `v1.0.0-rc.1` →
-  refused unless D3 picks rc tags) with its Vitest test, used by `release.yml`'s `verify`.
+  commit itself (block 7).
+- **The tests** (block 1): `debianRevision` gains no case. `releaseVersion(tag, version)`:
+  `v1.0.0` + `1.0.0` → `1.0.0`; `v1.0.0` + `0.1.0` → refused; `v1.0` → refused; `1.0.0` (no `v`)
+  → refused; `v1.0.0-rc.1` → refused (D3 has no rc tags). `releaseNotes(changelog, version)`: the
+  body under `## 1.0.0` (or `## [1.0.0]`, with anything after the version on that line) up to the
+  next `## ` heading, trimmed; refused when the section is missing or empty; `## 1.0.0` does not
+  match `## 1.0.01` or `## 11.0.0`.
 
 ### 2.6 RPM
 
-- `electron-builder.yml` gains `linux.target: [deb, rpm]` only through `package.mjs --targets`
-  (default `deb`, so the human's local `npm run package` needs no `rpmbuild`), and an `rpm:`
-  section with `depends` = electron-builder's default list plus **`alsa-lib`**, the ALSA library
-  the `.deb` already needed. `packageCategory`/`synopsis` follow the `.deb`.
+- `electron-builder.yml` gains an `rpm:` section with `depends` = electron-builder's default list
+  plus **`alsa-lib`**, the ALSA library the `.deb` already needed; `linux.target` stays `deb`, and
+  `package.mjs --targets deb,rpm` passes the targets on electron-builder's command line (default
+  `deb`, so the human's local `npm run package` needs no `rpmbuild`).
 - **The post-install on RPM systems**: the shared template's AppArmor branch runs only where
   `apparmor_parser` understands `abi/4.0` (openSUSE has AppArmor; Fedora has SELinux and skips
   it); Fedora does not restrict unprivileged user namespaces, so Chromium's sandbox works without a
@@ -221,7 +265,7 @@ tag's version; the recommendation keeps one scheme for every build:
 ### 2.7 The package service (D1)
 
 Compared on 2026-11-19 from their own pages (topic 72). **packagecloud is no longer open to new
-projects**, which settles the stub's choice in practice; the human still confirms it as D1.
+projects**, which settled the stub's choice in practice; the human chose Cloudsmith (D1, §3).
 
 | | Cloudsmith | packagecloud |
 |---|---|---|
@@ -237,7 +281,7 @@ projects**, which settles the stub's choice in practice; the human still confirm
 | What the service sees of users | Every download logged for the maintainer: time, user agent, IP and its location [21] | The same, through its API [22] |
 | Known incident | 2026-10-01: Caddy's repository was signed with a subkey expired in 2024 and apt on Ubuntu 24.04 refused it; fixed the same day on a ticket [23] | — |
 
-**Recommendation: Cloudsmith**, with what it costs said plainly:
+**Cloudsmith (D1)**, with what it costs said plainly:
 
 - The README (and the site) carry the attribution line: "Package repository hosting is
   graciously provided by Cloudsmith", linking to cloudsmith.com: a condition of the free plan.
@@ -284,14 +328,12 @@ Sources (read 2026-11-19):
 [23] https://caddy.community/t/cloudsmith-debian-repository-signing-key-expired/33954
 
 GitHub facts used elsewhere in this plan (read 2026-11-19): standard Linux runners are 4 vCPU /
-16 GB on a public repository, free; 2 vCPU / 8 GB on a private one, from the plan's included
-quota (about 2,000 Linux minutes a month on Free, now expressed as a dollar pool)
+16 GB on a public repository, free
 (https://docs.github.com/en/actions/reference/runners/github-hosted-runners,
-https://docs.github.com/en/billing/concepts/product-billing/github-actions). **Rulesets work on a
-private repository only with GitHub Pro, Team or Enterprise**; on Free only on a public one
-(https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).
-**Pages from a private repository is not on Free** either
-(https://docs.github.com/en/get-started/learning-about-github/githubs-plans). A Release asset may
+https://docs.github.com/en/billing/concepts/product-billing/github-actions). Rulesets and Pages
+work on a public repository on GitHub Free
+(https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets,
+https://docs.github.com/en/get-started/learning-about-github/githubs-plans). A Release asset may
 be up to 2 GiB, with no limit on total size or bandwidth
 (https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
 
@@ -314,8 +356,8 @@ be up to 2 GiB, with no limit on total size or bandwidth
 - **The site's check in the PR workflow**: whichever plan lands second adds a `site` job to
   `pr.yml` (path filter `site/**`, `npm run site:check`). **It is not a required check**: a
   required check that a path filter skips stays pending and blocks the merge.
-- **The first Pages deploy** is a step of block 8 (going public): Pages on a private repository
-  needs a paid plan.
+- **The first Pages deploy** is a step of block 7 (the first release), unless plan 46 has
+  deployed already: Pages works from this public repository on Free.
 
 ### 2.9 Rejected, and why
 
@@ -324,7 +366,7 @@ be up to 2 GiB, with no limit on total size or bandwidth
   checks; at the PR volume of a single maintainer that is cheaper than a filter job to maintain.
 - **`ubuntu-latest`**: the label moves to a new Ubuntu without a change in the tree; pinning
   `ubuntu-24.04` makes the move a reviewed PR.
-- **A DCO GitHub App** (probot/dco): one more app with access to the repository; a 30-line script
+- **A DCO GitHub App** (probot/dco): one more app with access to the repository; a short script
   with a test does the same.
 - **`pull_request_target`**: it runs fork code with the base's secrets; the PR checks need none.
 - **Uploading to the package service from the tag workflow directly**: the APT repository would
@@ -333,16 +375,35 @@ be up to 2 GiB, with no limit on total size or bandwidth
 - **A `-dev` or `-rc` upstream version on `main`**: dpkg sorts `1.0.0~rc1` before `1.0.0` only
   with `~`, which RPM spells differently; the commit revision already orders every build with no
   second scheme (D2, D3).
+- **A tag-specific version (`X.Y.Z-1`)** (D2): a tag branch in `package.mjs`, and a local build of
+  the same commit would carry another Version than the shipped one.
+- **Candidate tags `vX.Y.Z-rc.N`** (D3): the final tag rebuilds the same commit, so the shipped
+  bytes are a rebuild, not the ones checked. **Burning a failed candidate's number** (D3): version
+  gaps for no user's benefit, since nobody installed the deleted draft.
+- **Rebase or merge commits into `main`** (D7): rebase lands more commits per change; merge
+  commits stop the history being linear, which `debianRevision`'s commit count assumes.
+- **Buildkite Package Registries** (packagecloud's successor, D1): 1 GB a month free, which a
+  single release exhausts. **Self-hosting the repository now** (D1): a bill, a domain and the
+  signing key in our hands; it stays the later option (`docs/NOT_BUILT_YET.md`).
+- **The AppImage at 1.0** (D4): it cannot install the AppArmor profile, so on Ubuntu 24.04 it
+  starts only with `--no-sandbox`, which `README.md`'s promise of a sandboxed app rules out.
+- **A trial PR and a throwaway release tag before 1.0** (D5 replaced): nothing runs on its own
+  until the first release; each workflow's pieces are scripts tested by Vitest and the package
+  steps are reproduced in containers (block 4), and block 7 runs `pr.yml` by hand before the
+  triggers go on. The first run of `release.yml` is the `v1.0.0` candidate, whose draft is
+  harmless until Publish.
+- **A gitleaks step in `release.yml`**: by the time a tag exists its commits are already pushed
+  to the public repository, so a scan at release time reports a leak only after it happened. The
+  whole history was scanned on 2026-11-19 (D6, two false positives, test fixtures); a scan earns
+  its place before a push, not after.
+- **GitHub's generated release notes**: the human decided `CHANGELOG.md` is the one source (§3).
 
-## 3. Decisions for the human
+## 3. Decisions of the human
 
-**The human, 2026-11-19 (topic 72), with a premise corrected:**
+**The human, 2026-11-19 (topic 72):**
 - **The repository is already public**: `github.com/hernancontigiani/menkar` answers as public
-  (checked by `set` through the GitHub API, 2026-11-19), and its pushed history is public, about 160
-  commits behind the local `main`. **The account is GitHub Free.** Everything written below for "the
-  private repository" is wrong. Actions on a public repository have free standard runners, and
-  Pages publishes from it. D6's "what becomes public" is already public: it becomes a secrets scan
-  of what is already out.
+  (checked by `set` through the GitHub API, 2026-11-19). **The account is GitHub Free.** Actions
+  on a public repository have free standard runners, and Pages publishes from it.
 - **D1: Cloudsmith.**
 - **D4: the AppImage is deferred.**
 - **D5, replaced: not now.** The workflows are written and planned, but **nothing runs while the
@@ -353,7 +414,8 @@ be up to 2 GiB, with no limit on total size or bandwidth
   build; a failed candidate is a draft that is deleted and re-tagged at the same version; squash
   only, linear history.
 - **D6 becomes a secrets scan now**, not at 1.0: gitleaks over the whole history, run by `set`
-  before pushing the 160 local commits (2026-11-19).
+  before pushing the 160 local commits (2026-11-19). **Done**: `set` ran it on 2026-11-19 and
+  found two false positives, both test fixtures.
 - **Release notes: `CHANGELOG.md` is the one source**, a section per version. The release workflow
   copies the version's section into the GitHub Release, and the site shows it as a page. `set`
   drafts each section from the commits since the last tag, and the human approves it (AGENTS.md's
@@ -366,268 +428,193 @@ be up to 2 GiB, with no limit on total size or bandwidth
   tested nor promised. Native Windows waits in `docs/NOT_BUILT_YET.md`, its trigger users asking
   for it. The stub's "Windows NSIS, per-user, unsigned" (§1) is withdrawn.
 
-Each with options and one recommendation; the plan's blocks are written for the recommendation,
-and say what changes otherwise.
+What each decision means, as the blocks build it:
 
-**D1. The APT and RPM service** (topic 72; §2.7 has the comparison and its sources).
-
-- (a) **Cloudsmith, open-source visibility, upload by OIDC** — *recommended*: the only one of
-  the two still open to a new project; 50 GB / 200 GB a month; signs both formats; official
-  action. Costs: the attribution line, sources naming `dl.cloudsmith.io`, download logs held by
-  Cloudsmith.
-- (b) Buildkite Package Registries (packagecloud's successor), asking for OSS pricing: today
-  1 GB a month free, which a single release exhausts.
-- (c) Self-hosted now (a repository built in Actions with `reprepro`/`createrepo_c`, served from
-  an object store on a domain of ours): independence and no third-party logs, but a bill, a
-  domain, and the signing key in our hands.
-- Blocks 5–6 are written for (a). (c) would replace block 5 with a block of its own.
-
-**D2. What a tagged release is called** (§2.5).
-
-- (a) **The same formula as any build**: tag `vX.Y.Z`, `package.json` `X.Y.Z`, package
-  `X.Y.Z-<commits>.g<hash>` — *recommended*: one scheme, no special case in `package.mjs`, the
-  revision names the commit, and the release built locally from the tag has the same Version.
-- (b) Debian convention `X.Y.Z-1` for a tag: needs a tag branch in `package.mjs`; a local build
-  of the same commit has another Version than the shipped one.
-- (c) `main` moves to the next version with a pre-release mark right after each release
-  (`1.1.0~dev`): two spellings, since RPM writes the pre-release mark differently.
-- Local builds keep 1.45 in every option.
-
-**D3. A release candidate that fails the checklist** (§2.3).
-
-- (a) **Draft → the human's checklist on the draft's own files → Publish**; a failed candidate's
-  draft and tag are deleted, the fix goes in by PR, and the same version is tagged again on the
-  new commit — *recommended*: one tag per version, and nothing reaches the APT repository before
-  the checklist; a deleted tag no user installed from harms no one.
-- (b) Candidate tags `vX.Y.Z-rc.N`, published as GitHub prereleases (never uploaded to the
-  repository); the final tag rebuilds the same commit: the shipped bytes are a rebuild, not the
-  ones checked.
-- (c) A failed candidate burns its number (the next one is `X.Y.(Z+1)`): no tag is ever
-  deleted, at the cost of version gaps.
-
-**D4. The AppImage at 1.0 — this reopens part of the stub's 2026-11-10 decision.** The stub
-lists `.deb`, `.rpm`, AppImage. `docs/packaging.md` records (2026-11-08) that an AppImage cannot
-install the AppArmor profile, so **on Ubuntu 24.04 it starts only with `--no-sandbox`**, while
-`README.md` promises the installed app "runs with the sandbox, never with `--no-sandbox`".
-
-- (a) **Defer the AppImage** to `docs/NOT_BUILT_YET.md` (trigger: a user on a distribution with
-  neither APT nor RPM asks) — *recommended*: APT and RPM cover Ubuntu, Debian, Fedora and
-  openSUSE with the sandbox on.
-- (b) Ship it with `--no-sandbox` built into its launcher, with a line on the release page: an
-  unsandboxed renderer for the users who pick it.
-- (c) Ship it as electron-builder makes it: on Ubuntu 24.04 it fails to start until the user
-  adds `--no-sandbox` by hand.
-
-**D5. When the team switches to branches and PRs (model A).** The stub: "GitHub Actions CI from
-1.0 … until then `npm run ci` stays the local gate". On a Free account rulesets — the only thing
-that makes "no merge without green CI" true — need a public repository.
-
-- (a) **Write and try the workflows now on the private repository; the team keeps committing to
-  `main` (1.5, 1.85) until the repository goes public; the rulesets and model A start that day**
-  — *recommended*: the workflows are proven before anyone depends on them, and nothing changes
-  for the sessions until 1.0.
-- (b) Switch now with GitHub Pro (rulesets on a private repository): earlier practice, a
-  subscription, and every task becomes a PR before the product needs it.
-- First the human says which plan the account is on (§6, step 1); on Pro, (a) still holds unless
-  the human wants (b).
-
-**D6. What becomes public with the repository.** The whole history goes public: 389 commits
-today, `plans/`, `prompts/` and their reports, `docs/history/`, the absolute paths under the
-human's home in some documents, and **the author email in every commit**.
-
-- (a) **Publish the history as it is, after an audit** — *recommended*: block 8 runs a secret
-  scan (gitleaks in a container, on a clone in the scratchpad) and lists every hit, every
-  personal path and every email for the human to read; the human decides on each; future
-  commits use the GitHub no-reply address. The "rest → `git log`" exits of every closed plan
-  stay readable.
-- (b) Start the public repository from one commit at 1.0: nothing old leaks, and every
-  "→ `git log`" exit since the start is lost.
-- (c) Rewrite the history (`git filter-repo`) to drop chosen files or rewrite the email: every
-  clone and worktree, the `multi-agent` one included, must be redone.
-
-**D7. How a PR enters `main`.** `debianRevision` assumes a linear history ("the commit count
-only grows on this linear history"), and DCO needs the sign-off in what lands.
-
-- (a) **Squash merge only, with "Require linear history" in the "CI green" ruleset, the squash
-  message defaulting to the PR's title and commit details** (which carry each commit's
-  `Signed-off-by:`) — *recommended*: one commit per PR on `main`, the count still grows by one
-  per merge.
-- (b) Rebase merge only: the PR's commits land as they are, sign-offs included; more commits on
-  `main` per change.
-- (c) Merge commits: the history stops being linear; the count still grows but
-  `git log --first-parent` becomes the readable view.
+- **D1. Cloudsmith, open-source visibility, upload by OIDC** (§2.7): the attribution line, users'
+  sources naming `dl.cloudsmith.io`, download logs held by Cloudsmith, an API key in the
+  `packages` environment only if OIDC is not offered on the free plan.
+- **D2. The same formula as any build**: tag `vX.Y.Z`, `package.json` `X.Y.Z`, package
+  `X.Y.Z-<commits>.g<hash>` (§2.5). Local builds keep 1.45.
+- **D3. Draft → the human's checklist on the draft's own files → Publish**; a failed candidate's
+  draft and tag are deleted, the fix goes in (by PR once model A is on), and the same version is
+  tagged again on the new commit.
+- **D4. The AppImage is deferred** to `docs/NOT_BUILT_YET.md`, trigger: a user on a distribution
+  with neither APT nor RPM asks.
+- **D7. Squash merge only**, with "Require linear history" in the "CI green" ruleset, the squash
+  message defaulting to the PR's title and commit details (which carry each commit's
+  `Signed-off-by:`): one commit per PR on `main`, the count still grows by one per merge.
 
 ## 4. Out of scope
 
-- The site (plan 46), its workflow and its domain.
+- The site (plan 46), its workflow and its domain; the page that shows `CHANGELOG.md`.
 - Windows (1.190: not built, in `docs/NOT_BUILT_YET.md`; no WSL2 promise), macOS (1.191:
-  experimental, after 1.0; signing it would need an Apple Developer account), ARM, Flatpak, Snap.
+  experimental, after 1.0; signing it would need an Apple Developer account), ARM, Flatpak, Snap,
+  the AppImage (D4).
 - Signing the `.deb` itself (`dpkg-sig`): the repository's signed `InRelease` is what apt checks.
-- A CHANGELOG (none until the first tagged release, then only with the human's approval —
-  `AGENTS.md`); the release notes are GitHub's generated list, edited by the human in the draft.
+- Writing `CHANGELOG.md`'s sections: `set` drafts each, the human approves it (`AGENTS.md`); this
+  plan only reads them.
+- A secrets scan in any workflow (§2.9).
 - An in-app update check (never: nothing leaves the machine).
 - Self-hosting the repository.
 
 ## 5. Do not touch
 
-- The human's GitHub account and repository settings: every setting is in the checklist (§6) for
-  the human. No session creates an account, a key, a secret, a ruleset, pushes or tags.
+- The human's GitHub account and repository settings: every setting is in §6 for the human. No
+  session creates an account, a key, a secret, a ruleset, pushes, tags or runs a workflow.
+- `.github/dependabot.yml`: the human's, as it is.
 - `site/` and `docs.yml` beyond §2.8's markers.
-- `electron-builder.sandbox.yml` and the sandbox flavour: the sandbox is never released.
+- `electron-builder.sandbox.yml` and the sandbox flavour: the sandbox is never released, and
+  `package.mjs --flavour sandbox` keeps building the `.deb` alone.
 - The `.deb`'s contents, post-install, profile and depends: `package:check` stays green with no
   change to its `.deb` assertions.
-- How `set` commits today (directly on `main`, 1.5/1.85) until block 8.
+- How `set` commits today (directly on `main`, 1.5/1.85) until block 7.
 
 ## 6. What the human does by hand
 
 No session does any of these: each is the human's, on their own accounts. A block that needs one
 says so and waits.
 
-**Now, on the private repository (before block 2's trial):**
+**Before any workflow is run by hand (block 7, or earlier if the human wants a run):**
 
-1. GitHub → Settings → Billing and plans: note which plan the account is on (Free or Pro) and
-   tell `set`. It decides D5's timing and whether the trial runs from the included quota.
-2. Repository → Settings → Actions → General:
+1. Repository → Settings → Actions → General:
    - Actions permissions: "Allow hernancontigiani, and select non-hernancontigiani actions",
      listing `actions/checkout@*`, `actions/setup-node@*`, `actions/upload-artifact@*`,
-     `actions/download-artifact@*` and, after D1, `cloudsmith-io/cloudsmith-cli-action@*`.
+     `actions/download-artifact@*` and `cloudsmith-io/cloudsmith-cli-action@*`.
    - Workflow permissions: **Read repository contents** (the default token is read-only; the
      release job asks for `contents: write` itself).
    - "Allow GitHub Actions to create and approve pull requests": **off**.
    - Fork pull request workflows: **Require approval for all external contributors**.
-3. Approve `set` pushing one trial branch and opening a draft PR (block 2), then closing it.
 
-**At 1.0, before the first tag (after D1 = Cloudsmith):**
+**For block 5 (Cloudsmith):**
 
-4. Create a Cloudsmith account with two-factor authentication, and a workspace for Menkar.
-5. Create a repository `menkar`, visibility **Open Source**, licence GPL-3.0-or-later, project
-   URL the GitHub repository, accepting the open-source hosting terms. If Cloudsmith asks for
-   early access to open-source Broadcasts, request it.
-6. Create a **service account** with push rights on that repository only, and an **OIDC
+2. Create a Cloudsmith account with two-factor authentication, and a workspace for Menkar.
+3. Create a repository `menkar`, visibility **Open Source**, licence GPL-3.0-or-later, project
+   URL the GitHub repository, accepting the open-source hosting terms.
+4. Create a **service account** with push rights on that repository only, and an **OIDC
    provider** for `https://token.actions.githubusercontent.com` whose claims require
    `repository = hernancontigiani/menkar` and `environment = packages`. Tell `set` the
    workspace slug, the service account's slug and the provider's namespace (none is a secret).
-   If OIDC is not offered, create an API key for the service account instead (step 7).
-7. GitHub → repository → Settings → Environments → **`packages`**: deployment branches and tags
+   If OIDC is not offered, create an API key for the service account instead (step 5).
+5. GitHub → repository → Settings → Environments → **`packages`**: deployment branches and tags
    = "Selected", tag pattern `v*`. Only with the API-key fallback: a secret `CLOUDSMITH_API_KEY`
    in this environment.
-8. From the Cloudsmith repository's page: the GPG key's fingerprint and the expiry of the key and
+6. From the Cloudsmith repository's page: the GPG key's fingerprint and the expiry of the key and
    of each subkey; tell `set` (they go in `docs/packaging.md`), and put a reminder 60 days before
    the first expiry.
-9. GitHub → Settings → Rules → a **tag ruleset** on `v*`: restrict creation, update and deletion,
-   with the repository admin role in the bypass list (D3 (a) deletes a failed candidate's tag).
-10. GitHub → Settings → General → Pull Requests (after D7): allow **squash merging** only,
-    default message "Pull request title and commit details"; "Automatically delete head
-    branches" on.
 
-**On going public (block 8):**
+**At the first release (block 7):**
 
-11. Read block 8's audit list (D6) and decide each hit. Turn on "Keep my email addresses
-    private" and use the no-reply address for new commits.
-12. Settings → General → Danger zone → **Change visibility → Public**.
-13. Settings → Rules → **"CI green"** on the default branch: require a pull request; required
+7. GitHub → Settings → Rules → a **tag ruleset** on `v*`: restrict creation, update and deletion,
+   with the repository admin role in the bypass list (D3 deletes a failed candidate's tag).
+8. GitHub → Settings → General → Pull Requests: allow **squash merging** only, default message
+   "Pull request title and commit details"; "Automatically delete head branches" on.
+9. Turn on "Keep my email addresses private" and use the no-reply address for new commits.
+10. Actions → `pr` → Run workflow on `main` (block 7's measurement), once each worker count block
+    7 names; tell `set` the run links.
+11. Settings → Rules → **"CI green"** on the default branch: require a pull request; required
     status checks `checks / ci`, `checks / e2e`, `checks / dco`, from GitHub Actions; require
-    linear history; block force pushes; restrict deletions; **no bypass**.
-14. Settings → Rules → **"Review"** on the default branch: 1 approving review, require review
+    linear history; block force pushes; restrict deletions; **no bypass**. (Only after the
+    triggers are on: a required check that never runs blocks every merge.)
+12. Settings → Rules → **"Review"** on the default branch: 1 approving review, require review
     from Code Owners, dismiss stale approvals on new commits; **bypass list: Repository admin**.
-15. Settings → Pages → Source: **GitHub Actions**; then Actions → `docs` → Run workflow (plan
-    46's first deploy).
-16. Verify the two rulesets (the stub's check): a throwaway PR of yours merges green with no
+13. Settings → Pages → Source: **GitHub Actions**; then Actions → `docs` → Run workflow (plan
+    46's first deploy), unless plan 46 has deployed already.
+14. Verify the two rulesets (the stub's check): a throwaway PR of yours merges green with no
     review and is refused while red; a PR from a second account is refused until you approve.
     Close and delete both.
-17. When `set` has pushed the 1.0 commit: push the tag `v1.0.0` (or ask `set` to), run
-    `docs/release-checklist.md` on the draft's files, and press **Publish release**.
+15. Approve `CHANGELOG.md`'s 1.0.0 section; when `set` has merged the 1.0 commit: push the tag
+    `v1.0.0` (or ask `set` to), run `docs/release-checklist.md` on the draft's files, and press
+    **Publish release**.
 
-## 7. Order: now on the private repository, at 1.0, on going public
+## 7. Order
 
 | When | What | Blocks | Needs |
 |---|---|---|---|
-| **Now, private** | The base-ref variables, the DCO check, the version check; `checks.yml` and `pr.yml`, tried on one draft PR that `set` pushes, the e2e worker count measured on the 2-vCPU runner | 1, 2 | §6 steps 1–3; D5 |
-| **Now, private** | The `.rpm` built, checked and installed in a Fedora container | 4 | D4 only for the AppImage line |
-| **Now, private** | `release.yml` tried with a throwaway tag on the current version (`v0.1.0`), producing a draft that is then deleted with its tag | 3 | D2, D3; `set` pushes the tag when the human asks |
-| **At 1.0, still private** | `publish.yml`, the `packages` environment; `CONTRIBUTING.md`, templates, `CODEOWNERS`, README and checklist text | 5, 6 | D1; §6 steps 4–10 |
-| **On going public** | The audit (D6), `AGENTS.md` for model A, the decision rows, public-runner re-measure, rulesets, Pages, the 1.0 commit and tag | 7, 8 | D6, D7; §6 steps 11–17 |
+| **Now** | The base-ref variables, the DCO check, the release version and notes | 1 | nothing from the human |
+| **Now** | `checks.yml` and `pr.yml`, by hand only, checked with `actionlint` and the workflow test | 2 | nothing from the human; nothing is run on GitHub |
+| **Now** | `package.mjs --targets`, `release.yml` by hand only | 3 | nothing from the human |
+| **Now** | The `.rpm` built, checked and installed in a Fedora container | 4 | nothing from the human |
+| **When the human sets up Cloudsmith** | `publish.yml` by hand only, the install commands | 5 | §6 steps 2–6 |
+| **At the first release** | `CONTRIBUTING.md`, templates, `CODEOWNERS`, README | 6 | block 5 |
+| **At the first release** | The measured run by hand, the triggers on, model A, R10 settled, the decision rows, rulesets, Pages, `CHANGELOG.md`, the 1.0 commit and tag | 7 | §6 steps 1, 7–15 |
 
-Nothing on the private repository depends on the repository being public except the rulesets
-(Free), Pages (Free), and the Cloudsmith repository's "public project URL", which is why the
-first upload is `v1.0.0` itself; `publish.yml` has a `workflow_dispatch` with a `tag` input so a
-failed upload is re-run without a new tag.
-
-**Cost of trying on the private repository:** each PR run spends the e2e's minutes on a 2-vCPU
-runner from the account's quota; the trial PR in block 2 is a handful of runs, and the team does
-not open PRs before model A, so the quota is not at risk.
+Nothing before block 7 runs on GitHub: blocks 1–5 leave files in the tree that `set` pushes, and
+the workflows sit unused until the human runs one or block 7 turns their triggers on. The first
+upload to Cloudsmith is `v1.0.0` itself; `publish.yml`'s `workflow_dispatch` with a `tag` input
+re-runs a failed upload without a new tag.
 
 ## 8. Execution blocks
 
 Every block ends with `npm run ci` green, reported with its output. Every new test is seen to fail
-once against a defect put in on purpose. **No session pushes, tags, or changes a GitHub
-setting**: where a block needs a push, it asks `set`, who pushes only when the human has asked
+once against a defect put in on purpose. **No session pushes, tags, runs a workflow, or changes a
+GitHub setting**: where a block needs one, it asks `set`, who acts only when the human has asked
 (1.85). Workflow files are checked locally with `actionlint` in a container
 (`docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:<pinned version>`), since nothing
-runs them before a push.
+runs them before block 7. Every `uses:` is pinned to a full commit SHA with its version in a
+comment (Dependabot's `github-actions` updates keep them current).
 
-### Block 1 — the checks that compare against a base, the DCO check, the release version
-
-Precondition: ask `set` whether the `multi-agent` branch has merged for good (§2.4).
+### Block 1 — the checks that compare against a base, the DCO check, the release version and notes
 
 - [ ] `scripts/nothing-lost.mjs`: `MENKAR_HISTORY_BASE` — when set, every comparison made against
   `HEAD` (the diff, `cat-file -e`, `show`) is made against that commit. Test
   (`tests/scripts/nothing-lost.test.ts`): in a temporary repository, base commit holds a decision
-  line, the tree has removed it, `HEAD` = the tree → passes unset, **fails with the variable set
+  line, a later commit removed it, the tree = `HEAD` → passes unset, **fails with the variable set
   to the base**; with the line added to its history mirror → passes.
-- [ ] `scripts/ci.mjs`, R10: per the precondition, either retire the step and its rule (their
-  text to `docs/history/`), or add `MENKAR_R10_BASE` (unset = `main`) with a test in the same
-  temporary-repository style.
-- [ ] `scripts/check-dco.mjs` (new) with `.d.mts`: given `<base>` and `HEAD`, every non-merge
-  commit in `base..HEAD` carries `Signed-off-by: <name> <email>` whose email is the commit's
-  author email; prints each failing commit's short hash and subject. Test
+- [ ] `scripts/ci.mjs`, R10: `MENKAR_R10_BASE` (unset = `main`, as today; set = compare with that
+  ref, and the "on `main`" skip applies only when unset), with a test in the same
+  temporary-repository style. The rule's settlement for model A is block 7's (§2.4).
+- [ ] `scripts/check-dco.mjs` (new) with `.d.mts`: given `<base>` (argument) and `HEAD`, every
+  non-merge commit in `base..HEAD` carries `Signed-off-by: <name> <email>` whose email is the
+  commit's author email; prints each failing commit's short hash and subject. Test
   (`tests/scripts/check-dco.test.ts`): signed → passes; unsigned → fails naming it; signed with
   another email → fails; a merge commit unsigned → ignored; an empty range → passes.
 - [ ] `scripts/release-version.mjs` (new) with `.d.mts`: `releaseVersion(tag, version)` returns
-  the version or throws our sentence. Test cases as §2.5 lists (rc tags refused unless D3 = (b)).
+  the version or throws our sentence; run as a script with the tag, it reads `package.json`.
+  Test cases as §2.5 lists.
+- [ ] `scripts/release-notes.mjs` (new) with `.d.mts`: `releaseNotes(changelog, version)` returns
+  the section's body or throws our sentence; run as a script with the version and an output
+  path, it reads `CHANGELOG.md` and writes the notes. Test cases as §2.5 lists.
 - [ ] `docs/toolchain.md`: the three variables in "The checks in `npm run ci`".
 - Verification: `npm run ci`; each new test seen red once.
 
-### Block 2 — `checks.yml` and `pr.yml`, tried on a draft PR
+### Block 2 — `checks.yml` and `pr.yml`, by hand only
 
-- [ ] `.github/workflows/checks.yml` and `pr.yml` exactly as §2.3 describes; every `uses:` pinned
-  to a full commit SHA with its version in a comment; `timeout-minutes` on each job (30 for e2e,
-  15 for the others, revised after the measurement).
-- [ ] `js-yaml` 4.3.2 and `@types/js-yaml` as dev dependencies (already in the tree through
-  electron-builder; the workflow test parses YAML and must not depend on a transitive package).
-- [ ] `tests/scripts/workflows.test.ts` reads every `.github/workflows/*.yml` and asserts:
-  `pr.yml` has no `push` trigger, lists exactly the four `pull_request` types, skips drafts and
-  has `cancel-in-progress: true` grouped by PR number; **no file uses `pull_request_target`**;
-  every `uses:` is `owner/repo@<40 hex>`; every job that runs `npm run package` sets
-  `MENKAR_FLAVOR_BUILD: menkar` and checks out with `fetch-depth: 0`; the only job with
-  `contents: write` is `release.yml`'s `package`; the only job naming the `packages` environment
-  is `publish.yml`'s. (Blocks 3 and 5 extend it as their files land.)
+- [ ] `.github/workflows/checks.yml` and `pr.yml` exactly as §2.3 describes, `pr.yml` with
+  `workflow_dispatch` as its only trigger; `timeout-minutes` on each job (30 for e2e, 15 for the
+  others, revised in block 7).
+- [ ] `js-yaml` and `@types/js-yaml` as exact-pinned dev dependencies (`js-yaml` is already in
+  the tree through electron-builder; the workflow test parses YAML and must not depend on a
+  transitive package).
+- [ ] `tests/scripts/workflows.test.ts` reads every `.github/workflows/*.yml` and asserts: **every
+  file's `on:` keys are only `workflow_dispatch` and `workflow_call`** (§2.3's case); `pr.yml`'s
+  job skips a draft PR and has `cancel-in-progress: true` grouped by PR number or ref; **no file
+  uses `pull_request_target`**; every `uses:` of another repository is `owner/repo@<40 hex>`;
+  every job that runs `npm run package` sets `MENKAR_FLAVOR_BUILD: menkar` and checks out with
+  `fetch-depth: 0`; the only job with `contents: write` is `release.yml`'s `package`; the only job
+  naming the `packages` environment is `publish.yml`'s. (Blocks 3 and 5 extend it as their files
+  land.)
 - [ ] `actionlint` clean.
-- [ ] Ask `set` for the trial (§6 step 3): branch `ci/trial`, a draft PR. Check: **a draft runs
-  nothing**; "Ready for review" runs the three jobs; a second push cancels the first run. Try
-  `MENKAR_E2E_WORKERS` 1, 2 and 3 (the runner has 2 vCPUs and 8 GB): record wall time, peak memory
-  (`free -m` in a background step every 10 s) and result for each, pick the fastest green, set it
-  in `checks.yml`. Then `set` closes the PR and deletes the branch.
-- [ ] `docs/toolchain.md`, new section "The hosted CI": what runs on a PR and on a tag, the
-  pinned image, the measured table with its date and runner size, the base-ref variables, why no
-  path filter and no `ubuntu-latest` (§2.9). "Local CI" in `AGENTS.md` stays until block 8.
-- Verification: `npm run ci`; `actionlint`; the trial's run links and the table in the report.
+- [ ] `docs/toolchain.md`, new section "The hosted CI": the workflows and what each runs, **by
+  hand only until the first release**, the pinned image, the base-ref variables, why no path
+  filter and no `ubuntu-latest` (§2.9). The measured worker table comes with block 7. "Local CI"
+  in `AGENTS.md` stays until block 7.
+- Verification: `npm run ci`; `actionlint`.
 
-### Block 3 — `release.yml` and `package.mjs --targets`
+### Block 3 — `package.mjs --targets` and `release.yml`
 
 - [ ] `scripts/package.mjs`: `--targets deb,rpm` (default `deb`), passed to electron-builder;
-  refuses an unknown target. Test: parsing cases.
+  refuses an unknown target and `rpm` with `--flavour sandbox`. Test: parsing cases.
 - [ ] `scripts/check-package.mjs`: `--targets` likewise; the `.deb` path unchanged.
-- [ ] `.github/workflows/release.yml` as §2.3: `verify` (uses `release-version.mjs`, and
-  `git merge-base --is-ancestor` against `origin/main` or `origin/release/X.Y`), `checks`,
-  `package`; the notes file is GitHub's generated notes (`gh release create --generate-notes`).
-  Until block 4 is done, `--targets deb`.
-- [ ] Workflow test extended for `release.yml`: triggered by `push: tags: ['v*']` only.
-- [ ] Ask `set` for the trial: tag `v0.1.0` on the current `main`; check the draft holds
-  `menkar_0.1.0_amd64.deb` and `SHA256SUMS`, that `dpkg-deb -f … Version` is
-  `0.1.0-<count>.g<hash>` of the tagged commit, and `dpkg-deb -f … Package` is `menkar` (not the
-  sandbox). A tag `v9.9.9` is refused by `verify`. Then `set` deletes the draft and both tags.
-- Verification: `npm run ci`; `actionlint`; the trial's results in the report.
+- [ ] `.github/workflows/release.yml` as §2.3: `workflow_dispatch` with the `tag` input only;
+  `verify` (`release-version.mjs`, `git merge-base --is-ancestor` against `origin/main` or
+  `origin/release/X.Y`, `release-notes.mjs`), `checks`, `package`. Until block 4 is done,
+  `--targets deb`.
+- [ ] Workflow test extended for `release.yml`: the `tag` input is required; every job reads the
+  tag through `inputs.tag || github.ref_name`.
+- [ ] A local dry run of `verify`'s three commands against the current tree (`v0.1.0`, a
+  `CHANGELOG.md` written in the scratchpad clone only): accepted; `v9.9.9` refused; a version
+  without a section refused.
+- Verification: `npm run ci`; `actionlint`; the dry run's output in the report.
 
 ### Block 4 — the `.rpm`
 
@@ -639,7 +626,7 @@ Precondition: ask `set` whether the `multi-agent` branch has merged for good (§
   fails).
 - [ ] Build in a throwaway Ubuntu 24.04 container with `rpm` installed, from a clean clone in the
   scratchpad (`MENKAR_FLAVOR_BUILD=menkar npm run package -- --targets deb,rpm`); note the file
-  name and size.
+  name and size; `package:check -- --targets deb,rpm` there.
 - [ ] In a throwaway `fedora:latest` container: `dnf install ./menkar-*.rpm` succeeds; `rpm -q
   menkar` shows the Version formula; `/usr/bin/menkar` resolves to `/opt/Menkar/menkar`;
   `chrome-sandbox` is `0755`; `menkar --version` under `xvfb-run` prints the version; `dnf remove
@@ -647,25 +634,26 @@ Precondition: ask `set` whether the `multi-agent` branch has merged for good (§
   profile branch is skipped without error.
 - [ ] `release.yml`: `--targets deb,rpm`, `sudo apt-get install -y rpm` in `package`.
 - [ ] `docs/packaging.md`: "The RPM" — depends, the post-install on SELinux and AppArmor
-  systems, the container checks; the "AppImage first" paragraph per D4.
+  systems, the container checks; the AppImage paragraph per D4 (deferred).
+- [ ] `docs/NOT_BUILT_YET.md`: "The AppImage" (D4: deferred; trigger: a user on a distribution
+  with neither APT nor RPM asks).
 - Verification: `npm run ci`; the container transcripts (commands and exit codes) in a file in
-  `$MENKAR_FILES`, named in the report.
+  `$MENKAR_FILES`, named in the report; containers stopped by their ID.
 
-### Block 5 — `publish.yml` and installing from the repository (after D1 and §6 steps 4–8)
+### Block 5 — `publish.yml` and installing from the repository (after §6 steps 2–6)
 
-- [ ] `.github/workflows/publish.yml` as §2.3: `on: release: types: [published]` and
-  `workflow_dispatch` with a `tag` input; `if: !github.event.release.prerelease`; job
+- [ ] `.github/workflows/publish.yml` as §2.3: `workflow_dispatch` with a `tag` input only; job
   `environment: packages`, `permissions: { contents: read, id-token: write }`; download, verify
   `SHA256SUMS`, then `cloudsmith push deb <workspace>/menkar/any-distro/any-version <deb>` and
   `cloudsmith push rpm <workspace>/menkar/any-distro/any-version <rpm>` through the official
   action with OIDC (or the API key in the environment).
-- [ ] Workflow test extended: `publish.yml` names the `packages` environment, has no `push` or
-  `pull_request` trigger, and asks no `contents: write`.
+- [ ] Workflow test extended: `publish.yml` names the `packages` environment and asks no
+  `contents: write`.
 - [ ] `docs/packaging.md`, "Installing from the repository": the manual APT setup (the key to
   `/usr/share/keyrings/menkar-archive-keyring.gpg` with `gpg --dearmor`, one `deb [signed-by=…]`
   line in `/etc/apt/sources.list.d/menkar.list`, `apt update && apt install menkar`), the `dnf`
   equivalent (`rpm --import`, a `.repo` file, `dnf install menkar`), the fingerprint and expiry
-  from §6 step 8, and the single-file fallback (`/tmp` or `dpkg -i` + `apt -f install`). **The
+  from §6 step 6, and the single-file fallback (`/tmp` or `dpkg -i` + `apt -f install`). **The
   manual commands, not `curl … | sudo bash`**: a reader sees what is added to their system.
   The 200 GB limit and its trigger; Cloudsmith's download logs.
 - [ ] If plan 46 has landed: the same commands between the markers in
@@ -677,9 +665,9 @@ Precondition: ask `set` whether the `multi-agent` branch has merged for good (§
   Fedora with `dnf`.
 - [ ] `docs/NOT_BUILT_YET.md`: "A self-hosted package repository" (trigger: the plan's limits are
   reached, the plan ends, or the download logs become a concern).
-- Verification: `npm run ci`; `actionlint`. The first real run is `v1.0.0` (§7).
+- Verification: `npm run ci`; `actionlint`. The first real run is `v1.0.0` (block 7).
 
-### Block 6 — contributing, templates, README
+### Block 6 — contributing, templates, README (at the first release)
 
 - [ ] `CONTRIBUTING.md`: fork, a branch from `main`, `npm ci`, `npm run ci` (and `npm run
   ui-check` for anything seen), commits with `git commit -s` and what the sign-off certifies
@@ -695,36 +683,70 @@ Precondition: ask `set` whether the `multi-agent` branch has merged for good (§
   under "Development".
 - Verification: `npm run ci`; the README's commands are the same text as `docs/packaging.md`'s.
 
-### Block 7 — before going public: the audit and the public runner (after D6)
+### Block 7 — the first release: the triggers on, model A, 1.0
 
-- [ ] On a fresh clone in the scratchpad: gitleaks (in a container, pinned) over the whole
-  history; a list of absolute home paths, emails and anything resembling a token in tracked files
-  and in every commit's metadata. Write it to `$MENKAR_FILES/menkar-t<N>-public-audit.md` for
-  the human (§6 step 11). Fix nothing in the history; current files with a finding are fixed
-  by a normal change if the human says so.
-- [ ] After the human has made the repository public (§6 step 12) and before the rulesets:
-  re-run the e2e measurement of block 2 on the 4-vCPU runner (2, 3, 4 workers), set the count,
-  update the table in `docs/toolchain.md`.
-- Verification: the audit file exists and the human has answered each item; `npm run ci`.
-
-### Block 8 — model A and 1.0
-
+- [ ] The measured run (§6 steps 1 and 10): the human runs `pr` by hand on `main` with
+  `MENKAR_E2E_WORKERS` 2, 3 and 4 (a temporary input of `pr.yml`, or one commit per value, `set`'s
+  call): record wall time, peak memory (`free -m` in a background step every 10 s) and result for
+  each; pick the fastest green; set it in `checks.yml`; the table with its date and runner size in
+  `docs/toolchain.md`; `timeout-minutes` revised.
+- [ ] The triggers on: `pr.yml` gains `pull_request` with the four types; `release.yml` gains
+  `push: tags: ['v*']`; `publish.yml` gains `release: types: [published]` with `if:
+  !github.event.release.prerelease`. The workflow test's "by hand only" assertion becomes: `pr.yml`
+  has no `push` trigger and lists exactly the four `pull_request` types; `release.yml` is
+  triggered by `v*` tags and by hand; `publish.yml` has no `push` or `pull_request` trigger.
+  `actionlint` clean.
+- [ ] R10 for model A (§2.4): ask `set` whether `multi-agent` has merged for good; either the step
+  and its rule leave for their history, or `pr.yml` sets `MENKAR_R10_BASE` only for that head and
+  skips the step for any other.
 - [ ] `AGENTS.md`: "Local CI" says the hosted CI is the gate on a PR and `npm run ci` the local
   one; "Git and the shared tree" for model A: `set` works on a branch and opens a PR, commits with
-  `-s`, merges by the method of D7; workers still do not commit; the R10 rule per block 1. The
-  old text to `docs/history/root/AGENTS.history.md`.
-- [ ] `plans/00-STATUS.md` §1: rows for model A, the hosted CI, the release pipeline, D1–D7 with
-  their dates; 1.5's "no hosted CI" and 1.85 marked superseded (their text to the history);
-  topic 72 closed.
-- [ ] `docs/NOT_BUILT_YET.md`: macOS (1.191: experimental, after 1.0; trigger: 1.0 is out),
-  ARM (trigger: a user asks), and the AppImage if D4 = (a).
+  `-s`, merges by squash (D7); workers still do not commit. The old text to
+  `docs/history/root/AGENTS.history.md`.
+- [ ] `docs/toolchain.md` "The hosted CI": on a PR and on a tag, no longer by hand only.
+- [ ] `plans/00-STATUS.md` §1: rows for model A, the hosted CI, the release pipeline, the
+  decisions of §3 with their dates; 1.5's "no hosted CI" and 1.85 marked superseded (their text
+  to the history); topic 72 closed.
+- [ ] `docs/NOT_BUILT_YET.md`: ARM (trigger: a user asks).
 - [ ] The 1.0 commit, prepared for `set`: `package.json` and `package-lock.json` to `1.0.0`;
+  `CHANGELOG.md` with its 1.0.0 section as `set` drafted it and the human approved it;
   `README.md` and `docs/release-checklist.md` name 1.0.0. `set` merges it by PR (the first under
-  the rulesets) and the human tags (§6 step 17).
-- Verification: `npm run ci`; after the human publishes, the release checklist's repository
-  install passes on Ubuntu and Fedora containers and the site's Install page commands match
-  `docs/packaging.md`.
+  the rulesets, §6 steps 11–14) and the human tags (§6 step 15).
+- Verification: `npm run ci`; `actionlint`; after the human publishes, the release checklist's
+  repository install passes on Ubuntu and Fedora containers and the site's Install page commands
+  match `docs/packaging.md`.
 
 ## Execution log
 
 (Written by the session that executes it.)
+
+### Blocks 1 and 2 — `menkar-t131` (task 131), 2026-11-20
+
+Blocks 3 and 4 went to `packager` (task 132), which writes `release.yml` against the interfaces
+below.
+
+- **Block 1.** `nothing-lost.mjs`: `check(root, path, base)` and `main(paths, base)`, `base` from
+  `MENKAR_HISTORY_BASE` (empty counts as unset). `ci.mjs`: the R10 comparison is
+  `r10Problems(root, base)`, exported with `scripts/ci.d.mts`; the steps now run only when the file
+  is executed, so a test can import it. With `MENKAR_R10_BASE` set, being on `main` skips nothing.
+  New `check-dco.mjs`, `release-version.mjs`, `release-notes.mjs`, each with `.d.mts`. CLIs agreed
+  with `packager`: `release-version.mjs <tag>` prints the version, exit 1 with the reason on
+  stderr; `release-notes.mjs <version> <out-path>`, exit 1 when there is no `CHANGELOG.md` or no
+  non-empty section; `check-dco.mjs <base>`, exit 1 listing each unsigned commit. Tests:
+  `tests/scripts/nothing-lost.test.ts` (one case), `ci-r10.test.ts`, `check-dco.test.ts`,
+  `release.test.ts` (version and notes together), each seen red against an injected defect.
+- **Block 2.** `checks.yml` (`workflow_call`, inputs `ref` default `''` and `base` required; jobs
+  `ci`, `e2e`, `dco`) and `pr.yml` (`workflow_dispatch`, input `base` default `main`). Pins:
+  `actions/checkout` v7.0.1, `actions/setup-node` v7.1.0, `actions/upload-artifact` v7.0.2 (their
+  tags are lightweight, so `git ls-remote` gives the commit SHA); `actionlint` 1.7.12, clean.
+  `js-yaml` 4.3.2 (the version already in the tree) and `@types/js-yaml` 4.0.9, exact.
+  `tests/scripts/workflows.test.ts` checks every workflow file with one rule function, and also
+  feeds that function hand-written bad workflows, so each rule is seen failing on every run.
+- **Not foreseen:** the e2e job installs Xvfb and a fixed list of Electron's libraries
+  (`libnss3 libgbm1 libasound2t64 libgtk-3-0t64 libxss1 libnotify4 libsecret-1-0`). The plan
+  wanted the list the runner lacks found by a trial run, which no longer happens; block 7's first
+  run by hand confirms or trims it. Until model A, the DCO job fails on any branch whose commits
+  `set` made without `-s` (today all of them): run by hand on `main` against `main`, its range is
+  empty.
+- **Choices of mine, labelled in the report:** the CHANGELOG heading (`## X.Y.Z` or `## [X.Y.Z]`,
+  anything after on the line); a version heading with no body is refused.

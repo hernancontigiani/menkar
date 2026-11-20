@@ -2212,3 +2212,39 @@ on Windows or macOS.** What it left for them:
 ## 2026-11-19 — plan 39's §3 row, before P1a waited on the project's folder
 
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` again, merging `main` in before each block; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |
+
+## 2026-11-20 — plan 28 brought in line with topic 72 (task 131, `menkar-t131`)
+
+The plan was written before the human's answers of 2026-11-19 and assumed a private repository,
+a trial PR and an AppImage. The lines that stated something as decided and stopped being true:
+
+### Plan 28 §1, Decided, used as given
+
+- **Public on GitHub at 1.0**, `git@github.com:hernancontigiani/menkar.git` (checked by `set`).
+- **The release workflow listens to `v*` tags only**: the full suite, the packages, a GitHub
+  Release with them attached. Linux x64 on one Ubuntu runner (`.deb`, `.rpm`, AppImage — see D4);
+  no Windows installer (1.190, §3); macOS experimental, after 1.0 (1.191); no Flatpak or Snap.
+
+### Plan 28 §3, the human's block
+
+**The human, 2026-11-19 (topic 72), with a premise corrected:**
+- **The repository is already public**: `github.com/hernancontigiani/menkar` answers as public
+  (checked by `set` through the GitHub API, 2026-11-19), and its pushed history is public, about 160
+  commits behind the local `main`. **The account is GitHub Free.** Everything written below for "the
+  private repository" is wrong. Actions on a public repository have free standard runners, and
+  Pages publishes from it. D6's "what becomes public" is already public: it becomes a secrets scan
+  of what is already out.
+
+### Plan 28 §4, Out of scope
+
+- A CHANGELOG (none until the first tagged release, then only with the human's approval —
+  `AGENTS.md`); the release notes are GitHub's generated list, edited by the human in the draft.
+
+### Plan 28 §5, Do not touch
+
+- How `set` commits today (directly on `main`, 1.5/1.85) until block 8.
+
+### Plan 28 §2.8, The boundary with plan 46
+
+- **The first Pages deploy** is a step of block 8 (going public): Pages on a private repository
+  needs a paid plan.

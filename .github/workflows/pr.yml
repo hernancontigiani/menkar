@@ -1,0 +1,25 @@
+# A branch checked against its base. Run by hand only until the first release.
+name: pr
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: The branch to check against
+        type: string
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    uses: ./.github/workflows/checks.yml
+    with:
+      base: origin/${{ github.base_ref || inputs.base }}

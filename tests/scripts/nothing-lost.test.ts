@@ -56,6 +56,26 @@ describe('nothing-lost', () => {
     expect(check(root, 'AGENTS.md')).toEqual([])
   })
 
+  test('on a clean checkout of a commit that dropped a line, only MENKAR_HISTORY_BASE sees the loss', () => {
+    const root = repo({
+      'AGENTS.md': '# Rules\n\n- keep this\n- drop this\n',
+      'docs/history/root/AGENTS.history.md': '# History\n',
+    })
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' })
+    const base = git('rev-parse', 'HEAD').trim()
+    write(root, { 'AGENTS.md': '# Rules\n\n- keep this\n' })
+    git('commit', '-q', '-am', 'drop a rule')
+    expect(check(root, 'AGENTS.md')).toEqual([])
+    expect(check(root, 'AGENTS.md', base)).toEqual([
+      'AGENTS.md:4: not in docs/history/root/AGENTS.history.md: - drop this',
+    ])
+    write(root, {
+      'docs/history/root/AGENTS.history.md': '# History\n\n> Left on 2026-11-20.\n- drop this\n',
+    })
+    git('commit', '-q', '-am', 'its history')
+    expect(check(root, 'AGENTS.md', base)).toEqual([])
+  })
+
   test('the history only grows', () => {
     const root = repo({
       'AGENTS.md': '# Rules\n',
