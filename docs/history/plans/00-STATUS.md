@@ -2254,3 +2254,40 @@ a trial PR and an AppImage. The lines that stated something as decided and stopp
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` (fast-forwarded to `main` b95026a on 2026-11-19), merging `main` in before each block; **waits for the human to add `/home/hernan/git/menkar-multi-agent` to the project's folders**, so its worker can start there; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |
 | 5 | 28 — going public at 1.0: branches, GitHub CI, releases, the APT repository (topic 72) | To design (task 127) |
 | 6 | 46 — the public documentation site (1.189): Starlight, EN/ES, screenshots with seeds, Copy page, the tone guide | To design (task 128) |
+
+## 2026-11-20 — plan 46 §2.1 brought in line with a public repository and dispatch-only workflows (task 144, `menkar-t144`)
+
+§2.1 was written for a private repository and a docs workflow triggered by pushes. The repository
+is public, and the human decided (2026-11-19, plan 28's §3) that every workflow runs only by hand
+until the first official release. The lines that stopped being true:
+
+### Plan 46 §2.1, Where it lives, and how it builds and deploys
+
+```
+.github/workflows/docs.yml         build on every push to main touching site/**, deploy when public
+```
+
+- **Deploy**: `.github/workflows/docs.yml`, its own file (plan 28 owns `pr.yml` and the release
+  workflow). Triggers: `push` to `main` with `paths: ['site/**', 'e2e/captures/registry.ts',
+  'e2e/captures/strings/**', 'src/core/i18n/**', 'src/core/shortcuts.ts']`, and
+  `workflow_dispatch`. Job `build`: checkout, Node from `site/package.json`'s `engines`, `npm
+  --prefix site ci`, `npm run site:check -- --release` (which builds), upload with
+  `actions/upload-pages-artifact`. Job `deploy`: `actions/deploy-pages`, permissions `pages:
+  write`, `id-token: write`, and **`if: ${{ !github.event.repository.private }}`**. Actions are
+  pinned by full commit SHA, the version in a comment. `ASTRO_TELEMETRY_DISABLED=1` in the
+  workflow's `env` too.
+- **What the private repository changes**: on GitHub Free a private repository cannot publish to
+  Pages. Until 1.0 the `build` job runs on every push (it checks the site), and `deploy` is
+  skipped by its `if`, so nothing fails and nothing is published; the site is previewed locally
+  (`npm run site:dev`, or `site:build` then `npx --prefix site astro preview`). The first deploy
+  is a step of plan 28's going-public checklist: make the repository public → Settings › Pages,
+  source "GitHub Actions" → run `docs.yml` by dispatch. Upgrading to Pro to publish earlier would
+  publish a public site of a private product: not proposed.
+
+### Plan 46 §8, Block 6
+
+- [ ] Per §2.1: triggers, the two jobs, `if` on `private`, SHA-pinned actions, telemetry off.
+- **Verify**: `actionlint` if available, else `npx --yes @action-validator/cli` in a scratch
+  folder, never added to the repository; reading the file against §2.1. It cannot run until
+  pushed: `set` checks the first run's `build` job after its commit (deploy skipped while
+  private).

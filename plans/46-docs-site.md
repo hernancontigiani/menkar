@@ -131,7 +131,7 @@ e2e/captures/
   captures.run.ts                  the Playwright entry, one test per locale × theme
 playwright.captures.config.ts      testDir e2e/captures, testMatch captures.run.ts
 tests/site/*.test.ts               the structural checks, in npm run ci
-.github/workflows/docs.yml         build on every push to main touching site/**, deploy when public
+.github/workflows/docs.yml         build and deploy, by hand only until the first release
 ```
 
 - **Its own `package.json`.** The app's install, `npm run ci` and the `.deb` never pull Astro;
@@ -158,21 +158,22 @@ tests/site/*.test.ts               the structural checks, in npm run ci
 - **The keyboard reference page is generated** from `SHORTCUTS` and the catalogs, in each locale:
   its table cannot drift from the keys.
 - **Deploy**: `.github/workflows/docs.yml`, its own file (plan 28 owns `pr.yml` and the release
-  workflow). Triggers: `push` to `main` with `paths: ['site/**', 'e2e/captures/registry.ts',
-  'e2e/captures/strings/**', 'src/core/i18n/**', 'src/core/shortcuts.ts']`, and
-  `workflow_dispatch`. Job `build`: checkout, Node from `site/package.json`'s `engines`, `npm
-  --prefix site ci`, `npm run site:check -- --release` (which builds), upload with
+  workflow). **Trigger: `workflow_dispatch` only** — every workflow runs only by hand until the
+  first official release (the human, 2026-11-19, plan 28's §3); turning triggers on is a step of
+  plan 28's first-release block (then a `push` to `main` with `paths: ['site/**',
+  'e2e/captures/registry.ts', 'e2e/captures/strings/**', 'src/core/i18n/**',
+  'src/core/shortcuts.ts']`). Job `build`: checkout, Node `22.23.x` (Astro needs ≥ 22.23.4), `npm
+  --prefix site ci`, `npm --prefix site run check -- --release` (which builds; not `npm run
+  site:check -- --release`, whose inner npm drops the flag), upload `site/dist` with
   `actions/upload-pages-artifact`. Job `deploy`: `actions/deploy-pages`, permissions `pages:
-  write`, `id-token: write`, and **`if: ${{ !github.event.repository.private }}`**. Actions are
-  pinned by full commit SHA, the version in a comment. `ASTRO_TELEMETRY_DISABLED=1` in the
+  write`, `id-token: write`, environment `github-pages`. Actions are pinned by full commit SHA, the
+  version in a comment, as plan 28's workflows pin them. `ASTRO_TELEMETRY_DISABLED=1` in the
   workflow's `env` too.
-- **What the private repository changes**: on GitHub Free a private repository cannot publish to
-  Pages. Until 1.0 the `build` job runs on every push (it checks the site), and `deploy` is
-  skipped by its `if`, so nothing fails and nothing is published; the site is previewed locally
-  (`npm run site:dev`, or `site:build` then `npx --prefix site astro preview`). The first deploy
-  is a step of plan 28's going-public checklist: make the repository public → Settings › Pages,
-  source "GitHub Actions" → run `docs.yml` by dispatch. Upgrading to Pro to publish earlier would
-  publish a public site of a private product: not proposed.
+- **The repository is public**, so Pages can publish from it and nothing in the workflow guards
+  the deploy but its trigger: a run deploys. Until the human runs it, the site is previewed
+  locally (`npm run site:dev`, or `site:build` then `npx --prefix site astro preview`). The first
+  deploy is the human's, at the first release: Settings › Pages, source "GitHub Actions" → run
+  `docs.yml` by dispatch.
 - **Base and site URL** (D2): with GitHub's address, `site: 'https://<owner>.github.io'`, `base:
   '/menkar'`; with a custom domain, `site` is the domain, no `base`, and `site/public/CNAME`.
 
@@ -654,11 +655,10 @@ and its `es/` twin (generated table), `tests/site/locales.test.ts`, `ui-keys.tes
 
 ### Block 6 — the Pages workflow (parallel with 2, 3, 5)
 Files: `.github/workflows/docs.yml`.
-- [ ] Per §2.1: triggers, the two jobs, `if` on `private`, SHA-pinned actions, telemetry off.
+- [x] Per §2.1: `workflow_dispatch` only, the two jobs, SHA-pinned actions, telemetry off.
 - **Verify**: `actionlint` if available, else `npx --yes @action-validator/cli` in a scratch
-  folder, never added to the repository; reading the file against §2.1. It cannot run until
-  pushed: `set` checks the first run's `build` job after its commit (deploy skipped while
-  private).
+  folder, never added to the repository; reading the file against §2.1. It runs only when the
+  human dispatches it, and a run deploys.
 
 ### Block 7 — every capture (after 4 and 5; needs D4, D5)
 
@@ -933,3 +933,31 @@ Deviations and what the plan did not anticipate:
   installed `chromium-1234` by `executablePath`, and nothing was downloaded.
 - **The site's TypeScript is not in any gate**: `tsc -p site` passes now; `npm run ci` does not run
   it.
+
+### Block 6 — `menkar-t144`, 2026-11-20 (task 144)
+
+Done: `.github/workflows/docs.yml`, `workflow_dispatch` only. `build` (ubuntu-24.04): checkout,
+`setup-node` with `22.23.x` and the npm cache keyed on `site/package-lock.json`, `npm --prefix site
+ci`, `npm --prefix site run check -- --release`, `upload-pages-artifact` of `site/dist`. `deploy`:
+`deploy-pages`, `pages: write` and `id-token: write` on that job only, environment
+`github-pages` with the page's URL. `contents: read` at the top, `ASTRO_TELEMETRY_DISABLED: 1` in
+the workflow's `env`, one `pages` concurrency group that does not cancel a run in progress.
+Checkout and setup-node at plan 28's SHAs; `upload-pages-artifact` v5.0.0 (`fc324d35…`) and
+`deploy-pages` v5.0.1 (`368f8252…`), both lightweight tags read with `git ls-remote`, so the SHA is
+the commit's.
+
+Seen red: `tests/scripts/workflows.test.ts` with a `push:` trigger and `upload-pages-artifact@v5`
+put into `docs.yml` ("triggered by push…", "…is not pinned to a full commit SHA"), then put back.
+`actionlint` 1.7.12 in docker: 0 errors in the four workflows.
+
+Deviations and what the plan did not anticipate:
+- **§2.1 corrected** for a public repository and dispatch-only workflows (the old text is in
+  `docs/history/plans/00-STATUS.md`): no `push` trigger, no `if` on `private`.
+- **`npm run site:check -- --release` drops `--release`**: the root script is `npm --prefix site
+  run check`, so the flag reaches the inner npm as its own option, and `check.mjs` never sees it
+  (checked with a stand-in package: `[]` against `['--release']`). The workflow calls `npm --prefix
+  site run check -- --release`. The root script and the exit's line for
+  `docs/release-checklist.md` still carry the broken form; `package.json` is not this block's.
+- **No `configure-pages`**: Astro sets `base` itself, so its output is not needed.
+- **The build was not run here**: it rewrites `site/dist`, which other sessions use; `site:check`
+  passed in blocks 4 and 5.
