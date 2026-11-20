@@ -129,6 +129,17 @@ week, is a task to that agent's consultant ("On a new version of an agent" in th
 your summary. Patches no longer show a banner (1.187), so this is how a new one gets checked
 (the human, 2026-11-19).
 
+On the same first start of a day, **list the open Dependabot pull requests** (the human,
+2026-11-20: Dependabot's email alerts are off, and a security fix arrives as its pull request).
+The repository is public, so `curl -s https://api.github.com/repos/hernancontigiani/menkar/pulls`
+lists them without a login. Then, for each:
+- **A patch or a minor bump**: fetch its branch, run `npm run ci` (and `npm run ui-check` for
+  anything that ships in the app), and merge it with the human's go.
+- **A major bump, or a security fix that needs a code change**: a topic for the human, with what
+  the new major changes.
+- **Never merge a PR whose `npm run ci` you did not see pass.** No hosted CI runs on pull requests
+  until the first release.
+
 After the skill's "say what you read", confirm with a one-screen summary: what is done, what is in
 flight, what you propose to do first, and **what you found out of date or contradictory** between
 the docs and the tree. That last part is usually the most useful thing a new orchestrator delivers.
