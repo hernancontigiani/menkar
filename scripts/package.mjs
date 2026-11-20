@@ -1,7 +1,7 @@
-// Builds the .deb with a Debian revision of its own, so `apt install` of a newer build is an
-// upgrade rather than "0 upgraded": the app stays 0.1.0, the package is 0.1.0-<revision>. The file
-// name keeps only the app's version (release/menkar_0.1.0_amd64.deb), so the install command never
-// changes. Run after `electron-vite build`.
+// Builds the .deb (and with `--targets deb,rpm` the .rpm) with a revision of its own, so `apt
+// install` of a newer build is an upgrade rather than "0 upgraded": the app stays 0.1.0, the package
+// is 0.1.0-<revision>. The file name keeps only the app's version (release/menkar_0.1.0_amd64.deb),
+// so the install command never changes. Run after `electron-vite build`.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -51,6 +51,31 @@ export function packageFlavour(argv, built) {
   return asked
 }
 
+/**
+ * The package formats to build, from `--targets deb,rpm`; `deb` alone when absent, so a local
+ * build needs no `rpmbuild`. The sandbox is never released, so it builds the `.deb` alone.
+ * @param {string[]} argv
+ * @param {'menkar' | 'sandbox'} flavour
+ * @returns {Array<'deb' | 'rpm'>}
+ */
+export function packageTargets(argv, flavour) {
+  const at = argv.indexOf('--targets')
+  if (at === -1) return ['deb']
+  const value = argv[at + 1]
+  if (!value || value.startsWith('--'))
+    throw new Error('--targets is missing its value; it is deb, rpm or deb,rpm')
+  /** @type {Array<'deb' | 'rpm'>} */
+  const targets = []
+  for (const target of value.split(',')) {
+    if (target !== 'deb' && target !== 'rpm')
+      throw new Error(`--targets names ${target || 'an empty target'}; the targets are deb and rpm`)
+    if (!targets.includes(target)) targets.push(target)
+  }
+  if (flavour === 'sandbox' && targets.includes('rpm'))
+    throw new Error('the sandbox is packaged as a .deb only; drop rpm from --targets')
+  return targets
+}
+
 /** The electron-builder config each flavour builds with. */
 export const BUILDER_CONFIG = {
   menkar: 'electron-builder.yml',
@@ -65,19 +90,20 @@ function main() {
     if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error
   }
   const flavour = packageFlavour(process.argv.slice(2), built)
+  const targets = packageTargets(process.argv.slice(2), flavour)
   const revision = debianRevision({
     count: Number(git('rev-list', '--count', 'HEAD')),
     hash: git('rev-parse', '--short=8', 'HEAD'),
     dirty: git('status', '--porcelain') !== '',
     now: new Date(),
   })
-  console.log(`package: ${flavour}, Debian revision ${revision}`)
+  console.log(`package: ${flavour} (${targets.join(', ')}), revision ${revision}`)
   execFileSync(
     'npx',
     [
       'electron-builder',
       '--linux',
-      'deb',
+      ...targets,
       '--x64',
       '--config',
       BUILDER_CONFIG[flavour],

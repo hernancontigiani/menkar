@@ -750,3 +750,48 @@ below.
   empty.
 - **Choices of mine, labelled in the report:** the CHANGELOG heading (`## X.Y.Z` or `## [X.Y.Z]`,
   anything after on the line); a version heading with no body is refused.
+
+### Blocks 3 and 4 — `packager` (task 132), 2026-11-20
+
+- **Block 3.** `package.mjs`: `packageTargets(argv, flavour)` reads `--targets deb,rpm` (default
+  `deb`), refuses an unknown or empty target, a missing value, and `rpm` with the sandbox, and
+  passes the list to `electron-builder --linux`. `check-package.mjs` takes the same `--targets`
+  (it imports `packageTargets`) and checks each file; the `.deb` path and assertions are as they
+  were, its checks now split into the control part and the contents both formats share. Without
+  `rpm2cpio` on the PATH it says to install `rpm` and `cpio` instead of failing with a stack.
+  `release.yml` as §2.3: `workflow_dispatch` with a required `tag`; a workflow-level
+  `TAG: ${{ inputs.tag || github.ref_name }}`, which the checkouts read as `env.TAG` and the call to
+  `checks.yml` writes out (a reusable-workflow call cannot read `env`); `verify` (the version as
+  the job's output, the ancestry against `origin/main` or `origin/release/X.Y`, the notes),
+  `checks` (`ref` and `base` = the tag), `package` (needs both; `contents: write`;
+  `MENKAR_FLAVOR_BUILD: menkar`; `rpm cpio xvfb` and the e2e job's libraries; package, check and
+  smoke with `--targets deb,rpm`; `SHA256SUMS`; `gh release create --draft --verify-tag`). It went
+  straight to `deb,rpm`, block 4 being done in the same task. Its own assertions are in
+  `tests/scripts/release-workflow.test.ts` (agreed with `menkar-t131`, so the two of us were never
+  on one file); `workflows.test.ts`'s rules pass on it. `actionlint` 1.7.12 clean, and seen
+  failing on a misspelt job output.
+- **The dry run of `verify`** (a scratchpad clone, with a `CHANGELOG.md` and the tags `v0.1.0` and
+  `v9.9.9` there only): `v0.1.0` accepted (version `0.1.0`, an ancestor of `origin/main`, its
+  notes written); `v9.9.9` refused ("the tag v9.9.9 does not match package.json's version 0.1.0");
+  `v0.1.0` with no 0.1.0 section refused ("CHANGELOG.md has no section for 0.1.0").
+- **Block 4.** `electron-builder.yml`'s `rpm:` with electron-builder 26.18.0's list plus
+  `alsa-lib`. Built in Ubuntu 24.04 (`rpm` 4.18.2) from a scratchpad clone: `menkar-0.1.0.x86_64.rpm`,
+  Release = the revision, `package:check -- --targets deb,rpm` passes. Installed in
+  `fedora:latest` (Fedora 45): `dnf install` succeeds, `rpm -q menkar` carries the revision,
+  `/usr/bin/menkar` → `/opt/Menkar/menkar` through `alternatives`, no AppArmor and the profile
+  branch silent.
+- **Not foreseen, fixed:** `dnf remove menkar` left `/opt/Menkar`'s directories, empty: fpm lists
+  only files. `rpm.fpm: ['--directories', '/opt/Menkar']` makes the folder the package's, and
+  `package:check` now fails an `.rpm` that does not own it; after it, the removal takes the folder.
+- **Not foreseen, explained:** in a plain `docker run`, `chrome-sandbox` came out `4755`, because
+  Docker's default seccomp refuses `unshare --user` and the template falls back to the setuid
+  helper. With `--security-opt seccomp=unconfined` (user namespaces as on a Fedora host) it is
+  `0755`. `docs/packaging.md`, "The RPM", says both.
+- **Not foreseen, not mine:** `menkar --version` prints no version: `--version` is treated as a
+  leading option and the app starts (`src/core/launch.ts` only keeps it attached). The Fedora check
+  used the app's window under `xvfb-run` instead (its log's `first_window_shown`).
+- Recorded data: `tests/data/package/rpm/` (`info` with the packager's address scrubbed,
+  `requires`, `scripts`); the `.rpm`'s post-install equals the `.deb`'s, asserted. Docs:
+  `docs/packaging.md` "The RPM", the AppImage sentence (old text to its history),
+  `docs/NOT_BUILT_YET.md` "The AppImage". Container transcripts: `packager-t132-containers.txt` and
+  `packager-t132-verify-dryrun.txt` in the project's files folder.

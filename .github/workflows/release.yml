@@ -1,0 +1,104 @@
+# A tag becomes a draft GitHub Release: the tag checked, the tagged tree gated, the .deb and the
+# .rpm built, checked and attached with their checksums and the version's CHANGELOG.md section.
+# The draft is the candidate the human checks; Publish is theirs. Run by hand only until the first
+# release, with the tag as input; then a pushed v* tag starts it, and every step reads the tag the
+# same way.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to release, vX.Y.Z
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # Full history: whether the tagged commit is on main or a release branch needs both.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: The tag is v + package.json's version
+        id: version
+        run: echo "version=$(node scripts/release-version.mjs "$TAG")" >> "$GITHUB_OUTPUT"
+      - name: The tagged commit is on main or on its release branch
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          branch="origin/release/${VERSION%.*}"
+          if git merge-base --is-ancestor "$TAG^{commit}" origin/main; then exit 0; fi
+          if git rev-parse --verify --quiet "$branch" >/dev/null &&
+            git merge-base --is-ancestor "$TAG^{commit}" "$branch"; then exit 0; fi
+          echo "::error::$TAG is on neither origin/main nor $branch"
+          exit 1
+      - name: CHANGELOG.md has a section for the version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/release-notes.mjs "$VERSION" "$RUNNER_TEMP/notes.md"
+
+  # The code was gated before it reached main; this proves the tagged tree itself, so the base is the
+  # tag and the base-diff checks have nothing to compare, by design.
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
+      base: ${{ inputs.tag || github.ref_name }}
+
+  package:
+    needs: [verify, checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      # A tag's checkout is a detached HEAD, which builds the sandbox unless told.
+      MENKAR_FLAVOR_BUILD: menkar
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      # Full history: the package's revision is the commit count.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: rpmbuild, Xvfb and the libraries Electron loads
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm cpio xvfb xauth libnss3 libgbm1 libasound2t64 libgtk-3-0t64 \
+            libxss1 libnotify4 libsecret-1-0
+      - run: npm ci
+      - run: npm run package -- --targets deb,rpm
+      - run: npm run package:check -- --targets deb,rpm
+      - run: npm run package:smoke
+      - name: Checksums and notes
+        run: |
+          (cd release &&
+            sha256sum "menkar_${VERSION}_amd64.deb" "menkar-${VERSION}.x86_64.rpm" > SHA256SUMS)
+          node scripts/release-notes.mjs "$VERSION" "$RUNNER_TEMP/notes.md"
+      - name: The draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" --draft --verify-tag --title "Menkar $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "release/menkar_${VERSION}_amd64.deb" "release/menkar-${VERSION}.x86_64.rpm" \
+            release/SHA256SUMS

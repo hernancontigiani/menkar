@@ -445,3 +445,14 @@ are plain directories (2026-11-19). Moved here from a queued probe of `claude-cl
 
 **Trigger:** a user has `~/Menkar` or a files folder as a symlink, or reports permission prompts
 on the files folder. First step: the probe in a throwaway home, on the current Claude Code.
+
+### The AppImage
+
+A single file that runs on any Linux, with no package manager. It cannot install the AppArmor
+profile nor carry a setuid helper, so on Ubuntu 24.04, which restricts unprivileged user
+namespaces, Chromium's sandbox cannot start and the app runs only with `--no-sandbox`: the
+sandboxed app the README promises would not be the one users get. Menkar ships a `.deb` and an
+`.rpm` (`docs/packaging.md`). Deferred at 1.0 (the human, 2026-11-19).
+
+**Trigger:** a user on a distribution with neither APT nor RPM asks for Menkar. First question:
+whether that distribution restricts user namespaces, and so whether `--no-sandbox` is the price.
