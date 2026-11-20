@@ -72,8 +72,14 @@ as any start does, single-instance hand-off included. The decision is `shouldDet
 `src/core/launch.ts`.
 
 - **Stays attached:** `menkar usage …`, `menkar open` with no file (it prints how to use it),
-  `--help`, `--version`, `--foreground` / `-f`, and any start whose stdout is not a terminal (the
-  launcher, a pipe, Playwright).
+  `--help`, `--version` / `-v`, `--foreground` / `-f`, and any start whose stdout is not a terminal
+  (the launcher, a pipe, Playwright).
+- **`menkar --version`** (or `-v`, 2026-11-20) prints the version on stdout and exits 0: the
+  package's whole Version (`0.1.0-<commits>.g<hash>`, what `dpkg-deb -f` and `rpm -q` show), which
+  `scripts/package.mjs` writes into the asar's `package.json` as `packageVersion`; run from the
+  tree, `package.json`'s `version`. It opens no window, takes no single-instance lock and makes none
+  of the app's folders (`asksVersion` in `src/core/launch.ts`, `e2e/version.spec.ts`, which under
+  `package:smoke` also asserts the build's revision).
 - **Never detaches:** under `ELECTRON_RUN_AS_NODE` (the statusline helper), the UI checks
   (`MENKAR_E2E_XVFB`, `MENKAR_E2E_EXECUTABLE`), the dev server (`ELECTRON_RENDERER_URL`), and on
   Windows.

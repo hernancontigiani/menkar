@@ -4,6 +4,7 @@
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
+import { descriptorOf } from '../src/core/agents/descriptors'
 import { launchApp } from './app'
 import { catppuccin, prepare } from './fixtures'
 
@@ -17,6 +18,11 @@ const act = (page: Page, action: Record<string, unknown>) =>
   )
 
 type Scheme = 'dark' | 'light'
+
+// Read from the descriptor, so validating a new Claude Code version does not break these cases.
+const VALIDATED = descriptorOf('claude').versions.validated
+if (!VALIDATED?.match(/^\d+\.\d+\.\d+$/)) throw new Error('Claude Code has no validated version')
+const NEWER_PATCH = VALIDATED.replace(/\d+$/, (patch) => String(Number(patch) + 1))
 
 function launch(version: string, scheme: Scheme, cursor?: string) {
   return launchApp({
@@ -80,7 +86,7 @@ const CASES = [
     standing: 'muchNewer',
     version: '2.3.0',
     color: '--yellow',
-    text: 'Claude Code 2.3.0 is much newer than the version Menkar was validated with (2.1.328). Expect bugs or regressions; wait for a Menkar release.',
+    text: `Claude Code 2.3.0 is much newer than the version Menkar was validated with (${VALIDATED}). Expect bugs or regressions; wait for a Menkar release.`,
     about: 'Much newer than validated',
   },
 ] as const
@@ -113,7 +119,7 @@ for (const scheme of ['dark', 'light'] as const)
         await about.setViewportSize({ width: 1280, height: 800 })
         const row = about.locator('.agent-version[data-agent="claude"]')
         await expect(row.locator('.row-subtitle')).toHaveText(
-          `Installed ${c.version} · validated 2.1.328`,
+          `Installed ${c.version} · validated ${VALIDATED}`,
         )
         await expect(row.locator('.agent-standing')).toHaveText(c.about)
         await expect(about.locator('.agent-version[data-agent="cursor"]')).toContainText(
@@ -153,7 +159,7 @@ test('1.179 Hide hides the banner for that version and is kept in state.json; De
 })
 
 test('1.179 the validated version and an agent with no validated one: no banner; About says so', async () => {
-  const launched = await launch('2.1.328', 'dark', '2026.11.13-eacade1')
+  const launched = await launch(VALIDATED, 'dark', '2026.11.13-eacade1')
   const page = launched.window
   try {
     const about = await openAbout(launched)
@@ -170,14 +176,16 @@ test('1.179 the validated version and an agent with no validated one: no banner;
 })
 
 test('1.187 a patch newer than validated: no banner; About says it', async () => {
-  const launched = await launch('2.1.330', 'dark')
+  const launched = await launch(NEWER_PATCH, 'dark')
   const page = launched.window
   try {
     await page.setViewportSize({ width: 1280, height: 800 })
     const about = await openAbout(launched)
     await about.setViewportSize({ width: 1280, height: 800 })
     const row = about.locator('.agent-version[data-agent="claude"]')
-    await expect(row.locator('.row-subtitle')).toHaveText('Installed 2.1.330 · validated 2.1.328')
+    await expect(row.locator('.row-subtitle')).toHaveText(
+      `Installed ${NEWER_PATCH} · validated ${VALIDATED}`,
+    )
     await expect(row.locator('.agent-standing')).toHaveText('Newer than validated')
     await expect(page.locator('#versions-banner')).toBeHidden()
     await expect(page.locator('#versions-side')).toBeHidden()

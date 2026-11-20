@@ -12,3 +12,10 @@ each is a sandbox of its own, with `claude` and `~/.claude` outside it.
 > Replaced 2026-11-17: the sandbox's icon is variant A, the star on an amber tile (1.166, task 53). It was:
 - **Its own icon** (1.166): `build/icons-sandbox/`, a copy of Menkar's until the human picks a
   variant from a mock-up.
+
+## The command in a terminal
+
+> Replaced 2026-11-20: `--version` printed nothing and started the app (task 138); it now prints the package's version and ends, `-v` with it. It was:
+- **Stays attached:** `menkar usage …`, `menkar open` with no file (it prints how to use it),
+  `--help`, `--version`, `--foreground` / `-f`, and any start whose stdout is not a terminal (the
+  launcher, a pipe, Playwright).
