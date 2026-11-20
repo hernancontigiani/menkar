@@ -7,6 +7,7 @@ import { ids } from './ids'
 import { launch, namer } from './launch'
 import { mcp } from './mcp'
 import { state } from './state'
+import { team } from './team'
 import { usage } from './usage'
 import { writes } from './writes'
 
@@ -15,7 +16,7 @@ export const kit: AgentKit = {
   mcp,
   messaging: null,
   namer,
-  team: null,
+  team,
   env,
   envPatterns,
   catalog,

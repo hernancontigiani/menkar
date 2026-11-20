@@ -24,6 +24,9 @@ export interface DiscoveredSession extends Names {
   readonly badge: Badge
   readonly mtimeMs: number
   readonly size: number
+  // The compactions its catalog saw since it began reading it, for an agent whose compactions
+  // show only in its transcript.
+  readonly compactions?: number
 }
 
 export const rootOf = (roots: Roots, id: AgentId, catalog: SessionCatalog): string =>

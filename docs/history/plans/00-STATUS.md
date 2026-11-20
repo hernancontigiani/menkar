@@ -2746,3 +2746,15 @@ Deviations and what the plan did not anticipate:
 | **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5), `queue_1.sqlite` rows | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
 - **P1b.4** — Codex naming after the first turn (`Namer.after`, `thread/name/set`, D5); until then
   the pane holds the name. **Verify:** `npm run ci`.
+
+## 2026-11-20 — plan 39's §2.5.6 and P1b.5, before codex measured Codex's compaction (task 166)
+
+> Left plan 39 §2.5.6 and §5 P1b.5 on 2026-11-20: a Codex compaction rebuilds the developer instructions from the running process's `-c`, so a compaction goes back to `started` for every agent and no `afterCompaction` method exists; the recorded file is JSON (`codex`, item 26; set approved).
+     recorded at creation); OpenCode: always the block (server-held). `afterCompaction(started,
+     current)` → Claude: `started`; Codex: `current` if its instructions re-render at compaction,
+     else `started` (`codex` to confirm in P1b.5).
+   - **`recorded`** (Codex, Cursor) is a persisted `held` per session
+     (`controlPaths().teamHeld/<session>.txt`, in the flavour's cache, written whole, swept with the
+     session), read by `heldAtStart` on a resume. **The compaction signal** that resets `held` to
+     `afterCompaction(…)`: Claude's SessionStart `compact` record (as built); Codex's rollout
+  `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),

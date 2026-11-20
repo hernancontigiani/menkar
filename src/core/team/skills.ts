@@ -10,6 +10,8 @@ export interface FoundSkill {
   readonly source: SkillSource
   // The `skills` folder it was found in.
   readonly place: string
+  // Its SKILL.md, for an agent that loads a skill by reading it.
+  readonly file: string
 }
 
 export interface SkillPlaces {
@@ -77,6 +79,7 @@ async function readSkill(
       description: (fields.description ?? '').slice(0, DESCRIPTION_CHARS),
       source,
       place,
+      file: join(at, 'SKILL.md'),
     }
   } catch (error) {
     if (!absent(error)) log.warn('skill not readable; skipped', { path: at, error })

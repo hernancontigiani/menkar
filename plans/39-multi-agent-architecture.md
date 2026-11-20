@@ -391,9 +391,10 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
      new and resume → the block (resume with `--system-prompt-snapshot off`, on **every** mode-on
      resume, since a later resume without it reverts to the conversation's first block, research
      §7), fork → `null`; Codex and Cursor: new → the block, resume → `recorded` (they keep the block
-     recorded at creation); OpenCode: always the block (server-held). `afterCompaction(started,
-     current)` → Claude: `started`; Codex: `current` if its instructions re-render at compaction,
-     else `started` (`codex` to confirm in P1b.5).
+     recorded at creation); OpenCode: always the block (server-held). A compaction rebuilds what
+     the pane `started` with for Claude and Codex alike (`rebuilt`): Codex re-renders its
+     developer instructions from the running process's `-c`, so every Codex resume passes the
+     block again (`codex`, measured 2026-11-20, item 26); no per-agent method.
    - **(2) how a start delivers** — `atStart(start, block) → LaunchPlan` part: Claude: the file and
      its flags, below its floor nothing (1.157 Q4; the floor read by the kit's
      `versionFloor`, 2.1.267); Codex: `-c developer_instructions` (§2.8); Cursor (P3): the
@@ -403,9 +404,9 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
      PUT, so the session holds the current block with no turn; Cursor: held until the next wake
      when idle (1.159, S7), answered as `followup_message` at the next `stop`.
    - **`recorded`** (Codex, Cursor) is a persisted `held` per session
-     (`controlPaths().teamHeld/<session>.txt`, in the flavour's cache, written whole, swept with the
+     (`controlPaths().teamHeld/<session>.json`, in the flavour's cache, written whole, swept with the
      session), read by `heldAtStart` on a resume. **The compaction signal** that resets `held` to
-     `afterCompaction(…)`: Claude's SessionStart `compact` record (as built); Codex's rollout
+     `started`: Claude's SessionStart `compact` record (as built); Codex's rollout
      `compacted` item (`codex.md:278`), read by its catalog's tail watch and handed to main as a
      record (S7); Cursor's (P3, from `cursor`); OpenCode needs none.
    - The team posts' consequences (the settle, no parent wake and the `last_reply` skip by
@@ -1043,8 +1044,8 @@ P0's blocks run in turn.
   holds the name. **Verify:** `npm run ci`.
 - **P1b.5** — Codex's team part and delivery (§2.5.6): `atStart` (`developer_instructions` through
   `LaunchPlan.files`, then the user's own), `heldAtStart` (`recorded` on resume, persisted),
-  `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),
-  the compaction signal from the rollout's `compacted` item (S7), `tell` through its waker; skills
+  a compaction back to `started` (`codex` measured that `developer_instructions` re-render from the
+  run's `-c`), the compaction signal from the rollout's `compacted` item (S7), `tell` through its waker; skills
   per **Q1** (`kit.team.skill` → the `SKILL.md`'s absolute path from `FoundSkill.place`; Menkar's
   from the plugin folder; not-found as the block names it today). Tests: the `teamPost` rule cases
   with Codex's methods (resume with facts unchanged → no post; changed → one post once wakeable;
@@ -2077,3 +2078,87 @@ P0's blocks run in turn.
 - **Found in the first half's own test:** "with Codex's daemon running…" read the real clock, so a
   wake across a second boundary failed it (the frame's time differed): it now fakes the date. It
   was committed in aae3358.
+
+### P1b.5 (`menkar-t166`, task 166, 2026-11-20)
+
+- **Merged `main` into the branch first** (`48035c2`, no conflict: `package.json`,
+  `package-lock.json`, `plans/00-STATUS.md`, `plans/ideas/research/codex.md`).
+- **Measured by `codex`** (codex-cli 0.169.0, a throwaway home, the stand-in API; its research
+  file, item 26): `-c developer_instructions` replaces the user's own for the run (so Menkar joins
+  them: its block, a blank line, the user's), sits first in Codex's second developer message, no
+  size limit; a resume replays the instructions recorded at the thread's creation and the run's
+  `-c` is not seen; **a compaction, manual or automatic, rebuilds them from the running process's
+  `-c`** (§2.5.6 corrected, the old lines in `docs/history/plans/00-STATUS.md`): what the pane
+  `started` with, as Claude's, so no `afterCompaction` method; both compactions write the same
+  `compacted` line. A turn `codex queue` opens sends the same request as any other. **The
+  catalog's models defer MCP tools** (code mode: the model sees only `mcp__menkar` and calls
+  `tools.mcp__menkar__<tool>` inside `exec`); `features.code_mode.direct_only_tool_namespaces`
+  lists them directly with their schemas (spelled without `features.` it is ignored). Codex reads a
+  `SKILL.md` outside its folder with no approval card.
+- **Approved by set, 2026-11-20:** every Codex resume passes `-c developer_instructions` again;
+  every Codex start adds `-c 'features.code_mode.direct_only_tool_namespaces=["mcp__menkar"]'`,
+  with a test pinning the key. So Codex's part needs no "load the tool" line.
+- **Granted by set, 2026-11-20 — files beyond §5's row:** `src/core/agents/types.ts`
+  (`heldAtStart`'s `recorded`, `records`), `src/core/agents/claude/team.ts` (`records: false`),
+  `src/core/agents/codex/{index,launch,mcp,catalog}.ts`, new `src/core/agents/codex/compaction.ts`,
+  `src/main/team.ts`, `src/main/agents/codex/index.ts`, `src/main/workspace.ts`,
+  `src/core/control/files.ts` (`teamHeld`), `src/core/sessions/{scanner,info,service}.ts`
+  (`compactions`), the tests, `e2e/standins/codex.ts` and the new `e2e/codex-team.spec.ts`,
+  `docs/session-control.md` and `docs/agents.md`. `tests/data/package/sandbox/{files,menkar-files}.txt`
+  were re-recorded by `packager` from builds of `48035c2` + `codex.md`.
+- **Built:** Codex's `TeamDelivery` (`src/core/agents/codex/team.ts`): skills named with their
+  `SKILL.md` (`FoundSkill.file`; Menkar's from the plugin's `skills/`, given as
+  `TeamInput.ownSkills`; one not found by name), `byName` "by reading its SKILL.md at the path
+  given", part `plugin/team/codex.md` (two lines: `send_message`, reading a skill whole);
+  `heldAtStart` new → the block, resume → recorded; `records: true`; `atStart` names the pane's
+  `codex-developer-instructions.toml`, a `LaunchPlan.files` entry holding `tomlString(block, a blank
+  line, the user's own)`; no floor. Main: `recorded` read at a resume start, written whenever what
+  the session holds changed (at a recompute and after a delivered post), removed on trash and
+  delete; a recompute triggered at every recording agent's start; `TeamSource.session` is null for
+  a provisional id. `tell` is Codex's waker. The compaction signal: the catalog counts the
+  `compacted` lines a rollout grows by (`compactionsIn`, by the line's start, never parsed; a file
+  first seen is not read back), the row carries `compactions`, and main takes a grown count for a
+  pane's session as the `compact` record.
+- **Budget:** common + Codex part under 900 bytes (892); the Codex expert block, with three
+  paths, under 2,000 (1,739). Claude's block and R10 unchanged.
+- **My choices:** the recorded file is `<session>.json` (`{ facts, block }` or `null`), not
+  `.txt`, since a resume needs both; a session id that is not `[\w-]+` is neither written nor
+  read; the user's own value of `direct_only_tool_namespaces`, if any, is replaced for the session
+  (not chained: rare, and the `-c` is a constant); the not-found skill keeps its name alone.
+- **Tests:** `tests/core/agents/codex/team.test.ts` (what a start holds; the post rule with
+  Codex's methods: resume unchanged → none, changed → one, nothing recorded → the whole block,
+  compaction → told again, not wakeable → told once it is; the skills line for the orchestrator, a
+  stored one, a not-found one, the worker's line; the instructions argv through a real shell, new
+  and resumed, the user's own byte for byte, the block alone, the user's alone, nothing without a
+  team file), `compaction.test.ts`, a catalog test (counted from growth only),
+  `tests/core/team/recorded.test.ts`, `input.test.ts` (files and the own folder), `skills.test.ts`
+  (`file` by folder name), `block.test.ts` (the Codex budget), `launch.test.ts` (the key pinned),
+  `check-package.test.ts` (Codex's part missing), `waker.test.ts` (P1b.3's interim "not built yet"
+  replaced by "tells through this waker"). E2E `e2e/codex-team.spec.ts`: a Codex worker started by
+  `start_session` gets the block then the user's own; stopped, its role set, reopened: the resume
+  passes the block again and is told once through `codex queue`, recorded; a change while it runs,
+  one post; `/compact` tells it again.
+- **Seen failing once**, each injected and reverted: the compacted line's start (4), a file first
+  seen read back, the next line's start (2), any JSON taken as recorded, any id written, forget
+  doing nothing, the order reversed, resume holding the block (3), a skill without its file, the
+  block file unread (2), the instructions without a team file, the key without `features.`,
+  Claude recording, the file by frontmatter name, `codex.md` not required, the file passed for a
+  skill not found, the own folder dropped, Codex's part over budget, `tell` absent; in the e2e,
+  resume holding the run's block (the Reviewer post never came) and no compaction route (the
+  third post never came).
+- **Found in the stand-in, fixed:** it polled `queue_1.sqlite` every 500 ms, and each open made
+  `-wal`/`-shm` events in Codex's home, so Menkar's sessions scan (2 s of quiet) never ran while a
+  stand-in idled; and it crashed on "database is locked" when a `codex queue` wrote at that moment.
+  It now looks only when the queue's files changed, and again after a lock.
+- **Found, not fixed (for set):** the sessions service's debounce runs a scan only after 2 s of
+  quiet in the watched folders, so a process that writes there more often than that starves every
+  scan (badges, names, and now Codex's compaction signal). Real Codex writes its databases in its
+  home during a turn; whether an idle TUI does was not measured. Codex's catalog has no
+  `TurnEndReading`, so a Codex worker's turn end reaches neither its parent's inbox nor a wake
+  (and a team-update turn wakes no one) — P1b.6's e2e names that case.
+- **Integrity:** the branch's seven known lines and one more,
+  `expect(Object.keys(TEAM_AGENTS)).toEqual(['claude'])` → `['claude', 'codex']` (Codex now has a
+  team record).
+- **`npm run ci`**: biome, tsc, vitest (176 files, 2260 tests), R10 unchanged, code rules, i18n
+  pass; test integrity as above; flaky and history pass when run after it. **`npm run ui-check`**:
+  434 passed, exit 0.

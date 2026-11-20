@@ -248,13 +248,36 @@ describe('the block', () => {
     const block = teamBlock(teamFacts(EXPERT, claude()), common(), claudePart())
     expect(Buffer.byteLength(block)).toBeLessThan(1600)
   })
+
+  // Codex's block names each skill by its SKILL.md, so the expert's carries three paths; measured
+  // at 1,739 bytes with these.
+  test('common and Codex parts are under 900 bytes, the Codex expert block under 2,000', () => {
+    const codexPart = readFileSync(join(TEAM, 'codex.md'), 'utf8')
+    const parts = Buffer.byteLength(common()) + Buffer.byteLength(codexPart)
+    expect(Buffer.byteLength(codexPart)).toBeGreaterThan(0)
+    expect(parts).toBeLessThan(900)
+    const codex = teamAgent('codex')
+    if (!codex) throw new Error('Codex has no team record')
+    expect(codex.part).toBe('codex.md')
+    const input: TeamInput = {
+      ...EXPERT,
+      skills: [
+        { ...EXPERT.skills[0], file: '/home/ana/work/menkar/.claude/skills/packager/SKILL.md' },
+        { ...EXPERT.skills[1], file: '/home/ana/work/menkar/.claude/skills/claude-cli/SKILL.md' },
+      ] as TeamInput['skills'],
+      ownSkills: '/opt/Menkar/resources/plugin/skills',
+    }
+    const block = teamBlock(teamFacts(input, codex), common(), codexPart)
+    expect(block).toContain('/opt/Menkar/resources/plugin/skills/worker/SKILL.md')
+    expect(Buffer.byteLength(block)).toBeLessThan(2000)
+  })
 })
 
 describe("the agent's record", () => {
   // 1.135: an agent without an entry gets no block, so its command does not change.
   test('Cursor has no team record', () => {
     expect(teamAgent('cursor')).toBeNull()
-    expect(Object.keys(TEAM_AGENTS)).toEqual(['claude'])
+    expect(Object.keys(TEAM_AGENTS)).toEqual(['claude', 'codex'])
   })
 
   test("Claude's skills are referred to by name, Menkar's with the plugin's prefix", () => {

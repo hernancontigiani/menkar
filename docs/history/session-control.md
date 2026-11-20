@@ -238,3 +238,23 @@ of ‹name›" and "[Menkar] The human handed ‹name› back" (a read-only tab'
 > Left on 2026-11-20: Codex has a waker, `codex queue` (plan 39 P1b.3, task 164).
     - A parent whose tab's agent has no waker (`mainKit.waker`, Claude's alone today), or no entry
       in the registry, is logged and not woken. `wakeSession` returns what the post did.
+
+## The team block, per agent
+
+> Left on 2026-11-20: Codex has a team block, delivered by `-c developer_instructions`, recorded per session (plan 39 P1b.5, task 166).
+What a Claude session of a project in the orchestration mode needs to work in the team (decisions
+1.150–1.154, 1.157), written once and delivered by Menkar, not by a handoff another agent writes.
+  - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`.
+    `package:check` requires both in the .deb.
+- **The input at start** is built for every Claude pane whose tab belongs to a mode-on project: a
+  member from the project; a session not yet a member (the human's new session, a fork) from the
+  identity it starts with, with no role, parent or skills. That is what it will be once it joins.
+  user's skills, `foundFor`).
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) |
+|---|---|---|
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` |
+| (1) What a start holds | `heldAtStart(start, block)` | new and resume → the block; fork → `null` |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast |
+| (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket |
+Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write

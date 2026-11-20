@@ -142,7 +142,8 @@ describe("Codex's waker", () => {
     expect(env.CODEX_HOME).toBe(codexHome)
   })
 
-  test("its team delivery is not built yet: Codex's team block is P1b.5's", () => {
-    expect(mainKitOf('codex').team).toBeNull()
+  // A team update is told as any wake: queued as the thread's own turn.
+  test('its team delivery tells a change through this waker', () => {
+    expect(mainKitOf('codex').team?.tell).toBe(waker().wake)
   })
 })

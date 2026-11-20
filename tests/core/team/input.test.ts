@@ -65,6 +65,28 @@ test('a read-only skill names the session that maintains it; another parent is n
   ])
 })
 
+// An agent that loads a skill by reading it is given each found skill's file and Menkar's folder.
+test("a found skill carries its file, one not found none; Menkar's skills folder is passed on", () => {
+  const file = (name: string) => `/r/.claude/skills/${name}/SKILL.md`
+  const ownSkills = '/opt/Menkar/resources/plugin/skills'
+  const expert = teamInput({
+    project: team(),
+    session: 'e1',
+    named,
+    found,
+    file,
+    ownSkills,
+    context,
+  })
+  expect(expert?.skills).toEqual([
+    { name: 'packager', maintainer: true, found: true, file: file('packager') },
+    { name: 'gone', maintainer: false, found: false },
+  ])
+  expect(expert?.ownSkills).toBe(ownSkills)
+  const fresh = teamInput({ project: team(), session: null, named, found, ownSkills, context })
+  expect(fresh?.ownSkills).toBe(ownSkills)
+})
+
 test("the orchestrator is 'self'; a session with no name of its own has none", () => {
   expect(teamInput({ project: team(), session: 'o1', named, found, context })?.orchestrator).toBe(
     'self',

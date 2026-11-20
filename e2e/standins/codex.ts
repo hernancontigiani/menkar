@@ -20,7 +20,8 @@ import { join } from 'node:path'
 //   rollout stays open, as Codex keeps it.
 // - `codex queue --thread <id> --message <text>` puts the message in $CODEX_HOME/queue_1.sqlite,
 //   or exits 1 when the thread has no rollout; a running stand-in holding that thread takes it as
-//   its next turn and deletes the row. Without `--disable plugins` it first syncs Codex's plugin
+//   its next turn and deletes the row; it looks only when the queue's files changed, and again
+//   when a `codex queue` held the lock. Without `--disable plugins` it first syncs Codex's plugin
 //   marketplace as 0.169 does, leaving a `.tmp/git-XXXXXX/` behind in $CODEX_HOME. With
 //   FAKE_CODEX_DAEMON set (Codex's shared daemon running), any `-c` or `--disable` is refused with
 //   Codex's own line and exit 1, and a plain call is served by the daemon: nothing synced here.
@@ -37,6 +38,10 @@ import { join } from 'node:path'
 //   variables, then the names in `env_vars` taken from its own environment, then `env`. The
 //   environment it was given goes to codex-mcp-env.json in HOME, and the answer is printed as
 //   "TOOL <name>: <text>".
+// - Each start appends to codex-developer.jsonl in HOME the `developer_instructions` it was given
+//   by `-c` (a TOML string, read as JSON), or the one in $CODEX_HOME/config.toml's first line
+//   `developer_instructions = "…"` when no `-c` gives one, as `{ resume, instructions }`.
+// - `/compact` typed writes a `compacted` line to the rollout, as Codex's compaction does.
 // Timestamps inside the rollout are UTC; its file name and folders are local time, as Codex's.
 // - Typing EXIT0 ends it.
 const FAKE_CODEX = `#!/usr/bin/env node
@@ -159,6 +164,15 @@ args.forEach((word, i) => {
   config[word.slice(0, eq)] = word.slice(eq + 1)
 })
 const notify = config.notify ? JSON.parse(config.notify) : null
+{
+  let instructions = config.developer_instructions ? JSON.parse(config.developer_instructions) : null
+  const own = path.join(home, 'config.toml')
+  if (instructions === null && fs.existsSync(own)) {
+    const found = /^developer_instructions = (".*")$/m.exec(fs.readFileSync(own, 'utf8'))
+    if (found) instructions = JSON.parse(found[1])
+  }
+  fs.appendFileSync(path.join(process.env.HOME, 'codex-developer.jsonl'), JSON.stringify({ resume: args[0] === 'resume', instructions }) + '\\n')
+}
 function menkarServer() {
   const key = (name) => config['mcp_servers.menkar.' + name]
   if (!key('command')) return null
@@ -249,6 +263,11 @@ function turn(text) {
     process.stdout.write('\\x1b[2J\\x1b[H• Thread renamed\\r\\n› Ask Codex to do anything\\r\\n')
     return
   }
+  if (text === '/compact') {
+    if (file) line('compacted', { message: 'A summary.', replacement_history: [], window_number: 1 })
+    process.stdout.write('\\x1b[2J\\x1b[H• Context compacted\\r\\n› Ask Codex to do anything\\r\\n')
+    return
+  }
   if (text === '/new' || text === '/fork') {
     const from = id
     id = v7()
@@ -295,12 +314,36 @@ function turn(text) {
 
 process.stdout.write('› Ask Codex to do anything\\r\\n')
 if (prompt) turn(prompt)
+// Looked into only when the queue's files changed since the last look: opening it makes its WAL
+// files, whose events in $CODEX_HOME would otherwise never let Menkar's folder watch go quiet.
+let queueSeen = ''
+const queueSign = () =>
+  ['queue_1.sqlite', 'queue_1.sqlite-wal']
+    .map((name) => {
+      try {
+        const info = fs.statSync(path.join(home, name))
+        return info.size + ':' + info.mtimeMs
+      } catch {
+        return '-'
+      }
+    })
+    .join(' ')
 setInterval(() => {
   if (busy || !fs.existsSync(path.join(home, 'queue_1.sqlite'))) return
-  const db = queueDb()
-  const row = db.prepare('SELECT id, payload_json FROM queued_items WHERE thread_id = ? ORDER BY queue_order LIMIT 1').get(id)
-  if (row) db.prepare('DELETE FROM queued_items WHERE id = ?').run(row.id)
-  db.close()
+  if (queueSign() === queueSeen) return
+  // A \`codex queue\` writing at the same moment holds the lock: looked at again next time.
+  let row, db
+  try {
+    db = queueDb()
+    row = db.prepare('SELECT id, payload_json FROM queued_items WHERE thread_id = ? ORDER BY queue_order LIMIT 1').get(id)
+    if (row) db.prepare('DELETE FROM queued_items WHERE id = ?').run(row.id)
+  } catch (error) {
+    if (!String(error).includes('database is locked')) throw error
+    return
+  } finally {
+    db?.close()
+  }
+  queueSeen = row ? '' : queueSign()
   if (row) turn(JSON.parse(row.payload_json).UserInput.content[0].text)
 }, 500).unref()
 if (process.stdin.isTTY) process.stdin.setRawMode(true)

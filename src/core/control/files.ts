@@ -77,6 +77,8 @@ export function controlPaths() {
     prompts: join(root, 'prompts'),
     // Each pane's team block, by pane id: Claude reads it once, at start.
     team: join(root, 'team'),
+    // What each session of an agent that records its block held when it last ran, by session id.
+    teamHeld: join(root, 'team-held'),
     tools: join(root, 'tools.json'),
   }
 }

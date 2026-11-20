@@ -101,7 +101,11 @@ export interface VersionFloor {
 // The team block's delivery: how the agent names skills and which protocol part it reads
 // (TeamAgent), what a start holds, and how a start delivers the block.
 export interface TeamDelivery extends TeamAgent {
-  heldAtStart(start: Start, block: TeamText | null): TeamText | null
+  // `recorded` is what the session held when it last ran, kept by main for an agent that records.
+  heldAtStart(start: Start, block: TeamText | null, recorded?: TeamText | null): TeamText | null
+  // A resume holds what the session recorded at its creation and was told since, not the block it
+  // is started with: main keeps, per session, what it holds.
+  readonly records: boolean
   // The words that hand the block's file to the CLI.
   atStart(start: Start, file: string): readonly string[]
   readonly floor: VersionFloor | null

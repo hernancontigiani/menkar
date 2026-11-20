@@ -18,6 +18,7 @@ import {
 } from '../shared/jsonl'
 import { streamLines } from '../shared/zstd'
 import type { Found, SessionCatalog, SessionReader } from '../types'
+import { compactionsIn } from './compaction'
 import { codexHome } from './config'
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -450,6 +451,9 @@ interface FileState {
   head: Head
   headFinal: boolean
   badge: Badge
+  // The compactions seen since this reader began reading the file, and where its next line starts.
+  compactions: number
+  scanned: number
 }
 
 // The rollouts read again only where they changed: the head until it is final, the tail when the
@@ -486,6 +490,9 @@ class RolloutReader implements SessionReader {
         head: emptyHead(),
         headFinal: false,
         badge: null,
+        compactions: 0,
+        // A file first seen is not read back: only what it grows by can hold a new compaction.
+        scanned: info.size,
       }
       this.#files.set(file, state)
     }
@@ -502,6 +509,9 @@ class RolloutReader implements SessionReader {
         (await this.#read(file, start, info.size)).toString('utf8'),
         start === 0,
       )
+      const grown = await compactionsIn(this.#read, file, state.scanned, info.size)
+      state.compactions += grown.count
+      state.scanned = grown.next
     }
     state.size = info.size
     state.mtimeMs = info.mtimeMs
@@ -522,6 +532,7 @@ class RolloutReader implements SessionReader {
       aiTitle: null,
       mtimeMs: info.mtimeMs,
       size: info.size,
+      compactions: state.compactions,
     }
   }
 }

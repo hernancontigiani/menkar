@@ -126,6 +126,7 @@ function checkContents(pkg, flavour) {
     `${APP}/resources/plugin/guide/orchestration-mode.md`,
     `${APP}/resources/plugin/team/common.md`,
     `${APP}/resources/plugin/team/claude.md`,
+    `${APP}/resources/plugin/team/codex.md`,
     ...['orchestrator', 'worker', 'distill', 'specialize'].map(
       (skill) => `${APP}/resources/plugin/skills/${skill}/SKILL.md`,
     ),

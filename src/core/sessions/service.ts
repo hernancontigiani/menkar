@@ -34,6 +34,7 @@ export function toInfo(session: DiscoveredSession, state: State): SessionInfo {
     mtimeMs: session.mtimeMs,
     size: session.size,
     hidden: hidden.has(session.id),
+    ...(session.compactions === undefined ? {} : { compactions: session.compactions }),
   }
 }
 

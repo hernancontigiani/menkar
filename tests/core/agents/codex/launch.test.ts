@@ -24,7 +24,6 @@ const CTX: LaunchContext = {
   remoteControl: 'demo api',
   mcpConfig: '{"a":1}',
   pluginDir: '/opt/Menkar/resources/plugin',
-  teamFile: '/c/menkar/control/team/p1.md',
   execPath: '/opt/Menkar/menkar',
   programs: '/opt/Menkar/resources/app.asar/out/main',
   paneFiles: '/c/menkar/control/panes/p1',
@@ -210,6 +209,22 @@ describe("Menkar's MCP server, mounted for the session", () => {
         env_vars: ['XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME'],
         default_tools_approval_mode: 'approve',
       })
+  })
+
+  // Measured by codex on 0.169.0: the key spelled without `features.` is ignored, with a warning.
+  test("Menkar's tools are listed directly, every start, by the key Codex reads", () => {
+    for (const start of [{ kind: 'new' }, { kind: 'resume', id: ID }] as const) {
+      const argv = argvOf(start, MOUNTED)
+      const direct = argv.filter(
+        (arg, i) => argv[i - 1] === '-c' && arg.includes('direct_only_tool_namespaces'),
+      )
+      expect(direct, start.kind).toEqual([
+        'features.code_mode.direct_only_tool_namespaces=["mcp__menkar"]',
+      ])
+      expect(parse(direct[0] ?? '')).toEqual({
+        features: { code_mode: { direct_only_tool_namespaces: ['mcp__menkar'] } },
+      })
+    }
   })
 
   test('a resume still names its thread last', () => {

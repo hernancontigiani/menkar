@@ -5,7 +5,7 @@ import { waker } from './waker'
 
 export const mainKit: MainAgentKit = {
   settings: null,
-  team: null,
+  team: { tell: waker.wake },
   remote: null,
   waker,
   inbox: null,

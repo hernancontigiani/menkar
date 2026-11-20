@@ -120,12 +120,14 @@ with more hits than its entry fails, so a count only goes down. What is left:
 ## Codex: starting it
 
 Codex's kit is `src/core/agents/codex/` and `src/main/agents/codex/`; measured on codex-cli 0.169.0
-(2026-11-20). It has no team block, fork, chat, trash, Remote Control or inbox: each is `null` in
-its kit, and the renderer offers none of them for a Codex session.
+(2026-11-20). It has no fork, chat, trash, Remote Control or inbox: each is `null` in its kit,
+and the renderer offers none of them for a Codex session. Its team block is below ("Codex: the team
+block").
 
 - **The command**: `codex [-m <model>] [--add-dir <files>] [-c notify=[…]] [-c
-  mcp_servers.menkar.…] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] [-c
-  mcp_servers.menkar.…] <id> [-- "<prompt>"]`. Options go after `resume`;
+  mcp_servers.menkar.…] [-c developer_instructions=…] [-- "<prompt>"]`, and `codex resume
+  [--add-dir …] [-c notify=[…]] [-c mcp_servers.menkar.…] [-c developer_instructions=…] <id> [--
+  "<prompt>"]`. Options go after `resume`;
   `--` goes before the prompt, or a prompt starting with `-` is read as an option. A resume takes
   no `-m`: it would switch the thread's model. `--add-dir` names the project's files folder.
 - **A `-c` value is a TOML basic string** (`tomlString`): Codex parses `-c` values as TOML and
@@ -339,7 +341,8 @@ Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
   per key (`src/core/agents/codex/mcp.ts`), each value a TOML string: `command` Electron's binary,
   `args` the server program (`LaunchContext.mcpServer`), `env` `ELECTRON_RUN_AS_NODE`,
   `MENKAR_PANE` and `MENKAR_AGENT=codex`, `env_vars` the three XDG names, and
-  `default_tools_approval_mode="approve"`, so Menkar's tools run with no approval card. Codex gives
+  `default_tools_approval_mode="approve"`, so Menkar's tools run with no approval card; and
+  `-c 'features.code_mode.direct_only_tool_namespaces=["mcp__menkar"]'`, below. Codex gives
   a stdio server only `HOME, LOGNAME, PATH, SHELL, USER, LANG, LC_ALL, TERM, TMPDIR, TZ`, then
   `env_vars`' names from its own environment (one not set is left out), then `env`: the pane's
   environment is not inherited, so the caller is named in `env`, and the server finds Menkar's
@@ -364,3 +367,48 @@ Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
 - **`renew`** ends the session and starts a new thread in its tab, as for Claude; `park_session`,
   `resume_session` (`codex resume <id>`) and `adopt_session` work as for any agent whose kit has
   an MCP mount.
+- **Menkar's tools are listed directly** (`DIRECT_KEY`, measured by `codex`, 2026-11-20): the
+  catalog's models run in code mode, where an MCP server's tools are deferred: the model sees only
+  the namespace `mcp__menkar` and calls a tool inside the `exec` tool as
+  `tools.mcp__menkar__task_review(…)`. With `features.code_mode.direct_only_tool_namespaces`
+  naming `mcp__menkar`, every tool comes with its schema in the first request, a turn `codex
+  queue` opens included, and is called as `task_review` of the namespace. Spelled without
+  `features.` the key is ignored, with a warning. A model outside Codex's catalog always lists
+  them directly. The user's own value of that key, if any, is replaced for the session.
+
+## Codex: the team block
+
+Plan 39 P1b.5, measured by `codex` on codex-cli 0.169.0 (2026-11-20, its research file item 26).
+Assembled as Claude's (`docs/session-control.md`, "The team block"); its part is
+`plugin/team/codex.md`, and its delivery `src/core/agents/codex/team.ts`.
+
+- **Delivered by `-c developer_instructions`** on every start, new and resumed: the pane's file
+  `codex-developer-instructions.toml` (`LaunchPlan.files`) holds one TOML string, Menkar's block,
+  a blank line, then the user's own `developer_instructions` from `config.toml`, byte for byte,
+  read through the shell as `"developer_instructions=$(cat <file>)"`. A `-c` value replaces the
+  file's for the run, so without it the user's own would be lost. The text is the first item of
+  Codex's second developer message, before its skills, permissions and tools blocks; `AGENTS.md`
+  stays a user message of its own. Codex sets no limit on its size. Without the team block (the
+  mode off) nothing is passed and the user's own stays in effect; a block file that cannot be read
+  passes the user's own alone.
+- **A resume holds what the thread recorded** (`records: true`): Codex replays the developer
+  message written at the thread's creation, and the run's `-c` is not seen until a compaction. So
+  main keeps, per session, what it holds (`src/core/team/recorded.ts`, one JSON file per session in
+  `controlPaths().teamHeld`, written whole when it changes, `null` for a session that held
+  nothing), and a resume starts from it: one post if the facts changed while it was stopped, the
+  whole block if nothing was recorded, none if they did not change. The file of a session trashed
+  or deleted from Menkar is removed with it.
+- **A compaction rebuilds the instructions from the running process's config**, the run's `-c`,
+  manual or automatic alike: what the pane `started` with, as for Claude. Every resume therefore
+  passes the block again, or the next compaction would drop it. The signal is the rollout's
+  `compacted` line: Codex's catalog counts those a rollout grows by (`compaction.ts`, the line told
+  by its start, its payload never parsed), carried on the session's row as `compactions`, and main
+  takes a count that grew for a pane's session as the compaction record.
+- **A change is told through Codex's waker** (`codex queue`), as its own turn; a thread with no
+  rollout yet cannot be woken, so the post waits for the bind, which recomputes the pane's facts.
+  A provisional id is no session to tell or record.
+- **Skills by their `SKILL.md`** (decision 1.155 Q1): Codex has no flag that adds a skills folder,
+  and reads a file outside its folder with no approval card. The block names each stored skill
+  found with its file (`FoundSkill.file`, the nearest of a name), Menkar's own from the plugin's
+  `skills/` folder, and one not found by its name alone; it is loaded "by reading its SKILL.md at
+  the path given".

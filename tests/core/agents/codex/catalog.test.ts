@@ -104,3 +104,18 @@ test("nothing is watched before Codex's home exists, and its folders once it doe
     day,
   ])
 })
+
+// A compaction shows only in the rollout: the reader counts the `compacted` lines a rollout grows
+// by, never those it held when first read.
+test('the compactions a rollout grows by are counted, those it held when first read are not', async () => {
+  const { sessions, day } = home()
+  const file = join(day, `${ROLLOUT}.jsonl`)
+  writeFileSync(file, meta + typed('Hello') + line('compacted', { message: 'old' }))
+  const reader = catalog.reader(readRange)
+  expect((await listed(sessions, reader))[0]?.compactions).toBe(0)
+  appendFileSync(file, typed('more') + line('compacted', { message: 'new' }))
+  expect((await listed(sessions, reader))[0]?.compactions).toBe(1)
+  expect((await listed(sessions, reader))[0]?.compactions).toBe(1)
+  appendFileSync(file, line('compacted', { message: 'again' }) + typed('after'))
+  expect((await listed(sessions, reader))[0]?.compactions).toBe(2)
+})

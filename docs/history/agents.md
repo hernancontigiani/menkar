@@ -70,3 +70,12 @@ ends; elsewhere than Linux it binds when the first turn ends.
 > Left on 2026-11-20: the waker runs `codex queue --disable plugins`, plain only on the daemon's refusal (plan 39 P1b.4, task 165).
 - **Never with a `-c`:** with Codex's shared daemon running, a queue that would run its own
   embedded server is refused.
+
+## Codex: starting it
+
+> Left on 2026-11-20: Codex has a team block, delivered by `-c developer_instructions`, recorded per session (plan 39 P1b.5, task 166).
+(2026-11-20). It has no team block, fork, chat, trash, Remote Control or inbox: each is `null` in
+its kit, and the renderer offers none of them for a Codex session.
+  mcp_servers.menkar.…] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] [-c
+  mcp_servers.menkar.…] <id> [-- "<prompt>"]`. Options go after `resume`;
+  `default_tools_approval_mode="approve"`, so Menkar's tools run with no approval card. Codex gives

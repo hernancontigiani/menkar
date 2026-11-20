@@ -287,6 +287,8 @@ import { noteStarted, sessions, shownSessions, startedIds } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
 import { currentTasks, setTasks } from './tasks'
 import {
+  type FoundFiles,
+  forgetSessionTeam,
   forgetTeam,
   setTeamSource,
   startTeam,
@@ -988,7 +990,7 @@ function startInput(
   projectId: string | undefined,
   sessionId: string | null,
   start: Start,
-  found: (skill: string) => boolean,
+  found: FoundFiles,
 ) {
   const p = projects.projects.find((x) => x.id === projectId)
   if (!p) return null
@@ -1000,10 +1002,16 @@ function startInput(
     session: member,
     ...(startName ? { startName } : {}),
     named: ownName,
-    found,
+    ...foundArgs(found),
     context: teamContext(),
   })
 }
+
+const foundArgs = (found: FoundFiles) => ({
+  found: (skill: string) => found.has(skill),
+  file: (skill: string) => found.get(skill),
+  ownSkills: join(skillsPluginDir(), 'skills'),
+})
 
 setTeamSource({
   input: (paneId, found) => {
@@ -1014,13 +1022,14 @@ setTeamSource({
       project: p,
       session: sessionId,
       named: ownName,
-      found,
+      ...foundArgs(found),
       context: teamContext(),
     })
   },
+  // A provisional id is no session of the agent's yet: nothing can be told or recorded for it.
   session: (paneId) => {
     const pane = panes.get(paneId)
-    return pane?.sessionId && pane.agent !== 'shell'
+    return pane?.sessionId && pane.agent !== 'shell' && !isProvisional(pane.sessionId)
       ? { agent: pane.agent, sessionId: pane.sessionId }
       : null
   },
@@ -2929,6 +2938,23 @@ export function followPaneStart(paneId: string, sessionId: string, source: PaneS
   if (pane) followPane(pane, sessionId, source)
 }
 
+// A compaction its catalog counted in a pane's transcript, for an agent that tells it nowhere else:
+// the first count seen for a pane's session is where it starts.
+const seenCompactions = new Map<string, { readonly session: string; readonly count: number }>()
+
+function noteCompactions(list: readonly SessionInfo[]): void {
+  const byId = new Map(list.map((s) => [s.id, s]))
+  for (const id of seenCompactions.keys()) if (!panes.has(id)) seenCompactions.delete(id)
+  for (const pane of panes.values()) {
+    const count = pane.sessionId ? byId.get(pane.sessionId)?.compactions : undefined
+    if (!pane.sessionId || count === undefined) continue
+    const seen = seenCompactions.get(pane.id)
+    seenCompactions.set(pane.id, { session: pane.sessionId, count })
+    if (seen?.session === pane.sessionId && count > seen.count)
+      teamStartRecord(pane.id, 'compact', true)
+  }
+}
+
 function followPane(pane: Pane, sessionId: string, source: PaneStartSource | null): void {
   const from = pane.sessionId
   const agent = agentOf(pane)
@@ -3436,6 +3462,7 @@ export async function startWorkspace(): Promise<void> {
   startPhase('agents found')
   sessions.onChange((list) => {
     sessionList = list
+    noteCompactions(list)
     void sessions.currentState().then((state) => {
       settings = settingsOf(state)
       remoteIds = new Set(remoteControlList(state))
@@ -4306,6 +4333,7 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       if (pane) await runAction(contents, { type: 'stopSession', session: action.session })
       projects = forgetSession(projects, action.session)
       changed({ projects: true })
+      await forgetSessionTeam(action.session)
       if (savedAgents[action.session] !== undefined)
         await sessions.updateState((state) => withSessionAgent(state, action.session, null))
       await sessions.refresh()

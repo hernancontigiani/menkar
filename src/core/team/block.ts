@@ -9,6 +9,8 @@ export interface TeamSkill {
   readonly maintainedBy?: string
   /** Loadable from this session's folder chain or the user's skills. */
   readonly found: boolean
+  /** Its SKILL.md, when found. */
+  readonly file?: string
 }
 
 export interface TeamInput {
@@ -21,13 +23,15 @@ export interface TeamInput {
   readonly skills: readonly TeamSkill[]
   /** The human's ring thresholds, in percent. */
   readonly context: { readonly warn: number; readonly full: number }
+  /** The folder of Menkar's own skills, for an agent that loads a skill by its file. */
+  readonly ownSkills?: string
 }
 
 export interface TeamAgent {
-  /** How the agent is told to load a project's or the user's skill. */
-  readonly skill: (name: string) => string
-  /** How the agent is told to load one of Menkar's own skills. */
-  readonly own: (name: string) => string
+  /** How the agent is told to load a project's or the user's skill, given its SKILL.md if found. */
+  readonly skill: (name: string, file?: string) => string
+  /** How the agent is told to load one of Menkar's own skills, given their folder. */
+  readonly own: (name: string, folder?: string) => string
   /** How the agent loads a skill by name, one its listing may not show yet: a clause. */
   readonly byName: string
   /** The agent's part of the protocol, a file in the plugin's `team/` folder. */
@@ -79,16 +83,17 @@ function who(input: TeamInput, role: string): string {
 
 function skills(input: TeamInput, agent: TeamAgent): string | null {
   const items: string[] = []
-  if (input.orchestrator === 'self') items.push(agent.own('orchestrator'))
+  const own = (name: string) => agent.own(name, input.ownSkills)
+  if (input.orchestrator === 'self') items.push(own('orchestrator'))
   let explained = false
   for (const skill of input.skills) {
-    const name = agent.skill(skill.name)
+    const name = agent.skill(skill.name, skill.file)
     if (!skill.found) items.push(`${name} (not found: tell the human)`)
     else if (skill.maintainer) {
       items.push(
         explained
           ? `${name}, which you maintain`
-          : `${name}, which you maintain (only you change it, with ${agent.own('distill')})`,
+          : `${name}, which you maintain (only you change it, with ${own('distill')})`,
       )
       explained = true
     } else if (skill.maintainedBy)
@@ -106,7 +111,7 @@ function renewal(input: TeamInput, agent: TeamAgent, role: string): string | nul
     return `Your parent decides when you renew; when your context (your row in \`list_sessions\`) passes ${full}%, tell it by name.`
   if (!role) return null
   const distill = input.skills.some((skill) => skill.maintainer)
-    ? `run ${agent.own('distill')}, then renew`
+    ? `run ${agent.own('distill', input.ownSkills)}, then renew`
     : 'renew'
   return `You decide when you renew: when a consultation closes and your context (your row in \`list_sessions\`) is past ${warn}%, ${distill}; prefer that to a compaction.`
 }
@@ -119,7 +124,7 @@ export function teamFacts(input: TeamInput, agent: TeamAgent): string {
   if (load) lines.push(load)
   if (input.orchestrator !== 'self')
     lines.push(
-      `When a session hands you a task, load ${agent.own('worker')} first, ${agent.byName}.`,
+      `When a session hands you a task, load ${agent.own('worker', input.ownSkills)} first, ${agent.byName}.`,
     )
   const renew = renewal(input, agent, role)
   if (renew) lines.push(renew)
