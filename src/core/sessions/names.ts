@@ -10,8 +10,8 @@ export interface Nameable extends Names {
   readonly preview: string
 }
 
-// The titles count only for an agent that writes them in its transcripts.
-export const titled = (agent: Agent) => (kitOf(agent).catalog.transcript?.titles ?? null) !== null
+// The titles count only for an agent that names its sessions in its own data.
+export const titled = (agent: Agent) => kitOf(agent).catalog.names
 
 export function sessionName(session: Nameable, appName: string | undefined): string {
   const own = titled(session.agent)

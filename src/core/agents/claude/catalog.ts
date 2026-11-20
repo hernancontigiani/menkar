@@ -162,6 +162,7 @@ async function find(projects: string): Promise<Found[]> {
 
 export const catalog: SessionCatalog = {
   root: () => agentPaths().claudeProjects,
+  names: true,
   find,
   reader: (read) => new JsonlReader(transcript, read),
   // The projects directory and each folder in it. Not recursive: a session's subagents/ and

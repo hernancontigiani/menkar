@@ -15,6 +15,8 @@ const A = '019a4f2c-1e00-7a11-8a01-00000000000a' // paginated, named twice, comp
 const B = '019a5400-2b00-7b22-8b02-00000000000b' // legacy events, unnamed
 const C = '0199fe10-3c00-7c33-8c03-00000000000c' // older than 7 days: compressed
 const D = '019a4f30-4d00-7d44-8d04-00000000000d' // a subagent of A
+const E = '019a5a00-5e00-7e66-8e06-00000000000e' // a `codex exec` run
+const F = '019a5a10-6f00-7f77-8f07-00000000000f' // named, then its name cleared
 const TITLE = '019a4f2c-1d00-7e55-8e05-0000000000ee' // the title thread: notifies, no rollout
 
 const line = (timestamp, type, payload) => JSON.stringify({ timestamp, type, payload })
@@ -47,8 +49,22 @@ const meta = (id, at, cwd, extra = {}) =>
     ...extra,
   })
 
-// One paginated turn: its context, start, the user's and the agent's items, tokens and end.
-function turn(thread, turnId, at, cwd, text, reply, tokens) {
+// What Codex records for the model beside the events: the same messages again, and the context it
+// injects as the user's. A reader takes neither.
+const said = (at, role, text) =>
+  line(at, 'response_item', {
+    type: 'message',
+    role,
+    content: [{ type: role === 'assistant' ? 'output_text' : 'input_text', text }],
+  })
+const injected = (at, cwd) => [
+  said(at, 'developer', '<permissions instructions>workspace-write</permissions instructions>'),
+  said(at, 'user', `<environment_context>\n  <cwd>${cwd}</cwd>\n</environment_context>`),
+  said(at, 'user', '# AGENTS.md instructions for the folder\n\nRun the tests before replying.'),
+]
+
+// One paginated turn: its context, start, the user's and the agent's items, tools, tokens and end.
+function turn(thread, turnId, at, cwd, text, reply, tokens, tools = []) {
   const ms = Date.parse(at)
   const startedS = ms / 1000
   return [
@@ -78,6 +94,22 @@ function turn(thread, turnId, at, cwd, text, reply, tokens) {
       },
       completed_at_ms: ms,
     }),
+    said(at, 'user', text),
+    ...tools.flatMap((tool, i) => [
+      line(new Date(ms + 1000).toISOString(), 'response_item', {
+        type: 'function_call',
+        name: tool.type === 'McpToolCall' ? `${tool.server}__${tool.tool}` : 'shell',
+        arguments: '{}',
+        call_id: `call_${turnId.slice(-4)}_${i}`,
+      }),
+      line(new Date(ms + 1500).toISOString(), 'event_msg', {
+        type: 'item_completed',
+        thread_id: thread,
+        turn_id: turnId,
+        item: { id: `item_${turnId.slice(-4)}_${i}`, ...tool },
+        completed_at_ms: ms + 1500,
+      }),
+    ]),
     line(new Date(ms + 2000).toISOString(), 'event_msg', {
       type: 'item_completed',
       thread_id: thread,
@@ -89,6 +121,7 @@ function turn(thread, turnId, at, cwd, text, reply, tokens) {
       },
       completed_at_ms: ms + 2000,
     }),
+    said(new Date(ms + 2000).toISOString(), 'assistant', reply),
     line(new Date(ms + 2100).toISOString(), 'event_msg', {
       type: 'token_count',
       info: {
@@ -126,6 +159,7 @@ const a2 = usage(9120, 8000, 31, 0)
 const aTotal = usage(14786 + 9120, 11904 + 8000, 52 + 31, 12)
 files[`sessions/2026/11/02/rollout-2026-11-02T09-15-00-${A}.jsonl`] = jsonl([
   meta(A, '2026-11-02T12:15:00.000Z', '/home/demo/api'),
+  ...injected('2026-11-02T12:15:00.000Z', '/home/demo/api'),
   ...turn(
     A,
     '019a4f2c-1e10-7000-8000-0000000000a1',
@@ -151,14 +185,42 @@ files[`sessions/2026/11/02/rollout-2026-11-02T09-15-00-${A}.jsonl`] = jsonl([
     'Add a test for /health',
     'Added a test for /health in tests/health.test.ts.',
     { last: a2, total: aTotal },
+    [
+      {
+        type: 'CommandExecution',
+        command: ['npm', 'test'],
+        cwd: '/home/demo/api',
+        status: 'completed',
+        exit_code: 0,
+        aggregated_output: 'ok',
+      },
+      {
+        type: 'McpToolCall',
+        server: 'docs',
+        tool: 'search',
+        arguments: { q: 'health' },
+        status: 'completed',
+      },
+      {
+        type: 'McpToolCall',
+        server: 'docs',
+        tool: 'fetch',
+        arguments: { id: 1 },
+        status: 'completed',
+      },
+    ],
   ),
 ])
 
-// B: an older thread with legacy events, in /home/demo/web.
+// B: an older thread with legacy events, in /home/demo/web: one turn with a shell and an MCP call,
+// then one the user interrupted, which ends in `turn_aborted` and no `task_complete`.
+const B1 = '019a5400-2b10-7000-8000-0000000000b1'
+const B2 = '019a5400-2b20-7000-8000-0000000000b2'
 files[`sessions/2026/11/03/rollout-2026-11-03T18-02-10-${B}.jsonl`] = jsonl([
   meta(B, '2026-11-03T21:02:10.000Z', '/home/demo/web', { history_mode: 'legacy' }),
+  ...injected('2026-11-03T21:02:10.000Z', '/home/demo/web'),
   line('2026-11-03T21:02:12.000Z', 'turn_context', {
-    turn_id: '019a5400-2b10-7000-8000-0000000000b1',
+    turn_id: B1,
     cwd: '/home/demo/web',
     approval_policy: 'on-request',
     model: 'gpt-6.1-sol',
@@ -166,17 +228,38 @@ files[`sessions/2026/11/03/rollout-2026-11-03T18-02-10-${B}.jsonl`] = jsonl([
   }),
   line('2026-11-03T21:02:12.000Z', 'event_msg', {
     type: 'task_started',
-    turn_id: '019a5400-2b10-7000-8000-0000000000b1',
+    turn_id: B1,
     started_at: seconds('2026-11-03T21:02:12.000Z'),
     model_context_window: 258400,
     collaboration_mode_kind: 'default',
   }),
+  said('2026-11-03T21:02:12.000Z', 'user', 'Why is the header blue?'),
   line('2026-11-03T21:02:12.000Z', 'event_msg', {
     type: 'user_message',
     message: 'Why is the header blue?',
     local_images: [],
     text_elements: [],
   }),
+  line('2026-11-03T21:02:13.000Z', 'response_item', {
+    type: 'local_shell_call',
+    call_id: 'call_b1_0',
+    status: 'completed',
+    action: { type: 'exec', command: ['grep', '-r', 'accent', 'src'] },
+  }),
+  line('2026-11-03T21:02:13.500Z', 'response_item', {
+    type: 'function_call',
+    name: 'design__tokens',
+    arguments: '{}',
+    call_id: 'call_b1_1',
+  }),
+  line('2026-11-03T21:02:14.000Z', 'event_msg', {
+    type: 'mcp_tool_call_end',
+    call_id: 'call_b1_1',
+    invocation: { server: 'design', tool: 'tokens', arguments: {} },
+    duration: { secs: 0, nanos: 300000000 },
+    result: { Ok: { content: [] } },
+  }),
+  said('2026-11-03T21:02:15.000Z', 'assistant', 'The header takes --accent from theme.css.'),
   line('2026-11-03T21:02:15.000Z', 'event_msg', {
     type: 'agent_message',
     message: 'The header takes --accent from theme.css.',
@@ -190,13 +273,44 @@ files[`sessions/2026/11/03/rollout-2026-11-03T18-02-10-${B}.jsonl`] = jsonl([
   }),
   line('2026-11-03T21:02:15.200Z', 'event_msg', {
     type: 'task_complete',
-    turn_id: '019a5400-2b10-7000-8000-0000000000b1',
-    root_turn_id: '019a5400-2b10-7000-8000-0000000000b1',
+    turn_id: B1,
+    root_turn_id: B1,
     last_agent_message: 'The header takes --accent from theme.css.',
     started_at: seconds('2026-11-03T21:02:12.000Z'),
     completed_at: seconds('2026-11-03T21:02:15.000Z'),
     duration_ms: 3200,
     time_to_first_token_ms: 900,
+  }),
+  line('2026-11-03T21:05:00.000Z', 'turn_context', {
+    turn_id: B2,
+    cwd: '/home/demo/web',
+    approval_policy: 'on-request',
+    model: 'gpt-6.1-terra',
+    effort: 'medium',
+  }),
+  line('2026-11-03T21:05:00.000Z', 'event_msg', {
+    type: 'task_started',
+    turn_id: B2,
+    started_at: seconds('2026-11-03T21:05:00.000Z'),
+    model_context_window: 258400,
+    collaboration_mode_kind: 'default',
+  }),
+  said('2026-11-03T21:05:00.000Z', 'user', 'Make it   green\nand bold'),
+  line('2026-11-03T21:05:00.000Z', 'event_msg', {
+    type: 'user_message',
+    message: 'Make it   green\nand bold',
+    local_images: [],
+    text_elements: [],
+  }),
+  line('2026-11-03T21:05:04.000Z', 'event_msg', {
+    type: 'turn_aborted',
+    turn_id: B2,
+    root_turn_id: B2,
+    reason: 'interrupted',
+    error: null,
+    started_at: seconds('2026-11-03T21:05:00.000Z'),
+    completed_at: seconds('2026-11-03T21:05:04.000Z'),
+    duration_ms: 4000,
   }),
 ])
 
@@ -220,6 +334,38 @@ files[`sessions/2026/11/02/rollout-2026-11-02T09-20-00-${D}.jsonl`] = jsonl([
   ),
 ])
 
+// E: a `codex exec` run, which Codex's own picker hides; so does the list.
+files[`sessions/2026/11/04/rollout-2026-11-04T08-00-00-${E}.jsonl`] = jsonl([
+  meta(E, '2026-11-04T11:00:00.000Z', '/home/demo/api', {
+    source: 'exec',
+    originator: 'codex_exec',
+  }),
+  ...turn(
+    E,
+    '019a5a00-5e10-7000-8000-0000000000e1',
+    '2026-11-04T11:00:01.000Z',
+    '/home/demo/api',
+    'Summarise the changelog',
+    'Three fixes and one feature.',
+    { last: usage(2000, 0, 9, 0), total: usage(2000, 0, 9, 0) },
+  ),
+])
+
+// F: a thread whose last reply asks the user something; it was named, then its name cleared.
+files[`sessions/2026/11/04/rollout-2026-11-04T09-30-00-${F}.jsonl`] = jsonl([
+  meta(F, '2026-11-04T12:30:00.000Z', '/home/demo/web'),
+  ...injected('2026-11-04T12:30:00.000Z', '/home/demo/web'),
+  ...turn(
+    F,
+    '019a5a10-6f10-7000-8000-0000000000f1',
+    '2026-11-04T12:30:02.000Z',
+    '/home/demo/web',
+    'Change the header to green',
+    'Done. Should I also change the footer?',
+    { last: usage(4000, 0, 12, 0), total: usage(4000, 0, 12, 0) },
+  ),
+])
+
 const cText = jsonl([
   meta(C, '2026-10-20T14:00:00.000Z', '/home/demo/api'),
   ...turn(
@@ -236,7 +382,8 @@ files[`sessions/2026/10/20/rollout-2026-10-20T11-00-00-${C}.jsonl.zst`] = zstdCo
   Buffer.from(cText),
 )
 
-// Names: append-only, the last line for an id wins.
+// Names: append-only, the last line for an id wins by its place in the file, whatever its
+// `updated_at` says, and an empty name clears the name.
 files['session_index.jsonl'] = jsonl([
   JSON.stringify({
     id: C,
@@ -249,10 +396,21 @@ files['session_index.jsonl'] = jsonl([
     updated_at: '2026-11-02T12:15:09.004211873Z',
   }),
   JSON.stringify({
+    id: F,
+    thread_name: 'scratch',
+    updated_at: '2026-11-04T12:31:00.000000000Z',
+  }),
+  JSON.stringify({
+    id: A,
+    thread_name: 'api-routes-draft',
+    updated_at: '2026-11-02T12:20:00.000000000Z',
+  }),
+  JSON.stringify({
     id: A,
     thread_name: 'api-routes',
     updated_at: '2026-11-02T12:16:30.500000000Z',
   }),
+  JSON.stringify({ id: F, thread_name: '', updated_at: '2026-11-04T12:32:00.000000000Z' }),
 ])
 
 for (const [path, content] of Object.entries(files)) {
@@ -260,7 +418,8 @@ for (const [path, content] of Object.entries(files)) {
   writeFileSync(join(codex, path), content)
 }
 
-// state_5.sqlite: the two tables a thread list reads, in WAL as Codex keeps it (its writer closed).
+// state_5.sqlite: the two tables a thread list reads, in WAL as Codex keeps it (its writer closed);
+// its rows are A to D only, which the catalog does not read.
 const db = new DatabaseSync(join(codex, 'state_5.sqlite'))
 db.exec(`PRAGMA journal_mode=WAL;
 CREATE TABLE threads (

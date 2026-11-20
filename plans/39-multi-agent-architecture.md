@@ -1476,3 +1476,69 @@ P0's blocks run in turn.
 - **Seen failing once**: no `--` (8 tests), the prompt path unquoted (6), the notify argv not
   TOML-escaped (1), a top-level profile honoured (2), no surrogate or DEL handling (2), the prefix
   ignored (1), the gate ignored (1), a `LANDS_IN` naming an unregistered agent (1).
+
+### P1a.3 (`menkar-t141`, task 141, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row (a premise gap):** shared code showed a name
+  only for an agent whose `transcript.titles` is not null (`titled`, `sessions/names.ts`), and
+  Codex's catalog has no `TranscriptReading` (its rollouts are not Claude-shaped JSONL; giving it
+  one would let `transcript.ts` and the inbox read them). `SessionCatalog.names` ("the agent names
+  its sessions in its own data": Claude true, Cursor false, Codex true) is what `titled` reads now;
+  touched `types.ts`, the three catalogs, `sessions/names.ts`, and a case in
+  `tests/core/sessions/reading.test.ts` (a Codex name reaching `sessionName`). Claude and Cursor
+  unchanged (Cursor's names were already ignored); R10 equal.
+- **Decided by set, 2026-11-20 — R10 and the watch:** with Codex's real `watchTargets`, a missing
+  `~/.codex` gave its nearest existing ancestor, `~`, and R10's scan snapshots gained `$HOME`.
+  Codex watches **nothing while its home does not exist**; once it does, its home (for
+  `session_index.jsonl`) and every `sessions/YYYY/MM/DD` folder (a resume appends to the day folder
+  the thread began in). **Cost:** a Codex run for the first time after Menkar started shows its
+  sessions at the next rescan something else triggers, or at the next start; the watch set is
+  recomputed at each scan, so from then on it is watched (a test shows the targets appearing).
+  P1a.7 writes this cost in `docs/agents.md`'s Codex notes.
+- **What the catalog reads** (from `codex`, 2026-11-20, 0.169.0 source and measured files):
+  paginated rollouts tell the conversation in `event_msg` `item_completed` (`UserMessage`,
+  `AgentMessage`, and tool items: `CommandExecution`, `McpToolCall` with its `server`, …); legacy
+  ones in `user_message`/`agent_message` events, their tools only in `response_item`
+  `function_call`/`custom_tool_call`/`local_shell_call` and MCP servers from `mcp_tool_call_end`.
+  **`response_item` messages are never read** (they repeat each message and carry the injected
+  `<environment_context>` and AGENTS.md text as the user's); the mode comes from
+  `session_meta.history_mode`. An interrupted turn ends in `turn_aborted` (badge `interrupted`);
+  `lastReply` is the last non-empty `task_complete.last_agent_message`, looked for in tail windows
+  of 64 KB, 1 MB, 8 MB (as Claude's reader stops at 8 MB).
+- **Left out of the list**, as Codex's own picker: `thread_source` `subagent` or `guardian_review`,
+  `source: exec`, a rollout with no user message yet (listed once one is written), and
+  `archived_sessions/` (not walked).
+- **Files side by side:** a plain `.jsonl` hides its `.zst` sibling (both exist while Codex
+  compresses or restores one); a reverted thread (`…-<thread>_<rollout>.jsonl`) is listed under
+  its thread id, from the file written last (my choice: Codex continues the thread in the new
+  file).
+- **Names:** `session_index.jsonl` read incrementally by offset (from the start again when it is
+  replaced or shorter); the last line per thread wins whatever its `updated_at`. The name goes to
+  `customTitle` (set's OK: Codex's automatic titles and renames are indistinguishable there), and
+  an empty `thread_name` clears it (set's OK).
+- **A `.zst`** is read through `shared/zstd.ts`'s `streamLines` (`createZstdDecompress`, async; the
+  loop stopping closes the file): the list reads only its head and stops; its badge is `null`
+  (the tail is not read, §2.6); details, export and `lastReply` stream it whole. Details and export
+  stream a plain rollout the same way, never holding it whole.
+- **Export** speaker `Codex`; a tool is shown as `shell`, `<server>/<tool>`, or its legacy function
+  name (my choice), attached to the reply that follows it.
+- **Fixture regenerated through `make.mjs`** (set's OK): `codex` found P1a.1's rollouts without
+  `response_item` lines unfaithful; they gain the injected context and the repeated messages, A's
+  second turn a shell and two MCP calls, B a legacy tool call, an MCP end and an interrupted second
+  turn, new E (`codex exec`, hidden) and F (a waiting reply, named then cleared), and the index an
+  out-of-order line (A's last line has the older `updated_at`). `state_5.sqlite` is unchanged
+  (rows A–D; the catalog does not read it). `expected.json` was written by the catalog and checked
+  by hand against the fixture's design.
+- **Engines `>=22.15.0`** in `package.json` (and the lock's root entry), reason in
+  `docs/toolchain.md`. Electron 45.2.3 runs Node 24.22.2 (measured).
+- **Environment:** the worktree's `node_modules` lacked `@types/js-yaml` after the merge of `main`
+  (tsc failed in two `tests/scripts` files); installed with `npm install --ignore-scripts`, the lock
+  unchanged by it.
+- **Seen failing once:** `names` false for Codex (the `sessionName` case); first index line wins
+  (contract); a `utimes` in the export (no-write); `response_item` messages read (contract, 2);
+  the head final before a user message; the index never reset; `.zst` preferred; the oldest
+  reverted file; the zstd stream not destroyed (open-file case); watching `~` without a Codex home
+  (the watch case and R10's two scan snapshots).
+- **`npm run ci`:** biome, tsc, vitest (1990/1990), R10 unchanged, code rules, i18n, flaky, history
+  pass; test integrity reports only P1a.2's six roster pins against `main` (accepted by set for
+  that commit).

@@ -18,6 +18,10 @@ what neither says: why each piece, and what was rejected.
   (`src/`, `tests/`, `e2e/`, `scripts/`, root configs), never at the Markdown documents.
 - **Vitest** for `src/core/` and main-side logic. `tests/setup.ts` points `HOME` and the XDG
   directories at a temporary directory before any test runs.
+- **Node `>=22.15.0`** (`package.json`'s `engines`): Codex's compressed rollouts are read with
+  zlib's zstd stream (`createZstdDecompress`), which Node has from 22.15.0 on. The app itself runs
+  on Electron's Node (24 with Electron 45); the floor is for Vitest and the scripts, which run on
+  the developer's Node.
 - **Playwright's `_electron.launch`** on the built app, under `xvfb-run -a`, with `forbidOnly`, no
   retries and a trace only on a retry. `e2e/app.ts` launches with a temporary `HOME` and XDG set,
   on its worker's own X server (below).

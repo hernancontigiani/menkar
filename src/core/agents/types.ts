@@ -143,6 +143,8 @@ export interface SessionTrash {
 export interface SessionCatalog {
   // Where the agent keeps its sessions.
   root(): string
+  // Whether the agent names its sessions in its own data: a name read there is the session's.
+  readonly names: boolean
   find(root: string): Promise<Found[]>
   reader(read: ReadRange): SessionReader
   // The directories whose changes can mean a session appeared or changed.

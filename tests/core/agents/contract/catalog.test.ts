@@ -49,7 +49,7 @@ afterEach(() => {
 })
 
 // An agent registered before its catalog reads its sessions: its fixture home has no expected.json until then, and the block that builds it.
-const LANDS_IN: Partial<Record<AgentId, string>> = { codex: 'P1a.3' }
+const LANDS_IN: Partial<Record<AgentId, string>> = {}
 const BUILT = AGENT_IDS.filter((id) => LANDS_IN[id] === undefined)
 
 test('only an agent still to be built is left out', () => {

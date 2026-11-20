@@ -180,6 +180,12 @@ describe("a session's name", () => {
     expect(sessionName(cursor, undefined)).toBe('p')
     expect(sessionName({ ...cursor, preview: '' }, undefined)).toBe('abcdef12')
   })
+
+  test("a Codex session's name from its own index is its name, before the app's", () => {
+    const codex = { agent: 'codex' as const, id: 'abcdef1234', preview: 'p', aiTitle: null }
+    expect(sessionName({ ...codex, customTitle: 'api-routes' }, 'Mine')).toBe('api-routes')
+    expect(sessionName({ ...codex, customTitle: null }, 'Mine')).toBe('Mine')
+  })
 })
 
 describe("Cursor's folder", () => {
