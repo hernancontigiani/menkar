@@ -312,13 +312,18 @@ Plan 39 P1b.3, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
 
 ## Codex: naming
 
-Decision 1.195 (the human, 2026-11-20, amending D5), measured by `codex` on codex-cli 0.169.0.
+Decision 1.195 (the human, 2026-11-20, amending D5), measured by `codex` on codex-cli 0.169.0,
+widened by decision 1.196 (the human, 2026-11-20): `codex` measured (its research file item 27)
+that a Codex TUI with Menkar's MCP server mounted generates no title, so a session Menkar leaves
+unnamed stays without one.
 
-- **Which sessions:** only the Codex sessions `start_session` starts (workers, consultants), which
-  the team addresses by name, and a renew of one of them, whose new thread is named the same.
-  Each named session is kept in `state.json`'s `agent_named` (`docs/sessions.md`), so a renew
-  after a restart still names. A session the human opens from New keeps Codex's own title, and a
-  name on a session Menkar did not start is never touched.
+- **Which sessions:** every Codex session Menkar starts with a name, after its first message: from
+  New, from the first-time card, from `start_session` (workers, consultants), and a renew of any of
+  them, whose new thread is named the same. Each named session is kept in `state.json`'s
+  `agent_named` (`docs/sessions.md`), so a renew after a restart still names. New and the card
+  hold a named session under a provisional id until it binds, as `start_session` does. A session
+  opened from New without a name is left to Codex, and a name on a session Menkar did not start is
+  never touched.
 - **The call** (`src/main/agents/codex/namer.ts`): `thread/name/set` sent to a separate `codex
   app-server --disable plugins` on the same home (`initialize` with a client name and version,
   `initialized`, the call, then its input closed: it exits 0 whatever it answered, so the answer is
@@ -393,9 +398,9 @@ installed agent whose sessions can use Menkar's tools (`caps.tools`).
 - **Its first prompt is its agent's** (`TeamDelivery.orchestratorPrompt`, an i18n key built in
   main with the project's name, the guide's path and the orchestrator skill's `SKILL.md`): Claude
   Code's loads the skill with the Skill tool, Codex's reads its `SKILL.md` by path.
-- **Named as the human typed it** (`set`, 2026-11-20, reading 1.195: a name the human typed is the
-  human's): through the same namer as `start_session`'s Codex sessions, once its thread exists,
-  with the same `agent_named` mark, so a renew keeps it.
+- **Named as the human typed it** (decision 1.196, as every Codex session Menkar starts with a
+  name): through the same namer as `start_session`'s Codex sessions, once its thread exists, with
+  the same `agent_named` mark, so a renew keeps it.
 
 ## Codex: the team block
 

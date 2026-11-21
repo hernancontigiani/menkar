@@ -3565,9 +3565,11 @@ async function startNewSession(
   if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
   const name = action.name.trim()
   const realId = kitOf(action.agent).ids.newId()
-  // An orchestrator of an agent that picks its own id is marked at once under a provisional one,
-  // as start_session places its sessions; the real id takes its place when it binds.
-  const id = realId ?? (action.orchestrator ? provisionalId(randomUUID()) : null)
+  // A session that takes no name at start is named once its thread exists (decision 1.196), so a
+  // named one is held under a provisional id, as an orchestrator to mark is and as start_session
+  // places its sessions; the real id takes its place when it binds.
+  const toBeNamed = realId === null && name !== '' && mainKitOf(action.agent).namer !== null
+  const id = realId ?? (action.orchestrator || toBeNamed ? provisionalId(randomUUID()) : null)
   const tab = addTransientTab(
     windowId,
     name || basename(action.folder),
@@ -3605,9 +3607,7 @@ async function startNewSession(
     ...(action.remoteControl && realId ? { remote: remoteName(name, action.folder, realId) } : {}),
     ...(promptFile ? { promptFile } : {}),
   })
-  // The name the human gave the orchestrator is the one the team addresses it by: an agent that
-  // takes no name at start is named once its thread exists, as start_session's sessions are.
-  if (id && action.orchestrator && name && realId === null) nameWhenBound(id, name, action.agent)
+  if (id && toBeNamed) nameWhenBound(id, name, action.agent)
   changed({ projects: Boolean(id && action.orchestrator) })
   return {}
 }

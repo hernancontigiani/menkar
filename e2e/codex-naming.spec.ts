@@ -1,7 +1,8 @@
 // Decision 1.195, with the stand-in `codex`: Menkar names the Codex sessions start_session starts,
 // through `codex app-server --disable plugins`, as soon as their rollout appears, over the title
 // Codex generated for the first message; a /rename by the human afterwards is never overwritten;
-// a renew names the new thread too. A Codex session opened from New keeps Codex's own title.
+// a renew names the new thread too. Decision 1.196: one opened from New is named the same when it
+// has a name; one opened without a name keeps Codex's own title.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -192,6 +193,26 @@ test('a Codex session opened from New keeps Codex’s own title: Menkar never na
     expect(app.nameOf(thread)).toBe('Generated title')
     expect(app.serverRuns()).toEqual([])
     expect(app.agentNamed()).toEqual([])
+  } finally {
+    await app.launched.close()
+  }
+})
+
+test('a Codex session opened from New with a name is named after its first message, and marked', async () => {
+  const app = await launch()
+  try {
+    await act(app.page, {
+      type: 'startNew',
+      agent: 'codex',
+      folder: join(app.home, 'work'),
+      name: 'routes',
+    })
+    await expect(app.page.locator('.xterm-rows')).toContainText('Ask Codex to do anything')
+    await typeIn(app.page, 'add the routes')
+    await expect.poll(app.threads).toHaveLength(1)
+    const [thread = ''] = app.threads()
+    await expect.poll(() => app.nameOf(thread)).toBe('routes')
+    await expect.poll(app.agentNamed).toEqual([thread])
   } finally {
     await app.launched.close()
   }

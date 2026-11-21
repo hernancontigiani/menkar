@@ -85,3 +85,20 @@ its kit, and the renderer offers none of them for a Codex session.
 > Left on 2026-11-20: the caps gained `tools` (⇔ `kit.mcp`) and the descriptor `teamLimits`, `firstPrompt` and `versionWord` (plan 39 P1b.6).
   variants), in `src/core/agents/<id>/descriptor.ts`, gathered by `src/core/agents/descriptors.ts`,
   (and a non-empty `chat` list), `namedAtStart` ⇔ `kit.namer.atStart(…) !== null`.
+
+## Codex: naming
+
+> Left on 2026-11-21: every Codex session Menkar starts with a name is named, New's too (decision 1.196, task 168).
+Decision 1.195 (the human, 2026-11-20, amending D5), measured by `codex` on codex-cli 0.169.0.
+- **Which sessions:** only the Codex sessions `start_session` starts (workers, consultants), which
+  the team addresses by name, and a renew of one of them, whose new thread is named the same.
+  Each named session is kept in `state.json`'s `agent_named` (`docs/sessions.md`), so a renew
+  after a restart still names. A session the human opens from New keeps Codex's own title, and a
+  name on a session Menkar did not start is never touched.
+
+## Codex as the orchestrator
+
+> Left on 2026-11-21: the card's orchestrator is named under decision 1.196 (task 168).
+- **Named as the human typed it** (`set`, 2026-11-20, reading 1.195: a name the human typed is the
+  human's): through the same namer as `start_session`'s Codex sessions, once its thread exists,
+  with the same `agent_named` mark, so a renew keeps it.

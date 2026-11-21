@@ -296,7 +296,7 @@ block that adds the interface to `types.ts`.
 | **Fork** (core): `plan(source, newId) → Start` (B2) | P0.6 | `--resume <src> --fork-session --session-id <id>` | `null` | `null` (38 §7) | `null` (38 §7) | `forkSession` asks it; `null` → no Fork entry (the cap) |
 | **Remote** (main): `live(pane) → boolean`, reading Claude's registry (B2) | P0.5 | `remote-live.ts`'s reader, moved to `src/main/agents/claude/remote.ts` | `null` | `null` | `null` | `remote-live.ts` keeps the loop, asks the kit |
 | **TeamDelivery** (core + main), the team block's three pieces (`docs/session-control.md`, "The team block"; §2.5.6) | P0.3 | `part` `claude.md`; `skill`/`own` names; `atStart`: the file and the flags (snapshot off on every resume); `heldAtStart`: new and resume → the block, fork → `null`; `afterCompaction` → `started`; `tell` → a post | P3: `sessionStart` hook's `additional_context`; resume → the recorded (persisted) block; idle facts change waits for the next wake (1.159) | `-c developer_instructions`, chaining the user's own; resume → recorded until compaction; compaction from the rollout's `compacted` item (S7) | instruction entry; `tell` updates the entry, no post | Methods, not a `holds` tag (S2); `skill` names a skill (a name; for Codex a `SKILL.md` path, 1.155 Q1) |
-| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | only `start_session`'s sessions and their renews, as soon as the rollout appears, `thread/name/set` (main, D5 as amended by 1.195) | `title` at create | Two methods, not a `kind` (S2) |
+| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | every Codex session Menkar starts with a name (New, the first-time card, `start_session`) and their renews, as soon as the rollout appears, `thread/name/set` (main, D5 as amended by 1.195 and 1.196) | `title` at create | Two methods, not a `kind` (S2) |
 | **EnvRules** (core, data) | P0.3 | today's `SESSION_ENV` | `cursor.md` §1.7, marker `CURSOR_AGENT` | `CODEX_THREAD_ID`, … | `opencode.md` §1.7 | `withoutSessionEnv` applies **every** registered agent's rules |
 | **ContextSource** (core) | P1a.6 | the statusline (today) | `null` (D8) | `token_count` from the rollout tail | `GET …/context` (main) | `null` is a type the sidebar handles |
 | **IntegrationItems** (core + main) | P3.1 | statusline, retention (today, not moved in P0) | D13 hooks, D7 allow entries | none | none | Items greyed when the CLI is not found (1.140) |
@@ -2263,3 +2263,28 @@ P0's blocks run in turn.
   pass; test integrity as above; flaky and history pass when run after it. **`npm run ui-check`**:
   the first full run 439 passed, 1 failed (`files.spec.ts`, fixed by set's reading of Ask an agent);
   the second, after every fix, 440 passed, exit 0.
+
+### 1.196: every named Codex session (`menkar-t168`, task 168, 2026-11-21)
+
+- **Decided by the human, 2026-11-20 (1.196, topic 84):** Menkar names every Codex session it
+  starts with its start name after its first message (New, the first-time card, `start_session`,
+  their renews), since `codex` measured (its item 27) that a Codex TUI with Menkar's MCP mounted
+  generates no title; a name already on a thread is never overwritten.
+- **Built:** `startNewSession` (`src/main/workspace.ts`) holds a New session under a provisional id
+  whenever its agent picks its own id, it was given a name and its kit has a namer, as it already
+  did for the card's orchestrator, and calls `nameWhenBound` for it; the orchestrator-only
+  condition is gone. The bind, the namer, the `agent_named` mark and the renew's naming are
+  unchanged. A New session without a name is left to Codex.
+- **§2's Namer row** before this change read: "only `start_session`'s sessions and their renews,
+  as soon as the rollout appears, `thread/name/set` (main, D5 as amended by 1.195)".
+- **Tests:** `e2e/codex-naming.spec.ts` gains "a Codex session opened from New with a name is named
+  after its first message, and marked", seen failing before the change (the thread kept the
+  stand-in's "Generated title"); the three earlier tests unchanged (the file's header comment now
+  says 1.196).
+- **Docs:** `docs/agents.md` (Codex: naming, Codex as the orchestrator; old text in its history),
+  `docs/agent-versions.md` (Codex: 1.196 rests on item 27, re-measured on each upgrade).
+- **`npm run ci`**: biome, tsc, vitest (176 files, 2262 tests) pass; R10 unchanged fails on
+  `tests/core/r10/plugin/skills/worker/SKILL.md`, changed on main by c67e461 (task 169) after the
+  merge base; run by hand after it: code rules, i18n, flaky and history pass, test integrity
+  reports the branch's nine known lines (none from this change). **`npm run ui-check`**: 441
+  passed, exit 0.
