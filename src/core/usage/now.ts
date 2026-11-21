@@ -6,6 +6,7 @@ import {
   awayPeriods,
   BURST_GAP_SECONDS,
   bursts,
+  type HumanAction,
   humanActionsOf,
   type PresenceKind,
   readActivity,
@@ -104,13 +105,17 @@ export interface NowReading {
     readonly length_seconds: number
     readonly messages: number
     readonly prompts: number
+    readonly switches: number
   } | null
   readonly today?: {
     readonly active_seconds: number
     readonly messages: number
     readonly prompts: number
   }
+  readonly sessions_last_30_minutes?: number
 }
+
+export const FOCUS_WINDOW_SECONDS = 1800
 
 const whole = Math.floor
 const moment = (seconds: number) => ({ iso: isoLocal(whole(seconds)), epoch: whole(seconds) })
@@ -130,7 +135,11 @@ export function readNow(source: ActivitySource, nowSeconds: number, running: boo
   const open = awayPeriods(rows.presence, Number.POSITIVE_INFINITY).find(
     (p) => p.end === Number.POSITIVE_INFINITY,
   )
-  const last = bursts(humanActionsOf(rows), away).at(-1)
+  const actions = humanActionsOf(rows)
+  const last = bursts(actions, away).at(-1)
+  const messages = actions.filter(
+    (a) => a.kind === 'message' && !away.some((p) => p.start <= a.at && a.at < p.end),
+  )
   const going =
     open === undefined &&
     last !== undefined &&
@@ -159,6 +168,7 @@ export function readNow(source: ActivitySource, nowSeconds: number, running: boo
             length_seconds: lastAction.epoch - start.epoch,
             messages: last.messages,
             prompts: last.prompts,
+            switches: switches(messages.filter((m) => last.start <= m.at && m.at <= last.end)),
           }
         : null,
     today: {
@@ -166,5 +176,18 @@ export function readNow(source: ActivitySource, nowSeconds: number, running: boo
       messages: day.messages,
       prompts: day.prompts,
     },
+    sessions_last_30_minutes: new Set(
+      messages
+        .filter((m) => nowSeconds - FOCUS_WINDOW_SECONDS <= m.at && m.at <= nowSeconds)
+        .map((m) => m.session),
+    ).size,
   }
+}
+
+// Consecutive messages, oldest first, that went to a different session than the one before.
+function switches(messages: readonly HumanAction[]): number {
+  let count = 0
+  for (let i = 1; i < messages.length; i++)
+    if (messages[i]?.session !== messages[i - 1]?.session) count += 1
+  return count
 }

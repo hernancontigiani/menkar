@@ -154,13 +154,15 @@ describe('the reading', () => {
     "last_action_epoch": 1795113600,
     "length_seconds": 4200,
     "messages": 2,
-    "prompts": 1
+    "prompts": 1,
+    "switches": 0
   },
   "today": {
     "active_seconds": 7800,
     "messages": 4,
     "prompts": 1
-  }
+  },
+  "sessions_last_30_minutes": 0
 }`)
     history.close()
   })
@@ -296,6 +298,7 @@ describe('the reading', () => {
       'last_action',
       'burst',
       'today',
+      'sessions_last_30_minutes',
     ])
     expect(Object.keys(r.burst ?? {})).toEqual([
       'start',
@@ -305,11 +308,95 @@ describe('the reading', () => {
       'length_seconds',
       'messages',
       'prompts',
+      'switches',
     ])
     expect(Object.keys(r.last_action ?? {})).toEqual(['at', 'at_epoch'])
     expect(Object.keys(r.today ?? {})).toEqual(['active_seconds', 'messages', 'prompts'])
     write(JOURNAL_FILE, [{ at: hm(15, 41), kind: 'away' }])
     expect(Object.keys(reading(hm(15, 42)).away ?? {})).toEqual(['since', 'since_epoch'])
+    history.close()
+  })
+})
+
+// Decision 1.202: how scattered the human is, global like the rest of the reading.
+describe('focus', () => {
+  test('USG-74 three sessions in 30 minutes, four switches in the burst, prints exactly', () => {
+    const { history, rows, write, reading } = setup('now-usg73')
+    rows.turn('a', 's4', 'human', hm(13, 0))
+    rows.turn('b', 's1', 'human', hm(15, 0))
+    rows.turn('c', 's2', 'human', hm(15, 5))
+    rows.turn('d', 's2', 'human', hm(15, 12))
+    rows.turn('e', 's1', 'human', hm(15, 15))
+    rows.turn('f', 's3', 'human', hm(15, 20))
+    rows.turn('g', 's1', 'human', hm(15, 25))
+    // Menkar's prompt, not the human's: neither a session nor a switch
+    rows.turn('h', 's5', 'human', hm(15, 28, 5))
+    rows.turn('i', 's1', 'assistant', hm(15, 29))
+    write(JOURNAL_FILE, [
+      { at: hm(15, 28), kind: 'prompted_start', sessionId: 's5' },
+      { at: hm(15, 30), kind: 'prompt_answered' },
+    ])
+    expect(JSON.stringify(reading(hm(15, 38)), null, 2)).toBe(`{
+  "schema": 1,
+  "status": "ok",
+  "now": "2026-11-19T15:38:00-03:00",
+  "now_epoch": 1795113480,
+  "menkar_running": false,
+  "away": null,
+  "last_action": {
+    "at": "2026-11-19T15:30:00-03:00",
+    "at_epoch": 1795113000
+  },
+  "burst": {
+    "start": "2026-11-19T15:00:00-03:00",
+    "start_epoch": 1795111200,
+    "last_action": "2026-11-19T15:30:00-03:00",
+    "last_action_epoch": 1795113000,
+    "length_seconds": 1800,
+    "messages": 6,
+    "prompts": 1,
+    "switches": 4
+  },
+  "today": {
+    "active_seconds": 1800,
+    "messages": 7,
+    "prompts": 1
+  },
+  "sessions_last_30_minutes": 3
+}`)
+    history.close()
+  })
+
+  test('a message exactly 30 minutes old counts; a second older does not', () => {
+    const edge = setup('now-focus-edge')
+    edge.rows.turn('a', 's1', 'human', hm(15, 12))
+    expect(edge.reading(hm(15, 42)).sessions_last_30_minutes).toBe(1)
+    edge.history.close()
+    const older = setup('now-focus-older')
+    older.rows.turn('a', 's1', 'human', hm(15, 11, 59))
+    expect(older.reading(hm(15, 42)).sessions_last_30_minutes).toBe(0)
+    older.history.close()
+  })
+
+  // A message sent by Remote Control while away counts nothing, as in the bursts.
+  test('away: no burst, and what was sent while away is no session', () => {
+    const { history, rows, write, reading } = setup('now-focus-away')
+    rows.turn('a', 's1', 'human', hm(15, 0))
+    rows.turn('b', 's2', 'human', hm(15, 10))
+    write(JOURNAL_FILE, [{ at: hm(15, 5), kind: 'away' }])
+    const r = reading(hm(15, 20))
+    expect(r.burst).toBeNull()
+    expect(r.sessions_last_30_minutes).toBe(1)
+    history.close()
+  })
+
+  test('no burst in progress: no switches, and the sessions still count', () => {
+    const { history, rows, reading } = setup('now-focus-noburst')
+    rows.turn('a', 's1', 'human', hm(15, 5))
+    rows.turn('b', 's2', 'human', hm(15, 15))
+    const r = reading(hm(15, 26))
+    expect(r.burst).toBeNull()
+    expect(r.sessions_last_30_minutes).toBe(2)
     history.close()
   })
 })

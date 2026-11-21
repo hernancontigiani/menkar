@@ -17,6 +17,8 @@ export interface HumanAction {
   readonly kind: ActionKind
   // a message's project; null when its turn has none
   readonly project?: string | null
+  // a message's session
+  readonly session?: string
 }
 
 // What the history holds for one reading, as `UsageHistory.humanActions` returns it.
@@ -81,7 +83,8 @@ export function humanActionsOf(rows: ActivityRows): HumanAction[] {
   }
   const actions: HumanAction[] = [...rows.actions]
   for (const m of rows.messages)
-    if (!prompted.has(m.uuid)) actions.push({ at: m.at, kind: 'message', project: m.project })
+    if (!prompted.has(m.uuid))
+      actions.push({ at: m.at, kind: 'message', project: m.project, session: m.sessionId })
   return byTime(actions)
 }
 

@@ -398,8 +398,9 @@ local ISO with its offset.
 | `menkar_running` | Whether a Menkar app runs now: `alive.json`'s pid answers (`menkarAliveSync`, the same check the MCP server makes) |
 | `away` | `null`, or `{ "since", "since_epoch" }`: the start of the away still open (no `back` and no `app_start` after it) |
 | `last_action` | `null`, or `{ "at", "at_epoch" }`: the latest action counted (outside away), from yesterday's local midnight at least |
-| `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts" }` |
+| `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts", "switches" }` |
 | `today` | `{ "active_seconds", "messages", "prompts" }`: today's bursts clipped at midnight, its messages and prompts answered, outside away |
+| `sessions_last_30_minutes` | How many distinct sessions the human messaged in `[now − 30 minutes, now]`, outside away; `0` when none |
 
 - **The burst in progress** is the last burst while the human is not away, no away started since
   its last action, and `now − last action ≤ 10 minutes`: a burst lasts until the gap that would end
@@ -408,6 +409,14 @@ local ISO with its offset.
   `now` for `now − start`. A clock set back gives no negative length.
 - **A burst crossing midnight** is whole in `burst`; only its part since midnight counts in
   `today.active_seconds`.
+- **Focus** (decision 1.202, the human, 2026-11-21): `burst.switches` counts the burst's
+  consecutive messages, oldest first, that went to a different session than the one before;
+  `sessions_last_30_minutes` counts sessions whether or not a burst is in progress. A message is a
+  turn of origin `human` less the one after each `prompted_start`, the bursts' definition, and a
+  message sent while away counts in neither. Messages typed while the agent works leave no turn, so
+  they are not seen here either. Example: messages to A, B, B, A, C, A in one burst are 4 switches;
+  with the first two more than 30 minutes old, `sessions_last_30_minutes` is 3 (B, A, C). The human's
+  own service decides any threshold.
 - **With the app closed** the same reading runs on what a quit or a crash left; no burst can be in
   progress ten minutes after the last action, and an away left open runs to now. `menkar_running`
   tells the service which case it reads.
@@ -443,7 +452,9 @@ a throwaway home of 20 synthetic transcripts, 2,000 human turns and a journal of
 
 On a copy of the human's real volume (339 transcripts, 2.8 GB) the steps measured at design time
 were a pass with nothing new 51 ms and the reading 47–55 ms, whatever the journal's length up to
-5,000 lines. The activity folder kept its listing, bytes and mtimes across the runs. **The worst
+5,000 lines. The activity folder kept its listing, bytes and mtimes across the runs. The focus
+fields (2026-11-21) left the reading as it was: in process, over 2,000 human turns in 20 sessions
+and a journal of 120 lines, a median of 5.9 ms before and 6.2 ms after, three runs of 60 each. **The worst
 case is waiting**: the pass and the history's open each wait up to the 30-second busy timeout when
 the app's own pass holds the file, normally under a second but tens of seconds in the start's
 catch-up after a long time off. A service gives the command a timeout of a minute or more, or skips
