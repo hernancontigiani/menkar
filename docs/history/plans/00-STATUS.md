@@ -2784,3 +2784,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-21 — the next .deb row, before it waited for plan 47
 
 | — | The next .deb | 0.1.0-473.g3ba688e9 built 2026-11-21 (main at 3ba688e, 1.202's focus fields; the human has 0-423), for the human to install. Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+
+## 2026-11-21 — plan 39's row before P2 was built
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a and P1b merged into `main`** (P1: 8e1c136, 2026-11-21): Codex as a session and in the orchestration mode, its real checks passed. **P2 (OpenCode) executing** (P2.1–P2.4 committed, P2.5 task 185) on the branch `multi-agent`, merged into `main` at the end of each phase; then P3 (Cursor in the mode), P4 |
