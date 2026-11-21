@@ -1,6 +1,7 @@
 import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import type { StatementSync } from 'node:sqlite'
+import type { AgentId } from '../agents/ids'
 import type { TurnSource } from '../agents/types'
 import { fileStamp, now } from '../clock'
 import { type Db, openDb } from '../db'
@@ -17,7 +18,7 @@ export { addTokens, type Tokens, totalTokens, ZERO_TOKENS } from './nodes'
 
 // The one file whose loss loses what no transcript can rebuild: one row per turn, never pruned. A
 // file from a newer Menkar is left untouched; an unreadable one is moved aside, never deleted.
-export const HISTORY_VERSION = 4
+export const HISTORY_VERSION = 5
 export const BUSY_TIMEOUT_MS = 30_000
 
 const ACTIVITY_SCHEMA = `
@@ -33,6 +34,12 @@ CREATE TABLE IF NOT EXISTS task_states (
 );
 CREATE INDEX IF NOT EXISTS task_states_task ON task_states (project_id, task, at);
 CREATE INDEX IF NOT EXISTS task_states_time ON task_states (at);
+`
+
+// Which agent's files each turn was read from, beside `turns` so no existing row changes shape.
+const AGENT_SCHEMA = `
+CREATE TABLE IF NOT EXISTS turn_agents (uuid TEXT PRIMARY KEY, agent TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS agent_backfill (uuid TEXT PRIMARY KEY);
 `
 
 export const HISTORY_SCHEMA = `
@@ -54,7 +61,7 @@ CREATE TABLE tokens (
 CREATE INDEX tokens_hour ON tokens (hour);
 CREATE TABLE names (session_id TEXT PRIMARY KEY, name TEXT NOT NULL, claude INTEGER NOT NULL);
 CREATE TABLE rederive (uuid TEXT PRIMARY KEY);
-${ACTIVITY_SCHEMA}`
+${ACTIVITY_SCHEMA}${AGENT_SCHEMA}`
 
 // Each step takes a file from the version it is keyed by to the next.
 const MIGRATIONS: Readonly<Record<number, string>> = {
@@ -66,6 +73,11 @@ ALTER TABLE turns ADD COLUMN category_tries INTEGER NOT NULL DEFAULT 0;`,
 INSERT INTO rederive SELECT uuid FROM turns;`,
   // Two workers open the history at start-up and may both read version 3.
   3: ACTIVITY_SCHEMA,
+  // Turns written before their agent was kept are queued for `backfillAgents`, which needs the
+  // agents' caches and so runs in the pass. A queue, not a scan for missing rows: a turn whose
+  // transcript is gone is looked for once.
+  4: `${AGENT_SCHEMA}
+INSERT OR IGNORE INTO agent_backfill SELECT uuid FROM turns;`,
 }
 
 export function historyPath(): string {
@@ -105,6 +117,17 @@ export interface ExportedTurn {
   readonly opened: number
   readonly projectId: string | null
   readonly category: string | null
+  // the id of the agent whose files it was read from; null for a turn written before that was kept
+  // whose transcript is gone
+  readonly agent: string | null
+  // the end of its last span; null with none
+  readonly end: number | null
+  // the session's next turn, and whether it is the first turn after a prompted start
+  readonly next: {
+    readonly opened: number
+    readonly origin: string
+    readonly prompted: boolean
+  } | null
   // its spans: working and blocked, in seconds
   seconds: number
   blocked: number
@@ -253,6 +276,7 @@ export class UsageHistory {
   write(
     cache: Pick<TurnSource, 'pending' | 'turnUsage' | 'names' | 'written'>,
     memberships: Memberships,
+    agent: AgentId,
   ): void {
     const db = this.db
     if (db === null) return // too new: the cache keeps them pending
@@ -262,12 +286,13 @@ export class UsageHistory {
       const kept = raw.prepare(
         'SELECT project_id, project_name, category, category_tries FROM turns WHERE uuid = ?',
       )
-      const removes = ['turns', 'spans', 'tokens', 'rederive'].map((table) =>
-        raw.prepare(`DELETE FROM ${table} WHERE uuid = ?`),
+      const removes = ['turns', 'spans', 'tokens', 'rederive', 'turn_agents', 'agent_backfill'].map(
+        (table) => raw.prepare(`DELETE FROM ${table} WHERE uuid = ?`),
       )
       const insertTurn = raw.prepare('INSERT INTO turns VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       const insertSpan = raw.prepare('INSERT INTO spans VALUES (?, ?, ?, ?)')
       const insertTokens = raw.prepare('INSERT INTO tokens VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      const insertAgent = raw.prepare('INSERT INTO turn_agents VALUES (?, ?)')
       for (const { sessionId, turn: uuid } of pending) {
         if (uuid === '') continue
         const found = cache.turnUsage(sessionId, uuid)
@@ -290,6 +315,7 @@ export class UsageHistory {
           ...project,
           ...category,
         )
+        insertAgent.run(uuid, agent)
         for (const span of mergedSpans(found.spans))
           insertSpan.run(uuid, span.kind, span.start, span.end)
         for (const t of found.tokens) {
@@ -324,6 +350,41 @@ export class UsageHistory {
       }
     })
     cache.written(pending) // only after the commit: writing a turn twice is the same as once
+  }
+
+  // Names the agent of each turn queued by the version-4 migration: the first source that still
+  // holds it. One with no transcript left keeps no agent, and is not looked for again.
+  backfillAgents(
+    sources: readonly { readonly agent: AgentId; readonly source: Pick<TurnSource, 'turnUsage'> }[],
+  ): void {
+    const db = this.db
+    if (db === null) return
+    const raw = db.raw
+    const queued = raw
+      .prepare(
+        'SELECT q.uuid AS uuid, t.session_id AS s FROM agent_backfill q LEFT JOIN turns t ON t.uuid = q.uuid',
+      )
+      .all()
+    if (queued.length === 0) return
+    const found = new Map<string, AgentId | null>()
+    for (const q of queued) {
+      const uuid = String(q.uuid)
+      const holder =
+        q.s === null || q.s === undefined
+          ? undefined
+          : sources.find((s) => s.source.turnUsage(String(q.s), uuid) !== null)
+      found.set(uuid, holder?.agent ?? null)
+    }
+    const insert = raw.prepare('INSERT OR REPLACE INTO turn_agents VALUES (?, ?)')
+    const done = raw.prepare('DELETE FROM agent_backfill WHERE uuid = ?')
+    db.transaction(() => {
+      for (const [uuid, agent] of found) {
+        if (agent !== null) insert.run(uuid, agent)
+        done.run(uuid)
+      }
+    })
+    const named = [...found.values()].filter((a) => a !== null).length
+    log.info('usage history: agents backfilled', { named, unknown: found.size - named })
   }
 
   // Rewrites the tokens of each turn queued by the version-3 migration from the cache's requests,
@@ -571,11 +632,24 @@ export class UsageHistory {
     if (this.db === null) return []
     const raw = this.db.raw
     const turns = new Map<string, ExportedTurn>()
+    // Few rows, read once: joined per turn, each one would scan the activity table.
+    const prompted = new Set(
+      raw
+        .prepare(
+          `SELECT (${firstTurnAfter('q.session_id', 'q.at')}) AS u FROM activity q` +
+            " WHERE q.kind = 'prompted_start' AND q.session_id IS NOT NULL",
+        )
+        .all()
+        .map((r) => String(r.u)),
+    )
     for (const r of raw
       .prepare(
         `SELECT t.uuid AS u, t.session_id AS s, t.origin AS o, t.opened AS d, t.project_id AS p,` +
-          ` ${CATEGORY} AS c FROM turns t WHERE t.opened >= ? AND t.opened < ?` +
-          ' ORDER BY t.opened, t.uuid',
+          ` ${CATEGORY} AS c, a.agent AS a, (SELECT MAX(x.end) FROM spans x WHERE x.uuid = t.uuid) AS e,` +
+          ' n.uuid AS nu, n.opened AS nd, n.origin AS no' +
+          ' FROM turns t LEFT JOIN turn_agents a ON a.uuid = t.uuid' +
+          ` LEFT JOIN turns n ON n.uuid = (${nextTurn('t')})` +
+          ' WHERE t.opened >= ? AND t.opened < ? ORDER BY t.opened, t.uuid',
       )
       .all(low, high)) {
       turns.set(String(r.u), {
@@ -585,6 +659,12 @@ export class UsageHistory {
         opened: num(r, 'd'),
         projectId: nullableStr(r, 'p'),
         category: nullableStr(r, 'c'),
+        agent: nullableStr(r, 'a'),
+        end: r.e === null ? null : num(r, 'e'),
+        next:
+          r.nd === null
+            ? null
+            : { opened: num(r, 'nd'), origin: String(r.no), prompted: prompted.has(String(r.nu)) },
         seconds: 0,
         blocked: 0,
         tokens: [],
@@ -726,19 +806,7 @@ export class UsageHistory {
     )
       .all(...args(low, high))
       .map((r) => ({ at: num(r, 'a'), kind: String(r.k) as (typeof ACTION_KINDS)[number] }))
-    const presenceKinds = sqlList(PRESENCE_KINDS)
-    const presence = [
-      ...this.prepared(
-        db,
-        `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${presenceKinds} AND at < ?` +
-          ' ORDER BY at DESC, id DESC LIMIT 1',
-      ).all(low),
-      ...this.prepared(
-        db,
-        `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${presenceKinds}` +
-          ' AND at >= ? AND at < ? ORDER BY at, id',
-      ).all(low, high),
-    ].map((r) => ({ at: num(r, 'a'), kind: String(r.k) as PresenceKind }))
+    const presence = this.presence(low, high)
     const promptedStarts = this.prepared(
       db,
       'SELECT a.at AS a, a.session_id AS s, t.uuid AS u, t.origin AS o FROM activity a' +
@@ -753,6 +821,26 @@ export class UsageHistory {
         firstTurn: r.u === null ? null : { uuid: String(r.u), origin: String(r.o) },
       }))
     return { messages, actions, presence, promptedStarts }
+  }
+
+  // The away, back and app-start events in [low, high), and the last one before it, which says
+  // whether the range opens away.
+  presence(low: number, high: number): ActivityRows['presence'] {
+    const db = this.db
+    if (db === null) return []
+    const presenceKinds = sqlList(PRESENCE_KINDS)
+    return [
+      ...this.prepared(
+        db,
+        `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${presenceKinds} AND at < ?` +
+          ' ORDER BY at DESC, id DESC LIMIT 1',
+      ).all(low),
+      ...this.prepared(
+        db,
+        `SELECT at AS a, kind AS k FROM activity WHERE kind IN ${presenceKinds}` +
+          ' AND at >= ? AND at < ? ORDER BY at, id',
+      ).all(low, high),
+    ].map((r) => ({ at: num(r, 'a'), kind: String(r.k) as PresenceKind }))
   }
 
   // Which of these activity ids the history already holds.
@@ -849,6 +937,9 @@ const PRESENCE_KINDS = ['away', 'back', 'app_start'] as const
 const firstTurnAfter = (session: string, at: string) =>
   `SELECT f.uuid FROM turns f WHERE f.session_id = ${session}` +
   ` AND f.opened >= ${at} ORDER BY f.opened, f.uuid LIMIT 1`
+const nextTurn = (t: string) =>
+  `SELECT x.uuid FROM turns x WHERE x.session_id = ${t}.session_id AND (x.opened > ${t}.opened` +
+  ` OR (x.opened = ${t}.opened AND x.uuid > ${t}.uuid)) ORDER BY x.opened, x.uuid LIMIT 1`
 const sqlList = (kinds: readonly string[]) => `(${kinds.map((k) => `'${k}'`).join(', ')})`
 
 // Execution spans that touch become one: the two-hour rule makes most of a turn contiguous.

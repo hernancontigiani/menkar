@@ -1,4 +1,4 @@
-import type { ActivityBurst, ActivityDay, ActivityWeek } from './nodes'
+import type { ActivityBurst, ActivityDay, ActivityWeek, WeekFocus } from './nodes'
 import { addDays, type Bounds, buckets, type Day, midnight } from './periods'
 
 // The human's activity, read as bursts: never stored, so changing the gap rewrites no data.
@@ -17,6 +17,8 @@ export interface HumanAction {
   readonly kind: ActionKind
   // a message's project; null when its turn has none
   readonly project?: string | null
+  // a message's session
+  readonly session?: string
 }
 
 // What the history holds for one reading, as `UsageHistory.humanActions` returns it.
@@ -48,6 +50,9 @@ export interface Burst {
   readonly messages: number
   readonly prompts: number
   readonly byProject: ActivityBurst['byProject']
+  // When the human's next message in the burst went to a different session than the one before:
+  // its first message, and one after a gap or an away, switches nothing.
+  readonly switches: readonly number[]
 }
 
 const byTime = <T extends { at: number }>(list: readonly T[]): T[] =>
@@ -81,7 +86,8 @@ export function humanActionsOf(rows: ActivityRows): HumanAction[] {
   }
   const actions: HumanAction[] = [...rows.actions]
   for (const m of rows.messages)
-    if (!prompted.has(m.uuid)) actions.push({ at: m.at, kind: 'message', project: m.project })
+    if (!prompted.has(m.uuid))
+      actions.push({ at: m.at, kind: 'message', project: m.project, session: m.sessionId })
   return byTime(actions)
 }
 
@@ -102,6 +108,8 @@ export function bursts(
     messages: number
     prompts: number
     projects: Map<string | null, number>
+    session: string | undefined
+    switches: number[]
   }
   let current: Open | null = null
   const close = (b: Open): Burst => ({
@@ -112,6 +120,7 @@ export function bursts(
     byProject: [...b.projects]
       .map(([project, messages]) => ({ project, messages }))
       .sort((a, b) => b.messages - a.messages || byProjectId(a.project, b.project)),
+    switches: b.switches,
   })
   for (const action of byTime(actions)) {
     if (inside(action.at, away)) continue
@@ -124,13 +133,24 @@ export function bursts(
       last.end = action.at
     } else {
       if (last !== null) found.push(close(last))
-      current = { start: action.at, end: action.at, messages: 0, prompts: 0, projects: new Map() }
+      current = {
+        start: action.at,
+        end: action.at,
+        messages: 0,
+        prompts: 0,
+        projects: new Map(),
+        session: undefined,
+        switches: [],
+      }
     }
     if (current === null) continue
     if (action.kind === 'message') {
       current.messages += 1
       const project = action.project ?? null
       current.projects.set(project, (current.projects.get(project) ?? 0) + 1)
+      if (current.messages > 1 && action.session !== current.session)
+        current.switches.push(action.at)
+      current.session = action.session
     }
     if (action.kind === 'prompt_answered') current.prompts += 1
   }
@@ -186,6 +206,7 @@ function readDay(
     if (end > start) awayShown.push({ start, end })
   }
   const within = actions.filter((a) => bounds.start <= a.at && a.at < bounds.end)
+  const inDay = (at: number) => bounds.start <= at && at < bounds.end
   return {
     bounds,
     bursts: shown,
@@ -193,6 +214,7 @@ function readDay(
     burstSeconds: shown.reduce((s, b) => s + (b.end - b.start), 0),
     messages: within.filter((a) => a.kind === 'message').length,
     prompts: within.filter((a) => a.kind === 'prompt_answered').length,
+    switches: all.reduce((n, b) => n + b.switches.filter(inDay).length, 0),
   }
 }
 
@@ -213,12 +235,64 @@ export function activityDay(rows: ActivityRows, day: Day, now: number): Activity
   return { ...readDay(read, bounds), hours }
 }
 
-// Seven local days from `first`; each counts its own part of a burst that crosses midnight.
-export function activityWeek(rows: ActivityRows, first: Day, now: number): ActivityWeek {
+// Seven local days from `first`; each counts its own part of a burst that crosses midnight, and a
+// switch on the day of the message that made it. `rows` must also hold the week before, for its
+// focus. `orchestrator`: the project's orchestrator's ids, its earlier conversations included; null
+// when it has none.
+export function activityWeek(
+  rows: ActivityRows,
+  first: Day,
+  now: number,
+  orchestrator: readonly string[] | null = null,
+): ActivityWeek {
   const read = counted(rows, now)
   const days = [0, 1, 2, 3, 4, 5, 6].map((n) => readDay(read, dayBounds(addDays(first, n))))
-  return { bounds: { start: midnight(first), end: midnight(addDays(first, 7)) }, days }
+  const bounds = { start: midnight(first), end: midnight(addDays(first, 7)) }
+  const before = { start: midnight(addDays(first, -7)), end: bounds.start }
+  const previous = weekFocus(read, before, orchestrator)
+  return {
+    bounds,
+    days,
+    focus: weekFocus(read, bounds, orchestrator),
+    before: previous.messages === 0 ? null : previous,
+  }
 }
+
+function weekFocus(
+  { actions, all }: ReturnType<typeof counted>,
+  bounds: Bounds,
+  orchestrator: readonly string[] | null,
+): WeekFocus {
+  const inWeek = (at: number) => bounds.start <= at && at < bounds.end
+  const messages = actions.filter((a) => a.kind === 'message' && inWeek(a.at))
+  let activeSeconds = 0
+  let switches = 0
+  for (const b of all) {
+    const part = clipToDay(b, bounds)
+    if (part !== null) activeSeconds += part.end - part.start
+    switches += b.switches.filter(inWeek).length
+  }
+  const ids = orchestrator === null ? null : new Set(orchestrator)
+  return {
+    messages: messages.length,
+    activeSeconds,
+    switches,
+    toOrchestrator:
+      ids === null
+        ? null
+        : messages.filter((m) => m.session !== undefined && ids.has(m.session)).length,
+  }
+}
+
+// Switches per hour of Active: null with no Active time to divide by.
+export const switchesPerHour = (switches: number, activeSeconds: number): number | null =>
+  activeSeconds > 0 ? (switches * 3600) / activeSeconds : null
+
+// The share of the week's messages that went to the orchestrator: null with none, or no message.
+export const orchestratorShare = (focus: WeekFocus): number | null =>
+  focus.toOrchestrator === null || focus.messages === 0
+    ? null
+    : focus.toOrchestrator / focus.messages
 
 export interface ActivitySource {
   humanActions(low: number, high: number, project?: string): ActivityRows

@@ -173,3 +173,14 @@ How long Claude worked and how many tokens it used, per session and project. All
   the current week, else the week's last day. Weeks step by seven days on a grid ending today. The
   arrows stop at today and at the history's first day.
   window's scope depends on its opener, and the window always opens on Spend, 7 days.
+
+## The burst in progress
+
+> Replaced 2026-11-21 (task 183, decision 1.202): `burst` gains `switches`, and the cost paragraph the focus fields' measure.
+| `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts" }` |
+5,000 lines. The activity folder kept its listing, bytes and mtimes across the runs. **The worst
+
+## The human's activity and the task flow
+
+> Replaced 2026-11-21 (task 189, decision 1.204): history version 5 keeps each turn's agent beside the activity tables.
+In the usage history, version 4, tables `activity` and `task_states`. Main never opens SQLite:

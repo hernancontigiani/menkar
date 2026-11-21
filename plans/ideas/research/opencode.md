@@ -452,6 +452,87 @@ marked. Paths below write `<dir>` for the session's folder.
 51. **Its MCP children go with it:** with Menkar's MCP added through `PUT /api/experimental/mcp/…`,
     the stub ran as the server's child; closing the server's stdin ended the server (code 0, 84 ms)
     **and the MCP child**, gone 2 s later.
+52. **For the catalog** (asked by `menkar-t180`):
+    - OpenCode's session picker asks for `parentID: null, archived: false` and filters
+      `!parentID` and `time.archived === undefined` again (read,
+      `tui/src/component/dialog-session-list.tsx:75-101`): **no archived, no subagent sessions**.
+    - **An untitled session's `title` is NULL** in the database (m: a `/new` session before its
+      title was generated). A title is generated only when the title is NULL or exactly
+      `New session - <created ISO>` (read, `core/src/session/title.ts:38-42`, `llm.ts:202`), and
+      readers show NULL as "New session" / "Child session" (read,
+      `util/src/session-title-fallback.ts`). A generated title is written by the same
+      `session.renamed {sessionID, title}` as a user's `/rename` or a `PATCH` (read,
+      `schema/src/session-event.ts:92-99`), and the `event` table held no rows after these runs
+      (m): **a reader cannot tell a generated title from a user-set one**.
+    - **`BUN_BE_BUN=1` turns the `opencode` binary into Bun**: `BUN_BE_BUN=1 opencode --version`
+      printed `1.4.4` (m). OpenCode sets it only for an MCP server whose command is `opencode` and
+      for some formatters (read, `core/src/mcp/client.ts:472`, `core/src/formatter/builtins.ts`).
+      `OPENCODE_TERMINAL=1` is set only in OpenCode's shells and ptys, `OPENCODE=1` only by its shell
+      tool (read, `core/src/shell.ts:897`, `core/src/pty.ts:175`,
+      `core/src/tool/plugin/shell.ts:400`).
+    - `OPENCODE_DB`: `path.resolve(<data>/opencode, value)`, so an absolute path is used as is and a
+      relative one is under the data folder; `:memory:` allowed (read, `cli/src/database-path.ts`).
+      The channel is compiled in; the installed binary logs `channel=latest` (m) and writes
+      `opencode.db`. A reader cannot learn the channel without running the binary
+      (`opencode debug paths` prints the database's path, m).
+    - Message types (read, `schema/src/session-message.ts`): `user` (`text`, files, agents,
+      skills) is the human's or an API prompt (Menkar's wakes too); `shell` (`command`, `output`,
+      `exit`) is the human's `!command` in the TUI's shell mode; `synthetic` (`text`,
+      `description`) comes from the API or a plugin and reaches the model as a plain user message
+      (m, item of the team-block section); `system` holds `<system-update>` text; `skill` a loaded
+      skill's text. The agent's words are `assistant` rows' `text` parts (`reasoning` parts are
+      thinking). `experimental.part_rows` is **off unless configured** ("without one, it is off",
+      read, `core/src/session/projector.ts:316`); `session_part` was empty in every run (m).
+53. **A session id Menkar mints:** the only check is "starts with `ses`" (read,
+    `schema/src/session-id.ts`: `Schema.isStartingWith("ses")`). `POST /api/session` refused a
+    bare UUID (`400 {"_tag":"InvalidRequestError","message":"Expected a string starting with
+    \"ses\"\n  at [\"id\"]","kind":"Payload"}`) and accepted `ses_<uuid>`, `sesX` and an
+    OpenCode-form id (m). **A second create with an existing id answered `200` with the existing
+    session, unchanged** (its first title kept, m): no error to detect a collision. OpenCode mints
+    `"ses_" + 12 hex + 14 base62` = 30 characters: the hex is the six bytes of
+    `~(ms * 0x1000 + counter)` (descending, so newer ids sort first), the rest random over
+    `0-9A-Za-z` (read, `schema/src/identifier.ts`).
+
+**What the per-pane proxy depends on** (2026-11-21, asked by `menkar-t184`; a proxy logging each
+connection, HTTP version, headers and body, between a TUI and `serve --stdio`; all measured).
+
+54. **The wire is plain HTTP/1.1** on the proxy's port only: 53 requests at a TUI's start, all
+    `http/1.1`, `connection: keep-alive`, no `Upgrade` (no WebSocket), no HTTP/2, request bodies with
+    `content-length` (never chunked), about 10 connections kept alive and reused. The TUI process
+    had no connection to the server's own port; only the proxy did. **Every request carried
+    `Authorization: Basic`** from the TUI's `OPENCODE_PASSWORD`, so the proxy passes headers through.
+    The only absolute URL in a response is `GET /api/info`'s `"urls":["http://127.0.0.1:<server
+    port>"]`; the TUI did not use it. The event stream is SSE on `GET /api/event`, piped through,
+    with `: heartbeat` **every 15 s**.
+55. **`--server`:** a trailing slash works (`http://127.0.0.1:P/` → `/api/info`, …); a path is kept
+    as a prefix (`http://127.0.0.1:P/base` → `GET /base/api/info`, which the server answers with its
+    web page) and the TUI exits: "Error: Server at … did not provide a compatible V2 health
+    response: UnsupportedContentType: text/html".
+56. **Session ids on the wire at a start with `-s <id>`:** `GET /api/info`, `GET /api/session/<id>`
+    first, then `GET /api/event`, then **the TUI also polls every session of its tab list** (the
+    shared `tabs.json`): `GET /api/session/<other>`, `…?parentID=<other>`, `…/<other>/message`,
+    `/inbox`, `/permission`, `/form`. Only the shown session gets **`POST /api/rpc/opencode.goal/get
+    {"input":{"sessionID":"<id>"}}`** and **`GET /api/experimental/session/<id>/terminal`**.
+57. **Switching:**
+    - **`/new` sends nothing** until the first prompt; then `POST /api/session {"id":"ses_…",
+      "agent","model","location"}` (the TUI-made id), `GET …/<new>/terminal`, `POST rpc/opencode.goal/
+      get {"input":{"sessionID":"<new>"}}`, `…/model`, `…/prompt`, and after the turn `…/view`.
+    - **Picking a session in the TUI's picker** (Ctrl+X then L) sent `GET …/<picked>/terminal`,
+      `GET /api/session?…parentID=null&archived=false&project=…`, the picked session's GETs, and
+      `POST /api/rpc/opencode.goal/get {"input":{"sessionID":"<picked>"}}`: **no `/view`, no
+      `/prompt`**.
+    - So "the pane now shows X" is read from `POST /api/rpc/opencode.goal/get`'s
+      `input.sessionID` (also `GET /api/experimental/session/X/terminal`), on a start, a picker
+      switch and a `/new` alike; `/view` and `/prompt` miss a switch with no turn.
+58. **A subagent's MCP call carries the child's id:** the root called OpenCode's `subagent` tool
+    (`agent: "general"`); the child's call to Menkar's MCP arrived with
+    `"_meta":{"ai.opencode/sessionID":"<child id>"}`. `GET /api/session/<child>` answers
+    `"parentID":"<root id>"` (also `session_v2.parent_id`). The TUI only GETs the child's rows (to
+    draw "↳ General finished · probe child"): no `goal/get` or `terminal` for it. When the child
+    finished, the parent woke on its own and ran a turn.
+59. **An MCP server added before its program existed** stayed `failed` ("Cannot find module …")
+    after a second `PUT` of the same config; `POST /api/experimental/mcp/<server>/connect?location…`
+    → 204 then `connected`.
 
 ## 1. The five facts
 

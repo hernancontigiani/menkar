@@ -747,6 +747,17 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.time.colPrompts': 'Preguntas',
   'usage.time.total': 'Total',
   'usage.time.openDay': 'Ver este día por horas',
+  'usage.time.colSwitches': 'Cambios/h',
+  'usage.time.focusThisWeek': 'Esta semana:',
+  'usage.time.focusThatWeek': 'Esa semana:',
+  'usage.time.focusRate': '{rate} cambios/h',
+  'usage.time.focusShare': '{share} al orquestador',
+  'usage.time.focusBefore': 'la semana anterior {figures}',
+  'usage.time.focusBeforeNone': 'la semana anterior: sin datos',
+  'usage.time.switchesFooter':
+    'Cambios/h: cuántas veces tu siguiente mensaje, en este proyecto, fue a otra sesión dentro de una racha, por hora de Activo.',
+  'usage.time.switchesFooterAll':
+    'Cambios/h: cuántas veces tu siguiente mensaje fue a otra sesión dentro de una racha, por hora de Activo.',
   'usage.tasks.summaryTasks': '{n} tarea(s)',
   'usage.tasks.summaryDone': '{n} hecha(s)',
   'usage.tasks.summaryDropped': '{n} descartada(s)',

@@ -102,7 +102,7 @@ describe('the history file', () => {
       cache.ingest(dirs.claudeProjects)
       const history = new UsageHistory(dirs.history, 50)
       try {
-        expect(() => history.write(cache, memberships())).toThrow()
+        expect(() => history.write(cache, memberships(), 'claude')).toThrow()
       } finally {
         history.close()
       }
@@ -185,8 +185,7 @@ describe('the history file', () => {
     db.setUserVersion(3)
     db.close()
     const history = new UsageHistory(dirs.history)
-    expect(history.handle?.userVersion()).toBe(4)
-    expect(HISTORY_VERSION).toBe(4)
+    expect(history.handle?.userVersion()).toBe(HISTORY_VERSION)
     const count = (table: string) =>
       history.handle?.raw.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n
     expect(count('turns')).toBe(2)
@@ -204,13 +203,59 @@ describe('the history file', () => {
     db.setUserVersion(3)
     db.close()
     const history = new UsageHistory(dirs.history)
-    expect(history.handle?.userVersion()).toBe(4)
+    expect(history.handle?.userVersion()).toBe(HISTORY_VERSION)
     history.close()
+  })
+
+  // Version 5 keeps each turn's agent beside it. A turn written before is named by the pass from
+  // the source that still holds it; one whose transcript is gone stays unnamed, looked for once.
+  test('a version-4 history migrates to 5: the pass names the agent of each turn it still finds', () => {
+    const dirs = usageDirs('v4to5')
+    dirs.transcript('s1', [prompt('10:00:00'), response('10:00:10')])
+    pass(dirs)
+    const db = openDb(dirs.history)
+    db.raw.exec('DROP TABLE turn_agents; DROP TABLE agent_backfill;')
+    db.raw
+      .prepare("INSERT INTO turns VALUES ('u-gone', 'gone', 'human', ?, NULL, NULL, NULL, 0)")
+      .run(NOV_8.start + 100)
+    db.setUserVersion(4)
+    db.close()
+    const agents = () => {
+      const history = new UsageHistory(dirs.history)
+      try {
+        expect(history.handle?.userVersion()).toBe(5)
+        expect(HISTORY_VERSION).toBe(5)
+        return {
+          agents: history.turnsOpened(NOV_8.start, NOV_8.end).map((t) => [t.uuid, t.agent]),
+          queued: history.handle?.raw.prepare('SELECT count(*) AS n FROM agent_backfill').get()?.n,
+        }
+      } finally {
+        history.close()
+      }
+    }
+    expect(agents()).toEqual({
+      agents: [
+        ['u-gone', null],
+        ['u-10:00:00', null],
+      ],
+      queued: 2,
+    })
+    pass(dirs)
+    const named = {
+      agents: [
+        ['u-gone', null],
+        ['u-10:00:00', 'claude'],
+      ],
+      queued: 0,
+    }
+    expect(agents()).toEqual(named)
+    pass(dirs)
+    expect(agents()).toEqual(named)
   })
 
   // A poller opens the history every minute beside the app: two openers may both read an old
   // version, and the second takes the lock only after the first migrated the file.
-  test.each([0, 1, 2, 3])(
+  test.each([0, 1, 2, 3, 4])(
     'a step read at version %i but already done by another opener is skipped',
     (stale) => {
       const dirs = usageDirs(`stale${stale}`)
@@ -221,6 +266,7 @@ describe('the history file', () => {
       expect(db.userVersion()).toBe(HISTORY_VERSION)
       expect(db.raw.prepare('SELECT count(*) AS n FROM turns').get()?.n).toBe(1)
       expect(db.raw.prepare('SELECT count(*) AS n FROM rederive').get()?.n).toBe(0)
+      expect(db.raw.prepare('SELECT count(*) AS n FROM agent_backfill').get()?.n).toBe(0)
       db.close()
     },
   )
@@ -304,7 +350,7 @@ describe('the history file', () => {
     try {
       cache.ingest(dirs.claudeProjects)
       const history = new UsageHistory(dirs.history, 50)
-      expect(() => history.write(cache, memberships())).toThrow()
+      expect(() => history.write(cache, memberships(), 'claude')).toThrow()
       history.close()
     } finally {
       holder.raw.exec('ROLLBACK')

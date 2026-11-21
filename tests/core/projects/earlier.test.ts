@@ -3,6 +3,7 @@ import {
   earlierIds,
   forgetSession,
   keptEarlier,
+  orchestratorIds,
   releaseEarlier,
 } from '../../../src/core/projects/earlier'
 import { parseProjects, serializeProjects } from '../../../src/core/projects/store'
@@ -93,5 +94,18 @@ describe('earlier conversations', () => {
       parseProjects({ version: 1, current: 'p1', projects: [{ id: 'p1', name: 'W', earlier: 5 }] })
         .projects[0],
     ).toEqual(project('p1', 'W'))
+  })
+
+  // Decision 1.203: the week's share of messages to the orchestrator counts it across its renews.
+  test("the orchestrator's ids are it and its earlier conversations; none with the mode off", () => {
+    const p = {
+      ...project('p1', 'Work', ['orch', 'o1', 'o2', 'w', 'w1']),
+      earlier: { orch: ['o1', 'o2'], w: ['w1'] },
+      orchestration: { on: true, orchestrator: 'orch' },
+    }
+    expect(orchestratorIds(p)).toEqual(['orch', 'o1', 'o2'])
+    expect(orchestratorIds({ ...p, orchestration: { on: false, orchestrator: 'orch' } })).toBeNull()
+    expect(orchestratorIds({ ...p, orchestration: { on: true } })).toBeNull()
+    expect(orchestratorIds(project('p2', 'Other', ['a']))).toBeNull()
   })
 })

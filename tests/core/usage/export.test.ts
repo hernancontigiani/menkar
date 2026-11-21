@@ -162,7 +162,7 @@ describe('menkar usage export', () => {
     expect(lines[0]).toBe(
       'schema,turn,session_id,session_name,project,category,origin,opened,opened_epoch,' +
         'execution_seconds,blocked_seconds,input,output,cache_write,cache_write_1h,cache_read,' +
-        'models,cost_usd,cost_exact',
+        'models,cost_usd,cost_exact,agent,response_seconds',
     )
     expect(lines).toHaveLength(2)
     expect(lines[1]).toContain(',"fix ""auth"", again",,,human,2026-11-08T10:00:00-03:00,')
@@ -276,6 +276,50 @@ describe('menkar usage export', () => {
     )
     const found = rows(cli(dirs, ['--period', 'today']).out)
     expect(found[0]?.cost_usd).toBeCloseTo(0.42, 12)
+  })
+
+  // Decision 1.204 (a): the agent each turn was read from, and the human's response latency.
+  test("each row names its agent and the human's response: from the turn's end to their next message in its session", () => {
+    const dirs = usageDirs('export-response')
+    dirs.transcript('s1', [
+      prompt('10:00:00'),
+      response('10:00:10'),
+      prompt('10:05:00'),
+      response('10:05:10'),
+      // the agent went on without the human: the turn before was not waiting on them
+      prompt('10:10:00', { turnOrigin: 'task-notification' }),
+      response('10:10:10'),
+      prompt('10:20:00'),
+      response('10:20:10'),
+    ])
+    dirs.transcript('s2', [prompt('11:00:00'), response('11:00:10'), prompt('11:30:00')])
+    dirs.transcript('s3', [prompt('13:00:00'), response('13:00:10'), prompt('13:30:01')])
+    // a message in another session does not end s1's wait
+    dirs.transcript('s4', [prompt('10:02:00'), response('10:02:05')])
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    const epoch = (time: string) => new Date(at(time)).getTime() / 1000
+    const events = [
+      { id: 'a1', at: epoch('11:05:00'), kind: 'away' },
+      { id: 'a2', at: epoch('11:20:00'), kind: 'back' },
+      { id: 'a3', at: epoch('13:30:00'), kind: 'prompted_start', sessionId: 's3' },
+    ]
+    writeFileSync(batchPath(dir, 0), events.map((e) => JSON.stringify({ v: 1, ...e })).join('\n'))
+    const found = rows(cli(dirs, ['--period', 'today']).out)
+    expect(found.map((r) => [r.turn, r.session_id, r.agent, r.response_seconds])).toEqual([
+      ['u-10:00:00', 's1', 'claude', 290],
+      ['u-10:02:00', 's4', 'claude', null],
+      ['u-10:05:00', 's1', 'claude', null],
+      ['u-10:10:00', 's1', 'claude', 590],
+      ['u-10:20:00', 's1', 'claude', null],
+      ['u-11:00:00', 's2', 'claude', null],
+      ['u-11:30:00', 's2', 'claude', null],
+      ['u-13:00:00', 's3', 'claude', null],
+      ['u-13:30:01', 's3', 'claude', null],
+    ])
+    const csv = cli(dirs, ['--period', 'today', '--format', 'csv']).out.split('\n')
+    expect(csv[1]).toMatch(/,claude,290$/)
+    expect(csv[2]).toMatch(/,claude,$/)
   })
 
   test("the documentation's table names exactly the row's keys, in order", () => {

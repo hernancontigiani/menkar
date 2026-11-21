@@ -263,6 +263,26 @@ reading). The day's count axis and its positions are `src/core/usage/timeline.ts
 1.14's rule without the 2.5 step, counts having none, with a top of at least 5; a moment's x is its
 share of the day's seconds, so a 23- or 25-hour day is drawn true.
 
+**Focus in the week** (decision 1.203, the human, 2026-11-21): a switch is the one `menkar usage
+now` counts — the human's next message in a burst going to a different session than the one
+before; a burst's first message, and so one after a gap or an away, switches nothing. `bursts`
+records each burst's switches as the moments of the messages that made them (`Burst.switches`), so
+`burst.switches` and the week read one definition. A day counts the switches whose message is
+that day's (a burst crossing midnight gives each side its own), and Switches/h is a day's switches
+over its Active hours (`switchesPerHour`, null with no Active time, shown "—"); the Total's is the
+week's switches over the week's Active, so the days add up to it. Under the table, `activityWeek`'s
+`focus` and `before` (the week before, read in the same rows: a week's reading starts seven days
+earlier) give switches per hour and the share of the week's messages to the orchestrator
+(`orchestratorShare`). The orchestrator is the project's marked one with its earlier conversations
+(`orchestratorIds`, `src/core/projects/earlier.ts`), so a renew does not lose its messages; with
+the mode off, none marked, or All projects, `toOrchestrator` is null and the line leaves that part
+out. `before` is null when the week before has no message ("no data"). Scoped to a project,
+messages and switches are that project's; in All projects a switch may cross projects. Computed
+when read, nothing stored. A renew is a switch: the renewed session's next message goes to a new
+id. Kept so on purpose (the human, 2026-11-21, topic 93): renews are a few a week, and folding a
+session's earlier conversations into it would change `burst.switches`' meaning in `now --json`,
+which cogload reads.
+
 ### The task flow
 
 How long tasks spend in each state, read from their `task_state` rows (`src/core/usage/flow.ts`,
@@ -312,7 +332,7 @@ project and number; the types the page receives are in `nodes.ts`.
 
 ### Where it is stored
 
-In the usage history, version 4, tables `activity` and `task_states`. Main never opens SQLite:
+In the usage history, since version 4, tables `activity` and `task_states`. Main never opens SQLite:
 
 1. Main appends each event as a JSON line to `<data>/activity/journal.jsonl`, through one promise
    chain, so lines are written in the order they happened.
@@ -398,8 +418,9 @@ local ISO with its offset.
 | `menkar_running` | Whether a Menkar app runs now: `alive.json`'s pid answers (`menkarAliveSync`, the same check the MCP server makes) |
 | `away` | `null`, or `{ "since", "since_epoch" }`: the start of the away still open (no `back` and no `app_start` after it) |
 | `last_action` | `null`, or `{ "at", "at_epoch" }`: the latest action counted (outside away), from yesterday's local midnight at least |
-| `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts" }` |
+| `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts", "switches" }` |
 | `today` | `{ "active_seconds", "messages", "prompts" }`: today's bursts clipped at midnight, its messages and prompts answered, outside away |
+| `sessions_last_30_minutes` | How many distinct sessions the human messaged in `[now − 30 minutes, now]`, outside away; `0` when none |
 
 - **The burst in progress** is the last burst while the human is not away, no away started since
   its last action, and `now − last action ≤ 10 minutes`: a burst lasts until the gap that would end
@@ -408,6 +429,14 @@ local ISO with its offset.
   `now` for `now − start`. A clock set back gives no negative length.
 - **A burst crossing midnight** is whole in `burst`; only its part since midnight counts in
   `today.active_seconds`.
+- **Focus** (decision 1.202, the human, 2026-11-21): `burst.switches` counts the burst's
+  consecutive messages, oldest first, that went to a different session than the one before;
+  `sessions_last_30_minutes` counts sessions whether or not a burst is in progress. A message is a
+  turn of origin `human` less the one after each `prompted_start`, the bursts' definition, and a
+  message sent while away counts in neither. Messages typed while the agent works leave no turn, so
+  they are not seen here either. Example: messages to A, B, B, A, C, A in one burst are 4 switches;
+  with the first two more than 30 minutes old, `sessions_last_30_minutes` is 3 (B, A, C). The human's
+  own service decides any threshold.
 - **With the app closed** the same reading runs on what a quit or a crash left; no burst can be in
   progress ten minutes after the last action, and an away left open runs to now. `menkar_running`
   tells the service which case it reads.
@@ -443,7 +472,9 @@ a throwaway home of 20 synthetic transcripts, 2,000 human turns and a journal of
 
 On a copy of the human's real volume (339 transcripts, 2.8 GB) the steps measured at design time
 were a pass with nothing new 51 ms and the reading 47–55 ms, whatever the journal's length up to
-5,000 lines. The activity folder kept its listing, bytes and mtimes across the runs. **The worst
+5,000 lines. The activity folder kept its listing, bytes and mtimes across the runs. The focus
+fields (2026-11-21) left the reading as it was: in process, over 2,000 human turns in 20 sessions
+and a journal of 120 lines, a median of 5.9 ms before and 6.2 ms after, three runs of 60 each. **The worst
 case is waiting**: the pass and the history's open each wait up to the 30-second busy timeout when
 the app's own pass holds the file, normally under a second but tens of seconds in the start's
 catch-up after a long time off. A service gives the command a timeout of a minute or more, or skips
@@ -487,6 +518,8 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
 | `models` | By model id as stored, with Haiku 5.5's long-prompt requests apart as `claude-haiku-5-5@long`: `input`, `output`, `cache_write`, `cache_write_1h`, `cache_read`, `cost_usd` (list price) and `priced` |
 | `cost_usd` | The turn's cost: the statusline's exact figure when its session reported one, else the list-price estimate |
 | `cost_exact` | Whether `cost_usd` is the statusline's figure |
+| `agent` | The id of the agent whose files the turn was read from, as the agents' registry names it (`claude`, `codex`…), or `null` |
+| `response_seconds` | The human's response latency: seconds from the turn's end to their next message in its session, or `null` |
 
 - **What the running total grew by** (2026-11-10, `readStatusline`, shared by the window,
   `menkar usage` and the export). Claude Code keeps a session's total across a resume, so a
@@ -502,6 +535,21 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
   report in the range is exact for every turn (one with none costs 0), so the rows' `cost_usd`
   add up to the report's cost for a range no turn crosses. A model's `cost_usd` is always the list
   price.
+- **The agent** (decision 1.204, 2026-11-21) is stored, not derived: since history version 5 the
+  pass writes each turn's agent in `turn_agents`, beside `turns`, from the source it read the turn
+  from. A history from before is migrated with every turn queued in `agent_backfill`; the next pass
+  names each one from the source that still holds it and dequeues it either way, so a turn whose
+  transcript is gone keeps `agent: null` and is not looked for again.
+- **The response latency** (decision 1.204, 2026-11-21) goes on the row of the turn the human
+  answered: from the end of its last span (the pane turning done) to the next turn of its session,
+  when that one is the human's. It is `null`, never 0, when there is no next turn yet; when the
+  next turn is not the human's (a peer, a task notification: the agent was not waiting on them) or
+  is the first turn after a prompted start (Menkar's text, as for the bursts); when it opened
+  before the turn's end; and when an away period overlaps the wait, which is not response
+  pressure. Messages in other sessions do not end the wait: it is per pane. In the CSV, `null` is
+  an empty cell. **The latency at a permission prompt** is not a turn field: it is each
+  `prompt_answered` activity row's `blocked_seconds` (`--rows activity`, below), from the pane
+  turning blocked to the human's answer, with its session and moment.
 - **CSV**: the same scalar fields, one row per turn, with the turn's token totals as columns
   (`input` … `cache_read`) and `models` the model ids joined by `;`. Analysis by model uses JSONL.
 - **Never in a row**: prompt or answer text (the history does not keep it, and the export does not

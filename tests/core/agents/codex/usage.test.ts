@@ -338,6 +338,19 @@ describe('a pass with Codex', () => {
     expect(cacheRows(beside.cache)).toEqual(cacheRows(alone.cache))
     expect(existsSync(join(dirname(beside.cache), CACHE_FILE))).toBe(true)
     expect(existsSync(join(dirname(alone.cache), CACHE_FILE))).toBe(false)
+    const history = new UsageHistory(beside.history)
+    try {
+      expect(
+        history.turnsOpened(0, Number.MAX_SAFE_INTEGER).map((t) => [t.uuid.split(':')[0], t.agent]),
+      ).toEqual(
+        expect.arrayContaining([
+          ['u-10', 'claude'],
+          ['codex', 'codex'],
+        ]),
+      )
+    } finally {
+      history.close()
+    }
   })
 })
 

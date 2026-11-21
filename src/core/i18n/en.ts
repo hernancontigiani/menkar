@@ -734,6 +734,17 @@ export const en = {
   'usage.time.colPrompts': 'Prompts',
   'usage.time.total': 'Total',
   'usage.time.openDay': 'See this day by the hour',
+  'usage.time.colSwitches': 'Switches/h',
+  'usage.time.focusThisWeek': 'This week:',
+  'usage.time.focusThatWeek': 'That week:',
+  'usage.time.focusRate': '{rate} switches/h',
+  'usage.time.focusShare': '{share} to the orchestrator',
+  'usage.time.focusBefore': 'the week before {figures}',
+  'usage.time.focusBeforeNone': 'the week before: no data',
+  'usage.time.switchesFooter':
+    'Switches/h: how often your next message, in this project, went to a different session within a burst, per hour of Active.',
+  'usage.time.switchesFooterAll':
+    'Switches/h: how often your next message went to a different session within a burst, per hour of Active.',
   'usage.tasks.summaryTasks': '{n} task(s)',
   'usage.tasks.summaryDone': '{n} done',
   'usage.tasks.summaryDropped': '{n} dropped',

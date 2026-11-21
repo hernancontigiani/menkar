@@ -1,5 +1,6 @@
 import './usage-time.css'
 import { now } from '../core/clock'
+import { orchestratorShare, switchesPerHour } from '../core/usage/bursts'
 import { GRAY, SLOT_COLORS } from '../core/usage/chart'
 import {
   type ActivityBurst,
@@ -7,6 +8,7 @@ import {
   type ActivityView,
   type ActivityWeek,
   formatDuration,
+  type WeekFocus,
 } from '../core/usage/nodes'
 import { addDays, type Bounds, type Day } from '../core/usage/periods'
 import { stepTime, type TimePeriod, timeArrows } from '../core/usage/sections'
@@ -556,6 +558,53 @@ function strip(
   box.replaceChildren(root)
 }
 
+function rateText(switches: number, activeSeconds: number, locale: string): string {
+  const rate = switchesPerHour(switches, activeSeconds)
+  if (rate === null) return '—'
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(rate)
+}
+
+// The figures of one week: its switches per hour and, with an orchestrator, its share.
+function focusFigures(focus: WeekFocus, locale: string): { rate: string; share: string | null } {
+  const share = orchestratorShare(focus)
+  return {
+    rate: rateText(focus.switches, focus.activeSeconds, locale),
+    share:
+      focus.toOrchestrator === null
+        ? null
+        : share === null
+          ? '—'
+          : new Intl.NumberFormat(locale, { style: 'percent' }).format(share),
+  }
+}
+
+function focusLine(week: ActivityWeek, current: boolean, locale: string): HTMLElement {
+  const shown = focusFigures(week.focus, locale)
+  const parts = [t('usage.time.focusRate', { rate: shown.rate })]
+  if (shown.share !== null) parts.push(t('usage.time.focusShare', { share: shown.share }))
+  let before = t('usage.time.focusBeforeNone')
+  if (week.before !== null) {
+    const was = focusFigures(week.before, locale)
+    before = t('usage.time.focusBefore', {
+      figures: was.share === null ? was.rate : `${was.rate} · ${was.share}`,
+    })
+  }
+  return el(
+    'div',
+    { class: 'week-focus', 'data-key': 'week-focus' },
+    el(
+      'span',
+      { class: 'week-focus-lead' },
+      current ? t('usage.time.focusThisWeek') : t('usage.time.focusThatWeek'),
+    ),
+    ` ${parts.join(' · ')}; `,
+    el('span', { class: 'dim' }, before),
+  )
+}
+
 function weekBody(
   period: Extract<TimePeriod, { kind: 'week' }>,
   week: ActivityWeek,
@@ -576,6 +625,7 @@ function weekBody(
     el('span', { class: 'num w7' }, t('usage.time.colActive')),
     el('span', { class: 'num w-messages' }, t('usage.time.colMessages')),
     el('span', { class: 'num w-prompts' }, t('usage.time.colPrompts')),
+    el('span', { class: 'num w-switches' }, t('usage.time.colSwitches')),
     el('span', { class: 'week-open' }),
   )
   const strips: (() => void)[] = []
@@ -602,6 +652,11 @@ function weekBody(
       el('span', { class: 'num w7' }, formatDuration(reading.burstSeconds)),
       el('span', { class: 'num w-messages' }, String(reading.messages)),
       el('span', { class: 'num w-prompts' }, String(reading.prompts)),
+      el(
+        'span',
+        { class: 'num w-switches' },
+        rateText(reading.switches, reading.burstSeconds, ctx.locale),
+      ),
       el('span', { class: 'week-open dim' }, '›'),
     )
     const open = () => ctx.choose({ kind: 'day', day })
@@ -624,6 +679,11 @@ function weekBody(
       el('span', { class: 'num w7' }, formatDuration(sum((d) => d.burstSeconds))),
       el('span', { class: 'num w-messages' }, String(sum((d) => d.messages))),
       el('span', { class: 'num w-prompts' }, String(sum((d) => d.prompts))),
+      el(
+        'span',
+        { class: 'num w-switches' },
+        rateText(week.focus.switches, week.focus.activeSeconds, ctx.locale),
+      ),
       el('span', { class: 'week-open' }),
     ),
   )
@@ -637,10 +697,16 @@ function weekBody(
         heading,
         el('div', { class: 'card usage-list' }, ...rows),
       ),
+      focusLine(
+        week,
+        week.days.some((_, n) => sameDay(addDays(period.first, n), ctx.today)),
+        ctx.locale,
+      ),
       ...footer([
         t('usage.time.burstsFooter'),
         t('usage.time.weekFooter'),
         t('usage.time.notCounted'),
+        view.scoped ? t('usage.time.switchesFooter') : t('usage.time.switchesFooterAll'),
       ]),
     ],
     draw: () => {
