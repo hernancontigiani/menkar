@@ -279,7 +279,9 @@ the mode off, none marked, or All projects, `toOrchestrator` is null and the lin
 out. `before` is null when the week before has no message ("no data"). Scoped to a project,
 messages and switches are that project's; in All projects a switch may cross projects. Computed
 when read, nothing stored. A renew is a switch: the renewed session's next message goes to a new
-id.
+id. Kept so on purpose (the human, 2026-11-21, topic 93): renews are a few a week, and folding a
+session's earlier conversations into it would change `burst.switches`' meaning in `now --json`,
+which cogload reads.
 
 ### The task flow
 
