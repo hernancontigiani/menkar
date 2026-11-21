@@ -13,6 +13,9 @@ updates:
       # The app runs on Node 22 LTS, so its types follow Node 22's major.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # TypeScript 7.0 has no compiler API, which the checks that read the source use; 7.1 is to bring one.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

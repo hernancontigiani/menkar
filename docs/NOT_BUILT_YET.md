@@ -486,3 +486,14 @@ and a team post soon after, the session's first turn is the team update, not its
 **Trigger:** a session started or resumed with a task prompt is seen acting on the team post before
 its task, or skipping a skill because its first turn had no listing. First question: whether Menkar
 holds a post until the prompt's turn has opened, from the transcript's first `human` record.
+
+### TypeScript 7
+
+Measured on 7.0.2 (2026-11-21, Dependabot's PR #4, closed): the app builds byte-identical and `src/`
+typechecks, but TypeScript 7.0 ships no classic compiler API, which three checks of `npm run ci`
+(`check-code-rules`, `check-i18n`, `check-test-integrity`) and seven code-shape tests parse sources
+with. Microsoft's bridge (`@typescript/typescript6`) works but installs a second TypeScript.
+Dependabot ignores TypeScript majors until then (`.github/dependabot.yml`).
+
+**Trigger:** TypeScript 7.1 ships its stable API. Then: move the ten files onto it in one change, and
+lift the Dependabot ignore.
