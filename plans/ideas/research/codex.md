@@ -221,6 +221,8 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
   answered `POST /v1/responses` with three SSE events: `response.created`,
   `response.output_item.done`, `response.completed`.
 - A real TUI turn completed this way, so **later probes need no login**.
+- The scripted stand-in now lives in the tree: `scripts/agent-probes/codex/responses-standin.mjs`
+  (its `README.md` holds the config and the script format; 2026-11-21).
 - Every process was stopped by PID and the home deleted.
 
 18. **The rollout file is created at the first user message, not at start.**
@@ -501,6 +503,32 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
     - With `direct_only_tool_namespaces`, the namespace is also absent from `exec`'s `tools`
       object: `tools.mcp__menkar__list_sessions is not a function`. The model calls the tools
       directly instead.
+28. **Menkar's Codex state rule across a turn** (2026-11-21, task 190; codex-cli 0.169.0,
+    `gpt-6.1-sol` against the stand-in, 120×40).
+    - Setup: a sampler applied `src/core/agents/codex/state.ts`'s rule (spinner title or "esc to
+      interrupt)" in the last 8 lines, then working; "[ ! ] Action Required" or a card footer,
+      then blocked) to the pane every 50 ms, and logged each change.
+    - **A turn reads as one unbroken "working" span.** Every case gave exactly one
+      idle→working→idle:
+      - **slow:** 1.5 s model delay, then `sleep 2`; 1.2 s delay, then `echo`; 0.8 s plus 1 s
+        after `response.created`, then a reply streamed in 20 deltas over 3 s. One 9.8 s span.
+      - **fast:** three tool calls with no delay and a 1 s stream. One 1.6 s span.
+      - **automatic compaction in the middle of a turn:** after a tool call (`-c
+        model_auto_compact_token_limit=50000`, the stand-in reporting 200,000 tokens). No gap.
+    - **The title spinner holds** across model latency, tool runs, compaction, and the start and
+      end of streaming. "esc to interrupt)" was on screen throughout as well.
+    - **At an approval card, the title alternates every 1.0 s** between `[ . ] Action Required |
+      <name> | <cwd>` and `[ ! ] …`, with no plain title in between at 50 ms sampling. The card's
+      footer "press enter to confirm or esc to cancel" stays drawn the whole time.
+    - **The idle title carries the thread's name** once it has one (`<name> | <cwd>`); the
+      working title is `<spinner> <name> | <cwd>`.
+    - **Working with no turn:** while MCP servers start, the title shows the spinner (with no
+      "esc to interrupt)").
+      - A server answering `initialize` after 4 s gave a 4.0 s "working" span at TUI start.
+      - An instant one gave about 50 ms. With no MCP there was none.
+      - Menkar's own server (the worktree build under Electron-as-Node) answered `initialize`
+        in 47–65 ms, so at start this is a span of about 0.1 s, under Menkar's 250 ms re-read.
+    - 20 s idle gave no change.
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
