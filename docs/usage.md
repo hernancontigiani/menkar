@@ -332,7 +332,7 @@ project and number; the types the page receives are in `nodes.ts`.
 
 ### Where it is stored
 
-In the usage history, version 4, tables `activity` and `task_states`. Main never opens SQLite:
+In the usage history, since version 4, tables `activity` and `task_states`. Main never opens SQLite:
 
 1. Main appends each event as a JSON line to `<data>/activity/journal.jsonl`, through one promise
    chain, so lines are written in the order they happened.
@@ -518,6 +518,8 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
 | `models` | By model id as stored, with Haiku 5.5's long-prompt requests apart as `claude-haiku-5-5@long`: `input`, `output`, `cache_write`, `cache_write_1h`, `cache_read`, `cost_usd` (list price) and `priced` |
 | `cost_usd` | The turn's cost: the statusline's exact figure when its session reported one, else the list-price estimate |
 | `cost_exact` | Whether `cost_usd` is the statusline's figure |
+| `agent` | The id of the agent whose files the turn was read from, as the agents' registry names it (`claude`, `codex`…), or `null` |
+| `response_seconds` | The human's response latency: seconds from the turn's end to their next message in its session, or `null` |
 
 - **What the running total grew by** (2026-11-10, `readStatusline`, shared by the window,
   `menkar usage` and the export). Claude Code keeps a session's total across a resume, so a
@@ -533,6 +535,21 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
   report in the range is exact for every turn (one with none costs 0), so the rows' `cost_usd`
   add up to the report's cost for a range no turn crosses. A model's `cost_usd` is always the list
   price.
+- **The agent** (decision 1.204, 2026-11-21) is stored, not derived: since history version 5 the
+  pass writes each turn's agent in `turn_agents`, beside `turns`, from the source it read the turn
+  from. A history from before is migrated with every turn queued in `agent_backfill`; the next pass
+  names each one from the source that still holds it and dequeues it either way, so a turn whose
+  transcript is gone keeps `agent: null` and is not looked for again.
+- **The response latency** (decision 1.204, 2026-11-21) goes on the row of the turn the human
+  answered: from the end of its last span (the pane turning done) to the next turn of its session,
+  when that one is the human's. It is `null`, never 0, when there is no next turn yet; when the
+  next turn is not the human's (a peer, a task notification: the agent was not waiting on them) or
+  is the first turn after a prompted start (Menkar's text, as for the bursts); when it opened
+  before the turn's end; and when an away period overlaps the wait, which is not response
+  pressure. Messages in other sessions do not end the wait: it is per pane. In the CSV, `null` is
+  an empty cell. **The latency at a permission prompt** is not a turn field: it is each
+  `prompt_answered` activity row's `blocked_seconds` (`--rows activity`, below), from the pane
+  turning blocked to the human's answer, with its session and moment.
 - **CSV**: the same scalar fields, one row per turn, with the turn's token totals as columns
   (`input` … `cache_read`) and `models` the model ids joined by `;`. Analysis by model uses JSONL.
 - **Never in a row**: prompt or answer text (the history does not keep it, and the export does not

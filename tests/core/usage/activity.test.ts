@@ -13,7 +13,7 @@ import {
   type JournalEvent,
   parseJournalLine,
 } from '../../../src/core/usage/activity'
-import { UsageHistory } from '../../../src/core/usage/history'
+import { HISTORY_VERSION, UsageHistory } from '../../../src/core/usage/history'
 import { usageDirs } from '../../factories/usage'
 
 const AT = new Date(2026, 10, 18, 10, 0, 0).getTime() / 1000
@@ -165,7 +165,7 @@ describe('importing the activity journal', () => {
   test('a newer history is left untouched and the batch kept', () => {
     const dirs = usageDirs('act-too-new')
     const db = openDb(dirs.history)
-    db.setUserVersion(5)
+    db.setUserVersion(HISTORY_VERSION + 1)
     db.close()
     const before = statSync(dirs.history).mtimeMs
     const historyBytes = readFileSync(dirs.history)

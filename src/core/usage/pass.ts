@@ -1,4 +1,4 @@
-import { AGENT_IDS } from '../agents/ids'
+import { AGENT_IDS, type AgentId } from '../agents/ids'
 import { kitOf } from '../agents/registry'
 import type { TurnSource, TurnTexts } from '../agents/types'
 import { log } from '../log'
@@ -19,22 +19,31 @@ export function defaultPassPaths(): PassPaths {
   return { ...roots, cache: cachePath(), history: historyPath() }
 }
 
+export interface AgentSource {
+  readonly agent: AgentId
+  readonly source: TurnSource
+}
+
 // Every agent's usage cache whose sessions' root exists, in the registry's order.
-export function openSources(paths: PassPaths): TurnSource[] {
-  const sources: TurnSource[] = []
+export function openAgentSources(paths: PassPaths): AgentSource[] {
+  const sources: AgentSource[] = []
   try {
     for (const id of AGENT_IDS) {
       const root = paths[`${id}Projects`]
       const usage = kitOf(id).usage
       if (root === undefined || usage === null) continue
       const source = usage.open(root, paths.cache)
-      if (source !== null) sources.push(source)
+      if (source !== null) sources.push({ agent: id, source })
     }
   } catch (error) {
-    closeSources(sources)
+    closeSources(sources.map((s) => s.source))
     throw error
   }
   return sources
+}
+
+export function openSources(paths: PassPaths): TurnSource[] {
+  return openAgentSources(paths).map((s) => s.source)
 }
 
 export function closeSources(sources: readonly TurnSource[]): void {
@@ -66,11 +75,11 @@ export function textsOf(sources: readonly TurnSource[]): TurnTexts {
 // One agent's files failing to read does not keep the others' turns out; the first failure is
 // raised once the rest are written.
 export function runPass(memberships: Memberships, paths: PassPaths = defaultPassPaths()): void {
-  const sources = openSources(paths)
+  const sources = openAgentSources(paths)
   try {
     passOver(sources, memberships, paths)
   } finally {
-    closeSources(sources)
+    closeSources(sources.map((s) => s.source))
   }
 }
 
@@ -79,9 +88,9 @@ export async function runStreamingPass(
   memberships: Memberships,
   paths: PassPaths = defaultPassPaths(),
 ): Promise<void> {
-  const sources = openSources(paths)
+  const sources = openAgentSources(paths)
   try {
-    for (const source of sources) {
+    for (const { source } of sources) {
       try {
         await source.catchUp?.()
       } catch (error) {
@@ -90,17 +99,17 @@ export async function runStreamingPass(
     }
     passOver(sources, memberships, paths)
   } finally {
-    closeSources(sources)
+    closeSources(sources.map((s) => s.source))
   }
 }
 
-function passOver(sources: readonly TurnSource[], memberships: Memberships, paths: PassPaths) {
+function passOver(sources: readonly AgentSource[], memberships: Memberships, paths: PassPaths) {
   let failure: { error: unknown } | null = null
-  const ingested: TurnSource[] = []
-  for (const source of sources) {
+  const ingested: AgentSource[] = []
+  for (const agentSource of sources) {
     try {
-      source.ingest()
-      ingested.push(source)
+      agentSource.source.ingest()
+      ingested.push(agentSource)
     } catch (error) {
       if (failure !== null) log.warn('a usage source could not be read', { error })
       failure ??= { error }
@@ -109,10 +118,11 @@ function passOver(sources: readonly TurnSource[], memberships: Memberships, path
   if (failure !== null && ingested.length === 0) throw failure.error
   const history = new UsageHistory(paths.history)
   try {
-    for (const source of ingested) history.write(source, memberships)
+    for (const { agent, source } of ingested) history.write(source, memberships, agent)
+    history.backfillAgents(ingested)
     history.rederive({
       turnUsage: (sessionId, uuid) => {
-        for (const source of sources) {
+        for (const { source } of sources) {
           const found = source.turnUsage(sessionId, uuid)
           if (found !== null) return found
         }

@@ -1,4 +1,5 @@
-import type { UsageHistory } from './history'
+import { awayPeriods } from './bursts'
+import type { ExportedTurn, UsageHistory } from './history'
 import { addTokens, type Tokens, ZERO_TOKENS } from './nodes'
 import type { Bounds } from './periods'
 import { cost } from './prices'
@@ -25,6 +26,8 @@ export const EXPORT_KEYS = [
   'models',
   'cost_usd',
   'cost_exact',
+  'agent',
+  'response_seconds',
 ] as const
 
 type ModelJson = ReturnType<typeof tokensJson> & { cost_usd: number; priced: boolean }
@@ -44,6 +47,8 @@ export interface ExportRow {
   readonly models: Readonly<Record<string, ModelJson>>
   readonly cost_usd: number
   readonly cost_exact: boolean
+  readonly agent: string | null
+  readonly response_seconds: number | null
 }
 
 export interface ExportOptions {
@@ -80,8 +85,17 @@ export function exportRows(
     exactSessions.add(inc.sessionId)
     exact.set(turn, (exact.get(turn) ?? 0) + inc.dollars)
   }
+  const turns = history.turnsOpened(bounds.start, bounds.end)
+  let low = Number.POSITIVE_INFINITY
+  let high = Number.NEGATIVE_INFINITY
+  for (const t of turns) {
+    if (t.end === null || t.next === null) continue
+    low = Math.min(low, t.end)
+    high = Math.max(high, t.next.opened)
+  }
+  const away = low < high ? awayPeriods(history.presence(low, high), high) : []
   const rows: ExportRow[] = []
-  for (const turn of history.turnsOpened(bounds.start, bounds.end)) {
+  for (const turn of turns) {
     if (options.project !== undefined && turn.projectId !== options.project) continue
     const byModel = new Map<string, { tokens: Tokens; cost: number; priced: boolean }>()
     for (const { model, hour, tokens } of turn.tokens) {
@@ -114,9 +128,25 @@ export function exportRows(
       models,
       cost_usd: isExact ? (exact.get(turn.uuid) ?? 0) : estimate,
       cost_exact: isExact,
+      agent: turn.agent,
+      response_seconds: responseSeconds(turn, away),
     })
   }
   return rows
+}
+
+// From the turn's end to the human's next message in its session. Null when there is none yet,
+// when another turn came first (the agent was not waiting on the human), and when the human was
+// away at some point of the wait: that is not a response.
+export function responseSeconds(
+  turn: Pick<ExportedTurn, 'end' | 'next'>,
+  away: readonly Bounds[],
+): number | null {
+  const { end, next } = turn
+  if (end === null || next === null || next.origin !== 'human' || next.prompted) return null
+  if (next.opened < end) return null
+  if (away.some((p) => p.start < next.opened && p.end > end)) return null
+  return next.opened - end
 }
 
 export function exportJsonl(
@@ -145,6 +175,8 @@ export const CSV_COLUMNS = [
   'models',
   'cost_usd',
   'cost_exact',
+  'agent',
+  'response_seconds',
 ] as const
 
 function csvField(value: string | number | boolean | null): string {
@@ -181,6 +213,8 @@ export function exportCsv(rows: readonly ExportRow[]): string {
       Object.keys(row.models).join(';'),
       row.cost_usd,
       row.cost_exact,
+      row.agent,
+      row.response_seconds,
     ]
     lines.push(fields.map(csvField).join(','))
   }
