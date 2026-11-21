@@ -134,6 +134,8 @@ describe.each(BUILT.map((id) => [id]))('%s', (id) => {
 // sidecars it reads a copy in Menkar's cache.
 describe("OpenCode's database", () => {
   const kit = kitOf('opencode')
+  // Its kit declares what Menkar's calls make its server write there; reading declares nothing.
+  const NONE: DeclaredWrites = { created: [], changed: [] }
   const DB = join('.local', 'share', 'opencode', 'opencode.db')
 
   function stateHome(state: 'home' | 'killed'): string {
@@ -160,7 +162,7 @@ describe("OpenCode's database", () => {
     expect([...before.keys()].filter((path) => !path.endsWith('/'))).toEqual([DB])
     expect(await titles()).toEqual(['Rename the cart module', 'checkout-fix', 'payment refactor'])
     await readAll(kit.catalog)
-    expect(undeclared(before, filesOf(home), kit.writes)).toEqual([])
+    expect(undeclared(before, filesOf(home), NONE)).toEqual([])
   })
 
   test("with a live writer, reading it sees the writer's last frames and writes nothing", async () => {
@@ -178,7 +180,7 @@ describe("OpenCode's database", () => {
       ])
       expect(await titles()).toContain('payment, live')
       await readAll(kit.catalog)
-      expect(undeclared(before, filesOf(home), kit.writes)).toEqual([])
+      expect(undeclared(before, filesOf(home), NONE)).toEqual([])
     } finally {
       writer.close()
     }
@@ -189,7 +191,7 @@ describe("OpenCode's database", () => {
     const before = filesOf(home)
     expect(await titles()).toContain('checkout-fix, with tests')
     await readAll(kit.catalog)
-    expect(undeclared(before, filesOf(home), kit.writes)).toEqual([])
+    expect(undeclared(before, filesOf(home), NONE)).toEqual([])
   })
 
   test('after its server was killed, the last writes are only in the -wal', () => {

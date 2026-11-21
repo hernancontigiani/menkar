@@ -35,12 +35,20 @@ export type Request =
   | { readonly op: 'head'; readonly db: string; readonly id: string }
   | { readonly op: 'conversation'; readonly db: string; readonly id: string }
   | { readonly op: 'lastReply'; readonly db: string; readonly id: string }
+  | { readonly op: 'times'; readonly db: string; readonly id: string }
 
 export interface Answers {
   readonly list: SessionRow[]
   readonly head: SessionHead | null
   readonly conversation: Conversation | null
   readonly lastReply: string | null
+  readonly times: SessionTimes | null
+}
+
+// When a session last went busy and last went idle, as whichever server ran it last wrote them.
+export interface SessionTimes {
+  readonly busy: number
+  readonly idle: number
 }
 
 export type Answer<R extends Request> = Answers[R['op']] | typeof UNREADABLE
@@ -249,6 +257,11 @@ function conversation(db: DatabaseSync, id: string): Conversation | null {
   }
 }
 
+function times(db: DatabaseSync, id: string): SessionTimes | null {
+  const row = db.prepare('SELECT time_busy, time_idle FROM session_v2 WHERE id = ?').get(id)
+  return row ? { busy: num(row.time_busy), idle: num(row.time_idle) } : null
+}
+
 // Runs one request against the database, opened and closed for it.
 export function answer<R extends Request>(request: R): Answer<R> {
   const result = openAgentDb(request.db, (db): Answers[Request['op']] => {
@@ -261,6 +274,8 @@ export function answer<R extends Request>(request: R): Answer<R> {
         return conversation(db, request.id)
       case 'lastReply':
         return lastReply(db, request.id)
+      case 'times':
+        return times(db, request.id)
     }
   })
   return result as Answer<R>

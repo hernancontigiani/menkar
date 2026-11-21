@@ -12,4 +12,6 @@ export const mainKit: MainAgentKit = {
   bind,
   namer,
   callers: null,
+  prepare: null,
+  runs: null,
 }

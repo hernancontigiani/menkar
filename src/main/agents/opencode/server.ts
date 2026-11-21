@@ -104,6 +104,44 @@ async function checkFeatures(url: string, password: string): Promise<Features> {
   return features
 }
 
+const CALL_WAIT_MS = 10_000
+
+export interface Answer {
+  readonly status: number
+  readonly body: unknown
+}
+
+// One call of Menkar's own to its server, with the password; the body read as JSON when it has one.
+export async function call(
+  server: Running,
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<Answer> {
+  const response = await fetch(`${server.url}${path}`, {
+    method,
+    headers: {
+      authorization: basicAuth(server.password),
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(CALL_WAIT_MS),
+  })
+  const text = await response.text()
+  let parsed: unknown = null
+  if (text !== '') {
+    try {
+      parsed = JSON.parse(text)
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error
+      parsed = text
+    }
+  }
+  return { status: response.status, body: parsed }
+}
+
+export const answered = (answer: Answer): boolean => answer.status >= 200 && answer.status < 300
+
 // Menkar's one `opencode serve` (stdio mode): started with the first tab that needs it, stopped
 // with the last one and on quit, started again on the same port and with the same password when it
 // dies while tabs use it, so their TUIs can reconnect.
@@ -143,6 +181,11 @@ export class OpenCodeServer {
   stop(): void {
     this.panes.clear()
     this.end()
+  }
+
+  // The server as it runs now, or as it is starting; null while none does.
+  running(): Promise<Running> | null {
+    return this.starting
   }
 
   restarts(): number {

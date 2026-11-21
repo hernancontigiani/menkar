@@ -46,6 +46,10 @@ export interface AgentDescriptor {
   // What the orchestration mode's first-time card says when one of its sessions orchestrates or
   // works for the orchestrator, for an agent that does either with limits; null otherwise.
   readonly teamLimits: { readonly orchestrator: Key; readonly worker: Key } | null
+  // The `_meta` key under which the agent's server names the calling session in a tool call to
+  // Menkar's MCP server, for an agent whose MCP server serves many sessions and so cannot be told
+  // the caller by its environment; null when the pane's environment names it.
+  readonly callerMeta: string | null
 }
 
 export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = {

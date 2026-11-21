@@ -1,0 +1,1 @@
+- Message a session with the menkar server's `send_message` tool, `name` set to its name.

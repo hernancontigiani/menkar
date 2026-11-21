@@ -225,6 +225,43 @@ describe('the protocol', () => {
     expect(calls).toEqual([])
   })
 
+  // An agent whose one MCP server serves every session of a folder names the calling session in
+  // each call's `_meta`, under the key its descriptor gives: that is the caller main resolves.
+  test("with no pane, a call naming its session under the agent's key reaches Menkar as that session's", async () => {
+    const callers: unknown[] = []
+    const server = serverContext(null, 'opencode')
+    const named = {
+      ...server,
+      call: async (tool: string, args: Record<string, unknown>, caller?: unknown) => {
+        callers.push([tool, args, caller])
+        return { ok: true, text: `ran ${tool}` }
+      },
+    }
+    const meta = { 'ai.opencode/sessionID': 'ses_1', progressToken: 3 }
+    const reply = await answer(
+      rpc('tools/call', { name: 'list_sessions', arguments: {}, _meta: meta }),
+      named,
+    )
+    expect(reply).toMatchObject({ result: { content: [{ text: 'ran list_sessions' }] } })
+    expect(callers).toEqual([
+      ['list_sessions', {}, { agentSession: { meta: 'ai.opencode/sessionID', id: 'ses_1' } }],
+    ])
+    // The same `_meta` means nothing to an agent whose pane's environment names its caller.
+    const plain = { ...serverContext(null, 'codex'), call: named.call }
+    const refused = (await answer(
+      rpc('tools/call', { name: 'list_sessions', arguments: {}, _meta: meta }),
+      plain,
+    )) as { result: { isError: boolean } }
+    expect(refused.result.isError).toBe(true)
+    // Nor does a call that names no session under the key.
+    const unnamed = (await answer(
+      rpc('tools/call', { name: 'list_sessions', arguments: {}, _meta: { progressToken: 3 } }),
+      named,
+    )) as { result: { isError: boolean } }
+    expect(unnamed.result.isError).toBe(true)
+    expect(callers).toHaveLength(1)
+  })
+
   test('an unknown tool is an error', async () => {
     const reply = await answer(rpc('tools/call', { name: 'rm', arguments: {} }), ctx('p1'))
     expect(reply).toMatchObject({ result: { isError: true } })

@@ -5,7 +5,6 @@ import { kitOf } from '../core/agents/registry'
 import type { VersionFloor } from '../core/agents/types'
 import type { Start } from '../core/command'
 import { controlPaths, writeTextAtomic } from '../core/control/files'
-import type { PostOutcome } from '../core/control/post'
 import { log } from '../core/log'
 import type { WorkCounts } from '../core/orchestration/counts'
 import { agentPaths } from '../core/paths'
@@ -24,6 +23,7 @@ import {
 import { forgetRecorded, readRecorded, writeRecorded } from '../core/team/recorded'
 import { foundFor, listSkills } from '../core/team/skills'
 import { mainKitOf } from './agents/registry'
+import type { TeamOutcome } from './agents/types'
 import { skillsPluginDir } from './control'
 
 // A stored skill the session can load, by name, and its SKILL.md.
@@ -201,6 +201,20 @@ export async function teamFoundChanged(pane: string, cwd: string | null): Promis
   settle.trigger(pane)
 }
 
+// Menkar's own skills are named with its plugin's prefix, as a block names them.
+const OWN_PREFIX = 'menkar:'
+const OWN_NAME = /^[a-z0-9][a-z0-9-]*$/
+
+// A skill's file, for a session given its skills' text through Menkar's MCP: one of Menkar's own,
+// or one of those found for the pane's session; null for any other name.
+export function skillFile(pane: string, name: string): string | null {
+  if (name.startsWith(OWN_PREFIX)) {
+    const own = name.slice(OWN_PREFIX.length)
+    return OWN_NAME.test(own) ? join(skillsPluginDir(), 'skills', own, 'SKILL.md') : null
+  }
+  return held.get(pane)?.found.get(name) ?? null
+}
+
 export function forgetTeam(pane: string): void {
   held.delete(pane)
   settle.forget(pane)
@@ -271,10 +285,10 @@ async function recompute(pane: string): Promise<void> {
   const text = teamPost(h.team.held, current)
   if (!text) return
   h.posting = true
-  let outcome: PostOutcome | 'error' = 'error'
+  let outcome: TeamOutcome | 'error' = 'error'
   try {
     outcome = await postWithTries(
-      () => teller.tell(session.sessionId, text, s.counts(session.sessionId)),
+      () => teller.tell(session.sessionId, text, s.counts(session.sessionId), current),
       sleep,
     )
   } catch (error) {
@@ -282,7 +296,10 @@ async function recompute(pane: string): Promise<void> {
   } finally {
     h.posting = false
   }
-  if (outcome === 'posted') {
+  if (outcome === 'stored') {
+    h.team = delivered(h.team, current)
+    log.info('a team update was stored', { pane })
+  } else if (outcome === 'posted') {
     h.team = delivered(h.team, current)
     h.posted = true
     log.info('a team update was posted', { pane })

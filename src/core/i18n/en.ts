@@ -38,6 +38,8 @@ export const en = {
   'drawer.pickPlaceholder': 'Filter folders',
   'drawer.divider': 'Drag to resize the shell; Ctrl+` hides it',
   'terminal.notFound': 'warning: `{cli}` not found in PATH — starting a plain shell',
+  'terminal.serverFailed':
+    "warning: Menkar could not start `{cli}`'s server for this session — starting a plain shell",
   'terminal.restoreMissing':
     'This session was not found: its agent ({agent}) may be uninstalled or its files gone.',
   'terminal.restoreUnsupported':
@@ -166,6 +168,8 @@ export const en = {
     "Load `menkar:orchestrator` with the Skill tool, by that name, even if it is not in your skill listing yet. You are the orchestrator of the project {name}. Its orchestration is new: read Menkar's guide at {guide} first, then help me configure it.",
   'orch.firstPromptByFile':
     "Load `menkar:orchestrator` by reading its SKILL.md at {skill}, whole. You are the orchestrator of the project {name}. Its orchestration is new: read Menkar's guide at {guide} first, then help me configure it.",
+  'orch.firstPromptByTool':
+    "Load `menkar:orchestrator` with the menkar server's `load_skill` tool, by that name. You are the orchestrator of the project {name}. Its orchestration is new: read Menkar's guide at {guide} first, then help me configure it.",
   'header.usageTooltip': 'Usage: time, tokens and cost',
   'menu.newWindow': 'New window',
   'menu.newSession': 'New session',

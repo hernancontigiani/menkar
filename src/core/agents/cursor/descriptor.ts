@@ -29,6 +29,7 @@ export const descriptor: AgentDescriptor = {
   ],
   // An idle wake is a restart, and each tool asks unless allowed: the card says so, forbids neither.
   teamLimits: { orchestrator: 'agent.cursorOrchestrates', worker: 'agent.cursorWorks' },
+  callerMeta: null,
   versionWord: 0,
   versions: { validated: null, floor: null },
 }

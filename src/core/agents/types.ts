@@ -41,6 +41,8 @@ export interface LaunchContext {
   readonly paneFiles?: string
   // The project's files folder, granted to the session.
   readonly filesFolder?: string
+  // The address of the server the agent's CLI attaches to, for an agent whose sessions run there.
+  readonly server?: string
 }
 
 // A file the command names, written whole before the command runs; its text is read then.
@@ -63,6 +65,9 @@ export interface Launcher {
 // How Menkar's MCP server and skills reach a session the agent's CLI starts.
 export interface McpMount {
   words(ctx: LaunchContext): readonly string[]
+  // Whether the skills a session's team block names reach it as text through Menkar's MCP, for an
+  // agent that cannot be given Menkar's skills folder without every session of its server seeing it.
+  readonly servesSkills: boolean
 }
 
 // The agent's own way of messaging another session by name, where it has one.

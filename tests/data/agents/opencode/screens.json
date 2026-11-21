@@ -1,0 +1,56 @@
+[
+  {
+    "name": "a new session's composer, with the footer at rest",
+    "title": "OpenCode",
+    "screen": " • New session                     +\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    0.0K (0%)  ctrl+p commands",
+    "state": "idle"
+  },
+  {
+    "name": "a turn ended, its step line under the reply",
+    "title": "OpenCode",
+    "screen": " • Fix the parser                     +\n\n  ┃  fix the parser\n\n     Done: the parser accepts an empty line.\n\n     ▣  Build · m1 · 840ms · 1250.0 tok/s · 808ms ttft\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    1.0K (1%)  ctrl+p commands",
+    "state": "idle"
+  },
+  {
+    "name": "a reply that quotes the busy footer is not a running turn",
+    "title": "OpenCode",
+    "screen": " • Screens                     +\n\n  ┃  what does the footer say while busy?\n\n     It says \"esc interrupt\".\n\n     ▣  Build · m1 · 600ms\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    1.2K (1%)  ctrl+p commands",
+    "state": "idle"
+  },
+  {
+    "name": "a message waiting in the inbox while the session is idle",
+    "title": "OpenCode",
+    "screen": " ⠋ Fix the parser                     +\n\n  ┃  fix the parser\n\n     Done.\n\n     ▣  Build · m1 · 840ms\n\n  ┃  1 queued · [Menkar] wake\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    1.0K (1%)  ctrl+p commands",
+    "state": "idle"
+  },
+  {
+    "name": "a turn running",
+    "title": "OpenCode",
+    "screen": " ⠙ Fix the parser                     +\n\n  ┃  fix the parser\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n   ⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt      1.0K (1%)  ctrl+p commands",
+    "state": "working"
+  },
+  {
+    "name": "a turn running after one Esc",
+    "title": "OpenCode",
+    "screen": " ⠹ Fix the parser                     +\n\n  ┃  fix the parser\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n   ⬝⬝⬝⬝⬝⬝⬝⬝ esc again to interrupt      1.0K (1%)  ctrl+p commands",
+    "state": "working"
+  },
+  {
+    "name": "a queued message while a turn runs",
+    "title": "OpenCode",
+    "screen": " ⠸ Fix the parser                     +\n\n  ┃  fix the parser\n\n  ┃  1 queued · [Menkar] wake\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n   ⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt      1.0K (1%)  ctrl+p commands",
+    "state": "working"
+  },
+  {
+    "name": "the permission card",
+    "title": "OpenCode",
+    "screen": " ⠼ Make a file                     +\n\n  ┃  make b.txt\n\n     Press ctrl+b to move running work to the background\n  ┃  △ Permission required\n  ┃  $ touch b.txt\n  ┃   Allow once   Always allow   Reject      ctrl+f fullscreen  ⇆ select  enter confirm\n   ⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt      1.0K (1%)  ctrl+p commands",
+    "state": "blocked"
+  },
+  {
+    "name": "the card answered with Reject, the step interrupted",
+    "title": "OpenCode",
+    "screen": " • Make a file                     +\n\n  ┃  make b.txt\n\n     ▣  Build · m1 · interrupted\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    1.0K (1%)  ctrl+p commands",
+    "state": "idle"
+  }
+]

@@ -55,13 +55,18 @@ afterEach(async () => {
 
 type Seen = { pane: string; id: string; previous: string | null }
 
-function proxies(): { proxies: OpenCodeProxies; seen: Seen[] } {
+// `created`: whether each move was to a session the pane's TUI created, in order.
+function proxies(): { proxies: OpenCodeProxies; seen: Seen[]; created: boolean[] } {
   const seen: Seen[] = []
+  const created: boolean[] = []
   const p = new OpenCodeProxies({
-    onSession: (pane, id, previous) => seen.push({ pane, id, previous }),
+    onSession: (pane, id, previous, made) => {
+      seen.push({ pane, id, previous })
+      created.push(made)
+    },
   })
   made.push(p)
-  return { proxies: p, seen }
+  return { proxies: p, seen, created }
 }
 
 function tui(url: string, args: string[] = [], password = running.password): Tui {
@@ -115,7 +120,7 @@ const post = (url: string, path: string, body: unknown) =>
   })
 
 test("a new session's id is learnt from the TUI's own create, and /new moves the pane to the next one as a clear", async () => {
-  const { proxies: p, seen } = proxies()
+  const { proxies: p, seen, created } = proxies()
   const url = await p.open('pane-1', running, null)
   expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
   expect(url).not.toBe(running.url)
@@ -136,6 +141,7 @@ test("a new session's id is learnt from the TUI's own create, and /new moves the
   const second = seen[1]?.id ?? ''
   expect(second).not.toBe(first)
   expect(seen[1]).toEqual({ pane: 'pane-1', id: second, previous: first })
+  expect(created).toEqual([true, true])
   expect(await paneOf(p, second)).toBe('pane-1')
   expect(await paneOf(p, first)).toBeNull()
 })
@@ -143,9 +149,10 @@ test("a new session's id is learnt from the TUI's own create, and /new moves the
 test("a pane started on a session knows it at once, and its TUI's requests on it change nothing", async () => {
   const id = 'ses_0000000000aaAAAAAAAAAAAAAA'
   await create(id)
-  const { proxies: p, seen } = proxies()
+  const { proxies: p, seen, created } = proxies()
   const url = await p.open('pane-1', running, id)
   expect(seen).toEqual([{ pane: 'pane-1', id, previous: null }])
+  expect(created).toEqual([false])
   const t = tui(url, ['-s', id])
   type(t, 'hello')
   await wait(() => expect(t.screen()).toContain('ack 1: hello'))
@@ -158,7 +165,7 @@ test("a session opened with the TUI's own picker moves the pane to it, back and 
   const b = 'ses_0000000000b1BBBBBBBBBBBBBB'
   await create(a)
   await create(b)
-  const { proxies: p, seen } = proxies()
+  const { proxies: p, seen, created } = proxies()
   const t = tui(await p.open('pane-1', running, a), ['-s', a])
   // Typed once its screen is drawn, as a person would.
   await wait(() => expect(t.screen()).toContain('ctrl+p commands'))
@@ -170,6 +177,8 @@ test("a session opened with the TUI's own picker moves the pane to it, back and 
   await wait(() => expect(seen).toHaveLength(3))
   expect(seen[2]).toEqual({ pane: 'pane-1', id: a, previous: b })
   expect(await paneOf(p, a)).toBe('pane-1')
+  // Opened, not made here: a resume, not a clear.
+  expect(created).toEqual([false, false, false])
 })
 
 test("a goal's request binds whatever the server answers; a create or a prompt only once it is answered", async () => {

@@ -81,6 +81,26 @@ describe('when the state is read', () => {
     expect(reports).toEqual(['blocked', 'idle'])
   })
 
+  // An agent whose sessions run in its own server: a root session waiting on its subagent shows
+  // no busy footer, and its server's word that something under it runs reads as working.
+  test("an idle screen reads working while the agent's server says the session runs; a card still blocks", () => {
+    vi.useFakeTimers()
+    const { pane, watched, change } = fakePane()
+    let running = true
+    const reports: RawState[] = []
+    new PaneWatcher({ ...watched, serverRunning: () => running }, (raw) => reports.push(raw))
+    change()
+    vi.advanceTimersByTime(CHECK_DELAY_MS)
+    pane.screen = 'Do you want to proceed?'
+    change()
+    vi.advanceTimersByTime(CHECK_DELAY_MS)
+    pane.screen = ''
+    running = false
+    change()
+    vi.advanceTimersByTime(CHECK_DELAY_MS)
+    expect(reports).toEqual(['working', 'blocked', 'idle'])
+  })
+
   test('AST-19 output at 0, 100 and 200 ms makes one check, at 250 ms', () => {
     vi.useFakeTimers()
     const { pane, watched, change } = fakePane()

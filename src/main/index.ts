@@ -38,6 +38,7 @@ import {
   paneInput,
   paneResize,
   paneTyped,
+  quitAgentServers,
   revealPane,
   roleSkills,
   runAction,
@@ -161,6 +162,7 @@ async function start(): Promise<void> {
   })
   startPhase('services started')
   await startWorkspace()
+  app.on('will-quit', () => void quitAgentServers())
   // Menkar's MCP server talks to this process through files once the window state exists.
   await startControl(controlHandlers).catch((error: unknown) =>
     log.error('Menkar’s MCP tools could not start', { error }),

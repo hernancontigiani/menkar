@@ -162,6 +162,14 @@ async function exportMarkdown(name: string, id: string, locator: string): Promis
   return `${header.join('\n')}\n\n---\n\n${body}\n`
 }
 
+// Whether the session's row says a turn of it runs now, in whichever server ran it last; null when
+// it cannot be read.
+export async function runningNow(id: string): Promise<boolean | null> {
+  const answer = await ask({ op: 'times', db: dbPath(), id })
+  if (answer === null || answer === UNREADABLE) return null
+  return answer.busy > answer.idle
+}
+
 export const catalog: SessionCatalog = {
   root: dbPath,
   names: true,

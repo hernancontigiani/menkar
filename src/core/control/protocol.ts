@@ -1,6 +1,7 @@
 import { OUTSIDE_WAITS, REVIEW_WAITERS } from '../orchestration/taskState'
 import {
   CALLABLE_TOOL_NAMES,
+  type Caller,
   type ControlAnswer,
   PLAIN_SHAPE,
   type ServerShape,
@@ -374,6 +375,20 @@ const SEND_MESSAGE: Tool = {
   },
 }
 
+// Listed only to a caller whose agent is given its skills' text here rather than as files.
+const LOAD_SKILL: Tool = {
+  name: 'load_skill',
+  description:
+    'Gives the text of a skill your team instructions name, by its name, with the folder its files are in; follow it as written. Read only.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: "The skill's name, as your instructions write it." },
+    },
+    required: ['name'],
+  },
+}
+
 const agentProperty = (agents: readonly string[]) => ({
   type: 'string',
   enum: [...agents],
@@ -381,7 +396,7 @@ const agentProperty = (agents: readonly string[]) => ({
 })
 
 // The tools this caller is shown: everyone's, with start_session's agent once there is a choice,
-// and send_message where its shape says.
+// and send_message and load_skill where its shape says.
 export function toolsFor(shape: ServerShape): readonly Tool[] {
   const tools: Tool[] = TOOLS.map((tool) =>
     tool.name === 'start_session' && shape.agents.length >= 2
@@ -394,14 +409,30 @@ export function toolsFor(shape: ServerShape): readonly Tool[] {
         }
       : tool,
   )
-  return shape.sendMessage ? [...tools, SEND_MESSAGE] : tools
+  if (shape.sendMessage) tools.push(SEND_MESSAGE)
+  if (shape.loadSkill) tools.push(LOAD_SKILL)
+  return tools
 }
 
 export interface ServerContext {
   readonly pane: string | null
+  // The `_meta` key a tool call names its session under, for a server that serves many sessions.
+  readonly callerMeta?: string | null
   // What this caller is offered; without it, the list every caller had before.
   readonly shape?: () => Promise<ServerShape>
-  call(tool: ToolName, args: Record<string, unknown>): Promise<ControlAnswer>
+  call(tool: ToolName, args: Record<string, unknown>, caller?: Caller): Promise<ControlAnswer>
+}
+
+// The pane the server was started for, or the session the call's `_meta` names; null for neither.
+export function callerOf(
+  pane: string | null,
+  callerMeta: string | null | undefined,
+  meta: unknown,
+): Caller | null {
+  if (pane) return { pane }
+  if (!callerMeta || !isObject(meta)) return null
+  const id = meta[callerMeta]
+  return typeof id === 'string' && id !== '' ? { agentSession: { meta: callerMeta, id } } : null
 }
 
 interface Message {
@@ -440,10 +471,11 @@ export async function answer(message: Message, ctx: ServerContext): Promise<obje
     case 'tools/list':
       return reply({ tools: toolsFor((await ctx.shape?.()) ?? PLAIN_SHAPE) })
     case 'tools/call': {
-      if (!ctx.pane) return reply(toolResult({ ok: false, text: NO_PANE }))
+      const caller = callerOf(ctx.pane, ctx.callerMeta, params._meta)
+      if (!caller) return reply(toolResult({ ok: false, text: NO_PANE }))
       if (!isTool(params.name)) return reply(toolResult({ ok: false, text: UNKNOWN_TOOL }))
       const args = isObject(params.arguments) ? params.arguments : {}
-      return reply(toolResult(await ctx.call(params.name, args)))
+      return reply(toolResult(await ctx.call(params.name, args, caller)))
     }
     default:
       return {

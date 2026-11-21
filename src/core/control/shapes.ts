@@ -3,7 +3,8 @@ import { isDefault, kitOf } from '../agents/registry'
 import type { CallerShape, ToolsFile } from './files'
 
 // A caller is offered send_message when some installed agent it must be able to message is out
-// of its own messaging's reach and can be woken by Menkar.
+// of its own messaging's reach and can be woken by Menkar, and load_skill when its agent is given
+// its skills' text through Menkar's MCP.
 function shapeOf(
   caller: AgentId,
   installed: readonly AgentId[],
@@ -12,6 +13,7 @@ function shapeOf(
   const native = kitOf(caller).messaging
   return {
     sendMessage: installed.some((other) => !native?.reaches(other) && wakeable(other)),
+    ...(kitOf(caller).mcp?.servesSkills ? { loadSkill: true } : {}),
     agents: installed,
   }
 }

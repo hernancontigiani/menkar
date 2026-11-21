@@ -115,6 +115,28 @@ describe('S8: send_message is listed where an installed agent is out of native r
   })
 })
 
+// An agent whose team names skills it cannot be given as files reads them through load_skill:
+// listed to its sessions only, and the file of everyone else keeps its bytes.
+describe('load_skill is listed only where the caller is given its skills through Menkar', () => {
+  test.each([
+    ['opencode', true],
+    ['claude', false],
+    ['codex', false],
+  ] as const)('caller %s → %s', async (caller, offered) => {
+    publish(['claude', 'codex', 'opencode'], wakeable('claude', 'codex', 'opencode'))
+    const reply = (await answer({ id: 2, method: 'tools/list' }, serverContext('p1', caller))) as {
+      result: { tools: { name: string }[] }
+    }
+    expect(reply.result.tools.some((t) => t.name === 'load_skill')).toBe(offered)
+  })
+
+  test('a file of callers who are not given skills that way says nothing of it', () => {
+    const file = toolsFile(['claude', 'codex'], wakeable('claude', 'codex'))
+    expect(JSON.stringify(file)).not.toContain('loadSkill')
+    expect(toolsFile(['opencode'], wakeable('opencode')).callers.opencode?.loadSkill).toBe(true)
+  })
+})
+
 describe('the tools file, read by the server', () => {
   test.each([
     ['not JSON', '{"listChanged":'],

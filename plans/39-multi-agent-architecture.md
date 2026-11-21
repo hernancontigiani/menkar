@@ -492,12 +492,32 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   sends it after `/new`, not at its start, and not for a session its own picker opens (`opencode`,
   items 56–57): it says nothing about which session a pane shows.
 - **`OPENCODE_CONFIG_CONTENT` holds** (S12) only what Menkar's sessions need on its own server,
-  merged by OpenCode over the user's config: the server's `permission` defaults left as the user's,
-  the skills paths (the stored skills, 1.152), and nothing else at start. Menkar's MCP is **not** in
-  it: it is added per folder through the API when the first session there enters a mode-on project
-  (1.141), so a session of a mode-off project sends exactly the request it sends today (a test
-  against the stand-in: a mode-off session's `tools` array and system text equal those of a server
-  started with no `OPENCODE_CONFIG_CONTENT`).
+  over the user's own `OPENCODE_CONFIG_CONTENT` when they have one: `permission: {"menkar_*":
+  "allow"}` beside the user's rules, and nothing else. It changes no model request (`opencode`,
+  item 69: system text and tools byte-identical with and without it). **No `skills` path** (set,
+  2026-11-21, on item 69): a skills path lists its skills to every session of the server, those of
+  a mode-off project too. Menkar's MCP is **not** in it: it is added **per session folder** (the
+  match is exact, item 68: a session in a subfolder of a mounted folder gets nothing; set,
+  2026-11-21) through the API when a session there starts in a mode-on project, or is given a block
+  later (1.141), so a session of a mode-off project sends exactly the request it sends today (a
+  test against the stand-in: a mode-off session's `tools` array and system text equal those of a
+  server started with no `OPENCODE_CONFIG_CONTENT`).
+- **The stored skills (1.152) reach an OpenCode session through Menkar's MCP** (set, 2026-11-21):
+  its team entry names them, and a read-only tool, `load_skill {name}`, listed only to a caller
+  whose kit's `McpMount.servesSkills` is true (OpenCode's), answers a skill's text with its folder:
+  Menkar's own (`menkar:<name>`, from the plugin) or one found for the pane's session. A turn a
+  queued message opens lists every tool in its first request (item 67), so OpenCode's part has no
+  "load it first" line.
+- **A session is made before its TUI** (items 62–65): `POST /api/session {id, title, location,
+  model?}` (the model as `{providerID, id}`; the row is written at once, and a title Menkar sets is
+  never replaced), the entry PUT, the MCP for its folder, then a first prompt as `POST …/prompt
+  {text, delivery:"steer"}`, and only then `opencode --server <proxy> -s <id>`. The TUI draws the
+  turn already running; a `--prompt` would be submitted again after a `/new` (item 47).
+- **State from the server's events** (set, 2026-11-21, on item 70): an execution's end is the
+  pane's turn-end record. A subagent runs in a session of its own, whose parent's execution ends
+  while it works and starts again when it is done: a root counts as running while any session
+  under it does (by `session.created`'s `parentID`), its idle screen then reads working, and its
+  turn ends only when nothing under it runs.
 - **Version check by feature**: `GET /openapi.json` lists the experimental instruction route **and
   the experimental per-folder MCP route** (S12); without the first, the team block is not
   delivered; without the second, Menkar's MCP is not mounted (OpenCode sessions then cannot use the
@@ -517,8 +537,9 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   names any session of the TUI's tab strip or a child it draws. A **subagent's** tool call names its
   own session in `_meta["ai.opencode/sessionID"]`; main follows `GET /api/session/<id>`'s
   `parentID` (its own call, with the password) to the session a pane shows. The proxy gives main
-  the `{ id → pane }` map for the caller (§2.5.4) and calls `onSession(pane, id, previous)` when a
-  pane moves, which a `/clear` follows.
+  the `{ id → pane }` map for the caller (§2.5.4) and calls `onSession(pane, id, previous,
+  created)` when a pane moves: to a session its TUI created (`/new`) the pane follows it as after a
+  `/clear`; to one its picker opened, as after an in-session `/resume`.
 - **A restart of the server with TUIs attached** (it died): main restarts it on the same port;
   the TUIs reconnect or show their own error; a test asserts main restarts it once and logs, and
   does not loop (one retry per 30 s).
@@ -2562,3 +2583,85 @@ P0's blocks run in turn.
   walk (both subagent cases); `/view` binding (a polled session taken as shown); a create bound on a
   refused answer; a credential added by the proxy; a closed pane's session kept; every pane's
   session bound to one pane; the pane's session not compared in `paneOfCaller`.
+
+### P2.5 (`menkar-t185`, task 185, 2026-11-21)
+
+- **Measured by `opencode` on v2.3.0 before building** (its research items 62–72), and what it
+  overturned: the session row is written at the create, with `model` as `{providerID, id}` (a
+  string is 400), and a title Menkar sets is never replaced; a first prompt posted with `steer`
+  before the TUI attaches is drawn by it, which avoids the `--prompt` re-submitted after `/new`;
+  `<dir>` is ignored on `-s`; a prompt to an unknown session is 404 (the stand-in created it: fixed);
+  an entry PUT during a turn reaches the model at its next step, still one execution; a queued
+  turn lists every tool and skill in its first request (no peer-turn listing gap, so OpenCode's
+  part has no "load it first" line); the per-folder MCP's `environment` applies over the server's,
+  and **its folder match is exact**; `permission {"menkar_*":"allow"}` changes no request, **a
+  `skills` path lists to every session of the server**; a subagent's session emits its own
+  executions and **its parent's execution ends while it works** and starts again after; `opencode
+  serve` connected only to loopback (strace); files Menkar's calls make it write: the database's
+  `-wal` (and `-shm` while it runs) and its log.
+- **Decided by set, 2026-11-21:** files beyond §5's row (`src/main/agents/types.ts` with the
+  `Preparer`, `ServerRuns`, `TeamOutcome` and `tell`'s `current`; `src/core/agents/types.ts`'s
+  `LaunchContext.server` and `McpMount.servesSkills`; `src/main/workspace.ts`; `src/main/index.ts`;
+  `src/main/team.ts`; `src/core/control/{server,protocol,files,shapes}.ts`; the descriptors'
+  `callerMeta`; i18n; the roster and parity tests); on items 67–70: **no `skills` in
+  `OPENCODE_CONFIG_CONTENT`** and a read-only `load_skill {name}` tool listed only to a caller whose
+  kit serves skills (OpenCode's); **the MCP per session folder**; **a root counts its subagents'
+  executions** (§2.7 rewritten on all of it; a numbered plan has no history file — the replaced
+  §2.7 text was "`OPENCODE_CONFIG_CONTENT` holds … the server's `permission` defaults left as the
+  user's, the skills paths (the stored skills, 1.152), and nothing else at start" and "calls
+  `onSession(pane, id, previous)` when a pane moves, which a `/clear` follows"; git keeps it). D9's
+  warning: the detection is built and logged; **where it shows is the human's, not built** (set
+  takes it to them).
+- **Built:** core `launch.ts` (`opencode --server <proxy> -s <id>`, nothing else; it refuses to
+  plan without Menkar's server), `state.ts` (the permission card; the footer's last line, so a reply
+  quoting "esc interrupt" is not a turn; the inbox spinner not read), `mcp.ts` (no words;
+  `mcpEntry` with `codemode:false`, `ELECTRON_RUN_AS_NODE`, `MENKAR_AGENT`), `team.ts`, `writes.ts`
+  (the database and its sidecars), `catalog.ts`'s `runningNow` and `store.ts`'s `times`; main
+  `prepare.ts` (`OpenCodePreparer`: acquire, create, entry PUT or DELETE, MCP mount once per server
+  life and folder, proxy, the event stream awaited, the first prompt; `tell` = the entry PUT or
+  DELETE answering `'stored'`; `runs`; `otherServer`; `serverConfig` over the user's own
+  `OPENCODE_CONFIG_CONTENT`), `waker.ts` (`POST …/prompt {delivery:"queue"}`), `events.ts`
+  (`OpenCodeEvents`, reopened through restarts; `Executions`, a root's turn end only when nothing
+  under it runs, settled 1 s after a subagent's end), `index.ts` wiring; `server.ts` gains
+  `running()` and `call()`, `proxy.ts` `showing()` and `onSession`'s `created`. Shared: the MCP
+  server program builds the `agentSession` caller from `_meta[descriptor.callerMeta]` (one
+  constant, `SESSION_META`, both sides read); `load_skill` answered by main from the pane's found
+  skills or Menkar's own (`skillFile` in `src/main/team.ts`); `startPaneHeld` prepares before
+  planning (a failed prepare runs a plain shell with `terminal.serverFailed`), `onPaneExit`
+  releases, the proxies' moves go to `applyFollow` as `clear` (a session the TUI created) or
+  `resume` (one its picker opened), `quitAgentServers` on `will-quit`; `PaneWatcher` reads an idle
+  screen as working while the kit's `runs` says so; the team's `'stored'` outcome delivers without
+  marking a post. `plugin/team/opencode.md` (one line: `send_message`); `check-package.mjs`
+  requires it; `docs/session-control.md` (the caller, `load_skill`, OpenCode's column in "Per
+  agent") with its history.
+- **What D9's detection sees** (for the human's decision): Menkar's server reports only its own
+  executions; `session_v2.time_busy > time_idle` is written by whichever server ran the session
+  last. At a resume and before each wake, a session whose row says a turn runs that Menkar's stream
+  does not show running is logged (`notice`, "an OpenCode session Menkar runs has a turn running in
+  another OpenCode server", with the session and `start`/`wake`). Its blind spots: a server killed
+  mid-turn leaves the row busy (a false positive until the next turn ends), and a turn the other
+  server starts after the check is not seen until the next one.
+- **My choices:** the MCP is mounted when the start has a team file (`team: teamFile !== undefined`),
+  not read from the mode separately; a session resumed without a block has its entry removed; the
+  stream is awaited up to 5 s at every start, so no turn's end is missed; a model not written
+  `provider/model` is dropped with a log line; `<dir>` is not passed; a subagent's end settles 1 s
+  before it ends its root's turn; `load_skill` serves any skill found for the pane (Menkar's, the
+  project's, the user's), not only the stored ones, with "Base directory for this skill:" as
+  OpenCode's own skill tool answers; `serverConfig` keeps a user's `OPENCODE_CONFIG_CONTENT` that
+  does not parse as it is and adds nothing.
+- **Not done, left:** the first-time card saying OpenCode cannot use the tools without the MCP
+  route (§2.7): the route is known only once the server runs, and only logged; the form card
+  (`form.created`) is not read as blocked (no screen measured); `load_skill`'s main side
+  (`loadSkillFor`) has no Vitest (it is in `workspace.ts`): P2.7's e2e.
+- **Roster pins changed:** `parity.test.ts` (OpenCode's `tools` cap; `firstPrompt` mirrors the
+  launcher or the preparer); `block.test.ts` (`TEAM_AGENTS` has OpenCode); `state.test.ts`
+  (`LANDS_IN` empty); `nowrite.test.ts` (core: OpenCode's reading cases compare against nothing
+  declared, since the kit now declares its server's writes); `check-package.test.ts`;
+  `tests/data/package/sandbox/{files,menkar-files}.txt` re-recorded by `packager` from builds of
+  34eb34e + `opencode.md`.
+- **Seen red** (each injected, then removed): the state rules' footer read over 12 lines (the
+  quoted footer), the card read as idle; the caller's `_meta` ignored; `load_skill` not served;
+  the proxy's `created` always true; the kit's writes empty (main R9 wake); the first prompt not
+  posted; the MCP mounted outside the mode; another entry key; the 404 not mapped; `tell` answering
+  `posted`; the two-servers check never telling; a `skills` path in the config (S12's test);
+  subagents not followed to their root; the server's word not read by `PaneWatcher`.

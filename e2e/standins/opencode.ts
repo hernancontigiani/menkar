@@ -37,7 +37,7 @@ import { join } from 'node:path'
 //   execution runs; a steered message joins the running execution at its next step, a queued one
 //   after that step. Each step takes FAKE_OPENCODE_TURN_MS (1000 by default) and answers
 //   "ack N: <text>"; one `idle` row and session.execution.succeeded close the execution. A prompt
-//   to a session that does not exist creates it. A session with no title takes
+//   to a session that does not exist is OpenCode's 404, as measured. A session with no title takes
 //   FAKE_OPENCODE_TITLE (else the first words of its first message) at its first prompt.
 // - Each step appends to opencode-requests.jsonl in HOME what the model would be sent:
 //   { sessionID, tools, system: { instructions, skills, entries } } — OpenCode's twelve tools in
@@ -417,7 +417,8 @@ function serve() {
       case 'POST /api/session/{sessionID}/model':
         return exists ? send(res, 204) : notFound(res, id)
       case 'POST /api/session/{sessionID}/prompt': {
-        const s = exists || createSession(id, null, process.cwd())
+        if (!exists) return notFound(res, id)
+        const s = exists
         const delivery = body.delivery === 'queue' ? 'queue' : 'steer'
         const mid = body.id || idOf('msg')
         const created = Date.now()

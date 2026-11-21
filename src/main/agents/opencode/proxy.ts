@@ -24,9 +24,14 @@ const PARENTS_MAX = 8
 const LOOKUP_WAIT_MS = 5_000
 
 export interface ProxyOptions {
-  // Called when a pane's TUI moves to another session: its first, the one `/new` made, or one its
-  // own picker opened.
-  readonly onSession?: (pane: string, sessionId: string, previous: string | null) => void
+  // Called when a pane's TUI moves to another session: its first, the one `/new` made (`created`:
+  // its create went through this pane), or one its own picker opened.
+  readonly onSession?: (
+    pane: string,
+    sessionId: string,
+    previous: string | null,
+    created: boolean,
+  ) => void
 }
 
 // The server the pane's requests go to, and its password for main's own lookups.
@@ -40,6 +45,8 @@ interface Pane {
   readonly sockets: Set<Socket>
   target: Target
   session: string | null
+  // The sessions this pane's TUI created.
+  readonly created: Set<string>
 }
 
 const isOk = (status: number | undefined) => status !== undefined && status >= 200 && status < 300
@@ -87,7 +94,7 @@ export class OpenCodeProxies {
         resolve()
       })
     })
-    this.panes.set(pane, { server, sockets, target, session: null })
+    this.panes.set(pane, { server, sockets, target, session: null, created: new Set() })
     if (session !== null) this.bind(pane, session)
     const address = server.address()
     const port = typeof address === 'object' && address ? address.port : 0
@@ -117,6 +124,11 @@ export class OpenCodeProxies {
 
   sessionOf(pane: string): string | null {
     return this.panes.get(pane)?.session ?? null
+  }
+
+  // The pane showing this very session, its parents not followed.
+  showing(sessionId: string): string | null {
+    return this.byId.get(sessionId) ?? null
   }
 
   // The pane showing the session OpenCode names in a tool call, and that session: a subagent's
@@ -158,7 +170,7 @@ export class OpenCodeProxies {
     entry.session = sessionId
     this.byId.set(sessionId, pane)
     log.info("An OpenCode pane's session is known", { pane, session: sessionId, previous })
-    this.options.onSession?.(pane, sessionId, previous)
+    this.options.onSession?.(pane, sessionId, previous, entry.created.has(sessionId))
   }
 
   private relay(pane: string, req: IncomingMessage, res: ServerResponse): void {
@@ -198,12 +210,9 @@ export class OpenCodeProxies {
       (answer) => {
         res.writeHead(answer.statusCode ?? 502, answer.statusMessage, answer.rawHeaders)
         if (isOk(answer.statusCode)) {
-          const shown =
-            prompted !== undefined
-              ? decodeURIComponent(prompted)
-              : path === CREATE && post
-                ? named()
-                : null
+          const made = path === CREATE && post ? named() : null
+          if (made !== null) entry.created.add(made)
+          const shown = prompted !== undefined ? decodeURIComponent(prompted) : made
           if (shown !== null) this.bind(pane, shown)
         }
         answer.pipe(res)
