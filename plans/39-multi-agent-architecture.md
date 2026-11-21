@@ -441,6 +441,25 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   database, and a stale `-wal` read with `immutable=1` misses its frames. Closed at once after the
   query; never held open across passes. R9's test asserts the sidecars' listing in all three
   states.
+- **OpenCode's database breaks that third state's premise** (`opencode`, measured on v2.3.0,
+  2026-11-21; P2.1): its server keeps **both** `-wal` and `-shm` from its start, even before a
+  write; a clean stop (stdin closed) checkpoints and removes both; **a SIGKILL leaves both**. So a
+  killed OpenCode looks like a live writer, never like "a `-wal` without `-shm`", which OpenCode is
+  not seen to produce. In that state `immutable=1` misses the last writes, and a plain read-only
+  open rebuilds the `-shm`'s index and moves its mtime — **a write beside the agent's file, not
+  allowed**. The same holds for any reader while the sidecars are left by a dead writer. **P2.4
+  chooses one of two routes, measured there**, and records why:
+  - **a copy**: `opencode.db`, `-wal` and `-shm` copied together into Menkar's cache and read
+    there (`openAgentDb` on the copy), refreshed when the source's sizes or mtimes move; its cost
+    on a large database (the human's real size, asked, not read) stated in time and disk;
+  - **the API while a server lives**: the catalog asks Menkar's running `opencode serve`
+    (`GET /api/session`, `…/message`) and reads the database only when no OpenCode process holds
+    it (then there are no sidecars after a clean stop, and the immutable open applies); a killed
+    server's leftover sidecars still need the copy, or the reader waits for OpenCode's next start.
+
+  P2.1's fixture holds the three states OpenCode produces: no writer (the database alone), a live
+  writer (the test opens one), and a killed writer (database, `-wal` and `-shm` as a SIGKILL left
+  them).
 - **Large and growing**: no reader holds a whole JSONL; Codex's `.zst` is streamed.
 - **Cursor's prompt text in Menkar's hook log** (S6, 1.159) is a new copy of the user's prompts at
   rest: it is kept **only while the classifier is on** for Cursor's turns (§2.17); with it off, the
@@ -454,6 +473,15 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   when its stdin closes, so a Menkar crash leaves no orphan (`opencode`, 2026-11-15, m), and in
   stdio mode it removes the password from what its MCP servers inherit. Stopped by PID with the last
   OpenCode tab and on quit.
+- **Spawned through `withoutSessionEnv`, and without `MENKAR_PANE`** (`opencode`, measured on
+  v2.3.0, 2026-11-21): an MCP server it starts inherits **the server's whole environment** but the
+  password — `OPENCODE_CONFIG_CONTENT`, the variables of the session that started Menkar, any
+  `MENKAR_PANE` — so the server must carry none of a pane's or an agent session's variables. Its
+  stdout is one line, `{"url":"http://127.0.0.1:<port>"}`, about 6 s after the spawn; stdin
+  closed → exit 0 within 100 ms. Basic auth, user `opencode`.
+- **`POST /api/session/<id>/view` requires `{"idle": <ms>}`** (400 without it; measured). The TUI
+  sends it after `/new`, not at its start: a pane's first session is known from its own `-s`, and
+  `/view` and `/prompt` follow it from there (P2.3).
 - **`OPENCODE_CONFIG_CONTENT` holds** (S12) only what Menkar's sessions need on its own server,
   merged by OpenCode over the user's config: the server's `permission` defaults left as the user's,
   the skills paths (the stored skills, 1.152), and nothing else at start. Menkar's MCP is **not** in
@@ -2288,3 +2316,61 @@ P0's blocks run in turn.
   merge base; run by hand after it: code rules, i18n, flaky and history pass, test integrity
   reports the branch's nine known lines (none from this change). **`npm run ui-check`**: 441
   passed, exit 0.
+
+### P2.1 (`menkar-t177`, task 177, 2026-11-21)
+
+- **Measured by `opencode` on the installed v2.3.0** (2026-11-21, a throwaway home and a
+  stand-in API; its research file, items 38–48), and what it overturned in this plan:
+  - **§2.6's third state does not happen for OpenCode.** Its server keeps `-wal` and `-shm` from
+    its start; a clean stop (stdin closed) checkpoints and removes both; a SIGKILL leaves **both**.
+    A plain read-only open then rebuilds the `-shm`'s index: its mtime and bytes move — reproduced
+    here on the fixture. `immutable=1` misses the frames in the `-wal`. §2.6 now names the two
+    routes P2.4 chooses between (a copy in Menkar's cache, or the running server's API), set's
+    instruction of 2026-11-21. The "`-wal` without `-shm`" state is dropped for OpenCode.
+  - **§2.7: the MCP child inherits the server's whole environment** but the password
+    (`OPENCODE_CONFIG_CONTENT`, the starting session's variables, any `MENKAR_PANE`), so the server
+    is spawned through `withoutSessionEnv` and without `MENKAR_PANE`; written into §2.7.
+  - **`POST …/view` requires `{"idle": <ms>}`** (400 without); the TUI sends it after an execution
+    of its session ends and when `/new` leaves a session that had a turn, **not at its start**;
+    with `-s` the pane's session is known from its own argument. After `/new` the TUI mints the
+    new session's id itself and sends it in `POST /api/session {id, agent, model, location}` (no
+    title) at its first prompt: P2.3's proxy can bind the pane from that body.
+  - **A TUI started with `--prompt` re-submits that prompt by itself after `/new`**: Menkar's first
+    prompt would run twice if the human types `/new` (for P2.5; the stand-in imitates it).
+  - The per-folder MCP route is `PUT|DELETE /api/experimental/mcp/{server}` with the folder as
+    `location[directory]` in the query, body `{config}`, 204; its status in
+    `GET /api/mcp?directory=`. `PATCH /api/session/<id>` answers 204 with no body. A permission is
+    answered with `POST /api/session/<id>/permission/<per>/reply {decision: once|always|reject}`.
+    The TUI without the password prints OpenCode's error and exits 1. `session_v2.agent` and
+    `.model` stay NULL; the assistant rows name them.
+- **Decided by set, 2026-11-21 — a file beyond §5's row:** `tests/core/agents/contract/nowrite.test.ts`
+  gains a direct case over OpenCode's fixture in its three states, with an `OPENCODE_WRITES`
+  constant (empty) in the test that P2.4 moves into the kit. Its killed-writer case is
+  **`test.fails`**: the shared reader writes the `-shm` there today, and the case starts failing
+  (to be turned into a plain `test`) the day P2.4's route reads without writing. The `-shm`'s
+  bytes are left out of the comparison and its presence and mtime kept, as `db.test.ts` decided
+  for Codex: with a live writer, readers write their read marks into it through a mapping that
+  leaves its mtime alone (measured here).
+- **The fixture** (`tests/data/agents/opencode/`): `schema.sql` holds the six tables' DDL as
+  `opencode` dumped it (the stand-in creates its database from the same file); `make.mjs` writes
+  `home/.local/share/opencode/opencode.db` (no writer: five invented sessions — two turns with tool
+  steps and a team entry, a steered and a queued message closed by one `idle`, a subagent, an
+  archived one, an interrupted turn with a message left in its inbox) and
+  `killed/.local/share/opencode/opencode.db` with `-wal` and `-shm` (a third turn and a rename only
+  in the `-wal`). The live writer is a process: the test opens one. **No `expected.json` yet**:
+  P2.4 writes it with the catalog.
+- **The stand-in** (`e2e/standins/opencode.ts`, `opencodeStandIn(bin)`): `serve --stdio` with the
+  measured stdout line, auth, routes, error bodies and event frames; its database in WAL with the
+  sidecars live; executions with steer and queue; the per-folder and config MCP servers started as
+  OpenCode starts them, `CALLMENKAR` calling a tool with `_meta["ai.opencode/sessionID"]`; each
+  step's would-be request (tools and system parts) in `opencode-requests.jsonl` for P2.5's
+  mode-off test; `RUNTOOL` raising a permission; `FAKE_OPENCODE_NO_ENTRIES` and
+  `FAKE_OPENCODE_NO_MCP_ROUTE` for the feature checks (P2.2). The TUI draws the measured strings
+  from the event stream. **Not measured, the stand-in's own:** `GET /api/session/<id>/message`'s
+  shape (only its TUI reads it), the 404 body of an unknown route, the `reason` of
+  `session.execution.interrupted` (read in the research, not measured). Run by hand in a scratch
+  home (server routes, events, MCP call, permission, the TUI's screens, `/new`, Ctrl+C, the
+  sidecars after a clean stop and after SIGKILL); no e2e uses it yet (P2.2 on).
+- **Seen red:** the no-writer case through a plain read-only open (sidecars created), the
+  killed-writer case as a plain `test`, and the immutable case expecting the `-wal`'s title; the
+  live-writer case failed on the `-shm`'s bytes before they were left out.
