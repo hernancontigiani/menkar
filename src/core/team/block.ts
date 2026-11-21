@@ -116,6 +116,14 @@ function renewal(input: TeamInput, agent: TeamAgent, role: string): string | nul
   return `You decide when you renew: when a consultation closes and your context (your row in \`list_sessions\`) is past ${warn}%, ${distill}; prefer that to a compaction.`
 }
 
+// A consultant, a loose session with a role, works with the human away from the orchestrator,
+// which would otherwise learn the human's decisions taken there late.
+function decisions(input: TeamInput, role: string): string | null {
+  const { orchestrator } = input
+  if (!role || input.parent || orchestrator === null || orchestrator === 'self') return null
+  return `When the human decides something with you that moves a task, a plan, a merge or another session's work, send \`${orchestrator.name}\`, the orchestrator, by name, one line: "The human decided X about Y"; act no further than your own area.`
+}
+
 /** The session's facts: who it is in the team, what to load, when to renew. */
 export function teamFacts(input: TeamInput, agent: TeamAgent): string {
   const role = cleanRole(input.role ?? '')
@@ -128,6 +136,8 @@ export function teamFacts(input: TeamInput, agent: TeamAgent): string {
     )
   const renew = renewal(input, agent, role)
   if (renew) lines.push(renew)
+  const told = decisions(input, role)
+  if (told) lines.push(told)
   return lines.join('\n')
 }
 

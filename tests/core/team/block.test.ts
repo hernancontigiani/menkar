@@ -227,6 +227,43 @@ describe('the facts', () => {
   })
 })
 
+// 1.201: a consultant tells the orchestrator, by its current name, what the human decided with it.
+describe("the consultant's line", () => {
+  const told = (name: string) =>
+    `When the human decides something with you that moves a task, a plan, a merge or another session's work, send \`${name}\`, the orchestrator, by name, one line: "The human decided X about Y"; act no further than your own area.`
+  const decided = (over: Over) => lines(over).filter((line) => line.includes('The human decided'))
+
+  test("a consultant's facts end with it, naming the orchestrator", () => {
+    expect(lines({ parent: undefined, role: 'Packaging' }).at(-1)).toBe(told('set'))
+  })
+
+  test("a Codex consultant's facts carry the same line", () => {
+    const codex = teamAgent('codex')
+    if (!codex) throw new Error('Codex has no team record')
+    const facts = teamFacts(input({ parent: undefined, role: 'Packaging' }), codex)
+    expect(facts.split('\n').at(-1)).toBe(told('set'))
+  })
+
+  test('after a rename it names the new orchestrator', () => {
+    expect(
+      decided({ parent: undefined, role: 'Packaging', orchestrator: { name: 'lead' } }),
+    ).toEqual([told('lead')])
+  })
+
+  test.each<[string, Over]>([
+    ['a worker', {}],
+    ['an expert', { role: 'Packaging' }],
+    ['a loose session with no role', { parent: undefined }],
+    ['the orchestrator', { name: 'set', orchestrator: 'self', parent: undefined, role: 'Lead' }],
+    [
+      'a consultant with no orchestrator',
+      { parent: undefined, role: 'Packaging', orchestrator: null },
+    ],
+  ])('%s has none', (_, over) => {
+    expect(decided(over)).toEqual([])
+  })
+})
+
 describe('the block', () => {
   test('teamBlock is the facts, the common part and the agent part, a blank line apart', () => {
     const block = teamBlock('# Facts\nA.\n', 'Common.\n', 'Part.\n')
@@ -270,6 +307,35 @@ describe('the block', () => {
     const block = teamBlock(teamFacts(input, codex), common(), codexPart)
     expect(block).toContain('/opt/Menkar/resources/plugin/skills/worker/SKILL.md')
     expect(Buffer.byteLength(block)).toBeLessThan(2000)
+  })
+
+  // A consultant carries one line more than an expert (1.201); measured at 1,821 bytes for Claude
+  // and 2,086 for Codex with these.
+  test('the consultant block is under 1,900 bytes for Claude and 2,200 for Codex', () => {
+    const codex = teamAgent('codex')
+    if (!codex) throw new Error('Codex has no team record')
+    const consultant: TeamInput = input({
+      parent: undefined,
+      role: 'Packaging',
+      skills: [
+        {
+          ...EXPERT.skills[0],
+          file: '/home/ana/work/menkar/.claude/skills/packager/SKILL.md',
+        },
+        {
+          ...EXPERT.skills[1],
+          file: '/home/ana/work/menkar/.claude/skills/claude-cli/SKILL.md',
+        },
+      ] as TeamInput['skills'],
+      ownSkills: '/opt/Menkar/resources/plugin/skills',
+    })
+    const claudeBlock = teamBlock(teamFacts(consultant, claude()), common(), claudePart())
+    const codexPart = readFileSync(join(TEAM, 'codex.md'), 'utf8')
+    const codexBlock = teamBlock(teamFacts(consultant, codex), common(), codexPart)
+    expect(claudeBlock).toContain('The human decided')
+    expect(codexBlock).toContain('The human decided')
+    expect(Buffer.byteLength(claudeBlock)).toBeLessThan(1900)
+    expect(Buffer.byteLength(codexBlock)).toBeLessThan(2200)
   })
 })
 
