@@ -67,6 +67,15 @@ export interface AfterNamer {
   watch(since: number, changed: () => void): () => void
 }
 
+// How a tool call an agent's server makes, naming its session in the call's `_meta`, is traced to
+// the pane that shows that session.
+export interface Callers {
+  // The `_meta` key the agent's server puts its session's id under.
+  readonly meta: string
+  // The pane, and the session it shows: the one named, or the one a subagent's call descends from.
+  paneOf(sessionId: string): Promise<{ readonly pane: string; readonly sessionId: string } | null>
+}
+
 export interface MainAgentKit {
   // The settings file the agent's sessions are started with, written when it changed; null when
   // the agent takes none.
@@ -79,4 +88,5 @@ export interface MainAgentKit {
   readonly inbox: PromptInbox | null
   readonly bind: EarlyBind | null
   readonly namer: AfterNamer | null
+  readonly callers: Callers | null
 }

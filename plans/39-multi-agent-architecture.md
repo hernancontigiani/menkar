@@ -489,8 +489,8 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   stdout is one line, `{"url":"http://127.0.0.1:<port>"}`, about 6 s after the spawn; stdin
   closed → exit 0 within 100 ms. Basic auth, user `opencode`.
 - **`POST /api/session/<id>/view` requires `{"idle": <ms>}`** (400 without it; measured). The TUI
-  sends it after `/new`, not at its start: a pane's first session is known from its own `-s`, and
-  `/view` and `/prompt` follow it from there (P2.3).
+  sends it after `/new`, not at its start, and not for a session its own picker opens (`opencode`,
+  items 56–57): it says nothing about which session a pane shows.
 - **`OPENCODE_CONFIG_CONTENT` holds** (S12) only what Menkar's sessions need on its own server,
   merged by OpenCode over the user's config: the server's `permission` defaults left as the user's,
   the skills paths (the stored skills, 1.152), and nothing else at start. Menkar's MCP is **not** in
@@ -503,9 +503,22 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   delivered; without the second, Menkar's MCP is not mounted (OpenCode sessions then cannot use the
   orchestration's tools, and the first-time card says so); a log line says why (`/api/info`'s
   version only for the log).
-- **The proxy**: one loopback port per OpenCode pane, forwarding to the server, adding no
-  credential; it reads `POST /api/session/<id>/view` and `…/prompt` to know the pane's session
-  (D14), and gives main the `{ id → pane }` map for the caller (§2.5.4).
+- **The proxy** (`opencode`, measured on v2.3.0, 2026-11-21, items 54–61): one loopback port per
+  OpenCode pane, forwarding to the server byte for byte, adding no credential (the TUI sends Basic
+  auth from its own `OPENCODE_PASSWORD` on every request). The TUI speaks plain HTTP/1.1 to it
+  only — no Upgrade, no HTTP/2, bodies with a content length, the event stream as SSE with a
+  heartbeat every 15 s, piped unbuffered; `/api/info`'s `urls` names the server's own port but the
+  TUI never uses it. **What says the pane's session (D14):** `POST /api/rpc/opencode.goal/get
+  {"input":{"sessionID":…}}`, sent only for the session the TUI shows — at its start on `-s`, after
+  a create, on every switch with its own picker (Ctrl+X L), back and forth — and bound on the
+  request alone (any id answers `{"output":null}`, and a server still loading answers 400
+  `rpc.unavailable`); a create's body `{id}` (the first sight of a `/new` session, which sends
+  nothing until its first prompt) and `…/prompt`'s path, each once answered 2xx. Every other route
+  names any session of the TUI's tab strip or a child it draws. A **subagent's** tool call names its
+  own session in `_meta["ai.opencode/sessionID"]`; main follows `GET /api/session/<id>`'s
+  `parentID` (its own call, with the password) to the session a pane shows. The proxy gives main
+  the `{ id → pane }` map for the caller (§2.5.4) and calls `onSession(pane, id, previous)` when a
+  pane moves, which a `/clear` follows.
 - **A restart of the server with TUIs attached** (it died): main restarts it on the same port;
   the TUIs reconnect or show their own error; a test asserts main restarts it once and logs, and
   does not loop (one retry per 30 s).
@@ -2499,3 +2512,53 @@ P0's blocks run in turn.
   moved; every session re-read on one row's change; no close on uninstall; no close at quit; the
   id's time not inverted; `AGENT` not gated; archived sessions listed; the last reply taken past an
   execution that gave none; a missing reader in the package.
+
+### P2.3 (`menkar-t184`, task 184, 2026-11-21)
+
+- **Measured by `opencode` on v2.3.0 before building** (its research items 54–61), and what it
+  overturned: **`/view` and `/prompt` do not say which session a pane shows.** `/new` sends nothing
+  until its first prompt; a session opened with the TUI's own picker (Ctrl+X L) gets neither
+  `/view` nor `/prompt`; `/view` names a session being left. The one signal sent only for the shown
+  session, at the start on `-s`, after a create and on every picker switch, is `POST
+  /api/rpc/opencode.goal/get {"input":{"sessionID":…}}` (its answer is `{"output":null}` for any id,
+  and 400 `rpc.unavailable` while the server is still loading, so the request alone binds). A
+  subagent's MCP call names the **child's** id; `GET /api/session/<child>` gives `parentID`. The TUI
+  is plain HTTP/1.1 (no Upgrade), sends its own Basic auth, and touches only the proxy's port.
+  §2.7's two bullets rewritten on it (a numbered plan has no history file: the replaced text was
+  "`/view` and `/prompt` follow it from there (P2.3)" and "it reads `POST /api/session/<id>/view`
+  and `…/prompt` to know the pane's session (D14)"; git keeps it).
+- **`src/main/agents/opencode/proxy.ts`, `OpenCodeProxies`**: `open(pane, { url, password },
+  session) → url` listens on 127.0.0.1 with a free port and relays every request with its headers
+  untouched; binds on goal/get's body (whatever the answer), on a create's body `{id}` and on
+  `…/prompt`'s path (each answered 2xx); `onSession(pane, id, previous)` when a pane moves;
+  `paneOf(id) → { pane, sessionId } | null` follows `parentID` up to 8 levels through the server
+  with the password; `sessionOf`, `retarget` (for a restarted server), `close`, `closeAll`.
+- **Decided by set, 2026-11-21 (files beyond §5's row):** the caller is resolved through a new
+  main-kit seam, `MainAgentKit.callers: { meta, paneOf } | null` (`src/main/agents/types.ts`;
+  `callers: null` in Claude's, Codex's and Cursor's main kits; OpenCode's in its `index.ts`, with
+  the kit's one `proxies`); `e2e/standins/opencode.ts` extended: the goal route, `parentID` in a
+  session's JSON, a create with `parentID` (the stand-in's own way to make a child), and the TUI
+  sending goal/get at its start on `-s`, after a create, and on a typed `/switch <id>` (the
+  stand-in's picker). P2.1's and P2.2's tests are unchanged and green.
+- **`src/main/workspace.ts`**: only the caller's line in `handleControl` — a `{ pane }` caller as
+  before, synchronously; an `{ agentSession: { meta, id } }` caller through `paneOfCaller` in
+  `src/main/agents/registry.ts` (my choice to put it there rather than in workspace, so it is
+  tested on plain Node): the kit whose `callers.meta` is the request's, then the pane only if it is
+  that agent's and runs that very session (the named one or its root), else `NOT_KNOWN`.
+- **What P2.5 inherits** (set, 2026-11-21): (1) **the MCP side**: building the `agentSession`
+  caller from `_meta["ai.opencode/sessionID"]` in the MCP server (no `MENKAR_PANE` reaches it) is
+  P2.5's, with the mount; the key is written once today, in `src/main/agents/opencode/index.ts`,
+  and must become one constant both sides read. (2) **the wiring**: `proxies.open` with the
+  server's `acquire` result for each OpenCode pane (the TUI's `--server` is the proxy's url),
+  `close` with `release`, `closeAll` on quit, `retarget` after a restart if its url changes (P2.2
+  restarts on the same port, so it does not today), and `onSession` given to the kit's
+  `OpenCodeProxies` and wired to the `/clear` follow path (`followNewId`), with `previous === null`
+  as the pane's first bind rather than a clear.
+- **Choices of mine**: the 64 KiB cap on a body read (larger ones are relayed unread); 8 parent
+  levels; 5 s for a parent lookup; a pane's previous id dropped from the map when it moves (a
+  tool call from the session it left is refused until it is shown again).
+- **Seen red** (each injected in `proxy.ts` or `registry.ts`, then removed): no bind on the
+  goal's request when the server refuses it; no goal binding at all (the picker test); no parent
+  walk (both subagent cases); `/view` binding (a polled session taken as shown); a create bound on a
+  refused answer; a credential added by the proxy; a closed pane's session kept; every pane's
+  session bound to one pane; the pane's session not compared in `paneOfCaller`.

@@ -25,7 +25,10 @@ import { join } from 'node:path'
 //   GET /api/mcp?directory=<dir>, GET /api/session/active, GET /api/permission/request,
 //   POST /api/session/<id>/permission/<per>/reply ({decision: once|always|reject}), and
 //   GET /api/event (server-sent `data:` frames and `: heartbeat` comments every
-//   FAKE_OPENCODE_HEARTBEAT_MS, 10000 by default). An unknown session is OpenCode's 404.
+//   FAKE_OPENCODE_HEARTBEAT_MS, 10000 by default), and POST /api/rpc/opencode.goal/get
+//   ({input: {sessionID}}: `{"output":null}` for any id, known or not; 400 without the id). An
+//   unknown session is OpenCode's 404. A session's `parentID` is given when it has one; a create
+//   with `parentID` in its body makes a child (the stand-in's own way to have one).
 //   FAKE_OPENCODE_NO_ENTRIES and FAKE_OPENCODE_NO_MCP_ROUTE leave out the instruction-entry routes
 //   and the per-folder MCP route, as an older OpenCode would, from /openapi.json and from service.
 //   GET /api/session/<id>/message is the stand-in's own way to give its TUI the rows: its shape
@@ -55,9 +58,12 @@ import { join } from 'node:path'
 //   password in OPENCODE_PASSWORD it prints OpenCode's error and exits 1.
 // - With -s it opens that session (POST …/agent, …/model, then …/prompt for --prompt, delivery
 //   steer); without, its first prompt creates one with an id it mints (POST /api/session {id,
-//   agent, model, location}, no title). After an execution of its session ends it posts …/view
-//   {idle}. Typed `/new` leaves the session (…/view for one that had a turn) and, as OpenCode
-//   does, re-submits --prompt's text in the new session at once.
+//   agent, model, location}, no title). It asks for the goal of the session it shows, and of no
+//   other (POST /api/rpc/opencode.goal/get): at its start on -s, after a create, and when typed
+//   `/switch <id>` (the stand-in's own picker; OpenCode's is Ctrl+X L) opens another. After an
+//   execution of its session ends it posts …/view {idle}. Typed `/new` leaves the session (…/view
+//   for one that had a turn) and, as OpenCode does, re-submits --prompt's text in the new session
+//   at once.
 // - It draws OpenCode's screen from the event stream: the tab strip (a Braille spinner while
 //   busy), the conversation, "  ┃  N queued · <text>", the permission card, the composer and the
 //   footer ("⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt" while busy). Enter submits the typed line, or answers an
@@ -145,17 +151,18 @@ function serve() {
       cache: { read: r.tokens_cache_read, write: r.tokens_cache_write } },
     time: { created: r.time_created, updated: r.time_updated },
     ...(r.title == null ? {} : { title: r.title }),
+    ...(r.parent_id == null ? {} : { parentID: r.parent_id }),
     location: { directory: r.directory },
   })
   const SLUGS = ['shiny-cactus', 'curious-wolf', 'brave-otter', 'calm-heron', 'quick-lynx']
-  function createSession(id, title, directory) {
+  function createSession(id, title, directory, parent) {
     const now = Date.now()
     const project = crypto.createHash('sha1').update(directory).digest('hex')
     db.prepare("INSERT OR IGNORE INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES (?, ?, ?, ?, '[]')")
       .run(project, directory, now, now)
     const slug = SLUGS[Math.floor(Math.random() * SLUGS.length)]
-    db.prepare("INSERT INTO session_v2 (id, project_id, slug, directory, path, title, version, time_created, time_updated) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?)")
-      .run(id, project, slug, directory, title == null ? null : title, VERSION, now, now)
+    db.prepare("INSERT INTO session_v2 (id, project_id, parent_id, slug, directory, path, title, version, time_created, time_updated) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?)")
+      .run(id, project, parent || null, slug, directory, title == null ? null : title, VERSION, now, now)
     emit('session.created', { sessionID: id, slug, version: VERSION, projectID: project,
       location: { directory }, subpath: '', ...(title == null ? {} : { title }) },
       { location: { directory }, ...durable(id) })
@@ -317,6 +324,7 @@ function serve() {
     ['GET', '/api/permission/request', '/api/permission/request'],
     ['GET', '/api/mcp', '/api/mcp'],
     ['GET', '/api/event', '/api/event'],
+    ['POST', '/api/rpc/opencode.goal/get', '/api/rpc/opencode.goal/get'],
     ['GET', /^\/api\/experimental\/session\/([^/]+)\/instructions\/entries$/, '/api/experimental/session/{sessionID}/instructions/entries', 'entries'],
     ['PUT', /^\/api\/experimental\/session\/([^/]+)\/instructions\/entries\/([^/]+)$/, '/api/experimental/session/{sessionID}/instructions/entries/{key}', 'entries'],
     ['DELETE', /^\/api\/experimental\/session\/([^/]+)\/instructions\/entries\/([^/]+)$/, '/api/experimental/session/{sessionID}/instructions/entries/{key}', 'entries'],
@@ -379,6 +387,10 @@ function serve() {
         for (const r of ROUTES) (paths[r[2]] ||= {})[r[0].toLowerCase()] = {}
         return send(res, 200, { openapi: '3.1.0', info: { title: 'opencode', version: VERSION }, paths })
       }
+      case 'POST /api/rpc/opencode.goal/get':
+        if (!body.input || typeof body.input.sessionID !== 'string')
+          return send(res, 400, { _tag: 'RpcError', type: 'rpc.invalid_input', message: 'Missing key\n  at ["sessionID"]' })
+        return send(res, 200, { output: null })
       case 'GET /api/session/active': {
         const data = {}
         for (const s of runs.keys()) data[s] = { type: 'running' }
@@ -387,7 +399,7 @@ function serve() {
       case 'POST /api/session': {
         const sid = body.id || idOf('ses')
         const directory = (body.location && body.location.directory) || process.cwd()
-        return send(res, 200, { data: sessionJson(rowOf(sid) || createSession(sid, body.title, directory)) })
+        return send(res, 200, { data: sessionJson(rowOf(sid) || createSession(sid, body.title, directory, body.parentID)) })
       }
       case 'GET /api/session/{sessionID}':
         return exists ? send(res, 200, { data: sessionJson(exists) }) : notFound(res, id)
@@ -580,11 +592,13 @@ function tui() {
     lastIdle = idle ? idle.data.time.created : null
     draw()
   }
+  const goal = () => api('POST', '/api/rpc/opencode.goal/get?location%5Bdirectory%5D=' + encodeURIComponent(dir), { input: { sessionID: session } })
   async function submit(text) {
     if (!created) {
       session = 'ses_' + (0xffffffffffff - Date.now()).toString(16) + rand(14)
       await api('POST', '/api/session', { id: session, agent: 'build', model: MODEL, location: { directory: dir } })
       created = true
+      await goal()
     }
     await api('POST', '/api/session/' + session + '/model', { model: MODEL })
     await api('POST', '/api/session/' + session + '/prompt', { id: 'msg_' + rand(26), text, files: [], agents: [], delivery: 'steer' })
@@ -635,6 +649,7 @@ function tui() {
     }
     listen()
     if (created) {
+      await goal()
       await api('POST', '/api/session/' + session + '/agent', { agent: 'build' })
       await api('POST', '/api/session/' + session + '/model', { model: MODEL })
     }
@@ -677,6 +692,15 @@ function tui() {
           lastIdle = null
           draw()
           if (firstPrompt) await submit(firstPrompt)
+        } else if (text.startsWith('/switch ')) {
+          const picked = text.slice(8).trim()
+          if ((await api('GET', '/api/session/' + picked)).status === 200) {
+            session = picked
+            created = true
+            queued = []
+            await goal()
+            await refresh()
+          }
         } else if (text) await submit(text)
         draw()
         continue

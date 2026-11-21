@@ -230,7 +230,7 @@ import type {
   WindowState,
 } from '../shared/workspace'
 import { recordPresence, recordPromptedStart } from './activity'
-import { mainKitOf } from './agents/registry'
+import { mainKitOf, paneOfCaller } from './agents/registry'
 import {
   agentStates,
   notifyTopic,
@@ -1634,8 +1634,15 @@ const prompted = async (id: string, prompt: unknown): Promise<string | ControlAn
   return 'refusal' in checked ? refuse(checked.refusal) : savePrompt(id, checked.text)
 }
 
+// A session an agent's server names in its call is traced, through that agent's kit, to its pane.
+const agentSessionPane = async ({ meta, id }: { meta: string; id: string }) =>
+  panes.get((await paneOfCaller(meta, id, (pane) => panes.get(pane))) ?? '')
+
 async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
-  const pane = 'pane' in request.caller ? panes.get(request.caller.pane) : undefined
+  const pane =
+    'pane' in request.caller
+      ? panes.get(request.caller.pane)
+      : await agentSessionPane(request.caller.agentSession)
   const agent = agentOf(pane)
   const sessionId = pane?.sessionId
   const project = sessionId ? projectOf(projects, sessionId) : undefined
