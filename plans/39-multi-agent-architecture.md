@@ -2741,3 +2741,40 @@ P0's blocks run in turn.
   `limit.context` override and custom providers give no reading; `shell` and `skill` rows were
   read in OpenCode's code, not measured; whether Menkar sets `OPENCODE_DISABLE_MODELS_FETCH` is
   topic 97.
+
+### P2.7 (`menkar-t196`, task 196, 2026-11-21)
+
+- **`e2e/opencode.spec.ts`**, three tests with the stand-in `opencode` on the built app:
+  - **alone**: New → OpenCode starts one `opencode serve --stdio --port <p>` and the TUI as
+    `--server <proxy> -s <id>` on another port, with the server's password in the pane and no
+    `MENKAR_PANE` in the server; the row joins the project at the first message; the tab reads
+    working from the footer, blocked at the permission card, idle after; outside the mode the
+    model's request lists OpenCode's twelve tools only, with no instructions, skills or entries;
+  - **close and resume**: the last tab closed ends the server's process; the row reopened starts a
+    new server and `-s <id>` on the same session, which goes on;
+  - **as a worker** of a Claude orchestrator (`start_session {agent:"opencode", task, prompt}`):
+    member and child by its own id at once (no provisional id: Menkar mints it); its first request
+    lists `menkar_task_review`, `menkar_send_message` and `menkar_load_skill` and holds one entry,
+    its team block; the MCP child has `MENKAR_AGENT=opencode` and no `MENKAR_PANE`;
+    `load_skill {"name":"menkar:worker"}` answers the skill with "Base directory for this skill:"
+    and its folder (P2.5's `loadSkillFor` had no test), an unknown name is refused; a subagent
+    made with `parentID` calls `task_steps` and is resolved to its root's pane; `task_review` wakes
+    the orchestrator once; `last_reply` reads OpenCode's database; messages both ways framed as
+    for Codex.
+- **Seen red**: the per-folder MCP route absent (`FAKE_OPENCODE_NO_MCP_ROUTE`, no `menkar_*` tools);
+  the child created without `parentID` ("Menkar does not know this tab's session yet"); the
+  server's process expected alive after the last tab closed.
+- **Docs**: `docs/agents.md`'s OpenCode sections (its server and proxies, starting a session, its
+  sessions with `openAgentDb`'s copy, which session a pane shows, its state, usage and context as a
+  pointer to `docs/usage.md` and `docs/context.md`, waking, the orchestration mode); `docs/sessions.md`
+  (set, 2026-11-21: a file beyond the row); `docs/session-control.md`'s port rejection amended;
+  `docs/packaging.md` with decision 1.206 (set, 2026-11-21: the models fetch left on, a file
+  beyond the row); `docs/NOT_BUILT_YET.md` (the form card; saying an OpenCode is too old for
+  Menkar's tools); `docs/release-checklist.md` 8f. Each line that left is in its history.
+- **Found, not fixed (not my files):** `load_skill` with an unknown `menkar:` name answers "Menkar
+  could not read this skill." and logs a warning, since `skillFile` builds the plugin's path
+  without checking it exists; a plain unknown name gets "Menkar has no skill by that name for this
+  session.". The descriptor's `versionWord: 1` reads `v2.3.0` from `opencode --version`, which
+  `compareVersions` cannot compare, so setting `versions.validated` after `opencode`'s real check
+  needs the `v` read off first.
+- **Not done here:** `opencode`'s real check on OpenCode 2.3.0 (a separate task).

@@ -102,3 +102,9 @@ Decision 1.195 (the human, 2026-11-20, amending D5), measured by `codex` on code
 - **Named as the human typed it** (`set`, 2026-11-20, reading 1.195: a name the human typed is the
   human's): through the same namer as `start_session`'s Codex sessions, once its thread exists,
   with the same `agent_named` mark, so a renew keeps it.
+
+## Agents — how the code is organised
+
+> Left on 2026-11-21: OpenCode joins (plan 39, P2.7, task 196).
+Menkar runs more than one coding agent: Claude Code, Cursor and Codex. What differs per agent is
+kept in one place per agent, so a change to one agent cannot break another and shared code never

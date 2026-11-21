@@ -291,3 +291,8 @@ Cursor's kit has none of them. Main writes the block's file before asking the La
 | The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` |
 | The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) |
 | (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` |
+
+## Rejected
+
+> Left on 2026-11-21: Menkar opens loopback ports for OpenCode's server and its panes' proxies (plan 39, P2.7, task 196).
+- **A loopback HTTP server:** it is the only option that opens a port.

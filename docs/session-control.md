@@ -590,7 +590,10 @@ Launcher returns.
 
 - **A Unix socket or named pipe owned by main:** needed only for synchronous answers, which no tool
   needs. The files reuse the pattern of the SessionStart records.
-- **A loopback HTTP server:** it is the only option that opens a port.
+- **A loopback HTTP server:** it would open a port for a channel the files serve without one.
+  The only ports Menkar opens are OpenCode's (`docs/agents.md`, "OpenCode: its server and the
+  panes' proxies"): its server and one proxy per pane, on 127.0.0.1, behind a password, because
+  OpenCode's TUI is only a client of a server.
 - **SQLite for the shared state:** it cannot tell another process that something changed, and a
   second SQLite file would amend the rule that the app's state is JSON.
 - **Typing into the parent's terminal to wake it:** against the rule that nothing is typed into a

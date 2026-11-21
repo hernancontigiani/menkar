@@ -1,7 +1,7 @@
 # Agents — how the code is organised
 
-Menkar runs more than one coding agent: Claude Code, Cursor and Codex. What differs per agent is
-kept in one place per agent, so a change to one agent cannot break another and shared code never
+Menkar runs more than one coding agent: Claude Code, Cursor, Codex and OpenCode. What differs per
+agent is kept in one place per agent, so a change to one agent cannot break another and shared code never
 asks which agent it has (1.135). The code says what each piece does; this file keeps why it is
 shaped this way and what was rejected.
 
@@ -438,3 +438,154 @@ Assembled as Claude's (`docs/session-control.md`, "The team block"); its part is
   found with its file (`FoundSkill.file`, the nearest of a name), Menkar's own from the plugin's
   `skills/` folder, and one not found by its name alone; it is loaded "by reading its SKILL.md at
   the path given".
+
+## OpenCode: its server and the panes' proxies
+
+OpenCode's kit is `src/core/agents/opencode/` and `src/main/agents/opencode/`; measured by
+`opencode` on OpenCode 2.3.0 (2026-11-21). It has no fork, chat, trash, Remote Control, inbox file
+or namer: each is `null` in its kit. Its TUI is only a client of an OpenCode server, so Menkar runs
+one of its own and attaches every OpenCode pane to it.
+
+- **Menkar's server** (`server.ts`, `OpenCodeServer`): `opencode serve --stdio --port <p>`, started
+  with the first OpenCode pane and stopped with the last one and at quit; the port a free one on
+  127.0.0.1, the password random per server life, in `OPENCODE_PASSWORD` (Basic auth, user
+  `opencode`). Its stdin is held by main: a server whose stdin closes exits, so a Menkar that dies
+  leaves no server behind. Stopped by closing stdin, then its process group signalled by PID if it
+  is still alive. One that dies while panes use it is started again on the same port with the same
+  password, the next try no sooner than `RETRY_EVERY_MS` after the last; a first start that fails
+  is retried only by the next pane's start.
+- **Its environment** is `withoutSessionEnv` of Menkar's, without the pane variables
+  (`MENKAR_PANE`, `MENKAR_FILES`, `MENKAR_PRIVATE`): an MCP server it starts inherits the server's
+  whole environment but the password, so nothing of a pane or of the session that started Menkar
+  may be in it.
+- **`OPENCODE_CONFIG_CONTENT`** (`serverConfig`, `prepare.ts`) is the user's own, when they set
+  one, plus `permission: {"menkar_*": "allow"}` beside their rules, so Menkar's tools run with no
+  approval card; nothing else. It changes no model request (`opencode`, item 69). No skills path:
+  OpenCode lists a skills folder to every session of its server.
+- **Feature checks**: `GET /openapi.json` must list the instruction-entry route (the team block)
+  and the per-folder MCP route (Menkar's tools); without one, that part is not done and a log line
+  says why. Nothing in the window says it yet (`docs/NOT_BUILT_YET.md`).
+- **The proxy** (`proxy.ts`, `OpenCodeProxies`): one loopback port per OpenCode pane, relaying to
+  the server byte for byte and adding no credential: the TUI sends its own Basic auth from the
+  password in the pane's environment. The TUI's `--server` is the proxy, so Menkar knows which pane
+  each request comes from.
+- **Its own network traffic**, the model catalog's fetch, is OpenCode's and left on: `docs/packaging.md`
+  (decision 1.206).
+- **Why a server and proxies, not one TUI per session on its own**: a TUI alone starts the user's
+  shared OpenCode service; and the server's events, its inbox and its per-folder MCP are what give
+  Menkar the turn's end, a wake and its tools without typing into a terminal.
+
+## OpenCode: starting a session
+
+- **The session is made before its TUI** (`OpenCodePreparer.prepare`, the kit's `Preparer`):
+  `POST /api/session {id, title?, location, model?}` with an id Menkar mints in OpenCode's own
+  form (`ids.ts`, `ses_…`) and the name typed in New as its title, which OpenCode never replaces;
+  the team entry put or removed; Menkar's MCP added to its folder when it has a team block; the
+  pane's proxy opened; the server's event stream awaited; then a first prompt, if any, as
+  `POST …/prompt {text, delivery:"steer"}`.
+- **The command** (`launch.ts`): `opencode --server <proxy> -s <id>`, nothing else. A first prompt
+  is never `--prompt`: OpenCode submits that again in the next session after a `/new`. The model
+  is given at the create, as `provider/model`; a name not of that form is dropped, logged.
+- **A start that cannot be prepared** (the server does not start, the create is refused) runs a
+  plain shell in the pane with Menkar's own line saying so (`terminal.serverFailed`).
+- **The environment** (`env.ts`): a Menkar started from inside OpenCode would inherit its session's
+  id, its server's password and its markers; those are dropped, `AGENT` only when `OPENCODE` came
+  with it, and `BUN_BE_BUN` always (an `opencode` that inherits it runs as Bun). The user's
+  configuration variables are kept.
+- **Its `DeclaredWrites`** (`writes.ts`): what Menkar's calls make OpenCode's server write, its
+  database and its `-wal` and `-shm`.
+
+## OpenCode: its sessions
+
+`src/core/agents/opencode/catalog.ts` reads `opencode.db` (`$XDG_DATA_HOME/opencode/`, or
+`OPENCODE_DB` taken from that folder), never in place:
+
+- **SQLite, read without writing beside the agent's file** (`openAgentDb`,
+  `src/core/agents/shared/db.ts`, every agent's route): with neither `-wal` nor `-shm` the
+  database is opened `immutable=1`, read only; with both (OpenCode's server keeps both from its
+  start, and a SIGKILL leaves both) the database and its `-wal` are copied into
+  `<cache>/agent-db/` and the copy is read, since a read-only open in place rebuilds the `-shm`
+  and moves its mtime, and `immutable=1` misses the `-wal`'s frames. The database file is copied
+  again only when its size, mtime or inode moved, the `-wal` when it moved; a reader that may run
+  beside another names its own copy folder. With a `-wal` and no `-shm` nothing is opened
+  (`unreadable for now`).
+- **On a worker thread** (`reads.ts`, `db-worker.ts`, built as `opencode-db.js`): node:sqlite and
+  the copy are synchronous and the sessions scan runs in main, so every read of the catalog goes to
+  one long-lived thread, started at the first read and ended when OpenCode is found uninstalled
+  and at quit (`SessionCatalog.close`). Nothing is read, and no thread started, while OpenCode is
+  not installed or has no database.
+- **Listed** as OpenCode's own picker lists them: root sessions (`parent_id` null), not archived,
+  with a user message. The title is the session's name whoever gave it (OpenCode's generated title
+  and the user's look the same). Watched by its data folder; a find reads nothing while the
+  database and its `-wal` keep their inode, size and mtime.
+
+## OpenCode: which session a pane shows
+
+The TUI moves between sessions on its own (`/new`, its picker on Ctrl+X L) and tells nobody, so the
+pane's proxy reads it from the TUI's requests (D14):
+
+- **Bound by** `POST /api/rpc/opencode.goal/get {"input":{"sessionID":…}}`, which the TUI sends
+  only for the session it shows (at its start, after a create, at every picker switch), on the
+  request alone, whatever the answer; by a create's body `{id}`; and by `…/prompt`'s path, each
+  answered 2xx. `/view` is not read: it names a session being left. Every other route may name
+  any session of its tab strip.
+- **A move** goes to the pane's follow path: to a session its TUI created, as after a `/clear`; to
+  one its picker opened, as after an in-session `/resume`.
+- **A subagent's tool call** names its own session in `_meta["ai.opencode/sessionID"]`
+  (`SESSION_META`); main follows `GET /api/session/<id>`'s `parentID`, up to 8 levels, to the
+  session a pane shows (`MainAgentKit.callers`, `paneOfCaller` in `src/main/agents/registry.ts`).
+
+## OpenCode: its state
+
+- **The screen** (`state.ts`, from v2.3.0's TUI): blocked is the permission card (its heading and
+  its choices) in the last 12 lines; working is "esc interrupt" in the footer's last line only, so
+  a reply that quotes it is not a turn. The tab strip's spinner also turns while a message only
+  waits in the inbox, so it is not read. A form card (`form.created`, OpenCode's question tool) is
+  not read as blocked (`docs/NOT_BUILT_YET.md`).
+- **The server's events** (`events.ts`, `Executions`): an execution's end is the pane's turn-end
+  record. A subagent runs in a session of its own and its root's execution ends while it works: a
+  root counts as running while any session under it does (by `session.created`'s `parentID`), its
+  idle screen then reads working (`ServerRuns`, read by `PaneWatcher`), and its turn ends only when
+  nothing under it runs, `SETTLE_MS` after a subagent's end.
+
+## OpenCode: usage and context
+
+Read from `opencode.db` through `openAgentDb`, with a copy of the usage pass's own:
+`docs/usage.md` ("Per agent", OpenCode) for turns, tokens, the exact cost and
+`usage-opencode.jsonl`; `docs/context.md` (OpenCode's reading) for the ring.
+
+## OpenCode: waking
+
+`inboxWaker` (`waker.ts`): `POST /api/session/<id>/prompt {text, delivery:"queue"}` on Menkar's
+server, OpenCode's durable inbox. A busy session takes it after its running step, an idle one at
+once; it waits behind a pending permission, which it never answers; nothing is typed into the
+terminal, so a half-typed message stays in the composer. 404 is `no session`, and so is a wake
+while Menkar's server is not running: Menkar wakes only a session with a pane.
+
+## OpenCode in the orchestration mode
+
+- **Menkar's MCP per session folder**: `PUT /api/experimental/mcp/menkar?location[directory]=<folder>`
+  (`mcpEntry`, `mcp.ts`: Electron's binary and the server program, `ELECTRON_RUN_AS_NODE`,
+  `MENKAR_AGENT=opencode`, `codemode: false` so the tools are listed directly), once per server
+  life and folder, when a session there starts with a team block or is given one later. The match
+  is exact: a session in a subfolder gets nothing. A session outside the mode sends exactly the
+  request it sends on any server (`e2e/opencode.spec.ts`).
+- **The caller**: one MCP connection serves every session of a folder, so no `MENKAR_PANE` names
+  it; the server program reads the session from `_meta[descriptor.callerMeta]` and main finds its
+  pane through the proxy (above). A session no pane shows is refused.
+- **Skills through `load_skill {name}`** (`McpMount.servesSkills`): its team entry names the
+  stored skills, and the tool answers a skill's text with "Base directory for this skill:" and its
+  folder, as OpenCode's own skill tool does: Menkar's own (`menkar:<name>`, from the plugin) or one
+  found for the pane's session. Listed only to a caller whose kit serves skills.
+- **The team block** is the session's instruction entry `menkar.team`
+  (`PUT /api/experimental/session/<id>/instructions/entries/menkar.team`): put before the first
+  prompt, replaced whole when the facts change (`tell` answers `stored`: OpenCode gives the model
+  the new text at its next step, with no turn of its own), removed when the session holds no
+  block. Its part is `plugin/team/opencode.md`; the table is `docs/session-control.md`'s, "The
+  team block, per agent".
+- **A session open in another OpenCode server too** (D9, decision 1.205): Menkar's server reports
+  only its own executions, while `session_v2`'s busy and idle times are written by whichever
+  server ran the session last. At a resume and before each wake, a session whose row says a turn
+  runs that Menkar's server does not run is logged, and its pane shows one line of Menkar's own
+  once its TUI has drawn (`Terminal.say`, never the pty's input). A server killed mid-turn leaves
+  the row busy, so the line can be shown in error until that session's next turn ends.
