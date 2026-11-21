@@ -326,6 +326,133 @@ Asked by `menkar-t13`. Throwaway home, opencode v2.3.0, every process mine and s
     (read, `cli/src/server-process.ts:87-90`), which closes the leak of item 10. So Menkar's server
     is best run as `serve --stdio`, with Menkar's port and password.
 
+## What a stand-in imitates (2026-11-21, for plan 39's P2.1)
+
+Asked by `menkar-t177`. opencode v2.3.0 (`opencode --version`), a fresh throwaway home (the
+scratchpad had been cleared again), the stand-in API, a Node parent holding `serve --stdio`'s
+stdin, a logging proxy, a TUI in `tmux -L octui`; every process stopped by PID. All measured unless
+marked. Paths below write `<dir>` for the session's folder.
+
+38. **`serve --stdio --port 47901`** with `OPENCODE_PASSWORD` and `OPENCODE_CONFIG_CONTENT` in its
+    env: stdout is exactly one line, `{"url":"http://127.0.0.1:47901"}\n`, about 6 s after spawn;
+    **nothing on stderr**. The wrapper `exec`s, so the spawned PID is the server's. Closing its stdin:
+    **exit code 0 within 100 ms**.
+39. **Auth:** HTTP Basic, user `opencode`; any other user or no header → `401`, headers
+    `www-authenticate: Basic realm="Secure Area"`, `content-type: application/json`, body
+    `{"_tag":"UnauthorizedError","message":"Authentication required"}`.
+40. **The MCP child's environment had no `OPENCODE_PASSWORD`** (stdio mode removes it), but kept
+    `OPENCODE_CONFIG_CONTENT` and **every variable of the server's parent**, Claude Code's and
+    `MENKAR_PANE` included: Menkar's `withoutSessionEnv` must apply to the server's env.
+41. **Routes and shapes** (`/openapi.json`: OpenAPI 3.1.0, 139 paths):
+    - `GET /api/info` → `{"version":"2.3.0","pid":N,"hostname":"…","urls":["http://127.0.0.1:P"],
+      "paths":{"tmp":"/tmp/opencode"},"capabilities":{"persistentPty":true}}`.
+    - The instruction route: `paths["/api/experimental/session/{sessionID}/instructions/entries/{key}"]`
+      with `put` and `delete` (operationIds `experimental.session.instructions.entry.put`, `…remove`),
+      and `…/instructions/entries` with `get`. The per-folder MCP route:
+      `paths["/api/experimental/mcp/{server}"]` with `put` and `delete` (`experimental.mcp.add`,
+      `experimental.mcp.remove`); its folder is the query `location` in `deepObject` style:
+      `?location%5Bdirectory%5D=<url-encoded dir>`; body `{"config":{"type":"local","command":[…],
+      "codemode":false}}` → `204`; then `GET /api/mcp?directory=<dir>` →
+      `{"location":{"directory":"<dir>"},"data":[{"name":"menkar","status":{"status":"pending"}}]}`.
+    - `POST /api/session {id,title,location:{directory}}` → `200 {"data":{"id","projectID","cost":0,
+      "tokens":{"input":0,"output":0,"reasoning":0,"cache":{"read":0,"write":0}},"time":{"created",
+      "updated"},"title","location":{"directory"}}}`; `GET /api/session/<id>` the same `data`.
+    - `PATCH /api/session/<id> {title}` → `204`, empty body.
+    - Unknown session → `404 {"_tag":"SessionNotFoundError","sessionID":"<id>","message":"Session
+      not found: <id>"}`.
+    - Entries: `PUT …/entries/<key> {value}` → `204`; `GET …/entries` → `{"data":[{"key","value"}]}`;
+      `DELETE` → `204`; a bad key → `400 {"_tag":"InvalidRequestError","message":"Expected a string
+      matching the RegExp ^[a-z0-9][a-z0-9._-]*$\n  at [\"key\"]","kind":"Params"}`.
+    - `POST /api/session/<id>/view` needs `{"idle":<ms>}` (the idle row's `time.created`; `{}` →
+      `400 …"Missing key\n  at [\"idle\"]","kind":"Payload"`) → `204`.
+    - `POST …/prompt {text, delivery:"queue", resume:false}` → `200 {"data":{"id":"msg_…",
+      "sessionID","time":{"created"},"type":"user","payload":{"text"},"delivery":"queue"}}`; without
+      `delivery` it reads `"steer"`. `GET …/inbox` → `{"data":[<that same object>]}`;
+      `DELETE …/inbox/<msg id>` → `204`.
+    - `GET /api/session/active` → `{"data":{}}` idle, `{"data":{"<id>":{"type":"running"}}}` busy.
+    - `GET /api/permission/request` → `{"location":{"directory"},"data":[{"id":"per_…","sessionID",
+      "action":"shell","resources":["touch b.txt"],"save":["touch *"],"source":{"type":"tool",
+      "messageID","id":"call_…"}}]}`.
+42. **`GET /api/event`**: `content-type: text/event-stream`, chunked; frames are only
+    `data: <json>\n\n` (no `event:` or `id:` lines) and comments `: heartbeat\n\n` (three in about
+    a minute). The first frame is `{"id":"evt_…","type":"server.connected","data":{}}`. Every other
+    event: `{"id":"evt_…","created":<ms>,"type",["location":{"directory"}],"data":{…},
+    ["durable":{"aggregateID":"<session id>","seq":N,"version":1}]}`. `data` per type:
+    `session.created` `{sessionID,slug,version,projectID,location,subpath:"",title}`;
+    `session.renamed` `{sessionID,title}`; `session.viewed` `{sessionID,idle}`;
+    `session.inbox.enqueued` `{inboxID,sessionID,item:{type:"user",payload:{text},delivery}}`;
+    `session.inbox.delivered` / `.cancelled` `{sessionID,inboxID}`; `session.execution.started` /
+    `.succeeded` `{sessionID}`; `permission.asked` = a `permission/request` item;
+    `permission.replied` `{sessionID,requestID,reply:"once"}`; `mcp.status.changed` `{server}`.
+43. **The database** after two turns: `journal_mode` `wal`, `user_version` 0, `schema_version` 45,
+    59 rows in `migration` (last `20261030054400_job`), the 24 tables of item 11. `session_part`
+    empty. `session_v2.agent` and `.model` stayed NULL although each `assistant` row names them.
+    Row `data`, as stored: `user` `{"time":{"created"},"text"}`; `assistant` `{"time":{"created",
+    "firstToken","streamed","completed"},"agent":"build","model":{"id","providerID"},"content":[{"type":
+    "text","text"}],"snapshot":{"start","end","files":[]},"finish":"stop","rawFinish":"stop","cost",
+    "tokens":{"input","output","reasoning","cache":{"read","write"}}}`, a tool step's `content` being
+    `[{"type":"tool","id":"call_…","name":"bash","executed":false,"state":{"status":"completed",
+    "input":{…},"content":[{"type":"text","text"}],…}}]` with `finish` `tool-calls`; `idle`
+    `{"time":{"created"},"outcome":"succeeded"}`. The DDL of `session_v2`, `session_message`,
+    `session_part`, `session_inbox`, `instruction_entry` and `project` was sent to `menkar-t177` as a
+    file.
+44. **WAL, in three states:**
+    - **a server running, before any write**: `-wal` and `-shm` exist from its start;
+    - **after a clean stop** (stdin closed): checkpointed, **both removed**, the main file updated;
+    - **after SIGKILL**: **both remain** (`-wal` 24,752 bytes, `-shm` 32,768). A
+      `file:…?immutable=1` read then **misses the last write** (the old title), and a plain
+      `mode=ro` read sees it but **touched `-shm`'s mtime**. So a SIGKILLed OpenCode leaves the
+      "a writer is live" state, not plan 39's "`-wal` without `-shm`".
+45. **The TUI** (`opencode --server <proxy> -s <id> --prompt "first prompt" <dir>`, on a session
+    created first):
+    - at start it sent `POST /api/rpc/opencode.goal/get?location…`, `POST /api/session/<id>/agent
+      {"agent":"build"}`, `POST …/model {"model":{"providerID","id"}}` and `POST …/prompt
+      {"id":"msg_…","text":"first prompt","files":[],"agents":[],"delivery":"steer"}`, and about 30
+      kinds of `GET` (`/api/session/<id>`, `…/message`, `…/inbox`, `…/permission`, `…/form`,
+      `/api/session/active`, `/api/event`, `/api/info`, `/api/config`, …). **No `/view`** and no
+      `PUT …/environment` in this run (`/view` was seen on a `/new`, item 29);
+    - the screen: a tab strip ` • <title>   +` (a Braille spinner in place of `•` while busy),
+      "Switched agent to Build", "Switched model to m1", the prompt, the reply, then
+      "`Build · m1 · 840ms · 1250.0 tok/s · 808ms ttft`"; the composer's last line "`Build · m1
+      Stub`" over `╹▀▀▀…`; the footer "`<path>:master    1.0K (1%)  ctrl+p commands`". **No
+      "Ask anything" placeholder** in a session view;
+    - busy: the footer becomes "`⬝⬝⬝⬝⬝⬝⬝⬝ esc interrupt    1.0K (1%)  ctrl+p commands`"; a queued
+      post shows "`1 queued · <text>`" in the composer;
+    - permission: "`△ Permission required`", "`$ touch b.txt`", "`Allow once   Always allow
+      Reject    ctrl+f fullscreen  ⇆ select  enter confirm`", above "`Press ctrl+b to move running
+      work to the background`";
+    - **Esc on the card rejects and interrupts**: the step line ends "`· interrupted`";
+    - **one Ctrl+C with an empty composer exits, code 0**, after a banner with the logo,
+      "`Session   <title>`" and "`Continue  opencode -s <id>`".
+46. **Answering a permission** (the TUI through the proxy): Enter on "Allow once" sent
+    `POST /api/session/<id>/permission/<per_…>/reply {"decision":"once"}`; "Reject" (two Rights,
+    Enter) `{"decision":"reject"}` and the step ended "`· interrupted`"; the body schema is
+    `{decision, message?}`, replies `204|400|401|404` (openapi). **Text typed while a card was up
+    was taken as keys of the card and answered it `{"decision":"always"}`** — the rule against
+    typing, seen happening.
+47. **`/new`:**
+    - with no prompt typed, it sends nothing; the TUI just leaves the old session
+      (`POST /api/session/<old>/view {"idle":<its last idle>}` was sent once, when that session had
+      a turn);
+    - the first prompt sends `POST /api/session {"id":"ses_…","agent":"build","model":
+      {"providerID","id"},"location":{"directory"}}` — **an id made by the TUI, in OpenCode's
+      format, and no title** — then `…/model`, `…/prompt`, and after the turn
+      `…/view {"idle":<that turn's idle>}`. No `/view` for a session with no turn;
+    - **a TUI started with `--prompt` submits that prompt again in the new session**, at once.
+48. **A TUI with `--server` and no `OPENCODE_PASSWORD`** prints "`Error: Server at <url> requires
+    a password; set OPENCODE_PASSWORD`" with a stack and `[cause]: UnauthorizedError:
+    Authentication required`, and exits with code 1.
+49. **For the feature checks** (asked by `menkar-t179`): `GET /openapi.json` needs the Basic auth
+    too (401 without, 200 with); its `paths` hold
+    `"/api/experimental/session/{sessionID}/instructions/entries/{key}"` and
+    `"/api/experimental/mcp/{server}"`, each with exactly `put` and `delete`.
+50. **A taken port:** `serve --stdio --port <p>` with `p` already bound exits with **code 1 after
+    ~210 ms**, nothing on stdout, and on stderr `ServeError:` … `[cause]: Error: Failed to start
+    server. Is port <p> in use?` with a stack.
+51. **Its MCP children go with it:** with Menkar's MCP added through `PUT /api/experimental/mcp/…`,
+    the stub ran as the server's child; closing the server's stdin ended the server (code 0, 84 ms)
+    **and the MCP child**, gone 2 s later.
+
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
