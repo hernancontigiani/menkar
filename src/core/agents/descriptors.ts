@@ -3,6 +3,7 @@ import { descriptor as claude } from './claude/descriptor'
 import { descriptor as codex } from './codex/descriptor'
 import { descriptor as cursor } from './cursor/descriptor'
 import type { AgentId } from './ids'
+import { descriptor as opencode } from './opencode/descriptor'
 import type { AgentVersions } from './versions'
 
 // What the renderer and the MCP server program may know of an agent: data, no Node.
@@ -47,7 +48,12 @@ export interface AgentDescriptor {
   readonly teamLimits: { readonly orchestrator: Key; readonly worker: Key } | null
 }
 
-export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor, codex }
+export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = {
+  claude,
+  cursor,
+  codex,
+  opencode,
+}
 
 export function descriptorOf(id: AgentId): AgentDescriptor {
   return DESCRIPTORS[id]

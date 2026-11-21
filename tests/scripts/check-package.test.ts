@@ -24,7 +24,7 @@ import {
 const data = (name: string) => readFileSync(join(__dirname, '..', 'data', 'package', name), 'utf8')
 
 // What app.asar must hold: the app, and the programs agents run through Electron's binary.
-const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify'].map(
+const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify', 'opencode-db'].map(
   (name) => `/out/main/${name}.js`,
 )
 
@@ -90,6 +90,10 @@ describe('package:check', () => {
     [
       "Codex's notify program",
       (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('codex-notify.js')) }),
+    ],
+    [
+      "OpenCode's database reader",
+      (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('opencode-db.js')) }),
     ],
     [
       'the command',

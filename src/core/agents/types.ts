@@ -177,6 +177,9 @@ export interface SessionCatalog {
   readonly transcript: TranscriptReading | null
   // What a worker's closed turn says to its parent; null when the agent's turns are not read.
   readonly turnEnd: TurnEndReading | null
+  // Ends what the catalog keeps running to read (a thread), when its agent is no longer installed
+  // and on quit; null when it keeps nothing running.
+  readonly close: (() => void) | null
 }
 
 // A session's last turn, read when it ends: whether it only took team updates, and whether it

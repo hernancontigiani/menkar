@@ -4,8 +4,8 @@ import { describe, expect, test } from 'vitest'
 import { AGENT_IDS, parseAgentId } from '../../../src/core/agents/ids'
 
 describe('agent ids', () => {
-  test('the agents are offered Claude first, then Cursor, then Codex', () => {
-    expect(AGENT_IDS).toEqual(['claude', 'cursor', 'codex'])
+  test('the agents are offered Claude first, then Cursor, then Codex, then OpenCode', () => {
+    expect(AGENT_IDS).toEqual(['claude', 'cursor', 'codex', 'opencode'])
   })
 
   test.each(AGENT_IDS.map((id) => [id]))('a known id parses as itself: %s', (id) => {

@@ -29,6 +29,7 @@ export const en = {
   'agent.cursorWorks':
     '“{name}” is a Cursor session: it can work for the orchestrator, with limits — waking it when idle restarts it, and it asks before each tool you have not allowed.',
   'agent.codex': 'Codex',
+  'agent.opencode': 'OpenCode',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'warning: project dir {cwd} no longer exists, starting in HOME',
   'drawer.hide': 'Hide the shell (Ctrl+`)',

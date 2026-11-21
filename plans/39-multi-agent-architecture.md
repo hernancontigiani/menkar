@@ -434,28 +434,37 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
     rollout streams to the turn's extent.
   - **OpenCode**: rows, read by `time_updated` greater than the last one seen.
 - **SQLite read-only, without writing beside the agent's database**: `agents/shared`'s
-  `openAgentDb(path)` opens `file:<path>?immutable=1` read-only when **neither** `<path>-wal` nor
-  `<path>-shm` exists (no writer); a plain read-only open when **both** exist (a writer is live);
-  **with a `-wal` and no `-shm`** (a writer that crashed, S6) it opens nothing and returns
-  `'unreadable for now'`, logged once — opening would create the `-shm` beside the agent's
-  database, and a stale `-wal` read with `immutable=1` misses its frames. Closed at once after the
-  query; never held open across passes. R9's test asserts the sidecars' listing in all three
-  states.
-- **OpenCode's database breaks that third state's premise** (`opencode`, measured on v2.3.0,
-  2026-11-21; P2.1): its server keeps **both** `-wal` and `-shm` from its start, even before a
-  write; a clean stop (stdin closed) checkpoints and removes both; **a SIGKILL leaves both**. So a
-  killed OpenCode looks like a live writer, never like "a `-wal` without `-shm`", which OpenCode is
-  not seen to produce. In that state `immutable=1` misses the last writes, and a plain read-only
-  open rebuilds the `-shm`'s index and moves its mtime — **a write beside the agent's file, not
-  allowed**. The same holds for any reader while the sidecars are left by a dead writer. **P2.4
-  chooses one of two routes, measured there**, and records why:
-  - **a copy**: `opencode.db`, `-wal` and `-shm` copied together into Menkar's cache and read
-    there (`openAgentDb` on the copy), refreshed when the source's sizes or mtimes move; its cost
-    on a large database (the human's real size, asked, not read) stated in time and disk;
-  - **the API while a server lives**: the catalog asks Menkar's running `opencode serve`
-    (`GET /api/session`, `…/message`) and reads the database only when no OpenCode process holds
-    it (then there are no sidecars after a clean stop, and the immutable open applies); a killed
-    server's leftover sidecars still need the copy, or the reader waits for OpenCode's next start.
+  `openAgentDb(path, read)` opens `file:<path>?immutable=1` read-only when **neither** `<path>-wal`
+  nor `<path>-shm` exists (no writer). When **both** exist (a writer is live, or was killed and left
+  them) it **reads a copy** (set's route, 2026-11-21, on P2.4's measurements): the database and its
+  `-wal` copied into Menkar's cache (`<cache>/agent-db/<hash of the path>/`), never the `-shm`,
+  which SQLite rebuilds there from the copied `-wal`; the database file is copied again only when
+  its size, mtime or inode moved (a checkpoint), the `-wal` when it moved; a copy during which
+  either moved is taken again, up to three times, then `'unreadable for now'`. The copy's folder is
+  removed the next time the database is read with no sidecars. **With a `-wal` and no `-shm`** (a
+  writer that crashed, S6) it opens nothing and returns `'unreadable for now'`, logged once —
+  opening would create the `-shm` beside the agent's database, and a stale `-wal` read with
+  `immutable=1` misses its frames. Closed at once after the query; never held open across passes.
+  node:sqlite and the copy are synchronous, so it runs only off the UI path (OpenCode's catalog:
+  a worker thread, below).
+- **Why the copy** (P2.4, 2026-11-21): OpenCode's server keeps **both** sidecars from its start; a
+  clean stop removes both; **a SIGKILL leaves both** (`opencode`, v2.3.0; P2.1). With a dead
+  writer's sidecars `immutable=1` misses the last writes, and a plain read-only open rebuilds the
+  `-shm`'s index and moves its mtime — a write beside the agent's file. Rejected: declaring that
+  `-shm` touch in `DeclaredWrites` (a write into an agent's data, the human's to allow); asking the
+  live server's API (needs P2.2–P2.3, and a killed server's sidecars still need the copy). Codex
+  reads no SQLite (its catalog is JSONL), so the copy is every agent's route. **Cost, measured**
+  (warm page cache): 85 ms for 105 MB and 786 ms for 1.06 GB copied; on a 12 MB database through
+  the built worker, 15.8 ms the first read, ~1 ms after a write that moved only the `-wal`. The
+  human's `opencode.db` is 11.9 MB (stat only): disk ≈ that, while OpenCode runs.
+- **OpenCode's catalog reads on a worker thread** (set, 2026-11-21): the sessions scan runs in
+  Electron's main process, so the catalog's methods post their reads (`list`, `head`,
+  `conversation`, `lastReply`) to one long-lived thread (`opencode-db.js`, built beside main's
+  bundle, unref'd), started at the first read and ended by `SessionCatalog.close` — when the
+  scanner finds OpenCode not installed and when the sessions service stops at quit. A find asks
+  nothing while the database file and its `-wal` keep their inode, size and mtime; a session's
+  messages are read again only when its `time_updated` moved. Nothing is read, and no thread
+  started, while OpenCode is not installed or has no database (R10).
 
   P2.1's fixture holds the three states OpenCode produces: no writer (the database alone), a live
   writer (the test opens one), and a killed writer (database, `-wal` and `-shm` as a SIGKILL left
@@ -2374,3 +2383,119 @@ P0's blocks run in turn.
 - **Seen red:** the no-writer case through a plain read-only open (sidecars created), the
   killed-writer case as a plain `test`, and the immutable case expecting the `-wal`'s title; the
   live-writer case failed on the `-shm`'s bytes before they were left out.
+
+### P2.2 (`menkar-t179`, task 179, 2026-11-21)
+
+- **`src/main/agents/opencode/server.ts`, `OpenCodeServer`**: `acquire(pane) → { url, password,
+  features }` starts `opencode serve --stdio --port <p>` with the first pane (the port a free one
+  the OS gives a probe on 127.0.0.1, the password 24 random bytes in base64url), `release(pane)`
+  stops it with the last, `stop()` is the quit. The environment is `withoutSessionEnv(process.env)`
+  without `MENKAR_PANE`, `MENKAR_FILES` and `MENKAR_PRIVATE`, plus `OPENCODE_PASSWORD` and, when the
+  caller gives one, `OPENCODE_CONFIG_CONTENT` (`config()`, read at each start; P2.5 fills it). Its
+  own process group (`detached`); its stdin held by main; stopped by closing stdin, then the group
+  SIGTERM at 2 s and SIGKILL at 5 s if it is still alive, by PID, each escalation logged.
+- **Feature checks** (`opencode`, measured on v2.3.0, 2026-11-21, its items 49–51): `GET
+  /openapi.json` with Basic auth (401 without); `paths` holds
+  `/api/experimental/session/{sessionID}/instructions/entries/{key}` and
+  `/api/experimental/mcp/{server}`, each with `put` → `features.entries`, `features.mcp`. A missing
+  one is a `notice` log line with `/api/info`'s version; an unreadable `/openapi.json` reads as
+  neither, logged. Nothing acts on them yet: P2.5's preparer and team delivery read them.
+- **Restart**: only a server that printed its address and dies while panes hold it; on the same
+  port and with the same password (the TUIs keep theirs), the first at once and each next one no
+  earlier than 30 s after the previous; a restart that fails (a port taken: OpenCode exits 1 in
+  ~210 ms with no address line, measured) schedules the next under the same rule. Counted
+  (`restarts()`) and logged. A first start that fails rejects `acquire` and is not retried in the
+  background: the next tab's acquire tries again.
+- **Measured by `opencode`, not built on**: a stdin-closed server stops its MCP children itself;
+  a SIGKILLed server's children were not measured (the group SIGKILL covers them).
+- **R10's spec**: the processes test runs twice, OpenCode absent and present but unused, against
+  the same `processes.txt` (no file under `tests/core/r10/` changed), and asserts no `opencode
+  serve` ran. Its body moved, unindented and byte for byte, into `processesAndListening(opencode)`,
+  so `check-test-integrity` loses no `expect(` line. `R10_DEFECT_OPENCODE=1` is its injected defect
+  (main spawns a server; seen red on `processes.txt`, one more `node opencode` process).
+- **"Main killed → the server gone" is a Vitest case, not e2e**: no OpenCode tab exists before
+  P2.5. The test bundles `server.ts` with Vite into a plain Node "main", SIGKILLs it, and waits for
+  the stand-in server's PID to end.
+- **Choices of mine**: the start's wait for the address, 30 s (the real one takes ~6 s); the
+  escalation's 2 s and 5 s; the pane variables stripped beyond `MENKAR_PANE` (`MENKAR_FILES`,
+  `MENKAR_PRIVATE`, inherited only when Menkar was started from a pane); a new port and password
+  for each server life after a deliberate stop.
+- **Left to P2.5**: wiring — the kit's acquire per OpenCode pane, the release on the pane's end,
+  `stop()` on `will-quit`; the TUI's `--server` URL is P2.3's proxy, which takes `url` and
+  `password` from here.
+- **Seen red** (each injected in `server.ts` or the test, then removed): the pane variables kept;
+  no stop at the last release; no restart; no 30 s wait; the MCP route always read as present; the
+  server's stdin inherited instead of held (the main-killed case timed out with the server alive).
+
+### P2.4 (`menkar-t180`, task 180, 2026-11-21)
+
+- **Two premises of the launch prompt did not hold, stopped and asked:**
+  - "the same route as Codex": nothing in `src/` called `openAgentDb`; Codex's catalog reads JSONL
+    only, and its `DeclaredWrites` lists its own server's sidecar writes (`codex queue`,
+    `thread/name/set`), not a read's `-shm` touch. OpenCode is the first SQLite reader.
+  - "the catalog already reads off the UI path": the sessions scan runs in Electron's main process
+    (`src/main/sessions.ts` → `SessionsService` → `SessionScanner`), async fs only; node:sqlite is
+    synchronous.
+- **Decided by set, 2026-11-21:** the copy, inside `openAgentDb`'s both-sidecars branch, so every
+  agent reads the same way (§2.6 rewritten on it); OpenCode's reads on one long-lived worker thread
+  owned by the catalog, ended when OpenCode is uninstalled and at quit, with a test; the worker in
+  `scripts/check-package.mjs`'s required programs.
+- **Files beyond §5's row, granted by set:** `src/core/agents/shared/db.ts` and its test (the
+  copy); `electron.vite.config.ts` (the `opencode-db` entry); `scripts/check-package.mjs` and its
+  test; `src/core/agents/types.ts` (`SessionCatalog.close`), `close: null` in Claude's, Cursor's
+  and Codex's catalogs, `src/core/sessions/scanner.ts` (closes an uninstalled agent's catalog,
+  `close()`) and `service.ts` (`stop()` closes the scanner). As consequences of registering, as
+  P1a.2 did: `agent.opencode` in `src/core/i18n/{en,es}.ts`, and the roster pins below.
+- **The kit's files:** `descriptor.ts`, `ids.ts`, `env.ts`, `catalog.ts`, `index.ts`, and the
+  reader's three: `store.ts` (the queries, plain functions over an open database), `reads.ts` (the
+  worker or, for tests, the calling thread; `useReads`), `db-worker.ts` (the thread's entry).
+  `src/main/agents/opencode/index.ts` is all `null` until P2.5.
+- **Interim until P2.5, said in `index.ts`:** the launcher runs the bare TUI (`[cli]`), so
+  `firstPrompt: false` and the Namer gives nothing (`namedAtStart: false`); the state rules
+  answer `idle`, and the contract state test leaves OpenCode out (`LANDS_IN: { opencode: 'P2.5' }`).
+  The New picker shows OpenCode (greyed when not installed): branch only.
+- **`DeclaredWrites`:** P2.1's `OPENCODE_WRITES` (empty) is the kit's `writes`; the session and
+  inbox rows Menkar's calls make the server write join with P2.5. **R9 in three states** now runs
+  OpenCode's catalog over each (no writer, a live writer the test opens, the killed fixture) and
+  compares every file exactly, the `-shm`'s bytes included: the catalog never opens OpenCode's
+  files. P2.1's `test.fails` is a plain test.
+- **From `opencode` (2026-11-21, its research items 52–53):** OpenCode's picker lists roots
+  (`parent_id IS NULL`) not archived, so the catalog does; `title` is NULL until generated, an older
+  `New session - <ISO>` is a fallback too, and a generated title cannot be told from the user's, so
+  every title is the session's name (`customTitle`, `aiTitle` null); `BUN_BE_BUN` is always dropped
+  (an `opencode` that inherits it runs as Bun); `OPENCODE_DB` is resolved from the data folder;
+  an id must start with `ses`, and a create with an existing id answers that session unchanged.
+- **My choices:** the locator is `<db path>#<session id>`; `folder` is the database's folder (the
+  rows' place; the cwd is `directory`); `size` is the bytes of the session's message and part
+  rows; a session with no user message is not listed (as Codex); `mcpUsed` is empty, since
+  `<server>_<tool>` cannot be split when a server's name has an underscore; the database's name is
+  `opencode.db` (another channel's `opencode-<channel>.db` is known only to its binary); new ids
+  in OpenCode's own form (`ses_` + 12 hex descending + 14 base-62), minted from `clock.ts`;
+  `versionWord: 1` (`opencode v2.3.0`; the `v` makes `compareVersions` answer null until P2.7
+  sets the validated version); the glyph `▣` **proposed, not decided**.
+- **Environment:** identity `OPENCODE_SESSION_ID`, `OPENCODE_PASSWORD`; markers `OPENCODE`,
+  `OPENCODE_TERMINAL`; `BUN_BE_BUN`; `AGENT` only with `OPENCODE` inherited. R10 is unchanged:
+  its files stay byte-equal.
+- **Roster pins changed** (a new agent registered): `ids.test.ts` (`AGENT_IDS`);
+  `parity.test.ts` (the glyphs' list, `namedAtStart`, `firstPrompt`, OpenCode's caps);
+  `check-code-rules.test.ts` (the roster's ids and commands); `e2e/remote.spec.ts` SES-72 (two:
+  the New picker); `contract/state.test.ts` (the names shown, `LANDS_IN`); `sessionenv.test.ts`
+  (OpenCode's variables); `check-package.test.ts` (the programs, a missing-reader case).
+- **Measured:** see §2.6 (copy 85 ms / 105 MB, 786 ms / 1.06 GB; 12 MB through the built worker:
+  15.8 ms first, ~1 ms after a `-wal`-only write). Deleting the copy's `-shm` before each open
+  changed nothing (the copy's first reader rebuilds it), so it is not done. The built
+  `opencode-db.js` read the killed fixture's `-wal` with no byte or mtime moving there.
+- **Found by `packager` after the first report, fixed:** the worker's path was resolved from
+  `reads.ts`'s own `import.meta.dirname`, and the bundler puts that module in a shared chunk
+  (`out/main/chunks/`), so the built app looked for `chunks/opencode-db.js`. Main's entry now hands
+  its folder over (`useProgramsFolder(import.meta.dirname)` in `src/main/index.ts`, a setter in
+  `src/core/paths.ts`) and the reader resolves the file from `programsFolder()`; the catalog's
+  `close` ends the thread only if one was made. `e2e/opencode-catalog.spec.ts` runs the built app
+  with the stand-in `opencode` on the PATH and the killed fixture as OpenCode's data: the three
+  sessions are listed and OpenCode's files keep their bytes and mtimes. Seen failing with the old
+  path (nothing listed in 15 s), passing with the fix.
+- **Seen red:** `db.test.ts`'s three new cases on the previous `db.ts`; the `-wal` not copied
+  again; R9's live and killed cases on the previous `db.ts`; the listing re-read with no file
+  moved; every session re-read on one row's change; no close on uninstall; no close at quit; the
+  id's time not inverted; `AGENT` not gated; archived sessions listed; the last reply taken past an
+  execution that gave none; a missing reader in the package.

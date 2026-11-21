@@ -177,4 +177,5 @@ export const catalog: SessionCatalog = {
   trash: { target: (locator) => locator },
   transcript,
   turnEnd: { onlyTeamUpdates, reportedTo: reportClosedTurn },
+  close: null,
 }

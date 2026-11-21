@@ -31,6 +31,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'agent.cursorWorks':
     '“{name}” es una sesión de Cursor: puede trabajar para el orquestador, con límites — despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.codex': 'Codex',
+  'agent.opencode': 'OpenCode',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'aviso: la carpeta del proyecto {cwd} ya no existe, se empieza en HOME',
   'drawer.hide': 'Ocultar la terminal (Ctrl+`)',

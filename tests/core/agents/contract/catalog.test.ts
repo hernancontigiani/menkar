@@ -6,6 +6,7 @@ import { cpSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { AGENT_IDS, type AgentId } from '../../../../src/core/agents/ids'
+import { inProcessReads, useReads } from '../../../../src/core/agents/opencode/reads'
 import { kitOf } from '../../../../src/core/agents/registry'
 import { readRange } from '../../../../src/core/agents/shared/jsonl'
 
@@ -40,9 +41,13 @@ function homeOf(id: AgentId): { home: string; expected: Expected } {
   const home = join(process.env.MENKAR_TEST_ROOT ?? '', `contract-${id}-${n}`)
   cpSync(join(DATA, id, 'home'), home, { recursive: true })
   vi.stubEnv('HOME', home)
+  vi.stubEnv('XDG_DATA_HOME', join(home, '.local', 'share'))
   const expected = JSON.parse(readFileSync(join(DATA, id, 'expected.json'), 'utf8')) as Expected
   return { home, expected }
 }
+
+// A catalog that reads on a worker thread reads here on the test's: no built worker file in a test.
+useReads(inProcessReads())
 
 afterEach(() => {
   vi.unstubAllEnvs()

@@ -64,9 +64,10 @@ export function checkPackage(pkg, flavour = 'menkar') {
   return [...problems, ...checkContents(pkg, flavour)]
 }
 
-// What Electron's binary runs from inside app.asar: the app, and the programs the agents run as
-// plain Node (Claude Code's statusline and Menkar's MCP server, Codex's notify).
-const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify'].map(
+// What Electron's binary runs from inside app.asar: the app, the programs the agents run as plain
+// Node (Claude Code's statusline and Menkar's MCP server, Codex's notify), and the thread that
+// reads OpenCode's database.
+const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify', 'opencode-db'].map(
   (name) => `/out/main/${name}.js`,
 )
 

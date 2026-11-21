@@ -25,7 +25,7 @@ const screensOf = (id: AgentId): readonly Case[] =>
   JSON.parse(readFileSync(join(DATA, id, 'screens.json'), 'utf8')) as Case[]
 
 // An agent registered before its state rules read its screen: it has no screens.json until then, and the block that builds it.
-const LANDS_IN: Partial<Record<AgentId, string>> = {}
+const LANDS_IN: Partial<Record<AgentId, string>> = { opencode: 'P2.5' }
 const BUILT = AGENT_IDS.filter((id) => LANDS_IN[id] === undefined)
 
 test('only an agent still to be built is left out', () => {
@@ -65,6 +65,7 @@ describe("the agent's name in a notification", () => {
       'Claude Code',
       'Cursor',
       'Codex',
+      'OpenCode',
     ])
   })
 })

@@ -412,7 +412,12 @@ test('SES-72 (decision 1.30) New picks the agent: both installed, Claude Code ch
     await page.locator('#strip-plus').click()
     await expect(picker(page)).toBeVisible()
     await expect(picker(page)).toHaveClass(/segmented/)
-    await expect(picker(page).locator('button')).toHaveText(['Claude Code', 'Cursor', 'Codex'])
+    await expect(picker(page).locator('button')).toHaveText([
+      'Claude Code',
+      'Cursor',
+      'Codex',
+      'OpenCode',
+    ])
     await expect(segment(page, 'Claude Code')).toHaveAttribute('aria-pressed', 'true')
     await expect(segment(page, 'Cursor')).toBeEnabled()
     await page.locator('.add-session .folder-row', { hasText: 'work' }).click()
@@ -435,7 +440,12 @@ test('SES-72 (decision 1.30) New picks the agent: both installed, Claude Code ch
   try {
     const page = claudeOnly.window
     await page.locator('#strip-plus').click()
-    await expect(picker(page).locator('button')).toHaveText(['Claude Code', 'Cursor', 'Codex'])
+    await expect(picker(page).locator('button')).toHaveText([
+      'Claude Code',
+      'Cursor',
+      'Codex',
+      'OpenCode',
+    ])
     await expect(segment(page, 'Claude Code')).toHaveAttribute('aria-pressed', 'true')
     await expect(segment(page, 'Cursor')).toBeDisabled()
     await expect(segment(page, 'Cursor')).toHaveAttribute('title', 'cursor-agent is not installed')

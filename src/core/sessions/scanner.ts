@@ -45,6 +45,7 @@ export class SessionScanner {
     for (const id of AGENT_IDS) {
       if (!installed[id]) {
         this.#readers.delete(id)
+        kitOf(id).catalog.close?.()
         continue
       }
       const catalog = kitOf(id).catalog
@@ -65,5 +66,11 @@ export class SessionScanner {
       reader.retain(seen)
     }
     return sessions.sort((a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id))
+  }
+
+  // Ends what every catalog keeps running to read.
+  close(): void {
+    this.#readers.clear()
+    for (const id of AGENT_IDS) kitOf(id).catalog.close?.()
   }
 }

@@ -550,4 +550,5 @@ export const catalog: SessionCatalog = {
   trash: null,
   transcript: null,
   turnEnd: null,
+  close: null,
 }

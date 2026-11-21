@@ -166,4 +166,5 @@ export const catalog: SessionCatalog = {
   trash: { target: (locator) => locator },
   transcript,
   turnEnd: null,
+  close: null,
 }
