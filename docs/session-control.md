@@ -447,6 +447,16 @@ agent writes.
     a task is handed to it, each loaded as the kit's `byName` says (for Claude: with the Skill
     tool, by name, even if not in its listing yet), and when to renew, with the
     human's `ring_warn`/`ring_full`.
+  - **A consultant's line** (decision 1.201, the human, 2026-11-21): when the human decides
+    something with it that moves a task, a plan, a merge or another session's work, it sends the
+    orchestrator, by name, one line "The human decided X about Y", and acts no further than its
+    own area. The block knows a consultant from its `TeamInput` alone: a role (non-empty once
+    cleaned), no `parent`, and an orchestrator that is another session (`{ name }`). The name is
+    the orchestrator's at the time the facts are built, so a rename reaches the consultant as a
+    facts post like any other. A worker, an expert (a role under a parent), the orchestrator and a
+    consultant of a project with no orchestrator marked get no line. It is in the facts, which
+    both agents share, so a Codex consultant gets the same line; it is in Menkar's block only,
+    never in a project's own skills.
   - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`
     or `plugin/team/codex.md`. `package:check` requires each in the .deb.
   - **A name** in the facts is a custom title or the name Menkar started the session with; Claude's
