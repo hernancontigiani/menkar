@@ -17,5 +17,5 @@ export const descriptor: AgentDescriptor = {
       mode: null,
     },
   ],
-  versions: { validated: '2.1.329', floor: '2.1.267' },
+  versions: { validated: '2.1.330', floor: '2.1.267' },
 }

@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
-const PROBES = ['permission', 'add-dir', 'team-block', 'wake', 'prompt-hook']
+const PROBES = ['permission', 'add-dir', 'team-block', 'wake', 'prompt-hook', 'peer-turn']
 const failed = []
 for (const probe of PROBES) {
   console.log(`== ${probe}`)
