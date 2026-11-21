@@ -2780,3 +2780,7 @@ Deviations and what the plan did not anticipate:
 | 1.203 | **Focus in Your time's week** (the human, 2026-11-21, topic 90, variant B of task 182's mock-ups, `$MENKAR_FILES/menkar-t182-*`): one "Switches/h" column per day (consecutive human messages in the project going to a different session, per active hour), and a line under the table comparing the week with the one before (switches per hour, and the share of messages to the orchestrator; with no orchestrator, that part is left out). Computed when read, nothing stored | 2026-11-21 | this row (until built) |
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a and P1b merged into `main`** (P1: 8e1c136, 2026-11-21): Codex as a session and in the orchestration mode, its real checks passed. Next: **P2 (OpenCode)** on the branch `multi-agent`, merged into `main` at the end of each phase; then P3 (Cursor in the mode), P4 |
 | — | The next .deb | 0.1.0-387.gb95026af built 2026-11-19 (plan 45, the worker skill's PR rule), for the human to install. Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+
+## 2026-11-21 — the next .deb row, before it waited for plan 47
+
+| — | The next .deb | 0.1.0-473.g3ba688e9 built 2026-11-21 (main at 3ba688e, 1.202's focus fields; the human has 0-423), for the human to install. Before cutting the next one, `set` lists for the human what goes in and what is in flight |

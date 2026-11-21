@@ -231,7 +231,7 @@
 | 3 | 44 — `menkar usage now --json`, the burst in progress for the human's own break reminder (1.185) | Written (task 118), D1–D3 decided (topic 66). **Executing** (task 120), blocks 1–5 |
 | 4 | 45 — a forgotten away asked about (1.188): the orchestrator's prompt carries away, the amber strip asks on activity | To design (task 124) after the strip's mock-up |
 | 5 | 28 — going public at 1.0: GitHub CI, releases, the APT repository | Decided (topic 72) and rewritten to it; **blocks 1–4 built** (31d71fb, a7c7414): base-ref, DCO, version and notes checks, checks.yml, pr.yml and release.yml by hand only, the `.rpm`. Next: blocks 5–7 (Cloudsmith, contributing, the first release) when the human goes for 1.0 |
-| — | The next .deb | 0.1.0-473.g3ba688e9 built 2026-11-21 (main at 3ba688e, 1.202's focus fields; the human has 0-423), for the human to install. Before cutting the next one, `set` lists for the human what goes in and what is in flight |
+| — | The next .deb | **Waits for plan 47 to be built** (the human, 2026-11-21): no .deb before it. 0.1.0-473.g3ba688e9 (main at 3ba688e) is built, not installed; the human has 0-423. The next one carries 1.203, 1.204 (a) (history v5), electron 45.3.4 and plan 47. Before cutting it, `set` lists for the human what goes in and what is in flight |
 
 ## 4. Next plan number
 
