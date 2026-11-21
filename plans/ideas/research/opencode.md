@@ -533,6 +533,138 @@ connection, HTTP version, headers and body, between a TUI and `serve --stdio`; a
 59. **An MCP server added before its program existed** stayed `failed` ("Cannot find module …")
     after a second `PUT` of the same config; `POST /api/experimental/mcp/<server>/connect?location…`
     → 204 then `connected`.
+60. **`goal/get` on every switch:** a TUI started with `-s A` sent `POST /api/rpc/opencode.goal/get
+    {"input":{"sessionID":"A"}}` twice at start (with `GET …/A/terminal` twice); picker → B, → A
+    (shown before), → B again: each switch sent `GET …/<picked>/terminal` then one `goal/get` for
+    the picked session, re-visits included. In the subagent run, the child was only GET (`/session/
+    <child>`, `/permission`, `/form`): **no `goal/get` and no `terminal` for a session the pane does
+    not show**, child or tab.
+61. **`goal/get`'s answers:** a known session with no goal and an unknown id
+    (`ses_doesnotexist0`, even `notases`) both → `200 {"output":null}`, with or without
+    `?location…`; `{"input":{}}` → `400 {"_tag":"RpcError","type":"rpc.invalid_input","message":
+    "Missing key\n  at [\"sessionID\"]"}`. **The first call, ~7 s after the server printed its URL,
+    answered `400 {"_tag":"RpcError","type":"rpc.unavailable","message":"RPC is unavailable:
+    opencode.goal"}`**; a second, seconds later, `200`. The plugin behind it loads after the
+    server is up.
+
+**For the preparer, launcher, state and waker** (2026-11-21, asked by `menkar-t185`; three
+servers on one throwaway home — plain, with `permission {"menkar_*":"allow"}`, with a `skills`
+path — the stand-in API logging whole request bodies, a strace of a fresh server; all stopped by
+PID).
+
+62. **Create:** `POST /api/session {id,title,location,model}` writes the `session_v2` row at once
+    (read right after, before any prompt: `title`, `directory`, `model` `{"id","providerID"}`,
+    `agent` NULL). `model` must be an object `{"providerID","id"[, "variant"]}`; the string
+    `"stub/m1"` → `400 …"Expected Model.Ref | null\n  at [\"model\"]"`. A titled session kept its
+    title through every turn (also item 12; generation only when the title is NULL or the fallback,
+    item 52).
+63. **The first prompt posted before the TUI:** `POST …/prompt {text, delivery:"steer"}` right
+    after the create and the entry PUT, then `opencode --server <url> -s <id> <dir>` (no
+    `--prompt`) two seconds later: the TUI drew the user message and the busy footer of the running
+    turn, with its tab's spinner; the turn finished normally.
+64. **Resume** with `-s <id> <dir>`, `<dir>` a different folder: the TUI's footer, the database row
+    and the model's "Working directory" all stayed the session's own folder: **`<dir>` is ignored
+    for an existing session**.
+65. **Waking:** a queued post to an unknown id → `404 {"_tag":"SessionNotFoundError",…}` (no
+    session created); omitting `resume` runs the post (items 13, 63); `resume:false` only enqueues
+    (item 7).
+66. **The entry PUT during a running turn** → `204`; the change reached the model **inside the same
+    turn**, at the next step: a `<system-update>` user message after the tool result; still one
+    `session.execution.started`/`.succeeded` pair, no extra turn.
+67. **A turn opened by a queued post** (the session idle, Menkar's MCP mounted on its folder with
+    `codemode:false`, a `skills` path on the server): its **first** model request already listed
+    `menkar_ping` in `tools` and the skill in `<available_skills>`; the model's `skill` tool with
+    `{"id":"menkar-probe"}` returned `<skill_content name="menkar-probe"> # Skill: menkar-probe …
+    Base directory for this skill: …`. Nothing is deferred.
+68. **MCP per folder:** `environment` in the `PUT` config is applied **over** the server's env
+    (`MENKAR_AGENT=opencode` added, `XDG_CONFIG_HOME` replaced by the given value); otherwise the
+    child had the server's whole env (XDG_*, HOME, PATH, `OPENCODE_CONFIG_CONTENT`, the parent's
+    `MENKAR_*`), only the password missing (item 40), and its cwd was the folder. **The folder is
+    matched exactly**: `GET /api/mcp?location[directory]=<dir>/sub` → `[]`, and a session created in
+    `<dir>/sub` had no `menkar_*` tool ("No tool named \"menkar_ping\" is currently available").
+69. **What changes the model's request:** with no extra config and with
+    `permission {"menkar_*":"allow"}` the system text (8,736 characters) and the 13 tools were
+    byte-identical; a `skills` path added its skill to `<available_skills>` (8,876 characters) for
+    **every** session of that server. `PATCH /api/experimental/config` is "Update global
+    configuration… the highest-precedence global configuration document" (openapi): the user's
+    file, not a per-folder route. With no permission rule in the config, the shell tool ran
+    `touch b.txt` with no card.
+70. **Events of a subagent:** the child emits its own `session.created` (with `parentID`) and
+    `session.execution.started/succeeded`; **the parent's execution ended (`succeeded`) before the
+    child's**, and the parent started a new execution when the child finished. Form cards are
+    `form.created` / `form.replied` / `form.cancelled` (read, `schema/src/form.ts:173-175`).
+71. **Network of a fresh `serve --stdio`** through start, a create and one turn (strace of every
+    `connect`): only loopback — the stand-in API (47911) and probes of **127.0.0.1:1234, :8000 and
+    :11434** (local model servers such as LM Studio and Ollama), twice each. No DNS, no external
+    address, in this run.
+72. **Files written** by a create, an entry PUT and a queued post: only `opencode.db-wal` and
+    `log/opencode.log` changed. Over these runs OpenCode also created, under its own XDG folders:
+    `<data>/opencode/{snapshot/<project>,shell/<project>,repos,log}`, `<data>/opentui/tree-sitter`,
+    `<cache>/opencode/bin/opencode-pty`, `<state>/opencode/{prompt-history.jsonl,
+    latest/tui/tabs.json,locks,pty}` (the last two by the TUI), and `/tmp/opencode` (shared by every
+    home).
+
+**Usage, context, state flips and the terminal** (2026-11-21, asked by `menkar-t193` and
+`menkar-t190`; the stand-in now reports `prompt_tokens` 1,000 with `cached_tokens` 300 and
+`completion_tokens` 10, the model priced at 3 / 15 / 0.3 / 3.75 USD per million and limited to
+50,000 tokens of context; a TUI sampled every ~57 ms; all stopped by PID).
+
+73. **Correction to item 71: the server does reach the network.** The model catalog is fetched
+    from `https://models.opencode.ai` (read, `core/src/models-dev.ts`, `defaultSource`) and kept in
+    `opencode.db`'s **`kv` table** (keys `models-dev:v2:catalog`, 13 MB, and `…:meta`
+    `{"updatedAt","digest","etag"}`), refreshed when older than **5 minutes** and then every 5
+    minutes while the server runs (read, `models-dev.ts:562,678,703`). Measured: `updatedAt` moved
+    from …382292 to …682454 (300 s) on one running server, with a new `etag`. The strace of item 71
+    saw no external connection only because another server had refreshed the shared row less than
+    5 minutes before. `OPENCODE_DISABLE_MODELS_FETCH` turns it off (read, item 7 of §1.7's list);
+    the bundled snapshot is then used.
+74. **Tokens and cost per step:** each `assistant` row's `tokens.input` **excludes** the cached
+    part (`input` 700 = 1,000 − 300 `cache.read`), and `cost` = 700×3 + 10×15 + 300×0.3 per million
+    = 0.00234 exactly. An unpriced model gives `cost` 0. **An interrupted step**: `time.created`
+    and `time.completed`, `content: []`, `finish: "error"`, `error: {"type":"aborted","message":
+    "Step interrupted"}`, **no `cost` and no `tokens`**; the idle row says `interrupted`. **A
+    provider error (HTTP 500)**: OpenCode retried (`session.retry.scheduled`, data `{sessionID,
+    assistantMessageID, attempt, at, error:{type:"provider.internal",message,status:500,…}}`) until
+    interrupted; that step's row had no `cost`, `tokens` or `finish`.
+75. **Session totals:** `session_v2.cost` and `tokens_*` = the sum of the session's own `assistant`
+    rows **plus its `compaction` rows** (0.02574 + 0.00234 = 0.02808; input 7,700 + 700 = 8,400),
+    **not its children**: the subagent's own row held its cost (0.00468), the root's did not.
+76. **A compaction** (`POST …/compact`) is one execution with `session.compaction.started/delta/
+    ended`; its summary step is **not** an `assistant` row but the `compaction` row itself:
+    `{"metadata":{"keepID":"msg_…"},"time":{"created"},"status":"completed","reason":"manual",
+    "model","cost","tokens"}` (the summary text in `summary`), followed by an `idle`.
+77. **A subagent's root:** `user` "SUBAGENT go" → `assistant` (tool call `subagent`, "working in
+    the background") → `assistant` "tool done" → **`idle` `succeeded`** while the child still runs;
+    when the child ends, a **`synthetic`** row opens the root's next execution:
+    `{"metadata":{"source":"subagent","childID":"ses_…","agent":"General","state":"completed"},
+    "text":"<subagent sessionID=\"ses_…\" state=\"completed\" description=\"probe child\">\n…\n
+    </subagent>","description":"probe child"}`, then `assistant`, `idle`. A queued `user` row's
+    `time_created` is **when it was delivered** into the execution (13,029 ms after it was
+    enqueued), not when it was posted.
+78. **`GET /api/session/<id>/context`** answers `{"data":[…]}`: **the messages now in the model's
+    window** — after a compaction the `compaction` row (with `metadata.recent`) and what follows,
+    otherwise every row (`user`, `assistant`, `idle`, …) with its id — **not a number or a
+    percentage**. `{"data":[]}` for a session that never ran a turn; a session another server ran is
+    answered from the shared database; an unknown id → `404 SessionNotFoundError`. The TUI's reading
+    (read, `tui/src/util/session.ts:46-61`, `client/src/solid/usage.ts:8-22`): the last `assistant`
+    row **with `tokens`** after the last `compaction` row whose `status` is `completed`;
+    `input + output + reasoning + cache.read + cache.write` over the model's `limit.context`,
+    `Math.round(…*100)`; the limit comes from the catalog (item 73) or the user's config
+    `provider.<p>.models.<m>.limit.context` (m: 50,000 here, the footer read "1.0K (2%)" and
+    "$0.01").
+79. **The working signal through a turn:** a turn of four tool steps (8.2 s): the footer showed "esc
+    interrupt" in **every** sample from the first to the last (no gap ≥ 57 ms), and the server sent
+    one `execution.started` … `.succeeded` with `step.started/ended` inside. A compaction: one
+    execution, the footer busy throughout. **A subagent**: the root's footer went **idle for 836 ms**
+    (its execution `succeeded` at +2,220 ms, the child's ran until +3,026, the root restarted at
+    +3,031): one idle stretch per subagent, as long as the child runs. A queued post into an idle
+    session starts an execution at once; one queued during a turn joins it (items 13, 16).
+80. **The terminal (decision 1.205):** the TUI runs in the **alternate screen** (`tmux
+    #{alternate_on}` = 1). A line written to its pty by another process
+    (`printf '\r\n\033[1;33mMenkar\033[0m …\r\n' > /dev/pts/N`) was drawn at once and **was still
+    there after 3 s and after a whole turn**: the TUI repaints only what changes, so the line stays
+    until its cells are redrawn. A line printed before the TUI started was **hidden while it ran**
+    and visible again after it exited.
 
 ## 1. The five facts
 
