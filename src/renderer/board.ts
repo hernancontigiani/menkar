@@ -17,7 +17,6 @@ let panel: HTMLElement | undefined
 let divider: HTMLElement | undefined
 // A height dragged or picked here, shown until the saved one catches up.
 let pending: number | null = null
-let showAllWhenOpen = false
 let lastProject: string | undefined
 
 // A full card (decision 1.132): a title clamped to two lines, an assignee with its dot, the step bar
@@ -70,16 +69,6 @@ export function toggleBoard(): void {
   void act({ type: 'setBoard', open: !isOpen(shownProject(currentState())) })
 }
 
-// The sidebar's "See all (N) →" under Tasks.
-export function openBoardShowingAll(): void {
-  if (isOpen(shownProject(currentState()))) {
-    pick(showAllPixels())
-    return
-  }
-  showAllWhenOpen = true
-  void act({ type: 'setBoard', open: true })
-}
-
 function pick(height: number | null): void {
   pending = height
   sizeBoard()
@@ -95,7 +84,6 @@ export function renderBoard(s: WindowState): void {
   panel.classList.toggle('hidden', !open)
   divider.classList.toggle('hidden', !open)
   if (!open) {
-    showAllWhenOpen = false
     panel.querySelector('.board')?.replaceChildren()
     return
   }
@@ -119,10 +107,6 @@ export function renderBoard(s: WindowState): void {
     probe.append(el('div', { class: 'board-heading' }, 'x'), taskCard(PROBE_TASK))
   if (pending !== null && project?.board.height === pending) pending = null
   sizeBoard()
-  if (showAllWhenOpen) {
-    showAllWhenOpen = false
-    pick(showAllPixels())
-  }
 }
 
 const px = (value: string): number => Number.parseFloat(value) || 0

@@ -139,7 +139,7 @@ function sixDaysAgo(): { year: number; month: number; day: number } {
   return { year: back.getFullYear(), month: back.getMonth() + 1, day: back.getDate() }
 }
 
-test('decision 1.184: the window opens on Spend, 7 days; the left bar is 180 px; each section has its own period', async () => {
+test('decisions 1.184, 1.200: the window opens on Spend, Today; the left bar is 180 px; each section has its own period', async () => {
   for (const scheme of ['dark', 'light'] as const) {
     const launched = await launchApp({
       prepare: ({ root, home }) => {
@@ -153,15 +153,15 @@ test('decision 1.184: the window opens on Spend, 7 days; the left bar is 180 px;
       await expect(section(usage, 'time')).toHaveAttribute('aria-selected', 'false')
       await expect(usage.locator('[role="tab"]')).toHaveText(['Spend', 'Your time', 'Task times'])
       await expect(usage.locator('[data-key="usage-title"]')).toHaveText('Usage')
-      await expect(pressed(usage, 'period')).toHaveText('7 days')
+      await expect(pressed(usage, 'period')).toHaveText('Today')
       const side = await usage.locator('.settings-side').boundingBox()
       expect(side?.width).toBe(180)
       await shot(usage, `${SHOTS}/spend-${scheme}.png`)
 
       await section(usage, 'time').click()
       await expect(section(usage, 'time')).toHaveAttribute('aria-selected', 'true')
-      await expect(usage.locator('[data-toggles="period"] button')).toHaveText(['Day', 'Week'])
-      await expect(pressed(usage, 'period')).toHaveText('Week')
+      await expect(usage.locator('[data-toggles="period"] button')).toHaveText(['Today', 'Week'])
+      await expect(pressed(usage, 'period')).toHaveText('Today')
       await expect(usage.locator('[data-key="loading"]')).toHaveCount(0)
       await shot(usage, `${SHOTS}/time-${scheme}.png`)
 
@@ -175,7 +175,7 @@ test('decision 1.184: the window opens on Spend, 7 days; the left bar is 180 px;
         '7 days',
         '30 days',
       ])
-      await expect(pressed(usage, 'period')).toHaveText('7 days')
+      await expect(pressed(usage, 'period')).toHaveText('Today')
       await expect(usage.locator('[data-key="loading"]')).toHaveCount(0)
       await shot(usage, `${SHOTS}/tasks-${scheme}.png`)
       await usage.keyboard.press('ArrowUp')
@@ -287,9 +287,9 @@ test('decision 1.184: a chosen period is carried where the other section has it;
     await expect
       .poll(async () => (await lastAsk(launched.app, 'usage:flow'))?.request.period)
       .toBe('30d')
-    // → Your time has no 30 days: it keeps its own week
+    // → Your time has no 30 days: it keeps its own day, today
     await section(usage, 'time').click()
-    await expect(pressed(usage, 'period')).toHaveText('Week')
+    await expect(pressed(usage, 'period')).toHaveText('Today')
 
     // Spend Month (chosen) → Task times keeps its own 30 days → back to Spend: still Month
     await section(usage, 'spend').click()
@@ -305,7 +305,7 @@ test('decision 1.184: a chosen period is carried where the other section has it;
     await period('today').click()
     await expect(pressed(usage, 'period')).toHaveText('Today')
     await section(usage, 'time').click()
-    await expect(pressed(usage, 'period')).toHaveText('Day')
+    await expect(pressed(usage, 'period')).toHaveText('Today')
     await expect
       .poll(async () => (await lastAsk(launched.app, 'usage:activity'))?.request.which)
       .toEqual({ kind: 'day', day: localToday() })
@@ -318,7 +318,7 @@ test('decision 1.184: a chosen period is carried where the other section has it;
     await section(usage, 'spend').click()
     await expect(pressed(usage, 'period')).toHaveText('Today')
     await section(usage, 'time').click()
-    await expect(pressed(usage, 'period')).toHaveText('Day')
+    await expect(pressed(usage, 'period')).toHaveText('Today')
 
     // Your time Week (chosen, the current one) → Spend 7 days and Task times 7 days
     await period('week').click()
@@ -351,7 +351,7 @@ test('decision 1.131: a late answer to an older section is dropped; the star sho
     await hold(launched.app, 'usage:activity', 1500)
     await section(usage, 'time').click()
     await expect(star).toBeVisible()
-    await expect(pressed(usage, 'period')).toHaveText('Week')
+    await expect(pressed(usage, 'period')).toHaveText('Today')
     await expect(usage.locator('[data-key="all-projects"]')).toBeEnabled()
     await expect(star).toHaveCSS('opacity', '1')
     await shot(usage, `${SHOTS}/loading-dark.png`)

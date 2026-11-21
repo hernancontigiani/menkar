@@ -613,7 +613,7 @@ function stateFor(windowId: string): WindowState | undefined {
       orchestratorCollapsed: p.orchestratorOpen !== true,
       othersCollapsed: p.othersCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
-      board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
+      board: { open: p.boardClosed !== true, height: p.boardHeight ?? null },
     })),
     heldElsewhere,
     tabs: w.tabs.map(tabView),

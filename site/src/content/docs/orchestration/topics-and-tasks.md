@@ -22,9 +22,9 @@ hand. To raise one yourself, ask the orchestrator; any session of the project ca
 
 ## Choose the task that goes first
 
-Right-click a task, in the sidebar or on the Board, and choose :ui[work.star], or ask the
-orchestrator to do it. The items of a ★ task come first under :ui[board.topics], and when several
-sessions finish at once the orchestrator hears first from those on ★ tasks.
+Right-click a task on the Board and choose :ui[work.star], or ask the orchestrator to do it. The
+items of a ★ task come first under :ui[board.topics], and when several sessions finish at once the
+orchestrator hears first from those on ★ tasks.
 
 ## Follow a task through its states
 

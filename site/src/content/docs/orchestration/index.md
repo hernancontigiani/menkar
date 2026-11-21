@@ -7,8 +7,8 @@ sidebar:
 
 In the orchestration mode you talk to one session, the orchestrator. It hands each piece of work to
 another session as a task, reads the reports, and brings you only what needs your answer: the
-items under :ui[board.topics]. The sidebar shows those items, how far each task is, and who does
-it.
+items under :ui[board.topics]. The sidebar shows those items and who does each task; the Board,
+above the tabs, shows how far each task is.
 
 ![](shot:work-view-overview)
 

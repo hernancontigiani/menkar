@@ -24,20 +24,12 @@ la pestaña del orquestador.
 
 ## Seguí cada tarea
 
-Debajo de los pendientes están las tareas abiertas, primero la de la ★. Cada fila muestra el
-título, la sesión que la tiene, una barra por paso y su última nota; una tarea que espera algo
-tiene un borde rojo y dice qué espera.
-
-![](shot:task-steps)
-
-- Hacé clic en una tarea para ver su sesión.
-- Hacé clic derecho para :ui[work.star] o :ui[work.unstar].
-- Si hay más de tres tareas, hacé clic en el enlace de debajo para abrir
-  [el Tablero](/menkar/es/orchestration/board/) con todas.
+Seguí las tareas en [el Tablero](/menkar/es/orchestration/board/), abierto encima de las pestañas
+mientras el modo está activado.
 
 ## Encontrá una sesión del equipo
 
-Debajo de las tareas está el equipo:
+Debajo de los pendientes está el equipo:
 
 - el orquestador, con las sesiones a las que les da trabajo debajo. Su grupo empieza plegado;
   plegado, su fila dice cuántas tiene debajo y muestra el estado más urgente entre ellas, en rojo

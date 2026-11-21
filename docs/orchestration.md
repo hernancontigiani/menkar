@@ -54,7 +54,7 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
     name of one of its sessions, or an outside kind: `build`, `ci`, `release`, `pr-approval`,
     `pr-merge` or `other`. Free text goes only in `waiting_note`, one line beside it. Anything else
     is refused with a reply that names the accepted forms and says a wait on the human goes through
-    `ask`, so it becomes a topic and shows in Awaiting you. A card or a task row shows the kind's
+    `ask`, so it becomes a topic and shows in Awaiting you. A task card shows the kind's
     label and the note ("waiting on the build nightly"), as `review_wait` does. A value an older
     file holds is read as it is.
   - **Whom a task in To review waits on** (decision 1.164, the human, 2026-11-16):
@@ -153,23 +153,19 @@ the top:
 
 - **Fixed**, `#topics-section` (`modeTop`, `src/renderer/work.ts`): the count tiles, then Awaiting
   you; it stays in view however far the list below is scrolled.
-- **Scrolling**, `#session-list`: Tasks, the team, the "N hidden" foot, Done today.
+- **Scrolling**, `#session-list`: the team, the "N hidden" foot, Done today.
+
+**No Tasks list** (decision 1.198, the human, 2026-11-21): the tasks are on the Board, open by
+default; in the sidebar a task shows only on its session's row (below).
 
 1. **Count tiles**: "for you" (the open topics and the PRs waiting on the human, the rows of
    Awaiting you), tasks in progress ("working") and tasks waiting, counted by `workCounts`
    (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
    orchestrator (below).
 2. **Awaiting you**: the Topics section below.
-3. **Tasks · N**: the open tasks, ★ first, then by number. A row: ★, the title, `3/5` (or the state
-   while it has no steps), the assignee, one segment per step (done, current, to come), and the
-   note — "waiting on ‹what›" first while waiting, with a red edge. A click shows the assignee's
-   tab if it has one, in the peek if it runs in the background, starting nothing
-   (`selectSessionTab`); the right-click menu sets or removes the ★. **At most 3** (`TASKS_SHOWN`,
-   `tasksFolded` in `src/core/orchestration/rows.ts`), then "See all (N) →", which opens the Board
-   on Show all.
-4. **The team**, below: the orchestrator and the sessions under it, Consultants, Others.
-5. **"N hidden"**, the foot that shows the hidden rows, after Others (decision 1.176, D4).
-6. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
+3. **The team**, below: the orchestrator and the sessions under it, Consultants, Others.
+4. **"N hidden"**, the foot that shows the hidden rows, after Others (decision 1.176, D4).
+5. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
    by default**, its unfolding saved (`done_today_open`).
 
 **Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) ends,
@@ -244,7 +240,7 @@ code). **After the topics, a row for each task in To review waiting on `pr-appro
 (decision 1.197, the human, 2026-11-20; `awaitingRows` in `src/core/orchestration/rows.ts`), in the
 tasks' order: ★, the PR its `review_wait` note names ("PR #436 · approve", "PR #436 · merge";
 `prNamed` reads `#436`, `436`, `PR #436` or a pull request's URL, any other note shown as written)
-and the assignee; a click selects the assignee, as a task row does. The heading's N counts both
+and the assignee; a click selects the assignee, as a task card does. The heading's N counts both
 kinds, as the "for you" tile does. A topic row: ★ when its task has the ★, the
 number, the title, a green dot while it is discussing (the current topic, decision 1.169, the
 human, 2026-11-16) and a red mark when blocking; a blocking topic being discussed shows both. A click unfolds its context, who raised it and its
@@ -270,6 +266,10 @@ never over the sidebar. The header's **Board** button, right of the Orchestratio
 only while the mode is on, toggles it, light blue (`aria-pressed`) while it is open; the × in its
 bar closes it the same way.
 
+- **Open by default** (decision 1.198, the human, 2026-11-21): when the mode is turned on and
+  whenever a project in the mode is shown, unless the human closed it in that project, which is
+  saved per project.
+
 - **Its height.** By default, two cards per column: the bar, a heading and two cards with their
   gaps (`defaultBoardHeight`, `src/core/orchestration/board.ts`), measured from the real heading
   and a hidden probe card at a real column's width, never a share of the window. The probe is a
@@ -283,20 +283,21 @@ bar closes it the same way.
   pane only. Its height is capped so the pane keeps six rows under it with the drawer shown
   (`boardCap`), and the drawer's default height is a share of the tab's area as if the Board were
   closed, so opening it never changes the drawer.
-- **Saved per project** in `projects.json` (`board_open`, `board_height`; `docs/projects.md`):
-  it reopens as it was after a restart. The last height is the one dragged or picked, Show all
+- **Saved per project** in `projects.json` (`board_open: false` once closed, `board_height`;
+  `docs/projects.md`): it reopens as it was after a restart. The last height is the one dragged or picked, Show all
   included as the pixels it came to; Default size removes it.
-- Tasks' "See all (N) →" in the sidebar opens it on Show all. **Switching the mode off closes it**
-  (`setMode` clears `board_open`), so nothing of the mode shows with it off.
+- **Switching the mode off hides it** (it shows only while the mode is on) and forgets that it was
+  closed (`setMode` clears `board_open`), so turning the mode on again opens it.
 - A Board tab an earlier version saved in the layout (`{ board: true }`) is dropped on read.
 
 Columns (`boardElement`, `src/renderer/work.ts`): **Topics** (the open ones, in their order) ·
 **Queued** · **In progress** · **Waiting** · **To review** · **Done**: today's closed tasks, newest
 first, and the older ones folded under "Done before · N" (per window, not saved); a dropped task is
 struck through. A task card: its number, ★, title, the assignee with its state dot, `3/5` and the
-step segments, the note. The note line starts with what the task waits on, as in the sidebar's
-task rows: a waiting task's `waiting_on`, and a task in To review's `review_wait` unless it waits on
-the orchestrator ("waiting on PR approval #436 · PR open", decision 1.164). A click selects the
+step segments, the note. The note line starts with what the task waits on, "waiting on ‹what›",
+with a red edge while waiting: a waiting task's `waiting_on`, and a task in To review's
+`review_wait` unless it waits on the orchestrator ("waiting on PR approval #436 · PR open",
+decision 1.164). A click selects the
 assignee's tab; the right-click sets the ★; nothing else is edited there.
 A card's title, topic or task, is clamped to two lines with an ellipsis and whole in its tooltip,
 so no card outgrows the probe (decision 1.145, the human, 2026-11-14).

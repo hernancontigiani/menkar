@@ -142,7 +142,7 @@ export function parseProjects(value: unknown): Projects {
       ...(orchestrator_open === true ? { orchestratorOpen: true as const } : {}),
       ...(others_collapsed === true ? { othersCollapsed: true as const } : {}),
       ...(done_today_open === true ? { doneTodayOpen: true as const } : {}),
-      ...(board_open === true ? { boardOpen: true as const } : {}),
+      ...(board_open === false ? { boardClosed: true as const } : {}),
       ...(isBoardHeight(board_height) ? { boardHeight: Math.round(board_height) } : {}),
     }
   })
@@ -161,8 +161,8 @@ export function parseProjects(value: unknown): Projects {
 // Key order: unknown top-level keys, version, current, projects, windows; in a project its unknown
 // keys, then id, name, members, groups, and hidden, the files keys, earlier, parents, orchestration
 // and topics_collapsed, consultants_collapsed, orchestrator_open, others_collapsed,
-// done_today_open, board_open and board_height when any. A group writes name, color, members,
-// then collapsed only when set; a group's unknown keys are not kept.
+// done_today_open, board_open (false only) and board_height when any. A group writes name, color,
+// members, then collapsed only when set; a group's unknown keys are not kept.
 export function serializeProjects(
   state: Projects,
   windows: readonly SavedWindow[] = [],
@@ -202,7 +202,7 @@ function orchestrationKeys(p: Project): Record<string, unknown> {
     ...(p.orchestratorOpen ? { orchestrator_open: true } : {}),
     ...(p.othersCollapsed ? { others_collapsed: true } : {}),
     ...(p.doneTodayOpen ? { done_today_open: true } : {}),
-    ...(p.boardOpen ? { board_open: true } : {}),
+    ...(p.boardClosed ? { board_open: false } : {}),
     ...(p.boardHeight !== undefined ? { board_height: p.boardHeight } : {}),
   }
 }

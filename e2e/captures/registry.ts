@@ -27,7 +27,6 @@ export const CAPTURES = [
   { slug: 'hero-orchestration', scene: 'team' },
   { slug: 'work-view-awaiting', scene: 'team' },
   { slug: 'topic-discussing', scene: 'team' },
-  { slug: 'task-steps', scene: 'team' },
   { slug: 'work-view-overview', scene: 'team' },
   { slug: 'board-default', scene: 'board' },
   { slug: 'task-to-review', scene: 'board' },

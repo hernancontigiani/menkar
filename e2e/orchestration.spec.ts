@@ -530,8 +530,6 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await expect
       .poll(() => listed(page))
       .toEqual([
-        'Tasks · 1',
-        '★Orders schemaqueuedfabric',
         'orchestrator',
         '  login worker',
         '1 earlier',
@@ -1342,9 +1340,6 @@ test('a parked worker: "Parked · 1" under the orchestrator, folded; unfolded, t
     await expect
       .poll(() => listed(page))
       .toEqual([
-        'Tasks · 2',
-        '★Orders schemaqueuedfabric',
-        'Login fix3/3old workerwaiting on the PR review · PR open',
         'orchestrator',
         '  login worker',
         'Parked · 1',

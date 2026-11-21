@@ -100,7 +100,7 @@ export const es: Record<keyof typeof en, string> = {
     '# Versión 2.4\n\n- Exportar a CSV\n- Un vencimiento del login más largo\n- Textos de bienvenida nuevos\n',
 
   'alt:hero-orchestration':
-    'Menkar con el equipo de App Atlas: la terminal del orquestador a la derecha y, en la barra lateral, lo que está pendiente tuyo, las tareas con sus pasos y las sesiones.',
+    'Menkar con el equipo de App Atlas: el Tablero con las tareas y sus pasos encima de la terminal del orquestador y, en la barra lateral, lo que está pendiente tuyo y las sesiones.',
   'alt:board-default':
     'El Tablero abierto bajo el encabezado: Pendientes tuyos, En cola, En curso, Esperando, Para revisar y Hecho, una columna cada una, con las tareas como tarjetas.',
   'alt:first-time-card':
@@ -109,10 +109,8 @@ export const es: Record<keyof typeof en, string> = {
     'Lo alto de la barra lateral: cuántos pendientes tuyos, en curso y esperando hay, y los dos pendientes tuyos.',
   'alt:topic-discussing':
     'Un pendiente tuyo desplegado en la barra lateral: su contexto, quién lo planteó, que se está discutiendo y que bloquea una tarea.',
-  'alt:task-steps':
-    'Las tareas de la barra lateral, cada una con su worker, una barra por paso y la última nota; primero la tarea con ★.',
   'alt:work-view-overview':
-    'Toda la barra lateral de un proyecto en el modo de orquestación: los pendientes tuyos, las tareas, el orquestador, los consultores y lo hecho hoy.',
+    'Toda la barra lateral de un proyecto en el modo de orquestación: los pendientes tuyos, el orquestador, los consultores y lo hecho hoy.',
   'alt:task-to-review':
     'La columna Para revisar del Tablero: una tarea lista para revisar, esperando al humano.',
   'alt:background-workers':

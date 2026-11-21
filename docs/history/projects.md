@@ -129,3 +129,11 @@ keeps how they are built and why.
 > Left on 2026-11-18: `orchestrator_open` replaces `orchestrator_collapsed`, `team_view` retired; a tab's `place` saved (decisions 1.176, 1.177; plan 41).
   (joined panes) and file tabs (`tabs`); a Board tab an earlier version saved (`{ board: true }`)
   while it is a member of that tab's project, and at most two per tab. A file tab is kept only if
+
+## The orchestration mode's marks (decisions 1.77, 1.78, 1.83, 1.86, 2026-11-12)
+
+> Left on 2026-11-21: the Board is open by default; board_open is written only as false (decision 1.198, task 175).
+- **The Board panel** (decision 1.126, 2026-11-14; `setBoard`): `board_open` while it is open,
+  written only while true and cleared when the mode goes off, and `board_height`, its last height
+  in pixels, written only once dragged or picked (Default size removes it). Read leniently: a
+  height that is not a positive number is dropped alone.

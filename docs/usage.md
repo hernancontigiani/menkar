@@ -102,15 +102,17 @@ sections.
   section, if the section left shows a period picked there on this visit, or carried into it, and
   the new one has that span, the new one takes it; otherwise it keeps its own and carries nothing on
   until a period is picked in it. A step of the month, the day or the week is a pick. So Spend's
-  30 days opens Task times on 30 days, while Your time keeps the week it showed; Spend's Today, or
-  Your time on today's day, opens Task times on Today, and Task times' Today opens Spend on Today and
+  30 days opens Task times on 30 days, while Your time keeps the day or week it showed; Spend's
+  Today, or Your time on today's day, opens Task times on Today, and Task times' Today opens Spend on Today and
   Your time on today's day.
-- **Inside Your time**: Day → Week shows the week holding the day shown; Week → Day shows today on
-  the current week, else the week's last day. Weeks step by seven days on a grid ending today. The
-  arrows stop at today and at the history's first day.
+- **Inside Your time**: the Day toggle reads Today while the day it shows (or, from a week, would
+  open) is today, and Day otherwise (decision 1.200). Day → Week shows the week holding the day
+  shown; Week → Day shows today on the current week, else the week's last day. Weeks step by seven
+  days on a grid ending today. The arrows stop at today and at the history's first day.
 - **The periods live in the page's memory for the window's life**, as Totals' expanded rows do: not
   in `localStorage` and not in `state.json`. A remembered stepped-back day would reopen stale, a
-  window's scope depends on its opener, and the window always opens on Spend, 7 days.
+  window's scope depends on its opener, and the window always opens on today: Spend's Today, Your
+  time on today's day, Task times' Today (decision 1.200).
 
 Spend's figures: the Totals are `buildReport`, the bars `buildSeries` (folded by category while classification
 is on), both from one reading of the statusline logs per request (`buildUsage`), the chart's

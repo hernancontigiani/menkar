@@ -54,7 +54,7 @@ export function projectsSnapshot(): ProjectsSnapshot {
       orchestratorCollapsed: p.orchestratorOpen !== true,
       othersCollapsed: p.othersCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
-      board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
+      board: { open: p.boardClosed !== true, height: p.boardHeight ?? null },
     })),
     notices,
   }

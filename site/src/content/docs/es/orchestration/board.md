@@ -1,14 +1,16 @@
 ---
 title: Mirá todas las tareas a la vez
-description: Abrí el Tablero para ver cada pendiente y cada tarea del proyecto en columnas.
+description: Usá el Tablero para ver cada pendiente y cada tarea del proyecto en columnas.
 sidebar:
   order: 5
 ---
 
-## Abrí el Tablero
+## Abrí o cerrá el Tablero
 
-Hacé clic en :ui[board.button] en el encabezado, junto a :ui[orch.switch]. Se abre debajo del
-encabezado, encima de las pestañas, y el mismo botón lo cierra.
+El Tablero está abierto mientras el modo de orquestación está activado, debajo del encabezado y
+encima de las pestañas. Hacé clic en :ui[board.button] en el encabezado, junto a :ui[orch.switch],
+para cerrarlo o volver a abrirlo. Menkar recuerda por proyecto que lo cerraste, hasta que desactivás
+el modo.
 
 ![](shot:board-default)
 
@@ -26,5 +28,5 @@ Todo lo demás se cambia a través del orquestador.
 ## Cambiá el tamaño del Tablero
 
 El Tablero se abre con dos tarjetas de alto. Arrastrá su borde de abajo, o elegí
-:ui[board.showAll] o :ui[board.defaultSize] en su barra. Después de reiniciar, queda abierto o
-cerrado como lo dejaste, y con la misma altura.
+:ui[board.showAll] o :ui[board.defaultSize] en su barra. Después de reiniciar, queda con la misma
+altura.

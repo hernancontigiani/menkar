@@ -1,10 +1,9 @@
 import { workCounts } from '../core/orchestration/counts'
-import { tasksFolded } from '../core/orchestration/rows'
 import { OUTSIDE_WAITS, type OutsideWait, type TaskState } from '../core/orchestration/taskState'
 import type { ProjectInfo } from '../core/projects/info'
 import type { DoneView, TaskView, WindowState } from '../shared/workspace'
 import { act, sessionState, stateDot } from './app'
-import { openBoardShowingAll, toggleBoard } from './board'
+import { toggleBoard } from './board'
 import { el } from './dom'
 import { t } from './i18n'
 import { topicsSection } from './orchestration'
@@ -50,23 +49,6 @@ function tile(n: number, label: string, kind: string): HTMLElement {
     el('span', { class: 'tile-n' }, String(n)),
     el('span', { class: 'tile-label dim' }, label),
   )
-}
-
-function heading(text: string): HTMLElement {
-  return el('div', { class: 'work-heading dim' }, text)
-}
-
-export function tasksSection(open: readonly TaskView[]): HTMLElement[] {
-  const head = heading(t('work.tasks', { n: open.length }))
-  if (open.length === 0) return [head, el('div', { class: 'work-empty dim' }, t('work.noTasks'))]
-  const { rows, more } = tasksFolded(open)
-  const nodes = rows.map(taskRow)
-  if (more > 0) {
-    const all = el('button', { class: 'see-all' }, t('work.seeAll', { n: open.length }))
-    all.addEventListener('click', () => openBoardShowingAll())
-    nodes.push(all)
-  }
-  return [head, ...nodes]
 }
 
 // A worker rarely reports its last step before the task is closed, so a done task is shown
@@ -151,40 +133,6 @@ export function waitsOn(task: TaskView): string {
           ? t('task.waitsOnPrMerge')
           : ''
   return label ? [label, wait?.note].filter(Boolean).join(' ') : ''
-}
-
-function taskRow(task: TaskView): HTMLElement {
-  const on = waitsOn(task)
-  const note = on ? t('work.waitingOn', { on }) : ''
-  const node = el(
-    'button',
-    {
-      class: `task-row${task.state === 'waiting' ? ' waiting' : ''}`,
-      'data-task': String(task.number),
-      title: task.title,
-    },
-    el(
-      'div',
-      { class: 'task-line' },
-      star(task),
-      el('span', { class: 'task-title' }, task.title),
-      el('span', { class: 'task-progress dim' }, progressText(task)),
-    ),
-    el(
-      'div',
-      { class: 'task-line dim' },
-      el('span', { class: 'task-assignee' }, assigneeText(task)),
-      task.steps.length > 0 ? stepSegments(task) : null,
-    ),
-    task.note || note
-      ? el('div', { class: 'task-note dim' }, [note, task.note].filter(Boolean).join(' · '))
-      : null,
-  )
-  node.addEventListener('click', () => {
-    if (task.assignee !== null) void act({ type: 'selectSessionTab', session: task.assignee })
-  })
-  taskMenu(node, task)
-  return node
 }
 
 function foldHeading(

@@ -178,15 +178,6 @@ export function topicsFolded<T>(
   return { rows: shown.slice(0, TOPICS_SHOWN), more: shown.length - TOPICS_SHOWN }
 }
 
-export const TASKS_SHOWN = 3
-
-export function tasksFolded<T>(open: readonly T[]): {
-  readonly rows: readonly T[]
-  readonly more: number
-} {
-  return { rows: open.slice(0, TASKS_SHOWN), more: Math.max(0, open.length - TASKS_SHOWN) }
-}
-
 export type RowWeight = 'pinned' | 'background' | 'peek' | 'none'
 
 // A worker's name says where its tab is; `null` leaves the row as it was drawn before, which is

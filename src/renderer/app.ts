@@ -62,15 +62,7 @@ import {
   toast,
   unsavedQuestion,
 } from './ui'
-import {
-  boardButton,
-  doneSection,
-  modeTop,
-  syncBoardButton,
-  tasksSection,
-  teamTaskLine,
-  waitsOn,
-} from './work'
+import { boardButton, doneSection, modeTop, syncBoardButton, teamTaskLine, waitsOn } from './work'
 
 let state: WindowState | undefined
 // Per tab: the pane that had the focus last, and whether it is zoomed (neither is saved).
@@ -601,7 +593,6 @@ function renderSessionList(s: WindowState, project: ProjectInfo | undefined): vo
   )
   if (project.orchestration.on)
     children.push(
-      ...tasksSection(s.tasks.open),
       ...modeList(project, {
         byId,
         listed: known.filter(listed),

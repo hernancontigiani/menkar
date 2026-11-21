@@ -118,8 +118,11 @@ async function openTaskTimes(app: ElectronApplication, page: Page): Promise<Page
     ),
   ])
   await usage.waitForLoadState('domcontentloaded')
+  // The window opens on Today; Spend's 7 days, picked, carries to Task times, where the seed lies
+  await usage.locator('[data-toggles="period"] [data-value="7d"]').click()
   await expect(usage.locator('.usage-row.project').first()).toBeVisible()
   await usage.locator('[data-section="tasks"][role="tab"]').click()
+  await expect(usage.locator('[data-toggles="period"] [aria-pressed="true"]')).toHaveText('7 days')
   await expect(usage.locator('[data-key="flow-summary"]')).toBeVisible()
   return usage
 }

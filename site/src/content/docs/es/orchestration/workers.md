@@ -18,7 +18,7 @@ dicen qué hace cada uno.
 
 ## Mirá un worker
 
-Hacé clic en la fila de un worker, en su tarea o en su tarjeta del Tablero. Se abre en la pestaña
+Hacé clic en la fila de un worker o en la tarjeta de su tarea en el Tablero. Se abre en la pestaña
 de vistazo, la última de la fila, con su nombre en cursiva. Al hacer clic en otro worker, lo
 reemplaza ahí.
 

@@ -2,13 +2,7 @@
 // first, then "Consultants" (decision 1.107), then "Others", one flat list with no group headings (decision 1.183). A child sits under its
 // parent wherever the parent is; children without a tab fold into one "N earlier" row.
 import { describe, expect, test } from 'vitest'
-import {
-  awaitingRows,
-  modeRows,
-  prNamed,
-  rowWeight,
-  tasksFolded,
-} from '../../../src/core/orchestration/rows'
+import { awaitingRows, modeRows, prNamed, rowWeight } from '../../../src/core/orchestration/rows'
 import type { ProjectInfo } from '../../../src/core/projects/info'
 
 const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
@@ -245,20 +239,6 @@ describe('folding the Team view', () => {
       'E',
       'heading others collapsed',
     ])
-  })
-})
-
-describe('the tasks in the single view', () => {
-  // Decision 1.177: at most 3 tasks, the rest behind "See all (N) →".
-  test.each([
-    [8, 3, 5],
-    [3, 3, 0],
-    [0, 0, 0],
-  ])('%i open → %i rows, %i more', (open, rows, more) => {
-    const tasks = Array.from({ length: open }, (_, i) => i + 1)
-    const folded = tasksFolded(tasks)
-    expect(folded.rows).toEqual(tasks.slice(0, rows))
-    expect(folded.more).toBe(more)
   })
 })
 

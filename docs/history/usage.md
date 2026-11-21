@@ -157,3 +157,13 @@ project and number; the types the page receives are in `nodes.ts`.
 - **Up to an hour late outside the Usage window**: the rows reach the history after the next
   pass, so `menkar usage` and its export, which import only the batches a pass set aside, lag the
   live journal. Your time and Task times import it before each answer.
+
+## The Usage window
+
+> Replaced 2026-11-21 (task 172, decision 1.200): the window opens on today in each section; Your time's Day toggle reads Today on today.
+  30 days opens Task times on 30 days, while Your time keeps the week it showed; Spend's Today, or
+  Your time on today's day, opens Task times on Today, and Task times' Today opens Spend on Today and
+- **Inside Your time**: Day → Week shows the week holding the day shown; Week → Day shows today on
+  the current week, else the week's last day. Weeks step by seven days on a grid ending today. The
+  arrows stop at today and at the history's first day.
+  window's scope depends on its opener, and the window always opens on Spend, 7 days.

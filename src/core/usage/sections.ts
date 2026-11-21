@@ -41,9 +41,9 @@ export function weekOf(day: Day, today: Day): Day {
 export function initialSections(today: Day): Sections {
   return {
     shown: 'spend',
-    spend: { kind: '7d' },
-    time: { kind: 'week', first: currentWeek(today) },
-    tasks: '7d',
+    spend: { kind: 'today' },
+    time: { kind: 'day', day: today },
+    tasks: 'today',
     chosen: false,
   }
 }
@@ -90,6 +90,11 @@ export function timeToggle(p: TimePeriod, kind: TimePeriod['kind'], today: Day):
   if (p.kind === kind) return p
   if (p.kind === 'day') return { kind: 'week', first: weekOf(p.day, today) }
   return { kind: 'day', day: addDays(p.first, 6) }
+}
+
+// The Day toggle says Today while the day it shows, or would open from a week, is today.
+export function dayToggleIsToday(p: TimePeriod, today: Day): boolean {
+  return sameDay(p.kind === 'day' ? p.day : addDays(p.first, 6), today)
 }
 
 export function stepTime(p: TimePeriod, by: -1 | 1): TimePeriod {
