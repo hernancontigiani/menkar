@@ -19,6 +19,10 @@ what neither says: why each piece, and what was rejected.
   never at the Markdown documents or the site's pages.
 - **Vitest** for `src/core/` and main-side logic. `tests/setup.ts` points `HOME` and the XDG
   directories at a temporary directory before any test runs.
+- **Node `>=22.15.0`** (`package.json`'s `engines`): Codex's compressed rollouts are read with
+  zlib's zstd stream (`createZstdDecompress`), which Node has from 22.15.0 on. The app itself runs
+  on Electron's Node (24 with Electron 45); the floor is for Vitest and the scripts, which run on
+  the developer's Node.
 - **Playwright's `_electron.launch`** on the built app, under `xvfb-run -a`, with `forbidOnly`, no
   retries and a trace only on a retry. `e2e/app.ts` launches with a temporary `HOME` and XDG set,
   on its worker's own X server (below).
@@ -68,6 +72,11 @@ what neither says: why each piece, and what was rejected.
 - **node-pty is rebuilt for Electron** by `postinstall` (`@electron/rebuild`): the binary npm
   builds is for Node's ABI and does not load in Electron. Nothing under Vitest loads node-pty.
 - **`npm install` may not fetch Electron's binary**; `node node_modules/electron/install.js` does.
+- **A runtime dependency ships in every installer, so it is pinned exactly.** `smol-toml` (BSD-3-Clause, no dependencies of its own) parses the user's Codex
+  `config.toml`, read only: Menkar's `-c notify` replaces the user's own `notify` for its sessions,
+  so the user's value is read and chained, and a wrong parse would chain a wrong command or drop
+  their own instructions silently. A file it cannot parse means nothing is chained, never a
+  refused start.
 
 ## The checks in `npm run ci`
 

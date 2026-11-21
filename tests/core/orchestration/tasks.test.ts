@@ -26,6 +26,7 @@ import {
   type Tasks,
   tasksOf,
   taskTool,
+  unassign,
 } from '../../../src/core/orchestration/tasks'
 import { tasksPath, topicsPath } from '../../../src/core/paths'
 
@@ -119,6 +120,16 @@ describe('tasks', () => {
     expect(tasksOf(followed, 'p1').map((x) => x.assignee)).toEqual(['Y', 'Z'])
     expect(tasksOf(followed, 'p2').map((x) => x.assignee)).toEqual(['Y'])
     expect(followTasks(t, 'nobody', 'Y')).toBe(t)
+  })
+
+  test('a session gone for good leaves its tasks unassigned, in every project, their state kept', () => {
+    let t = add(add(emptyTasks(), 'one', 'pending:a'), 'two', 'Z')
+    t = add(t, 'three', 'pending:a', false, 'p2')
+    const left = unassign(t, (id) => id.startsWith('pending:'))
+    expect(tasksOf(left, 'p1').map((x) => x.assignee)).toEqual([undefined, 'Z'])
+    expect(tasksOf(left, 'p1')[0]).not.toHaveProperty('assignee')
+    expect(tasksOf(left, 'p2').map((x) => x.state)).toEqual(tasksOf(t, 'p2').map((x) => x.state))
+    expect(unassign(t, () => false)).toBe(t)
   })
 
   test('on a ★ task: only while its current task has the ★', () => {

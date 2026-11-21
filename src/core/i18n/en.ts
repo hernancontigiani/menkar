@@ -24,6 +24,11 @@ export const en = {
   'layout.sharesTab': 'It shares a tab with another session there',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
+  'agent.cursorOrchestrates':
+    'Cursor can orchestrate, with limits: waking it when idle restarts it, and it asks before each tool you have not allowed.',
+  'agent.cursorWorks':
+    '“{name}” is a Cursor session: it can work for the orchestrator, with limits — waking it when idle restarts it, and it asks before each tool you have not allowed.',
+  'agent.codex': 'Codex',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'warning: project dir {cwd} no longer exists, starting in HOME',
   'drawer.hide': 'Hide the shell (Ctrl+`)',
@@ -144,8 +149,10 @@ export const en = {
   'orch.cardWhat':
     'You talk to one session, the orchestrator; it hands the work to the others and keeps the topics you must decide.',
   'orch.cardOrchestrator':
-    'The orchestrator is an ordinary Claude session that loads Menkar’s orchestrator skill.',
+    'The orchestrator is an ordinary session that loads Menkar’s orchestrator skill.',
   'orch.cardWho': 'Who orchestrates?',
+  'orch.cardAgent': 'Agent',
+  'orch.cardAgentNoTools': '{agent} sessions can’t use Menkar’s tools yet',
   'orch.cardNew': 'A new session',
   'orch.cardGuide': 'Open the guide',
   'orch.cardCopy': 'Copy a prompt for another session',
@@ -156,6 +163,8 @@ export const en = {
     'Read {path} — Menkar’s guide to its orchestration mode — and help me set it up in this project.',
   'orch.firstPrompt':
     "Load `menkar:orchestrator` with the Skill tool, by that name, even if it is not in your skill listing yet. You are the orchestrator of the project {name}. Its orchestration is new: read Menkar's guide at {guide} first, then help me configure it.",
+  'orch.firstPromptByFile':
+    "Load `menkar:orchestrator` by reading its SKILL.md at {skill}, whole. You are the orchestrator of the project {name}. Its orchestration is new: read Menkar's guide at {guide} first, then help me configure it.",
   'header.usageTooltip': 'Usage: time, tokens and cost',
   'menu.newWindow': 'New window',
   'menu.newSession': 'New session',

@@ -2,6 +2,8 @@ import { type FSWatcher, mkdirSync, watch } from 'node:fs'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
+import type { AgentId } from '../core/agents/ids'
+import { parseTurnEnd } from '../core/agents/shared/turn-end'
 import { now } from '../core/clock'
 import {
   type ControlAnswer,
@@ -12,8 +14,10 @@ import {
 } from '../core/control/files'
 import { sweepPrompts, sweepTeamFiles } from '../core/control/prompt'
 import { RequestQueue } from '../core/control/requests'
+import { toolsFile } from '../core/control/shapes'
 import { log } from '../core/log'
 import { pluginFolder } from '../core/paths'
+import { mainKitOf } from './agents/registry'
 
 // Main's side of Menkar's MCP server: it says Menkar runs, answers the request files,
 // publishes each project's sessions, and hears each pane's turn end. What a tool does is the
@@ -21,7 +25,7 @@ import { pluginFolder } from '../core/paths'
 
 export interface ControlHandlers {
   handle(request: ControlRequest): Promise<ControlAnswer>
-  // A pane's agent ended a turn, under this session id (the Stop hook's record).
+  // A pane's agent ended a turn, under this session id (its agent's turn-end record).
   turnEnded(pane: string, sessionId: string): void
   // The inbox folder is new and empty: an inbox file written from now on stays.
   ready(): void
@@ -72,19 +76,19 @@ export async function startControl(handlers: ControlHandlers): Promise<void> {
     for (const name of await readdir(paths.turnEnds)) {
       if (!name.endsWith('.json')) continue
       const pane = name.slice(0, -'.json'.length)
-      let record: { session_id?: unknown; at?: unknown }
+      let text: string
       try {
-        record = JSON.parse(await readFile(join(paths.turnEnds, name), 'utf8'))
+        text = await readFile(join(paths.turnEnds, name), 'utf8')
       } catch (error) {
-        // Rewritten while read: its change event comes next.
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError)
-          continue
+        // Renamed over or removed while read: its change event comes next.
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
         throw error
       }
-      if (typeof record.session_id !== 'string' || typeof record.at !== 'string') continue
+      const record = parseTurnEnd(text)
+      if (!record) continue
       if (seenTurnEnds.get(pane) === record.at) continue
       seenTurnEnds.set(pane, record.at)
-      if (act) handlers.turnEnded(pane, record.session_id)
+      if (act) handlers.turnEnded(pane, record.sessionId)
     }
   }
   const turnEnds = () => {
@@ -157,5 +161,14 @@ export function dropSnapshot(projectId: string): void {
   snapshotTimers.delete(projectId)
   rm(join(controlPaths().snapshots, `${projectId}.json`), { force: true }).catch((error: unknown) =>
     log.warn('a project snapshot could not be removed', { projectId, error }),
+  )
+}
+
+// What the MCP server offers each installed agent's sessions, written before any pane starts; a
+// server that finds no file offers the list every caller had before.
+export async function publishTools(installed: readonly AgentId[]): Promise<void> {
+  const file = toolsFile(installed, (id) => mainKitOf(id).waker !== null)
+  await writeAtomic(controlPaths().root, 'tools.json', file).catch((error: unknown) =>
+    log.warn('the tools file could not be written', { error }),
   )
 }

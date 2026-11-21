@@ -102,6 +102,58 @@ launcher, header and About say "Menkar Sandbox", with the amber icon (1.166).
 daily session is offered for resume, trash or delete, the classifier is absent, and nothing it
 does shows up in the daily Menkar's projects or sessions.
 
+## 8d. Codex as a session (P1a)
+
+Codex runs as a session beside Claude Code and Cursor (plan 39, phase P1a), checked in Menkar
+Sandbox with your own `codex` installed and logged in. The orchestration mode with Codex is not
+part of this check.
+
+1. New → Codex, in a folder of a `sandbox-` project. Before typing, the tab has no session yet.
+   Send a first message that makes Codex run a command needing your approval.
+2. While the turn runs, then at the approval, then after it ends, look at the tab's and the row's
+   state dot.
+3. Wait for Codex to title the thread (or rename it in Codex); look at the row.
+4. With a `notify` of your own in `~/.codex/config.toml`, check that it still ran.
+5. In the same tab, `/new` and a message; then `/fork` and a message.
+6. Close the tab; open the session again from its row and send a message.
+7. Open Usage and run `menkar usage`.
+
+**Passes when** the row appears in the project as soon as the first message is sent, before the
+turn ends; the dot shows working, then blocked at the approval, then idle or done; the row shows
+Codex's name for the thread; your own `notify` ran as before; after `/new` the tab runs the new
+thread and the old one is under "Earlier conversations ▸", and after `/fork` the tab runs the fork
+the same way; reopening resumes the same thread (its earlier messages are on screen), not a new
+one; the tab's ring shows the context Codex's own footer shows; Usage lists the Codex session's
+turns under the project, with tokens and a cost marked as an estimate, and `menkar usage` agrees.
+
+## 8e. Codex in the orchestration mode (P1b)
+
+A Claude Code orchestrator with Codex workers (plan 39, phase P1b), checked in Menkar Sandbox with
+your own `claude` and `codex` installed and logged in, in a `sandbox-` project with no orchestrator
+yet.
+
+1. Switch the orchestration mode on. On the first-time card, look at the "Agent" line under "A new
+   session" and at the agent named beside each listed session; pick Codex, then Claude Code, and
+   Start with a new Claude Code orchestrator.
+2. Ask the orchestrator to start a Codex worker for a small task (`start_session` with
+   `agent: "codex"` and a task), and let the worker do it and report with `task_review`.
+3. Ask the orchestrator for the worker's last reply (`last_reply`), then to send it a message;
+   have the worker answer with `send_message`.
+4. Give the worker a role ("Configure role…") while it runs.
+5. On a second `sandbox-` project, open the first-time card again; then start a new Codex
+   orchestrator from it and send it nothing.
+6. On a Markdown file tab, "Ask an agent" with a Codex tab focused, then with no agent tab open.
+
+**Passes when** the card shows the Agent line only because two agents are installed, Cursor greyed
+saying its sessions can't use Menkar's tools yet; the worker runs in the background under the
+orchestrator, named `<project>-t<N>`, with its team block (it loads the worker skill by reading its
+`SKILL.md`); its review wakes the orchestrator once, at its turn's end; `last_reply` returns the
+worker's last answer; each message arrives as "[Menkar] from ‹name› (‹agent›)…" in the other's
+next turn; the role reaches the worker as a team update that wakes nobody; the second card
+defaults to the agent last started; the new Codex orchestrator is marked at once, reads the
+orchestrator skill by its path and is named "orchestrator" once its thread exists; "Ask an agent"
+starts Codex with a Codex tab focused, and the agent last started with none.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in

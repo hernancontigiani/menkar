@@ -15,7 +15,8 @@ const PAIRS: Readonly<
   fork: { block: 'P0.6', concern: (id) => kitOf(id).fork },
   trash: { block: 'P0.4', concern: (id) => kitOf(id).catalog.trash },
   chat: { block: 'P0.7', concern: (id) => kitOf(id).chat },
-  context: { block: 'P1a.6', concern: null },
+  context: { block: 'P1a.6', concern: (id) => kitOf(id).context },
+  tools: { block: 'P1b.2', concern: (id) => kitOf(id).mcp },
 }
 
 describe('descriptors and kits', () => {
@@ -29,7 +30,7 @@ describe('descriptors and kits', () => {
     }
   })
 
-  test("the descriptors say what the app shows today: Claude's and Cursor's command, name and glyph", () => {
+  test("the descriptors say what the app shows: each agent's command, name and glyph", () => {
     expect(
       AGENT_IDS.map((id) => [
         descriptorOf(id).command,
@@ -39,6 +40,7 @@ describe('descriptors and kits', () => {
     ).toEqual([
       ['claude', 'agent.claude', '✳'],
       ['cursor-agent', 'agent.cursor', '➤'],
+      ['codex', 'agent.codex', '⬡'],
     ])
   })
 
@@ -48,8 +50,9 @@ describe('descriptors and kits', () => {
         .filter(([, has]) => has)
         .map(([cap]) => cap)
         .sort()
-    expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'trash'])
+    expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'tools', 'trash'])
     expect(caps('cursor')).toEqual(['chat', 'trash'])
+    expect(caps('codex')).toEqual(['context', 'tools'])
   })
 
   test('every cap has its concern named, and a built concern matches its cap for every agent', () => {
@@ -70,7 +73,18 @@ describe('descriptors and kits', () => {
   test('namedAtStart mirrors the Namer for every agent', () => {
     for (const id of AGENT_IDS)
       expect(kitOf(id).namer.atStart('x') !== null, id).toBe(descriptorOf(id).namedAtStart)
-    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([true, false])
+    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([true, false, false])
+  })
+
+  // "Ask an agent" starts only an agent whose new session is given its first prompt: the
+  // descriptor says so exactly when the kit's launcher puts the prompt's file on the command line.
+  test('firstPrompt mirrors whether the launcher passes a first prompt', () => {
+    const promptFile = '/tmp/menkar-first-prompt.txt'
+    for (const id of AGENT_IDS) {
+      const plan = kitOf(id).launch.plan({ kind: 'new' }, { cli: id, env: {}, promptFile })
+      expect(plan.words.join(' ').includes(promptFile), id).toBe(descriptorOf(id).firstPrompt)
+    }
+    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, false, true])
   })
 
   // The chat variants are data the renderer reads; the kit's ChatStrategy runs them.

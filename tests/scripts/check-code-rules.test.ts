@@ -75,8 +75,8 @@ describe('the agent rules', () => {
 
   test("the roster is read from the tree: the ids, and each one's command", () => {
     const real = readRoster()
-    expect(real.ids).toEqual(['claude', 'cursor'])
-    expect(real.commands).toEqual({ claude: 'claude', cursor: 'cursor-agent' })
+    expect(real.ids).toEqual(['claude', 'cursor', 'codex'])
+    expect(real.commands).toEqual({ claude: 'claude', cursor: 'cursor-agent', codex: 'codex' })
   })
 
   test.each([

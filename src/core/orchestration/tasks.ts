@@ -194,6 +194,23 @@ export function followTasks(t: Tasks, from: string, to: string): Tasks {
   return { ...t, projects }
 }
 
+// Sessions that are gone for good leave the tasks they were assigned; each keeps its state.
+export function unassign(t: Tasks, gone: (id: string) => boolean): Tasks {
+  const held = (x: Task) => x.assignee !== undefined && gone(x.assignee)
+  if (!Object.values(t.projects).some((p) => p.tasks.some(held))) return t
+  const projects: Record<string, ProjectTasks> = {}
+  for (const [id, p] of Object.entries(t.projects))
+    projects[id] = {
+      ...p,
+      tasks: p.tasks.map((x) => {
+        if (!held(x)) return x
+        const { assignee: _, ...rest } = x
+        return rest
+      }),
+    }
+  return { ...t, projects }
+}
+
 // Open ones, ★ first, then by number.
 export function openTasks(list: readonly Task[]): Task[] {
   return list.filter(isOpen).sort((a, b) => Number(b.star) - Number(a.star) || a.number - b.number)

@@ -1,0 +1,2 @@
+- Message a session with the menkar server's `send_message` tool, `name` set to its name.
+- To load a skill, read its whole SKILL.md at the path given and follow it.

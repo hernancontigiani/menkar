@@ -17,11 +17,19 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     inline JSON (`mcpConfig` in `src/core/command.ts`): the command is Electron's binary, the
     argument the script, and `env: {"ELECTRON_RUN_AS_NODE": "1"}`. The config is not run through
     a shell, which is why the variable goes in `env`. Claude Code adds it to the pane's environment.
+    Another agent mounts it its own way (Codex: `docs/agents.md`, "Codex as a worker").
   - **Who is calling:** the server reads `MENKAR_PANE` from that environment and refuses every
-    call without one.
+    call without one, and `MENKAR_AGENT` for the caller's agent: a mount that names none is
+    Claude Code's, whose `--mcp-config` is unchanged. A request carries its `caller`, a pane, or
+    (from OpenCode's proxy, not built yet) a session named by a `_meta` key and its id.
   - **The protocol** (`protocol.ts`) is newline-delimited JSON-RPC written by hand:
-    - `initialize` echoes the client's protocol version and offers `tools`; `ping` gets `{}`.
-    - `tools/list` names nine tools; `tools/call` runs one.
+    - `initialize` echoes the client's protocol version and offers `tools`, declaring
+      `listChanged` only when an agent other than Claude Code is installed; `ping` gets `{}`.
+    - `tools/list` names the tools of `TOOL_NAMES`, shaped per caller from `tools.json` (below):
+      `start_session` gains `agent` once two or more agents are installed, and `send_message` is
+      added for a caller that must reach an installed agent its own messaging cannot reach and
+      Menkar can wake (`docs/agents.md`). With no file, every caller gets the plain list.
+      `tools/call` runs one.
     - Anything else with an id gets -32601, which is what Claude Code's first `server/discover`
       receives.
     - A failed call is `{content: [{type: "text", text}], isError: true}` with Menkar's own English
@@ -205,6 +213,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     - Main (`src/main/control.ts`, `RequestQueue`) passes over `requests/` on every change and once
       a second, and takes each id once. A request older than `REQUEST_MAX_AGE_MS` is dropped (Menkar
       was closed); a malformed one gets a refusal.
+  - **`tools.json`:** written by main once it has found the installed agents, before any pane
+    starts: whether `listChanged` is declared, and per installed agent whether its sessions get
+    `send_message` and which agents `start_session` may name.
   - **`snapshot/<project>.json`:** written by main, debounced, whenever a project's sessions change
     state, context, tab or membership. `list_sessions` reads the snapshot that lists its own pane,
     without asking main.
@@ -283,8 +294,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       `wakeSession` passes them in (`postCounts`, `src/core/orchestration/counts.ts`, the tiles'
       own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
       it. Posts to other sessions have no counts.
-    - A parent whose tab's agent has no waker (`mainKit.waker`, Claude's alone today), or no entry
-      in the registry, is logged and not woken. `wakeSession` returns what the post did.
+    - A parent whose tab's agent has no waker (`mainKit.waker`: Claude's posts to the socket,
+      Codex's runs `codex queue`, `docs/agents.md`), or no entry in the registry, is logged and not
+      woken. `wakeSession` returns what the post did.
   - Nothing is typed into a terminal.
 - **The orchestrator's wakes and its inbox** (decision 1.178, 2026-11-18), in a project with the mode
   on whose orchestrator's kit has an inbox:
@@ -423,8 +435,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
 
 ## The team block
 
-What a Claude session of a project in the orchestration mode needs to work in the team (decisions
-1.150–1.154, 1.157), written once and delivered by Menkar, not by a handoff another agent writes.
+What a Claude or Codex session of a project in the orchestration mode needs to work in the team
+(decisions 1.150–1.154, 1.157), written once and delivered by Menkar, not by a handoff another
+agent writes.
 
 - **Its text,** English, read by an agent: three parts joined by a blank line (`teamBlock`).
   - **The facts,** built per session by `teamFacts` (`src/core/team/block.ts`) from a plain
@@ -434,19 +447,20 @@ What a Claude session of a project in the orchestration mode needs to work in th
     a task is handed to it, each loaded as the kit's `byName` says (for Claude: with the Skill
     tool, by name, even if not in its listing yet), and when to renew, with the
     human's `ring_warn`/`ring_full`.
-  - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`.
-    `package:check` requires both in the .deb.
+  - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`
+    or `plugin/team/codex.md`. `package:check` requires each in the .deb.
   - **A name** in the facts is a custom title or the name Menkar started the session with; Claude's
     derived title is not one, so it never changes the facts. A session with none reads as "a new
     session"; another session with none is called by its id's first eight characters.
 - **Only with the mode on.** With it off no input is built, no file is written and the command line
   is the one without the team, to the byte. An agent whose kit has no team delivery (Cursor) gets
   nothing.
-- **The input at start** is built for every Claude pane whose tab belongs to a mode-on project: a
-  member from the project; a session not yet a member (the human's new session, a fork) from the
-  identity it starts with, with no role, parent or skills. That is what it will be once it joins.
+- **The input at start** is built for every Claude or Codex pane whose tab belongs to a mode-on
+  project: a member from the project; a session not yet a member (the human's new session, a fork)
+  from the identity it starts with, with no role, parent or skills. That is what it will be once it
+  joins.
   Which stored skills it can load is read when it starts (`listSkills` on its folder and the
-  user's skills, `foundFor`).
+  user's skills, `foundFor`), each with its `SKILL.md`, which Codex's block names.
 - **Delivery for Claude** (measured on 2.1.325):
   - The block is written to `<cache>/menkar/control/team/<pane-id>.md` (`controlPaths().team`)
     through `writeTextAtomic` **before** the command is built: Claude stops at once on a missing
@@ -509,15 +523,17 @@ What differs per agent is a `TeamDelivery` in its kit (`kitOf(agent).team`, core
 `MainTeamDelivery` in its main kit (`mainKitOf(agent).team`); `null` in either means no block, no
 flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 
-| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) |
-|---|---|---|
-| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` |
-| (1) What a start holds | `heldAtStart(start, block)` | new and resume → the block; fork → `null` |
-| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume |
-| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast |
-| (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket |
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) |
+|---|---|---|---|
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` |
+| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` |
+| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) |
+| (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` |
 
-Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
+A compaction rebuilds what the pane `started` with for both. Codex's details are in
+`docs/agents.md`, "Codex: the team block". Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
 that fails leaves the pane outside the team, as above), so the file is not part of the plan the
 Launcher returns.
 

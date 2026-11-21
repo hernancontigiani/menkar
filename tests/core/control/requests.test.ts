@@ -27,7 +27,7 @@ describe('the request queue', () => {
       },
       () => 1000,
     )
-    put('r1.json', { id: 'r1', pane: 'p1', tool: 'renew', args: {}, at: 1000 })
+    put('r1.json', { id: 'r1', caller: { pane: 'p1' }, tool: 'renew', args: {}, at: 1000 })
     await Promise.all([queue.pass(), queue.pass()])
     await queue.pass()
     expect(calls).toBe(1)
@@ -44,7 +44,7 @@ describe('the request queue', () => {
       },
       () => 100_000 + REQUEST_MAX_AGE_MS + 1,
     )
-    put('old.json', { id: 'old', pane: 'p1', tool: 'renew', args: {}, at: 100_000 })
+    put('old.json', { id: 'old', caller: { pane: 'p1' }, tool: 'renew', args: {}, at: 100_000 })
     await queue.pass()
     expect(calls).toBe(0)
     expect(readdirSync(controlPaths().requests)).not.toContain('old.json')
@@ -53,8 +53,13 @@ describe('the request queue', () => {
 
   test.each([
     ['not JSON', '{"id":'],
-    ['an unknown tool', { id: 'bad', pane: 'p1', tool: 'rm', args: {}, at: 1 }],
+    ['an unknown tool', { id: 'bad', caller: { pane: 'p1' }, tool: 'rm', args: {}, at: 1 }],
     ['no pane', { id: 'bad', tool: 'renew', args: {}, at: 1 }],
+    ['an empty pane', { id: 'bad', caller: { pane: '' }, tool: 'renew', args: {}, at: 1 }],
+    [
+      'a session caller without its id',
+      { id: 'bad', caller: { agentSession: { meta: 'k' } }, tool: 'renew', args: {}, at: 1 },
+    ],
   ])('%s gets a refusal response', async (_, body) => {
     const queue = new RequestQueue(
       async () => ({ ok: true, text: '' }),
@@ -64,5 +69,38 @@ describe('the request queue', () => {
     await queue.pass()
     expect(response('bad')).toMatchObject({ id: 'bad', ok: false })
     expect(response('bad').text).toMatch(/^[A-Z].*\.$/)
+  })
+
+  // §2.5.4: a caller is a pane, or a session an agent's server names (OpenCode's, in P2).
+  test.each([{ pane: 'p1' }, { agentSession: { meta: 'ai.opencode/sessionID', id: 'ses_1' } }])(
+    'a request from %j reaches main with its caller',
+    async (caller) => {
+      const seen: unknown[] = []
+      const queue = new RequestQueue(
+        async (request) => {
+          seen.push(request.caller)
+          return { ok: true, text: '' }
+        },
+        () => 1,
+      )
+      put('c1.json', { id: 'c1', caller, tool: 'renew', args: {}, at: 1 })
+      await queue.pass()
+      expect(seen).toEqual([caller])
+    },
+  )
+
+  test('a send_message request reaches main, though not every caller is listed it', async () => {
+    const seen: unknown[] = []
+    const queue = new RequestQueue(
+      async (request) => {
+        seen.push([request.tool, request.args])
+        return { ok: true, text: '' }
+      },
+      () => 1,
+    )
+    const args = { name: 'cx', text: 'hi' }
+    put('m1.json', { id: 'm1', caller: { pane: 'p1' }, tool: 'send_message', args, at: 1 })
+    await queue.pass()
+    expect(seen).toEqual([['send_message', args]])
   })
 })

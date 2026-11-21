@@ -1,5 +1,12 @@
 import { OUTSIDE_WAITS, REVIEW_WAITERS } from '../orchestration/taskState'
-import { type ControlAnswer, TOOL_NAMES, type ToolName } from './files'
+import {
+  CALLABLE_TOOL_NAMES,
+  type ControlAnswer,
+  PLAIN_SHAPE,
+  type ServerShape,
+  TOOL_NAMES,
+  type ToolName,
+} from './files'
 
 export { TOOL_NAMES }
 
@@ -10,7 +17,17 @@ export { TOOL_NAMES }
 export const NO_PANE = "Menkar's tools work only in a session Menkar started in one of its tabs."
 const UNKNOWN_TOOL = 'Menkar has no tool by that name.'
 
-const TOOLS: readonly { name: ToolName; description: string; inputSchema: object }[] = [
+interface Tool {
+  readonly name: string
+  readonly description: string
+  readonly inputSchema: {
+    readonly type: 'object'
+    readonly properties: object
+    readonly required?: readonly string[]
+  }
+}
+
+const TOOLS: readonly (Tool & { name: ToolName })[] = [
   {
     name: 'renew',
     description:
@@ -342,8 +359,48 @@ const TOOLS: readonly { name: ToolName; description: string; inputSchema: object
   },
 ]
 
+// Listed only to a caller some installed agent cannot be reached from by its own messaging.
+const SEND_MESSAGE: Tool = {
+  name: 'send_message',
+  description:
+    "Sends a message to another session of your Menkar project, by its name, waking it if it is idle: for a session your agent's own messaging cannot reach, such as one run by another coding agent. Menkar refuses it where your own messaging reaches the session; use that instead. The message reaches it as Menkar's, naming you, and its reply comes back the same way.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: "The session's name." },
+      text: { type: 'string', description: 'The message.' },
+    },
+    required: ['name', 'text'],
+  },
+}
+
+const agentProperty = (agents: readonly string[]) => ({
+  type: 'string',
+  enum: [...agents],
+  description: "The coding agent it runs; omit it for your own session's agent.",
+})
+
+// The tools this caller is shown: everyone's, with start_session's agent once there is a choice,
+// and send_message where its shape says.
+export function toolsFor(shape: ServerShape): readonly Tool[] {
+  const tools: Tool[] = TOOLS.map((tool) =>
+    tool.name === 'start_session' && shape.agents.length >= 2
+      ? {
+          ...tool,
+          inputSchema: {
+            ...tool.inputSchema,
+            properties: { ...tool.inputSchema.properties, agent: agentProperty(shape.agents) },
+          },
+        }
+      : tool,
+  )
+  return shape.sendMessage ? [...tools, SEND_MESSAGE] : tools
+}
+
 export interface ServerContext {
   readonly pane: string | null
+  // What this caller is offered; without it, the list every caller had before.
+  readonly shape?: () => Promise<ServerShape>
   call(tool: ToolName, args: Record<string, unknown>): Promise<ControlAnswer>
 }
 
@@ -357,7 +414,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const isTool = (name: unknown): name is ToolName =>
-  typeof name === 'string' && (TOOL_NAMES as readonly string[]).includes(name)
+  typeof name === 'string' && (CALLABLE_TOOL_NAMES as readonly string[]).includes(name)
 
 const toolResult = (answer: ControlAnswer) => ({
   content: [{ type: 'text', text: answer.text }],
@@ -369,17 +426,19 @@ export async function answer(message: Message, ctx: ServerContext): Promise<obje
   const reply = (result: object) => ({ jsonrpc: '2.0', id: message.id, result })
   const params = isObject(message.params) ? message.params : {}
   switch (message.method) {
-    case 'initialize':
+    case 'initialize': {
+      const shape = (await ctx.shape?.()) ?? PLAIN_SHAPE
       return reply({
         protocolVersion:
           typeof params.protocolVersion === 'string' ? params.protocolVersion : '2025-06-18',
-        capabilities: { tools: {} },
+        capabilities: { tools: shape.listChanged ? { listChanged: true } : {} },
         serverInfo: { name: 'menkar', version: '1' },
       })
+    }
     case 'ping':
       return reply({})
     case 'tools/list':
-      return reply({ tools: TOOLS })
+      return reply({ tools: toolsFor((await ctx.shape?.()) ?? PLAIN_SHAPE) })
     case 'tools/call': {
       if (!ctx.pane) return reply(toolResult({ ok: false, text: NO_PANE }))
       if (!isTool(params.name)) return reply(toolResult({ ok: false, text: UNKNOWN_TOOL }))

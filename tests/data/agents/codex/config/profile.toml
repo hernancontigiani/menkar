@@ -1,0 +1,5 @@
+profile = "work"
+notify = ["/home/ana/bin/notify-me"]
+
+[profiles.work]
+notify = ["/home/ana/bin/work-notify"]

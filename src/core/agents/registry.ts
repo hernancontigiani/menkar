@@ -1,9 +1,10 @@
 import { kit as claude } from './claude'
+import { kit as codex } from './codex'
 import { kit as cursor } from './cursor'
 import { type AgentId, DEFAULT_AGENT } from './ids'
 import type { AgentKit } from './types'
 
-const KITS: Readonly<Record<AgentId, AgentKit>> = { claude, cursor }
+const KITS: Readonly<Record<AgentId, AgentKit>> = { claude, cursor, codex }
 
 export function kitOf(id: AgentId): AgentKit {
   return KITS[id]

@@ -418,6 +418,11 @@ inbox (decision 1.178), so it hears it with its next prompt, the human's own inc
 typed into its terminal. An orchestrator whose agent has no inbox is posted to instead, through the
 wakes' messaging, when it runs (`discussTopic` in `src/main/workspace.ts`).
 
+## Switching it, and the marks
+
+> Left on 2026-11-20: the first-time card's new orchestrator is of the agent chosen, with its agent's first prompt (decision 1.155 Q2, plan 39 P1b.6).
+    chosen session, or starts the new one through `startNew` with a first prompt telling it to
+
 ## The sidebar in the mode
 
 > Left on 2026-11-21: "for you" and Awaiting you count the PRs waiting on the human too; the posts say "N for you" (decision 1.197, task 170).

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import {
+  asarEntries,
   checkPackage,
   checkRpm,
   FLAVOURS,
@@ -22,6 +23,11 @@ import {
 // install on the human's machine.
 const data = (name: string) => readFileSync(join(__dirname, '..', 'data', 'package', name), 'utf8')
 
+// What app.asar must hold: the app, and the programs agents run through Electron's binary.
+const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify'].map(
+  (name) => `/out/main/${name}.js`,
+)
+
 const good = (): Package => ({
   version: '0.1.0',
   control:
@@ -36,6 +42,7 @@ const good = (): Package => ({
     '/opt/Menkar/resources/plugin/guide/orchestration-mode.md',
     '/opt/Menkar/resources/plugin/team/common.md',
     '/opt/Menkar/resources/plugin/team/claude.md',
+    '/opt/Menkar/resources/plugin/team/codex.md',
     '/opt/Menkar/resources/plugin/skills/orchestrator/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/worker/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/distill/SKILL.md',
@@ -44,6 +51,7 @@ const good = (): Package => ({
     '/usr/share/applications/menkar.desktop',
     '/usr/share/icons/hicolor/512x512/apps/menkar.png',
   ],
+  asar: PROGRAMS,
   postinst: data('postinst'),
   profile: data('apparmor-profile'),
   desktop: data('menkar.desktop'),
@@ -68,12 +76,20 @@ describe('package:check', () => {
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/common.md')) }),
     ],
     [
+      "Codex's team part",
+      (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/codex.md')) }),
+    ],
+    [
       'the native pty',
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('pty.node')) }),
     ],
     [
       'the sandbox helper',
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('chrome-sandbox')) }),
+    ],
+    [
+      "Codex's notify program",
+      (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('codex-notify.js')) }),
     ],
     [
       'the command',
@@ -208,6 +224,7 @@ describe('the sandbox package', () => {
         ' Package: menkar-sandbox\n Version: 0.1.0-12.gabcdef12\n Architecture: amd64\n' +
         ' Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0, libasound2t64 | libasound2\n',
       files,
+      asar: PROGRAMS,
       postinst: sandboxData('postinst'),
       profile: sandboxData('apparmor-profile'),
       desktop: sandboxData('menkar-sandbox.desktop'),
@@ -334,6 +351,10 @@ describe('package:check on the .rpm', () => {
     ],
     ['the launcher', (r: Rpm) => ({ ...r, files: r.files.filter((f) => !f.endsWith('.desktop')) })],
     [
+      "Codex's notify program",
+      (r: Rpm) => ({ ...r, asar: r.asar.filter((f) => !f.endsWith('codex-notify.js')) }),
+    ],
+    [
       'the profile install in its post-install',
       (r: Rpm) => ({ ...r, postinst: r.postinst.replace('APPARMOR_PROFILE_TARGET=', 'X=') }),
     ],
@@ -353,5 +374,53 @@ describe('package:check on the .rpm', () => {
     const rpm = config.slice(config.indexOf('\nrpm:'))
     expect(rpm).toMatch(/^ {4}- alsa-lib$/m)
     expect(rpm).toMatch(/fpm: \['--directories', '\/opt\/Menkar'\]/)
+  })
+})
+
+// An archive's first bytes as electron/asar writes them: a pickle holding the header pickle's size,
+// then that pickle, its payload size and the JSON's length before the JSON.
+function asarHead(tree: unknown, extra = 0): Buffer {
+  const json = Buffer.from(JSON.stringify(tree))
+  const head = Buffer.alloc(16)
+  head.writeUInt32LE(4, 0)
+  head.writeUInt32LE(json.length + 8, 4)
+  head.writeUInt32LE(json.length + 4, 8)
+  head.writeUInt32LE(json.length, 12)
+  return Buffer.concat([head, json, Buffer.alloc(extra)])
+}
+
+describe("app.asar's files, from its header", () => {
+  test('each file by its path inside the archive, folders walked', () => {
+    const tree = {
+      files: {
+        out: {
+          files: {
+            main: {
+              files: {
+                'index.js': { size: 1, offset: '0' },
+                'codex-notify.js': { size: 1, offset: '1' },
+                chunks: { files: { 'a.js': { size: 1, offset: '2' } } },
+              },
+            },
+          },
+        },
+        'package.json': { size: 1, offset: '3' },
+      },
+    }
+    expect(asarEntries(asarHead(tree, 64))).toEqual([
+      '/out/main/index.js',
+      '/out/main/codex-notify.js',
+      '/out/main/chunks/a.js',
+      '/package.json',
+    ])
+  })
+
+  test('a file that is not an archive, or a header longer than what was read, is refused', () => {
+    const bad = asarHead({ files: {} })
+    bad.writeUInt32LE(5, 0)
+    expect(() => asarEntries(bad)).toThrow(/not an asar archive/)
+    expect(() => asarEntries(asarHead({ files: { x: { size: 1 } } }).subarray(0, 20))).toThrow(
+      /longer than/,
+    )
   })
 })

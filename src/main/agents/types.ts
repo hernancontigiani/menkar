@@ -49,6 +49,24 @@ export interface PromptInbox {
   forget(pane: string): Promise<void>
 }
 
+// How a pane whose agent picks its own session id learns it before the first turn ends.
+export interface EarlyBind {
+  // The session the agent under this shell runs; null while it cannot be told.
+  find(shellPid: number): Promise<string | null>
+}
+
+export type NameOutcome = 'named' | 'kept' | 'no session'
+
+// How a session the agent's CLI cannot name at start is given its name once its thread exists.
+export interface AfterNamer {
+  // Through the agent's own call; 'kept' when the session has that name already, 'no session'
+  // while the agent has no such thread.
+  after(sessionId: string, name: string): Promise<NameOutcome>
+  // Calls `changed` on each change where the files of a session started at `since` appear, so its
+  // id is looked for at once; until the returned function is called.
+  watch(since: number, changed: () => void): () => void
+}
+
 export interface MainAgentKit {
   // The settings file the agent's sessions are started with, written when it changed; null when
   // the agent takes none.
@@ -59,4 +77,6 @@ export interface MainAgentKit {
   readonly remote: Remote | null
   readonly waker: Waker | null
   readonly inbox: PromptInbox | null
+  readonly bind: EarlyBind | null
+  readonly namer: AfterNamer | null
 }

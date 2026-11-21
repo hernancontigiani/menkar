@@ -33,13 +33,13 @@ let views: readonly AgentVersionView[] = []
 let lastLook = Number.NEGATIVE_INFINITY
 let looking: Promise<void> | null = null
 
-function versionOf(cli: string): Promise<string | null> {
+function versionOf(cli: string, word: number): Promise<string | null> {
   return new Promise((resolve) => {
     execFile(cli, ['--version'], { timeout: VERSION_WAIT_MS }, (error, stdout) => {
       if (error) {
         log.warn('an agent CLI did not say its version', { cli, error })
         resolve(null)
-      } else resolve(readVersion(stdout))
+      } else resolve(readVersion(stdout, word))
     })
   })
 }
@@ -58,7 +58,10 @@ async function readAgent(agent: AgentId): Promise<boolean> {
   const key = cli ? await keyOf(cli) : null
   const before = read.get(agent)
   if (before && before.key === key) return false
-  read.set(agent, { key, version: cli ? await versionOf(cli) : null })
+  read.set(agent, {
+    key,
+    version: cli ? await versionOf(cli, descriptorOf(agent).versionWord) : null,
+  })
   return true
 }
 

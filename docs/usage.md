@@ -1,6 +1,6 @@
 # Usage — how it is measured and kept
 
-How long Claude worked and how many tokens it used, per session and project. All of it lives in
+How long each agent worked and how many tokens it used, per session and project. All of it lives in
 `src/core/usage/`, and every figure the app or `menkar usage` shows is read from there. The code
 says what each step does. This file keeps why it is shaped this way, and what was rejected. What the
 user sees in the Usage window is `docs/spec/usage.md`.
@@ -8,7 +8,8 @@ user sees in the Usage window is `docs/spec/usage.md`.
 ## The shape
 
 - **Two files.** The **cache** (`<cache>/usage.sqlite`, `cache.ts`) is derived data, rebuilt from
-  the transcripts whenever its layout version changes. The **history** (`<data>/history.sqlite`,
+  the transcripts whenever its layout version changes; each agent other than Claude Code keeps its
+  own beside it (Codex's `usage-cache-codex.sqlite`). The **history** (`<data>/history.sqlite`,
   `history.ts`) is the only file reports read, one row per turn, never pruned: it keeps what Claude
   Code deletes with its transcripts.
 - **A pass** (`pass.ts`): the cache reads what each transcript gained since the last pass. Then every
@@ -37,6 +38,19 @@ user sees in the Usage window is `docs/spec/usage.md`.
   2026-11-11: there is no import any more). Their statusline log, copied into the data directory
   then (`importedStatuslineLogPath`), keeps its fixed name and is read before Menkar's own
   `usage.jsonl`, so those turns keep their exact cost; a machine without it reads nothing there.
+
+## Per agent
+
+- **A pass reads every agent whose data exists** (`runPass` loops each kit's `UsageSource`, which
+  opens a `TurnSource` over the agent's own cache), installed or not, so the history keeps an
+  agent's turns after its CLI is removed. A source whose root does not exist reads nothing and
+  creates no file. Claude Code's source is the cache described here, its bytes unchanged.
+- **Every agent's turns land in the one history**, with the same definition of a turn, one per
+  user message (decision 1.143). How Codex's tokens, turns and context are read from its rollouts
+  is in `docs/agents.md`, "Codex: usage and context".
+- **Prices**: Anthropic's and OpenAI's rows live in `prices.ts`, each table with its source and the
+  date it was copied. A model with a long-prompt row takes it per request: Haiku's over 100,000
+  prompt tokens, OpenAI's over 272,000.
 
 ## Rejected, and why
 
@@ -84,6 +98,12 @@ For Menkar (2026-11-08):
   a turn the next pass rewrites loses the deleted file's tokens: the history copies a turn from what
   the cache has.
 - Figures are rounded half to even (`2.5m` prints as `2m`).
+- **`menkar usage` counts a Codex rollout that is already compressed (`.jsonl.zst`) when it was
+  first seen only after the app's next pass**: zstd is streamed asynchronously, and only the app's
+  usage worker does that (`TurnSource.catchUp`) before its pass; `menkar usage`, its export and the
+  classifier run the pass synchronously and skip compressed rollouts they have not read. A rollout
+  read while plain and compressed later is not counted again. A turn whose rollout became `.zst`
+  gives the classifier no text, as a deleted transcript does.
 
 ## The Usage window
 

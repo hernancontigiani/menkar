@@ -2,10 +2,11 @@ import { readdir, readFile, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { log } from '../log'
 import {
+  CALLABLE_TOOL_NAMES,
+  type Caller,
   type ControlAnswer,
   type ControlRequest,
   controlPaths,
-  TOOL_NAMES,
   writeAtomic,
 } from './files'
 
@@ -18,6 +19,17 @@ const UNREADABLE = 'Menkar could not read this request.'
 const REMEMBER_MS = 5 * REQUEST_MAX_AGE_MS
 const ID = /^[A-Za-z0-9-]{1,80}$/
 
+const isText = (value: unknown): value is string => typeof value === 'string' && value !== ''
+
+function parseCaller(value: unknown): Caller | null {
+  if (typeof value !== 'object' || value === null) return null
+  const c = value as { pane?: unknown; agentSession?: unknown }
+  if (isText(c.pane)) return { pane: c.pane }
+  if (typeof c.agentSession !== 'object' || c.agentSession === null) return null
+  const { meta, id } = c.agentSession as { meta?: unknown; id?: unknown }
+  return isText(meta) && isText(id) ? { agentSession: { meta, id } } : null
+}
+
 function parseRequest(text: string): ControlRequest | null {
   let value: unknown
   try {
@@ -29,14 +41,16 @@ function parseRequest(text: string): ControlRequest | null {
   if (typeof value !== 'object' || value === null) return null
   const r = value as Record<string, unknown>
   if (typeof r.id !== 'string' || !ID.test(r.id)) return null
-  if (typeof r.pane !== 'string' || r.pane === '') return null
-  if (typeof r.tool !== 'string' || !(TOOL_NAMES as readonly string[]).includes(r.tool)) return null
+  const caller = parseCaller(r.caller)
+  if (!caller) return null
+  if (typeof r.tool !== 'string' || !(CALLABLE_TOOL_NAMES as readonly string[]).includes(r.tool))
+    return null
   if (typeof r.at !== 'number') return null
   const args: Record<string, unknown> =
     typeof r.args === 'object' && r.args !== null && !Array.isArray(r.args)
       ? { ...(r.args as Record<string, unknown>) }
       : {}
-  return { id: r.id, pane: r.pane, tool: r.tool as ControlRequest['tool'], args, at: r.at }
+  return { id: r.id, caller, tool: r.tool as ControlRequest['tool'], args, at: r.at }
 }
 
 const gone = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT'

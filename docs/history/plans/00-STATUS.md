@@ -2213,6 +2213,13 @@ on Windows or macOS.** What it left for them:
 
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (2026-11-18, 127d4f1): every agent concern behind per-agent kits, Menkar Sandbox with its own icon; real checks against Claude Code 2.1.326 and Cursor found no difference, and the human checked the sandbox by hand (topic 53). Next: P1a (Codex as a session), on the branch `multi-agent` again, merging `main` in before each block; names tests import, frozen during P0, move into their agents' folders (docs/agents.md) |
 
+## 2026-11-20 — plan 39's §2.8, before codex measured the profile key (task 135)
+
+> Left plan 39 §2.8 on 2026-11-20: codex-cli 0.169.0 refuses a top-level `profile` key.
+Menkar reads the user's `notify` (an array of strings) and `developer_instructions` (a string,
+possibly multi-line) from `$CODEX_HOME/config.toml` (default `~/.codex`), honouring a top-level
+`profile = "<p>"` whose `[profiles.<p>]` table overrides them. **`smol-toml` (pinned,
+
 ## 2026-11-20 — plan 28 brought in line with topic 72 (task 131, `menkar-t131`)
 
 The plan was written before the human's answers of 2026-11-19 and assumed a private repository,
@@ -2248,6 +2255,33 @@ a trial PR and an AppImage. The lines that stated something as decided and stopp
 
 - **The first Pages deploy** is a step of block 8 (going public): Pages on a private repository
   needs a paid plan.
+
+## 2026-11-20 — plan 39's §2.5.2 and §2.9, before codex measured where a rollout appears (task 142)
+
+> Left plan 39 §2.5.2 and §2.9 on 2026-11-20: codex-cli 0.169.0 creates a rollout at the first user message, keeps a /new thread's old rollout open, and does not wait for `notify`.
+2. **Binding a late id.** A pane with no session (`Pending`, `join.ts`) binds on the first evidence
+   its kit's `isRealId` accepts:
+   - **Codex, early (S5; `codex`, 2026-11-16):** the rollout file appears when the session starts,
+     before the first turn's end (m), its uuid is the thread id `codex resume` takes (m). On Linux,
+     main reads the pane's agent process's open files (`/proc/<pid>/fd`) for a
+     `rollout-*-<uuid>.jsonl` under `$CODEX_HOME/sessions/`, about 1 s after start, three tries
+     (agent-deck's method, read by `codex`, not measured by us). That ties the id to the pane's own
+     process, so two Codex sessions in one folder cannot be confused. Elsewhere, and if it finds
+     nothing, the first turn-end record binds (today's plan).
+     window** (S5): Menkar quitting or crashing before the bind — seconds with the early bind on
+     Linux, the whole first turn without it — drops the provisional id on load with
+- **Codex's `notify`**: `-c notify=["<electron>","<resources>/codex-notify.cjs","--pane","<pane>","--chain-file","<file of the user's notify>"]`
+  with `ELECTRON_RUN_AS_NODE=1` in Codex's environment for it — it writes the turn-end record
+  (only for a thread whose rollout exists, §2.5.2), then runs the user's own `notify` with the same
+  argument Codex gave, waiting at most `CHAINED_TIMEOUT_MS` (as the statusline chains,
+  `src/core/context/statusline.ts:20`).
+
+## 2026-11-20 — plan 39's §2.5.2, before the provisional id was built (task 162)
+
+> Left plan 39 §2.5.2 on 2026-11-20: the provisional id is minted by start_session and renew before the pane exists, so it cannot be the pane's id (set, 2026-11-20).
+   - For a session `start_session` starts (P1b) the pane holds a **provisional id**
+     `pending:<pane-id>` as member, child and assignee until bound, re-keyed to the real id through
+     the path a `/clear` uses today (`followNewIdInLayout`, the follow functions). **The loss
 
 ## 2026-11-20 — §3's rows for plans 39, 28 and 46, before the day's work
 
@@ -2704,6 +2738,26 @@ Deviations and what the plan did not anticipate:
   `usage-spend` capture) says "Preferences → Integrations", where the classifier's switch is in
   Settings › Usage & classifier; `es.ts` names transcripts both "transcript" and "transcripciones"
   (`settings.section.retention` against `integrations.retention`); the pages follow "transcript".
+
+## 2026-11-20 — plan 39's §2.3 and P1b.4, before 1.195 amended D5 (task 165)
+
+> Left plan 39 §2.3 and §5 P1b.4 on 2026-11-20: Menkar names only the Codex sessions start_session starts, as soon as the rollout appears (the human, 1.195, topic 82).
+| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | after the first turn, `thread/name/set` (main, D5) | `title` at create | Two methods, not a `kind` (S2) |
+| **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5), `queue_1.sqlite` rows | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
+- **P1b.4** — Codex naming after the first turn (`Namer.after`, `thread/name/set`, D5); until then
+  the pane holds the name. **Verify:** `npm run ci`.
+
+## 2026-11-20 — plan 39's §2.5.6 and P1b.5, before codex measured Codex's compaction (task 166)
+
+> Left plan 39 §2.5.6 and §5 P1b.5 on 2026-11-20: a Codex compaction rebuilds the developer instructions from the running process's `-c`, so a compaction goes back to `started` for every agent and no `afterCompaction` method exists; the recorded file is JSON (`codex`, item 26; set approved).
+     recorded at creation); OpenCode: always the block (server-held). `afterCompaction(started,
+     current)` → Claude: `started`; Codex: `current` if its instructions re-render at compaction,
+     else `started` (`codex` to confirm in P1b.5).
+   - **`recorded`** (Codex, Cursor) is a persisted `held` per session
+     (`controlPaths().teamHeld/<session>.txt`, in the flavour's cache, written whole, swept with the
+     session), read by `heldAtStart` on a resume. **The compaction signal** that resets `held` to
+     `afterCompaction(…)`: Claude's SessionStart `compact` record (as built); Codex's rollout
+  `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),
 
 ## 2026-11-20 — plan 39's §3 row, before P1b
 

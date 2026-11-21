@@ -296,11 +296,11 @@ block that adds the interface to `types.ts`.
 | **Fork** (core): `plan(source, newId) → Start` (B2) | P0.6 | `--resume <src> --fork-session --session-id <id>` | `null` | `null` (38 §7) | `null` (38 §7) | `forkSession` asks it; `null` → no Fork entry (the cap) |
 | **Remote** (main): `live(pane) → boolean`, reading Claude's registry (B2) | P0.5 | `remote-live.ts`'s reader, moved to `src/main/agents/claude/remote.ts` | `null` | `null` | `null` | `remote-live.ts` keeps the loop, asks the kit |
 | **TeamDelivery** (core + main), the team block's three pieces (`docs/session-control.md`, "The team block"; §2.5.6) | P0.3 | `part` `claude.md`; `skill`/`own` names; `atStart`: the file and the flags (snapshot off on every resume); `heldAtStart`: new and resume → the block, fork → `null`; `afterCompaction` → `started`; `tell` → a post | P3: `sessionStart` hook's `additional_context`; resume → the recorded (persisted) block; idle facts change waits for the next wake (1.159) | `-c developer_instructions`, chaining the user's own; resume → recorded until compaction; compaction from the rollout's `compacted` item (S7) | instruction entry; `tell` updates the entry, no post | Methods, not a `holds` tag (S2); `skill` names a skill (a name; for Codex a `SKILL.md` path, 1.155 Q1) |
-| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | after the first turn, `thread/name/set` (main, D5) | `title` at create | Two methods, not a `kind` (S2) |
+| **Namer** (core + main): `atStart(name) → words \| null`, `after(session) → Promise<void> \| null` | P0.3 (`atStart`); P1b.4 (`after`) | `-n` | Menkar-held for workers (D22) | every Codex session Menkar starts with a name (New, the first-time card, `start_session`) and their renews, as soon as the rollout appears, `thread/name/set` (main, D5 as amended by 1.195 and 1.196) | `title` at create | Two methods, not a `kind` (S2) |
 | **EnvRules** (core, data) | P0.3 | today's `SESSION_ENV` | `cursor.md` §1.7, marker `CURSOR_AGENT` | `CODEX_THREAD_ID`, … | `opencode.md` §1.7 | `withoutSessionEnv` applies **every** registered agent's rules |
 | **ContextSource** (core) | P1a.6 | the statusline (today) | `null` (D8) | `token_count` from the rollout tail | `GET …/context` (main) | `null` is a type the sidebar handles |
 | **IntegrationItems** (core + main) | P3.1 | statusline, retention (today, not moved in P0) | D13 hooks, D7 allow entries | none | none | Items greyed when the CLI is not found (1.140) |
-| **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5), `queue_1.sqlite` rows | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
+| **DeclaredWrites** (core, data) | P1a.1 | `-n` | D7, D13 files | `session_index.jsonl`/`threads.name` (D5, 1.195), `queue_1.sqlite` rows, the server's own sidecars | `opencode.db` session row, inbox rows | The R9 allow-list per agent (D17) |
 | **ChatStrategy** (core + main) | P0.7 | today's variant | today's two | `null` | `null` | Today's `VARIANTS` and `AGENT_CLIS` move into the kits |
 | **Classifier** (core + main, §2.17) | P4 | `claude -p` with a model | where feasible | where feasible | where feasible | `null` where the agent cannot classify |
 
@@ -343,22 +343,29 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
    `last_reply` (read by the agent's UsageSource and catalog, never by shared code). A **parity
    test** between the writer's keys and `control.ts`'s reader.
 2. **Binding a late id.** A pane with no session (`Pending`, `join.ts`) binds on the first evidence
-   its kit's `isRealId` accepts:
-   - **Codex, early (S5; `codex`, 2026-11-16):** the rollout file appears when the session starts,
-     before the first turn's end (m), its uuid is the thread id `codex resume` takes (m). On Linux,
-     main reads the pane's agent process's open files (`/proc/<pid>/fd`) for a
-     `rollout-*-<uuid>.jsonl` under `$CODEX_HOME/sessions/`, about 1 s after start, three tries
-     (agent-deck's method, read by `codex`, not measured by us). That ties the id to the pane's own
-     process, so two Codex sessions in one folder cannot be confused. Elsewhere, and if it finds
-     nothing, the first turn-end record binds (today's plan).
+   its agent gives of its own id; an agent that tells it (Codex: `MainAgentKit.bind`) is never
+   guessed by folder and time:
+   - **Codex, early (S5; `codex`, measured 2026-11-20 on 0.169.0):** a thread's id is a UUIDv7
+     minted when the thread is made, and its rollout file appears **at the first user message**
+     (+66 ms after the submit, measured by `codex`; ~10 ms in P1a.4's own run), or at once with a
+     positional prompt; while the TUI idles there is none. The Codex process (`bash → codex`, one
+     native binary) holds the rollout open, and keeps a `/new` thread's old rollout open beside the
+     new one. On Linux, main reads the open files of every process under the pane's shell
+     (`/proc/<pid>/fd`) for a `rollout-*-<uuid>.jsonl` under `$CODEX_HOME/sessions/` **at each join
+     poll (1.5 s) while the pane waits**, and binds when exactly one rollout is held. That ties the
+     id to the pane's own process, so two Codex sessions in one folder cannot be confused.
+     Elsewhere, and while it finds nothing, the first turn-end record binds.
    - **Codex's title thread**: its `notify` carries a thread with no rollout; **the notify program
      writes no record for it** (S4: it checks that the rollout exists before writing), so no other
      code needs to know about it.
-   - For a session `start_session` starts (P1b) the pane holds a **provisional id**
-     `pending:<pane-id>` as member, child and assignee until bound, re-keyed to the real id through
-     the path a `/clear` uses today (`followNewIdInLayout`, the follow functions). **The loss
-     window** (S5): Menkar quitting or crashing before the bind — seconds with the early bind on
-     Linux, the whole first turn without it — drops the provisional id on load with
+   - For a session `start_session` starts, or a `renew` restarts (P1b), the pane holds a
+     **provisional id** `pending:<random uuid>` (minted before the pane exists, since the start
+     places it first) as member, child and assignee until bound, re-keyed to the real id through
+     the path a `/clear` uses today (`followNewId`, then the provisional id forgotten;
+     `followNewIdInLayout`, the follow functions). **The loss
+     window** (S5): Menkar quitting or crashing before the bind — until the first message and up to
+     one poll after it with the early bind on Linux, the whole first turn without it — drops the
+     provisional id on load with
      `forgetSession` and a log line: the worker's tab, parent and assignee are lost; its rollout
      stays in Codex's data and shows in Add session. `codex` measures the window (P1a.4).
 3. **Waking.** `wakeSession(parent, text)` keeps the batcher, the counts and the frame; it calls
@@ -384,9 +391,10 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
      new and resume → the block (resume with `--system-prompt-snapshot off`, on **every** mode-on
      resume, since a later resume without it reverts to the conversation's first block, research
      §7), fork → `null`; Codex and Cursor: new → the block, resume → `recorded` (they keep the block
-     recorded at creation); OpenCode: always the block (server-held). `afterCompaction(started,
-     current)` → Claude: `started`; Codex: `current` if its instructions re-render at compaction,
-     else `started` (`codex` to confirm in P1b.5).
+     recorded at creation); OpenCode: always the block (server-held). A compaction rebuilds what
+     the pane `started` with for Claude and Codex alike (`rebuilt`): Codex re-renders its
+     developer instructions from the running process's `-c`, so every Codex resume passes the
+     block again (`codex`, measured 2026-11-20, item 26); no per-agent method.
    - **(2) how a start delivers** — `atStart(start, block) → LaunchPlan` part: Claude: the file and
      its flags, below its floor nothing (1.157 Q4; the floor read by the kit's
      `versionFloor`, 2.1.267); Codex: `-c developer_instructions` (§2.8); Cursor (P3): the
@@ -396,9 +404,9 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
      PUT, so the session holds the current block with no turn; Cursor: held until the next wake
      when idle (1.159, S7), answered as `followup_message` at the next `stop`.
    - **`recorded`** (Codex, Cursor) is a persisted `held` per session
-     (`controlPaths().teamHeld/<session>.txt`, in the flavour's cache, written whole, swept with the
+     (`controlPaths().teamHeld/<session>.json`, in the flavour's cache, written whole, swept with the
      session), read by `heldAtStart` on a resume. **The compaction signal** that resets `held` to
-     `afterCompaction(…)`: Claude's SessionStart `compact` record (as built); Codex's rollout
+     `started`: Claude's SessionStart `compact` record (as built); Codex's rollout
      `compacted` item (`codex.md:278`), read by its catalog's tail watch and handed to main as a
      record (S7); Cursor's (P3, from `cursor`); OpenCode needs none.
    - The team posts' consequences (the settle, no parent wake and the `last_reply` skip by
@@ -468,8 +476,10 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
 ### 2.8 Reading `~/.codex/config.toml` (D6, the team block's chaining)
 
 Menkar reads the user's `notify` (an array of strings) and `developer_instructions` (a string,
-possibly multi-line) from `$CODEX_HOME/config.toml` (default `~/.codex`), honouring a top-level
-`profile = "<p>"` whose `[profiles.<p>]` table overrides them. **`smol-toml` (pinned,
+possibly multi-line) from `$CODEX_HOME/config.toml` (default `~/.codex`), **the base file only**: a
+profile is chosen only with `-p`, which Menkar does not pass, and codex-cli 0.169.0 refuses to
+start on a top-level `profile` key (`codex`, measured 2026-11-20), so a file with one chains
+nothing. A `-c` value wins over the file and over a profile. **`smol-toml` (pinned,
 BSD-3-Clause, no dependencies)** parses it: the new runtime dependency, justified because a wrong
 parse of the user's file means chaining a wrong command or dropping their own instructions
 silently. Read only; a file that does not parse → no chaining and a log line, never a refused
@@ -480,11 +490,11 @@ written to files under the pane's folder and named on the command line by path, 
 
 ### 2.9 Programs shipped
 
-- **Codex's `notify`**: `-c notify=["<electron>","<resources>/codex-notify.cjs","--pane","<pane>","--chain-file","<file of the user's notify>"]`
-  with `ELECTRON_RUN_AS_NODE=1` in Codex's environment for it — it writes the turn-end record
-  (only for a thread whose rollout exists, §2.5.2), then runs the user's own `notify` with the same
-  argument Codex gave, waiting at most `CHAINED_TIMEOUT_MS` (as the statusline chains,
-  `src/core/context/statusline.ts:20`).
+- **Codex's `notify`**: `-c notify=["/usr/bin/env","ELECTRON_RUN_AS_NODE=1","<electron>","<resources>/app.asar/out/main/codex-notify.js","--pane","<pane>","--chain-file","<file of the user's notify>"]`
+  — it writes the turn-end record (only for a thread whose rollout exists, §2.5.2), then starts the
+  user's own `notify` with the same argument Codex gave and does not wait for it: Codex itself
+  spawns `notify` with no wait and no timeout, and gives it its whole environment (`codex`,
+  2026-11-20).
 - **Cursor's hooks** (P3): one program for `beforeSubmitPrompt`, `stop`, `afterAgentResponse`,
   `sessionStart`; it exits at once without `MENKAR_PANE` (1.140) and acts only on panes of its own
   flavour (§2.12); it writes turn records and the tokens to Menkar's hook log, the prompt text only
@@ -676,6 +686,10 @@ must not be able to touch it. So the branch is built in a second **flavour**, in
   - **Q2** — The first-time card shows an **agent choice only when two or more agents are
     installed**, defaulting to `last_agent`; its place by mock-up in P1b.6. "Ask an agent" starts the
     focused agent pane's agent, else `last_agent`. → P1b.6.
+    **The human, 2026-11-20 (topic 83, from `menkar-t167`'s mock-ups):** layout A, the picker on an
+    "Agent" line of its own under the new session's name and folder; the Cursor warning under what
+    chose it; each listed session names its agent, dim; "an ordinary session" in the card's text;
+    the card's choice writes `last_agent`, so the next card defaults to it.
   - **Q3** — The branch's build is tried in a **sandbox** (§2.12). → P0.0 and every hand check.
   - **Q4** — `main` restores a saved tab of an agent it does not know **without starting it** (§2.4).
     → P0.6.
@@ -1029,12 +1043,13 @@ P0's blocks run in turn.
   `send_message { name, text }` through the target's waker; Claude→Claude refused with "use
   SendMessage" (Messaging `reaches`); the bridged frame. Tests: each D2/D3 case; the stand-in's queue
   receives the frame bytes. **Verify:** `npm run ci`, `npm run ui-check`.
-- **P1b.4** — Codex naming after the first turn (`Namer.after`, `thread/name/set`, D5); until then
-  the pane holds the name. **Verify:** `npm run ci`.
+- **P1b.4** — Codex naming as soon as the rollout appears, only for `start_session`'s sessions and
+  their renews (`Namer.after`, `thread/name/set`, D5 as amended by 1.195); until then the pane
+  holds the name. **Verify:** `npm run ci`.
 - **P1b.5** — Codex's team part and delivery (§2.5.6): `atStart` (`developer_instructions` through
   `LaunchPlan.files`, then the user's own), `heldAtStart` (`recorded` on resume, persisted),
-  `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),
-  the compaction signal from the rollout's `compacted` item (S7), `tell` through its waker; skills
+  a compaction back to `started` (`codex` measured that `developer_instructions` re-render from the
+  run's `-c`), the compaction signal from the rollout's `compacted` item (S7), `tell` through its waker; skills
   per **Q1** (`kit.team.skill` → the `SKILL.md`'s absolute path from `FoundSkill.place`; Menkar's
   from the plugin folder; not-found as the block names it today). Tests: the `teamPost` rule cases
   with Codex's methods (resume with facts unchanged → no post; changed → one post once wakeable;
@@ -1355,3 +1370,921 @@ P0's blocks run in turn.
   `context/files.ts` 1, `context/integrations.ts` 1, `files/check.ts` 1, `sessions/info.ts` 1,
   `sessions/service.ts` 1). No renderer or `src/shared/` file has a hit.
 - The quit list's `agentName('shell')` is untouched (task 67).
+
+### P1a.1 (`menkar-t133`, task 133, 2026-11-20)
+
+- **Decided by set, 2026-11-20 — files beyond §5's row (a premise gap):** §2.3 puts
+  `DeclaredWrites` in P1a.1 as a kit concern, but the row named no kit file. It is in
+  `src/core/agents/types.ts` (`DeclaredWrites { created, changed }`, `AgentKit.writes`), Claude's
+  rows in the new `src/core/agents/claude/writes.ts`, Cursor's empty in `cursor/index.ts` (D7 and
+  D13 enter with P3). Codex joins the no-write test by registering its kit (P1a.2).
+- **`DeclaredWrites` is two lists of patterns over home-relative paths** (my choice): `created`
+  (files that may appear) and `changed` (files that may change, or appear). One list of exempt
+  paths would have exempted every Claude transcript from the check; Claude's `-n` only creates
+  the new session's transcript, so an existing transcript changing still fails.
+- **`openAgentDb(path, read)`** (my choice of shape): it opens, runs `read`, and closes in a
+  `finally`, so no caller can hold the database open across passes. It returns
+  `UNREADABLE` (`'unreadable for now'`) when exactly one sidecar exists — §2.6 named the `-wal`
+  without `-shm` case; a `-shm` without `-wal` is treated the same (my choice: a plain open would
+  create the `-wal`). Logged once per path until it reads again. The immutable open goes through
+  `pathToFileURL(path)` so a path with `?`, `#` or `%` stays a path.
+- **Measured on Node 22.23.5:** a read-only open of a WAL database with no sidecars creates both
+  `-wal` and `-shm` beside it; with `immutable=1` it creates neither; with a `-wal` and no `-shm`, a
+  plain read-only open reads the `-wal`'s frames (and so would create the `-shm`). Dropping
+  `immutable=1` fails two tests (the generated database and Codex's fixture); dropping the
+  one-sidecar check fails the crashed-writer test.
+- **The no-write test runs each catalog's read side** (set's scope, 2026-11-20): `watchTargets`,
+  `find`, each session's `read`, `lastReply`, `details`, `exportMarkdown`, `location`,
+  `trash.target`, `turnEnd`; then every file under the fixture home is compared (bytes, mtime,
+  listing). The fixture home is copied with `preserveTimestamps`. Seen failing on an injected
+  append to a file of Claude's fixture home; the harness's own cases assert that a declared
+  creation does not excuse a change to an existing file.
+- **Codex's fixtures** (`tests/data/agents/codex/`) are invented and written by `make.mjs` (run
+  from the root, then `biome format` on `notify/`), in the shapes `codex` gave on 2026-11-20 from
+  0.169.0's source and its measured files: a paginated rollout with a compaction between two turns
+  and two `session_index.jsonl` names (the last wins); a legacy-events rollout, unnamed, with a
+  `token_count` whose `info` is null; a subagent rollout (`thread_source: subagent`, an edge in
+  `thread_spawn_edges`); a `.jsonl.zst` older than 7 days; `state_5.sqlite` in WAL with Codex's
+  `threads` and `thread_spawn_edges` DDL, writer closed; `notify/turn.json` and
+  `notify/title.json` (the title thread, no rollout). File names are local time (UTC−3), the lines
+  UTC, as Codex writes them. **No `expected.json` yet**: P1a.3 writes it with the catalog.
+- **The stand-in** (`e2e/standins/codex.ts`, `codexStandIn(bin)`): rollout created at start and
+  held open (seen in `/proc/<pid>/fd`), turns from the positional prompt or a typed line, the
+  title thread's notify before the real one on a new thread's first turn, `resume <id>`, and
+  `codex queue` through `queue_1.sqlite` (refused for a thread with no rollout), the running
+  stand-in taking the row as its next turn and deleting it. Run once by hand in a scratch home;
+  no e2e uses it yet (P1a.4 on).
+
+### P1a.2 (`menkar-t135`, task 135, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row (premise gaps G1–G5):**
+  - G1: registering Codex needs a whole `AgentKit`, and P0's contract tests iterate `AGENT_IDS`
+    (`expected.json` arrives with P1a.3, `screens.json` with P1a.5). Codex is registered now with
+    an **interim catalog that finds nothing** (`codex/catalog.ts`, replaced by P1a.3) and **interim
+    state rules that answer `idle`** (`codex/state.ts`, replaced by P1a.5). The three contract
+    tests (`catalog`, `state`, `nowrite`) gain a `LANDS_IN` map (`codex: 'P1a.3'` / `'P1a.5'`) and
+    a test that it names only registered agents; P1a.3 and P1a.5 remove their entries. So Codex
+    joins the no-write test with P1a.3, not here: its catalog reads nothing yet. Branch only: the
+    interim picker entry ships nowhere.
+  - G2: `src/core/agents/types.ts` gains `LaunchPlan.files` (`LaunchFile { path, text() }`, text
+    read when it is written) and the context fields `execPath`, `programs`, `paneFiles`,
+    `filesFolder`; `src/main/workspace.ts` `startPaneHeld` passes them and writes `plan.files`
+    whole (`writeTextAtomic`) before the command, logging a failure and starting anyway. The pane's
+    files go to `control/panes/<pane>/` in the cache (my choice of place; nothing sweeps them yet,
+    one small file per Codex pane). **`programs` names the folder of `mcp-server.js`, and the notify
+    path is `<programs>/codex-notify.js`, which P1a.4 builds**: until then a Codex session's `-c
+    notify` names a program not yet shipped.
+  - G3: `agent.codex` in `src/core/i18n/{en,es}.ts`.
+  - G4: the glyph is drawn only in Add session's rows (`addsession.ts`), not in the New picker
+    (labels): proposed in a mock render of those rows with the app's CSS, beside the real New
+    picker with Codex greyed.
+  - G5: no `developer_instructions` and no MCP mount in P1a.2 (P1b.5, P1b.2): the user's own
+    `developer_instructions` stays in effect; `LaunchPlan.files` carries only the notify chain file.
+  - Also touched as consequences: `claude/index.ts` and `cursor/index.ts` (`envPatterns: null`);
+    `tests/core/r10.test.ts` (its `CASES` typed by its own `OPTIONS` keys instead of `Agent`, which
+    now includes Codex; no snapshot changed).
+- **Contradicted premise, §2.8 fixed** (H1, set 2026-11-20): `codex` measured on 0.169.0 that a
+  top-level `profile` key in `config.toml` is an error ("legacy profile config is no longer
+  supported; use --profile p with p.config.toml"); a profile is only `-p`, layering
+  `$CODEX_HOME/<name>.config.toml`; a `-c` value beats the user's file and any profile (layer 30
+  against 20/21). Menkar passes no `-p`, so `config.ts` reads the base file only and a file with a
+  top-level `profile` chains nothing. The old §2.8 lines are in `docs/history/plans/00-STATUS.md`.
+- **D12 needed two shapes `EnvRules` could not say** (H2, set 2026-11-20): `EnvPatterns { prefixes,
+  gated }` on the kit (`envPatterns`), applied by `withoutSessionEnv` — a prefix
+  (`CODEX_NETWORK_PROXY_SNAPSHOT_BROKERED_`) always dropped, and `PLUGIN_ROOT`/`PLUGIN_DATA`
+  dropped only when `CODEX_THREAD_ID` is inherited. Claude's rules untouched; R10 unchanged.
+  Codex's names, from `codex` (2026-11-20): identity (`CODEX_THREAD_ID`, `CODEX_TOOL_CALL_ID`,
+  `CODEX_PERMISSION_PROFILE`), sandbox markers, the proxy's variables; kept: its configuration
+  and the display tuning its shell forces (D12).
+- **`ELECTRON_RUN_AS_NODE` is not put in Codex's environment** (H3, set 2026-11-20; §2.9 said it
+  would be): it would reach every command Codex's shell runs, and an Electron app started there
+  would run as Node. The notify argv starts `/usr/bin/env ELECTRON_RUN_AS_NODE=1 <electron>
+  <program> --pane <pane> --chain-file <file>`.
+- **The command** (from `codex`, 0.169.0, measured): `codex [-m <model>] [--add-dir <files>] [-c
+  notify=[…]] [-- "<prompt>"]`, and `codex resume [--add-dir …] [-c notify=[…]] <id> [-- "<prompt>"]`.
+  Options after `resume`; **`--` before the prompt** (without it a prompt starting with `-` is an
+  unknown option); **no `-m` on a resume**, which would switch the thread's model (nor any `-c
+  model…`). The prompt is `"$(cat '<file>')"`, as Claude's. A fork throws: Codex's `fork` is
+  `null`.
+- **A `-c` value is a TOML basic string** (`tomlString`): Codex parses `-c` values as TOML and
+  takes an unparsable one as a string with edge spaces and quotes trimmed, so `42` or `true`
+  changes type (`codex`, measured). JSON's escapes are TOML's except a lone surrogate (replaced by
+  U+FFFD) and DEL (escaped: JSON leaves it raw, which TOML forbids — my finding, smol-toml refuses
+  it). P1b.5 writes `developer_instructions` the same way, into a file passed as `-c
+  "developer_instructions=$(cat '<file>')"` (`codex` measured it byte-exact).
+- **The chain file** holds the user's `notify` argv as JSON, `[]` when none (my choice of format;
+  P1a.4's program reads it). A `notify` that is not a non-empty array of strings, or a
+  `developer_instructions` that is not a string, is not passed on (Codex would refuse it).
+- **`smol-toml` 1.9.1**, pinned exactly; its reason in `docs/toolchain.md`.
+- **Glyph**: `⬡` in the descriptor, **proposed, not decided** — the human chooses from the
+  screenshots `menkar-t135-codex-glyph-*.png`.
+- **Six roster pins changed** (set, 2026-11-20): `ids.test.ts`, `check-code-rules.test.ts` (two),
+  `parity.test.ts` (`namedAtStart`) and `e2e/remote.spec.ts` SES-72 (two: both installed, and
+  Claude only) now list Codex; `check-test-integrity` reports exactly those six removed `expect(`
+  lines, which set accepts in the commit (a new agent registered).
+- **`e2e/r10.spec.ts`'s inherited environment** (set, 2026-11-20) is built from Claude's kit's
+  `env`, as its comment said, not from `SESSION_ENV`: with Codex registered, `SESSION_ENV` grew by
+  Codex's names and each R10 file's `removed:` list with it, though Claude got the same for the
+  same input. The R10 files stay byte-equal.
+- **Seen failing once**: no `--` (8 tests), the prompt path unquoted (6), the notify argv not
+  TOML-escaped (1), a top-level profile honoured (2), no surrogate or DEL handling (2), the prefix
+  ignored (1), the gate ignored (1), a `LANDS_IN` naming an unregistered agent (1).
+
+### P1a.3 (`menkar-t141`, task 141, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row (a premise gap):** shared code showed a name
+  only for an agent whose `transcript.titles` is not null (`titled`, `sessions/names.ts`), and
+  Codex's catalog has no `TranscriptReading` (its rollouts are not Claude-shaped JSONL; giving it
+  one would let `transcript.ts` and the inbox read them). `SessionCatalog.names` ("the agent names
+  its sessions in its own data": Claude true, Cursor false, Codex true) is what `titled` reads now;
+  touched `types.ts`, the three catalogs, `sessions/names.ts`, and a case in
+  `tests/core/sessions/reading.test.ts` (a Codex name reaching `sessionName`). Claude and Cursor
+  unchanged (Cursor's names were already ignored); R10 equal.
+- **Decided by set, 2026-11-20 — R10 and the watch:** with Codex's real `watchTargets`, a missing
+  `~/.codex` gave its nearest existing ancestor, `~`, and R10's scan snapshots gained `$HOME`.
+  Codex watches **nothing while its home does not exist**; once it does, its home (for
+  `session_index.jsonl`) and every `sessions/YYYY/MM/DD` folder (a resume appends to the day folder
+  the thread began in). **Cost:** a Codex run for the first time after Menkar started shows its
+  sessions at the next rescan something else triggers, or at the next start; the watch set is
+  recomputed at each scan, so from then on it is watched (a test shows the targets appearing).
+  P1a.7 writes this cost in `docs/agents.md`'s Codex notes.
+- **What the catalog reads** (from `codex`, 2026-11-20, 0.169.0 source and measured files):
+  paginated rollouts tell the conversation in `event_msg` `item_completed` (`UserMessage`,
+  `AgentMessage`, and tool items: `CommandExecution`, `McpToolCall` with its `server`, …); legacy
+  ones in `user_message`/`agent_message` events, their tools only in `response_item`
+  `function_call`/`custom_tool_call`/`local_shell_call` and MCP servers from `mcp_tool_call_end`.
+  **`response_item` messages are never read** (they repeat each message and carry the injected
+  `<environment_context>` and AGENTS.md text as the user's); the mode comes from
+  `session_meta.history_mode`. An interrupted turn ends in `turn_aborted` (badge `interrupted`);
+  `lastReply` is the last non-empty `task_complete.last_agent_message`, looked for in tail windows
+  of 64 KB, 1 MB, 8 MB (as Claude's reader stops at 8 MB).
+- **Left out of the list**, as Codex's own picker: `thread_source` `subagent` or `guardian_review`,
+  `source: exec`, a rollout with no user message yet (listed once one is written), and
+  `archived_sessions/` (not walked).
+- **Files side by side:** a plain `.jsonl` hides its `.zst` sibling (both exist while Codex
+  compresses or restores one); a reverted thread (`…-<thread>_<rollout>.jsonl`) is listed under
+  its thread id, from the file written last (my choice: Codex continues the thread in the new
+  file).
+- **Names:** `session_index.jsonl` read incrementally by offset (from the start again when it is
+  replaced or shorter); the last line per thread wins whatever its `updated_at`. The name goes to
+  `customTitle` (set's OK: Codex's automatic titles and renames are indistinguishable there), and
+  an empty `thread_name` clears it (set's OK).
+- **A `.zst`** is read through `shared/zstd.ts`'s `streamLines` (`createZstdDecompress`, async; the
+  loop stopping closes the file): the list reads only its head and stops; its badge is `null`
+  (the tail is not read, §2.6); details, export and `lastReply` stream it whole. Details and export
+  stream a plain rollout the same way, never holding it whole.
+- **Export** speaker `Codex`; a tool is shown as `shell`, `<server>/<tool>`, or its legacy function
+  name (my choice), attached to the reply that follows it.
+- **Fixture regenerated through `make.mjs`** (set's OK): `codex` found P1a.1's rollouts without
+  `response_item` lines unfaithful; they gain the injected context and the repeated messages, A's
+  second turn a shell and two MCP calls, B a legacy tool call, an MCP end and an interrupted second
+  turn, new E (`codex exec`, hidden) and F (a waiting reply, named then cleared), and the index an
+  out-of-order line (A's last line has the older `updated_at`). `state_5.sqlite` is unchanged
+  (rows A–D; the catalog does not read it). `expected.json` was written by the catalog and checked
+  by hand against the fixture's design.
+- **Engines `>=22.15.0`** in `package.json` (and the lock's root entry), reason in
+  `docs/toolchain.md`. Electron 45.2.3 runs Node 24.22.2 (measured).
+- **Environment:** the worktree's `node_modules` lacked `@types/js-yaml` after the merge of `main`
+  (tsc failed in two `tests/scripts` files); installed with `npm install --ignore-scripts`, the lock
+  unchanged by it.
+- **Seen failing once:** `names` false for Codex (the `sessionName` case); first index line wins
+  (contract); a `utimes` in the export (no-write); `response_item` messages read (contract, 2);
+  the head final before a user message; the index never reset; `.zst` preferred; the oldest
+  reverted file; the zstd stream not destroyed (open-file case); watching `~` without a Codex home
+  (the watch case and R10's two scan snapshots).
+- **`npm run ci`:** biome, tsc, vitest (1990/1990), R10 unchanged, code rules, i18n, flaky, history
+  pass; test integrity reports only P1a.2's six roster pins against `main` (accepted by set for
+  that commit).
+
+### P1a.4 (`menkar-t142`, task 142, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row:** `src/core/agents/types.ts`
+  (`PaneChange`, `FollowKind`; `PaneFollow.classify(source, change?)`, which may return a Promise),
+  `src/core/agents/claude/ids.ts` (a null source follows nothing: Claude unchanged),
+  `src/core/agents/codex/index.ts` (`follow`), `src/main/agents/types.ts` (`EarlyBind`,
+  `MainAgentKit.bind`) and the three `src/main/agents/*/index.ts`, the new
+  `src/core/agents/shared/turn-end.ts`, `scripts/check-package.d.mts`, `e2e/standins/codex.ts`,
+  the new `e2e/codex-bind.spec.ts`, and tests under `tests/core/agents/{shared,codex,claude}/`,
+  `tests/core/sessions/join.test.ts`, `tests/scripts/check-package.test.ts`; `docs/agents.md`.
+- **Contradicted premises, granted by set on codex's measurements of 2026-11-20** (§2.5.2 and §2.9
+  corrected, the old lines in `docs/history/plans/00-STATUS.md`): a rollout appears at the first
+  user message, not at start (at once only with a positional prompt); the process keeps a `/new`
+  thread's old rollout open; Codex spawns `notify` with no wait and its whole environment. So:
+  - **the `/proc` read runs at each join poll (1.5 s) while a Codex tab waits**, not "about 1 s
+    after start, three tries", and binds only when exactly one rollout is held; it is
+    `MainAgentKit.bind`, null for Claude and Cursor (no cost for them);
+  - **the notify program starts the user's own `notify` detached and does not wait**, instead of
+    §2.9's `CHAINED_TIMEOUT_MS`.
+- **A fork is 'resume'** (set, 2026-11-20): a thread minted after the pane started is a `/new`
+  ('clear'), unless its rollout's first line names `forked_from_id`; a fork is an in-tab switch, so
+  1.63 applies as to a `/resume`: the fork takes the source's place and group, the source becomes
+  its earlier conversation, and its parent link is not carried (only a clear carries parents and
+  Remote Control). Codex's `classify` reads that line, so it returns a Promise; Claude's stays
+  synchronous and its path unchanged.
+- **My choices, confirmed by set:** (a) no `isRealId` in the interface — no shared consumer: the
+  notify program checks the rollout itself and a `/proc` find is real by construction; (b) a
+  pending pane whose agent tells its own id (`Pending.told`, set from `bind !== null`) is never
+  guessed by folder and time in `lookUp`, and waits as long as the tab lives; (c) `turnEnded`: a
+  pending pane with no expected id joins the record's id (only Codex produces one today), and a
+  bound pane whose record names another id is followed through its kit's `classify` (source null).
+- **The record**: `{ pane, session_id, at }`, written by `shared/turn-end.ts`'s `writeTurnEnd`;
+  `parseTurnEnd` is main's reader (`control.ts`). The parity test runs both writers (this one and
+  Claude's Stop hook, unchanged) through it. No `tokens`/`last_reply` yet: no consumer.
+- **The program** is `out/main/codex-notify.js` (P1a.2's name, not §2.9's `.cjs`), inside app.asar;
+  `check-package.mjs` reads app.asar's header from the package (`asarEntries`, by hand, as
+  `packager` asked) and requires `index`, `statusline`, `mcp-server` and `codex-notify`.
+- **The stand-in** now creates the rollout at the first message, takes `FAKE_CODEX_TURN_MS`,
+  `/new` and `/fork`, keeps earlier rollouts open, mints UUIDv7 ids and lists them in
+  `codex-threads.txt`.
+- **Measured on the real CLI** (throwaway HOME and CODEX_HOME, stand-in API on 127.0.0.1, no
+  login): the numbers are in `docs/agents.md`, "Codex: binding a tab to its thread".
+- **Seen failing once:** the reader taking another key (parity, 2); no rollout check (title thread);
+  Codex's argument not passed on (D6); a fork classified as clear, two held rollouts taken as one, an
+  older thread taken as new (binding); `told` ignored (join); Claude following a null source;
+  `codex-notify.js` not required (check-package, 2); and in `e2e/codex-bind.spec.ts`, each of its
+  five tests against its own defect: the guess allowed, any pending pane joined by a record, a fork
+  as clear, no `/proc` probe, no Codex follow.
+- **Not covered:** §2.15's "with a profile override → the profile's" (D6): P1a.2 found profiles
+  are not read (a top-level `profile` key is refused by Codex), so there is no profile to test.
+
+### P1a.5 (`menkar-t146`, task 146, 2026-11-20)
+
+- **The screens are measured**, not guessed: `codex` drove a real 0.169.0 TUI (120×40, throwaway
+  `CODEX_HOME`, its stand-in API, no login, `-s read-only -a on-request`) through every state and
+  sent the last ≤15 non-empty lines of each with the pane's title. Twenty of
+  `tests/data/agents/codex/screens.json`'s 29 cases are those captures, with the probe's folder
+  replaced by `/home/dev/work`; the other nine are named as derived (a measured screen under
+  another title, a line quoted in a reply, the 2026-11-14 MCP startup line over a measured
+  composer, the exec card without its footer). `codex` keeps the summary as `codex.md` item 23 in
+  the main tree.
+- **The title is the strongest signal**: a Braille spinner and a space while a turn runs (the only
+  sign while a reply streams: the working line is gone then); `[ ! ] Action Required | <cwd>`,
+  blinking to `[ . ]`, at the exec card and the question card; the cwd's basename otherwise,
+  pickers and the trust prompt included. The fresh composer's Braille logo is in the body.
+- **Blocked**: that title, or in the last 14 lines the exec card's footer `Press enter to confirm or
+  esc to cancel`, the question card's `enter to submit answer`, or `Trust this folder?` with its
+  footer `enter continue` (its title is plain). **Working**: the spinner title, or `esc to
+  interrupt)` in the last 8 lines (the working line, and the MCP startup line). **Idle** otherwise:
+  the composer stays drawn while working, so it is never read; `N background terminal(s) running`
+  stays after a turn ends; `■` banners (an interrupt, an error) end idle; `/model`, `/resume` and
+  `/new`'s pickers (`enter select · esc back`, `enter resume`) are not questions.
+- **Not measured** (my choice to rely on the title for them): the apply-patch card, a network
+  approval and an MCP elicitation (the stand-in's model had no `apply_patch` tool). Each is an
+  approval, so the title should say `Action Required`; if one also ends in the exec card's footer,
+  the body catches it too. A "↳ queued" or "? 1 question" marker was not seen: a message sent
+  mid-turn is steered into the turn.
+- **Window sizes** (my choice): 14 lines for the cards (Claude's), 8 for the working line (it sits
+  over the composer and two footer lines; a case quotes it 9 lines up and reads idle).
+- `state.test.ts`'s `LANDS_IN` is empty; Codex's `screens.json` reaches the three raw states.
+- **Seen failing once**, each rule against its own case: the title's `Action Required` (a card the
+  body rules do not read), each footer (the card under a plain title), the trust prompt and its
+  footer requirement (a reply quoting the question), the spinner title (4 streaming cases), the
+  working line (2), the working window widened to 14, a background terminal read as working, the
+  pickers read as blocked (2).
+- **`npm run ci`**: biome, tsc, vitest (2113/2113), R10 unchanged (47 files), code rules, i18n pass;
+  test integrity reports only P1a.2's six roster pins against `main`; flaky and history pass when
+  run after it.
+
+### P1a.6 (`menkar-t148`, task 148, 2026-11-20)
+
+- **Decided by set, 2026-11-20 (Q1–Q3, as recommended):**
+  - Q1: `TurnSource.catchUp` (null when an agent has nothing it must stream) reads a never-seen
+    `.zst` in the usage worker only, before the same synchronous pass (`runStreamingPass`).
+    `runPass`, `menkar usage` and the classifier stay synchronous. So `menkar usage` counts a
+    never-seen `.zst` only after the app's next pass (P1a.7 writes it in `docs/usage.md`). A turn
+    whose rollout became `.zst` gives `turnText` null, as a vanished transcript does.
+  - Q2: `PassPaths = Roots & { cache, history }` (the scanner's `${id}Projects` keys, so every
+    test's literal `{ claudeProjects, cache, history }` reads Claude only). `defaultPassPaths()`
+    names every agent's catalog root. A source whose root does not exist reads nothing and creates
+    no file, so a pass reads every agent whose data exists, installed or not, and R10's cache
+    listing is unchanged.
+  - Q3: `src/main/classifier-worker.ts` opens every source and routes `turnText`/`textAt` to the
+    one that owns the uuid (`textsOf`; each answers null for a uuid not its own).
+- **Granted by set, 2026-11-20 — files beyond §5's row:**
+  - `src/core/agents/types.ts`: `TurnSource`, `TurnTexts`, `TurnUsage`, `UsageSource`,
+    `ContextSource`, and `AgentKit.usage` and `.context`.
+  - The three kits' `index.ts`. Claude: `claude/usage.ts`, today's `UsageCache` wrapped and today's
+    `readingFor`. Cursor: both null.
+  - `src/main/usage-worker.ts`, `src/main/context.ts` and `src/main/workspace.ts`:
+    `trackContext(id, file, kit.context)`, so a session whose kit reads no context is not tracked.
+    `turnEnded` also requests a fresh reading, so Codex's ring follows each turn end. For Claude
+    that is one more read per Stop record, which `sameReading` suppresses (CTX-17).
+  - `tests/core/agents/parity.test.ts`: the `context` pair now names `kitOf(id).context`.
+  - `scripts/check-code-rules.mjs`: `pass.ts`'s `ALLOWED` entry is gone, since no agent's name is
+    left there. An injected `const claudeRoot` failed the rule.
+- **Contradicted premise (codex, measured on 0.169.0 and read in its source, 2026-11-20): tokens
+  do not come from `token_count`.**
+  - `token_count` is written after each request, but also repeated with no new request: a
+    rate-limits update, a task's start, and the window's re-estimate after `compacted`. It also
+    fills the window when the context overflowed.
+  - Codex writes one **`token_usage_record`** line per completed response. Its `usage` is that
+    request's, with a `response_id` and a `turn_id`. These records are what is summed, each keyed
+    by its response.
+  - A rollout with no record (an older Codex) falls back to `token_count`'s `last_token_usage`,
+    keyed by the thread's `total_token_usage`, so a repeat is the entry already kept. A count with
+    no input and no output (the overflow fill) is skipped.
+  - `input_tokens` includes the cached part: Menkar's input = input − cached − written, its cache
+    read = cached. The model is the `turn_context` of the same `turn_id`, which for a compaction
+    comes after its request.
+- **Turns** (1.143, "one Usage turn per user message"):
+  - A `UserMessage` item (paginated rollouts) or `user_message` event (legacy rollouts) opens a
+    turn at its time: `codex:<turn id>`, and `codex:<turn id>:<n>` for the n-th message steered
+    into the same task (my choice: the plan named only `codex:<turn id>`).
+  - Origin is `peer` when the text starts with `[Menkar]` (the wake frame), else `human` (my
+    choice: codex measured that a `codex queue` message is otherwise indistinguishable).
+  - A task with no user message (a `/compact`, review mode) opens none: its tokens fall to the turn
+    in effect by time, as Claude's do.
+  - A subagent's rollout (`parent_thread_id`) opens no turn; its tokens count for its parent's
+    session, as Claude's subagents do.
+  - Working time is the gaps between the turn's lines up to `task_complete` or `turn_aborted`, a
+    gap over two hours being idle. No blocked time (my choice: approvals were not measured in
+    rollouts).
+- **A fork that copies its parent's history** (`ForkPersistence::Copied`) counts nothing twice: a
+  copied turn keeps its parent's session (`INSERT OR IGNORE` by uuid), and a copied record falls
+  before the fork's first turn, so it lands in none.
+- **`.zst`**:
+  - The synchronous ingest skips compressed rollouts.
+  - `catchUp` streams each `.zst` not yet read, once (its path is then in `files`). When the `.zst`
+    replaces a plain rollout already read, it goes on from that file's offset and state (same
+    bytes), and records keyed by response make a re-read count nothing twice.
+  - The fixture's `.zst` (C) is read by the contract test through `catchUp`.
+- **Prices** (D15):
+  - OpenAI's Standard tier, copied 2026-11-20 from `https://developers.openai.com/api/docs/pricing`
+    (where `platform.openai.com/docs/pricing` redirects): `OPENAI_SOURCE`/`OPENAI_COPIED` beside
+    the rows.
+  - Rows: the flagships gpt-6.2-astra, gpt-6.2-sol, gpt-6-astra, gpt-6.1-sol, gpt-6.1-terra,
+    gpt-6-luna, gpt-6-sol, gpt-5.6-sol/terra/luna and gpt-5.5, each with its `@long` row (over
+    272,000 input tokens per request, `OPENAI_LONG_PROMPT`); and gpt-5.3-codex, which has no long
+    row.
+  - Cached input is the cache-read column. The 30-minute and 12-hour writes take the two
+    write columns (my choice). gpt-5.5 has no write price on the page, so its writes are priced at
+    its input price (my choice; Codex reports no writes for OpenAI).
+  - **Codex 0.169.0's default model is gpt-6.1-sol** (codex measured, ChatGPT login, no `-m`).
+    Its `/model` picker offers gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol,
+    gpt-6.1-terra, gpt-5.6-terra, gpt-5.6-luna and gpt-5.5.
+  - The page says gpt-5.6-sol's price is a promotion until 2026-11-30: its later price needs a new
+    row from that day.
+  - `requestModel` generalises Haiku's long-prompt rule: a model with an `@long` row takes it per
+    request (Haiku at 100,000, OpenAI at 272,000). Claude's keys are unchanged.
+- **Context** (`codex/context.ts`): the last `token_count` with an info in the rollout's tail
+  (64 KB, 1 MB, 8 MB). The figure is Codex's footer (codex read it in `tui/src/token_usage.rs`):
+  used = 100 − round((W − B − max(last.total − B, 0)) / (W − B) · 100), B = 12,000. Source
+  `statusline` (exact). A `.zst` rollout shows no reading.
+- **Fixture regenerated through `make.mjs`:**
+  - A gains its records and a `/compact` task (`task_started`, a record, a `token_count`,
+    `compacted`, a late `turn_context`, the re-estimate, `task_complete`).
+  - E (no records) gains a repeated count. F gains its record.
+  - `expected.json`'s two sizes follow; nothing else in the catalog's contract moved.
+  - New `usage.json` per agent (Claude's and Codex's), held by
+    `tests/core/agents/contract/usage.test.ts` and checked by hand: A's first turn sums its own
+    request, the compaction's and subagent D's (input 8,816 = 2,882 + 2,934 + 3,000).
+- **Seen failing once:**
+  - a fork owning its parent's copied turn;
+  - a count keyed by time (the repeat counted, contract and unit);
+  - the overflow fill kept;
+  - steered messages merged;
+  - `[Menkar]` read as human;
+  - no long row;
+  - a turn opened a minute late (midnight and seven others);
+  - `catchUp` doing nothing (three tests);
+  - the `.zst` re-read from 0 with records keyed by file (not with either alone: each covers the
+    other);
+  - Codex's cache in Claude's file (the Claude-unchanged test and three others);
+  - the previous prompt dropped;
+  - no baseline (five tests), the first count taken instead of the last;
+  - `sameReading` bypassed (CTX-16, CTX-17);
+  - a price digit (USG-23b);
+  - Codex's `context` null (parity);
+  - `claudeRoot` in `pass.ts` (the code rule).
+- **Claude unchanged** (R10, §2.15): R10's 47 files are equal to `main`'s, every existing usage and
+  classifier test passes unchanged, and a new test shows Claude's cache rows and history rows equal
+  with and without Codex's sessions read beside them.
+- **`npm run ui-check`**: the new `e2e/usage-codex.spec.ts` shows Usage with a Codex session
+  beside a Claude one in both themes (`menkar-t148-usage-codex-{dark,light}.png` in the files
+  folder). It was seen failing with Codex's `usage` null. The whole run: 420 passed and one
+  failed, orchestration's "Ctrl+` in the orchestrator's tab": a stand-in's first line was not
+  drawn within 15 s under the full run's load. It passed alone, and the whole orchestration spec
+  then passed (29/29); it is not in this block's files.
+- **`npm run ci`**: biome, tsc, vitest (2149/2149), R10 unchanged (47 files), code rules and i18n
+  pass. Test integrity reports only P1a.2's six roster pins against `main`. Flaky and history
+  pass when run after it.
+- **Left for P1a.7**: `docs/usage.md` (`menkar usage` counts a never-seen `.zst` only after the
+  app's next pass; Codex's turns, tokens and prices), `docs/agents.md`'s Codex usage and context
+  notes, and whether `e2e/usage-codex.spec.ts` folds into `e2e/codex.spec.ts`.
+
+### P1a.7 (`menkar-t151`, task 151, 2026-11-20)
+
+- **`e2e/codex.spec.ts`** (two tests, the session end to end with the stand-in): started from New
+  with `--add-dir <the project's files folder>` and Menkar's `-c notify=[…]`; bound to its thread;
+  the tab's dot working while the turn runs; the user's own `notify` from `config.toml` given
+  Codex's argument; the row named from `session_index.jsonl`; a closed tab stops it, and opening
+  its row runs `codex resume … <id>` with no `-m`, the same thread going on. The binding cases
+  (/new, a fork, two tabs in one folder) stay in `e2e/codex-bind.spec.ts` and Usage in
+  `e2e/usage-codex.spec.ts` (my choice: one file per concern, not folded). **Seen failing once:**
+  the user's notify given `{}` instead of Codex's argument (in the built program), and the resume's
+  thread list inverted.
+- **Docs**: `docs/agents.md` gains "Codex: starting it", "Codex: its sessions", "Codex: its
+  state", "Codex: usage and context", the real check's binding numbers, and the interfaces P1a
+  added (`LaunchPlan.files`, `EnvPatterns`, `EarlyBind`, `UsageSource`/`TurnSource`,
+  `ContextSource`, `DeclaredWrites`); `docs/sessions.md` Codex's discovery, its watch and the cost
+  of an absent `~/.codex`, the no-write test per agent, the follow, no trash; `docs/usage.md` "Per
+  agent" and the `.zst` limit of `menkar usage`; `docs/release-checklist.md` "8d. Codex as a
+  session (P1a)". The lines that left are in their histories.
+- **The real check** (codex-cli 0.169.0 symlinked into a throwaway root's `bin`, `CODEX_HOME` in
+  the throwaway home, `codex`'s stand-in API on 127.0.0.1, Menkar from the worktree's `out/` under
+  Xvfb; driven by a Playwright script of mine, read by `codex`): the start's argv as above; with
+  an instant reply the turn-end record arrived before the next poll (bound 1.57 s after Enter);
+  with an 8 s reply the tab bound about 1.5 s after Enter from `/proc`, no record yet, and its dot
+  was working until the turn ended; the user's notify ran for the thread and the title thread, the
+  title thread made no record; `/new` and `/fork` (each through Codex's checkout picker) were
+  followed as a clear and a resume, the fork's earlier conversations being both older threads;
+  `codex resume … <fork id>`, no `-m`, no new rollout; `menkar usage --json`: four turns, one per
+  user message, the title thread's requests not counted; the ring "0% of 258k".
+  **`codex` read the outputs and the rollouts: nothing contradicts its measurements.** The fork's
+  rollout references its parent's history rather than copying it (only its own records), so four
+  turns of 100/5 tokens is exact; resume appends to the fork's own file; the ring is Codex's own
+  figure (105 tokens under the 12,000 baseline). The title request at every turn (8 requests for 4
+  turns) is the stub's: it answers the title prompt in plain text, so no title is saved and Codex
+  asks again; with a real model it stops after the first turn, and no row name came from the index
+  in this run.
+- **Found, not mine** (pre-existing, Claude's New the same): a row's dot stays idle while its tab
+  shows working, from a pane's join until its state next changes. `agentStates()` reads each pane's
+  `sessionId()`, but the push (`refreshAgentStates`) is not resent when `joinSession`
+  (`src/main/workspace.ts`) gives a pending pane its id. Reported to set; not fixed here.
+
+### P1b.1 (`menkar-t158`, task 158, 2026-11-20)
+
+- **Merged `main` into the branch first** (`73f7a0f`, no conflict). `main` then moved on
+  (`9d3c0e8`, task 160: the team part's load-by-name wording, R10's team files rewritten on
+  `main`), so CI's "R10 unchanged" step fails on `tests/core/r10/{plugin/team/claude.md,
+  team-blocks.txt,team-posts.txt}` until that commit is merged too: not this block's change.
+- **The measurement** (`claude-cli`, Claude Code 2.1.329, a throwaway home, a stub stdio server):
+  Claude **re-lists** on `notifications/tools/list_changed` (24–33 ms), the new tool is callable
+  in the same turn and the next; `tools` and `system` stay byte-identical, the tool announced in an
+  appended message, so the cache's prefix holds (measured on the request's bytes; the stand-in API
+  has no cache counters). ToolSearch found the new tool only from the next turn. The plan's
+  fallback is not needed; `docs/agents.md` states the measurement. Details:
+  `claude-cli-t158-list-changed.txt` in the project's files folder.
+- **Granted by set, 2026-11-20 — premise gaps G1–G6:**
+  - G1: the server program may not import a kit, and Waker is main's: the shapes are computed in
+    new `src/core/control/shapes.ts` (`toolsFile(installed, wakeable)`), published whole to
+    `control/tools.json` by `publishTools` in `src/main/control.ts`, called once in
+    `src/main/workspace.ts` right after the installed agents are found, before any pane starts.
+    The server reads it (`readShape` in `files.ts`) at `initialize` and `tools/list`; no file, a
+    malformed one, or a caller it does not list → the plain list (R10).
+  - G2: the caller's agent is `MENKAR_AGENT` (`AGENT_ENV`) in the server's environment, set by
+    an agent's mount (Codex's in P1b.2); none → `DEFAULT_AGENT`, so Claude's `--mcp-config` bytes
+    hold.
+  - G3: `ControlRequest.caller` (`{ pane } | { agentSession: { meta, id } }`) replaces `pane`;
+    `requests.ts` parses both branches; `handleControl`'s first line reads `request.caller`
+    (an `agentSession` caller finds no pane and is refused until P2).
+  - G4: `send_message`'s definition and `start_session`'s `agent` (an enum of the installed
+    agents) are listed now; `send_message` is not in `TOOL_NAMES`, so its call is refused as an
+    unknown tool until P1b.3, and main ignores `agent` until P1b.2.
+  - G5: `AgentKit.messaging: Messaging | null` (`{ tool, reaches(other) }`; the plan's `native`
+    wrapper folded into the nullness, as every other concern); Claude's in
+    `claude/messaging.ts`, `null` in `codex/index.ts` and `cursor/index.ts`.
+  - G6: `listChanged: true` is declared when an agent other than the default is installed, but
+    no notification is sent: the installed agents are found once, at start, and a restart starts
+    every server again. Deferred in `docs/NOT_BUILT_YET.md` with its trigger.
+- **The rule (S8)**: `send_message` is listed to caller A when some installed agent is out of A's
+  `messaging.reaches` and has a Waker. Today in the app no Waker exists but Claude's, so a Claude
+  caller with Codex installed is listed `agent` and not `send_message` until P1b.3; the D3
+  snapshot `{claude, codex}` is taken with Codex wakeable, as P1b.3 makes it (my choice: the
+  snapshots show the state the plan names; the rule's table covers both).
+- **Tests**: `tests/core/control/shapes.test.ts` — R10's `initialize` and `tools/list` bytes with
+  no file and with only Claude installed (compared with `tests/core/r10/`'s files, not rewritten);
+  D3's snapshots under `tests/core/control/d3/` (`.txt`: Biome would reformat `.json` and
+  `biome.json` is not this block's) for `{claude, cursor}` caller Claude and `{claude, codex}`
+  callers Claude and Codex; S8's table; `listChanged`; the agent enum; the file's malformed
+  cases; `send_message` refused. `requests.test.ts`: both caller branches reach main; an empty
+  pane and a session caller without its id are refused.
+- **Seen failing once**, each injected and reverted: `listChanged` always on (2 tests),
+  `wakeable` ignored (4), native reach ignored (5), `agent` with one agent (4), the caller's entry
+  ignored (1), an unknown agent kept (1), malformed JSON not plain (1), the plain shape changed
+  (1), the server ignoring its agent (1), any tool name called (2), the three caller-parse
+  defects (1 each).
+- **Integrity**: `check-test-integrity` reports P1a.2's six roster pins and **one more**,
+  `tests/core/control/server.test.ts`: `callMenkar({ pane: 'p1', … })` became
+  `callMenkar({ caller: { pane: 'p1' }, … })` on a line holding `expect(` (the type changed, G3).
+
+### P1b.2 (`menkar-t162`, task 162, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row:** G1 `src/core/orchestration/tasks.ts`
+  (`unassign`) with its test, `src/core/agents/codex/{index,launch}.ts` (the mount wired),
+  `src/core/agents/types.ts` (`LaunchContext.mcpServer`); `e2e/standins/codex.ts` (`/menkar
+  <tool>` calls the mounted server with Codex's environment rule) and the new
+  `e2e/codex-worker.spec.ts`; unit tests in `tests/core/projects/` and `tests/core/agents/codex/`.
+  G2: the provisional id is `pending:<random uuid>`, minted by `start_session` and `renew` before
+  the pane exists (§2.5.2 corrected, the old lines in `docs/history/plans/00-STATUS.md`).
+- **The mount** (`codex/mcp.ts`; `codex` measured each point on 0.169.0, 2026-11-20, recorded in
+  its research file): one `-c mcp_servers.menkar.<key>=…` per key, values TOML strings —
+  `command`, `args`, `env` {`ELECTRON_RUN_AS_NODE`, `MENKAR_PANE`, `MENKAR_AGENT`}, `env_vars`
+  [the three XDG names], `default_tools_approval_mode="approve"`. Codex gives a stdio server only
+  ten variables of its own, then `env_vars` from its environment (an unset name left out), then
+  `env`: without the XDG names a run with `XDG_CACHE_HOME` set (every e2e, any user who sets it)
+  finds no Menkar. Names are forwarded, never values (set). `env` and `env_vars` are separate keys
+  and merge, each `-c` applied by its dotted path. Mounted on every Codex start, as Claude's
+  `--mcp-config` is.
+- **`LaunchContext.mcpServer`** (my choice): the server program's path, which Codex's mount needs
+  and P1a's tests never set, so every existing line of `codex/launch.test.ts` holds; R10 equal.
+- **`start_session`'s `agent`** (D4): absent → the caller's agent; unknown → refused;
+  not installed → refused; **an agent whose kit has no McpMount → refused** (my choice: Cursor's
+  sessions could not use Menkar's tools nor be followed until P3; today the enum lists it when
+  installed). `remote_control` is refused for an agent whose main kit has no Remote. The refusals
+  name the agent by its id (tools answer in English; `agentName` is the user's language).
+- **The provisional id** (`src/core/projects/provisional.ts`): `bindProvisional` is `followNewId`
+  then `forgetSession` of the provisional id, so the real id takes its place, group, hidden flag,
+  parent, children, marks and the earlier conversations it took over by name, and the provisional
+  id is not left as an earlier conversation. Main's `bindPane` (from `joinSession`) also moves the
+  tab, task, name, model, mute, a park or renew asked meanwhile, and records a first prompt as
+  prompted once real. The provisional id never reaches `session_agents`, `started_sessions`
+  (`noteBound`) or the activity log. `dropProvisional` + `unassign` run once at
+  `startWorkspace`, with one `log.info`; the saved tab goes through `dropUnknownSessions`.
+- **`renew`** mints a provisional id for an agent with no `newId`, and its pane waits as a New
+  tab's does. `resume_session`'s refusal is agent-neutral; `park_session`, `adopt_session` needed
+  no change. `handleControl` already served any kit with an McpMount (P0.6).
+- **Tests** — unit: the mount's table, its quoting, nothing of the pane's values but its id, left
+  out without the program, Electron or the pane; `isProvisional`, the bind, the earlier
+  conversations kept, no change when nothing applies, the drop on load; `unassign`. E2E
+  (`codex-worker.spec.ts`): a Codex worker started by a Claude session's `start_session` → member
+  and child by its provisional id, then by its thread's, nothing `pending:` left; its own
+  `list_sessions` through the server Codex starts (with Codex's environment rule) answers, its
+  `XDG_CACHE_HOME` the run's; `gemini` and an uninstalled `cursor` refused; a provisional worker
+  saved by a Menkar that stopped is dropped at start with its tab, parent and assignee, its task
+  still queued, and the log line.
+- **Seen failing once:** the approval mode and the XDG list (unit), unquoted `env` values and a
+  mount without its program or Electron (15 unit tests), the thread not last, the pane's value
+  passed (unit); `isProvisional` by a prefix without its colon, the bind keeping the provisional
+  id (2), the drop finding none, `unassign` keeping the assignee; in the e2e, a join without
+  `bindPane` (members), no `env_vars` (Menkar not found: "Menkar is not running"), the caller's
+  agent always taken (the refusals), `forgetUnbound` skipped (the tab and the members).
+- **Not covered, known limit:** a worker stopped before it binds (its tab closed, parked) keeps
+  its provisional id as a member until the next start drops it.
+- **`npm run ci`**: biome, tsc, vitest (2188/2188), R10 unchanged (47 files), code rules, i18n
+  pass; test integrity reports P1a.2's six roster pins and P1b.1's `callMenkar` line against
+  `main`, nothing more; flaky and history pass when run after it. **`npm run ui-check`**: 427
+  passed, 1 failed — `e2e/unknown-agent.spec.ts` "a saved tab whose session nothing records and no
+  reader finds is dropped, as before": `projects.json`'s windows still hold the dropped tab after
+  15 s. It fails the same, three runs out of three, on a copy of HEAD (376eb2b) without this
+  block's changes: not this block's, reported to set.
+
+### P1b.3 (`menkar-t164`, task 164, 2026-11-20)
+
+- **Granted by set, 2026-11-20 — files beyond §5's row:** new `src/core/control/send.ts`
+  (send_message's pure logic, as `ask.ts`) with `tests/core/control/send.test.ts`;
+  `src/core/control/{files,protocol,requests}.ts` (send_message callable);
+  `src/main/agents/codex/index.ts` and `src/main/workspace.ts`; `e2e/standins/codex.ts`
+  (`/menkar <tool> <JSON arguments>`) and the new `e2e/send-message.spec.ts`;
+  `tests/main/agents/codex/waker.test.ts`. P1b.1's interim test "send_message is refused by name
+  until its call is built" replaced by one that its call reaches main (accepted by set: it was
+  meant to go here; the integrity step does not list it, since `main` never had it).
+- **The measurement** (`codex`, codex-cli 0.169.0, a throwaway home, the stand-in API; its research
+  file, item 24): `codex queue` with no `-c` returns in 50–75 ms; exit 0 = queued (idle: next turn
+  in ~4 s; busy: its own turn right after; at an approval card: the card untouched, the message
+  run after the human's answer — **a queued message never answers an approval**). A stopped TUI:
+  exit 0, the row waits, delivered at the next resume as the first turn, or **in the same turn as
+  a resume's prompt**. No rollout yet and an unknown id: the same exit 1 and line, so the waker
+  looks for the rollout first. Text byte-exact (2,071 characters, newlines, quotes, emoji); two
+  messages, two turns. With the shared daemon running, any `-c` makes `codex queue` refuse.
+- **Built:** Codex's Waker (`src/main/agents/codex/waker.ts`): no rollout → `'no session'`, the
+  command not run (a provisional id too); else `codex queue --thread <id> --message
+  <wakeText(text, counts)>` through `runWakeCommand` (`src/main/agents/shared/wake.ts`: argv, no
+  shell, `withoutSessionEnv`, a 10 s bound); exit 0 → `'posted'`, anything else logged and
+  thrown, so `wakeSession` answers `'error'`. `wakeText` is split out of `wakeFrame` (its bytes
+  and R10 unchanged). `send_message { name, text }` (`sendMessageTool`): by name in the caller's
+  project, posted at once through the receiver's Waker; `messageRoute` from the two kits'
+  Messaging gives the refusal (the caller's own tool reaches it: "use SendMessage") and the tool
+  to reply with. The bridged frame: `bridgedText` → `from <name> (<agent, English>); reply with
+  <tool>: <text>` inside `wakeText`. `wakeSession` became `wakeTarget(…, withCounts)`: a message
+  carries no counts; Claude's parent wakes go as before.
+- **My choices:** a message is at most 2,000 characters, as `ask`'s question, and trimmed; the
+  caller itself is refused; `send_message` is answered for any caller, listed or not (main's
+  checks decide, as for every tool); a session's agent is its pane's, else its reader's
+  (`agentOfSession`); the 10 s bound on `codex queue`.
+- **Tests:** `send.test.ts` (each D2 pair from the real kits, the refusals, each outcome's
+  sentence, the frame's text), `post.test.ts` (`wakeText` is the frame's content), `requests` and
+  `shapes` (send_message reaches main), `tests/main/agents/codex/waker.test.ts` with the stand-in
+  `codex` on PATH: **the stand-in's `queue_1.sqlite` row holds the exact bytes**
+  (`[Menkar] from orchestrator (Claude Code); reply with send_message: "look"\nat …(23:59:58) · 2
+  topics · 1 working · 0 waiting`), no rollout and a provisional id → `'no session'` with nothing
+  run, a failing exit rejects, Menkar's `CODEX_THREAD_ID` not handed on. E2E
+  (`send-message.spec.ts`): Claude → a Codex worker before its first message refused ("has not
+  started yet"), then queued and run as its next turn with the frame matched whole in its
+  rollout; Codex → Claude through the messaging socket with the frame naming Codex;
+  Claude → Claude refused naming SendMessage, an unknown name refused, nothing posted.
+- **Seen failing once**, each injected and reverted: native reach ignored, the reply tool fixed,
+  `reaches` always true (2), the cap off by one, the caller itself allowed, a changed sentence,
+  the frame without its reply tool (2), `wakeText`'s counts inverted (6), send_message not
+  callable in the server, not parsed by main, no rollout check (2), the raw text queued, the exit
+  status ignored, the environment not stripped; in the e2e, the raw text queued and the native
+  reach ignored (both tests red).
+- **Known limits, not this block's:** a Codex that exits with an error leaves its shell and so its
+  pane: a message sent then is queued and waits for the next resume (`'posted'`). A resume of a
+  Codex session with a prompt while a message waits runs both in one turn (`resume_session` and
+  `renew` pass prompts): for P1b.5/P1b.6 to weigh.
+
+### P1b.4, first half (`menkar-t165`, task 165, 2026-11-20)
+
+- **The namer is not built: D5 is back with the human (topic 82).** `codex` measured
+  `thread/name/set` on 0.169.0 (its research file, item 25): a separate `codex app-server
+  --disable plugins` on the same home serves it as soon as the rollout exists (first message);
+  it appends to `session_index.jsonl` and sets `threads.name`; the running TUI never sees it.
+  The TUI generates a title at every user message while it holds no name of its own, saved only
+  if the name is still empty, ~37 ms after the first message with the stand-in API. A user's
+  `/rename` and a generated title are stored identically, and no per-run switch turns the
+  generation off, so a thread Menkar names costs one hidden model request per message. set put D5
+  back to the human with that cost; the namer comes as its own follow-up.
+- **Granted by set, 2026-11-20 — files beyond §5's row:** new `src/core/agents/codex/writes.ts`
+  and `src/core/agents/codex/index.ts` (Codex's `DeclaredWrites`, the queue row P1b.3 left
+  undeclared); `src/main/agents/codex/waker.ts`, `e2e/standins/codex.ts`,
+  `tests/main/agents/codex/waker.test.ts` (the waker without the plugin sync); the shared harness
+  `tests/core/agents/contract/nowrite-harness.ts` (moved out of `nowrite.test.ts`) and the new
+  `tests/main/agents/contract/nowrite.test.ts`.
+- **Why the harness missed P1b.3's queue row:** it ran only each catalog's read side, in core;
+  what main runs of an agent's own (`codex queue`) never ran under it. Now main's contract test
+  wakes every session found in each agent's fixture home, for every agent whose main kit has a
+  waker, with the agent's stand-in on the PATH, and compares the home with the kit's
+  `DeclaredWrites` (the stand-in's own records at the home's root excluded). The listing also
+  holds folders (by presence; their mtime moves with any file), so an empty folder appearing is
+  seen.
+- **Codex's `DeclaredWrites`** (`codex` measured `codex queue` by snapshot diffs, item 24, in a
+  home that exists): changed `queue_1.sqlite` and `logs_2.sqlite` with their `-wal`/`-shm`,
+  `state_5`/`goals_1`/`memories_1` `.sqlite-shm`; created `.sqlite-maintenance.lock`. Delivery
+  (the TUI taking the row) is Codex's own turn, not Menkar's write.
+- **The waker without the plugin sync:** a plain `codex queue` syncs Codex's plugin marketplace
+  (`git ls-remote` to GitHub, an empty `.tmp/git-XXXXXX/` left). It now runs `codex queue
+  --disable plugins …`; Codex's shared daemon refuses any override with "cannot queue through an
+  embedded app server while a local app-server daemon is running", and on that line alone the
+  plain call is made, served by the daemon (nothing synced here). The stand-in learns both: the
+  sync's folder without `--disable plugins`, and `FAKE_CODEX_DAEMON`'s refusal.
+- **Seen failing once**, each injected and reverted: Codex's writes undeclared (main's no-write
+  test: `created .codex/queue_1.sqlite`); `--disable plugins` dropped (main's no-write test on
+  `.codex/.tmp/git-*`, the waker's disabled test, the daemon test); no retry on the refusal (the
+  daemon test); a retry on any failure (the "not retried" test); folders left out of the listing
+  (the harness's folder test).
+
+### P1b.4, second half: the namer (`menkar-t165`, task 165, 2026-11-20)
+
+- **Decided by the human, 2026-11-20 (1.195, topic 82, option c):** Menkar names only the Codex
+  sessions `start_session` starts, as soon as possible after the first message (codex's route a:
+  the rollout watched, then `thread/name/set`), overwriting a name present at Menkar's first bind
+  of such a thread as Codex's own (route b); later changes are the human's; a session from New
+  keeps Codex's title; the hidden title request per message on a named thread is accepted. §2.3's
+  Namer and DeclaredWrites rows and §5's P1b.4 line corrected; their old text in
+  `docs/history/plans/00-STATUS.md`.
+- **Decided by set, 2026-11-20:** a renew of a named worker names its new thread too, and "Menkar
+  named this session" is the app's own data, `agent_named` in `state.json` (`src/core/agent-named.ts`,
+  `docs/sessions.md`), so a renew follows it after a restart and a session the human parented later
+  is never reached. **Granted files beyond §5's row:** `src/main/agents/types.ts` (`AfterNamer`,
+  `MainAgentKit.namer`), the three main kits, `src/main/workspace.ts`, `src/core/agent-named.ts`,
+  `src/core/agents/codex/{catalog,writes}.ts` (`NameIndex` exported), `e2e/standins/codex.ts`,
+  `e2e/codex-naming.spec.ts`, the tests below, `docs/agents.md` ("Codex: naming"),
+  `docs/sessions.md`.
+- **Built:** `AfterNamer { after(sessionId, name), watch(since, changed) }` on main's kit, Codex's in
+  `src/main/agents/codex/namer.ts`: `after` reads Codex's index (`NameIndex`) and answers `kept`
+  when the thread has the name; else one `codex app-server --disable plugins` (no shell, Menkar's
+  session variables removed, a 10 s bound) gets `initialize`, `initialized` and `thread/name/set`;
+  `{}` → `named`, `no rollout found…` → `no session`, anything else rejects. `watch` watches Codex's
+  home and the day folder of the pane's start (each level taken up as it is made). In
+  `workspace.ts`: `start_session` (and a renew of a session in `agent_named`) marks the provisional
+  id in `toName` and arms the watch, whose changes run the `/proc` bind at once; the bind
+  (`bindPane`) names the thread and keeps it in `firstTurnNames`; the first turn's end looks once
+  more and names again if the name differs (**set accepted it**: a title the TUI saves between its
+  check and its write is still Codex's own); a later turn never names. One naming at a time per
+  session; a success writes `agent_named` once.
+- **DeclaredWrites** gained, from codex's item 25: `session_index.jsonl` and `state_5.sqlite`
+  (with its `-wal`). An empty home's extra files (`installation_id`, `skills/.system/**`, the other
+  databases) are not declared: Menkar names only a thread whose rollout exists, so the home is
+  Codex's own, already made (my choice).
+- **My choices:** the client's version sent to Codex is the constant `1` (Codex requires one and
+  acts on none); `nameWhenBound` names at once a session whose id is real at start (no agent does
+  today); a pane that exits before its bind drops its naming.
+- **Tests:** `tests/main/agents/codex/namer.test.ts` (named with plugins disabled and no `.tmp`; a
+  generated title overwritten; `kept` with codex not run; `no session`; another refusal rejects;
+  Menkar's session variables not handed on; the watch from a day folder made after it starts, and
+  silent once closed; Claude and Cursor have no namer). Main's no-write test names every session
+  of each agent with a namer. `tests/core/agent-named.test.ts` (lenient read, once and sorted,
+  survives a save and a load). E2E `e2e/codex-naming.spec.ts`: a worker named over the stand-in's
+  generated title before its first turn ends (6 s turn), then a `/rename` kept through two turns;
+  a renewed worker's new thread named the same, both in `agent_named`; a Codex session from New
+  keeps the generated title and no `app-server` runs. The stand-in learned `app-server`,
+  `FAKE_CODEX_TITLE` (the TUI's title, saved only on an unnamed thread) and `/rename`.
+- **Seen failing once**, each injected and reverted: no naming at the bind (the worker e2e, once it
+  asserted the name before the turn's end — the first version passed through the turn-end check, so
+  the assertion was tightened); no renew naming (renew e2e); every Codex session named (New e2e);
+  a recheck at every turn end (the `/rename` e2e); `--disable plugins` dropped (2 unit tests); the
+  `kept` check dropped; `no rollout` not mapped; the watch never arming; `session_index.jsonl`
+  undeclared (main's no-write test); `agent_named` written twice.
+- **Not covered:** the race the first-turn check answers cannot be produced with the stand-in (it
+  saves a title only on an unnamed thread, as Codex does); the watch's speed-up is not observable
+  in an e2e (the 1.5 s poll binds within the turn too), only in the unit test.
+- **Found in the first half's own test:** "with Codex's daemon running…" read the real clock, so a
+  wake across a second boundary failed it (the frame's time differed): it now fakes the date. It
+  was committed in aae3358.
+
+### P1b.5 (`menkar-t166`, task 166, 2026-11-20)
+
+- **Merged `main` into the branch first** (`48035c2`, no conflict: `package.json`,
+  `package-lock.json`, `plans/00-STATUS.md`, `plans/ideas/research/codex.md`).
+- **Measured by `codex`** (codex-cli 0.169.0, a throwaway home, the stand-in API; its research
+  file, item 26): `-c developer_instructions` replaces the user's own for the run (so Menkar joins
+  them: its block, a blank line, the user's), sits first in Codex's second developer message, no
+  size limit; a resume replays the instructions recorded at the thread's creation and the run's
+  `-c` is not seen; **a compaction, manual or automatic, rebuilds them from the running process's
+  `-c`** (§2.5.6 corrected, the old lines in `docs/history/plans/00-STATUS.md`): what the pane
+  `started` with, as Claude's, so no `afterCompaction` method; both compactions write the same
+  `compacted` line. A turn `codex queue` opens sends the same request as any other. **The
+  catalog's models defer MCP tools** (code mode: the model sees only `mcp__menkar` and calls
+  `tools.mcp__menkar__<tool>` inside `exec`); `features.code_mode.direct_only_tool_namespaces`
+  lists them directly with their schemas (spelled without `features.` it is ignored). Codex reads a
+  `SKILL.md` outside its folder with no approval card.
+- **Approved by set, 2026-11-20:** every Codex resume passes `-c developer_instructions` again;
+  every Codex start adds `-c 'features.code_mode.direct_only_tool_namespaces=["mcp__menkar"]'`,
+  with a test pinning the key. So Codex's part needs no "load the tool" line.
+- **Granted by set, 2026-11-20 — files beyond §5's row:** `src/core/agents/types.ts`
+  (`heldAtStart`'s `recorded`, `records`), `src/core/agents/claude/team.ts` (`records: false`),
+  `src/core/agents/codex/{index,launch,mcp,catalog}.ts`, new `src/core/agents/codex/compaction.ts`,
+  `src/main/team.ts`, `src/main/agents/codex/index.ts`, `src/main/workspace.ts`,
+  `src/core/control/files.ts` (`teamHeld`), `src/core/sessions/{scanner,info,service}.ts`
+  (`compactions`), the tests, `e2e/standins/codex.ts` and the new `e2e/codex-team.spec.ts`,
+  `docs/session-control.md` and `docs/agents.md`. `tests/data/package/sandbox/{files,menkar-files}.txt`
+  were re-recorded by `packager` from builds of `48035c2` + `codex.md`.
+- **Built:** Codex's `TeamDelivery` (`src/core/agents/codex/team.ts`): skills named with their
+  `SKILL.md` (`FoundSkill.file`; Menkar's from the plugin's `skills/`, given as
+  `TeamInput.ownSkills`; one not found by name), `byName` "by reading its SKILL.md at the path
+  given", part `plugin/team/codex.md` (two lines: `send_message`, reading a skill whole);
+  `heldAtStart` new → the block, resume → recorded; `records: true`; `atStart` names the pane's
+  `codex-developer-instructions.toml`, a `LaunchPlan.files` entry holding `tomlString(block, a blank
+  line, the user's own)`; no floor. Main: `recorded` read at a resume start, written whenever what
+  the session holds changed (at a recompute and after a delivered post), removed on trash and
+  delete; a recompute triggered at every recording agent's start; `TeamSource.session` is null for
+  a provisional id. `tell` is Codex's waker. The compaction signal: the catalog counts the
+  `compacted` lines a rollout grows by (`compactionsIn`, by the line's start, never parsed; a file
+  first seen is not read back), the row carries `compactions`, and main takes a grown count for a
+  pane's session as the `compact` record.
+- **Budget:** common + Codex part under 900 bytes (892); the Codex expert block, with three
+  paths, under 2,000 (1,739). Claude's block and R10 unchanged.
+- **My choices:** the recorded file is `<session>.json` (`{ facts, block }` or `null`), not
+  `.txt`, since a resume needs both; a session id that is not `[\w-]+` is neither written nor
+  read; the user's own value of `direct_only_tool_namespaces`, if any, is replaced for the session
+  (not chained: rare, and the `-c` is a constant); the not-found skill keeps its name alone.
+- **Tests:** `tests/core/agents/codex/team.test.ts` (what a start holds; the post rule with
+  Codex's methods: resume unchanged → none, changed → one, nothing recorded → the whole block,
+  compaction → told again, not wakeable → told once it is; the skills line for the orchestrator, a
+  stored one, a not-found one, the worker's line; the instructions argv through a real shell, new
+  and resumed, the user's own byte for byte, the block alone, the user's alone, nothing without a
+  team file), `compaction.test.ts`, a catalog test (counted from growth only),
+  `tests/core/team/recorded.test.ts`, `input.test.ts` (files and the own folder), `skills.test.ts`
+  (`file` by folder name), `block.test.ts` (the Codex budget), `launch.test.ts` (the key pinned),
+  `check-package.test.ts` (Codex's part missing), `waker.test.ts` (P1b.3's interim "not built yet"
+  replaced by "tells through this waker"). E2E `e2e/codex-team.spec.ts`: a Codex worker started by
+  `start_session` gets the block then the user's own; stopped, its role set, reopened: the resume
+  passes the block again and is told once through `codex queue`, recorded; a change while it runs,
+  one post; `/compact` tells it again.
+- **Seen failing once**, each injected and reverted: the compacted line's start (4), a file first
+  seen read back, the next line's start (2), any JSON taken as recorded, any id written, forget
+  doing nothing, the order reversed, resume holding the block (3), a skill without its file, the
+  block file unread (2), the instructions without a team file, the key without `features.`,
+  Claude recording, the file by frontmatter name, `codex.md` not required, the file passed for a
+  skill not found, the own folder dropped, Codex's part over budget, `tell` absent; in the e2e,
+  resume holding the run's block (the Reviewer post never came) and no compaction route (the
+  third post never came).
+- **Found in the stand-in, fixed:** it polled `queue_1.sqlite` every 500 ms, and each open made
+  `-wal`/`-shm` events in Codex's home, so Menkar's sessions scan (2 s of quiet) never ran while a
+  stand-in idled; and it crashed on "database is locked" when a `codex queue` wrote at that moment.
+  It now looks only when the queue's files changed, and again after a lock.
+- **Found, not fixed (for set):** the sessions service's debounce runs a scan only after 2 s of
+  quiet in the watched folders, so a process that writes there more often than that starves every
+  scan (badges, names, and now Codex's compaction signal). Real Codex writes its databases in its
+  home during a turn; whether an idle TUI does was not measured. Codex's catalog has no
+  `TurnEndReading`, so a Codex worker's turn end reaches neither its parent's inbox nor a wake
+  (and a team-update turn wakes no one) — P1b.6's e2e names that case.
+- **Integrity:** the branch's seven known lines and one more,
+  `expect(Object.keys(TEAM_AGENTS)).toEqual(['claude'])` → `['claude', 'codex']` (Codex now has a
+  team record).
+- **`npm run ci`**: biome, tsc, vitest (176 files, 2260 tests), R10 unchanged, code rules, i18n
+  pass; test integrity as above; flaky and history pass when run after it. **`npm run ui-check`**:
+  434 passed, exit 0.
+
+### P1b.6 (`menkar-t167`, task 167, 2026-11-20)
+
+- **Mock-ups first** (part 1): drawn in the real app under Xvfb with stand-in claude, codex and
+  cursor, both themes, the new parts injected into the card's DOM; sheet
+  `$MENKAR_FILES/menkar-t167-sheet.png`. **The human chose, 2026-11-20 (topic 83):** layout A (the
+  "Agent" line under name and folder), the Cursor warning as drawn under what chose it, each listed
+  session naming its agent, "an ordinary session", and the card's choice remembered as
+  `last_agent` (recorded in §2.14's Q2).
+- **Decided by set, 2026-11-20, during the build:**
+  - **Cursor is not choosable for a new orchestrator yet**: the picker enables only the installed
+    agents whose sessions can use Menkar's tools — the rule `start_session` applies — so Claude
+    Code and Codex; Cursor is greyed with "Cursor sessions can't use Menkar's tools yet" and
+    becomes choosable by itself in P3, when its kit has an MCP mount. The Cursor warning shows now
+    for an existing Cursor session picked to orchestrate or checked to work. New cap
+    `tools` ⇔ `kit.mcp` (the parity test holds it), new descriptor field `teamLimits` (Cursor's two
+    keys; no agent named in shared code).
+  - **The first prompt comes from the kit** (`TeamDelivery.orchestratorPrompt`, an i18n key built
+    in main with the project's name, the guide and the orchestrator skill's `SKILL.md`): Claude's
+    `orch.firstPrompt` byte for byte (argv read from `/proc` equal to HEAD's), Codex's new
+    `orch.firstPromptByFile` reads the `SKILL.md` by path. The renderer no longer sends it.
+  - **The card's Codex orchestrator is named** as the human typed it ("orchestrator" by default),
+    through `nameWhenBound` and the same `agent_named` mark: set's reading of 1.195, a name the
+    human typed is the human's.
+  - **The pane banner's stale session** (found by this block's e2e, fixed in its own hunk for set
+    to carry to `main`): `setPaneBanner` kept a banner of the same kind, so its button's closure
+    held the id the pane had when it was drawn — a Codex worker's provisional id, or a Claude
+    worker's id before a followed `/clear` — and Take control / Back to reporting did nothing.
+    The banner carries its session (`data-session`) and is redrawn when it changes
+    (`src/renderer/terminals.ts`, `src/renderer/app.ts`).
+  - **"Ask an agent" by set's reading of Q2** (found by the full ui-check: `e2e/files.spec.ts`'s
+    focused pane is a Cursor tab, and Cursor's launcher takes no first prompt until P3): the
+    focused pane's agent only when it can be given a first prompt, then `last_agent` by the same
+    rule, else Claude Code. New descriptor fact `firstPrompt` (Claude, Codex; not Cursor), held
+    by a parity test that runs each kit's launcher with a prompt file; `files.spec.ts` unchanged.
+  - **Version reading per agent** (from `codex`'s real check: `readVersion` took the first word
+    of `--version`, and Codex prints `codex-cli 0.169.0`, so Menkar read "codex-cli"): the
+    descriptor's `versionWord` says which word is the version (Claude, Cursor 0; Codex 1),
+    `readVersion(output, word)`, `src/main/agent-versions.ts` passes it; Claude's and Cursor's
+    readings unchanged. A test with each CLI's real output, seen failing with "codex-cli" first.
+- **Granted by set — files beyond §5's row:** `src/main/workspace.ts` (`startNewSession`: an
+  orchestrator of an agent that picks its own id is marked under a provisional id, started with
+  `sessionId` that id and a pending with no expected id, named once bound; its prompt from the kit;
+  a prompt no longer needs an id at start; `askAboutFile`'s agent by `askAgent`), the descriptors
+  (`src/core/agents/{descriptors,claude,codex,cursor}/descriptor.ts`), `src/core/agents/types.ts`
+  and `{claude,codex}/team.ts` (`orchestratorPrompt`), `src/shared/workspace.ts` (the `startNew`
+  comments), `src/renderer/{terminals,app}.ts` (the banner), `src/renderer/style.css`,
+  `tests/core/agents/parity.test.ts`, `src/core/agents/versions.ts`, `src/main/agent-versions.ts`,
+  `tests/core/agents/versions.test.ts`.
+- **Built:** the card (`src/renderer/orchestration.ts`): with two or more agents installed, the
+  "Agent" line (Add session's picker, `last_agent` among the choosable agents, else Claude Code,
+  else the first; kept with the card while the guide is open), each listed session's agent, dim;
+  the limits notes (`.card-limits`) under the choices for the orchestrator and under the managed
+  list for each checked session, recomputed on any change; Start passes the agent. "Ask an
+  agent": `askAgent` as set read Q2 (above).
+- **E2E `e2e/orchestration-codex.spec.ts`** (6 tests): one agent → the card as today; two → the
+  Agent line, Claude by default, Cursor greyed (not installed), Codex chosen starts a Codex
+  orchestrator marked at once, told to read its skill by path, named "orchestrator" in
+  `session_index.jsonl`, the mark following its thread, and the next card (another project)
+  defaulting to Codex; Cursor installed with a Cursor member → Cursor greyed ("can't use Menkar's
+  tools yet"), the worker note while checked and not when unchecked, the orchestrator note when it
+  is picked, and Start marks it; "Ask an agent" with no agent pane → Codex (`last_agent`), with the
+  login's Claude pane focused → Claude; **a Claude orchestrator with a Codex worker**:
+  `start_session` for task 1, its row under the orchestrator, Take control, `task_steps` and
+  `task_review` through `/menkar`, its turn's end wakes the orchestrator once ("set task 1 to
+  review: ready"), `last_reply` reads "Done: wrap up", `send_message` Claude → Codex through
+  `codex queue` and Codex → Claude through the socket, each framed, and a role change's team
+  update reaches the worker as a turn and posts nothing to the orchestrator; a Claude worker taken
+  control of, then `/clear`ed: Back to reporting acts on the new id. Screenshots in
+  `/tmp/menkar-shots/` (`card-*.png`, `codex-worker-*.png`), copied to `$MENKAR_FILES` as
+  `menkar-t167-*.png`.
+- **Seen failing once**, each injected and reverted: the agent line at three agents (two-agents
+  test), the orchestrator note always hidden (Cursor test), `askAgent` ignoring the focused pane,
+  Cursor's `firstPrompt` true (the parity test),
+  no naming of the card's Codex orchestrator ("orchestrator" never in `session_index.jsonl`), the
+  banner kept by kind only (both the Codex worker and the `/clear` tests).
+- **The real checks.** **`claude-cli`**, Claude Code 2.1.329, its harness, a throwaway home and a
+  recording stand-in API, the card's argv as built (read from `/proc`): 9 of 9 PASS — started with
+  no trust dialog, the first user text the prompt byte for byte, the team block in the system
+  prompt, `menkar:orchestrator` listed and loaded by the Skill tool, the review wake and the
+  `send_message` post each waking a turn intact, recorded `turnOrigin: "peer"`
+  (`$MENKAR_FILES/claude-cli-t167-p1b6-check.txt`; a stand-in MCP server in place of Menkar's).
+  **`codex`**, reading a run of mine: codex-cli 0.169.0 (its release binary behind a wrapper that
+  logs argv), `codex`'s Responses-API stand-in scripted to call Menkar's tools, Menkar from `out/`
+  under Xvfb, the stand-in claude as orchestrator: every check PASS — the worker's team block
+  first in the second developer message, `mcp__menkar` direct with its 25 schemas, `task_steps`,
+  `task_review`, `send_message` called with no approval, the review waking the orchestrator once,
+  `last_reply` equal to the rollout's last agent message, both `codex queue` messages byte-exact
+  as turns, the team update's turn posting nothing, the card's Codex orchestrator reading its
+  `SKILL.md` with no approval and named "orchestrator" (two `session_index` lines, no generated
+  title: 0.169.0's title generation fails on the `-c` MCP server, its item 27), no `.tmp/git-*`.
+  Not exercised: `codex queue`'s path while Codex's daemon runs.
+- **Integrity:** the branch's eight known lines and one more, `caps('claude')` gaining `tools`.
+- **`npm run ci`**: biome, tsc, vitest (176 files, 2262 tests), R10 unchanged, code rules, i18n
+  pass; test integrity as above; flaky and history pass when run after it. **`npm run ui-check`**:
+  the first full run 439 passed, 1 failed (`files.spec.ts`, fixed by set's reading of Ask an agent);
+  the second, after every fix, 440 passed, exit 0.
+
+### 1.196: every named Codex session (`menkar-t168`, task 168, 2026-11-21)
+
+- **Decided by the human, 2026-11-20 (1.196, topic 84):** Menkar names every Codex session it
+  starts with its start name after its first message (New, the first-time card, `start_session`,
+  their renews), since `codex` measured (its item 27) that a Codex TUI with Menkar's MCP mounted
+  generates no title; a name already on a thread is never overwritten.
+- **Built:** `startNewSession` (`src/main/workspace.ts`) holds a New session under a provisional id
+  whenever its agent picks its own id, it was given a name and its kit has a namer, as it already
+  did for the card's orchestrator, and calls `nameWhenBound` for it; the orchestrator-only
+  condition is gone. The bind, the namer, the `agent_named` mark and the renew's naming are
+  unchanged. A New session without a name is left to Codex.
+- **§2's Namer row** before this change read: "only `start_session`'s sessions and their renews,
+  as soon as the rollout appears, `thread/name/set` (main, D5 as amended by 1.195)".
+- **Tests:** `e2e/codex-naming.spec.ts` gains "a Codex session opened from New with a name is named
+  after its first message, and marked", seen failing before the change (the thread kept the
+  stand-in's "Generated title"); the three earlier tests unchanged (the file's header comment now
+  says 1.196).
+- **Docs:** `docs/agents.md` (Codex: naming, Codex as the orchestrator; old text in its history),
+  `docs/agent-versions.md` (Codex: 1.196 rests on item 27, re-measured on each upgrade).
+- **`npm run ci`**: biome, tsc, vitest (176 files, 2262 tests) pass; R10 unchanged fails on
+  `tests/core/r10/plugin/skills/worker/SKILL.md`, changed on main by c67e461 (task 169) after the
+  merge base; run by hand after it: code rules, i18n, flaky and history pass, test integrity
+  reports the branch's nine known lines (none from this change). **`npm run ui-check`**: 441
+  passed, exit 0.

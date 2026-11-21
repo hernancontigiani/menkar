@@ -10,4 +10,6 @@ export const mainKit: MainAgentKit = {
   remote,
   waker,
   inbox,
+  bind: null,
+  namer: null,
 }

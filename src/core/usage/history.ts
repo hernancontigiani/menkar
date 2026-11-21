@@ -1,13 +1,14 @@
 import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import type { StatementSync } from 'node:sqlite'
+import type { TurnSource } from '../agents/types'
 import { fileStamp, now } from '../clock'
 import { type Db, openDb } from '../db'
 import { log } from '../log'
 import { appDirs } from '../paths'
 import { type ActivityImport, activityDir, batchFiles, importBatch } from './activity'
 import type { ActivityRows, PresenceKind } from './bursts'
-import type { HourTokens, UsageCache } from './cache'
+import type { HourTokens } from './cache'
 import type { TaskStateRow } from './flow'
 import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
 import { cost, shownModel } from './prices'
@@ -245,11 +246,14 @@ export class UsageHistory {
     log.warn('usage history unreadable, moved aside', { path: target, error })
   }
 
-  // Copies each turn the cache holds as pending, whole, then tells the cache they are written. A
-  // turn the cache no longer has (its transcript is gone) is left as it is. A turn keeps the
-  // project it was written with; one written with none takes its session's project once it has
-  // one.
-  write(cache: UsageCache, memberships: Memberships): void {
+  // Copies each turn an agent's cache holds as pending, whole, then tells the cache they are
+  // written. A turn the cache no longer has (its transcript is gone) is left as it is. A turn
+  // keeps the project it was written with; one written with none takes its session's project once
+  // it has one.
+  write(
+    cache: Pick<TurnSource, 'pending' | 'turnUsage' | 'names' | 'written'>,
+    memberships: Memberships,
+  ): void {
     const db = this.db
     if (db === null) return // too new: the cache keeps them pending
     const pending = cache.pending()
@@ -327,7 +331,7 @@ export class UsageHistory {
   // cache has adds up to what the history holds; one with no transcript left, or whose files
   // changed since, keeps its rows as they were. One short transaction per turn, touching only its
   // tokens, so a classifier writing categories meanwhile waits at most one turn.
-  rederive(cache: Pick<UsageCache, 'turnUsage'>): void {
+  rederive(cache: Pick<TurnSource, 'turnUsage'>): void {
     const db = this.db
     if (db === null) return
     const raw = db.raw

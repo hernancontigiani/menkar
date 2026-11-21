@@ -70,12 +70,14 @@ describe('the skills Menkar finds', () => {
       description: 'x'.repeat(200),
       source: 'project',
       place: join(other, '.claude/skills'),
+      file: join(other, '.claude/skills/claude-cli/SKILL.md'),
     })
     expect(listed.user.find((s) => s.name === 'mine')).toEqual({
       name: 'mine',
       description: 'Folded over lines.',
       source: 'user',
       place: user,
+      file: join(user, 'mine/SKILL.md'),
     })
     expect(listed.folders[app]?.find((s) => s.name === 'packager')?.description).toBe(
       'Packages the app.',
@@ -87,6 +89,8 @@ describe('the skills Menkar finds', () => {
     const listed = await listSkills({ folders: [app], user })
     expect(names(listed.folders[app] ?? [])).toEqual(['packager', 'review-branch'])
     expect(listed.folders[app]?.[1]?.place).toBe(join(repo, '.claude/skills'))
+    // Its file is under its folder's name, not the frontmatter's.
+    expect(listed.folders[app]?.[1]?.file).toBe(join(repo, '.claude/skills/review/SKILL.md'))
   })
 
   test('a folder in no repository lists every parent; the nearest of one name wins', async () => {

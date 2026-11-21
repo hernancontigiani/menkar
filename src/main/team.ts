@@ -21,9 +21,14 @@ import {
   type TeamText,
   teamPost,
 } from '../core/team/posts'
+import { forgetRecorded, readRecorded, writeRecorded } from '../core/team/recorded'
 import { foundFor, listSkills } from '../core/team/skills'
 import { mainKitOf } from './agents/registry'
 import { skillsPluginDir } from './control'
+
+// A stored skill the session can load, by name, and its SKILL.md.
+export type FoundFiles = ReadonlyMap<string, string>
+
 import { addNotice } from './projects'
 
 // Main's side of the team block: (1) what a pane's session holds from its start, (2) the file a
@@ -32,8 +37,8 @@ import { addNotice } from './projects'
 
 export interface TeamSource {
   // The session's input now, null when it is in no project with the mode on.
-  input(pane: string, found: (skill: string) => boolean): TeamInput | null
-  // The pane's agent and session, null once the pane is gone or has no session yet.
+  input(pane: string, found: FoundFiles): TeamInput | null
+  // The pane's agent and session, null once the pane is gone or has no session of its own yet.
   session(pane: string): { readonly agent: Agent; readonly sessionId: string } | null
   // The orchestrator's counts, which close every text Menkar sends it.
   counts(sessionId: string): WorkCounts | undefined
@@ -45,7 +50,9 @@ interface Held {
   readonly outside: boolean
   // The stored skills it can load, as found at its start or at the last "Configure role…" save: a
   // recompute rescans no disk.
-  found: ReadonlySet<string>
+  found: FoundFiles
+  // What was last recorded for its session, for an agent that records.
+  recorded?: { readonly session: string; readonly text: string }
   // A post was delivered since its last turn end: that turn end reads its transcript.
   posted: boolean
   posting: boolean
@@ -129,13 +136,16 @@ export interface TeamStart {
   readonly cwd: string | null
   readonly start: Start
   // The input, null when the tab's project is not in the mode.
-  readonly input: (found: (skill: string) => boolean) => TeamInput | null
+  readonly input: (found: FoundFiles) => TeamInput | null
 }
 
-async function foundSkills(cwd: string | null): Promise<Set<string>> {
+async function foundSkills(cwd: string | null): Promise<FoundFiles> {
   const user = agentPaths().claudeSkills
   const listed = await listSkills({ folders: cwd ? [cwd] : [], user })
-  return new Set(foundFor(cwd ?? '', listed).map((s) => s.name))
+  const found = new Map<string, string>()
+  // The nearest of a name comes first, and is the one loaded.
+  for (const s of foundFor(cwd ?? '', listed)) if (!found.has(s.name)) found.set(s.name, s.file)
+  return found
 }
 
 // The file the command names, written before the command is built: a missing one stops Claude at
@@ -144,11 +154,15 @@ export async function startTeam(start: TeamStart): Promise<string | undefined> {
   const agent = kitOf(start.agent).team
   if (!agent) return undefined
   const found = await foundSkills(start.cwd)
-  const input = start.input((skill) => found.has(skill))
+  const input = start.input(found)
+  const recorded =
+    agent.records && start.start.kind === 'resume' ? await readRecorded(start.start.id) : null
   const keep = (started: TeamText | null, outside: boolean) => {
-    const team: PaneTeam = { started, held: agent.heldAtStart(start.start, started) }
+    const team: PaneTeam = { started, held: agent.heldAtStart(start.start, started, recorded) }
     held.set(start.pane, { team, outside, found, posted: false, posting: false, again: false })
   }
+  // What it recorded may be older than its facts now: told once it can be.
+  if (agent.records) settle.trigger(start.pane)
   if (!input) {
     keep(null, false)
     return undefined
@@ -192,6 +206,25 @@ export function forgetTeam(pane: string): void {
   settle.forget(pane)
 }
 
+// The session is gone from the user's data: what it held is not kept for a resume.
+export async function forgetSessionTeam(sessionId: string): Promise<void> {
+  await forgetRecorded(sessionId).catch((error: unknown) => {
+    log.warn('a recorded team block could not be removed', { sessionId, error })
+  })
+}
+
+// Written when it changed: what a resume of the session will start from.
+async function record(h: Held, sessionId: string): Promise<void> {
+  const text = JSON.stringify(h.team.held)
+  if (h.recorded?.session === sessionId && h.recorded.text === text) return
+  try {
+    await writeRecorded(sessionId, h.team.held)
+    h.recorded = { session: sessionId, text }
+  } catch (error) {
+    log.warn('what a session holds of its team could not be recorded', { sessionId, error })
+  }
+}
+
 // ---------------------------------------------------------------- (3): telling a change
 
 // Something that can change facts happened: every pane recomputes, once changes settle.
@@ -228,8 +261,8 @@ async function recompute(pane: string): Promise<void> {
   const agent = session ? kitOf(session.agent).team : null
   const teller = session ? mainKitOf(session.agent).team : null
   if (!session || !agent || !teller) return
-  const found = h.found
-  const input = s.input(pane, (skill) => found.has(skill))
+  if (agent.records) await record(h, session.sessionId)
+  const input = s.input(pane, h.found)
   let current: TeamText | null = null
   if (input) {
     const { common, part } = await partText(agent)
@@ -253,6 +286,7 @@ async function recompute(pane: string): Promise<void> {
     h.team = delivered(h.team, current)
     h.posted = true
     log.info('a team update was posted', { pane })
+    if (agent.records) await record(h, session.sessionId)
   } else if (outcome !== 'error') log.warn('a team update could not be posted', { pane, outcome })
   if (h.again) {
     h.again = false

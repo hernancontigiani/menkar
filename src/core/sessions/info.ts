@@ -18,4 +18,6 @@ export interface SessionInfo {
   readonly mtimeMs: number
   readonly size: number
   readonly hidden: boolean
+  // Counted by its catalog, for an agent whose compactions show only in its transcript.
+  readonly compactions?: number
 }

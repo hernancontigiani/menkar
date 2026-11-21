@@ -1,11 +1,13 @@
 import type { Key } from '../i18n'
 import { descriptor as claude } from './claude/descriptor'
+import { descriptor as codex } from './codex/descriptor'
 import { descriptor as cursor } from './cursor/descriptor'
 import type { AgentId } from './ids'
 import type { AgentVersions } from './versions'
 
 // What the renderer and the MCP server program may know of an agent: data, no Node.
-export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context'
+// `tools`: its sessions can use Menkar's tools, so the orchestration mode can start them.
+export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context' | 'tools'
 
 export type VariantKey = 'default' | 'ask' | 'trusted'
 
@@ -31,14 +33,21 @@ export interface AgentDescriptor {
   readonly caps: Readonly<Record<AgentCap, boolean>>
   // Whether a new session is given its name when it starts, so Add session asks for one.
   readonly namedAtStart: boolean
+  // Whether a new session can be given its first prompt, so "Ask an agent" can start it.
+  readonly firstPrompt: boolean
   // In the order menus offer them; empty when the agent has no chat.
   readonly chat: readonly ChatVariant[]
   // The version Menkar was tested with before this release, null until one is; and the oldest it
   // can run, null when any runs.
   readonly versions: AgentVersions
+  // Which word of what `--version` prints is the version, from 0.
+  readonly versionWord: number
+  // What the orchestration mode's first-time card says when one of its sessions orchestrates or
+  // works for the orchestrator, for an agent that does either with limits; null otherwise.
+  readonly teamLimits: { readonly orchestrator: Key; readonly worker: Key } | null
 }
 
-export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor }
+export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor, codex }
 
 export function descriptorOf(id: AgentId): AgentDescriptor {
   return DESCRIPTORS[id]

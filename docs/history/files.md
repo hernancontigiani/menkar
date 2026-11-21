@@ -23,3 +23,9 @@
 
 > Left on 2026-11-12: files under Menkar's plugin folder open read only too (decision 1.91, plan 34).
   read only as well. The editor is not editable then, and `saveBuffer` refuses the agents' data
+
+## The file check and read only
+
+> Left on 2026-11-20: "Ask an agent" starts the focused agent pane's agent, else the agent last started (decision 1.155 Q2, plan 39 P1b.6).
+  not, has the button at the left of its Save and Preview row. It starts a new Claude session in a
+  tab right after the file's tab, in the shown project, through the same path as a new session

@@ -11,6 +11,8 @@ export const team: TeamDelivery = {
   part: 'claude.md',
   // A fork carries its source's block, not its own.
   heldAtStart: (start, block) => (start.kind === 'fork' ? null : block),
+  // The snapshot flag gives a resume the block it is started with.
+  records: false,
   // Last on the line, where no option can take the file for its value. A resume without the
   // snapshot flag keeps the block recorded when the conversation began, until its next compaction.
   atStart: (start, file) => [
@@ -24,4 +26,5 @@ export const team: TeamDelivery = {
     accepts: teamFlagsAllowed,
     notice: 'team.oldClaude',
   },
+  orchestratorPrompt: 'orch.firstPrompt',
 }

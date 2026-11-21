@@ -28,6 +28,10 @@ describe("a pane's session changing id", () => {
     expect(follow?.classify('compact')).toBeNull()
   })
 
+  test('Claude: a turn ending under another id follows nothing; its start record already did', () => {
+    expect(kitOf('claude').follow?.classify(null, { to: 'x', paneStartedAt: 0 })).toBeNull()
+  })
+
   test('Cursor tells Menkar of no such change', () => {
     expect(kitOf('cursor').follow).toBeNull()
   })

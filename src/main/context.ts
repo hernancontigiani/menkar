@@ -1,6 +1,7 @@
 import { type FSWatcher, mkdirSync, watch } from 'node:fs'
 import { join } from 'node:path'
 import { BrowserWindow } from 'electron'
+import type { ContextSource } from '../core/agents/types'
 import type { Reading } from '../core/context/reading'
 import { shellQuote, writeSessionSettings } from '../core/context/settings'
 import { sessionsDir } from '../core/context/statusline'
@@ -25,12 +26,25 @@ export function sessionSettingsFile(project?: {
   return writeSessionSettings(statuslineCommand(), project)
 }
 
-const tracker = new ReadingTracker()
+// Each followed session's agent's reading.
+const sources = new Map<string, ContextSource>()
+
+const tracker = new ReadingTracker(
+  (sessionId, transcript) =>
+    sources.get(sessionId)?.read(sessionId, transcript) ?? Promise.resolve(null),
+)
 
 // Starts following a session's context: its reading now, and again whenever the statusline writes
-// its file. The window calls it for each member session of the project it shows.
-export function trackContext(sessionId: string, transcript: string): void {
+// its file or one of its turns ends. The window calls it for each member session of the project it
+// shows whose agent reads a context.
+export function trackContext(sessionId: string, transcript: string, source: ContextSource): void {
+  sources.set(sessionId, source)
   void tracker.track(sessionId, transcript)
+}
+
+// A turn of the session ended: an agent whose reading is in its own files has a new one.
+export function turnEndedContext(sessionId: string): void {
+  void tracker.request(sessionId)
 }
 
 export function contextReading(sessionId: string): Reading | null {

@@ -39,6 +39,8 @@ export default defineConfig({
           statusline: resolve('src/core/context/statusline.ts'),
           // Menkar's MCP server, which Claude Code starts for each session Menkar starts, the same way.
           'mcp-server': resolve('src/core/control/server.ts'),
+          // Codex's notify program for the sessions Menkar starts, the same way.
+          'codex-notify': resolve('src/core/agents/codex/notify.ts'),
         },
       },
     },

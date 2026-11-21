@@ -158,6 +158,12 @@ project and number; the types the page receives are in `nodes.ts`.
   pass, so `menkar usage` and its export, which import only the batches a pass set aside, lag the
   live journal. Your time and Task times import it before each answer.
 
+## The shape
+
+> Left on 2026-11-20: usage is read per agent; Codex keeps its own cache (plan 39, P1a.6).
+How long Claude worked and how many tokens it used, per session and project. All of it lives in
+  the transcripts whenever its layout version changes. The **history** (`<data>/history.sqlite`,
+
 ## The Usage window
 
 > Replaced 2026-11-21 (task 172, decision 1.200): the window opens on today in each section; Your time's Day toggle reads Today on today.

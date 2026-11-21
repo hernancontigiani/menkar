@@ -15,6 +15,10 @@ export interface TeamInputArgs {
   readonly named: (sessionId: string) => string | undefined
   // Whether the session can load a stored skill of this name.
   readonly found: (skill: string) => boolean
+  // That skill's SKILL.md, for an agent that loads a skill by reading it.
+  readonly file?: (skill: string) => string | undefined
+  // The folder of Menkar's own skills.
+  readonly ownSkills?: string
   readonly context: TeamInput['context']
 }
 
@@ -24,6 +28,7 @@ const callName = (named: TeamInputArgs['named'], id: string) => named(id) ?? id.
 // Null with the mode off: such a project's sessions get no block at all.
 export function teamInput(args: TeamInputArgs): TeamInput | null {
   const { project, session, named, context } = args
+  const own = args.ownSkills ? { ownSkills: args.ownSkills } : {}
   const o = keptOrchestration(project.orchestration, project.members)
   if (!o?.on) return null
   const orchestrator: TeamInput['orchestrator'] =
@@ -39,6 +44,7 @@ export function teamInput(args: TeamInputArgs): TeamInput | null {
       orchestrator,
       skills: [],
       context,
+      ...own,
     }
   const name = named(session)
   const role = o.roles?.[session]
@@ -58,14 +64,18 @@ export function teamInput(args: TeamInputArgs): TeamInput | null {
       : {}),
     skills: (stored[session] ?? []).map((s) => {
       const holder = s.maintainer ? undefined : maintainerOf(s.name)
+      const found = args.found(s.name)
+      const file = found ? args.file?.(s.name) : undefined
       return {
         name: s.name,
         maintainer: s.maintainer === true,
         ...(holder ? { maintainedBy: callName(named, holder) } : {}),
-        found: args.found(s.name),
+        found,
+        ...(file ? { file } : {}),
       }
     }),
     context,
+    ...own,
   }
 }
 

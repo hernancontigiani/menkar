@@ -45,6 +45,10 @@ classifier's own cards (only a stand-in's "block" answers).
 
 ## Codex — no row yet, owner: `codex`
 
+Decision 1.196 (Menkar names every Codex session it starts with a name) rests on `codex`'s
+research file item 27 (2026-11-20, task 167): a Codex TUI with Menkar's MCP server mounted
+generates no title. Re-measured on each Codex upgrade.
+
 ## Cursor — no row yet, owner: its consultant
 
 ## OpenCode — no row yet, owner: its consultant

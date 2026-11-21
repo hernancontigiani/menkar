@@ -1,0 +1,168 @@
+{
+  "root": ".codex/sessions",
+  "watched": [
+    ".codex",
+    ".codex/sessions",
+    ".codex/sessions/2026",
+    ".codex/sessions/2026/10",
+    ".codex/sessions/2026/11",
+    ".codex/sessions/2026/10/20",
+    ".codex/sessions/2026/11/02",
+    ".codex/sessions/2026/11/03",
+    ".codex/sessions/2026/11/04"
+  ],
+  "sessions": [
+    {
+      "id": "0199fe10-3c00-7c33-8c03-00000000000c",
+      "agent": "codex",
+      "folder": ".codex/sessions/2026/10/20",
+      "cwd": "/home/demo/api",
+      "preview": "Write notes on the release",
+      "badge": null,
+      "customTitle": "release-notes",
+      "aiTitle": null,
+      "size": 896,
+      "lastReply": "Notes written to NOTES.md.",
+      "details": {
+        "user": 1,
+        "assistant": 1,
+        "toolCalls": 0,
+        "models": ["gpt-6.1-sol"],
+        "created": "2026-10-20T14:00:00.000Z",
+        "lastActivity": "2026-10-20T14:00:05.200Z",
+        "cwd": "/home/demo/api",
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Write notes on the release"
+          },
+          {
+            "fromUser": false,
+            "text": "Notes written to NOTES.md."
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `0199fe10-3c00-7c33-8c03-00000000000c`\n- **Project:** `/home/demo/api`\n- **Created:** 2026-10-20T14:00:00.000Z\n- **Last activity:** 2026-10-20T14:00:05.200Z\n\n---\n\n### You\n\nWrite notes on the release\n\n### Codex\n\nNotes written to NOTES.md.\n",
+      "location": ".codex/sessions/2026/10/20/rollout-2026-10-20T11-00-00-0199fe10-3c00-7c33-8c03-00000000000c.jsonl.zst",
+      "trash": null
+    },
+    {
+      "id": "019a4f2c-1e00-7a11-8a01-00000000000a",
+      "agent": "codex",
+      "folder": ".codex/sessions/2026/11/02",
+      "cwd": "/home/demo/api",
+      "preview": "List the API routes",
+      "badge": null,
+      "customTitle": "api-routes",
+      "aiTitle": null,
+      "size": 12287,
+      "lastReply": "Added a test for /health in tests/health.test.ts.",
+      "details": {
+        "user": 2,
+        "assistant": 2,
+        "toolCalls": 3,
+        "models": ["gpt-6.1-sol"],
+        "created": "2026-11-02T12:15:00.000Z",
+        "lastActivity": "2026-11-02T12:41:02.200Z",
+        "cwd": "/home/demo/api",
+        "mcpUsed": [["docs", 2]],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "List the API routes"
+          },
+          {
+            "fromUser": false,
+            "text": "There are three routes: /health, /items and /items/:id."
+          },
+          {
+            "fromUser": true,
+            "text": "Add a test for /health"
+          },
+          {
+            "fromUser": false,
+            "text": "Added a test for /health in tests/health.test.ts."
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `019a4f2c-1e00-7a11-8a01-00000000000a`\n- **Project:** `/home/demo/api`\n- **Created:** 2026-11-02T12:15:00.000Z\n- **Last activity:** 2026-11-02T12:41:02.200Z\n\n---\n\n### You\n\nList the API routes\n\n### Codex\n\nThere are three routes: /health, /items and /items/:id.\n\n### You\n\nAdd a test for /health\n\n### Codex\n\nAdded a test for /health in tests/health.test.ts.\n\n*Used `shell`, `docs/search`, `docs/fetch`*\n",
+      "location": ".codex/sessions/2026/11/02/rollout-2026-11-02T09-15-00-019a4f2c-1e00-7a11-8a01-00000000000a.jsonl",
+      "trash": null
+    },
+    {
+      "id": "019a5400-2b00-7b22-8b02-00000000000b",
+      "agent": "codex",
+      "folder": ".codex/sessions/2026/11/03",
+      "cwd": "/home/demo/web",
+      "preview": "Why is the header blue?",
+      "badge": "interrupted",
+      "customTitle": null,
+      "aiTitle": null,
+      "size": 4585,
+      "lastReply": "The header takes --accent from theme.css.",
+      "details": {
+        "user": 2,
+        "assistant": 1,
+        "toolCalls": 2,
+        "models": ["gpt-6.1-sol", "gpt-6.1-terra"],
+        "created": "2026-11-03T21:02:10.000Z",
+        "lastActivity": "2026-11-03T21:05:04.000Z",
+        "cwd": "/home/demo/web",
+        "mcpUsed": [["design", 1]],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Why is the header blue?"
+          },
+          {
+            "fromUser": false,
+            "text": "The header takes --accent from theme.css."
+          },
+          {
+            "fromUser": true,
+            "text": "Make it green and bold"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `019a5400-2b00-7b22-8b02-00000000000b`\n- **Project:** `/home/demo/web`\n- **Created:** 2026-11-03T21:02:10.000Z\n- **Last activity:** 2026-11-03T21:05:04.000Z\n\n---\n\n### You\n\nWhy is the header blue?\n\n### Codex\n\nThe header takes --accent from theme.css.\n\n*Used `shell`, `design__tokens`*\n\n### You\n\nMake it   green\nand bold\n",
+      "location": ".codex/sessions/2026/11/03/rollout-2026-11-03T18-02-10-019a5400-2b00-7b22-8b02-00000000000b.jsonl",
+      "trash": null
+    },
+    {
+      "id": "019a5a10-6f00-7f77-8f07-00000000000f",
+      "agent": "codex",
+      "folder": ".codex/sessions/2026/11/04",
+      "cwd": "/home/demo/web",
+      "preview": "Change the header to green",
+      "badge": "waiting",
+      "customTitle": null,
+      "aiTitle": null,
+      "size": 4462,
+      "lastReply": "Done. Should I also change the footer?",
+      "details": {
+        "user": 1,
+        "assistant": 1,
+        "toolCalls": 0,
+        "models": ["gpt-6.1-sol"],
+        "created": "2026-11-04T12:30:00.000Z",
+        "lastActivity": "2026-11-04T12:30:04.200Z",
+        "cwd": "/home/demo/web",
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Change the header to green"
+          },
+          {
+            "fromUser": false,
+            "text": "Done. Should I also change the footer?"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `019a5a10-6f00-7f77-8f07-00000000000f`\n- **Project:** `/home/demo/web`\n- **Created:** 2026-11-04T12:30:00.000Z\n- **Last activity:** 2026-11-04T12:30:04.200Z\n\n---\n\n### You\n\nChange the header to green\n\n### Codex\n\nDone. Should I also change the footer?\n",
+      "location": ".codex/sessions/2026/11/04/rollout-2026-11-04T09-30-00-019a5a10-6f00-7f77-8f07-00000000000f.jsonl",
+      "trash": null
+    }
+  ]
+}

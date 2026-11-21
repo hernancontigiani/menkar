@@ -154,6 +154,7 @@ async function watchTargets(root: string): Promise<string[]> {
 
 export const catalog: SessionCatalog = {
   root: () => agentPaths().cursorProjects,
+  names: false,
   find,
   reader: (read) => new JsonlReader(transcript, read),
   watchTargets,

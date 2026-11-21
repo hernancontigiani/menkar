@@ -12,7 +12,6 @@ import { wakeFrame } from '../../src/core/control/post'
 import { answer } from '../../src/core/control/protocol'
 import { appDirs } from '../../src/core/paths'
 import { withoutSessionEnv } from '../../src/core/sessionenv'
-import type { Agent } from '../../src/core/sessions/lines'
 import { type Installed, SessionScanner } from '../../src/core/sessions/scanner'
 import { watchedDirs } from '../../src/core/sessions/service'
 import {
@@ -68,7 +67,7 @@ describe('the command line', () => {
     resume: { kind: 'resume', id: ID },
     fork: { kind: 'fork', source: ID, id: ID2 },
   }
-  const CASES: readonly [Agent, keyof typeof STARTS][] = [
+  const CASES: readonly [keyof typeof OPTIONS, keyof typeof STARTS][] = [
     ['claude', 'new'],
     ['claude', 'resume'],
     ['claude', 'fork'],

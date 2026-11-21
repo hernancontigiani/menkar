@@ -1,6 +1,6 @@
 # Sessions — how they are found, read and named
 
-`src/core/sessions/` finds every Claude Code and Cursor session on the machine, reads what a row
+`src/core/sessions/` finds every Claude Code, Cursor and Codex session on the machine, reads what a row
 needs, and keeps the list current. `src/main/sessions.ts` gives the list to every window over IPC
 (`sessions:list`, `sessions:changed`, `sessions:set-hidden`). The rules come from
 `docs/spec/sessions.md`; this file keeps how they are built and why.
@@ -10,9 +10,12 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
 - **Discovery** (`scanner.ts`): a Claude session is a non-empty `<lowercase uuid>.jsonl` directly in
   a folder of `~/.claude/projects/`; anything deeper (`subagents/`, `tool-results/`) is not one. A
   Cursor session is a directory under `~/.cursor/projects/<folder>/agent-transcripts/`, read from
-  `<id>.jsonl` or else its first `*.jsonl` by name. An agent contributes only when its CLI
-  (`claude`, `cursor-agent`) is an executable on the `PATH` (`installed.ts`), checked on every
-  scan. The list is newest modification first, ties by id.
+  `<id>.jsonl` or else its first `*.jsonl` by name. A Codex session is a thread's rollout,
+  `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl` or `.jsonl.zst` (`CODEX_HOME` is
+  `~/.codex` unless set); how it is read, and which threads are left out, is in `docs/agents.md`,
+  "Codex: its sessions". An agent contributes only when its CLI (`claude`, `cursor-agent`,
+  `codex`) is an executable on the `PATH` (`installed.ts`), checked on every scan. The list is
+  newest modification first, ties by id.
 - **Three reads per file, each as small as the rule allows:**
   - **Names** (`names.ts`): `custom-title` and `ai-title`, the last of each wins, trimmed. Read
     **incrementally**: the scanner keeps the inode and how far it read, and on each rescan reads
@@ -43,16 +46,25 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
   longest run of dash-joined parts that names an existing directory; the rest joined by `/` when
   none exists.
 - **Read only**: transcripts are opened with `'r'` and never written; a test asserts that a scan and
-  a rescan leave every transcript's bytes and mtime unchanged.
+  a rescan leave every transcript's bytes and mtime unchanged. Each agent's catalog passes the
+  no-write test over its fixture home (`tests/core/agents/contract/nowrite.test.ts`): every file
+  keeps its bytes and mtime and the tree its listing, except what the agent's `DeclaredWrites`
+  names (`docs/agents.md`). What main runs of the agent's own (its waker's command) passes the same
+  test against the same home, with the agent's stand-in (`tests/main/agents/contract/`).
 
 ## Keeping it current
 
 - **Watches** (`service.ts`): non-recursive `fs.watch` on `~/.claude/projects/` and each folder in
-  it, and on `~/.cursor/projects/`, each folder in it and each `agent-transcripts/` in those. They
-  are set again after every scan, so a folder created later is watched too. Not recursive:
-  a running session's `subagents/` and `tool-results/` change constantly and hold no session.
+  it, and on `~/.cursor/projects/`, each folder in it and each `agent-transcripts/` in those; for
+  Codex, its home (for `session_index.jsonl`, its names) and every `sessions/YYYY/MM/DD/` folder,
+  since a resume appends to the day folder the thread began in. They are set again after every
+  scan, so a folder created later is watched too. Not recursive: a running session's `subagents/`
+  and `tool-results/` change constantly and hold no session.
   A projects directory that does not exist when a scan runs is not watched until a later scan
-  finds it (the refresh, or an event elsewhere).
+  finds it (the refresh, or an event elsewhere). Codex's home that does not exist is not watched
+  at all, nor its nearest existing folder, which would be `~`: so a Codex run for the first time
+  after Menkar started shows its sessions at the next scan something else starts, or at the next
+  start of Menkar.
 - **Debounce and coalescing** (`Coalescer`): an event starts a 2000 ms quiet period; a request
   while a scan runs schedules exactly one more scan after it, so a change made during a scan is not
   missed until the next event.
@@ -77,7 +89,9 @@ the new id, and so does the saved tab.
   Claude Code passes it to the SessionStart hook, whose record names the pane (`docs/context.md`,
   "The record"). Main watches the records (`src/main/pane-starts.ts`), and `followPaneStart` in
   `workspace.ts` acts on a `clear` or `resume` record of a live Claude pane whose session is
-  another id. A start Menkar made with `--resume` names the pane's own id, so nothing moves.
+  another id. A start Menkar made with `--resume` names the pane's own id, so nothing moves. A
+  Codex tab learns it from the turn-end record its `notify` program writes; a fork made there is
+  followed as a resume (`docs/agents.md`, "Codex: binding a tab to its thread").
 - **After a clear** (`followNewId`, `src/core/projects/rekey.ts`) the new id takes the old one's
   place: its spot in the project's members, its group and its hidden flag.
   Nothing changes when the new id already is in a project.
@@ -125,6 +139,11 @@ later area's settings survive a save. It is written whole through `jsonstate`.
 keeps running in the background" has been shown, the first time ever a worker's tab was closed
 into the background; it never shows again. Written only then, through `updateState`.
 
+`agent_named` (decision 1.195, `src/core/agent-named.ts`): the sorted ids of the sessions Menkar
+named through their agent's own call — the Codex sessions `start_session` started, and a renew of
+one of them, whose new session is named too, after a restart as well. Written once a naming
+succeeds; a session not listed is never named after its start (`docs/agents.md`, "Codex: naming").
+
 ## Formats
 
 `src/core/format.ts`: sizes (`B`, then `KB`/`MB`/`GB` in 1024 steps with one decimal, GB the
@@ -143,7 +162,8 @@ is shown as written; none is `—`).
 - **Details and export** read the whole transcript through the session's agent catalog
   (`src/core/agents/<id>/catalog.ts`). Details' Tokens row is left out until it can come from the
   usage module, as the spec asks.
-- **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. Only
+- **Trash and delete** are the only writes under `~/.claude`, each confirmed in the renderer. A
+  Codex session offers neither: its catalog has no trash. Only
   the `.jsonl` goes; its sibling directory stays. An e2e asserts every other file under `~/.claude`
   keeps its bytes and mtime. Both are in Add session's history menu and, since decision 1.66
   (2026-11-11), in a sidebar row's `⋯` menu, Move to Trash first, for a session with no tab only:
