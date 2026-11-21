@@ -2766,3 +2766,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-21 — decision 1.200's row, before it named all three sections
 
 | 1.200 | **Usage opens on today; Your time's toggle says "Today" while it shows today** (the human, 2026-11-20 and 2026-11-21, task 172): the Usage window opens on Spend's Today (not 7 days); Your time's first toggle reads "Today" while the shown day is today and "Day" once stepped to another day | 2026-11-21 | this row (until built) |
+
+## 2026-11-21 — plan 39's §3 row, before P1 merged into main
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (127d4f1). On the branch `multi-agent` (worktree `/home/hernan/git/menkar-multi-agent`): **P1a complete** (Codex as a session, f0e2d32), **P1b.1–P1b.5 committed** (last a9295d1), P1b.6 in flight (task 167: the first-time card's agent choice, approved in topic 83; the gate). Next: task 168 (1.196, name every Codex session Menkar starts), then the merge into `main` when the human says. The integrity step shows the branch's eight known roster and call-shape lines against `main` until the merge |
