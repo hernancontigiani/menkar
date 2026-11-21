@@ -136,6 +136,7 @@ test("a new session's id is learnt from the TUI's own create, and /new moves the
   expect(p.sessionOf('pane-1')).toBe(first)
 
   type(t, '/new')
+  await wait(() => expect(t.screen()).not.toContain('ack 1: hello'))
   type(t, 'again')
   await wait(() => expect(seen).toHaveLength(2))
   const second = seen[1]?.id ?? ''

@@ -40,6 +40,8 @@ export const en = {
   'terminal.notFound': 'warning: `{cli}` not found in PATH — starting a plain shell',
   'terminal.serverFailed':
     "warning: Menkar could not start `{cli}`'s server for this session — starting a plain shell",
+  'terminal.otherServer':
+    'warning: this session also has a turn running in another `{cli}` — what is sent to it now may interleave with that turn',
   'terminal.restoreMissing':
     'This session was not found: its agent ({agent}) may be uninstalled or its files gone.',
   'terminal.restoreUnsupported':

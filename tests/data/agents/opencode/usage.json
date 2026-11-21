@@ -1,0 +1,118 @@
+[
+  {
+    "uuid": "opencode:msg_fx0001Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx01aaaaaaaaaaCheckoutFix",
+    "origin": "human",
+    "opened": "2026-11-18T14:00:00.000Z",
+    "working": 7.200000047683716,
+    "tokens": [
+      {
+        "model": "sonnet-demo",
+        "hour": "2026-11-18T14:00:00.000Z",
+        "input": 10400,
+        "output": 120,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 7200
+      }
+    ]
+  },
+  {
+    "uuid": "opencode:msg_fx0005Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx01aaaaaaaaaaCheckoutFix",
+    "origin": "human",
+    "opened": "2026-11-18T14:03:00.000Z",
+    "working": 4.599999904632568,
+    "tokens": [
+      {
+        "model": "sonnet-demo",
+        "hour": "2026-11-18T14:00:00.000Z",
+        "input": 9300,
+        "output": 110,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 9000
+      }
+    ]
+  },
+  {
+    "uuid": "opencode:msg_fx0009Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx02bbbbbbbbbbQueueSteer0",
+    "origin": "human",
+    "opened": "2026-11-18T14:10:00.000Z",
+    "working": 3.799999952316284,
+    "tokens": [
+      {
+        "model": "sonnet-demo",
+        "hour": "2026-11-18T14:00:00.000Z",
+        "input": 4800,
+        "output": 70,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0
+      }
+    ]
+  },
+  {
+    "uuid": "opencode:msg_fx0011Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx02bbbbbbbbbbQueueSteer0",
+    "origin": "human",
+    "opened": "2026-11-18T14:10:02.000Z",
+    "working": 5.1000001430511475,
+    "tokens": [
+      {
+        "model": "sonnet-demo",
+        "hour": "2026-11-18T14:00:00.000Z",
+        "input": 5000,
+        "output": 90,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 4800
+      }
+    ]
+  },
+  {
+    "uuid": "opencode:msg_fx0013Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx02bbbbbbbbbbQueueSteer0",
+    "origin": "peer",
+    "opened": "2026-11-18T14:10:06.000Z",
+    "working": 2,
+    "tokens": [
+      {
+        "model": "sonnet-demo",
+        "hour": "2026-11-18T14:00:00.000Z",
+        "input": 5200,
+        "output": 5,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 5000
+      }
+    ]
+  },
+  {
+    "uuid": "opencode:msg_fx0019Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx04ddddddddddArchived000",
+    "origin": "human",
+    "opened": "2026-11-16T14:00:00.000Z",
+    "working": 2.5,
+    "tokens": [
+      {
+        "model": "sonnet-demo",
+        "hour": "2026-11-16T14:00:00.000Z",
+        "input": 1500,
+        "output": 4,
+        "cacheWrite": 0,
+        "cacheWrite1h": 0,
+        "cacheRead": 0
+      }
+    ]
+  },
+  {
+    "uuid": "opencode:msg_fx0022Zz9Yy8Xx7Ww6Vv5",
+    "session": "ses_fx05eeeeeeeeeeInterrupted",
+    "origin": "human",
+    "opened": "2026-11-18T14:20:00.000Z",
+    "working": 8,
+    "tokens": []
+  }
+]

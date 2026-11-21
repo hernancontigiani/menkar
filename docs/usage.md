@@ -48,6 +48,41 @@ user sees in the Usage window is `docs/spec/usage.md`.
 - **Every agent's turns land in the one history**, with the same definition of a turn, one per
   user message (decision 1.143). How Codex's tokens, turns and context are read from its rollouts
   is in `docs/agents.md`, "Codex: usage and context".
+- **OpenCode** (`src/core/agents/opencode/usage.ts`, measured by `opencode` on v2.3.0,
+  2026-11-21) is read from its database (`opencode.db`), through `openAgentDb`: while OpenCode
+  runs, a copy of it and its `-wal` in Menkar's cache, never opened in place:
+  - **Turns**: one per `user` row of a root session (`opencode:<message id>`); one starting with
+    `[Menkar]` is a peer's. A subagent's session opens none: its steps count in its root's turn in
+    effect when each began. A `synthetic` row (a subagent's report into its root) opens none either.
+  - **Tokens and cost** come from each `assistant` row and each `compaction` row (a compaction's
+    summary is a request whose tokens are on that row); an interrupted step has none. OpenCode's
+    `tokens.input` excludes the cached parts, as Menkar's input does; its reasoning tokens are
+    counted as output. A session's own totals in `session_v2` leave its subagents out, so they are
+    not read.
+  - **Working time** is cut from the root's tree so no second counts twice: a stretch a step runs
+    through belongs to the turn the step began in (the earliest such step when several run), any
+    other stretch to the turn in effect at its start, unless the root's last word before it was an
+    `idle` with no `synthetic` after it before the next message. The root writes `idle` while its
+    subagent works and a `synthetic` starts it again, so a turn's time runs on across
+    its subagents. A message steered in while a step runs therefore ends the turn before it after
+    the message came, and that turn's response latency is null: the agent was not waiting on the
+    human. A stretch over two hours is idle; no blocked time is measured.
+  - **Incremental**: each pass reads the rows whose `time_updated` is at or after the newest one
+    seen, with only the fields usage needs (`json_extract`); a row read again unchanged touches no
+    turn. Only the turns opened at or after the earliest changed row, and the one in effect then,
+    are written again.
+  - **Exact cost**: OpenCode reports each step's cost in USD, so every root's running total is
+    written as the statusline log's lines to `usage-opencode.jsonl` beside the cache (a zero at
+    its first message, then the total after each step that cost something, at the step's start),
+    which every report reads among the statusline logs (`statuslineLogPaths`). The file is
+    **written whole from the cache each pass, never appended**: a line written again after a later
+    one would count that later cost twice, and a cache rebuilt gives the same file. A session with
+    no step that cost anything (a model OpenCode does not price) has no line and shows the
+    estimate.
+  - **The copy is the pass's own** (`ownCopies('usage')`, a folder `<hash>-usage-<pid>-<thread>`
+    under `<cache>/agent-db/`): the catalog's thread reads its own copy at the same time, and a
+    copy rewritten under a reader would be torn. The pass removes its folder when it closes, and
+    sweeps the folders of a process that no longer runs (one that died never removed its own).
 - **Prices**: Anthropic's and OpenAI's rows live in `prices.ts`, each table with its source and the
   date it was copied. A model with a long-prompt row takes it per request: Haiku's over 100,000
   prompt tokens, OpenAI's over 272,000.

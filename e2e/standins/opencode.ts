@@ -163,8 +163,10 @@ function serve() {
     const slug = SLUGS[Math.floor(Math.random() * SLUGS.length)]
     db.prepare("INSERT INTO session_v2 (id, project_id, parent_id, slug, directory, path, title, version, time_created, time_updated) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?)")
       .run(id, project, parent || null, slug, directory, title == null ? null : title, VERSION, now, now)
+    // A child's frame adds its parent and its agent, as OpenCode's subagent tool makes one.
     emit('session.created', { sessionID: id, slug, version: VERSION, projectID: project,
-      location: { directory }, subpath: '', ...(title == null ? {} : { title }) },
+      ...(parent ? { parentID: parent } : {}), location: { directory }, subpath: '',
+      ...(title == null ? {} : { title }), ...(parent ? { agent: 'general' } : {}) },
       { location: { directory }, ...durable(id) })
     return rowOf(id)
   }
@@ -664,7 +666,13 @@ function tui() {
     draw()
   }, 100).unref()
   if (process.stdin.isTTY) process.stdin.setRawMode(true)
-  process.stdin.on('data', async (chunk) => {
+  // Keys are handled in the order they came, as a terminal's are: a chunk waits for the one
+  // before it, so a line typed while the previous one is still being sent goes after it.
+  let keys = Promise.resolve()
+  process.stdin.on('data', (chunk) => {
+    keys = keys.then(() => handle(chunk)).catch((error) => process.stderr.write(String(error) + '\n'))
+  })
+  async function handle(chunk) {
     for (const ch of chunk.toString()) {
       if (card) {
         if (ch === '\r') await api('POST', '/api/session/' + session + '/permission/' + card.id + '/reply', { decision: 'once' })
@@ -711,7 +719,7 @@ function tui() {
       if (typed.includes('EXIT0')) process.exit(0)
       draw()
     }
-  })
+  }
 }
 `
 

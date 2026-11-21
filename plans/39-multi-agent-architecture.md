@@ -2665,3 +2665,79 @@ P0's blocks run in turn.
   posted; the MCP mounted outside the mode; another entry key; the 404 not mapped; `tell` answering
   `posted`; the two-servers check never telling; a `skills` path in the config (S12's test);
   subagents not followed to their root; the server's word not read by `PaneWatcher`.
+
+### P2.6 (`menkar-t193`, task 193, 2026-11-21)
+
+- **Measured by `opencode` on v2.3.0 before building** (its research items 73–83), and what it
+  changed here: `session_v2.cost` and `tokens_*` leave a session's subagents out, so the turns sum
+  the rows, never the session's totals; tokens and cost are on `assistant` **and `compaction`**
+  rows (a compaction's summary is a request); an interrupted step has none; `tokens.input` excludes
+  the cache (input + cache read = the prompt); a queued row's `time_created` is when it entered the
+  execution; the root writes `idle` while its subagent works and a `synthetic` row (the child's
+  report) starts it again; `GET /api/session/<id>/context` answers the window's **messages**, not a
+  figure (§2.3's ContextSource row said `GET …/context`: the reading is from the database instead);
+  the limit is in OpenCode's own `kv` table (`models-dev:v2:catalog`, a double-encoded JSON body),
+  absent on a fresh install until the first fetch; a user's `limit.context` override is only in
+  their config; the TUI runs in the alternate screen, keeps a line written to its display until
+  those cells repaint, and hides one written before it starts; **`opencode serve` fetches
+  https://models.opencode.ai at start and every 5 min** (item 73: the human's topic 97, not acted
+  on here).
+- **Built:** `src/core/agents/opencode/usage.ts` (`OpenCodeUsage`, its cache
+  `usage-cache-opencode.sqlite`, `deriveTree`), `context.ts` (`readingOf`, `context`), `store.ts`'s
+  `context` op on the catalog's worker, the kit's `usage` and `context`, the descriptor's
+  `context` cap; `src/core/usage/statusline.ts`'s `costLogName` and `statuslineLogPaths` (every
+  agent's `usage-<id>.jsonl` beside the cache, read by the window's worker, `menkar usage` and its
+  export); `openAgentDb`'s `copies` with `ownCopies`, `dropCopies`, `sweepCopies`; the D9 line
+  (decision 1.205): `Preparer.onNotice` and `PaneNotice` (`src/main/agents/types.ts`),
+  `OpenCodePreparer.otherServer`'s notice to the pane that shows the session, `Terminal.say` and
+  `sayWhenQuiet` (`src/main/terminal.ts`), `showNotice` in `workspace.ts`, `terminal.otherServer`
+  in en and es; docs in `docs/usage.md` (Per agent, OpenCode) and `docs/context.md` (OpenCode's
+  reading).
+- **Decided by set, 2026-11-21 — files beyond §5's row:** `e2e/standins/opencode.ts` (its TUI
+  handles its input in order through one promise chain; a child's `session.created` carries
+  `parentID` and `agent`, as measured); `src/core/agents/shared/db.ts` and its test (option (a):
+  a reader's own copy folder, removed at `close()`, the dead processes' swept at the next open);
+  `src/main/terminal.ts` (`say` only adds to the display and the replay, never the pty's input);
+  `store.ts`'s `context` op. Beyond those, as consequences: `src/main/agents/types.ts`
+  (`onNotice`), `src/core/usage/cli.ts` and `src/main/usage-query-worker.ts` (the logs' list),
+  `catalog.ts` (`parse` exported), `tests/core/agents/contract/usage.test.ts` (`XDG_DATA_HOME`
+  emptied, as `CODEX_HOME` is), the roster pin in `parity.test.ts` (OpenCode's caps gain
+  `context`), and `e2e/opencode-other-server.spec.ts` (the D9 line in the built app).
+- **The proxy test's timeout was a race, not slowness**: the stand-in TUI ran one async stdin
+  handler per chunk, so `again` typed while `/new` still awaited its `/view` went to the old
+  session, no create followed, and `waitFor`'s 10 s outlived the 5 s test. Reproduced (0–1 ms
+  between the writes: 5 of 6 runs timed out; 30 ms: passed); fixed in the stand-in (input in
+  order) and in the test (it waits for the cleared screen after `/new`); 6 of 6 pass with 0–1 ms.
+- **t190's finding** (a root pane idle while its subagent works): `opencode`'s item 79 sampled
+  only the TUI's footer and the raw execution frames, not Menkar's `Executions`; item 82 measured
+  the child's execution starting ~850 ms before the root's ends and the root restarting 3–5 ms
+  after the child's, with `parentID` flat in the child's `session.created`, which `parseFrame`
+  reads. So no gap in `Executions` with the real server; the stand-in's frame had no `parentID`,
+  which gave that gap in any stand-in run: fixed. `opencode` sent the same answer to t190.
+- **My choices:** a turn opens only on a root's `user` row (`synthetic`, `shell` and `skill`
+  open none); a step belongs to the turn in effect at its `time.created`, and its cost line is at
+  that time too, so cost and tokens land on one turn; time is cut so no second counts twice (a
+  stretch a step runs through is that step's turn's, the earliest such step's when several run),
+  which gives a steered message's previous turn a null latency rather than 0; the cost log is
+  written whole from the cache each pass (§2.5.5 said appended: a line repeated after a later
+  one, as a rebuilt cache or a failed commit would append, counts the later cost twice in
+  `readStatusline`), with a zero line at each root's first message; only steps with a non-zero
+  cost get a line, so a session OpenCode does not price shows the estimate; the pass reads rows
+  with `time_updated` at or after the newest seen and skips the unchanged ones; the copy folder
+  `<hash>-usage-<pid>-<thread>`, swept when its pid is gone (`EPERM` counts as gone); no reading
+  when the catalog row or the model's limit is missing, and a user's config override unread; the
+  start-case line waits for 1 s of quiet output, at most 30 s (set agreed); a notice found before
+  its pane exists waits for the pane; `PaneNotice` carries a `kind` (`other-server`) so the
+  workspace maps it to its `t()` key.
+- **Seen red** (each injected, then removed): `db.ts` with one copy folder (both new cases), no
+  sweep, every pid dead; the usage source with no root walk, no peer origin, the `synthetic`
+  ignored, no in-flight step ownership, the cost log appended, an unchanged row re-touched, no
+  zero line, `compaction` not counted; the context with unquoted keys, the compaction ignored,
+  reasoning left out; `Terminal.say` writing to the pty, the quiet not reset by output, no
+  latest; the preparer's notice not sent, sent to the shown pane instead of the starting one; the
+  e2e with the start-case check removed (the line not shown); the proxy race (above).
+- **What is left:** `docs/agents.md`'s OpenCode usage and context section (P2.7 owns that file;
+  the text is in `docs/usage.md` and `docs/context.md` now, to move or point at); the user's own
+  `limit.context` override and custom providers give no reading; `shell` and `skill` rows were
+  read in OpenCode's code, not measured; whether Menkar sets `OPENCODE_DISABLE_MODELS_FETCH` is
+  topic 97.

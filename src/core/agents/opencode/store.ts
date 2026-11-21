@@ -36,6 +36,7 @@ export type Request =
   | { readonly op: 'conversation'; readonly db: string; readonly id: string }
   | { readonly op: 'lastReply'; readonly db: string; readonly id: string }
   | { readonly op: 'times'; readonly db: string; readonly id: string }
+  | { readonly op: 'context'; readonly db: string; readonly id: string }
 
 export interface Answers {
   readonly list: SessionRow[]
@@ -43,6 +44,14 @@ export interface Answers {
   readonly conversation: Conversation | null
   readonly lastReply: string | null
   readonly times: SessionTimes | null
+  readonly context: ContextUse | null
+}
+
+// What the session's model window holds after its last request, and the window's size when
+// OpenCode's model catalog knows it.
+export interface ContextUse {
+  readonly tokens: number
+  readonly limit: number | null
 }
 
 // When a session last went busy and last went idle, as whichever server ran it last wrote them.
@@ -262,6 +271,63 @@ function times(db: DatabaseSync, id: string): SessionTimes | null {
   return row ? { busy: num(row.time_busy), idle: num(row.time_idle) } : null
 }
 
+// The catalog of models OpenCode keeps in its database, refreshed from models.dev: its body is a
+// JSON text of its own, keyed by provider and then by model.
+const CATALOG_KEY = 'models-dev:v2:catalog'
+
+// As OpenCode's own footer counts it: every token of the last step that has them, after the last
+// finished compaction, over the model's context limit. A limit the user set in their own
+// configuration is not in the database, and is not read.
+function context(db: DatabaseSync, id: string): ContextUse | null {
+  const compacted = db
+    .prepare(
+      `SELECT MAX(seq) AS seq FROM session_message WHERE session_id = ? AND type = 'compaction'
+       AND json_extract(data, '$.status') = 'completed'`,
+    )
+    .get(id)
+  const last = db
+    .prepare(
+      `SELECT json_extract(data, '$.tokens.input') AS input,
+         json_extract(data, '$.tokens.output') AS output,
+         json_extract(data, '$.tokens.reasoning') AS reasoning,
+         json_extract(data, '$.tokens.cache.read') AS cache_read,
+         json_extract(data, '$.tokens.cache.write') AS cache_write,
+         json_extract(data, '$.model.providerID') AS provider,
+         json_extract(data, '$.model.id') AS model
+       FROM session_message WHERE session_id = ? AND type = 'assistant' AND seq > ?
+       AND json_extract(data, '$.tokens') IS NOT NULL ORDER BY seq DESC LIMIT 1`,
+    )
+    .get(id, num(compacted?.seq))
+  if (!last) return null
+  const tokens = ['input', 'output', 'reasoning', 'cache_read', 'cache_write'].reduce(
+    (sum, key) => sum + num(last[key]),
+    0,
+  )
+  const provider = str(last.provider)
+  const model = str(last.model)
+  return { tokens, limit: provider && model ? limitOf(db, provider, model) : null }
+}
+
+function limitOf(db: DatabaseSync, provider: string, model: string): number | null {
+  const quoted = (key: string) => `"${key.replaceAll('"', '\\"')}"`
+  const path = `$.${quoted(provider)}.models.${quoted(model)}.limit.context`
+  let row: Record<string, SQLInputValue> | undefined
+  try {
+    row = db
+      .prepare(
+        "SELECT json_extract(json_extract(value, '$.body'), ?) AS limit_ FROM kv WHERE key = ?",
+      )
+      .get(path, CATALOG_KEY)
+  } catch (error) {
+    // An OpenCode with no catalog table, or one of another shape: no limit known.
+    if (error instanceof Error && /no such (table|column)|malformed JSON/.test(error.message))
+      return null
+    throw error
+  }
+  const limit = row?.limit_
+  return typeof limit === 'number' && limit > 0 ? limit : null
+}
+
 // Runs one request against the database, opened and closed for it.
 export function answer<R extends Request>(request: R): Answer<R> {
   const result = openAgentDb(request.db, (db): Answers[Request['op']] => {
@@ -276,6 +342,8 @@ export function answer<R extends Request>(request: R): Answer<R> {
         return lastReply(db, request.id)
       case 'times':
         return times(db, request.id)
+      case 'context':
+        return context(db, request.id)
     }
   })
   return result as Answer<R>

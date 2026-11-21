@@ -54,7 +54,7 @@ describe('descriptors and kits', () => {
     expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'tools', 'trash'])
     expect(caps('cursor')).toEqual(['chat', 'trash'])
     expect(caps('codex')).toEqual(['context', 'tools'])
-    expect(caps('opencode')).toEqual(['tools'])
+    expect(caps('opencode')).toEqual(['context', 'tools'])
   })
 
   test('every cap has its concern named, and a built concern matches its cap for every agent', () => {

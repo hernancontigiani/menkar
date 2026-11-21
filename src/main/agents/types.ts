@@ -61,8 +61,17 @@ export interface Preparer {
   onSession(
     follow: (pane: string, sessionId: string, previous: string, kind: SessionMove) => void,
   ): void
+  // Something the human should know about a pane's session, shown as one line in its terminal:
+  // the session has a turn running in another server than Menkar's too, found at its start
+  // ('start') or before a wake ('wake').
+  onNotice(listener: (pane: string, notice: PaneNotice) => void): void
   // On quit.
   quit(): Promise<void>
+}
+
+export interface PaneNotice {
+  readonly kind: 'other-server'
+  readonly when: 'start' | 'wake'
 }
 
 // What Remote Control's reading needs of a pane.

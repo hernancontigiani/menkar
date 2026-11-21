@@ -1,11 +1,20 @@
 // §2.6 of the multi-agent architecture (R9, S6): an agent's SQLite database is read without a
 // file appearing or changing beside it, with no writer, with a live writer, after a writer was
 // killed and left both sidecars, and after a writer crashed and left its `-wal` without the `-shm`.
+
+import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { openAgentDb, UNREADABLE } from '../../../../src/core/agents/shared/db'
+import {
+  dropCopies,
+  openAgentDb,
+  ownCopies,
+  sweepCopies,
+  UNREADABLE,
+} from '../../../../src/core/agents/shared/db'
 import { addSink } from '../../../../src/core/log'
 import { appDirs } from '../../../../src/core/paths'
 
@@ -69,6 +78,11 @@ function killedDatabase(dir: string): string {
 }
 
 const copies = () => join(appDirs().cache, 'agent-db')
+// The copy folders of one database: its shared one, and those readers named.
+const copiesOf = (path: string) => {
+  const hash = createHash('sha256').update(path).digest('hex').slice(0, 16)
+  return readdirSync(copies()).filter((name) => name.startsWith(hash))
+}
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -223,5 +237,52 @@ describe('openAgentDb', () => {
     const after = readdirSync(copies()).length
     expect(openAgentDb(path, names)).toEqual(['first', 'second'])
     expect(readdirSync(copies())).toHaveLength(after - 1)
+  })
+
+  test("a reader that names its own copies never rewrites another reader's copy, and drops only its own", () => {
+    const dir = folder()
+    const path = closedDatabase(dir)
+    const writer = new DatabaseSync(path)
+    try {
+      writer.exec("PRAGMA wal_autocheckpoint=0; INSERT INTO threads VALUES ('t2', 'second')")
+      expect(openAgentDb(path, names)).toEqual(['first', 'second'])
+      const shared = copiesOf(path).filter((name) => /^[0-9a-f]{16}$/.test(name))
+      expect(shared).toHaveLength(1)
+      const sharedCopy = join(copies(), shared[0] ?? '')
+      const before = exact(sharedCopy)
+      writer.exec("INSERT INTO threads VALUES ('t3', 'third')")
+      const own = ownCopies('usage')
+      expect(openAgentDb(path, names, own)).toEqual(['first', 'second', 'third'])
+      expect(exact(sharedCopy)).toEqual(before)
+      expect(copiesOf(path).filter((name) => name.endsWith(`-${own}`))).toHaveLength(1)
+      dropCopies(own)
+      expect(copiesOf(path).filter((name) => name.endsWith(`-${own}`))).toEqual([])
+      expect(existsSync(sharedCopy)).toBe(true)
+    } finally {
+      writer.close()
+    }
+  })
+
+  test("the copies of a process that ended are swept, a live one's and the shared ones kept", () => {
+    const dir = folder()
+    const path = closedDatabase(dir)
+    const writer = new DatabaseSync(path)
+    try {
+      writer.exec("INSERT INTO threads VALUES ('t2', 'second')")
+      const ended = spawnSync(process.execPath, ['-e', '']).pid
+      expect(ended).toBeGreaterThan(0)
+      const dead = `usage-${ended}-1`
+      const live = ownCopies('usage')
+      for (const name of [null, dead, live]) expect(openAgentDb(path, names, name)).toHaveLength(2)
+      const mine = (name: string) => copiesOf(path).some((n) => n.endsWith(`-${name}`))
+      expect(mine(dead)).toBe(true)
+      sweepCopies('usage')
+      expect(mine(dead)).toBe(false)
+      expect(mine(live)).toBe(true)
+      expect(copiesOf(path).some((n) => /^[0-9a-f]{16}$/.test(n))).toBe(true)
+      dropCopies(live)
+    } finally {
+      writer.close()
+    }
   })
 })

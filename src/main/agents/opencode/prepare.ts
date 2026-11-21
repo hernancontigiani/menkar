@@ -6,6 +6,7 @@ import { log } from '../../../core/log'
 import type { TeamText } from '../../../core/team/posts'
 import type {
   MainTeamDelivery,
+  PaneNotice,
   Prepared,
   PrepareInput,
   Preparer,
@@ -54,6 +55,7 @@ export class OpenCodePreparer implements Preparer {
   private readonly executions: Executions
   private follower: Follower | null = null
   private readonly listeners = new Set<(pane: string) => void>()
+  private readonly notices = new Set<(pane: string, notice: PaneNotice) => void>()
 
   constructor(private readonly options: PreparerOptions) {
     this.executions = new Executions({
@@ -89,8 +91,12 @@ export class OpenCodePreparer implements Preparer {
   // D9: a session open in another OpenCode server too (the human's own TUI) runs two turns at
   // once there. Menkar's server reports only its own executions; the database's row is written by
   // whichever server ran the session last, so a turn it says runs that Menkar's server is not
-  // running is another server's. Said in the log.
-  async otherServer(sessionId: string, when: 'start' | 'wake'): Promise<boolean> {
+  // running is another server's. Said in the log, and once in the pane that shows the session.
+  async otherServer(
+    sessionId: string,
+    when: 'start' | 'wake',
+    pane: string | null = null,
+  ): Promise<boolean> {
     if (this.executions.runningUnder(sessionId)) return false
     const running = await runningNow(sessionId)
     if (running !== true) return false
@@ -98,7 +104,14 @@ export class OpenCodePreparer implements Preparer {
       session: sessionId,
       when,
     })
+    const shown = pane ?? this.options.proxies.showing(sessionId)
+    if (shown !== null)
+      for (const listener of this.notices) listener(shown, { kind: 'other-server', when })
     return true
+  }
+
+  onNotice(listener: (pane: string, notice: PaneNotice) => void): void {
+    this.notices.add(listener)
   }
 
   async prepare(input: PrepareInput): Promise<Prepared | null> {
@@ -134,7 +147,7 @@ export class OpenCodePreparer implements Preparer {
         if (!answered(created)) throw new Error(`the session's create answered ${created.status}`)
       }
       if (id === undefined) throw new Error('an OpenCode start names no session')
-      if (input.start.kind === 'resume') void this.otherServer(id, 'start')
+      if (input.start.kind === 'resume') void this.otherServer(id, 'start', input.pane)
       await this.putTeam(running, id, input.teamFile)
       this.starts.set(input.pane, {
         cwd,

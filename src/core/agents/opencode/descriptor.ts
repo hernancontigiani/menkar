@@ -8,7 +8,7 @@ export const descriptor: AgentDescriptor = {
   command: 'opencode',
   label: 'agent.opencode',
   glyph: '▣',
-  caps: { remote: false, fork: false, trash: false, chat: false, context: false, tools: true },
+  caps: { remote: false, fork: false, trash: false, chat: false, context: true, tools: true },
   firstPrompt: true,
   namedAtStart: false,
   chat: [],

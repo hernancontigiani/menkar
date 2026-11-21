@@ -37,7 +37,7 @@ function dbPath(): string {
 const SEPARATOR = '#'
 const locatorOf = (db: string, id: string) => `${db}${SEPARATOR}${id}`
 
-function parse(locator: string): { db: string; id: string } {
+export function parse(locator: string): { db: string; id: string } {
   const at = locator.lastIndexOf(SEPARATOR)
   return { db: locator.slice(0, at), id: locator.slice(at + 1) }
 }

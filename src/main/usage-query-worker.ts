@@ -22,7 +22,7 @@ import {
 } from '../core/usage/periods'
 import { buildUsage } from '../core/usage/report'
 import type { TasksPeriod } from '../core/usage/sections'
-import { importedStatuslineLogPath, statuslineLogPath } from '../core/usage/statusline'
+import { statuslineLogPaths } from '../core/usage/statusline'
 
 // Reads of the usage history, on a thread of their own: SQLite is synchronous.
 export type Which = UsageWhich
@@ -135,7 +135,7 @@ function answer(
           : allBounds(history.firstOpened(), nowSeconds)
     const bucket = which.kind === 'period' ? BUCKET[which.period] : BUCKET[which.kind]
     const options = {
-      statuslineLogs: [importedStatuslineLogPath(), statuslineLogPath()],
+      statuslineLogs: statuslineLogPaths(),
       projectNames: new Map(query.projectNames),
       names: new Map(query.names),
       categories: query.categories,

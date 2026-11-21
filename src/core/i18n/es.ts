@@ -42,6 +42,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'terminal.notFound': 'aviso: no se encontró `{cli}` en el PATH — se abre una shell sola',
   'terminal.serverFailed':
     'aviso: Menkar no pudo iniciar el servidor de `{cli}` para esta sesión — se abre una shell sola',
+  'terminal.otherServer':
+    'aviso: esta sesión también tiene un turno en curso en otro `{cli}` — lo que se le envíe ahora puede intercalarse con ese turno',
   'terminal.restoreMissing':
     'No se encontró esta sesión: puede que su agente ({agent}) esté desinstalado o que sus archivos ya no estén.',
   'terminal.restoreUnsupported':

@@ -54,6 +54,14 @@ export class Terminal {
   #end = 0
   #exited = false
   #hungUp = false
+  readonly #emit: (data: string) => void
+  // A line waiting for the output to go quiet, and its timers.
+  #waiting: {
+    readonly text: string
+    readonly quietMs: number
+    readonly quiet: NodeJS.Timeout
+    readonly latest: NodeJS.Timeout
+  } | null = null
 
   constructor(options: StartOptions, sink: TerminalSink) {
     const shell = userShell()
@@ -69,6 +77,7 @@ export class Terminal {
       this.#end += data.length
       sink.data(data, this.#end)
     }
+    this.#emit = emit
     for (const message of pre) emit(message)
     this.#pty = spawn(shell, [], {
       name: 'xterm-256color',
@@ -88,7 +97,10 @@ export class Terminal {
         ...options.env,
       },
     })
-    this.#pty.onData(emit)
+    this.#pty.onData((data) => {
+      emit(data)
+      this.#quietAgain()
+    })
     this.#pty.onExit(({ exitCode }) => {
       this.#exited = true
       sink.exit(exitCode)
@@ -119,6 +131,44 @@ export class Terminal {
       log.warn('could not read a terminal’s foreground process', { error })
       return false
     }
+  }
+
+  // A message of the app's own, shown and kept for a replay as the program's output is, never
+  // written to the program: nothing is typed into a running agent.
+  say(message: string): void {
+    if (!this.#exited) this.#emit(message)
+  }
+
+  // The same, once the program has drawn: after its output has been quiet for `quietMs`, or at
+  // `latestMs` whatever it does. A full-screen program would paint over a line shown before its
+  // first screen.
+  sayWhenQuiet(message: string, quietMs: number, latestMs: number): void {
+    this.#flushWaiting()
+    const latest = setTimeout(() => this.#flushWaiting(), latestMs)
+    latest.unref()
+    this.#waiting = { text: message, quietMs, quiet: this.#quietTimer(quietMs), latest }
+  }
+
+  #quietTimer(ms: number): NodeJS.Timeout {
+    const timer = setTimeout(() => this.#flushWaiting(), ms)
+    timer.unref()
+    return timer
+  }
+
+  #quietAgain(): void {
+    const waiting = this.#waiting
+    if (waiting === null) return
+    clearTimeout(waiting.quiet)
+    this.#waiting = { ...waiting, quiet: this.#quietTimer(waiting.quietMs) }
+  }
+
+  #flushWaiting(): void {
+    const waiting = this.#waiting
+    if (waiting === null) return
+    this.#waiting = null
+    clearTimeout(waiting.quiet)
+    clearTimeout(waiting.latest)
+    this.say(waiting.text)
   }
 
   write(data: string): void {

@@ -231,6 +231,7 @@ import type {
 } from '../shared/workspace'
 import { recordPresence, recordPromptedStart } from './activity'
 import { mainKitOf, paneOfCaller } from './agents/registry'
+import type { PaneNotice } from './agents/types'
 import {
   agentStates,
   notifyTopic,
@@ -1226,7 +1227,31 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   tabPanes.set(tabId, [...(tabPanes.get(tabId) ?? []), id])
   if (self.pending) ensureJoinPolling()
   inboxes.sync()
+  for (const notice of heldNotices.get(id) ?? []) showNotice(self, notice)
+  heldNotices.delete(id)
 }
+
+// A notice found while its pane was still being made waits for its terminal.
+const heldNotices = new Map<string, PaneNotice[]>()
+// A line shown at a start waits for the agent's first screen, which would paint over it.
+const NOTICE_QUIET_MS = 1_000
+const NOTICE_LATEST_MS = 30_000
+
+// One line of Menkar's own in the pane's terminal, once per notice.
+function showNotice(pane: Pane, notice: PaneNotice): void {
+  if (pane.agent === 'shell') return
+  const cli = descriptorOf(pane.agent).command
+  const line = appMessage(t('terminal.tag'), t('terminal.otherServer', { cli }))
+  if (notice.when === 'start') pane.terminal.sayWhenQuiet(line, NOTICE_QUIET_MS, NOTICE_LATEST_MS)
+  else pane.terminal.say(line)
+}
+
+for (const agent of AGENT_IDS)
+  mainKitOf(agent).prepare?.onNotice((paneId, notice) => {
+    const pane = panes.get(paneId)
+    if (pane) showNotice(pane, notice)
+    else heldNotices.set(paneId, [...(heldNotices.get(paneId) ?? []), notice])
+  })
 
 // A pane's CLI that moved to another session in its agent's own server: the tab follows it, a
 // new one taking the old one's place as after a clear.

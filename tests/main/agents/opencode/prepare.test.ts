@@ -246,6 +246,8 @@ describe('a wake', () => {
 describe('a session another server runs', () => {
   test('is told when its row says a turn runs that Menkar’s server is not running', async () => {
     vi.stubEnv('FAKE_OPENCODE_TURN_MS', '3000')
+    const notices: unknown[] = []
+    preparer.onNotice((pane, notice) => notices.push({ pane, ...notice }))
     await preparer.prepare(outside())
     const id = 'ses_0000000000a1AAAAAAAAAAAAAA'
     expect(await preparer.otherServer(id, 'start')).toBe(false)
@@ -258,6 +260,11 @@ describe('a session another server runs', () => {
         body: JSON.stringify({ text: 'busy elsewhere', delivery: 'steer' }),
       })
       await wait(async () => expect(await preparer.otherServer(id, 'wake')).toBe(true))
+      // one line in the pane that shows the session, for that detection
+      expect(notices).toEqual([{ pane: 'pane-1', kind: 'other-server', when: 'wake' }])
+      expect(await preparer.otherServer(id, 'start', 'pane-2')).toBe(true)
+      expect(notices.at(-1)).toEqual({ pane: 'pane-2', kind: 'other-server', when: 'start' })
+      expect(notices).toHaveLength(2)
     } finally {
       other.stop()
     }

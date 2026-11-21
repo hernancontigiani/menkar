@@ -89,6 +89,18 @@ Integrations page are still `docs/spec/context.md` until they are built.
   in flight per session, plus one re-read. Main watches the sessions folder and sends every window
   `context:reading`. The window calls `trackContext(sessionId, transcript)` for each session it
   shows.
+- **OpenCode's reading** (`src/core/agents/opencode/context.ts`, measured by `opencode` on v2.3.0,
+  2026-11-21): as its own footer counts it, every token (input, output, reasoning, cache read and
+  write) of the session's last step that has them, after its last `compaction` row whose status
+  is `completed`, over the model's `limit.context`, rounded to a whole percent. The limit is read
+  from the model catalog OpenCode keeps in its own database (`kv`, key `models-dev:v2:catalog`,
+  whose `body` is a JSON text of its own, keyed by provider and model, both quoted in the path),
+  on the catalog's worker thread like every read of that database (~26–47 ms on a 10 MB catalog).
+  **No reading** when the catalog row is not there (a fresh install keeps its bundled catalog in
+  memory until its first fetch), when it does not know the model, or for a model of a provider the
+  user defined in their own configuration; a limit the user overrides in their configuration is
+  not in the database and is not read. `GET /api/session/<id>/context` was not used: it answers
+  the window's messages, not a figure. It is refreshed at each turn's end.
 - **The levels** (`levels.ts`, decision 1.22): one definition, `level(percentage, thresholds)`,
   read by the ring (`src/core/ring.ts`) and re-exported by `reading.ts`. The thresholds are the
   settings `ring_warn` and `ring_full` (defaults 60 and 90), kept only as a pair (whole numbers
