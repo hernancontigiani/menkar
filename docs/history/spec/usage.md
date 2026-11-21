@@ -873,3 +873,9 @@ history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-h
     times** (decision 1.184), Up and Down moving through them. The window opens on Spend, 7 days.
   - **The header holds only the section's period**: Spend — Today, 7 days, 30 days, Month; Your time
     — Day, Week; Task times — Today, 7 days, 30 days (Today added 2026-11-19).
+
+> Replaced 2026-11-21 (task 187, decision 1.203): the week gains Switches/h, the focus line under the table, and the footnote that says what Switches/h is.
+    per project ("Shop 29 · Blog 12"). **Week**: one row per day — its strip, Active, Messages sent,
+    Prompts — and a Total; a click on a row (or Enter) opens that day. The arrows stop at today and
+    at the history's first day. The footer says what a burst is (actions less than 10 min apart;
+    away ends one) and that messages typed while an agent works are not counted yet.

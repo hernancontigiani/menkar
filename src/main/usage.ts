@@ -3,6 +3,7 @@ import { Worker } from 'node:worker_threads'
 import { classifySince } from '../core/classifier/settings'
 import { chooseLanguage, setLanguage } from '../core/i18n'
 import { log } from '../core/log'
+import { orchestratorIds } from '../core/projects/earlier'
 import { runUsageCli } from '../core/usage/cli'
 import type { Memberships, Tokens } from '../core/usage/history'
 import type {
@@ -141,6 +142,11 @@ function openerProject(projectId: string | null): { id: string; name: string } |
   return name === undefined ? null : { id: projectId, name }
 }
 
+function orchestratorOf(projectId: string | null): string[] | null {
+  const project = currentProjects()?.projects.find((p) => p.id === projectId)
+  return project === undefined ? null : orchestratorIds(project)
+}
+
 // The pass brings the human's turns into the history, then the import the journal up to now:
 // after the pass, never beside it, as both open the history.
 async function historyUpToNow(): Promise<void> {
@@ -161,6 +167,7 @@ export async function activityView(
     project: openerProject(projectId),
     scoped: !allProjects,
     projectNames: [...currentMemberships().projectNames],
+    orchestrator: orchestratorOf(projectId),
   })
 }
 

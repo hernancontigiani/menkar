@@ -25,6 +25,14 @@ export function earlierIds(p: Project): Set<string> {
   return new Set(Object.values(keptEarlier(p)).flat())
 }
 
+// The orchestrator's ids over its renews and clears: it and its earlier conversations. Null with the
+// mode off or no orchestrator marked.
+export function orchestratorIds(p: Project): string[] | null {
+  const o = p.orchestration
+  if (!o?.on || o.orchestrator === undefined) return null
+  return [o.orchestrator, ...(keptEarlier(p)[o.orchestrator] ?? [])]
+}
+
 const withEarlier = (p: Project, earlier: Earlier): Project => {
   const { earlier: _, ...rest } = p
   return Object.keys(earlier).length > 0 ? { ...rest, earlier } : rest

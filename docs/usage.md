@@ -263,6 +263,24 @@ reading). The day's count axis and its positions are `src/core/usage/timeline.ts
 1.14's rule without the 2.5 step, counts having none, with a top of at least 5; a moment's x is its
 share of the day's seconds, so a 23- or 25-hour day is drawn true.
 
+**Focus in the week** (decision 1.203, the human, 2026-11-21): a switch is the one `menkar usage
+now` counts — the human's next message in a burst going to a different session than the one
+before; a burst's first message, and so one after a gap or an away, switches nothing. `bursts`
+records each burst's switches as the moments of the messages that made them (`Burst.switches`), so
+`burst.switches` and the week read one definition. A day counts the switches whose message is
+that day's (a burst crossing midnight gives each side its own), and Switches/h is a day's switches
+over its Active hours (`switchesPerHour`, null with no Active time, shown "—"); the Total's is the
+week's switches over the week's Active, so the days add up to it. Under the table, `activityWeek`'s
+`focus` and `before` (the week before, read in the same rows: a week's reading starts seven days
+earlier) give switches per hour and the share of the week's messages to the orchestrator
+(`orchestratorShare`). The orchestrator is the project's marked one with its earlier conversations
+(`orchestratorIds`, `src/core/projects/earlier.ts`), so a renew does not lose its messages; with
+the mode off, none marked, or All projects, `toOrchestrator` is null and the line leaves that part
+out. `before` is null when the week before has no message ("no data"). Scoped to a project,
+messages and switches are that project's; in All projects a switch may cross projects. Computed
+when read, nothing stored. A renew is a switch: the renewed session's next message goes to a new
+id.
+
 ### The task flow
 
 How long tasks spend in each state, read from their `task_state` rows (`src/core/usage/flow.ts`,

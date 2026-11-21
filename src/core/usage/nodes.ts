@@ -208,6 +208,7 @@ export interface ActivityDay {
   readonly burstSeconds: number
   readonly messages: number
   readonly prompts: number
+  readonly switches: number
 }
 
 export interface ActivityWeekDay {
@@ -217,11 +218,26 @@ export interface ActivityWeekDay {
   readonly burstSeconds: number
   readonly messages: number
   readonly prompts: number
+  // the bursts' switches made this day: the human's next message going to a different session
+  readonly switches: number
+}
+
+// A week's focus, for the line under its table.
+export interface WeekFocus {
+  readonly messages: number
+  // the bursts' time inside the week
+  readonly activeSeconds: number
+  readonly switches: number
+  // of `messages`, the ones to the orchestrator; null when the project has none
+  readonly toOrchestrator: number | null
 }
 
 export interface ActivityWeek {
   readonly bounds: Bounds
   readonly days: readonly ActivityWeekDay[]
+  readonly focus: WeekFocus
+  // null: no message that week
+  readonly before: WeekFocus | null
 }
 
 // The states a task spends time in; done and dropped end it.

@@ -91,6 +91,18 @@
   width: 7ch;
 }
 
+.w-switches {
+  width: 10ch;
+}
+
+.week-focus {
+  padding: 0 12px;
+}
+
+.week-focus-lead {
+  font-weight: bold;
+}
+
 .week-open {
   flex: none;
   width: 12px;

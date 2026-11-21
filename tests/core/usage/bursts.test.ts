@@ -19,7 +19,9 @@ import {
   clipToDay,
   type HumanAction,
   humanActionsOf,
+  orchestratorShare,
   readActivity,
+  switchesPerHour,
 } from '../../../src/core/usage/bursts'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { midnight } from '../../../src/core/usage/periods'
@@ -450,5 +452,99 @@ describe('reading the history', () => {
     } finally {
       history.close()
     }
+  })
+})
+
+// Decision 1.203: the week's focus. A switch is the one `menkar usage now` counts for a burst: the
+// human's next message in the burst going to a different session than the one before.
+describe("the week's focus", () => {
+  const to = (session: string, at: number, i: number) => ({
+    uuid: `f${i}`,
+    sessionId: session,
+    at,
+    project: 'shop',
+  })
+  const sent = (list: readonly (readonly [string, number])[]) =>
+    rows({ messages: list.map(([session, at], i) => to(session, at, i)) })
+
+  test('A, B, B, A, C, A in one burst are 4 switches; a gap or an away starts afresh', () => {
+    const one = sent([
+      ['a', hm(10, 0)],
+      ['b', hm(10, 5)],
+      ['b', hm(10, 10)],
+      ['a', hm(10, 15)],
+      ['c', hm(10, 20)],
+      ['a', hm(10, 25)],
+    ])
+    expect(bursts(humanActionsOf(one), [])[0]?.switches).toEqual([
+      hm(10, 5),
+      hm(10, 15),
+      hm(10, 20),
+      hm(10, 25),
+    ])
+    const day = activityDay(one, NOV_18, hm(23, 0))
+    expect(day.switches).toBe(4)
+    // 11 minutes apart: two bursts, and the second's first message switches nothing
+    const apart = sent([
+      ['a', hm(10, 0)],
+      ['b', hm(10, 11)],
+    ])
+    expect(activityDay(apart, NOV_18, hm(23, 0)).switches).toBe(0)
+    const away = rows({
+      ...sent([
+        ['a', hm(10, 0)],
+        ['b', hm(10, 4)],
+      ]),
+      presence: [
+        { at: hm(10, 2), kind: 'away' },
+        { at: hm(10, 3), kind: 'back' },
+      ],
+    })
+    expect(activityDay(away, NOV_18, hm(23, 0)).switches).toBe(0)
+  })
+
+  test("a switch is its message's day's; the week's switches per Active hour are the days' sum", () => {
+    const r = sent([
+      ['a', hm(23, 50)],
+      ['b', hm(23, 55)],
+      ['a', hm(24, 5)],
+      ['a', hm(24 + 9, 0)],
+      ['b', hm(24 + 9, 10)],
+    ])
+    const week = activityWeek(r, NOV_18, hm(24 * 3, 0))
+    expect(week.days.slice(0, 2).map((d) => [d.switches, d.burstSeconds])).toEqual([
+      [1, 600],
+      [2, 300 + 600],
+    ])
+    expect(week.focus).toEqual({
+      messages: 5,
+      activeSeconds: 1500,
+      switches: 3,
+      toOrchestrator: null,
+    })
+    expect(switchesPerHour(week.focus.switches, week.focus.activeSeconds)).toBeCloseTo(7.2)
+    expect(switchesPerHour(3, 1800)).toBe(6)
+    // no Active time, nothing to divide by: a lone message is a burst of length 0
+    expect(switchesPerHour(0, 0)).toBeNull()
+  })
+
+  test('the share to the orchestrator counts its earlier ids; the week before is null with no message', () => {
+    const NOV_11 = { year: 2026, month: 11, day: 11 }
+    const r = sent([
+      ['orch', hm(10, 0)],
+      ['old-orch', hm(10, 5)],
+      ['w', hm(10, 6)],
+      ['orch', hm(10, 7)],
+    ])
+    const week = activityWeek(r, NOV_18, hm(23, 0), ['orch', 'old-orch'])
+    expect(week.focus.toOrchestrator).toBe(3)
+    expect(orchestratorShare(week.focus)).toBe(0.75)
+    expect(week.before).toBeNull()
+    expect(orchestratorShare(activityWeek(r, NOV_18, hm(23, 0)).focus)).toBeNull()
+    // seen from the week after, this one is the week before
+    const next = activityWeek(r, { ...NOV_18, day: 25 }, hm(24 * 8, 0), ['orch'])
+    expect(next.focus.messages).toBe(0)
+    expect(next.before).toMatchObject({ messages: 4, switches: 3, toOrchestrator: 2 })
+    expect(activityWeek(r, NOV_11, hm(23, 0)).before).toBeNull()
   })
 })

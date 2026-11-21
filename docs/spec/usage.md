@@ -76,9 +76,14 @@ Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut bel
     activity on this day." on an empty one. A hover on a band shows its whole start – end and
     length, the part on this day when it is clipped, its counts and, in All projects, its messages
     per project ("Shop 29 · Blog 12"). **Week**: one row per day — its strip, Active, Messages sent,
-    Prompts — and a Total; a click on a row (or Enter) opens that day. The arrows stop at today and
-    at the history's first day. The footer says what a burst is (actions less than 10 min apart;
-    away ends one) and that messages typed while an agent works are not counted yet.
+    Prompts, Switches/h ("—" with no Active time) — and a Total; a click on a row (or Enter) opens
+    that day. Under the table, the week against the one before (decision 1.203): "This week: 1.9
+    switches/h · 82% to the orchestrator; the week before 8.2 · 40%" ("That week:" on a past one),
+    the orchestrator's part left out with the mode off or in All projects, and "the week before: no
+    data" when it had no message. The arrows stop at today and at the history's first day. The
+    footer says what a burst is (actions less than 10 min apart; away ends one), that messages
+    typed while an agent works are not counted yet, and what Switches/h is: how often the next
+    message, in this project, went to a different session within a burst, per hour of Active.
   - **Task times**, how long tasks spent in each state: "14 tasks · 9 done · 1 dropped · 4 open",
     with "◦ 3 from their baseline" when some tasks were already open when recording began; a table
     of Queued, In progress, Waiting and To review, each with its waiters folded under it (▾/▸, kept

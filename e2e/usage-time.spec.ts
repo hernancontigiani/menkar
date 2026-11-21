@@ -100,7 +100,13 @@ function seed(root: string, home: string, scheme: 'dark' | 'light'): void {
       version: 1,
       current: SHOP,
       projects: [
-        { id: SHOP, name: 'Shop', members: ['shop-1'], groups: [] },
+        {
+          id: SHOP,
+          name: 'Shop',
+          members: ['shop-1'],
+          groups: [],
+          orchestration: { on: true, orchestrator: 'shop-1' },
+        },
         { id: BLOG, name: 'Blog', members: ['blog-1'], groups: [] },
       ],
       windows: [],
@@ -200,8 +206,30 @@ test('decision 1.184: Your time draws the day by the hour — bursts, away, the 
       await expect(yesterday.locator('[data-away]')).toHaveCount(1)
       await expect(yesterday.locator('.w-messages')).toHaveText('8')
       await expect(usage.locator('[data-key="next"]')).toBeDisabled()
+      // Focus (decision 1.203): Shop's messages all went to shop-1, its orchestrator
+      await expect(usage.locator('.week-heading')).toContainText('Switches/h')
+      await expect(yesterday.locator('.w-switches')).toHaveText('0.0')
+      await expect(usage.locator(`[data-day="${dayKey(2)}"] .w-switches`)).toHaveText('—')
+      const focus = usage.locator('[data-key="week-focus"]')
+      await expect(focus).toHaveText(
+        'This week: 0.0 switches/h · 100% to the orchestrator; the week before: no data',
+      )
+      await expect(
+        usage.getByText('Switches/h: how often your next message, in this project'),
+      ).toHaveCount(1)
       await yesterday.hover()
       await shot(usage, `${SHOTS}/week-${scheme}.png`)
+
+      // All projects: Shop → Blog → Shop inside yesterday's two bursts is 1 + 2 switches over
+      // 1h53 + 1h48 of Active, and there is no orchestrator to name
+      await usage.locator('[data-key="all-projects"]').click()
+      await settled(usage)
+      await expect(yesterday.locator('.w-switches')).toHaveText('0.8')
+      await expect(usage.locator('[data-key="week-total"] .w-switches')).toHaveText('0.8')
+      await expect(focus).toHaveText('This week: 0.8 switches/h; the week before: no data')
+      await shot(usage, `${SHOTS}/week-all-${scheme}.png`)
+      await usage.locator('[data-key="this-project"]').click()
+      await settled(usage)
 
       // A click on a day opens it by the hour
       await yesterday.click()

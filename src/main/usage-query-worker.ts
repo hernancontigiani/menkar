@@ -45,6 +45,8 @@ export type Query =
       readonly project: { readonly id: string; readonly name: string } | null
       readonly scoped: boolean
       readonly projectNames: readonly (readonly [string, string])[]
+      // the project's orchestrator's ids, its earlier conversations included; null with none
+      readonly orchestrator: readonly string[] | null
     }
   | {
       readonly kind: 'flow'
@@ -69,8 +71,9 @@ function activity(
 ): ActivityView {
   const which = query.which
   const from = which.kind === 'day' ? which.day : which.first
+  // a week reads the week before too, for its focus line
   const bounds = {
-    start: midnight(from),
+    start: midnight(which.kind === 'day' ? from : addDays(from, -7)),
     end: midnight(addDays(from, which.kind === 'day' ? 1 : 7)),
   }
   const scope = query.scoped && query.project ? query.project.id : undefined
@@ -81,7 +84,15 @@ function activity(
     reading:
       which.kind === 'day'
         ? { kind: 'day', day: activityDay(rows, which.day, nowSeconds) }
-        : { kind: 'week', week: activityWeek(rows, which.first, nowSeconds) },
+        : {
+            kind: 'week',
+            week: activityWeek(
+              rows,
+              which.first,
+              nowSeconds,
+              scope === undefined ? null : query.orchestrator,
+            ),
+          },
     firstDay: first === null ? null : localDay(first),
     projectNames: query.projectNames,
     tooNew: history.tooNew,

@@ -6,7 +6,6 @@ import {
   awayPeriods,
   BURST_GAP_SECONDS,
   bursts,
-  type HumanAction,
   humanActionsOf,
   type PresenceKind,
   readActivity,
@@ -168,7 +167,7 @@ export function readNow(source: ActivitySource, nowSeconds: number, running: boo
             length_seconds: lastAction.epoch - start.epoch,
             messages: last.messages,
             prompts: last.prompts,
-            switches: switches(messages.filter((m) => last.start <= m.at && m.at <= last.end)),
+            switches: last.switches.length,
           }
         : null,
     today: {
@@ -182,12 +181,4 @@ export function readNow(source: ActivitySource, nowSeconds: number, running: boo
         .map((m) => m.session),
     ).size,
   }
-}
-
-// Consecutive messages, oldest first, that went to a different session than the one before.
-function switches(messages: readonly HumanAction[]): number {
-  let count = 0
-  for (let i = 1; i < messages.length; i++)
-    if (messages[i]?.session !== messages[i - 1]?.session) count += 1
-  return count
 }
