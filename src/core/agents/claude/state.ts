@@ -50,7 +50,9 @@ function detect(title: string, screen: string): RawState {
     recent.includes('review your answers') ||
     READ_OUTSIDE_CARD.test(recent) ||
     (recent.includes('esc to cancel') &&
-      (recent.includes('enter to confirm') || recent.includes('enter to select'))) ||
+      (recent.includes('enter to confirm') ||
+        recent.includes('enter to select') ||
+        recent.includes('enter to continue'))) ||
     ((recent.includes('do you want to') || recent.includes('would you like to')) &&
       recent.includes('yes'))
   ) {
