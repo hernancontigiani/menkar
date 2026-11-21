@@ -9,8 +9,8 @@ import { PROJECT, SESSION, type Text } from './seed'
 export interface Proof {
   // The project shown in the header, by its seeded name.
   readonly project: Text
-  // The open tasks of a project in the orchestration mode: the sidebar lists the first few and
-  // counts them all in its See all link.
+  // The open tasks of a project in the orchestration mode, each a card on the Board, which is open
+  // by default.
   readonly openTasks?: number
 }
 
@@ -93,12 +93,6 @@ export const SCENES: Record<Scene, SceneWalk> = {
     await w.shot('topic-discussing', TEAM, [top])
     await w.go(() => topic.click(), w.page.locator('.topic-row[data-topic="2"]:not(.open)'))
 
-    await w.shot('task-steps', TEAM, [
-      w.page.locator('#session-list .work-heading').first(),
-      w.page.locator('#session-list .task-row'),
-      w.page.locator('.see-all'),
-    ])
-
     await w.go(() => done.click(), w.page.locator('.done-row').first())
     await w.shot('work-view-overview', TEAM, [w.page.locator('#sidebar')])
     await w.go(() => done.click(), w.page.locator('[data-section="done"][aria-expanded="false"]'))
@@ -109,15 +103,11 @@ export const SCENES: Record<Scene, SceneWalk> = {
     const toggle = w.page.locator('#toggle-sidebar')
     await w.go(() => toggle.click(), w.page.locator('#toggle-sidebar[aria-pressed="false"]'))
     const done = w.page.locator('#board-panel [data-column="done"] .task-card')
-    await w.go(() => w.page.locator('#board-button').click(), done)
+    await w.go(async () => {}, done)
     await w.shot('board-default', TEAM)
     const review = w.page.locator('#board-panel [data-column="to-review"]')
     await review.scrollIntoViewIfNeeded()
     await w.shot('task-to-review', TEAM, [review])
-    await w.go(
-      () => w.page.locator('#board-button').click(),
-      w.page.locator('#board-button[aria-pressed="false"]'),
-    )
     await w.go(() => toggle.click(), w.page.locator('#toggle-sidebar[aria-pressed="true"]'))
   },
 
@@ -249,8 +239,17 @@ export const SCENES: Record<Scene, SceneWalk> = {
         win.locator(`[data-section="${name}"][role="tab"][aria-selected="true"]`),
       )
     await section('spend')
+    // The window opens on Today, whose figures scale with the hour the seed ran: 7 days holds still.
+    await w.go(
+      () => win.locator('[data-toggles="period"] [data-value="7d"]').click(),
+      win.locator('[data-toggles="period"] [data-value="7d"][aria-pressed="true"]'),
+    )
     await w.shotWindow('usage-spend', win)
     await section('time')
+    await w.go(
+      () => win.locator('[data-toggles="period"] [data-value="week"]').click(),
+      win.locator('[data-day]').first(),
+    )
     // Yesterday by the hour: today's row follows the clock, so it differs from one run to the next.
     await w.go(
       () => win.locator('[data-day]').nth(-2).click(),

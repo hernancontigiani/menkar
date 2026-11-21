@@ -23,20 +23,12 @@ orchestrator's tab.
 
 ## Follow each task
 
-Under the items are the open tasks, the ★ one first. Each row shows the title, the session
-that has it, a bar per step, and its latest note; a task waiting on something has a red edge and
-says what it waits on.
-
-![](shot:task-steps)
-
-- Click a task to see its session.
-- Right-click it to :ui[work.star] or :ui[work.unstar].
-- Past three tasks, click the link under them to open [the Board](/menkar/orchestration/board/)
-  with every task.
+Follow the tasks on [the Board](/menkar/orchestration/board/), open above the tabs while the mode
+is on.
 
 ## Find a session in the team
 
-Below the tasks is the team:
+Under the items is the team:
 
 - the orchestrator, with the sessions it gives work to under it. Its group starts folded; folded,
   its row says how many are under it and shows the most urgent state among them, red when one

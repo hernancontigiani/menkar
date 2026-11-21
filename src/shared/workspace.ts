@@ -84,6 +84,7 @@ export interface TaskView {
   readonly step: number
   readonly note: string
   readonly waitingOn?: string
+  readonly waitingNote?: string
   readonly reviewWait?: ReviewWait
 }
 

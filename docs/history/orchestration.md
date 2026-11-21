@@ -422,3 +422,48 @@ wakes' messaging, when it runs (`discussTopic` in `src/main/workspace.ts`).
 
 > Left on 2026-11-20: the first-time card's new orchestrator is of the agent chosen, with its agent's first prompt (decision 1.155 Q2, plan 39 P1b.6).
     chosen session, or starts the new one through `startNew` with a first prompt telling it to
+
+## The sidebar in the mode
+
+> Left on 2026-11-21: "for you" and Awaiting you count the PRs waiting on the human too; the posts say "N for you" (decision 1.197, task 170).
+1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting, counted by
+   `workCounts` (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
+   orchestrator (below).
+(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are three kinds only** (decisions 1.178,
+code). A row: ★ when its task has the ★, the
+**At most 5 topics** (`TOPICS_SHOWN`, `topicsFolded` in `src/core/orchestration/rows.ts`; decision
+
+## The data
+
+> Left on 2026-11-21: waiting_on is an open topic, a session or an outside kind, with a waiting_note; anything else refused (decisions 1.197 and 1.199, task 170).
+    (1-based, 0 while queued), `note` (the latest report, one line), `waiting_on` while waiting,
+    `created`, `updated` and `closed` (ISO, through the clock).
+  - **States:** `queued` (added) → `in progress` (steps set; step n of m) → `waiting` (on a topic
+    or a session, named) → `to review` (the assignee says it is done) → `done` or `dropped`, which
+    only the orchestrator sets, after reviewing, so "done" always means reviewed.
+
+## The sidebar in the mode
+
+> Left on 2026-11-21: the Tasks list leaves the sidebar; the tasks are on the Board (decision 1.198, task 175).
+    `ask`, so it becomes a topic and shows in Awaiting you. A card or a task row shows the kind's
+- **Scrolling**, `#session-list`: Tasks, the team, the "N hidden" foot, Done today.
+   note — "waiting on ‹what›" first while waiting, with a red edge. A click shows the assignee's
+   tab if it has one, in the peek if it runs in the background, starting nothing
+   (`selectSessionTab`); the right-click menu sets or removes the ★. **At most 3** (`TASKS_SHOWN`,
+   `tasksFolded` in `src/core/orchestration/rows.ts`), then "See all (N) →", which opens the Board
+   on Show all.
+4. **The team**, below: the orchestrator and the sessions under it, Consultants, Others.
+5. **"N hidden"**, the foot that shows the hidden rows, after Others (decision 1.176, D4).
+6. **Done today · N**: topics closed and tasks done since local midnight, newest first; **folded
+
+## The Board
+
+> Left on 2026-11-21: the Board is open by default, board_open is written only as false; See all is gone (decision 1.198, task 175).
+and the assignee; a click selects the assignee, as a task row does. The heading's N counts both
+- **Saved per project** in `projects.json` (`board_open`, `board_height`; `docs/projects.md`):
+  it reopens as it was after a restart. The last height is the one dragged or picked, Show all
+- Tasks' "See all (N) →" in the sidebar opens it on Show all. **Switching the mode off closes it**
+  (`setMode` clears `board_open`), so nothing of the mode shows with it off.
+step segments, the note. The note line starts with what the task waits on, as in the sidebar's
+task rows: a waiting task's `waiting_on`, and a task in To review's `review_wait` unless it waits on
+the orchestrator ("waiting on PR approval #436 · PR open", decision 1.164). A click selects the

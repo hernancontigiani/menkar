@@ -13,6 +13,11 @@ export type TaskState = (typeof TASK_STATES)[number]
 export const REVIEW_WAITERS = ['orchestrator', 'human', 'pr-approval', 'pr-merge'] as const
 export type ReviewWaiter = (typeof REVIEW_WAITERS)[number]
 
+// What a waiting task may wait on outside the project (decision 1.199), besides an open topic or
+// one of its sessions; anything more goes in its note.
+export const OUTSIDE_WAITS = ['build', 'ci', 'release', 'pr-approval', 'pr-merge', 'other'] as const
+export type OutsideWait = (typeof OUTSIDE_WAITS)[number]
+
 export interface ReviewWait {
   readonly on: ReviewWaiter
   // One line, e.g. the PR's number; may be empty.

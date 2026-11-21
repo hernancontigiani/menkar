@@ -1522,6 +1522,13 @@ select option {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.pr-assignee {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .topic-current,
 .topic-blocking {
   flex: none;
@@ -1920,54 +1927,12 @@ button.team-heading.folded::before {
 .tile-label {
   font-size: 8pt;
 }
-.work-heading {
-  margin: 8px 10px 2px;
-  padding: 0 4px;
-  font-size: 9pt;
-  font-weight: 700;
-}
-.work-empty {
-  margin: 0 10px 4px;
-  padding: 2px 4px;
-  font-size: 9pt;
-}
-.task-row {
-  display: block;
-  width: calc(100% - 12px);
-  margin: 0 6px 2px;
-  padding: 4px 6px 4px 8px;
-  border-left: 3px solid transparent;
-  border-radius: var(--radius);
-  font-size: 9pt;
-  text-align: left;
-}
-.task-row:hover,
-.see-all:hover,
 .board-card:hover {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
 }
-.task-row.waiting,
 .task-card.waiting {
   border-left-color: var(--red);
 }
-.task-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.task-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.task-progress,
-.task-assignee {
-  flex: none;
-}
-.task-note,
 .card-note {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1991,13 +1956,6 @@ button.team-heading.folded::before {
 }
 .step-segments .segment.current {
   background: var(--accent);
-}
-.see-all {
-  margin: 0 10px 4px;
-  padding: 2px 4px;
-  border-radius: var(--radius);
-  font-size: 9pt;
-  color: var(--accent);
 }
 .done-row {
   display: flex;

@@ -1,5 +1,6 @@
 import type { ProjectInfo } from '../projects/info'
 import type { TabPlace } from '../projects/place'
+import { awaitsPr, type CountedTask } from './counts'
 
 // What the sidebar draws in the orchestration mode (decision 1.89), in order.
 export type ModeRow =
@@ -144,23 +145,37 @@ export function modeRows(project: ProjectInfo, view: ModeView): ModeRow[] {
 
 export const TOPICS_SHOWN = 5
 
-// The sidebar's "Awaiting you", in `shownTopics`' order: the first few, the rest behind "N more"
-// until it is unfolded.
+// "Awaiting you" (decision 1.197): the topics, in `shownTopics`' order, then each task whose PR
+// waits on the human's approval or merge, in the tasks' order.
+export type AwaitingRow<T, K> =
+  | { readonly kind: 'topic'; readonly topic: T }
+  | { readonly kind: 'pr'; readonly task: K }
+
+export function awaitingRows<T, K extends CountedTask>(
+  topics: readonly T[],
+  tasks: readonly K[],
+): AwaitingRow<T, K>[] {
+  return [
+    ...topics.map((topic) => ({ kind: 'topic' as const, topic })),
+    ...tasks.filter(awaitsPr).map((task) => ({ kind: 'pr' as const, task })),
+  ]
+}
+
+// The PR a wait's note names, as "#436" from "#436", "436", "PR #436" or a pull request's URL;
+// any other note as it was written, and "" for none.
+export function prNamed(note: string): string {
+  const line = note.trim()
+  const number = /\/pull\/(\d+)(?:[/?#]|$)/.exec(line) ?? /^(?:PR\s*)?#?(\d+)$/i.exec(line)
+  return number ? `#${number[1]}` : line
+}
+
+// The sidebar's "Awaiting you": the first few, the rest behind "N more" until it is unfolded.
 export function topicsFolded<T>(
   shown: readonly T[],
   unfolded: boolean,
 ): { readonly rows: readonly T[]; readonly more: number } {
   if (unfolded || shown.length <= TOPICS_SHOWN) return { rows: shown, more: 0 }
   return { rows: shown.slice(0, TOPICS_SHOWN), more: shown.length - TOPICS_SHOWN }
-}
-
-export const TASKS_SHOWN = 3
-
-export function tasksFolded<T>(open: readonly T[]): {
-  readonly rows: readonly T[]
-  readonly more: number
-} {
-  return { rows: open.slice(0, TASKS_SHOWN), more: Math.max(0, open.length - TASKS_SHOWN) }
 }
 
 export type RowWeight = 'pinned' | 'background' | 'peek' | 'none'

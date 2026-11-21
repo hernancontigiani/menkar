@@ -868,3 +868,8 @@ history. Index rows: **F38**, **F39**, **F40**, **F41**, **M4**, and the usage-h
 
 > Left on 2026-11-19 (task 117): Task times' empty card has a Today wording.
     card says "No tasks in this project in these 7 days." (or 30, or "in any project").
+
+> Replaced 2026-11-21 (task 172, decision 1.200): the window opens on today; Your time's Day toggle reads Today on today.
+    times** (decision 1.184), Up and Down moving through them. The window opens on Spend, 7 days.
+  - **The header holds only the section's period**: Spend — Today, 7 days, 30 days, Month; Your time
+    — Day, Week; Task times — Today, 7 days, 30 days (Today added 2026-11-19).

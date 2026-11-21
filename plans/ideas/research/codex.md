@@ -403,6 +403,104 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
       <id> and <id>); use a session UUID to disambiguate.` `codex queue --thread <name>` uses the
       same lookup (r).
 
+26. **Team block, resume, compaction, MCP exposure and skill reads** (2026-11-20, task 166; the
+    stand-in API, request bodies saved; model `stub-model` (unknown to the catalog) and
+    `gpt-6.1-sol` (the real catalog entry, with the stand-in as provider)).
+    - **`-c developer_instructions` replaces the file's.**
+      - Setup: `developer_instructions = "USERDEV-MARKER…"` in `config.toml`, plus a 5,487-byte
+        `-c developer_instructions=<JSON string>`.
+      - The request held only the `-c` text, **byte-exact**. `USERDEV` was nowhere.
+      - It is the **first content item of the second developer message**. The order there is:
+        block, `<skills_instructions>`, `<permissions instructions>`, `<collaboration_mode>`,
+        `<tools>` (deferred list; real model only).
+      - The first developer message is the base prompt. With `gpt-6.1-sol`, an
+        `additional_tools` item comes first and `<multi_agent_role>`/`<multi_agent_mode>`
+        developer messages follow.
+      - `AGENTS.md` is a later **user** message ("# AGENTS.md instructions for <dir>"), then
+        `<environment_context>`, then the prompt.
+      - There was no truncation at 5.5 KB.
+    - **Where it is recorded:** only as a `response_item` developer message at the thread's
+      start. `session_meta` has no such field (`base_instructions` is the base prompt), and
+      neither does `turn_context`.
+    - **Resume** (`codex resume <id> -c developer_instructions=B`, then a turn): the request
+      replays the recorded history, so **the model sees A only**. B was nowhere. With **no** `-c`
+      on resume it was the same: A only, and the file's value not added.
+    - **Compaction rebuilds the developer message from the running process's config**, not from
+      the history:
+      - **`/compact`** in a run resumed with no `-c` replaced A with the file's `USERDEV`.
+      - An **automatic compaction** (`-c model_auto_compact_token_limit=50000`, the stand-in
+        reporting 200,000 tokens) in a run resumed with `-c developer_instructions=DELTA`: the
+        next request held **DELTA** and no A. It ran before the next turn and showed
+        `• Context compacted`.
+      - **So every resume must pass the block again**, or the next compaction drops it.
+    - **The `compacted` rollout record is the same for both:** `{type:"compacted",
+      payload:{message, replacement_history, replacement_history_metadata, retained_context,
+      window_id, window_number, previous_window_id, first_window_id, compaction_response_id,
+      latest_token_usage_record, resume_metadata}}`.
+      - `message` is the summary prompt ("Another language model started to solve this
+        problem…").
+      - `replacement_history` holds the rebuilt `additional_tools`, the developer messages (with
+        the new block), the user messages kept, and the summary.
+      - `world_state` and `turn_context` records follow it.
+    - **A turn opened by `codex queue`** sends the same request as any turn: the whole recorded
+      context (block included), with the same tool exposure. Nothing is special about it.
+    - **How MCP tools reach the model depends on the model** (r: `core/src/tools/spec_plan.rs`,
+      `supports_search_tool` and `tool_mode` in `codex debug models`):
+      - **Every catalog model** (gpt-6.x, gpt-5.6, daybreak) has `supports_search_tool: true`,
+        and all but `gpt-5.5` have `tool_mode: code_mode_only`.
+        - The request's only tools are an `additional_tools` item: `functions` (`exec`, `wait`,
+          `request_user_input`…), `clock`, `collaboration`.
+        - **Menkar's tools are deferred.** The developer message lists `- mcp__menkar:
+          <server instructions>` under "Deferred tool namespaces". No schema is sent.
+        - The model calls them **inside the `exec` JavaScript tool** as
+          `await tools.mcp__menkar__task_review({task: 7})`. That worked on the **first** call,
+          with no search first: the MCP stub got `tools/call task_review {task:7}`, and the TUI
+          showed `• Called menkar.task_review`.
+        - The schemas are found through `ALL_TOOLS`. Each entry is `{name:
+          "mcp__menkar__task_review", description: "<desc>\n\n<server instructions>\n\nexec
+          tool declaration: declare const tools: { mcp__menkar__task_review(args: { task:
+          number; }): Promise<CallToolResult>; }"}`.
+      - **A model unknown to the catalog** (`stub-model`) got plain function tools. `mcp__menkar`
+        was a `namespace` tool with every function's full JSON schema; the server's
+        `instructions` were its description.
+      - **`-c 'features.code_mode.direct_only_tool_namespaces=["mcp__menkar"]'` makes Menkar's
+        tools direct on the real models.**
+        - `mcp__menkar` became a namespace in `additional_tools`, beside `functions`, with full
+          schemas. It left the deferred list.
+        - A top-level call `{type:"function_call", namespace:"mcp__menkar", name:"task_review"}`
+          ran with no search.
+        - The key is a feature config (`features/src/feature_configs.rs:55-60`). The spelling
+          `code_mode.direct_only_tool_namespaces` is ignored with the warning "`code_mode` is
+          ignored".
+        - It is overridden only if the `code_mode_only_strict_3p_tools` feature is on (under
+          development, off).
+    - **Skill reads by absolute path:** `cat <abs>/SKILL.md` by `exec_command`, outside the cwd
+      (one under `/tmp`, one in another repository), ran with **no approval card** under the
+      default for a trusted folder (`workspace-write`, `on-request`; "The sandbox permits reading
+      files"). The TUI showed `• Explored └ Read SKILL.md`. `read-only` says "only permits reading
+      files" (r: `debug prompt-input`).
+27. **With Menkar's MCP mounted by `-c`, the TUI generates no title** (2026-11-20, task 167;
+    `gpt-6.1-sol` against the stand-in, with `-c mcp_servers.menkar.*` and
+    `features.code_mode.direct_only_tool_namespaces`).
+    - No title request reached the stand-in, at the first message (a long positional prompt
+      after `--`) or the second. `session_index.jsonl` was never created.
+    - Codex's own log (`logs_2.sqlite`, target `codex_tui::app::thread_title`) had, per message:
+      `failed to start title-generation thread error=thread/start failed: failed to load
+      configuration: invalid transport in \`mcp_servers.menkar\` (code -32600)`.
+    - So the hidden title thread fails to start, before any model request. The TUI still tries
+      at each message while it holds no name, but that costs no request. Item 25's titles came
+      from a session with no MCP.
+    - Why the transport is invalid there is not read. It looks like a Codex bug in how the
+      temporary thread rebuilds the `-c` MCP table (inferred); a later version may fix it and
+      bring the generated titles back.
+    - Confirmed in task 167's run of Menkar itself: one such failure per message, across two
+      threads. Each thread's only `session_index.jsonl` line was Menkar's name, written 0.13 to
+      0.24 s after the first message.
+    - `codex --version` prints `codex-cli 0.169.0` (the version is the **second** word). A
+      `CODEX_HOME` under `/tmp` adds a PATH-aliases warning on stderr.
+    - With `direct_only_tool_namespaces`, the namespace is also absent from `exec`'s `tools`
+      object: `tools.mcp__menkar__list_sessions is not a function`. The model calls the tools
+      directly instead.
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
@@ -795,6 +893,10 @@ session's instructions, with nothing written in the user's config.
   `identity_injection.go`).
 - Like every `-c`, it makes the TUI run embedded, which Menkar's sessions already do for the MCP
   and `notify`.
+
+**Correction (item 26, 2026-11-20):** compaction rebuilds the developer message from the
+running process's `-c`, not from the thread. "Survives compaction" holds only when the run passes
+the block again: a resume without it loses the block at the next compaction.
 
 ### Recommendation
 

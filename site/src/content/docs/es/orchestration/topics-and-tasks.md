@@ -23,7 +23,7 @@ también puede agregar uno.
 
 ## Elegí la tarea que va primero
 
-Hacé clic derecho en una tarea, en la barra lateral o en el Tablero, y elegí :ui[work.star], o
+Hacé clic derecho en una tarea del Tablero y elegí :ui[work.star], o
 pedíselo al orquestador. Los pendientes de una tarea con la ★ van primero en :ui[board.topics], y
 cuando varias sesiones terminan a la vez, el orquestador escucha primero a las que tienen tareas
 con la ★.

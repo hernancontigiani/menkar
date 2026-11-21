@@ -643,7 +643,7 @@ function stateFor(windowId: string): WindowState | undefined {
       orchestratorCollapsed: p.orchestratorOpen !== true,
       othersCollapsed: p.othersCollapsed === true,
       doneTodayOpen: p.doneTodayOpen === true,
-      board: { open: p.boardOpen === true, height: p.boardHeight ?? null },
+      board: { open: p.boardClosed !== true, height: p.boardHeight ?? null },
     })),
     heldElsewhere,
     tabs: w.tabs.map(tabView),
@@ -740,6 +740,7 @@ function tasksView(projectId: string): TasksView {
     step: x.step,
     note: x.note,
     ...(x.waitingOn !== undefined ? { waitingOn: x.waitingOn } : {}),
+    ...(x.waitingNote !== undefined ? { waitingNote: x.waitingNote } : {}),
     ...(x.reviewWait !== undefined ? { reviewWait: x.reviewWait } : {}),
   })
   const closed = closedOn(list, now())
@@ -2006,6 +2007,9 @@ function taskFor(
     orchestrator: o.on ? o.orchestrator : null,
     nameOf: sessionName,
     idOf: (name) => sessionOfProject(name, sessionsForNames(project.id)),
+    openTopics: topicsOf(currentTopics(), project.id)
+      .filter((x) => x.status !== 'closed')
+      .map((x) => x.number),
     at: topicsNow(),
   })
   if (result.tasks) {

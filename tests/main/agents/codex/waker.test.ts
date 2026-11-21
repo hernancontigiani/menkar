@@ -67,13 +67,13 @@ describe("Codex's waker", () => {
     rollout(THREAD)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 10, 20, 23, 59, 58))
-    const counts = { topics: 2, working: 1, waiting: 0 }
+    const counts = { forYou: 2, working: 1, waiting: 0 }
     const text =
       'from orchestrator (Claude Code); reply with send_message: "look"\nat `a.txt` -- $HOME'
     expect(await waker().wake(THREAD, text, counts)).toBe('posted')
     expect(queued()).toEqual([{ thread_id: THREAD, text: wakeText(text, counts) }])
     expect(queued()[0]?.text).toBe(
-      '[Menkar] from orchestrator (Claude Code); reply with send_message: "look"\nat `a.txt` -- $HOME (23:59:58) · 2 topics · 1 working · 0 waiting',
+      '[Menkar] from orchestrator (Claude Code); reply with send_message: "look"\nat `a.txt` -- $HOME (23:59:58) · 2 for you · 1 working · 0 waiting',
     )
   })
 

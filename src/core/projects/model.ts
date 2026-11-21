@@ -72,8 +72,8 @@ export interface Project {
   readonly othersCollapsed?: true
   // The Done today section, folded unless this is set.
   readonly doneTodayOpen?: true
-  // The Board panel shown (decision 1.126).
-  readonly boardOpen?: true
+  // The human closed the Board panel in this project; absent, it is open while the mode is on.
+  readonly boardClosed?: true
   // Its last height in pixels, dragged or picked; absent, the default.
   readonly boardHeight?: number
   // Keys a later version wrote, written back as they came.

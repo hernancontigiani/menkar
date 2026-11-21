@@ -84,7 +84,7 @@ docs within a minute, you are shape 3 there, and you route.
   name its number in the task message. The session splits it into steps and reports each advance,
   so the human sees how far it is. Every request that needs more than a short answer gets one, to a
   worker, an expert or a consultant; a short question to a consultant needs none. A task waiting on
-  something outside (a build, a hosted CI, a release) is marked waiting, with what it waits on.
+  something outside is marked waiting on build, ci, release, pr-approval, pr-merge or other.
 - **★ tasks first** (`priority` in `list_sessions` is the ★ of a session's current task): their
   reports, topics and turn at a shared resource come before the others'. The ★ is the human's:
   give it at `task_add`, or give or take it away with `task_star`, only when they ask.
@@ -129,7 +129,8 @@ flight. Nobody pushes unless the project's rule or the human says so.
 
 Only for a task to review ("[Menkar] ‹name› … task N to review: ‹note›": read its report with
 `last_reply`, check it, then `closing-a-task.md`), a question ("[Menkar] ‹name› (task N) asks:
-…": answer it by name, or raise a topic when the human must decide), and a topic to discuss (take it up now).
+…": answer it by name; **one for the human's decision is a topic at once**, and that task's
+waiting_on becomes "topic N": tell the session), and a topic to discuss (take it up now).
 
 Everything else comes **from your inbox**, unseen by the human, with any next prompt or `inbox`
 (call it on "N more: call inbox."); act on what needs it, silent on the rest. After a restart it
@@ -195,8 +196,7 @@ and the code, a doc and the code, two reports of the same files). In a report, l
 
 You don't distill: what you know lives in the project's files (its status, decisions and topics).
 
-- When your context fills it is **compacted** (at the limit, or the human runs `/compact`). Before
-  it, make sure everything in flight is written in the project's files.
+- Before your context is **compacted**, write everything in flight in the project's files.
 - **Renew** yourself only at a natural break: nothing under discussion with the human. Renew
   always with a prompt, which is your **handoff**: what you **owe**: who holds which lock, who
   waits on your answer, what you promised. A summary loses that first; nothing else carries it.

@@ -24,9 +24,9 @@ corren en segundo plano, así que tu fila de pestañas tiene solo las sesiones c
 
 ## Mirá tus pendientes
 
-La barra lateral mantiene arriba los pendientes que solo vos podés responder, el actual primero, y
-debajo cada tarea con sus pasos y su última nota. Abrí [el Tablero](/menkar/es/orchestration/board/)
-para ver todas las tareas a la vez.
+La barra lateral mantiene arriba los pendientes que solo vos podés responder, el actual primero.
+Encima de las pestañas, [el Tablero](/menkar/es/orchestration/board/) muestra cada tarea con sus
+pasos y su última nota.
 
 ## Tené todas tus sesiones en una ventana
 

@@ -48,6 +48,7 @@ const call = (tasks: Tasks, caller: string, orchestrator: string | null = 'O'): 
     const id = Object.keys(names).find((k) => names[k] === name)
     return id ? { id } : { refusal: `No session of your project is called "${name}".` }
   },
+  openTopics: [4],
   at: AT,
 })
 
@@ -385,7 +386,7 @@ describe('one task in progress per assignee', () => {
     t =
       taskTool(
         'task_progress',
-        { number: 1, note: 'long build', waiting_on: 'the build' },
+        { number: 1, note: 'long build', waiting_on: 'build' },
         call(t, 'W'),
       ).tasks ?? t
     const second = taskTool('task_steps', { number: 2, steps: ['x', 'y', 'z'] }, call(t, 'W'))
@@ -396,9 +397,73 @@ describe('one task in progress per assignee', () => {
       text: 'Finish or wait on task 2 first.',
     })
     expect(
-      taskTool('task_progress', { number: 1, note: 'still', waiting_on: 'the build' }, call(t, 'W'))
-        .ok,
+      taskTool('task_progress', { number: 1, note: 'still', waiting_on: 'build' }, call(t, 'W')).ok,
     ).toBe(true)
+  })
+
+  // Decisions 1.197 and 1.199: a wait on the human never hides as free text; free text goes in
+  // the wait's note.
+  test('waiting_on: an open topic, a session of the project or an outside kind; anything else refused, pointing to ask', () => {
+    const t = twoForW()
+    const wait = (on: unknown, note?: unknown) =>
+      taskTool(
+        'task_progress',
+        {
+          number: 1,
+          note: 'n',
+          waiting_on: on,
+          ...(note !== undefined ? { waiting_note: note } : {}),
+        },
+        call(t, 'W'),
+      )
+    const on = (x: unknown) => tasksOf(wait(x).tasks ?? t, 'p1')[0]?.waitingOn
+    expect(on('topic 4')).toBe('topic 4')
+    expect(on(' Topic #4 ')).toBe('topic 4')
+    expect(on('set')).toBe('set')
+    for (const kind of ['build', 'ci', 'release', 'pr-approval', 'pr-merge', 'other'])
+      expect(on(kind)).toBe(kind)
+    expect(on(' CI ')).toBe('ci')
+    for (const refused of ['topic 5', 'the human', 'human', 'the build', 'Set', '', '  ', 4]) {
+      const answer = wait(refused)
+      expect(answer.ok).toBe(false)
+      expect(answer.text).toMatch(/build, ci, release, pr-approval, pr-merge, other/)
+      expect(answer.text).toMatch(/with ask/)
+      expect(answer.tasks).toBeUndefined()
+    }
+  })
+
+  test('waiting_note: one line beside waiting_on, kept on disk, listed, and gone once the task moves on', () => {
+    let t = twoForW()
+    const waiting = taskTool(
+      'task_progress',
+      { number: 1, note: 'n', waiting_on: 'ci', waiting_note: 'nightly run\nsecond line' },
+      call(t, 'W'),
+    )
+    expect(waiting.text).toBe('Task 1 is waiting on ci (nightly run), at step 1 of 3.')
+    t = waiting.tasks ?? t
+    expect(tasksOf(t, 'p1')[0]).toMatchObject({ waitingOn: 'ci', waitingNote: 'nightly run' })
+    const tasks = serializeTasks(t).projects as Record<string, { tasks: Record<string, unknown>[] }>
+    expect(tasks.p1?.tasks[0]).toMatchObject({ waiting_on: 'ci', waiting_note: 'nightly run' })
+    expect(tasksOf(parseTasks(serializeTasks(t)), 'p1')[0]?.waitingNote).toBe('nightly run')
+    expect(taskTool('task_list', {}, call(t, 'W')).text).toContain('on ci (nightly run)')
+    const other = taskTool(
+      'task_progress',
+      { number: 1, note: 'n', waiting_on: 'set' },
+      call(t, 'W'),
+    )
+    expect(tasksOf(other.tasks ?? t, 'p1')[0]?.waitingNote).toBeUndefined()
+    const back = taskTool('task_progress', { number: 1, note: 'n' }, call(t, 'W'))
+    expect(tasksOf(back.tasks ?? t, 'p1')[0]?.waitingNote).toBeUndefined()
+    expect(
+      taskTool('task_progress', { number: 1, note: 'n', waiting_note: 'x' }, call(t, 'W')),
+    ).toEqual({ ok: false, text: 'waiting_note goes with waiting_on.' })
+    expect(
+      taskTool(
+        'task_progress',
+        { number: 1, note: 'n', waiting_on: 'ci', waiting_note: 4 },
+        call(t, 'W'),
+      ).ok,
+    ).toBe(false)
   })
 
   test('another assignee in progress does not count, nor the same task again', () => {

@@ -2758,3 +2758,11 @@ Deviations and what the plan did not anticipate:
      session), read by `heldAtStart` on a resume. **The compaction signal** that resets `held` to
      `afterCompaction(…)`: Claude's SessionStart `compact` record (as built); Codex's rollout
   `afterCompaction` (`codex` confirms whether `developer_instructions` re-render at compaction),
+
+## 2026-11-20 — plan 39's §3 row, before P1b
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0 merged into `main`** (127d4f1). **P1a on the branch `multi-agent`** (worktree `/home/hernan/git/menkar-multi-agent`, a project folder since 2026-11-20): P1a.1 (ee4a651), P1a.2 (5d04055; Codex's glyph ⬡ proposed, topic 76), P1a.3 (01ab93f) committed; P1a.4 in flight (task 142). The integrity step shows P1a.2's six roster pins against `main` until the branch merges |
+
+## 2026-11-21 — decision 1.200's row, before it named all three sections
+
+| 1.200 | **Usage opens on today; Your time's toggle says "Today" while it shows today** (the human, 2026-11-20 and 2026-11-21, task 172): the Usage window opens on Spend's Today (not 7 days); Your time's first toggle reads "Today" while the shown day is today and "Day" once stepped to another day | 2026-11-21 | this row (until built) |

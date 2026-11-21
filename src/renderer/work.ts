@@ -1,10 +1,9 @@
 import { workCounts } from '../core/orchestration/counts'
-import { tasksFolded } from '../core/orchestration/rows'
-import type { TaskState } from '../core/orchestration/taskState'
+import { OUTSIDE_WAITS, type OutsideWait, type TaskState } from '../core/orchestration/taskState'
 import type { ProjectInfo } from '../core/projects/info'
 import type { DoneView, TaskView, WindowState } from '../shared/workspace'
 import { act, sessionState, stateDot } from './app'
-import { openBoardShowingAll, toggleBoard } from './board'
+import { toggleBoard } from './board'
 import { el } from './dom'
 import { t } from './i18n'
 import { topicsSection } from './orchestration'
@@ -35,7 +34,7 @@ export function modeTop(s: WindowState, project: ProjectInfo): HTMLElement[] {
     el(
       'div',
       { class: 'work-tiles' },
-      tile(counts.topics, t('work.tileTopics'), 'topics'),
+      tile(counts.forYou, t('work.tileTopics'), 'topics'),
       tile(counts.working, t('work.tileWorking'), 'working'),
       tile(counts.waiting, t('work.tileWaiting'), 'waiting'),
     ),
@@ -50,23 +49,6 @@ function tile(n: number, label: string, kind: string): HTMLElement {
     el('span', { class: 'tile-n' }, String(n)),
     el('span', { class: 'tile-label dim' }, label),
   )
-}
-
-function heading(text: string): HTMLElement {
-  return el('div', { class: 'work-heading dim' }, text)
-}
-
-export function tasksSection(open: readonly TaskView[]): HTMLElement[] {
-  const head = heading(t('work.tasks', { n: open.length }))
-  if (open.length === 0) return [head, el('div', { class: 'work-empty dim' }, t('work.noTasks'))]
-  const { rows, more } = tasksFolded(open)
-  const nodes = rows.map(taskRow)
-  if (more > 0) {
-    const all = el('button', { class: 'see-all' }, t('work.seeAll', { n: open.length }))
-    all.addEventListener('click', () => openBoardShowingAll())
-    nodes.push(all)
-  }
-  return [head, ...nodes]
 }
 
 // A worker rarely reports its last step before the task is closed, so a done task is shown
@@ -116,9 +98,30 @@ export function taskMenu(node: HTMLElement, task: TaskView): void {
   })
 }
 
+function outsideLabel(kind: OutsideWait): string {
+  switch (kind) {
+    case 'build':
+      return t('task.waitsOnBuild')
+    case 'ci':
+      return t('task.waitsOnCi')
+    case 'release':
+      return t('task.waitsOnRelease')
+    case 'pr-approval':
+      return t('task.waitsOnPrApproval')
+    case 'pr-merge':
+      return t('task.waitsOnPrMerge')
+    case 'other':
+      return t('task.waitsOnOther')
+  }
+}
+
 // What a waiting task waits on, or one in To review when not on the orchestrator (decision 1.164).
 export function waitsOn(task: TaskView): string {
-  if (task.state === 'waiting') return task.waitingOn ?? ''
+  if (task.state === 'waiting') {
+    const kind = OUTSIDE_WAITS.find((x) => x === task.waitingOn)
+    const on = kind ? outsideLabel(kind) : (task.waitingOn ?? '')
+    return [on, task.waitingNote].filter(Boolean).join(' ')
+  }
   const wait = task.state === 'to review' ? task.reviewWait : undefined
   const label = !wait
     ? ''
@@ -130,40 +133,6 @@ export function waitsOn(task: TaskView): string {
           ? t('task.waitsOnPrMerge')
           : ''
   return label ? [label, wait?.note].filter(Boolean).join(' ') : ''
-}
-
-function taskRow(task: TaskView): HTMLElement {
-  const on = waitsOn(task)
-  const note = on ? t('work.waitingOn', { on }) : ''
-  const node = el(
-    'button',
-    {
-      class: `task-row${task.state === 'waiting' ? ' waiting' : ''}`,
-      'data-task': String(task.number),
-      title: task.title,
-    },
-    el(
-      'div',
-      { class: 'task-line' },
-      star(task),
-      el('span', { class: 'task-title' }, task.title),
-      el('span', { class: 'task-progress dim' }, progressText(task)),
-    ),
-    el(
-      'div',
-      { class: 'task-line dim' },
-      el('span', { class: 'task-assignee' }, assigneeText(task)),
-      task.steps.length > 0 ? stepSegments(task) : null,
-    ),
-    task.note || note
-      ? el('div', { class: 'task-note dim' }, [note, task.note].filter(Boolean).join(' · '))
-      : null,
-  )
-  node.addEventListener('click', () => {
-    if (task.assignee !== null) void act({ type: 'selectSessionTab', session: task.assignee })
-  })
-  taskMenu(node, task)
-  return node
 }
 
 function foldHeading(

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
 import { launchApp } from './app'
-import { CLIENT, catppuccin, clientWork, prepare } from './fixtures'
+import { CLEARED_SESSION, CLIENT, catppuccin, clientWork, prepare } from './fixtures'
 
 type PageGlobals = { menkar: MenkarApi }
 
@@ -530,8 +530,6 @@ test('in the mode the sidebar shows the team by role and the Topics section on t
     await expect
       .poll(() => listed(page))
       .toEqual([
-        'Tasks · 1',
-        '★Orders schemaqueuedfabric',
         'orchestrator',
         '  login worker',
         '1 earlier',
@@ -1212,6 +1210,42 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
   }
 })
 
+// A pane's banner acts on the session the pane runs now: a worker cleared (`/clear`) while its
+// banner showed is handed back, and taken control of again, under its new id.
+test('a worker taken control of, then cleared: Back to reporting and Take control act on its new id', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = team(dirs)
+      orchestratorSocket(dirs)
+      return env
+    },
+  })
+  const page = launched.window
+  const banner = page.locator('.tab-body:not(.hidden) .pane-banner')
+  try {
+    await expect
+      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await banner.locator('button', { hasText: 'Take control' }).click()
+    await expect(banner).toContainText('This session is with you.')
+    await page.locator('.tab-body:not(.hidden) .xterm').click()
+    await page.keyboard.type('CLEAR')
+    await expect(page.locator('.tab-body:not(.hidden) .xterm-rows')).toContainText(
+      'stand-in cleared',
+    )
+    await expect.poll(async () => (await shown(page))?.withYou).toContain(CLEARED_SESSION)
+    await banner.locator('button', { hasText: 'Back to reporting to the orchestrator' }).click()
+    await expect(banner).toContainText('This session reports to the orchestrator.')
+    await expect.poll(async () => (await shown(page))?.withYou).not.toContain(CLEARED_SESSION)
+    await banner.locator('button', { hasText: 'Take control' }).click()
+    await expect(banner).toContainText('This session is with you.')
+    await expect.poll(async () => (await shown(page))?.withYou).toContain(CLEARED_SESSION)
+  } finally {
+    await launched.close()
+  }
+})
+
 const parents = (page: Page) =>
   page.evaluate(async () => {
     const s = await (globalThis as unknown as PageGlobals).menkar.window.state()
@@ -1306,9 +1340,6 @@ test('a parked worker: "Parked · 1" under the orchestrator, folded; unfolded, t
     await expect
       .poll(() => listed(page))
       .toEqual([
-        'Tasks · 2',
-        '★Orders schemaqueuedfabric',
-        'Login fix3/3old workerwaiting on the PR review · PR open',
         'orchestrator',
         '  login worker',
         'Parked · 1',

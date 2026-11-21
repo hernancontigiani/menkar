@@ -6,7 +6,6 @@ import { type ElectronApplication, expect, type Locator, type Page, test } from 
 import { now } from '../../src/core/clock'
 import { en as appEn } from '../../src/core/i18n/en'
 import { es as appEs } from '../../src/core/i18n/es'
-import { TASKS_SHOWN } from '../../src/core/orchestration/rows'
 import { launchApp } from '../app'
 import {
   CAPTURES,
@@ -187,10 +186,11 @@ function makeWalker(
     async shot(slug, proof, area) {
       await expect(page.locator('#project-button .project-name')).toHaveText(text(proof.project))
       if (proof.openTasks !== undefined) {
-        await expect(page.locator('#session-list .task-row')).toHaveCount(
-          Math.min(TASKS_SHOWN, proof.openTasks),
-        )
-        await expect(page.locator('.see-all')).toContainText(`(${proof.openTasks})`)
+        await expect(
+          page.locator(
+            '#board-panel .board [data-column]:not([data-column="topics"]):not([data-column="done"]) .task-card',
+          ),
+        ).toHaveCount(proof.openTasks)
       }
       // Xvfb leaves its pointer mid-screen, over whatever is there: it rests on the header's empty
       // middle instead, so no hover shows and xterm fades its scrollbar.

@@ -258,3 +258,13 @@ What a Claude session of a project in the orchestration mode needs to work in th
 | The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast |
 | (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket |
 Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
+
+> Left on 2026-11-21: the posts' first count is "for you", the open topics and the PRs waiting on the human (decision 1.197, task 170).
+      sidebar's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):
+
+## The shape
+
+> Left on 2026-11-21: waiting_on is an open topic, a session or an outside kind, with a waiting_note; anything else refused (decisions 1.197 and 1.199, task 170).
+    - `task_progress { number, step?, note, waiting_on? }`: the assignee only, after its steps;
+      `step` from 1 to the number of steps, kept when omitted; with `waiting_on` the task is
+      waiting, without it in progress.

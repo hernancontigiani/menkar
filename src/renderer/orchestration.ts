@@ -1,12 +1,12 @@
 import { descriptorOf } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT } from '../core/agents/ids'
 import { membersFolders, type ProjectFolder, presentFolders } from '../core/orchestration/folders'
-import { topicsFolded } from '../core/orchestration/rows'
+import { awaitingRows, prNamed, topicsFolded } from '../core/orchestration/rows'
 import type { ProjectInfo } from '../core/projects/info'
 import { recentFolders } from '../core/sessions/history'
 import type { SessionInfo } from '../core/sessions/info'
 import { tilde } from '../core/tilde'
-import type { TopicView, WindowState } from '../shared/workspace'
+import type { TaskView, TopicView, WindowState } from '../shared/workspace'
 import { act, currentState, onRender, render } from './app'
 import { el, icon } from './dom'
 import { t, translate } from './i18n'
@@ -779,6 +779,7 @@ let allTopicsShown = false
 // At the top of the sidebar while the mode is on (decision 1.89, mock A1): read only, the
 // discussion happens in the orchestrator's chat (1.86).
 export function topicsSection(s: WindowState, collapsed: boolean): HTMLElement[] {
+  const awaiting = awaitingRows(s.topics, s.tasks.open)
   const toggle = el(
     'button',
     {
@@ -786,7 +787,7 @@ export function topicsSection(s: WindowState, collapsed: boolean): HTMLElement[]
       'aria-expanded': String(!collapsed),
       'aria-label': collapsed ? t('orch.topicsExpand') : t('orch.topicsCollapse'),
     },
-    t('orch.topics', { n: s.topics.length }),
+    t('orch.topics', { n: awaiting.length }),
   )
   toggle.addEventListener(
     'click',
@@ -794,10 +795,11 @@ export function topicsSection(s: WindowState, collapsed: boolean): HTMLElement[]
   )
   const head = el('div', { class: `topics-heading${collapsed ? ' collapsed' : ''}` }, toggle)
   if (collapsed) return [head]
-  if (s.topics.length === 0)
+  if (awaiting.length === 0)
     return [head, el('div', { class: 'topics-empty dim' }, t('orch.noTopics'))]
-  const { rows, more } = topicsFolded(s.topics, allTopicsShown)
-  if (more === 0) return [head, ...rows.map(topicRow)]
+  const { rows, more } = topicsFolded(awaiting, allTopicsShown)
+  const shown = rows.map((x) => (x.kind === 'topic' ? topicRow(x.topic) : prRow(x.task)))
+  if (more === 0) return [head, ...shown]
   const moreRow = el(
     'button',
     { class: 'topic-more dim', 'data-key': 'topics-more' },
@@ -808,7 +810,31 @@ export function topicsSection(s: WindowState, collapsed: boolean): HTMLElement[]
     const now = currentState()
     if (now) render(now)
   })
-  return [head, ...rows.map(topicRow), moreRow]
+  return [head, ...shown, moreRow]
+}
+
+// A task in To review whose PR waits on the human: it names the PR and selects the assignee, as a
+// task row does.
+function prRow(task: TaskView): HTMLElement {
+  const pr = prNamed(task.reviewWait?.note ?? '')
+  const line = el(
+    'button',
+    { class: 'topic-row pr-row', 'data-pr-task': String(task.number), title: task.title },
+    task.star ? el('span', { class: 'priority-star' }, '★') : null,
+    el(
+      'span',
+      { class: 'topic-title' },
+      [
+        pr ? t('orch.pr', { pr }) : t('orch.prNone'),
+        task.reviewWait?.on === 'pr-merge' ? t('orch.prMerge') : t('orch.prApprove'),
+      ].join(' · '),
+    ),
+    el('span', { class: 'pr-assignee dim' }, task.assigneeName),
+  )
+  line.addEventListener('click', () => {
+    if (task.assignee !== null) void act({ type: 'selectSessionTab', session: task.assignee })
+  })
+  return el('div', { class: 'topic' }, line)
 }
 
 function topicRow(topic: TopicView): HTMLElement {

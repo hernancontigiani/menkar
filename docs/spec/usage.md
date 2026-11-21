@@ -59,12 +59,14 @@ Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut bel
 - Built (2026-11-18): `docs/preferences.md` describes how it is wired, `docs/usage.md` how its
   figures are read. What the user sees:
   - **A left bar of three sections**, 180 px, as Settings' list: **Spend**, **Your time**, **Task
-    times** (decision 1.184), Up and Down moving through them. The window opens on Spend, 7 days.
+    times** (decision 1.184), Up and Down moving through them. The window opens on Spend, Today;
+    Your time on today's day, Task times on Today (decision 1.200).
   - **The scope at the bar's foot**, under a dim "Projects": the opener window's project and "All
     projects", one pressed. It is shown only when the window has an opener; the scope chosen holds
     in every section (decision 1.15).
   - **The header holds only the section's period**: Spend — Today, 7 days, 30 days, Month; Your time
-    — Day, Week; Task times — Today, 7 days, 30 days (Today added 2026-11-19).
+    — Today (Day once the day shown is not today), Week; Task times — Today, 7 days, 30 days (Today
+    added 2026-11-19).
   - **Spend** is the Totals and By day of before, with the metric, the stack, the month stepper and
     the footer, unchanged.
   - **Your time**, the human's own activity. **Day**: a stepper over the day's name; "Active 4.1h ·

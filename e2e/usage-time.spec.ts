@@ -127,7 +127,8 @@ async function openUsage(app: ElectronApplication, page: Page): Promise<Page> {
     ),
   ])
   await usage.waitForLoadState('domcontentloaded')
-  await expect(usage.locator('.usage-row.project').first()).toBeVisible()
+  // Spend opens on Today, which may hold no turn of the seed's
+  await expect(usage.locator('[data-toggles="period"] [aria-pressed="true"]')).toHaveText('Today')
   return usage
 }
 
@@ -182,6 +183,10 @@ test('decision 1.184: Your time draws the day by the hour — bursts, away, the 
     try {
       const usage = await openUsage(launched.app, launched.window)
       await usage.locator('[data-section="time"][role="tab"]').click()
+      await settled(usage)
+      // it opens on today; a Day stepped away from today reads Day
+      await expect(pressed(usage, 'period')).toHaveText('Today')
+      await usage.locator('[data-toggles="period"] [data-value="week"]').click()
       await settled(usage)
 
       // The week: seven days, today's last, and a Total

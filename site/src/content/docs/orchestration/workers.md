@@ -18,8 +18,8 @@ what each one is doing.
 
 ## Look at a worker
 
-Click a worker's row, its task or its card on the Board. It opens in the peek tab, the last one in
-the strip, its name in italics. Clicking another worker replaces it there.
+Click a worker's row or its task's card on the Board. It opens in the peek tab, the last one in the
+strip, its name in italics. Clicking another worker replaces it there.
 
 ![](shot:peek-tab)
 

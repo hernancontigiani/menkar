@@ -176,37 +176,51 @@ describe('orchestration marks', () => {
       expect(undone[0]).not.toHaveProperty(key)
   })
 
-  // Decision 1.126: whether the Board is open and its last height, per project.
-  test('the Board open and its height round-trip; Default size and closing write no key', () => {
-    const s = setBoard(work(), 'p1', { open: true, height: 240 })
-    expect(roundTrip(s).projects[0]).toMatchObject({ boardOpen: true, boardHeight: 240 })
+  // Decisions 1.126 and 1.198: the Board is open unless the human closed it in the project; that
+  // closing and its last height are saved per project.
+  test('the Board closed and its height round-trip; Default size and reopening write no key', () => {
+    const s = setBoard(work(), 'p1', { open: false, height: 240 })
+    expect(roundTrip(s).projects[0]).toMatchObject({ boardClosed: true, boardHeight: 240 })
     expect((serializeProjects(s).projects as Record<string, unknown>[])[0]).toMatchObject({
-      board_open: true,
+      board_open: false,
       board_height: 240,
     })
-    const reset = setBoard(setBoard(s, 'p1', { height: null }), 'p1', { open: false })
+    const reset = setBoard(setBoard(s, 'p1', { height: null }), 'p1', { open: true })
     const written = (serializeProjects(reset).projects as Record<string, unknown>[])[0]
     expect(written).not.toHaveProperty('board_open')
     expect(written).not.toHaveProperty('board_height')
-    expect(setBoard(s, 'p1', { open: false }).projects[0]?.boardHeight).toBe(240)
+    expect(setBoard(s, 'p1', { open: true }).projects[0]?.boardHeight).toBe(240)
+  })
+
+  test('a project that never closed the Board reads it open, an earlier board_open: true too', () => {
+    const file = serializeProjects(work()) as { projects: Record<string, unknown>[] }
+    expect(file.projects[0]).not.toHaveProperty('board_open')
+    expect(parseProjects(file).projects[0]).not.toHaveProperty('boardClosed')
+    const earlier = { ...file, projects: [{ ...file.projects[0], board_open: true }] }
+    const read = parseProjects(JSON.parse(JSON.stringify(earlier)))
+    expect(read.projects[0]).not.toHaveProperty('boardClosed')
+    expect((serializeProjects(read).projects as Record<string, unknown>[])[0]).not.toHaveProperty(
+      'board_open',
+    )
   })
 
   test('a board height the version cannot read is dropped alone', () => {
-    const file = serializeProjects(setBoard(work(), 'p1', { open: true })) as {
+    const file = serializeProjects(setBoard(work(), 'p1', { open: false })) as {
       projects: Record<string, unknown>[]
     }
     for (const bad of ['tall', -5, 0, Number.NaN, null]) {
       const first = { ...file.projects[0], board_height: bad }
       const read = parseProjects(JSON.parse(JSON.stringify({ ...file, projects: [first] })))
-      expect(read.projects[0]?.boardOpen).toBe(true)
+      expect(read.projects[0]?.boardClosed).toBe(true)
       expect(read.projects[0]).not.toHaveProperty('boardHeight')
     }
   })
 
-  test('switching the mode off closes the Board, keeping its height', () => {
-    const s = setBoard(setMode(work(), 'p1', true), 'p1', { open: true, height: 300 })
+  test('switching the mode off forgets the Board closed, keeping its height', () => {
+    const s = setBoard(setMode(work(), 'p1', true), 'p1', { open: false, height: 300 })
+    expect(setMode(s, 'p1', true).projects[0]?.boardClosed).toBe(true)
     const off = setMode(s, 'p1', false)
-    expect(off.projects[0]?.boardOpen).toBeUndefined()
+    expect(off.projects[0]?.boardClosed).toBeUndefined()
     expect(off.projects[0]?.boardHeight).toBe(300)
   })
 

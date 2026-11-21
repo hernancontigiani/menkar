@@ -600,7 +600,7 @@ test('a worker per task: started for task 1 as "client-work-t1"; parked while it
     await page.keyboard.type('STEPS')
     await said(page, 'TOOL task_steps: Task 1 has 3 steps')
     await page.keyboard.type('WAITS')
-    await said(page, 'TOOL task_progress: Task 1 is waiting on the PR review')
+    await said(page, 'TOOL task_progress: Task 1 is waiting on pr-approval (the PR review)')
 
     await page.locator('.tab').first().click()
     await page.locator('.xterm:visible').click()
@@ -664,7 +664,6 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
           (tasksSaved().projects[CLIENT_WORK]?.tasks[0] as { review_wait?: unknown })?.review_wait,
       )
       .toEqual({ on: 'pr-approval', note: '#436' })
-    await page.locator('#board-button').click()
     await expect(
       page.locator('#board-panel [data-column="to-review"] .task-card[data-task="1"] .card-note'),
     ).toHaveText('waiting on PR approval #436 · PR open')
@@ -693,25 +692,22 @@ test('a worker in To review waiting on a PR: its card says "waiting on PR approv
 })
 
 // Decision 1.144: the orchestrator gives a task the ★ and takes it away with task_star, and the
-// sidebar and the Board show it; a session that is not the orchestrator is refused.
-test('task_star: the orchestrator gives task 1 the ★ and takes it away, the sidebar’s Tasks and the Board follow; a worker is refused (screenshot)', async () => {
+// Board shows it; a session that is not the orchestrator is refused.
+test('task_star: the orchestrator gives task 1 the ★ and takes it away, the Board follows; a worker is refused (screenshot)', async () => {
   const { launched, page, tasksSaved, argLines } = await open({ orchestrated: true })
   const starOf = () =>
     (tasksSaved().projects[CLIENT_WORK]?.tasks[0] as { star?: boolean } | undefined)?.star
-  const row = page.locator('.task-row[data-task="1"]')
-  const card = page.locator('#board-panel .task-card[data-task="1"]')
+  const card = page.locator('#board-panel .board .task-card[data-task="1"]')
   try {
     await page.keyboard.type('TASKADD')
     await said(page, 'TOOL task_add: Task 1 added.')
-    await expect(row).toBeVisible()
-    await expect(row.locator('.priority-star')).toHaveCount(0)
+    await expect(card).toBeVisible()
+    await expect(card.locator('.priority-star')).toHaveCount(0)
 
     await page.locator('.xterm:visible').click()
     await page.keyboard.type('STAR1')
     await said(page, 'TOOL task_star: Task 1 has the ★.')
     await expect.poll(starOf).toBe(true)
-    await expect(row.locator('.priority-star')).toHaveCount(1)
-    await page.locator('#board-button').click()
     await expect(card.locator('.priority-star')).toHaveCount(1)
     const files = process.env.MENKAR_FILES
     if (files) await page.screenshot({ path: join(files, 'menkar-t14-task-star-set.png') })
@@ -721,7 +717,6 @@ test('task_star: the orchestrator gives task 1 the ★ and takes it away, the si
     await said(page, 'TOOL task_star: Task 1 no longer has the ★.')
     await expect.poll(starOf).toBe(false)
     await expect(card.locator('.priority-star')).toHaveCount(0)
-    await expect(row.locator('.priority-star')).toHaveCount(0)
     if (files) await page.screenshot({ path: join(files, 'menkar-t14-task-star-removed.png') })
 
     // The worker started for task 1 is not the orchestrator.

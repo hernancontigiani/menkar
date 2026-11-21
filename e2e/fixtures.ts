@@ -229,7 +229,7 @@ process.stdin.on('data', (d) => {
     TASKADD: ['task_add', { title: 'Fix the login' }],
     WORKT: ['start_session', { task: 1, prompt: 'fix the login' }],
     STEPS: ['task_steps', { number: 1, steps: ['read', 'fix', 'open the PR'] }],
-    WAITS: ['task_progress', { number: 1, step: 3, note: 'PR open', waiting_on: 'the PR review' }, true],
+    WAITS: ['task_progress', { number: 1, step: 3, note: 'PR open', waiting_on: 'pr-approval', waiting_note: 'the PR review' }, true],
     PARK: ['park_session', { name: 'client-work-t1' }],
     WAKEW: ['resume_session', { name: 'client-work-t1', prompt: 'the PR got feedback' }],
     CLOSE1: ['task_close', { number: 1, outcome: 'done' }],

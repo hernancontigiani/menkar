@@ -1,4 +1,4 @@
-import { REVIEW_WAITERS } from '../orchestration/taskState'
+import { OUTSIDE_WAITS, REVIEW_WAITERS } from '../orchestration/taskState'
 import {
   CALLABLE_TOOL_NAMES,
   type ControlAnswer,
@@ -195,15 +195,18 @@ const TOOLS: readonly (Tool & { name: ToolName })[] = [
   },
   {
     name: 'task_progress',
-    description:
-      'Reports where a task assigned to you is: the step it is at and a one-line note. With waiting_on it is waiting (on a topic, "topic 4", or a session); without it, in progress. Only its assignee.',
+    description: `Reports where a task assigned to you is: the step it is at and a one-line note. With waiting_on it is waiting: on an open topic of your project ("topic 4"), one of its sessions by name, or something outside (${OUTSIDE_WAITS.join(', ')}), with any detail in waiting_note. A wait on the human goes through ask. Without it, in progress. Only its assignee.`,
     inputSchema: {
       type: 'object',
       properties: {
         number: { type: 'integer', description: "The task's number." },
         step: { type: 'integer', description: 'The step it is at now, from 1; omit to keep it.' },
         note: { type: 'string', description: 'One line: where it is.' },
-        waiting_on: { type: 'string', description: 'What it waits on: "topic 4" or a session.' },
+        waiting_on: {
+          type: 'string',
+          description: `What it waits on: "topic 4", a session's name, or ${OUTSIDE_WAITS.join(', ')}.`,
+        },
+        waiting_note: { type: 'string', description: "One line beside it, e.g. the build's name." },
       },
       required: ['number', 'note'],
     },

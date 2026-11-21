@@ -296,6 +296,7 @@ function work(locale: Locale, clock: SeedClock): { tasks: Tasks; topics: Topics 
       orchestrator: SESSION.lead,
       nameOf,
       idOf,
+      openTopics: [],
       at: iso(at),
     })
     if (!r.ok || !r.tasks) throw new Error(`the seed's ${tool} was refused: ${r.text}`)

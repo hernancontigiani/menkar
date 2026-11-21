@@ -74,7 +74,7 @@ async function shot(page: Page, path: string): Promise<void> {
 const pressed = (page: Page, group: string) =>
   page.locator(`[data-toggles="${group}"] [aria-pressed="true"]`)
 
-test('USG-44, USG-52, USG-53, USG-39 Usage opens on 7 days and Totals; the table, its tooltip and collapsing', async () => {
+test('USG-44, USG-52, USG-53, USG-39 Usage opens on Today and Totals; the table, its tooltip and collapsing', async () => {
   const launched = await launchApp({
     prepare: ({ home }) => {
       transcripts(home)
@@ -84,8 +84,11 @@ test('USG-44, USG-52, USG-53, USG-39 Usage opens on 7 days and Totals; the table
   try {
     const usage = await openUsage(launched.app, launched.window)
     await expect(usage).toHaveTitle('Usage')
-    await expect(pressed(usage, 'period')).toHaveText('7 days')
+    await expect(pressed(usage, 'period')).toHaveText('Today')
     await expect(pressed(usage, 'view')).toHaveText('Totals')
+    // the turns two hours old are in 7 days whatever the hour the run starts
+    await usage.locator('[data-toggles="period"] [data-value="7d"]').click()
+    await expect(pressed(usage, 'period')).toHaveText('7 days')
     const project = usage.locator('.usage-row.project')
     await expect(project).toHaveCount(1)
     await expect(project.locator('.name')).toHaveText('(no project)')

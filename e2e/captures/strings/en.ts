@@ -101,7 +101,7 @@ export const en = {
   filePlanText: '# Release 2.4\n\n- CSV export\n- A longer login timeout\n- New onboarding copy\n',
 
   'alt:hero-orchestration':
-    'Menkar with the Atlas app team: the orchestrator’s terminal on the right, and in the sidebar what is awaiting you, the tasks with their steps and the sessions.',
+    'Menkar with the Atlas app team: the Board with the tasks and their steps above the orchestrator’s terminal, and in the sidebar what is awaiting you and the sessions.',
   'alt:board-default':
     'The Board open under the header: Awaiting you, Queued, In progress, Waiting, To review and Done, one column each, with the tasks as cards.',
   'alt:first-time-card':
@@ -110,10 +110,8 @@ export const en = {
     'The top of the sidebar: the counts of what is awaiting you, working and waiting, and the two items awaiting you.',
   'alt:topic-discussing':
     'An item awaiting you unfolded in the sidebar: its context, who raised it, that it is being discussed and that it blocks a task.',
-  'alt:task-steps':
-    'The sidebar’s tasks, each with its worker, a bar per step and the latest note; the ★ task first.',
   'alt:work-view-overview':
-    'The whole sidebar of a project in the orchestration mode: what is awaiting you, the tasks, the orchestrator, the consultants and what was done today.',
+    'The whole sidebar of a project in the orchestration mode: what is awaiting you, the orchestrator, the consultants and what was done today.',
   'alt:task-to-review':
     'The Board’s To review column: a task ready for review, waiting on the human.',
   'alt:background-workers':

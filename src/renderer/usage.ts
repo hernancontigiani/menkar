@@ -9,6 +9,7 @@ import type { ActivityView, TaskFlowView, UsageView } from '../core/usage/nodes'
 import { type Day, localDay } from '../core/usage/periods'
 import {
   choose,
+  dayToggleIsToday,
   initialSections,
   type SpendPeriod,
   switchTo,
@@ -209,7 +210,7 @@ function periodToggles(): HTMLElement {
     return toggles(
       'period',
       [
-        ['day', t('usage.time.day')],
+        ['day', dayToggleIsToday(s.time, today()) ? t('usage.today') : t('usage.time.day')],
         ['week', t('usage.time.week')],
       ] as const,
       s.time.kind,

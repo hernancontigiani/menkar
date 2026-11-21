@@ -7,6 +7,7 @@ import type { Day } from '../../../src/core/usage/periods'
 import {
   choose,
   currentWeek,
+  dayToggleIsToday,
   initialSections,
   type Sections,
   stepTime,
@@ -28,6 +29,7 @@ const start = initialSections(TODAY)
 // each section with its own period, none chosen on this visit
 const own: Sections = {
   ...start,
+  spend: { kind: '7d' },
   time: day(nov(15)),
   tasks: '30d',
 }
@@ -35,12 +37,13 @@ const go = (s: Sections, ...path: Sections['shown'][]) =>
   path.reduce((at, to) => switchTo(at, to, TODAY), s)
 
 describe('initialSections', () => {
-  test('the window opens on Spend, 7 days; Your time on the current week; Task times on 7 days', () => {
+  // decision 1.200
+  test('the window opens on Spend, Today; Your time on today; Task times on Today', () => {
     expect(start).toEqual({
       shown: 'spend',
-      spend: { kind: '7d' },
-      time: week(nov(12)),
-      tasks: '7d',
+      spend: { kind: 'today' },
+      time: day(TODAY),
+      tasks: 'today',
       chosen: false,
     })
   })
@@ -134,6 +137,15 @@ describe('switchTo', () => {
   test('switching to the section shown changes nothing', () => {
     const s = choose(own, { kind: '30d' })
     expect(switchTo(s, 'spend', TODAY)).toBe(s)
+  })
+})
+
+describe('the Day toggle (decision 1.200)', () => {
+  test('says Today while the day shown, or the one a week opens, is today', () => {
+    expect(dayToggleIsToday(day(TODAY), TODAY)).toBe(true)
+    expect(dayToggleIsToday(day(nov(17)), TODAY)).toBe(false)
+    expect(dayToggleIsToday(week(nov(12)), TODAY)).toBe(true)
+    expect(dayToggleIsToday(week(nov(5)), TODAY)).toBe(false)
   })
 })
 

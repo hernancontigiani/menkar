@@ -43,13 +43,15 @@ mode is on:
 
 One view, from the top. The counts and Awaiting you stay in place; the rest scrolls.
 
-1. **Counts**: open topics, tasks in progress, tasks waiting.
+1. **Counts**: what awaits the person (open topics and PRs), tasks in progress, tasks waiting.
 2. **Awaiting you** — the topics: the open ones, the one being discussed first (the current one,
    with a green dot), then those of a ★ task, then blocking ones (with a red mark), then the rest by
    number, so the top one is the one to take. The first five show, then "N more…", which a
    click unfolds. A click on a topic unfolds its context, who
    raised it and its status. The list is read only: a topic is discussed in the orchestrator's
-   chat, and closed there. Everything that waits on the person is a topic.
+   chat, and closed there. Everything that waits on the person is a topic, or a PR: after the
+   topics, a row for each task in To review waiting on a PR's approval or merge ("PR #436 ·
+   approve"), whose click shows the session that has it.
 3. **Tasks**: the open tasks, ★ first: title, who has it, its steps ("3/5") and its latest note,
    with a red edge while it waits. A click shows that session; a right-click sets or removes the
    ★. Past three, "See all" opens the Board showing every card.
@@ -122,8 +124,8 @@ A task is a piece of work the orchestrator delegated, so the person can see how 
 the sidebar or the Board), or the orchestrator (`task_star`) when the person asks. A ★ task's topics come
 first, and when several sessions finish at once the orchestrator hears first of those on ★ tasks.
 Consultants get a task for a request that needs more than a short answer (a research, a probe, a
-review); a short question needs none. A task that waits on something outside (a build, a release)
-is set waiting, with what it waits on.
+review); a short question needs none. A task that waits on something outside is set waiting on
+its kind — build, ci, release, pr-approval, pr-merge or other — with the detail in its note.
 
 ## A worker per task
 

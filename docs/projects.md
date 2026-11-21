@@ -126,10 +126,12 @@ built and why.
   and `orchestrator_open` while the orchestrator's group is unfolded: absent, it is folded
   (decision 1.177). `team_view` and `orchestrator_collapsed`, which an earlier Menkar wrote, are
   neither read nor written back.
-- **The Board panel** (decision 1.126, 2026-11-14; `setBoard`): `board_open` while it is open,
-  written only while true and cleared when the mode goes off, and `board_height`, its last height
-  in pixels, written only once dragged or picked (Default size removes it). Read leniently: a
-  height that is not a positive number is dropped alone.
+- **The Board panel** (decisions 1.126, 2026-11-14, and 1.198, 2026-11-21; `setBoard`): open by
+  default, so `board_open` is written only as `false`, while the human has closed it in the
+  project (`boardClosed` in the model), and cleared when the mode goes off; a `board_open: true`
+  an earlier Menkar wrote reads as the default and is not written back. `board_height`, its last
+  height in pixels, is written only once dragged or picked (Default size removes it). Read
+  leniently: a height that is not a positive number is dropped alone.
 - **`orchestration.folders`** (decision 1.124, 2026-11-14): the absolute paths the human added to
   the project's folders, each once (`addFolder`, `removeFolder`); written only while one is left.
   Read leniently: an entry that is not an absolute path is dropped alone, a value that is not a

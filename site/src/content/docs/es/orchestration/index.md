@@ -7,8 +7,8 @@ sidebar:
 
 En el modo de orquestación hablás con una sesión, el orquestador. Le da cada trabajo a otra sesión
 como una tarea, lee los reportes y te trae solo lo que necesita tu respuesta: los pendientes de
-:ui[board.topics]. La barra lateral muestra esos pendientes, cuánto le falta a cada tarea y quién
-la hace.
+:ui[board.topics]. La barra lateral muestra esos pendientes y quién hace cada tarea; el Tablero,
+encima de las pestañas, muestra cuánto le falta a cada una.
 
 ![](shot:work-view-overview)
 

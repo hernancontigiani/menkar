@@ -212,10 +212,10 @@ const toggled = (list: readonly string[] | undefined, id: string, on: boolean) =
   return on ? [...rest, id] : rest
 }
 
-// Off, the Board closes too: nothing of the mode shows with it off.
+// Off, the Board's closing is forgotten: turned on again, it opens as it does by default.
 export function setMode(state: Projects, projectId: string, on: boolean): Projects {
   const next = change(state, projectId, (o) => ({ ...o, on }))
-  return on ? next : setBoard(next, projectId, { open: false })
+  return on ? next : setBoard(next, projectId, { open: true })
 }
 
 // One orchestrator per project (decision 1.77): marking one unmarks the previous; null unmarks.
@@ -415,8 +415,8 @@ export function setBoard(
       if (p.id !== projectId) return p
       let next: Project = p
       if (what.open !== undefined) {
-        const { boardOpen: _, ...rest } = next
-        next = what.open ? { ...rest, boardOpen: true } : rest
+        const { boardClosed: _, ...rest } = next
+        next = what.open ? rest : { ...rest, boardClosed: true }
       }
       if (what.height !== undefined) {
         const { boardHeight: _, ...rest } = next

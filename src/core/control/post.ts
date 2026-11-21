@@ -39,7 +39,7 @@ export function bridgedText(
 
 // English, like the rest of the frame: it is read by an agent, not shown in the UI.
 function countsText(c: WorkCounts): string {
-  return `${c.topics} topic${c.topics === 1 ? '' : 's'} · ${c.working} working · ${c.waiting} waiting`
+  return `${c.forYou} for you · ${c.working} working · ${c.waiting} waiting`
 }
 
 interface Peer {

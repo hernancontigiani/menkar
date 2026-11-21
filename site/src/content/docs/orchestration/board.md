@@ -1,14 +1,15 @@
 ---
 title: See every task at once
-description: Open the Board to see every item and task of the project in columns.
+description: Use the Board to see every item and task of the project in columns.
 sidebar:
   order: 5
 ---
 
-## Open the Board
+## Open or close the Board
 
-Click :ui[board.button] in the header, beside :ui[orch.switch]. It opens under the header, above
-the tabs, and the same button closes it.
+The Board is open while the orchestration mode is on, under the header and above the tabs. Click
+:ui[board.button] in the header, beside :ui[orch.switch], to close it or open it again. Menkar
+remembers per project that you closed it, until you turn the mode off.
 
 ![](shot:board-default)
 
@@ -26,5 +27,4 @@ Everything else is changed through the orchestrator.
 ## Resize the Board
 
 The Board opens two cards high. Drag its lower edge, or choose :ui[board.showAll] or
-:ui[board.defaultSize] in its bar. It reopens open or closed, and at the height you left it, after
-a restart.
+:ui[board.defaultSize] in its bar. It keeps the height you left it after a restart.

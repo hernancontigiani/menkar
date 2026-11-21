@@ -46,6 +46,7 @@ interface SeedTask {
   step?: number
   note?: string
   waiting_on?: string
+  waiting_note?: string
   review_wait?: { on: string; note?: string }
   closed?: string
 }
@@ -274,12 +275,7 @@ async function open(
 const row = (page: Page, key: keyof typeof TEAM) =>
   page.locator(`#session-list .row[data-session="${TEAM[key]}"]`)
 
-const taskNumbers = (page: Page) =>
-  page
-    .locator('#session-list .task-row')
-    .evaluateAll((ns) => ns.map((n) => n.getAttribute('data-task')))
-
-test('one view: tiles and Awaiting you on top, Tasks ★ first with their steps, the rows, Consultants folding, Done today folded and saved (screenshot)', async () => {
+test('one view: tiles and Awaiting you on top, no Tasks list in the sidebar, the rows, Consultants folding, Done today folded and saved; ★ from a card (screenshot)', async () => {
   const { launched, page, root } = await open()
   try {
     await expect(page.locator('#view-switch')).toHaveCount(0)
@@ -289,21 +285,11 @@ test('one view: tiles and Awaiting you on top, Tasks ★ first with their steps,
       '2Deploy key missing',
       '1Name of the docs section',
     ])
-    // Open ones, ★ first, then by number; 3 of the 4 shown (decision 1.177).
-    await expect.poll(() => taskNumbers(page)).toEqual(['2', '1', '3'])
-    const release = page.locator('.task-row[data-task="2"]')
-    await expect(release).toContainText('Release 0.2')
-    await expect(release).toContainText('3/5')
-    await expect(release).toContainText('packager')
-    await expect(release).toContainText('building .deb')
-    await expect(release.locator('.priority-star')).toHaveCount(1)
-    await expect(release.locator('.segment')).toHaveCount(5)
-    await expect(release.locator('.segment.done')).toHaveCount(2)
-    await expect(release.locator('.segment.current')).toHaveCount(1)
-    await expect(page.locator('.task-row[data-task="1"]')).toHaveClass(/waiting/)
-    await expect(page.locator('.task-row[data-task="1"]')).toContainText('waiting on topic 1')
-    await expect(page.locator('.task-row[data-task="3"]')).toContainText('queued')
-    await expect(page.locator('.see-all')).toHaveText('See all (4) →')
+    // Decision 1.198: the tasks are on the Board only, open by default.
+    await expect(page.locator('#board-panel .board .task-card')).toHaveCount(5)
+    await expect(page.locator('#sidebar .task-card, #sidebar [data-task]')).toHaveCount(0)
+    await expect(page.locator('#sidebar')).not.toContainText('Tasks ·')
+    await expect(page.locator('#sidebar')).not.toContainText('See all')
     await expect(row(page, 'expert')).toBeVisible()
 
     // Done today: folded by default; unfolded, the topic and the task closed today, saved.
@@ -324,16 +310,12 @@ test('one view: tiles and Awaiting you on top, Tasks ★ first with their steps,
     await page.locator('[data-heading="consultants"]').click()
     await shot(page, 'work.png')
 
-    // The ★ from a task's right-click menu: written, and the order follows.
-    await page.locator('.task-row[data-task="3"]').click({ button: 'right' })
+    // The ★ from a card's right-click menu: written, and the card shows it.
+    const queued = page.locator('#board-panel .task-card[data-task="3"]')
+    await queued.click({ button: 'right' })
     await page.locator('.menu-item', { hasText: 'Mark with ★' }).click()
-    await expect.poll(() => taskNumbers(page)).toEqual(['2', '3', '1'])
     await expect.poll(() => saved(root, 'tasks.json').projects[PROJECT].tasks[2].star).toBe(true)
-
-    // A click on a task selects its assignee's tab.
-    await page.locator('.tab', { hasText: 'orchestrator' }).click()
-    await page.locator('.task-row[data-task="2"]').click()
-    await expect(page.locator('.tab.selected')).toHaveText(/packager/)
+    await expect(queued.locator('.priority-star')).toHaveCount(1)
   } finally {
     await launched.close()
   }
@@ -360,10 +342,12 @@ test('the orchestrator unfolded by its triangle, saved as orchestrator_open; eac
     await expect(page.locator(`.row[data-session="${TEAM.orch}"] .team-task`)).toHaveCount(0)
     await shot(page, 'team-tasks.png')
 
-    // Switching the mode off closes the Board panel, and the saved flag with it (decision 1.126).
-    await page.locator('#board-button').click()
+    // The Board closed by the human is saved; switching the mode off hides it and forgets the
+    // closing (decisions 1.126, 1.198).
     await expect(page.locator('#board-panel')).toBeVisible()
-    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(true)
+    await page.locator('#board-button').click()
+    await expect(page.locator('#board-panel')).toBeHidden()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(false)
     await page.locator('#orchestration-switch').click()
     await expect(page.locator('#board-panel')).toBeHidden()
     await expect
@@ -374,7 +358,9 @@ test('the orchestrator unfolded by its triangle, saved as orchestrator_open; eac
     await expect(page.locator('#board-button')).toBeHidden()
     await expect(page.locator('.team-task')).toHaveCount(0)
     await expect(page.locator('.priority-star')).toHaveCount(0)
-    await expect(page.locator('.task-row')).toHaveCount(0)
+    // Turned on again, the Board opens as it does by default.
+    await page.locator('#orchestration-switch').click()
+    await expect(page.locator('#board-panel')).toBeVisible()
   } finally {
     await launched.close()
   }
@@ -392,17 +378,14 @@ const area = (page: Page) =>
       (document.querySelector<HTMLElement>('.content-header')?.offsetHeight ?? 0),
   )
 
-test('the Board panel: toggled from the header (pressed), under the header and over the tab strip only, two cards high, its cards as before (screenshot)', async () => {
+test('the Board panel: open by default (pressed), under the header and over the tab strip only, two cards high, its cards as before; closing it is saved (screenshot)', async () => {
   const { launched, page, root } = await open()
   try {
     const button = page.locator('#board-button')
     const column = (key: string) => columnOf(page, key)
-    await expect(button).toHaveAttribute('aria-pressed', 'false')
-    await expect(panel(page)).toBeHidden()
-    await button.click()
     await expect(button).toHaveAttribute('aria-pressed', 'true')
     await expect(panel(page)).toBeVisible()
-    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(true)
+    expect(saved(root, 'projects.json').projects[0]).not.toHaveProperty('board_open')
     await expect(page.locator('.tab')).toHaveCount(2)
     const [header, box, strip, sidebar] = await Promise.all(
       ['.content-header', '#board-panel', '#tab-strip', '#sidebar'].map((x) =>
@@ -451,17 +434,19 @@ test('the Board panel: toggled from the header (pressed), under the header and o
     await column('in-progress').locator('.task-card').click()
     await expect(page.locator('.tab.selected')).toHaveText(/packager/)
 
-    // × closes it as the button does.
+    // × closes it as the button does; closed is what is saved, open writes nothing.
     await page.locator('#board-panel [data-key="close"]').click()
     await expect(panel(page)).toBeHidden()
     await expect(button).toHaveAttribute('aria-pressed', 'false')
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(false)
     await button.click()
     await expect(panel(page)).toBeVisible()
-    await button.click()
-    await expect(panel(page)).toBeHidden()
     await expect
       .poll(() => saved(root, 'projects.json').projects[0])
       .not.toHaveProperty('board_open')
+    await button.click()
+    await expect(panel(page)).toBeHidden()
+    await expect.poll(() => saved(root, 'projects.json').projects[0].board_open).toBe(false)
   } finally {
     await launched.close()
   }
@@ -501,14 +486,9 @@ const IN_REVIEW: SeedTask[] = [
   },
 ]
 
-test('a task in To review says whom it waits on, on the card and in the sidebar: "waiting on PR approval #436", "waiting on the human"; the orchestrator says nothing (screenshot)', async () => {
+test('a task in To review says whom it waits on, on its card: "waiting on PR approval #436", "waiting on the human"; the orchestrator says nothing (screenshot)', async () => {
   const { launched, page } = await open(IN_REVIEW)
   try {
-    const row = (n: number) => page.locator(`#session-list .task-row[data-task="${n}"] .task-note`)
-    await expect(row(1)).toHaveText('waiting on PR approval #436 · PR open')
-    await expect(row(2)).toHaveText('waiting on the human · read it')
-    await expect(row(3)).toHaveText('try it')
-    await page.locator('#board-button').click()
     const card = (n: number) =>
       columnOf(page, 'to-review').locator(`.task-card[data-task="${n}"] .card-note`)
     await expect(card(1)).toHaveText('waiting on PR approval #436 · PR open')
@@ -517,6 +497,57 @@ test('a task in To review says whom it waits on, on the card and in the sidebar:
     const files = process.env.MENKAR_FILES
     if (files)
       await page.screenshot({ path: join(files, 'menkar-t43-to-review-waiting-on-pr.png') })
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.197: a task in To review waiting on a PR's approval or merge awaits the human, after
+// the topics, and the "for you" tile counts it; one waiting on the human or the orchestrator does not.
+test('Awaiting you shows a row per PR waiting on the human, after the topics; "for you" counts them; a click selects the assignee; a wait outside shows its kind and note (screenshots)', async () => {
+  const merge: SeedTask = {
+    number: 4,
+    title: 'Search page',
+    assignee: TEAM.w2,
+    state: 'to review',
+    steps: ['a', 'b', 'c'],
+    step: 3,
+    note: 'approved',
+    review_wait: { on: 'pr-merge', note: 'https://github.com/acme/app/pull/512' },
+  }
+  // Decision 1.199: a wait outside shows its kind's label and its note, as a review wait does.
+  const build: SeedTask = {
+    number: 5,
+    title: 'Nightly package',
+    assignee: TEAM.plain,
+    state: 'waiting',
+    steps: ['a', 'b', 'c'],
+    step: 2,
+    note: 'built locally',
+    waiting_on: 'build',
+    waiting_note: 'nightly',
+  }
+  const { launched, page } = await open([...IN_REVIEW, merge, build])
+  try {
+    const top = page.locator('#topics-section')
+    await expect(top.locator('.work-tile .tile-n')).toHaveText(['4', '0', '1'])
+    await expect(top.locator('.topics-toggle')).toHaveText('Awaiting you · 4')
+    await expect(top.locator('.topic-row')).toHaveCount(4)
+    await expect(top.locator('.topic-row').nth(2)).toHaveAttribute('data-pr-task', '1')
+    const pr = (n: number) => top.locator(`.pr-row[data-pr-task="${n}"]`)
+    await expect(pr(1).locator('.topic-title')).toHaveText('PR #436 · approve')
+    await expect(pr(1).locator('.pr-assignee')).toHaveText('packager')
+    await expect(pr(4).locator('.topic-title')).toHaveText('PR #512 · merge')
+    await expect(pr(4).locator('.pr-assignee')).toHaveText('docs writer')
+    await expect(top.locator('.pr-row')).toHaveCount(2)
+    await filesShots(page, (scheme) => `menkar-t170-awaiting-pr-${scheme}.png`)
+    await page.locator('.tab', { hasText: 'orchestrator' }).click()
+    await expect(page.locator('.tab.selected')).toHaveText(/orchestrator/)
+    await pr(1).click()
+    await expect(page.locator('.tab.selected')).toHaveText(/packager/)
+    await expect(
+      columnOf(page, 'waiting').locator('.task-card[data-task="5"] .card-note'),
+    ).toHaveText('waiting on the build nightly · built locally')
   } finally {
     await launched.close()
   }
@@ -534,7 +565,6 @@ test('the Board panel resized by dragging, reopened at its last height, Show all
   let relaunched: Awaited<ReturnType<typeof open>> | undefined
   let closed = false
   try {
-    await page.locator('#board-button').click()
     await expect(panel(page)).toBeVisible()
     const initial = await height(page, '#board-panel')
     // A column with more cards than fit scrolls under its fixed heading.
@@ -591,29 +621,6 @@ test('the Board panel resized by dragging, reopened at its last height, Show all
   }
 })
 
-test('more than 3 open tasks: the list shows 3 and "See all (8) →", which opens the Board on Show all', async () => {
-  const { launched, page } = await open(QUEUED)
-  try {
-    await expect(page.locator('#session-list .task-row')).toHaveCount(3)
-    await expect(page.locator('.see-all')).toHaveText('See all (8) →')
-    await page.locator('.see-all').click()
-    await expect(panel(page)).toBeVisible()
-    await expect(page.locator('#board-button')).toHaveAttribute('aria-pressed', 'true')
-    await expect(columnOf(page, 'queued').locator('.task-card')).toHaveCount(8)
-    const queued = columnOf(page, 'queued').locator('.board-cards')
-    await expect
-      .poll(async () => {
-        const fits = await queued.evaluate((n) => n.scrollHeight <= n.clientHeight + 1)
-        const capped = (await height(page, '#board-panel')) === Math.floor((await area(page)) * 0.7)
-        return fits || capped
-      })
-      .toBe(true)
-    await expect(page.locator('.tab')).toHaveCount(2)
-  } finally {
-    await launched.close()
-  }
-})
-
 // A worker's row menu as it was before the single view: its tab open, so Stop and no Trash.
 const WORKER_MENU = [
   'Open',
@@ -642,9 +649,6 @@ const listOrder = (page: Page) =>
   page.locator('#session-list > *').evaluateAll((nodes) =>
     nodes.map((n) => {
       const e = n as HTMLElement
-      if (e.classList.contains('work-heading')) return e.textContent ?? ''
-      if (e.classList.contains('task-row')) return 'task'
-      if (e.classList.contains('see-all')) return e.textContent ?? ''
       if (e.classList.contains('team-heading')) return `heading ${e.dataset.heading}`
       if (e.classList.contains('hidden-foot')) return e.textContent ?? ''
       if (e.classList.contains('row')) return `row ${e.querySelector('.name')?.textContent ?? ''}`
@@ -666,7 +670,7 @@ const contentSize = (launched: Awaited<ReturnType<typeof launchApp>>, w: number,
 
 // Decision 1.177 (task 60's mock-ups): one view, no Work/Team switch; the tiles and Awaiting you
 // stay on top while the rest scrolls; "N hidden" after Others, before Done today (D4).
-test('the single view in order: tiles and Awaiting you fixed, Tasks · 8 with 3 and See all, the orchestrator folded with its count, Consultants, Others, N hidden, Done today folded; at 600 px high the top stays (screenshots)', async () => {
+test('the single view in order: tiles and Awaiting you fixed, no Tasks list, the orchestrator folded with its count, Consultants, Others, N hidden, Done today folded; at 480 px high the top stays (screenshots)', async () => {
   const { launched, page } = await open(QUEUED, false, undefined, { hidden: ['w2'] })
   try {
     await expect(page.locator('#view-switch')).toHaveCount(0)
@@ -678,11 +682,6 @@ test('the single view in order: tiles and Awaiting you fixed, Tasks · 8 with 3 
     await expect
       .poll(() => listOrder(page))
       .toEqual([
-        'Tasks · 8',
-        'task',
-        'task',
-        'task',
-        'See all (8) →',
         'row orchestrator',
         'heading consultants',
         'row fabric',
@@ -709,8 +708,8 @@ test('the single view in order: tiles and Awaiting you fixed, Tasks · 8 with 3 
     await filesShots(page, (scheme) => `menkar-t88-41-b4-unfolded-${scheme}.png`)
 
     // At a low height the list scrolls under the tiles and Awaiting you.
-    await contentSize(launched, 1280, 600)
-    await expect.poll(() => page.evaluate(() => window.innerHeight)).toBe(600)
+    await contentSize(launched, 1280, 480)
+    await expect.poll(() => page.evaluate(() => window.innerHeight)).toBe(480)
     const list = page.locator('#session-list')
     expect(await list.evaluate((n) => n.scrollHeight > n.clientHeight)).toBe(true)
     await list.evaluate((n) => {
@@ -720,7 +719,7 @@ test('the single view in order: tiles and Awaiting you fixed, Tasks · 8 with 3 
     await expect(page.locator('#topics-section .work-tiles')).toBeInViewport()
     await expect(page.locator('#topics-section .topics-toggle').first()).toBeInViewport()
     const files = process.env.MENKAR_FILES
-    if (files) await page.screenshot({ path: join(files, 'menkar-t88-41-b4-scrolled-600.png') })
+    if (files) await page.screenshot({ path: join(files, 'menkar-t88-41-b4-scrolled-480.png') })
   } finally {
     await launched.close()
   }
@@ -731,6 +730,8 @@ test('the shell drawer keeps its height when the Board opens; the agent’s pane
   try {
     const agent = '.tab-body:not(.hidden) > .pane:not(.drawer)'
     const drawer = '.tab-body:not(.hidden) > .pane.drawer'
+    await page.locator('#board-button').click()
+    await expect(panel(page)).toBeHidden()
     await page.locator(`${agent} .xterm`).click()
     await page.keyboard.press('Control+Backquote')
     await expect(page.locator(drawer)).toBeVisible()
@@ -770,7 +771,6 @@ const titleLines = (card: ReturnType<Page['locator']>) =>
 test('the Board at its default height shows two full cards whole (two-line title, assignee, bar, note), at the test window’s width and at a wide one (screenshots)', async () => {
   const { launched, page } = await open(FULL)
   try {
-    await page.locator('#board-button').click()
     await expect(panel(page)).toBeVisible()
     for (const width of [0, 1550]) {
       if (width > 0) {
@@ -785,7 +785,7 @@ test('the Board at its default height shows two full cards whole (two-line title
       await expect(cards).toHaveCount(3)
       for (const i of [0, 1]) {
         const card = cards.nth(i)
-        expect(await titleLines(card)).toBe(2)
+        await expect.poll(() => titleLines(card)).toBe(2)
         await expect(card.locator('.card-assignee')).toHaveText('packager')
         await expect(card.locator('.dot')).toHaveCount(1)
         await expect(card.locator('.segment')).toHaveCount(5)
@@ -814,24 +814,28 @@ test('a title of three lines or more is clamped to two on the Board, whole in it
     third as SeedTask,
   ])
   try {
-    await page.locator('#board-button').click()
     await expect(panel(page)).toBeVisible()
     const cards = columnOf(page, 'in-progress').locator('.task-card')
     await expect(cards).toHaveCount(3)
     const long = cards.nth(1)
     const title = long.locator('.card-title')
     await expect(title).toHaveAttribute('title', LONG_TITLE)
-    const lines = await title.evaluate((n) => {
-      // One line's height, from a copy of the title holding one word.
-      const one = n.cloneNode() as HTMLElement
-      one.textContent = 'x'
-      n.after(one)
-      const line = one.offsetHeight
-      one.remove()
-      return { shown: n.clientHeight / line, whole: n.scrollHeight / line }
-    })
-    expect(lines.whole).toBeGreaterThanOrEqual(3)
-    expect(lines.shown).toBeLessThanOrEqual(2.05)
+    // The Board redraws while the app starts: a title replaced mid-measure reads no line height.
+    const measure = () =>
+      title.evaluate((n) => {
+        // One line's height, from a copy of the title holding one word.
+        const one = n.cloneNode() as HTMLElement
+        one.textContent = 'x'
+        n.after(one)
+        const line = one.offsetHeight
+        one.remove()
+        return line > 0 ? { shown: n.clientHeight / line, whole: n.scrollHeight / line } : null
+      })
+    await expect(async () => {
+      const lines = await measure()
+      expect(lines?.whole).toBeGreaterThanOrEqual(3)
+      expect(lines?.shown).toBeLessThanOrEqual(2.05)
+    }).toPass()
     const visible = await columnOf(page, 'in-progress')
       .locator('.board-cards')
       .evaluate((n) => n.getBoundingClientRect().bottom)

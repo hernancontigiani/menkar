@@ -24,9 +24,8 @@ The workers run in the background, so your tab strip holds only the sessions you
 
 ## See what awaits you
 
-The sidebar keeps at the top the items only you can answer, the current one first, and under them
-every task with its steps and latest note. Open [the Board](/menkar/orchestration/board/) to see
-every task at once.
+The sidebar keeps at the top the items only you can answer, the current one first. Above the tabs,
+[the Board](/menkar/orchestration/board/) shows every task with its steps and latest note.
 
 ## Keep every session in one window
 
