@@ -3,6 +3,8 @@
 // - manual mode, a Bash `git push`: the usual card;
 // - auto mode, the same push with the classifier answering "block" three times: auto mode's
 //   confirmation card;
+// - auto mode through a stand-in gateway, the same push with the notice about classifier billing
+//   left unanswered: the notice stops the session until Enter or Esc;
 // - auto mode, a Read of a file outside the working directories with the classifier allowing it:
 //   the one-time card that asks about reads outside the working directories.
 import { bytesOf, judge, keep, makeRun, report, runClaude, startApi, text } from './lib.mjs'
@@ -39,6 +41,15 @@ const SCENARIOS = [
     ...push,
   },
   {
+    // The notice itself, left unanswered: it stops the session until Enter or Esc.
+    name: 'auto-billing-notice',
+    mode: 'auto',
+    card: "We're changing auto mode",
+    severity: 80,
+    keys: [],
+    ...push,
+  },
+  {
     name: 'auto-read-outside',
     mode: 'auto',
     card: 'Allow this read outside the working directories?',
@@ -53,7 +64,7 @@ for (const scenario of SCENARIOS) {
   const run = makeRun(`permission-${scenario.name}`)
   const api = await startApi(answerWith(scenario))
   // In auto mode a stand-in gateway first gets a notice about classifier billing; Enter dismisses it.
-  const keys = scenario.mode === 'auto' ? [[8, '\r']] : []
+  const keys = scenario.keys ?? (scenario.mode === 'auto' ? [[8, '\r']] : [])
   const reads = await runClaude(
     run,
     api,
