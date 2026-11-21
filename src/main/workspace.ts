@@ -710,6 +710,7 @@ function tasksView(projectId: string): TasksView {
     step: x.step,
     note: x.note,
     ...(x.waitingOn !== undefined ? { waitingOn: x.waitingOn } : {}),
+    ...(x.waitingNote !== undefined ? { waitingNote: x.waitingNote } : {}),
     ...(x.reviewWait !== undefined ? { reviewWait: x.reviewWait } : {}),
   })
   const closed = closedOn(list, now())
@@ -1790,6 +1791,9 @@ function taskFor(
     orchestrator: o.on ? o.orchestrator : null,
     nameOf: sessionName,
     idOf: (name) => sessionOfProject(name, sessionsForNames(project.id)),
+    openTopics: topicsOf(currentTopics(), project.id)
+      .filter((x) => x.status !== 'closed')
+      .map((x) => x.number),
     at: topicsNow(),
   })
   if (result.tasks) {

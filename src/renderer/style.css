@@ -1522,6 +1522,13 @@ select option {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.pr-assignee {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .topic-current,
 .topic-blocking {
   flex: none;

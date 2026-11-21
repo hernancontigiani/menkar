@@ -42,11 +42,21 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
   - A task: `number` (per project, never reused, as topics), `title`, `assignee` (a session id,
     shown by its current name; absent until a worker is started for it, decision 1.118), `star`,
     `state`, `steps` (3 to 7 lines, empty while queued), `step`
-    (1-based, 0 while queued), `note` (the latest report, one line), `waiting_on` while waiting,
-    `created`, `updated` and `closed` (ISO, through the clock).
-  - **States:** `queued` (added) → `in progress` (steps set; step n of m) → `waiting` (on a topic
-    or a session, named) → `to review` (the assignee says it is done) → `done` or `dropped`, which
-    only the orchestrator sets, after reviewing, so "done" always means reviewed.
+    (1-based, 0 while queued), `note` (the latest report, one line), `waiting_on` while waiting
+    and `waiting_note` beside it when given, `created`, `updated` and `closed` (ISO, through the
+    clock).
+  - **States:** `queued` (added) → `in progress` (steps set; step n of m) → `waiting` → `to
+    review` (the assignee says it is done) → `done` or `dropped`, which only the orchestrator sets,
+    after reviewing, so "done" always means reviewed.
+  - **What a waiting task waits on** (decisions 1.197 and 1.199, the human, 2026-11-20 and
+    2026-11-21; `parseWait` in `src/core/orchestration/tasks.ts`, `OUTSIDE_WAITS` in `taskState.ts`):
+    `waiting_on` is "topic N" for an open topic of the project (written so, from "Topic #4" too), the
+    name of one of its sessions, or an outside kind: `build`, `ci`, `release`, `pr-approval`,
+    `pr-merge` or `other`. Free text goes only in `waiting_note`, one line beside it. Anything else
+    is refused with a reply that names the accepted forms and says a wait on the human goes through
+    `ask`, so it becomes a topic and shows in Awaiting you. A card or a task row shows the kind's
+    label and the note ("waiting on the build nightly"), as `review_wait` does. A value an older
+    file holds is read as it is.
   - **Whom a task in To review waits on** (decision 1.164, the human, 2026-11-16):
     `review_wait: { on, note }`, present exactly while the task is `to review`. `on` is
     `orchestrator` (the default), `human`, `pr-approval` or `pr-merge`; `note` is one line beside
@@ -145,8 +155,9 @@ the top:
   you; it stays in view however far the list below is scrolled.
 - **Scrolling**, `#session-list`: Tasks, the team, the "N hidden" foot, Done today.
 
-1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting, counted by
-   `workCounts` (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
+1. **Count tiles**: "for you" (the open topics and the PRs waiting on the human, the rows of
+   Awaiting you), tasks in progress ("working") and tasks waiting, counted by `workCounts`
+   (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
    orchestrator (below).
 2. **Awaiting you**: the Topics section below.
 3. **Tasks · N**: the open tasks, ★ first, then by number. A row: ★, the title, `3/5` (or the state
@@ -163,7 +174,7 @@ the top:
 
 **Every post Menkar sends to the orchestrator** (decision 1.125, the human, 2026-11-14) ends,
 after its time, with the tiles' three numbers: `[Menkar] packager set task 4 to review: PR open
-(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are three kinds only** (decisions 1.178,
+(08:47:33) · 2 for you · 1 working · 1 waiting`. **They are three kinds only** (decisions 1.178,
 the human, 2026-11-17, and 1.186, the human, 2026-11-19): every post is a line in the human's chat
 with the orchestrator, so it is posted to when a task is set to review, when a session asks it
 something and when the human wants to discuss a topic; everything else — a turn ended without a
@@ -229,11 +240,16 @@ colour; with it off, it is.
 **The Topics section** sits after the tiles, collapsible like Files
 and saved (`topics_collapsed`), headed "Awaiting you · N", so it says whose turn it is (1.146, the
 human, 2026-11-14: only the label the user sees; "topic" stays the thing's name for agents, tools and
-code). A row: ★ when its task has the ★, the
+code). **After the topics, a row for each task in To review waiting on `pr-approval` or `pr-merge`**
+(decision 1.197, the human, 2026-11-20; `awaitingRows` in `src/core/orchestration/rows.ts`), in the
+tasks' order: ★, the PR its `review_wait` note names ("PR #436 · approve", "PR #436 · merge";
+`prNamed` reads `#436`, `436`, `PR #436` or a pull request's URL, any other note shown as written)
+and the assignee; a click selects the assignee, as a task row does. The heading's N counts both
+kinds, as the "for you" tile does. A topic row: ★ when its task has the ★, the
 number, the title, a green dot while it is discussing (the current topic, decision 1.169, the
 human, 2026-11-16) and a red mark when blocking; a blocking topic being discussed shows both. A click unfolds its context, who raised it and its
 status, per window. Empty, it says "Nothing awaits you".
-**At most 5 topics** (`TOPICS_SHOWN`, `topicsFolded` in `src/core/orchestration/rows.ts`; decision
+**At most 5 rows** (`TOPICS_SHOWN`, `topicsFolded` in `src/core/orchestration/rows.ts`; decision
 1.171, the human, 2026-11-16), then a "N more…" row as Files has; a click unfolds
 the rest, per window, not saved. The current topic comes first in the order, so it is always among
 the 5.

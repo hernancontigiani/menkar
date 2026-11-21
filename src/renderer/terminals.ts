@@ -344,13 +344,15 @@ function create(pane: PaneView, label?: string): View {
 
 export interface PaneBanner {
   readonly kind: string
+  // The session its button acts on: a pane whose session changed id gets a new banner.
+  readonly session: string
   readonly tone: 'warning' | 'info'
   readonly text: string
   readonly button: string
   readonly run: () => void
 }
 
-// The bar across the top of a pane (decision 1.101), rebuilt only when its kind changes.
+// The bar across the top of a pane (decision 1.101), rebuilt only when its kind or session changes.
 export function setPaneBanner(paneId: string, banner: PaneBanner | null, readOnly: boolean): void {
   if (readOnly) readOnlyPanes.add(paneId)
   else readOnlyPanes.delete(paneId)
@@ -358,7 +360,7 @@ export function setPaneBanner(paneId: string, banner: PaneBanner | null, readOnl
   if (!view) return
   view.root.classList.toggle('read-only', readOnly)
   const shown = view.root.querySelector<HTMLElement>(':scope > .pane-banner')
-  if (shown?.dataset.kind === banner?.kind) return
+  if (shown?.dataset.kind === banner?.kind && shown?.dataset.session === banner?.session) return
   shown?.remove()
   if (!banner) return
   const button = el('button', {}, banner.button)
@@ -366,7 +368,12 @@ export function setPaneBanner(paneId: string, banner: PaneBanner | null, readOnl
   view.root.prepend(
     el(
       'div',
-      { class: `pane-banner ${banner.tone}`, 'data-kind': banner.kind, role: 'status' },
+      {
+        class: `pane-banner ${banner.tone}`,
+        'data-kind': banner.kind,
+        'data-session': banner.session,
+        role: 'status',
+      },
       el('span', { class: 'bar-text' }, banner.text),
       button,
     ),

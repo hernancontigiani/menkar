@@ -417,3 +417,22 @@ orchestrator's tab and tells the orchestrator "The human wants to discuss topic 
 inbox (decision 1.178), so it hears it with its next prompt, the human's own included; nothing is
 typed into its terminal. An orchestrator whose agent has no inbox is posted to instead, through the
 wakes' messaging, when it runs (`discussTopic` in `src/main/workspace.ts`).
+
+## The sidebar in the mode
+
+> Left on 2026-11-21: "for you" and Awaiting you count the PRs waiting on the human too; the posts say "N for you" (decision 1.197, task 170).
+1. **Count tiles**: open topics, tasks in progress ("working") and tasks waiting, counted by
+   `workCounts` (`src/core/orchestration/counts.ts`), which also gives the tail of every post to the
+   orchestrator (below).
+(08:47:33) · 2 topics · 1 working · 1 waiting`. **They are three kinds only** (decisions 1.178,
+code). A row: ★ when its task has the ★, the
+**At most 5 topics** (`TOPICS_SHOWN`, `topicsFolded` in `src/core/orchestration/rows.ts`; decision
+
+## The data
+
+> Left on 2026-11-21: waiting_on is an open topic, a session or an outside kind, with a waiting_note; anything else refused (decisions 1.197 and 1.199, task 170).
+    (1-based, 0 while queued), `note` (the latest report, one line), `waiting_on` while waiting,
+    `created`, `updated` and `closed` (ISO, through the clock).
+  - **States:** `queued` (added) → `in progress` (steps set; step n of m) → `waiting` (on a topic
+    or a session, named) → `to review` (the assignee says it is done) → `done` or `dropped`, which
+    only the orchestrator sets, after reviewing, so "done" always means reviewed.

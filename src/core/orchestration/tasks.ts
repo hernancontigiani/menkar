@@ -3,6 +3,7 @@ import { readJsonReport, UnreadableShape, writeJson } from '../jsonstate'
 import { tasksPath } from '../paths'
 import { localDay, midnight } from '../usage/periods'
 import {
+  OUTSIDE_WAITS,
   REVIEW_WAITERS,
   type ReviewWait,
   type ReviewWaiter,
@@ -28,6 +29,8 @@ export interface Task {
   // The latest report, one line.
   readonly note: string
   readonly waitingOn?: string
+  // One line beside `waitingOn`, never empty when present.
+  readonly waitingNote?: string
   // Present exactly while the task is to review.
   readonly reviewWait?: ReviewWait
   readonly created: string
@@ -118,7 +121,7 @@ function change(
 }
 
 const notWaiting = (task: Task): Task => {
-  const { waitingOn: _, reviewWait: __, ...rest } = task
+  const { waitingOn: _, waitingNote: ___, reviewWait: __, ...rest } = task
   return rest
 }
 
@@ -253,6 +256,7 @@ function parseTask(value: unknown): Task | null {
   const { number, title, assignee, star, state, steps, step, note, created, updated, closed } =
     value
   const waitingOn = value.waiting_on
+  const waitingNote = value.waiting_note
   const wait = isObject(value.review_wait) ? value.review_wait : {}
   if (typeof number !== 'number' || !Number.isInteger(number) || number < 1) return null
   if (typeof title !== 'string') return null
@@ -270,6 +274,12 @@ function parseTask(value: unknown): Task | null {
     step: Math.max(0, Math.min(at, lines.length)),
     note: typeof note === 'string' ? note : '',
     ...(typeof waitingOn === 'string' && known === 'waiting' ? { waitingOn } : {}),
+    ...(typeof waitingOn === 'string' &&
+    known === 'waiting' &&
+    typeof waitingNote === 'string' &&
+    waitingNote
+      ? { waitingNote }
+      : {}),
     ...(known === 'to review'
       ? {
           reviewWait: {
@@ -313,9 +323,10 @@ export function serializeTasks(t: Tasks): Record<string, unknown> {
   for (const [id, p] of Object.entries(t.projects))
     projects[id] = {
       next: p.next,
-      tasks: p.tasks.map(({ waitingOn, reviewWait, ...x }) => ({
+      tasks: p.tasks.map(({ waitingOn, waitingNote, reviewWait, ...x }) => ({
         ...x,
         ...(waitingOn !== undefined ? { waiting_on: waitingOn } : {}),
+        ...(waitingNote !== undefined ? { waiting_note: waitingNote } : {}),
         ...(reviewWait !== undefined ? { review_wait: reviewWait } : {}),
       })),
     }
@@ -355,7 +366,33 @@ export interface TaskCall {
   readonly orchestrator: string | null
   readonly nameOf: (id: string) => string
   readonly idOf: (name: string) => { readonly id: string } | { readonly refusal: string }
+  // The numbers of the project's open topics.
+  readonly openTopics: readonly number[]
   readonly at: string
+}
+
+// Decisions 1.197 and 1.199: a wait on the human never hides as free text, where "Awaiting you"
+// cannot see it; free text goes in the wait's note.
+const WAIT_REFUSED = `waiting_on is "topic N" (an open topic of your project), the name of one of its sessions, or one of ${OUTSIDE_WAITS.join(', ')}; put any detail in waiting_note. To wait on the human, ask your parent with ask: it raises a topic.`
+
+const TOPIC_WAIT = /^topic\s*#?(\d+)$/i
+
+// What a task waits on, written the one way the rest of Menkar reads it: "topic N" for an open
+// topic of the project, an outside kind, or the name of one of its sessions; null for anything
+// else.
+export function parseWait(value: unknown, call: TaskCall): string | null {
+  if (typeof value !== 'string') return null
+  const typed = value.trim()
+  const topic = TOPIC_WAIT.exec(typed)
+  if (topic) {
+    const number = Number(topic[1])
+    return call.openTopics.includes(number) ? `topic ${number}` : null
+  }
+  const outside = OUTSIDE_WAITS.find((x) => x === typed.toLowerCase())
+  if (outside) return outside
+  if (!typed) return null
+  const found = call.idOf(typed)
+  return 'id' in found ? typed : null
 }
 
 const MODE_OFF = 'The orchestration mode is off in this project.'
@@ -482,17 +519,32 @@ export function taskTool(
     (typeof step !== 'number' || !Number.isInteger(step) || step < 1 || step > task.steps.length)
   )
     return refuse(`step must be a number from 1 to ${task.steps.length}.`)
-  if (args.waiting_on !== undefined && (typeof args.waiting_on !== 'string' || !text('waiting_on')))
-    return refuse('waiting_on must name a topic ("topic 4") or a session.')
-  const waitingOn = text('waiting_on')
+  let waitingOn = ''
+  if (args.waiting_on !== undefined) {
+    const wait = parseWait(args.waiting_on, call)
+    if (wait === null) return refuse(WAIT_REFUSED)
+    waitingOn = wait
+  }
+  if (args.waiting_note !== undefined && typeof args.waiting_note !== 'string')
+    return refuse('waiting_note must be one line of text.')
+  const waitingNote = text('waiting_note').split('\n')[0] ?? ''
+  if (waitingNote && !waitingOn) return refuse('waiting_note goes with waiting_on.')
   const at = typeof step === 'number' ? step : task.step
+  const shown = waitingNote ? `${waitingOn} (${waitingNote})` : waitingOn
   return edit(
     (x) =>
       waitingOn
-        ? { ...x, step: at, note, state: 'waiting', waitingOn }
+        ? {
+            ...notWaiting(x),
+            step: at,
+            note,
+            state: 'waiting',
+            waitingOn,
+            ...(waitingNote ? { waitingNote } : {}),
+          }
         : { ...notWaiting(x), step: at, note, state: 'in progress' },
     waitingOn
-      ? `Task ${number} is waiting on ${waitingOn}, at step ${at} of ${task.steps.length}.`
+      ? `Task ${number} is waiting on ${shown}, at step ${at} of ${task.steps.length}.`
       : `Task ${number} is at step ${at} of ${task.steps.length}.`,
   )
 }
@@ -563,7 +615,9 @@ function taskLines(x: Task, nameOf: (id: string) => string): string {
     `${x.number}. ${star}${x.title}`,
     assignee,
     where,
-    ...(x.waitingOn !== undefined ? [`on ${x.waitingOn}`] : []),
+    ...(x.waitingOn !== undefined
+      ? [`on ${x.waitingOn}${x.waitingNote ? ` (${x.waitingNote})` : ''}`]
+      : []),
     ...(x.reviewWait !== undefined && x.reviewWait.on !== 'orchestrator'
       ? [`on ${waitText(x.reviewWait)}`]
       : []),

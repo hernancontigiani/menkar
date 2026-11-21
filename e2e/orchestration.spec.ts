@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
 import { launchApp } from './app'
-import { CLIENT, catppuccin, clientWork, prepare } from './fixtures'
+import { CLEARED_SESSION, CLIENT, catppuccin, clientWork, prepare } from './fixtures'
 
 type PageGlobals = { menkar: MenkarApi }
 
@@ -1208,6 +1208,42 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
     await expect.poll(received).toContain('answer-at-prompt')
   } finally {
     socket.close()
+    await launched.close()
+  }
+})
+
+// A pane's banner acts on the session the pane runs now: a worker cleared (`/clear`) while its
+// banner showed is handed back, and taken control of again, under its new id.
+test('a worker taken control of, then cleared: Back to reporting and Take control act on its new id', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = team(dirs)
+      orchestratorSocket(dirs)
+      return env
+    },
+  })
+  const page = launched.window
+  const banner = page.locator('.tab-body:not(.hidden) .pane-banner')
+  try {
+    await expect
+      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
+    await page.locator('.tab', { hasText: 'login worker' }).click()
+    await banner.locator('button', { hasText: 'Take control' }).click()
+    await expect(banner).toContainText('This session is with you.')
+    await page.locator('.tab-body:not(.hidden) .xterm').click()
+    await page.keyboard.type('CLEAR')
+    await expect(page.locator('.tab-body:not(.hidden) .xterm-rows')).toContainText(
+      'stand-in cleared',
+    )
+    await expect.poll(async () => (await shown(page))?.withYou).toContain(CLEARED_SESSION)
+    await banner.locator('button', { hasText: 'Back to reporting to the orchestrator' }).click()
+    await expect(banner).toContainText('This session reports to the orchestrator.')
+    await expect.poll(async () => (await shown(page))?.withYou).not.toContain(CLEARED_SESSION)
+    await banner.locator('button', { hasText: 'Take control' }).click()
+    await expect(banner).toContainText('This session is with you.')
+    await expect.poll(async () => (await shown(page))?.withYou).toContain(CLEARED_SESSION)
+  } finally {
     await launched.close()
   }
 })

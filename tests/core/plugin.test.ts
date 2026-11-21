@@ -211,6 +211,14 @@ describe("Menkar's skills plugin", () => {
     }
   })
 
+  // Decision 1.197: a session waiting on the orchestrator for the human's decision is a topic at
+  // once, and the task waits on that topic, never on free text.
+  test("the orchestrator raises a question for the human's decision as a topic, and the task waits on it", () => {
+    const body = normalized(skill('orchestrator').body)
+    expect(body).toMatch(/one for the human's decision is a topic at once/)
+    expect(body).toMatch(/waiting_on becomes "topic N"/)
+  })
+
   // Decision 1.169: the chat with the human is scarce; one topic at a time, the current one set to
   // discussing when taken up and the next made current on closing it; an event that needs nothing ends its
   // turn with a bare "·", since Claude Code answers a turn with no visible text by starting another.

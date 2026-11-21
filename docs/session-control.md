@@ -122,9 +122,11 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       "Task N added."; the task is queued.
     - `task_steps { number, steps }`: the assignee only ("Only the session the task is assigned to
       reports on it."); 3 to 7 non-empty lines; in progress at step 1.
-    - `task_progress { number, step?, note, waiting_on? }`: the assignee only, after its steps;
-      `step` from 1 to the number of steps, kept when omitted; with `waiting_on` the task is
-      waiting, without it in progress.
+    - `task_progress { number, step?, note, waiting_on?, waiting_note? }`: the assignee only,
+      after its steps; `step` from 1 to the number of steps, kept when omitted; with `waiting_on`
+      the task is waiting, without it in progress. `waiting_on` is an open topic ("topic 4"), a
+      session's name or an outside kind, anything else refused, pointing to `ask`
+      (`docs/orchestration.md`); `waiting_note` goes only with it.
     - One in progress per assignee (decision 1.119): `task_steps`, or `task_progress` without
       `waiting_on`, while another of the assignee's tasks is in progress is refused ("Finish or
       wait on task N first.").
@@ -276,7 +278,8 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       seconds; only the human repeating the same action within a second could match, and that
       repeat is the one dropped.
     - **A post to the orchestrator** of a project with the mode on ends, after the time, with the
-      sidebar's three counts, " · 2 topics · 1 working · 1 waiting" (decision 1.125, 2026-11-14):
+      sidebar's three counts, " · 2 for you · 1 working · 1 waiting" (decision 1.125, 2026-11-14;
+      "for you" counts the open topics and the PRs waiting on the human, decision 1.197):
       `wakeSession` passes them in (`postCounts`, `src/core/orchestration/counts.ts`, the tiles'
       own count), so `post.ts` stays pure. In English, like the rest of the frame: an agent reads
       it. Posts to other sessions have no counts.

@@ -2,7 +2,13 @@
 // first, then "Consultants" (decision 1.107), then "Others", one flat list with no group headings (decision 1.183). A child sits under its
 // parent wherever the parent is; children without a tab fold into one "N earlier" row.
 import { describe, expect, test } from 'vitest'
-import { modeRows, rowWeight, tasksFolded } from '../../../src/core/orchestration/rows'
+import {
+  awaitingRows,
+  modeRows,
+  prNamed,
+  rowWeight,
+  tasksFolded,
+} from '../../../src/core/orchestration/rows'
 import type { ProjectInfo } from '../../../src/core/projects/info'
 
 const info = (over: Partial<ProjectInfo> = {}): ProjectInfo => ({
@@ -269,5 +275,41 @@ describe("a row's weight", () => {
     [false, null, null],
   ] as const)('worker %s, tab %s → %s', (worker, place, weight) => {
     expect(rowWeight(worker, place)).toBe(weight)
+  })
+})
+
+// Decision 1.197: "Awaiting you" shows each task whose PR waits on the human, after the topics.
+describe('"Awaiting you"', () => {
+  const review = (number: number, on: 'orchestrator' | 'human' | 'pr-approval' | 'pr-merge') => ({
+    number,
+    state: 'to review' as const,
+    reviewWait: { on },
+  })
+
+  test('the topics first, then the tasks waiting on a PR approval or merge, in their order', () => {
+    const tasks = [
+      review(3, 'pr-merge'),
+      review(4, 'human'),
+      { number: 5, state: 'in progress' as const },
+      review(6, 'pr-approval'),
+      review(7, 'orchestrator'),
+    ]
+    expect(awaitingRows(['t1', 't2'], tasks)).toEqual([
+      { kind: 'topic', topic: 't1' },
+      { kind: 'topic', topic: 't2' },
+      { kind: 'pr', task: tasks[0] },
+      { kind: 'pr', task: tasks[3] },
+    ])
+    expect(awaitingRows([], [review(4, 'human')])).toEqual([])
+  })
+
+  test("the PR a wait's note names", () => {
+    expect(prNamed('#436')).toBe('#436')
+    expect(prNamed(' 436 ')).toBe('#436')
+    expect(prNamed('PR #436')).toBe('#436')
+    expect(prNamed('https://github.com/acme/app/pull/436')).toBe('#436')
+    expect(prNamed('https://github.com/acme/app/pull/436/files')).toBe('#436')
+    expect(prNamed('the release PR')).toBe('the release PR')
+    expect(prNamed('')).toBe('')
   })
 })

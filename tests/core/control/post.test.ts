@@ -61,19 +61,19 @@ describe('posting to a session', () => {
     const content = (frame: string) => JSON.parse(frame).message.content as string
     expect(
       content(
-        wakeFrame('packager finished its turn', 'm-1', { topics: 2, working: 1, waiting: 1 }),
+        wakeFrame('packager finished its turn', 'm-1', { forYou: 2, working: 1, waiting: 1 }),
       ),
-    ).toBe('[Menkar] packager finished its turn (08:47:33) · 2 topics · 1 working · 1 waiting')
+    ).toBe('[Menkar] packager finished its turn (08:47:33) · 2 for you · 1 working · 1 waiting')
     expect(
       content(
-        wakeFrame('packager finished its turn', 'm-2', { topics: 0, working: 0, waiting: 0 }),
+        wakeFrame('packager finished its turn', 'm-2', { forYou: 0, working: 0, waiting: 0 }),
       ),
-    ).toBe('[Menkar] packager finished its turn (08:47:33) · 0 topics · 0 working · 0 waiting')
+    ).toBe('[Menkar] packager finished its turn (08:47:33) · 0 for you · 0 working · 0 waiting')
     expect(
       content(
-        wakeFrame('packager finished its turn', 'm-3', { topics: 1, working: 3, waiting: 0 }),
+        wakeFrame('packager finished its turn', 'm-3', { forYou: 1, working: 3, waiting: 0 }),
       ),
-    ).toBe('[Menkar] packager finished its turn (08:47:33) · 1 topic · 3 working · 0 waiting')
+    ).toBe('[Menkar] packager finished its turn (08:47:33) · 1 for you · 3 working · 0 waiting')
     expect(content(wakeFrame('packager finished its turn', 'm-4'))).toBe(
       '[Menkar] packager finished its turn (08:47:33)',
     )
@@ -82,13 +82,13 @@ describe('posting to a session', () => {
   test('the counts reach the socket with the post', async () => {
     const { sessions, socket } = registry({ sessionId: 'parent', peerProtocol: 1 })
     const peer = await listen(socket)
-    const counts = { topics: 2, working: 1, waiting: 0 }
+    const counts = { forYou: 2, working: 1, waiting: 0 }
     expect(await postToSession(sessions, 'parent', 'api finished its turn', 'm-5', counts)).toBe(
       'posted',
     )
     await peer.closed
     expect(peer.lines()).toBe(wakeFrame('api finished its turn', 'm-5', counts))
-    expect(peer.lines()).toContain('· 2 topics · 1 working · 0 waiting')
+    expect(peer.lines()).toContain('· 2 for you · 1 working · 0 waiting')
   })
 
   // Claude Code drops a message identical to the sender's previous one: a child that finishes two

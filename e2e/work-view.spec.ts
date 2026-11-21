@@ -46,6 +46,7 @@ interface SeedTask {
   step?: number
   note?: string
   waiting_on?: string
+  waiting_note?: string
   review_wait?: { on: string; note?: string }
   closed?: string
 }
@@ -517,6 +518,58 @@ test('a task in To review says whom it waits on, on the card and in the sidebar:
     const files = process.env.MENKAR_FILES
     if (files)
       await page.screenshot({ path: join(files, 'menkar-t43-to-review-waiting-on-pr.png') })
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.197: a task in To review waiting on a PR's approval or merge awaits the human, after
+// the topics, and the "for you" tile counts it; one waiting on the human or the orchestrator does not.
+test('Awaiting you shows a row per PR waiting on the human, after the topics; "for you" counts them; a click selects the assignee; a wait outside shows its kind and note (screenshots)', async () => {
+  const merge: SeedTask = {
+    number: 4,
+    title: 'Search page',
+    assignee: TEAM.w2,
+    state: 'to review',
+    steps: ['a', 'b', 'c'],
+    step: 3,
+    note: 'approved',
+    review_wait: { on: 'pr-merge', note: 'https://github.com/acme/app/pull/512' },
+  }
+  // Decision 1.199: a wait outside shows its kind's label and its note, as a review wait does.
+  const build: SeedTask = {
+    number: 5,
+    title: 'Nightly package',
+    assignee: TEAM.plain,
+    state: 'waiting',
+    steps: ['a', 'b', 'c'],
+    step: 2,
+    note: 'built locally',
+    waiting_on: 'build',
+    waiting_note: 'nightly',
+  }
+  const { launched, page } = await open([...IN_REVIEW, merge, build])
+  try {
+    const top = page.locator('#topics-section')
+    await expect(top.locator('.work-tile .tile-n')).toHaveText(['4', '0', '1'])
+    await expect(top.locator('.topics-toggle')).toHaveText('Awaiting you · 4')
+    await expect(top.locator('.topic-row')).toHaveCount(4)
+    await expect(top.locator('.topic-row').nth(2)).toHaveAttribute('data-pr-task', '1')
+    const pr = (n: number) => top.locator(`.pr-row[data-pr-task="${n}"]`)
+    await expect(pr(1).locator('.topic-title')).toHaveText('PR #436 · approve')
+    await expect(pr(1).locator('.pr-assignee')).toHaveText('packager')
+    await expect(pr(4).locator('.topic-title')).toHaveText('PR #512 · merge')
+    await expect(pr(4).locator('.pr-assignee')).toHaveText('docs writer')
+    await expect(top.locator('.pr-row')).toHaveCount(2)
+    await filesShots(page, (scheme) => `menkar-t170-awaiting-pr-${scheme}.png`)
+    await page.locator('.tab', { hasText: 'orchestrator' }).click()
+    await expect(page.locator('.tab.selected')).toHaveText(/orchestrator/)
+    await pr(1).click()
+    await expect(page.locator('.tab.selected')).toHaveText(/packager/)
+    await page.locator('#board-button').click()
+    await expect(
+      columnOf(page, 'waiting').locator('.task-card[data-task="5"] .card-note'),
+    ).toHaveText('waiting on the build nightly · built locally')
   } finally {
     await launched.close()
   }

@@ -600,7 +600,7 @@ test('a worker per task: started for task 1 as "client-work-t1"; parked while it
     await page.keyboard.type('STEPS')
     await said(page, 'TOOL task_steps: Task 1 has 3 steps')
     await page.keyboard.type('WAITS')
-    await said(page, 'TOOL task_progress: Task 1 is waiting on the PR review')
+    await said(page, 'TOOL task_progress: Task 1 is waiting on pr-approval (the PR review)')
 
     await page.locator('.tab').first().click()
     await page.locator('.xterm:visible').click()

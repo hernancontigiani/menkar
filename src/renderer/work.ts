@@ -1,6 +1,6 @@
 import { workCounts } from '../core/orchestration/counts'
 import { tasksFolded } from '../core/orchestration/rows'
-import type { TaskState } from '../core/orchestration/taskState'
+import { OUTSIDE_WAITS, type OutsideWait, type TaskState } from '../core/orchestration/taskState'
 import type { ProjectInfo } from '../core/projects/info'
 import type { DoneView, TaskView, WindowState } from '../shared/workspace'
 import { act, sessionState, stateDot } from './app'
@@ -35,7 +35,7 @@ export function modeTop(s: WindowState, project: ProjectInfo): HTMLElement[] {
     el(
       'div',
       { class: 'work-tiles' },
-      tile(counts.topics, t('work.tileTopics'), 'topics'),
+      tile(counts.forYou, t('work.tileTopics'), 'topics'),
       tile(counts.working, t('work.tileWorking'), 'working'),
       tile(counts.waiting, t('work.tileWaiting'), 'waiting'),
     ),
@@ -116,9 +116,30 @@ export function taskMenu(node: HTMLElement, task: TaskView): void {
   })
 }
 
+function outsideLabel(kind: OutsideWait): string {
+  switch (kind) {
+    case 'build':
+      return t('task.waitsOnBuild')
+    case 'ci':
+      return t('task.waitsOnCi')
+    case 'release':
+      return t('task.waitsOnRelease')
+    case 'pr-approval':
+      return t('task.waitsOnPrApproval')
+    case 'pr-merge':
+      return t('task.waitsOnPrMerge')
+    case 'other':
+      return t('task.waitsOnOther')
+  }
+}
+
 // What a waiting task waits on, or one in To review when not on the orchestrator (decision 1.164).
 export function waitsOn(task: TaskView): string {
-  if (task.state === 'waiting') return task.waitingOn ?? ''
+  if (task.state === 'waiting') {
+    const kind = OUTSIDE_WAITS.find((x) => x === task.waitingOn)
+    const on = kind ? outsideLabel(kind) : (task.waitingOn ?? '')
+    return [on, task.waitingNote].filter(Boolean).join(' ')
+  }
   const wait = task.state === 'to review' ? task.reviewWait : undefined
   const label = !wait
     ? ''

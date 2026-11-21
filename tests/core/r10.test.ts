@@ -290,7 +290,7 @@ test("wakeFrame's bytes and the wake delay", async () => {
   vi.setSystemTime(new Date(2026, 10, 16, 9, 30, 5))
   const frames = [
     wakeFrame('`worker` finished a turn.', 'msg-1'),
-    wakeFrame('`worker` finished a turn.', 'msg-2', { topics: 1, working: 2, waiting: 0 }),
+    wakeFrame('`worker` finished a turn.', 'msg-2', { forYou: 1, working: 2, waiting: 0 }),
   ]
   await expect(`${frames.join('')}WAKE_DELAY_MS ${WAKE_DELAY_MS}\n`).toMatchFileSnapshot(
     snapshot('wake.txt'),

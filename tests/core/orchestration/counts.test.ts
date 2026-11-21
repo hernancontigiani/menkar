@@ -38,8 +38,25 @@ const team = (on: boolean) => {
 
 describe('the Work view’s counts', () => {
   test('open and discussing topics; tasks in progress; tasks waiting', () => {
-    expect(workCounts(topics, tasks)).toEqual({ topics: 2, working: 2, waiting: 1 })
-    expect(workCounts([], [])).toEqual({ topics: 0, working: 0, waiting: 0 })
+    expect(workCounts(topics, tasks)).toEqual({ forYou: 2, working: 2, waiting: 1 })
+    expect(workCounts([], [])).toEqual({ forYou: 0, working: 0, waiting: 0 })
+  })
+
+  // Decision 1.197: a PR waiting on the human awaits them as a topic does.
+  test('"for you" counts each task in To review waiting on a PR, and nothing else in To review', () => {
+    const review = (on: 'orchestrator' | 'human' | 'pr-approval' | 'pr-merge') => ({
+      state: 'to review' as const,
+      reviewWait: { on },
+    })
+    const waits = [
+      review('pr-approval'),
+      review('pr-merge'),
+      review('human'),
+      review('orchestrator'),
+    ]
+    expect(workCounts(topics, [...tasks, ...waits]).forYou).toBe(4)
+    expect(postCounts(team(true), 'O', [], waits)?.forYou).toBe(2)
+    expect(workCounts([], [{ state: 'waiting', reviewWait: { on: 'pr-merge' } }]).forYou).toBe(0)
   })
 
   test('the tiles’ lists (closed topics and closed tasks already left out) count the same', () => {
@@ -50,7 +67,7 @@ describe('the Work view’s counts', () => {
 
   test('only the orchestrator of a project in the mode hears them', () => {
     expect(postCounts(team(true), 'O', topics, tasks)).toEqual({
-      topics: 2,
+      forYou: 2,
       working: 2,
       waiting: 1,
     })

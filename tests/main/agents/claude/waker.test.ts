@@ -52,7 +52,7 @@ describe("Claude's waker", () => {
     const { received } = await listen()
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 10, 17, 9, 5, 7))
-    const counts = { topics: 1, working: 2, waiting: 0 }
+    const counts = { forYou: 1, working: 2, waiting: 0 }
     const waker = mainKitOf('claude').waker
     expect(await waker?.wake(SESSION, '`worker` finished a turn.', counts)).toBe('posted')
     const frame = await received
