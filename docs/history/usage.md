@@ -203,3 +203,9 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 
 > Replaced 2026-11-23 (task 202, plan 47): `--rows panes`.
                     [--project NAME] [--rows turns|activity|tasks] [--format jsonl|csv] [--output FILE]
+
+## How it is built
+
+> Replaced 2026-11-23 (task 206): `menkar usage` exits once standard output and error have drained, which can be after `ready`.
+  Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
+  it and exits before `ready`, so no window opens and no display is needed. Checked on 2026-11-08

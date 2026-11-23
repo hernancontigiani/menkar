@@ -28,8 +28,14 @@ user sees in the Usage window is `docs/spec/usage.md`.
   written with no project and take their session's project once it has one.
 - **`menkar usage`** is the app's own binary. When main sees `usage` as the first argument (after
   Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
-  it and exits before `ready`, so no window opens and no display is needed. Checked on 2026-11-08
+  it and exits, so no window opens and no display is needed. Checked on 2026-11-08
   under `env -i`, with no `DISPLAY`.
+- **It exits once standard output and error have drained**, not at once: into a pipe Node writes
+  asynchronously, and an exit right after the writes cut the output at the pipe's buffer (64 KiB)
+  with exit 0. A reader slower than the app gets every byte; a write that fails (the reader went
+  away, EPIPE) turns an exit 0 into 1, quietly. `menkar --version` and the usage error of `menkar
+  open` end the same way. Waiting can take the process past `ready` with no window and no display
+  (checked on 2026-11-23 with no `DISPLAY`, a reader 3 s behind).
 - **Two openers at once.** The app's workers and a poller of `menkar usage now` may open the cache
   and the history together. `BEGIN IMMEDIATE` and the busy timeout serialize their writes, and each
   history migration step, the history's creation and the cache's rebuild read the version again

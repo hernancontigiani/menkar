@@ -210,12 +210,37 @@ function printVersion(): number {
   return 0
 }
 
-if (asksVersion(process.argv, app.isPackaged)) app.exit(printVersion())
+// A command that prints and ends. Into a pipe the streams write asynchronously, so the process
+// ends only once standard output and error have drained: exiting at once would cut the output at
+// the pipe's buffer. A write that failed (the reader went away) makes a 0 a 1, so a cut output
+// never passes for a whole one. Nothing is logged then: the log goes to standard error, which may
+// be the stream that failed.
+function exitAfterOutput(run: () => number): void {
+  let failed = false
+  const streams = [process.stdout, process.stderr]
+  for (const stream of streams)
+    stream.on('error', () => {
+      failed = true
+    })
+  const code = run()
+  const drained = (stream: NodeJS.WriteStream) =>
+    new Promise<void>((resolve) => {
+      stream.write('', (error) => {
+        if (error) failed = true
+        resolve()
+      })
+    })
+  void Promise.all(streams.map(drained)).then(() => app.exit(failed && code === 0 ? 1 : code))
+}
+
+if (asksVersion(process.argv, app.isPackaged)) exitAfterOutput(printVersion)
 else if (startedDetached()) app.exit(0)
-else if (command[0] === 'usage') app.exit(runUsageCommand(command.slice(1)))
+else if (command[0] === 'usage') exitAfterOutput(() => runUsageCommand(command.slice(1)))
 else if (command[0] === 'open' && openFiles.length === 0) {
-  process.stderr.write(`Usage: ${flavorFacts().command} open <file> [<file>…]\n`)
-  app.exit(2)
+  exitAfterOutput(() => {
+    process.stderr.write(`Usage: ${flavorFacts().command} open <file> [<file>…]\n`)
+    return 2
+  })
 } else if (!app.requestSingleInstanceLock({ files: openFiles })) {
   // Another Menkar runs: it got the files (or comes forward); this one ends.
   app.exit(0)
