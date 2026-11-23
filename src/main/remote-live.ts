@@ -2,6 +2,7 @@ import { type FSWatcher, watch } from 'node:fs'
 import { AGENT_IDS } from '../core/agents/ids'
 import { log } from '../core/log'
 import type { BridgeState } from '../core/remote/live'
+import { type BridgeSeen, bridgeStep, NOT_SEEN } from '../core/remote/remember'
 import { mainKitOf } from './agents/registry'
 import { agentPanes } from './panes'
 
@@ -13,6 +14,19 @@ const DEBOUNCE_MS = 250
 const POLL_MS = 5000
 
 const live = new Map<string, BridgeState>()
+const seenBridge = new Map<string, BridgeSeen>()
+
+// Who keeps the Remote Control list: told of each session whose bridge turned connected and is not
+// on it yet.
+interface Remembering {
+  listed(sessionId: string): boolean
+  remember(sessionId: string): void
+}
+let remembering: Remembering | null = null
+
+export function rememberConnected(keeper: Remembering): void {
+  remembering = keeper
+}
 
 export function remoteLive(paneId: string): BridgeState {
   return live.get(paneId) ?? 'unknown'
@@ -33,10 +47,19 @@ async function pass(changed: () => void): Promise<void> {
       live.set(pane.id, state)
       moved = true
     }
+    if (remembering) {
+      const keeper = remembering
+      const step = bridgeStep(seenBridge.get(pane.id) ?? NOT_SEEN, state, pane.sessionId(), (id) =>
+        keeper.listed(id),
+      )
+      seenBridge.set(pane.id, step.seen)
+      if (step.remember !== null) keeper.remember(step.remember)
+    }
   }
   for (const id of [...live.keys()]) {
     if (!seen.has(id)) {
       live.delete(id)
+      seenBridge.delete(id)
       moved = true
     }
   }

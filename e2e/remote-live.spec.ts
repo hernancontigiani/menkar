@@ -1,7 +1,7 @@
 import { chmodSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, type Locator, test } from '@playwright/test'
-import { launchApp } from './app'
+import { launchApp, savedState } from './app'
 import { prepare, SESSION } from './fixtures'
 
 // The phone shows Remote Control as Claude Code reports it now (plan 18, decisions 1.18 and 1.19).
@@ -37,10 +37,13 @@ process.stdin.resume()
 `
 
 let home = ''
+let root = ''
+const listed = () => savedState(root).remote_control ?? []
 
 function setup(remote: string[], rc: string) {
   return (dirs: { readonly root: string; readonly home: string }) => {
     home = dirs.home
+    root = dirs.root
     const env = prepare(dirs)
     writeFileSync(join(dirs.root, 'bin', 'claude'), LIVE_CLAUDE)
     chmodSync(join(dirs.root, 'bin', 'claude'), 0o755)
@@ -105,22 +108,45 @@ test('the row’s phone follows the bridge as Claude Code reports it: connected,
     ).toBeLessThanOrEqual(2)
     await page.screenshot({ path: 'test-results/rc-live.png' })
 
-    // Disconnected (`null`): gone from the row and the tab.
+    // A bridge turned on inside the session is remembered (decision 1.211): its next start
+    // carries the flag.
+    await expect.poll(listed, { timeout: 10_000 }).toEqual([SESSION])
+
+    // Disconnected (`null`): gone from the row and the tab, and still remembered.
     rc('null')
     await expect(rowPhone).toHaveCount(0, { timeout: 10_000 })
     await expect(tabPhone).toHaveCount(0)
+    expect(listed()).toEqual([SESSION])
 
     // Unreadable (no registry file): the app's own list decides; in it, the phone comes back
-    // with the fallback tooltip.
-    await row.click({ button: 'right' })
-    await page.locator('.menu-item', { hasText: 'Remote control' }).click()
-    await page.locator('.dialog button', { hasText: 'Later' }).click()
+    // with the fallback tooltip. In the list but read as off, the reading wins until then.
     await expect(rowPhone).toHaveCount(0)
     rc('absent')
     await expect(rowPhone).toHaveAttribute('title', 'Remote Control on at start (state unknown)', {
       timeout: 10_000,
     })
     await expect(tabPhone).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('a remembered bridge unchecked in the menu stays off the list while it stays connected', async () => {
+  const launched = await launchApp({ prepare: setup([], 'session_01FakeBridge') })
+  const page = launched.window
+  try {
+    const row = page.locator('.row', { hasText: 'fix the login bug' })
+    await row.dblclick()
+    await expect.poll(listed, { timeout: 10_000 }).toEqual([SESSION])
+    // Unchecking a session that runs is silent: no dialog.
+    await row.click({ button: 'right' })
+    await page.locator('.menu-item', { hasText: 'Remote control' }).click()
+    await expect(page.locator('.dialog')).toHaveCount(0)
+    await expect.poll(listed).toEqual([])
+    // More than one poll of the registry, the bridge still connected: not added back.
+    await page.waitForTimeout(6000)
+    await expect(row.locator('.phone')).toHaveAttribute('title', 'Remote Control connected')
+    expect(listed()).toEqual([])
   } finally {
     await launched.close()
   }

@@ -203,6 +203,15 @@ is shown as written; none is `—`).
   session started working meanwhile (the flag stays on). Working or blocked, the dialog offers only
   Cancel and Later and names `/remote-control`. Unchecking it is silent: a connected bridge stays
   until the next start.
+- **A bridge Menkar reads as connected is remembered** (decision 1.211, 2026-11-23): when a
+  pane's bridge turns connected (the live reading below) and its session is not in the list, the
+  session joins it, as if checked in the menu, so every later start carries the flag (a renew,
+  reopening Menkar, a resume, Restart now). This covers a bridge turned on by a typed
+  `/remote-control`. Only a change to connected counts (`bridgeStep`, `src/core/remote/remember.ts`;
+  the hook in `src/main/remote-live.ts`): a bridge that stays connected is not added again, so
+  unchecking it in the menu holds; *unknown* is neither connected nor a change; a connect seen
+  before the pane knows its session is added once it does. A disconnect, on its own or not,
+  removes nothing. Only agents whose kit reads a bridge take part.
 - **What the phone shows** (decision 1.18, 2026-11-09): whether a Remote Control bridge is
   connected **now** for the session's running process, however it was turned on (New's switch, the
   menu, or `/remote-control` typed in the session). The switch in the menus and on New keeps its

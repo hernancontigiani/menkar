@@ -284,6 +284,7 @@ import {
   undoBring,
 } from './project-files'
 import { currentNotices, currentProjects, dismissNotice, setProjects } from './projects'
+import { rememberConnected } from './remote-live'
 import { noteStarted, sessions, shownSessions, startedIds } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
 import { currentTasks, setTasks } from './tasks'
@@ -3561,6 +3562,17 @@ export async function startWorkspace(): Promise<void> {
   settings = settingsOf(await sessions.currentState())
   startPhase('state for the workspace')
   remoteIds = new Set(remoteControlList(await sessions.currentState()))
+  rememberConnected({
+    listed: (id) => remoteIds.has(id),
+    remember: (id) => {
+      log.info('a connected remote control bridge is remembered', { session: id })
+      remoteIds.add(id)
+      void sessions
+        .updateState((state) => setRemoteControl(state, id, true))
+        .then(() => changed())
+        .catch((error: unknown) => log.warn('remembering remote control failed', { error }))
+    },
+  })
   mutedIds = new Set(mutedList(await sessions.currentState()))
   savedAgents = sessionAgents(await sessions.currentState())
   namedIds = new Set(agentNamedList(await sessions.currentState()))
