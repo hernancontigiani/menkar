@@ -10,7 +10,6 @@ import {
   SCREENS_ENV,
   seed,
   seedClock,
-  seedWait,
   TODAY_SPAN_MINUTES,
   vocabulary,
 } from '../../e2e/captures/seed'
@@ -139,7 +138,6 @@ describe("the seed's time", () => {
     ['00:03', local(20, 0, 3)],
     ['12:00', local(20, 12, 0)],
   ])("at %s, today's events are today, in order, and none is after now", (_, now) => {
-    expect(seedWait(now)).toBe(0)
     const clock = seedClock(now)
     const floor = local(20, 0, 1)
     let previous = Number.POSITIVE_INFINITY
@@ -155,19 +153,6 @@ describe("the seed's time", () => {
   test('at 12:00, an event two hours ago is exactly two hours ago', () => {
     const now = local(20, 12, 0)
     expect(seedClock(now).today(120)).toBe(now - 120 * MINUTE)
-  })
-
-  test('at 23:55, the seed waits for midnight to pass instead of straddling it', () => {
-    const now = local(20, 23, 55)
-    const wait = seedWait(now)
-    expect(wait).toBe(7 * MINUTE)
-    const clock = seedClock(now + wait)
-    expect(new Date(clock.today(TODAY_SPAN_MINUTES)).getDate()).toBe(21)
-    expect(seedWait(now + wait)).toBe(0)
-  })
-
-  test('right after midnight it waits until today has room', () => {
-    expect(seedWait(local(20, 0, 0))).toBe(2 * MINUTE)
   })
 
   test('days ago are local wall times', () => {

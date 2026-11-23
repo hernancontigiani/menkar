@@ -93,9 +93,15 @@ the committed images weigh about 5 MB.
   is a compile error; a test seeds both locales and compares them with every string replaced by its
   key. Names are chosen to **sort the same in both languages**, since the app sorts sessions and
   projects by name.
-- **Time is the seed's**: every timestamp derives from the `now` it is given. Today's events are
-  squeezed in order after midnight when the day is young, so "Done today" holds whenever it runs;
-  near midnight the run waits rather than straddle it.
+- **Time is the run's, one fixed instant** (decided 2026-11-23, task 192): every run is taken at
+  `FIXED_NOW` in UTC (`e2e/captures/captures.run.ts`), in the seed and in the app alike, so a date,
+  an hour or an age on screen never moves an image from one run to the next. The seed derives every
+  timestamp from that `now`. `e2e/captures/fixed-clock.cjs` is required into main (`-r`), into each
+  worker thread, and as a session preload into each window's page, and shifts `Date` so every clock
+  starts at the instant and runs on; the walk checks main's, a worker's and the window's clock and
+  zone before its first scene, since a clock left out puts the real day in some image. Electron's
+  `-r` does not reach a worker thread, and a debugger script added when a window is created comes
+  too late for its first page: hence the wrapper around `Worker` and the preload.
 - **The stand-in agent** (`e2e/captures/stand-in-claude.mjs`) prints its session's scripted screen
   and sets the terminal title the way the app reads Claude Code's state. Claude Code's own chrome
   (its permission card, "esc to interrupt") stays English in both locales, as the real CLI shows it

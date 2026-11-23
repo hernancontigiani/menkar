@@ -53,8 +53,6 @@ export const STRINGS: Readonly<Record<Locale, Readonly<Record<Text, string>>>> =
 const MINUTE = 60_000
 // The furthest back a "today" event goes, in minutes.
 export const TODAY_SPAN_MINUTES = 600
-// A run this close before midnight waits for it rather than straddle two days.
-export const MIDNIGHT_MARGIN_MINUTES = 10
 
 function startOfDay(ms: number): number {
   const d = new Date(ms)
@@ -62,23 +60,8 @@ function startOfDay(ms: number): number {
   return d.getTime()
 }
 
-function nextMidnight(ms: number): number {
-  const d = new Date(startOfDay(ms))
-  d.setDate(d.getDate() + 1)
-  return d.getTime()
-}
-
 // Today's events are never before this, so they stay in "today" whatever the hour.
 const todayFloor = (ms: number) => startOfDay(ms) + MINUTE
-
-// How long to wait before seeding at `nowMs`: within the margin before midnight, until just after
-// it; in the minutes right after midnight, until today's events have room after the floor.
-export function seedWait(nowMs: number): number {
-  const midnight = nextMidnight(nowMs)
-  if (nowMs >= midnight - MIDNIGHT_MARGIN_MINUTES * MINUTE) return midnight + 2 * MINUTE - nowMs
-  const ready = startOfDay(nowMs) + 2 * MINUTE
-  return nowMs < ready ? ready - nowMs : 0
-}
 
 export interface SeedClock {
   readonly now: number
@@ -452,8 +435,8 @@ export interface SeedDirs {
   readonly home: string
 }
 
-// Writes the world for one launch in `locale` and `theme`, at the time `now` (wait seedWait(now)
-// first), and returns what the launch adds to the app's environment.
+// Writes the world for one launch in `locale` and `theme`, at the time `now`, and returns what the
+// launch adds to the app's environment.
 export async function seed(
   dirs: SeedDirs,
   locale: Locale,

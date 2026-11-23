@@ -2,6 +2,7 @@
 // the registry's order, each image written raw for site/scripts/import-captures.mjs to import.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { type ElectronApplication, expect, type Locator, type Page, test } from '@playwright/test'
 import { now } from '../../src/core/clock'
 import { en as appEn } from '../../src/core/i18n/en'
@@ -17,7 +18,7 @@ import {
   THEMES,
 } from './registry'
 import { SCENES, type Walker } from './scenes'
-import { SESSION, STRINGS, seed, seedWait } from './seed'
+import { SESSION, STRINGS, seed } from './seed'
 
 // Where the raw images go; the importer reads them from here.
 export const RAW = '/tmp/menkar-captures/raw'
@@ -27,6 +28,13 @@ const SCALE = 2
 // Where the pointer waits during a shot: the header, right of the window's title.
 const REST = { x: 1000, y: 16 }
 const SHOT_ATTEMPTS = 5
+// Every run is taken at this instant in this zone, in the seed and in the app alike, so a date, an
+// hour or an age on screen never moves an image. A weekday afternoon: today's events fit after
+// midnight unsqueezed, and yesterday is a working day.
+const FIXED_NOW = Date.UTC(2026, 10, 18, 15, 0, 0)
+const ZONE = 'UTC'
+process.env.TZ = ZONE
+const FIXED_CLOCK = fileURLToPath(new URL('./fixed-clock.cjs', import.meta.url))
 const APP_STRINGS: Readonly<Record<Locale, Partial<Record<keyof typeof appEn, string>>>> = {
   en: appEn,
   es: appEs,
@@ -61,14 +69,16 @@ for (const locale of pick(LOCALES, process.env.CAPTURE_LOCALES))
       expect(process.env.MENKAR_E2E_EXECUTABLE, 'captures photograph this tree’s out/').toBe(
         undefined,
       )
-      const wait = seedWait(now())
-      if (wait > 0) {
-        test.setTimeout(wait + 120_000)
-        await new Promise((r) => setTimeout(r, wait))
-      }
       const launched = await launchApp({
-        prepare: (dirs) => seed(dirs, locale, theme, now()),
-        args: [`--force-device-scale-factor=${SCALE}`],
+        prepare: async (dirs) => {
+          const shift = FIXED_NOW - now()
+          return {
+            ...(await seed(dirs, locale, theme, now() + shift)),
+            MENKAR_CAPTURE_CLOCK_SHIFT: String(shift),
+            TZ: ZONE,
+          }
+        },
+        args: ['-r', FIXED_CLOCK, `--force-device-scale-factor=${SCALE}`],
       })
       const page = launched.window
       const errors: string[] = []
@@ -78,6 +88,7 @@ for (const locale of pick(LOCALES, process.env.CAPTURE_LOCALES))
       })
       try {
         await identify(launched.app, page, locale)
+        await fixedClock(launched.app, page)
         await size(launched.app, page)
         const out = join(RAW, locale, theme)
         rmSync(out, { recursive: true, force: true })
@@ -95,6 +106,33 @@ for (const locale of pick(LOCALES, process.env.CAPTURE_LOCALES))
     })
 
 type App = Awaited<ReturnType<typeof launchApp>>['app']
+
+// The app's clocks read the run's instant and zone, in main, a worker thread and the window: a
+// clock left out would put today's date or hour in some image.
+async function fixedClock(app: App, page: Page): Promise<void> {
+  const read = () => ({ now: Date.now(), offset: new Date().getTimezoneOffset() })
+  const main = await app.evaluate(read)
+  const worker = await app.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const { Worker } = process.getBuiltinModule('node:worker_threads')
+        const w = new Worker('require("node:worker_threads").parentPort.postMessage(Date.now())', {
+          eval: true,
+        })
+        w.once('message', resolve)
+        w.once('error', reject)
+      }),
+  )
+  const renderer = await page.evaluate(read)
+  // Within the minutes a run takes since its launch.
+  const near = (at: number) => at >= FIXED_NOW && at - FIXED_NOW < 10 * 60_000
+  expect({
+    main: near(main.now),
+    worker: near(worker),
+    renderer: near(renderer.now),
+    offsets: [main.offset, renderer.offset],
+  }).toEqual({ main: true, worker: true, renderer: true, offsets: [0, 0] })
+}
 
 async function identify(app: App, page: Page, locale: Locale): Promise<void> {
   expect(await app.evaluate(({ app }) => app.getAppPath())).toBe(resolve('.'))
