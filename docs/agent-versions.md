@@ -51,7 +51,27 @@ generates no title. Re-measured on each Codex upgrade.
 
 ## Cursor — no row yet, owner: its consultant
 
-## OpenCode — no row yet, owner: its consultant
+## OpenCode — validated at 2.3.0 (2026-11-23), owner: `opencode`
+
+| What | State | Where it is described |
+|---|---|---|
+| Menkar's own server: `opencode serve --stdio --port <p>` with `OPENCODE_PASSWORD` and `OPENCODE_CONFIG_CONTENT`; it exits when its stdin closes (also after a SIGKILL of Menkar) and takes its MCP children with it; the password does not reach them | measured 2.3.0 (real check, task 198) | `docs/agents.md` |
+| A session made through the API before its TUI (`POST /api/session {id, title, location, model}`), its first prompt posted, then `opencode --server <proxy> -s <id> <dir>`: the title kept, the prompt sent once, `/new` resending nothing | measured 2.3.0 (task 198) | `docs/agents.md` |
+| The per-pane proxy: plain HTTP/1.1 and SSE, the pane's session from `POST /api/rpc/opencode.goal/get`; the pane follows `/new` and the picker | measured 2.3.0 (task 198) | `docs/session-control.md` |
+| The screen, read whole (the hidden cursor stays where it last drew): working (`esc interrupt`, `esc again to interrupt`), idle after an interrupt, the permission card and the question card as blocked; a subagent keeps its root working | measured 2.3.0 (task 198, re-check on 492) | `docs/agent-state.md` |
+| Waking by `POST …/prompt {delivery:"queue"}`: an idle session at once, behind a permission card untouched, a draft kept | measured 2.3.0 | `docs/session-control.md` |
+| Menkar's MCP per folder (`PUT /api/experimental/mcp/<server>`, `codemode:false`): its tools listed directly, no card with `menkar_*: allow`; every session in that folder sees them, mode on or off (1.141) | measured 2.3.0 (task 198) | `docs/session-control.md` |
+| The team block as the instruction entry `menkar.team`: in the system prompt before the first answer; a change mid-turn reaches the model at the next step as a `<system-update>`, with no new turn | measured 2.3.0 (task 198) | `docs/session-control.md` |
+| Usage from `opencode.db` (read only): a turn per root user message, subagents under their root; the cost and tokens equal OpenCode's `session_v2` | measured 2.3.0 (task 198) | `docs/usage.md` |
+| The context reading: the catalog's `limit.context` from the `kv` row; none for a model outside the catalog, while OpenCode's footer uses the user's config | measured 2.3.0 (none shown for a config-only provider); a catalog model not checked with a stand-in | `docs/usage.md` |
+| D9: a turn of the session in another server is detected at a resume, and one Menkar line is drawn in the pane, plus a log notice | measured 2.3.0 (task 198) | `docs/agents.md` |
+| The version word: `opencode --version` prints `opencode v2.3.0` (in colour under `FORCE_COLOR`); read with `NO_COLOR` as `2.3.0` | measured 2.3.0 (task 198, re-check) | `docs/agent-versions.md` |
+| The TUI's own update check opens an "Update available" modal when a newer OpenCode exists (2.4.0 here) | measured 2.3.0; a topic for the human | — |
+
+How to repeat: extract the build's `.deb`; run the real-check specs (`rc/*.spec.ts`: `launchApp`
+with `MENKAR_E2E_EXECUTABLE`, the real `opencode` linked into the run's `bin/`, and a stand-in
+OpenAI-compatible model declared in the throwaway `opencode.json`) under `xvfb-run`; never the
+human's home, service or credentials.
 
 ## On a new version of an agent
 

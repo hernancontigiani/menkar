@@ -15,5 +15,5 @@ export const descriptor: AgentDescriptor = {
   teamLimits: null,
   callerMeta: SESSION_META,
   versionWord: 1,
-  versions: { validated: null, floor: null },
+  versions: { validated: '2.3.0', floor: null },
 }
