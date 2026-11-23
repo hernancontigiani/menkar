@@ -378,7 +378,9 @@ marked. Paths below write `<dir>` for the session's folder.
     a minute). The first frame is `{"id":"evt_…","type":"server.connected","data":{}}`. Every other
     event: `{"id":"evt_…","created":<ms>,"type",["location":{"directory"}],"data":{…},
     ["durable":{"aggregateID":"<session id>","seq":N,"version":1}]}`. `data` per type:
-    `session.created` `{sessionID,slug,version,projectID,location,subpath:"",title}`;
+    `session.created` `{sessionID,slug,version,projectID,location,subpath:"",title}` for a root; a
+    subagent's child adds `"parentID":"<root>"` after `projectID` and `"agent":"general"` at the end
+    (m, item 82);
     `session.renamed` `{sessionID,title}`; `session.viewed` `{sessionID,idle}`;
     `session.inbox.enqueued` `{inboxID,sessionID,item:{type:"user",payload:{text},delivery}}`;
     `session.inbox.delivered` / `.cancelled` `{sessionID,inboxID}`; `session.execution.started` /
@@ -665,6 +667,71 @@ PID).
     there after 3 s and after a whole turn**: the TUI repaints only what changes, so the line stays
     until its cells are redrawn. A line printed before the TUI started was **hidden while it ran**
     and visible again after it exited.
+81. **The catalog row, read without the server:** `kv.value` is JSON text whose `body` is **itself a
+    JSON string** (11.6 MB), an object keyed by provider id, then `models` keyed by model id (the
+    key equals the model's `id` in all 9,937 models). So the limit is
+    `json_extract(json_extract(value,'$.body'), '$."<providerID>".models."<modelID>".limit.context')`
+    (m: 200000 for `opencode`/`big-pickle`, 1000000 for `zai`/`glm-5.3-flashx`). Keys hold `.`,
+    `/`, `:` and `@` (provider `wafer.ai`; models such as `google/gemma-3`, `…:free`, `…@eu`), never
+    `"`: quote both keys. 192 models have no `limit.context`. A provider defined only in the user's
+    config (here `stub`) is not in the catalog. **A user's `limit.context` override is stored
+    nowhere in the database** (no row holds a limit): only in their config.
+82. **Subagent events, with times from the post** (`/api/event`):
+    - one child: root `execution.started` (+581); child `session.created {parentID}` (+1,425),
+      `inbox.enqueued` (its prompt), `execution.started` (+1,431); **root `execution.succeeded`
+      (+2,286), after the child had started**; child `execution.succeeded` (+3,095); root
+      `inbox.enqueued` `synthetic` "<subagent …>" (+3,098), root `execution.started` (+3,100),
+      `succeeded` (+3,936). No moment with nothing running; the root restarts **3–5 ms** after the
+      child ends;
+    - two children in one step: both created and started within 30 ms; the faster child's report
+      came while the root was still running and joined that execution (`synthetic` enqueued and
+      delivered, no new start); the root ended (+2,573) while the slower child ran; that child's end
+      (+3,894) restarted the root 4 ms later;
+    - a child that cannot start (`model: "stub/nomodel"`): **no child is created**; the root's tool
+      fails (`session.tool.failed` on the root) and the root's execution continues and ends
+      normally.
+83. **`kv`'s DDL:** ``CREATE TABLE `kv` (`key` text PRIMARY KEY, `value` text NOT NULL,
+    `time_created` integer NOT NULL, `time_updated` integer NOT NULL)``, no other index. **A fresh
+    home with `OPENCODE_DISABLE_MODELS_FETCH=1`** had **no `kv` rows** after the server started and
+    answered `GET /api/model`: the bundled snapshot stays in memory; the row exists only after a
+    fetch.
+
+## Real check of Menkar's OpenCode support (2026-11-23, task 198)
+
+Menkar Sandbox 0.1.0-491.g813d0f17 (`multi-agent` at `813d0f1`), extracted from its `.deb` and
+driven by Playwright under xvfb with the real opencode 2.3.0, throwaway HOME/XDG and the stand-in
+model; full results per point in `prompts/reports/opencode-t198-real-check.md`. Measured:
+
+84. Passed: New's title and first prompt (no re-submit on `/new`); working, "esc again to
+    interrupt" and idle after an interrupt; a subagent keeps the root working with one end;
+    `/new` and the picker followed; no server or MCP child after the last tab, none after a
+    SIGKILL of Menkar; worker tools without a card; a team update mid-turn as a `<system-update>`
+    at the next step in one execution; a wake waits behind a permission card; Menkar's usage cost
+    and tokens equal `session_v2`'s (0.00936); D9's line and log notice.
+85. Failed: **the real permission card stayed `working`, never `blocked`**, though it sat within
+    the rule's last 12 non-blank lines; **About's version had ANSI codes** when the app's
+    environment had `FORCE_COLOR=1` (`opencode --version` colours its output then). Both go to a
+    fix and a re-check (set, 2026-11-23). As designed, not a failure: a mode-off session in a
+    folder where a mode-on session mounted Menkar's MCP gets every `menkar_*` tool — decision 1.141
+    mounts per folder on Menkar's one server, so every OpenCode session in that folder pays it,
+    mode on or off; "exact folder" means a session in another folder (a subfolder included) gets
+    none.
+86. Not checkable with a stand-in: the context ring for a model outside the catalog (OpenCode's
+    footer read "1.0K (2%)" from the config's limit; Menkar drew none), and a real model using
+    `load_skill` unprompted.
+87. The TUI checks for updates itself: with v2.4.0 published it showed "/update to install
+    v2.4.0" and an "Update available" modal over a new session's home screen, taking keystrokes;
+    `"autoupdate": false` in the (throwaway) user config stops it.
+89. **Re-check on build 0.1.0-492.gd937c868 (task 201's fixes, 2026-11-23):** the permission card
+    and the question card now read `blocked` (from ~2 s after the card appears), working and the
+    Esc steps unchanged, a subagent still keeps its root working, and About reads `2.3.0` under
+    `FORCE_COLOR=1`. The cause of the earlier miss, measured for task 201: with a card up, the
+    TUI hides its cursor and leaves it high on the screen (row 7 for the permission card, at the
+    running tool's spinner line; row 0 for the question card), and Menkar's mirror read only up
+    to the cursor's row.
+88. The question tool's card: "→ Asked 1 question", `Questions`, the question, numbered options
+    with descriptions, "Type your own answer", "↑↓ select  enter submit  esc dismiss"; Menkar's
+    dot stays `working` while it waits.
 
 ## 1. The five facts
 
