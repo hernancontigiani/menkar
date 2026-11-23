@@ -396,18 +396,6 @@ had no wake either.
 **Trigger:** Cursor in the orchestration mode. First question: which of its channels can carry the
 inbox to the model off the human's screen.
 
-### OpenCode's form card read as blocked
-
-OpenCode's question tool shows a form (`form.created` among its server's events) that waits for the
-human, like a permission card. Its screen was never captured on a real TUI, so OpenCode's state
-rules do not read it: an OpenCode session at a form shows idle, not blocked, and no notification
-says it waits. A rule written from the event alone, or a guessed screen, could read a reply that
-quotes a form as blocked.
-
-**Trigger:** `opencode` measures the form on a real TUI (its screen, and whether the event names
-the session), or the human sees a session wait at a form unnoticed. First question: whether the
-screen or the server's event is the signal, as the permission card is read from the screen.
-
 ### Saying in the window that an OpenCode is too old for Menkar's tools
 
 Menkar's OpenCode server checks `/openapi.json` for the instruction-entry route and the per-folder

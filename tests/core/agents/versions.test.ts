@@ -13,6 +13,7 @@ import {
   type Standing,
   standingOf,
   withHiddenVersion,
+  withoutEscapes,
 } from '../../../src/core/agents/versions'
 import { catalog } from '../../../src/core/i18n'
 import { parseState } from '../../../src/core/state'
@@ -67,6 +68,14 @@ describe('an installed version against the validated one and the floor', () => {
     expect(
       standingOf(of('opencode', 'opencode v2.3.0\n'), true, { validated: '2.3.0', floor: null }),
     ).toBe('validated')
+  })
+
+  // OpenCode 2.3.0 under FORCE_COLOR=1, as measured: every word is wrapped in SGR codes.
+  test('a colored --version reads as the plain one', () => {
+    const colored = '\x1b[1mopencode\x1b[0m \x1b[2mv\x1b[0m\x1b[1m2.3.0\x1b[0m\n'
+    expect(readVersion(colored, descriptorOf('opencode').versionWord)).toBe('2.3.0')
+    expect(readVersion('\x1b[32m2.1.329\x1b[0m (Claude Code)\n')).toBe('2.1.329')
+    expect(withoutEscapes('\x1b]8;;https://x\x1b\\a\x1b]0;t\x07b\x9b1mc\x1bMd')).toBe('abcd')
   })
 })
 

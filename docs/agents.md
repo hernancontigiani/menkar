@@ -537,11 +537,12 @@ pane's proxy reads it from the TUI's requests (D14):
 
 ## OpenCode: its state
 
-- **The screen** (`state.ts`, from v2.3.0's TUI): blocked is the permission card (its heading and
-  its choices) in the last 12 lines; working is "esc interrupt" in the footer's last line only, so
-  a reply that quotes it is not a turn. The tab strip's spinner also turns while a message only
-  waits in the inbox, so it is not read. A form card (`form.created`, OpenCode's question tool) is
-  not read as blocked (`docs/NOT_BUILT_YET.md`).
+- **The screen** (`state.ts`, from v2.3.0's TUI), read whole (`reads: 'wholeScreen'`): the TUI
+  leaves its hidden cursor wherever it last drew, far above the card or the footer. Blocked is the
+  permission card (its heading and its choices) in the last 12 lines, or the question tool's card
+  (its keys' row, "↑↓ select  enter submit  esc dismiss", in the last 3); working is "esc
+  interrupt" in the footer's last line only, so a reply that quotes it is not a turn. The tab
+  strip's spinner also turns while a message only waits in the inbox, so it is not read.
 - **The server's events** (`events.ts`, `Executions`): an execution's end is the pane's turn-end
   record. A subagent runs in a session of its own and its root's execution ends while it works: a
   root counts as running while any session under it does (by `session.created`'s `parentID`), its

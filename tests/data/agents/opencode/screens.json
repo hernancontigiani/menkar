@@ -48,6 +48,24 @@
     "state": "blocked"
   },
   {
+    "name": "the permission card on OpenCode 2.3.0's real screen, its whole 47 rows",
+    "title": "OpenCode",
+    "screen": "   rc-title                      ! New session                   +\n\n  ┃\n  ┃  SLOW turn for esc\n  ┃\n\n     Build · m1 · 3.3s · interrupted\n\n  ┃\n  ┃  RUNTOOL now\n  ┃\n\n  ┃\n  ┃  ⠋ touch b.txt\n  ┃\n\n     Press ctrl+b to move running work to the background\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n  ┃\n  ┃  △ Permission required\n  ┃\n  ┃  $ touch b.txt\n  ┃\n  ┃\n  ┃   Allow once   Always allow   Reject                              ctrl+f fullscreen  ⇆ select  enter confirm\n  ┃\n",
+    "state": "blocked"
+  },
+  {
+    "name": "the question card on OpenCode 2.3.0's real screen, its whole 47 rows",
+    "title": "OpenCode",
+    "screen": " ? cur                           +\n\n  ┃\n  ┃  RUNTOOL card\n  ┃\n\n     + 1 command\n\n     tool done 2\n\n     Build · m1 · 7.0s · 1111.1 tok/s · 815ms ttft\n\n  ┃\n  ┃  ASKQ please\n  ┃\n\n     → Asked 1 question\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n  ┃\n  ┃  Questions\n  ┃\n  ┃  Which one?\n  ┃\n  ┃  1. Alpha\n  ┃     the first\n  ┃  2. Beta\n  ┃     the second\n  ┃  3. Type your own answer\n  ┃\n  ┃  ↑↓ select  enter submit  esc dismiss\n  ┃",
+    "state": "blocked"
+  },
+  {
+    "name": "a reply that quotes the question card's keys is not a question",
+    "title": "OpenCode",
+    "screen": " • Screens                     +\n\n  ┃  what does the question card's footer say?\n\n     It says \"↑↓ select  enter submit  esc dismiss\".\n\n     ▣  Build · m1 · 600ms\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    1.2K (1%)  ctrl+p commands",
+    "state": "idle"
+  },
+  {
     "name": "the card answered with Reject, the step interrupted",
     "title": "OpenCode",
     "screen": " • Make a file                     +\n\n  ┃  make b.txt\n\n     ▣  Build · m1 · interrupted\n\n  ┃  \n  ┃  Build · m1 Stub\n  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n  /home/dev/work:master    1.0K (1%)  ctrl+p commands",

@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { kitOf } from '../core/agents/registry'
 import type { VersionFloor } from '../core/agents/types'
+import { withoutEscapes } from '../core/agents/versions'
 import type { Start } from '../core/command'
 import { controlPaths, writeTextAtomic } from '../core/control/files'
 import { log } from '../core/log'
@@ -94,12 +95,17 @@ let toldOld = false
 
 function versionOf(cli: string, floor: VersionFloor): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(cli, ['--version'], { timeout: VERSION_WAIT_MS }, (error, stdout) => {
-      if (error) {
-        log.warn('the agent CLI did not say its version', { cli, error })
-        resolve(null)
-      } else resolve(floor.read(stdout))
-    })
+    execFile(
+      cli,
+      ['--version'],
+      { timeout: VERSION_WAIT_MS, env: { ...process.env, NO_COLOR: '1' } },
+      (error, stdout) => {
+        if (error) {
+          log.warn('the agent CLI did not say its version', { cli, error })
+          resolve(null)
+        } else resolve(floor.read(withoutEscapes(stdout)))
+      },
+    )
   })
 }
 

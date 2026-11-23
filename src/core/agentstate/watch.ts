@@ -1,5 +1,5 @@
 import type { RawState } from './detect'
-import { detectState } from './detect'
+import { detectState, readingOf } from './detect'
 import type { ScreenMirror } from './mirror'
 
 // Output arrives in bursts: the first change schedules one check this long after it, and the
@@ -40,7 +40,11 @@ export class PaneWatcher {
 
   check(): void {
     const screen = this.pane.foreground()
-      ? detectState(this.pane.provider, this.pane.mirror.title(), this.pane.mirror.screen())
+      ? detectState(
+          this.pane.provider,
+          this.pane.mirror.title(),
+          this.pane.mirror.screen(readingOf(this.pane.provider)),
+        )
       : 'idle'
     const raw = screen === 'idle' && this.pane.serverRunning?.() ? 'working' : screen
     if (raw === this.raw) return

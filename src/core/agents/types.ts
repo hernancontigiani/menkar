@@ -1,4 +1,4 @@
-import type { RawState } from '../agentstate/raw'
+import type { RawState, ScreenReading } from '../agentstate/raw'
 import type { Chat } from '../chat/session'
 import type { TurnText } from '../classifier/input'
 import type { Start } from '../command'
@@ -223,6 +223,8 @@ export interface Fork {
 // What the agent is doing, read from the title it set and the text on its screen.
 export interface StateRules {
   detect(title: string, screen: string): RawState
+  // 'toCursor' when absent.
+  readonly reads?: ScreenReading
 }
 
 // A chat tab's process: what opening the tab starts, and how a message reaches the agent.

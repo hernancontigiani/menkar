@@ -108,3 +108,12 @@ Decision 1.195 (the human, 2026-11-20, amending D5), measured by `codex` on code
 > Left on 2026-11-21: OpenCode joins (plan 39, P2.7, task 196).
 Menkar runs more than one coding agent: Claude Code, Cursor and Codex. What differs per agent is
 kept in one place per agent, so a change to one agent cannot break another and shared code never
+
+## OpenCode: its state
+
+> Left on 2026-11-23: the screen is read whole and the question card is blocked (task 201).
+- **The screen** (`state.ts`, from v2.3.0's TUI): blocked is the permission card (its heading and
+  its choices) in the last 12 lines; working is "esc interrupt" in the footer's last line only, so
+  a reply that quotes it is not a turn. The tab strip's spinner also turns while a message only
+  waits in the inbox, so it is not read. A form card (`form.created`, OpenCode's question tool) is
+  not read as blocked (`docs/NOT_BUILT_YET.md`).

@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import type * as Headless from '@xterm/headless'
+import type { ScreenReading } from './raw'
 
 // @xterm/headless ships CommonJS only, which Node's ESM cannot import by name.
 const { Terminal } = createRequire(import.meta.url)('@xterm/headless') as typeof Headless
@@ -34,15 +35,17 @@ export class ScreenMirror {
     return this.currentTitle
   }
 
-  // The text of as many rows as the terminal is tall, ending at the cursor's row, as plain text.
-  // Rows the terminal wrapped continue the previous line, with no line break, as a terminal's own
-  // text read does.
-  screen(): string {
+  // The screen as plain text: as many rows as the terminal is tall ending at the cursor's row, or
+  // the visible screen's rows. Rows the terminal wrapped continue the previous line, with no line
+  // break, as a terminal's own text read does.
+  screen(reading: ScreenReading = 'toCursor'): string {
     const buffer = this.terminal.buffer.active
     const cursor = buffer.baseY + buffer.cursorY
-    const first = Math.max(0, cursor - this.terminal.rows)
+    const first =
+      reading === 'wholeScreen' ? buffer.baseY : Math.max(0, cursor - this.terminal.rows)
+    const last = reading === 'wholeScreen' ? buffer.baseY + this.terminal.rows - 1 : cursor
     let text = ''
-    for (let row = first; row <= cursor; row += 1) {
+    for (let row = first; row <= last; row += 1) {
       const line = buffer.getLine(row)
       if (line === undefined) continue
       if (row > first && !line.isWrapped) text += '\n'

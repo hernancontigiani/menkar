@@ -35,12 +35,17 @@ let looking: Promise<void> | null = null
 
 function versionOf(cli: string, word: number): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(cli, ['--version'], { timeout: VERSION_WAIT_MS }, (error, stdout) => {
-      if (error) {
-        log.warn('an agent CLI did not say its version', { cli, error })
-        resolve(null)
-      } else resolve(readVersion(stdout, word))
-    })
+    execFile(
+      cli,
+      ['--version'],
+      { timeout: VERSION_WAIT_MS, env: { ...process.env, NO_COLOR: '1' } },
+      (error, stdout) => {
+        if (error) {
+          log.warn('an agent CLI did not say its version', { cli, error })
+          resolve(null)
+        } else resolve(readVersion(stdout, word))
+      },
+    )
   })
 }
 
