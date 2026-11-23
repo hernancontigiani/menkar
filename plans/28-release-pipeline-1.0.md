@@ -487,6 +487,12 @@ says so and waits.
 
 **For block 5 (Cloudsmith):**
 
+> **Recorded (the human, 2026-11-23):** workspace `menkar`; repository `menkar-packages` (the slug
+> `menkar` stayed reserved after a first, private repository was deleted), created as a Broadcast
+> with visibility Open source, licence GNU GPL v3.0 or later, project URL the GitHub repository.
+> Still to come: the service account's slug, the OIDC provider (or the API-key fallback), the GPG
+> fingerprint and expiries.
+
 2. Create a Cloudsmith account with two-factor authentication, and a workspace for Menkar.
 3. Create a repository `menkar`, visibility **Open Source**, licence GPL-3.0-or-later, project
    URL the GitHub repository, accepting the open-source hosting terms.
