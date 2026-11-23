@@ -2815,3 +2815,78 @@ P0's blocks run in turn.
 - **Captures:** the Settings list gained "Cursor", so `settings-look` and `settings-integrations`
   were recaptured in both languages and themes and signed off; `es/light/usage-spend` came out
   mid-load (the star) in that run and was put back to its committed bytes, not signed.
+
+### P3.2 (`menkar-t219`, task 219, 2026-11-23)
+
+- **Built:** Cursor's Launcher (`--new-session-id <uuid>`, `--model` on a new start only,
+  `--add-dir <files folder>`, the pane's `--plugin-dir`, the first prompt after `--`); its
+  `ids.newId(installed)` (a UUID from the descriptor's `versions.floor` on, 2026.11.13); its
+  McpMount, a plugin folder per pane (`<control>/panes/<pane>/<flavour dir>/`: `.mcp.json` naming
+  the pane, the agent and main's XDG directories, `hooks/hooks.json`), so `handleControl`,
+  `start_session {agent:"cursor"}` and the first-time card's agent choice now take Cursor
+  (`caps.tools`, `firstPrompt`); its TeamDelivery (`cursor.md`; the block as the plugin's
+  `sessionStart` `additional_context` through `cat '<file>'`, on a new start; `heldAtStart` →
+  `recorded` on a resume; `preCompact` → a `compact` start record through the statusline
+  program's new `pre-compact` mode); the rewritten-transcript reader (`RewrittenJsonlReader`:
+  head and tail windows re-read on any size, mtime or inode change; its fixture
+  `tests/data/agents/cursor/rewritten/`); the trust prompt read as blocked; CI's R10 step lets
+  Cursor's rows differ on the branch, never go missing.
+- **`cursor`'s answers (measured on 2026.11.13-eacade1, 2026-11-23), each now in the code or the
+  docs:** `--new-session-id` starts a new chat under that id and fires `sessionStart` with it;
+  an unknown option, or a positional prompt starting with `-`, stops at once with commander's
+  `error: unknown option '…'`, exit 1 (so `--` before the prompt); `additional_context` from `cat`
+  of a 4.5 KB file is obeyed; `/new` keeps the block with no `sessionStart` and no id told; a
+  plugin needs no manifest; Menkar's skills folder as a second `--plugin-dir` lists the skills by
+  plain name and the model reads `SKILL.md` by path (no Skill tool), and reads outside the
+  workspace with no card; deferred tools are found with `GetDynamicTools` on
+  `plugin-<folder>-menkar`; a plugin's `preCompact` runs with no user entry (`trigger`,
+  `session_id`, …); `/summarize` keeps the creation's block and the last two messages verbatim;
+  the transcript is rewritten in place (same inode), one `turn_ended`, the last turn's; `--trust`
+  skips the trust prompt and writes `.workspace-trusted`; `--model` on a resume changes the chat's
+  model for good.
+- **Set's decisions (2026-11-23):** the fallback is the descriptor's `versions.floor` (a test
+  holds it equal to the team block's floor, so below it Cursor also starts without the block, one
+  `team.oldCursor` toast); and, on the unknown-option line, option b: main reads a new pane's first
+  30 s or 64 KiB for the kit's `ids.refused`, logs, remembers the executable (path and mtime) as
+  taking no id, and the pane shows `terminal.idRefused` in en and es; no restart, no re-keying.
+- **Deviations:** files beyond P3.2's list: `src/core/agents/types.ts` (`newId(installed)`,
+  `ids.refused`, `TeamDelivery.startedWith`), `src/core/agents/refusal.ts` (new),
+  `src/core/agents/cursor/{descriptor,index}.ts`, `src/core/context/statusline.ts`
+  (`pre-compact`), `src/main/{workspace,team,agent-versions}.ts`, `scripts/ci.mjs`, i18n,
+  `e2e/{fixtures,r10.spec}.ts`, `e2e/cursor.spec.ts` (new, P3.5 extends it),
+  `tests/data/package/sandbox/files.txt` (the `cursor.md` line written by hand, its size the
+  part's; `packager` re-records it with the next sandbox build). `main/team.ts` records what a
+  session holds before asking for a teller, so a Cursor resume starts from it before P3.4 gives
+  Cursor one. **`startedWith`** is a member §2.5.6 did not have: a Cursor resume is given no block
+  (no `sessionStart`), so a compaction there must not leave the pane believing the block it was
+  started with; it is told the whole block again.
+- **My choices:** the compaction record through the statusline program (P3.3's hook program does
+  not exist yet; the same writer and reader as Claude's `compact`); `--add-dir` for the files
+  folder (Cursor started with it in `cursor`'s run; what it grants is not measured); no
+  `--model` on a resume (the chat keeps its own); no `--trust` (it would make Cursor write
+  `.workspace-trusted` for the human); `preCompact` only in the mode; the plugin's hooks file
+  written whole at each start, so a resume never keeps an earlier `sessionStart`; the part's
+  server named by its ends (`plugin-menkar…-menkar`), since one static part serves both flavours.
+- **Seen red:** the reader (both tests against `JsonlReader`); the R10 step's exception; Cursor's
+  team part in the package; a resume given a hook; `heldAtStart` on a resume; the floor's
+  accepts; `ids.refused` missing; the `pre-compact` mode undispatched; the e2e with main's refusal
+  read removed (no line, 20 s timeout).
+- **Removed `expect(` lines (13), each an assertion of Cursor's earlier roster:** `launch.test.ts`
+  (the CLI alone, `--resume` alone, `kit.mcp`/`kit.team`/`kit.env` null — `kit.env` null is
+  asserted again), `parity.test.ts` (Cursor's caps, `firstPrompt`), `block.test.ts` (no team
+  record, `TEAM_AGENTS` without Cursor), `e2e/orchestration-codex.spec.ts` (Claude chosen instead
+  of Cursor, Cursor disabled, its "can't use Menkar's tools yet" title), `e2e/files.spec.ts`
+  (`claude-pid.txt`: the session asked is now Cursor's).
+- **R10's Cursor rows, rewritten on the branch for `set`'s sign-off:** `tests/core/r10/cursor-{new,resume}-{off,team}.txt`
+  and `tests/core/r10/e2e/{off,on}-cursor-{new,resume}.txt`.
+- **What `ui-check` found, each the change intended:** the first-time card now offers Cursor for a
+  new orchestrator (it has `caps.tools`), so `e2e/orchestration-codex.spec.ts`'s Cursor card test
+  asserts Cursor chosen as the agent last started instead of disabled; "Ask an agent" starts the
+  focused pane's agent, and `e2e/files.spec.ts`'s focused pane is a saved Cursor tab, which now
+  takes a first prompt, so that test gives it the recording stand-in and asserts Cursor's argv.
+  And one trap: a new start now waits on the agent's version, and `e2e/remote.spec.ts`'s
+  `cursor-agent` (an interactive bash) ignores the timeout's SIGTERM, so `--version` is now read
+  with `killSignal: 'SIGKILL'` (`src/main/{agent-versions,team}.ts`).
+- **Not done here:** Cursor's `last_reply` (its catalog's `lastReply` is still `null`: P3.3's hook
+  record or the transcript), a `/new` chat followed in its pane (Cursor has no `follow`), the hook
+  program, usage and the waker (P3.3, P3.4), `cursor`'s real check (P3.5).

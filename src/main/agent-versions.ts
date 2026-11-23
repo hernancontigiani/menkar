@@ -38,7 +38,8 @@ function versionOf(cli: string, word: number): Promise<string | null> {
     execFile(
       cli,
       ['--version'],
-      { timeout: VERSION_WAIT_MS, env: { ...process.env, NO_COLOR: '1' } },
+      // A CLI that ignores SIGTERM (an interactive shell) would hold the start waiting on it.
+      { timeout: VERSION_WAIT_MS, killSignal: 'SIGKILL', env: { ...process.env, NO_COLOR: '1' } },
       (error, stdout) => {
         if (error) {
           log.warn('an agent CLI did not say its version', { cli, error })
@@ -118,6 +119,27 @@ function handle<C extends InvokeChannel>(
   handler: (request: InvokeChannels[C]['request']) => Promise<InvokeChannels[C]['response']>,
 ): void {
   ipcMain.handle(channel, (_event, request: InvokeChannels[C]['request']) => handler(request))
+}
+
+// The executables, by path and mtime, that refused the id a session was started with.
+const refusedIds = new Set<string>()
+
+// The agent's installed version as last read, read now when it was not yet; null for an executable
+// that refused a session's id, so its next start lets it pick its own.
+export async function installedVersion(agent: AgentId): Promise<string | null> {
+  if (looking) await looking
+  if (!read.has(agent))
+    await readAgent(agent).catch((error: unknown) =>
+      log.warn('an agent version could not be read', { agent, error }),
+    )
+  const r = read.get(agent)
+  if (!r || (r.key !== null && refusedIds.has(r.key))) return null
+  return r.version
+}
+
+export async function markIdRefused(agent: AgentId): Promise<void> {
+  const cli = await findOnPath(descriptorOf(agent).command)
+  if (cli) refusedIds.add(await keyOf(cli))
 }
 
 export function startAgentVersions(): void {

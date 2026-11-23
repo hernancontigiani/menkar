@@ -117,3 +117,8 @@ kept in one place per agent, so a change to one agent cannot break another and s
   a reply that quotes it is not a turn. The tab strip's spinner also turns while a message only
   waits in the inbox, so it is not read. A form card (`form.created`, OpenCode's question tool) is
   not read as blocked (`docs/NOT_BUILT_YET.md`).
+
+## Codex as a worker
+
+> Left on 2026-11-23: Cursor has an MCP mount (plan 39 P3.2, task 219).
+  not installed, or one whose kit has no MCP mount (Cursor until P3) is refused.

@@ -231,6 +231,7 @@ drwxrwxr-x 0/0               0 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/p
 -rw-rw-r-- 0/0             151 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/team/claude.md
 -rw-rw-r-- 0/0             726 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/team/common.md
 -rw-rw-r-- 0/0             166 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/team/codex.md
+-rw-rw-r-- 0/0             370 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/team/cursor.md
 drwxrwxr-x 0/0               0 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/guide/
 -rw-rw-r-- 0/0           23961 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/guide/orchestration-mode.md
 drwxrwxr-x 0/0               0 2026-11-21 12:36 ./opt/Menkar-sandbox/resources/plugin/.claude-plugin/

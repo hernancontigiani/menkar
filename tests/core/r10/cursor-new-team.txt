@@ -1,1 +1,1 @@
-/home/demo/.local/bin/cursor-agent && exit
+/home/demo/.local/bin/cursor-agent --new-session-id 1b4e28ba-2fa1-11d2-883f-0016d3cca427 --model claude-haiku-5-5 -- "$(cat '/home/demo/.cache/menkar/prompts/it'"'"'s a prompt.txt')" && exit

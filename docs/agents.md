@@ -360,7 +360,7 @@ Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
   state directories through the forwarded XDG names. Names, never values, are passed for them.
   The pane's environment reaches Codex's MCP client because any `-c` runs the TUI embedded.
 - **`start_session`'s `agent`** is the caller's agent when absent; a name no agent has, an agent
-  not installed, or one whose kit has no MCP mount (Cursor until P3) is refused.
+  not installed, or one whose kit has no MCP mount is refused.
   `remote_control` is refused for an agent with no Remote Control.
 - **A provisional id.** Codex has no id until its first message, so `start_session` and `renew`
   place the new session under `pending:<random uuid>` (`src/core/projects/provisional.ts`) as
@@ -628,3 +628,65 @@ with a line while the agent's CLI is not on the PATH:
   Menkar created, deleted on removal; a missing `cli-config.json` is refused (Cursor creates it).
 - **The sandbox's entries name its own program**: its section says to turn them off before
   uninstalling it, and uninstalling first leaves entries that Cursor skips, as above.
+
+## Cursor: starting a session
+
+Plan 39 P3.2, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-23).
+`src/core/agents/cursor/{launch,ids,mcp}.ts`.
+
+- **A new session gets the id Menkar chose** through Cursor's hidden `--new-session-id <uuid>`: a
+  new chat under that id, its first prompt run as the first turn, the plugin's `sessionStart` run
+  with that id. Then `--model` when one was asked, `--add-dir <the project's files folder>`, the
+  pane's `--plugin-dir`, and the first prompt after `--` (a prompt starting with `-` is otherwise
+  read as an unknown option). A resume is `--resume <id>` with the same folder and plugin, and no
+  `--model`: Cursor keeps a resume's `--model` as the chat's model for good, and without one it
+  restores the chat's own.
+- **The floor**: the descriptor's `versions.floor`, 2026.11.13, the version the option was
+  measured on (set, 2026-11-23). Below it, or when `--version` cannot be read, `ids.newId` gives
+  none: Cursor picks the id and the pane waits as a `Pending` that binds when the session appears;
+  the team block's floor is the same, so such a session starts without it (`team.oldCursor`, once).
+- **A build that drops the option** stops at once with commander's `error: unknown option
+  '--new-session-id'`, exit 1, before any chat is written. Main reads the first 30 s or 64 KiB of
+  a pane started with a chosen id for the kit's `ids.refused` line (`src/core/agents/refusal.ts`);
+  on it, it logs, remembers that executable (path and mtime) as taking no id, and the pane shows
+  one line of Menkar's own (`terminal.idRefused`); the next start lets Cursor pick its id. The
+  refused pane is not restarted (set, 2026-11-23, option b).
+- **Each pane gets a plugin folder of its own**, `<control>/panes/<pane>/<flavour dir>/`, written
+  whole at each start: `.mcp.json` with Menkar's server, its `env` naming the pane
+  (`MENKAR_PANE`), the agent (`MENKAR_AGENT`) and the XDG directories main has (Cursor gives a
+  plugin's server only `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER` and that `env`), and
+  `hooks/hooks.json`. No manifest is needed. Cursor names the server `plugin-<folder>-menkar`, which
+  is what the integrations item's allow entry covers. Menkar's skills folder is not passed: a
+  session reads a skill's `SKILL.md` by its path.
+- **The workspace trust prompt** of a folder Cursor has not run in ("⚠ Workspace Trust Required"
+  with "[a] Trust this workspace" and "[q] Quit" on lines of their own) reads as blocked: the
+  human answers it. Menkar passes no `--trust`, which would write Cursor's `.workspace-trusted` for
+  them.
+- **Its transcript is rewritten in place** (same inode): each turn replaces the one `turn_ended`
+  line, and lines a TUI never saw are dropped. The catalog's reader trusts no offset
+  (`docs/sessions.md`).
+
+## Cursor: the team block
+
+Plan 39 P3.2. Assembled as Claude's (`docs/session-control.md`, "The team block"); its part is
+`plugin/team/cursor.md`, and its delivery `src/core/agents/cursor/team.ts`.
+
+- **Delivered by the pane's plugin's `sessionStart` hook**, on a new start in the mode: its entry
+  `cat '<folder>/session-start.json'`, the file holding `{"additional_context": <the block>}`.
+  Cursor runs a plugin's `sessionStart` with no entry of the user's, waits for it before the chat's
+  first request, and keeps the text with the chat, outside the transcript, through resumes and
+  compactions. It runs once per process, for a new chat only: `/new` in the TUI makes a chat that
+  keeps the same block, with no hook and no id told.
+- **A resume holds what main recorded** (`records: true`): Cursor never sees a later block, so
+  main keeps what each session holds (`controlPaths().teamHeld`), recorded even before Cursor can be
+  told anything (its waker is P3.4's), and a resume starts from it.
+- **The compaction signal** is the plugin's `preCompact` hook, which also runs with no entry of
+  the user's: in the mode its entry runs the statusline program with `pre-compact`, which writes
+  the session's `compact` start record, read by main as Claude's. Cursor keeps the creation's block
+  and the last messages through a compaction, and summarizes the rest: a new chat's pane goes back
+  to holding the block it started with; a resumed pane, given no block at its start
+  (`startedWith` → `null`), is told the whole block again.
+- **Menkar's tools are deferred** in Cursor: the model finds one by name with `GetDynamicTools`
+  on the server `plugin-<flavour dir>-menkar` and calls it with `CallDynamicTool`; the part says
+  so. Skills by their `SKILL.md`, as Codex's: Cursor has no Skill tool, and reads a file outside
+  its workspace with no approval card.

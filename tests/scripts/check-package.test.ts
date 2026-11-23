@@ -44,6 +44,7 @@ const good = (): Package => ({
     '/opt/Menkar/resources/plugin/team/claude.md',
     '/opt/Menkar/resources/plugin/team/codex.md',
     '/opt/Menkar/resources/plugin/team/opencode.md',
+    '/opt/Menkar/resources/plugin/team/cursor.md',
     '/opt/Menkar/resources/plugin/skills/orchestrator/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/worker/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/distill/SKILL.md',
@@ -83,6 +84,10 @@ describe('package:check', () => {
     [
       "OpenCode's team part",
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/opencode.md')) }),
+    ],
+    [
+      "Cursor's team part",
+      (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/cursor.md')) }),
     ],
     [
       'the native pty',

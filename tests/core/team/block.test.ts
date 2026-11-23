@@ -361,10 +361,10 @@ test('common and OpenCode parts are under 900 bytes, its expert block under 1,60
 })
 
 describe("the agent's record", () => {
-  // 1.135: an agent without an entry gets no block, so its command does not change.
-  test('Cursor has no team record', () => {
-    expect(teamAgent('cursor')).toBeNull()
-    expect(Object.keys(TEAM_AGENTS)).toEqual(['claude', 'codex', 'opencode'])
+  // 1.135, 1.212: every agent has its record since plan 39 P3.2 gave Cursor one.
+  test('every agent has a team record', () => {
+    expect(teamAgent('cursor')).toBe(TEAM_AGENTS.cursor)
+    expect(Object.keys(TEAM_AGENTS)).toEqual(['claude', 'cursor', 'codex', 'opencode'])
   })
 
   test("Claude's skills are referred to by name, Menkar's with the plugin's prefix", () => {

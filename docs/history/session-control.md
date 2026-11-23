@@ -296,3 +296,29 @@ Cursor's kit has none of them. Main writes the block's file before asking the La
 
 > Left on 2026-11-21: Menkar opens loopback ports for OpenCode's server and its panes' proxies (plan 39, P2.7, task 196).
 - **A loopback HTTP server:** it is the only option that opens a port.
+
+## The skills plugin
+
+> Left on 2026-11-23: Cursor gets a plugin folder of its own per pane (plan 39 P3.2, task 219).
+  (`buildCommand`'s `pluginDir`), after `--mcp-config` and before `--settings`. Cursor gets none.
+
+## The team block
+
+> Left on 2026-11-23: Cursor has a team block, delivered by its plugin's sessionStart hook, recorded per session (plan 39 P3.2, task 219).
+  is the one without the team, to the byte. An agent whose kit has no team delivery (Cursor) gets
+  nothing.
+
+### Per agent
+
+> Left on 2026-11-23: the per-agent table gains Cursor and what a compaction leaves a session holding (plan 39 P3.2, task 219).
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) |
+|---|---|---|---|---|
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` | `` `name` ``, `` `menkar:name` ``, "with the menkar server's `load_skill` tool, by name"; `opencode.md` |
+| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds | the block, put on every start; records nothing |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start | no words: its preparer puts the block as the session's instruction entry `menkar.team` before the TUI starts, or removes it when the start has none |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` | `null`; without the entry route (`/openapi.json`) no block is delivered |
+| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) | none: OpenCode rebuilds its system prompt from the entry |
+| (3) How a change is told | `tell(session, text, counts, current)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post |
+
+A compaction rebuilds what the pane `started` with for both. Codex's details are in
+`docs/agents.md`, "Codex: the team block". Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write

@@ -1,12 +1,16 @@
 import type { AgentDescriptor } from '../descriptors'
 
+// The version `--new-session-id` was measured on: below it a new chat's id is learnt late, and the
+// session is given no team block.
+export const NEW_ID_FLOOR = '2026.11.13'
+
 export const descriptor: AgentDescriptor = {
   id: 'cursor',
   command: 'cursor-agent',
   label: 'agent.cursor',
   glyph: '➤',
-  caps: { remote: false, fork: false, trash: true, chat: true, context: false, tools: false },
-  firstPrompt: false,
+  caps: { remote: false, fork: false, trash: true, chat: true, context: false, tools: true },
+  firstPrompt: true,
   namedAtStart: false,
   // Cursor's headless mode cannot pause a tool for approval: two explicit levels instead of cards.
   chat: [
@@ -31,5 +35,5 @@ export const descriptor: AgentDescriptor = {
   teamLimits: { orchestrator: 'agent.cursorOrchestrates', worker: 'agent.cursorWorks' },
   callerMeta: null,
   versionWord: 0,
-  versions: { validated: null, floor: null },
+  versions: { validated: null, floor: NEW_ID_FLOOR },
 }

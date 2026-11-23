@@ -39,6 +39,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'drawer.pickTitle': 'Abrir una shell en',
   'drawer.pickPlaceholder': 'Filtrar carpetas',
   'drawer.divider': 'Arrastrá para cambiar el alto de la shell; Ctrl+` la oculta',
+  'terminal.idRefused':
+    '`{cli}` rechazó el id que Menkar le dio a esta sesión nueva: volvé a empezarla y elige el suyo.',
   'terminal.notFound': 'aviso: no se encontró `{cli}` en el PATH — se abre una shell sola',
   'terminal.serverFailed':
     'aviso: Menkar no pudo iniciar el servidor de `{cli}` para esta sesión — se abre una shell sola',
@@ -119,6 +121,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
     '{name} es una de las skills propias de Menkar, que no se configuran aquí.',
   'team.oldClaude':
     'Claude Code {version} es anterior a {floor}: las sesiones empiezan sin sus instrucciones de equipo. Actualizá Claude Code.',
+  'team.oldCursor':
+    'Cursor {version} es anterior a {floor}: sus sesiones empiezan sin sus instrucciones de equipo. Actualizá Cursor.',
   'orch.withYouBadge': 'con vos',
   'orch.earlier': '{n} anteriores',
   'orch.parked': 'Aparcados · {n}',

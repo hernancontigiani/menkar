@@ -19,6 +19,7 @@ import {
   CHAINED_TIMEOUT_MS,
   inboxDir,
   PANE_ENV,
+  PRE_COMPACT_ARG,
   PROMPT_SUBMIT_ARG,
   paneStart,
   runStatusline,
@@ -286,6 +287,34 @@ test('the app reads a clear, a resume or a compact record as its pane, id and so
   expect(read('started')).toBeNull()
   expect(paneStart('{"source":"clear","pane":"p","session_id":"../x"}')).toBeNull()
   expect(paneStart('{"source":"cle')).toBeNull()
+})
+
+// Plan 39 P3.2: Cursor's preCompact hook (a plugin's, measured by `cursor` on 2026.11.13) says only
+// that a compaction is about to run; the same program records it as a compact start of the session
+// in the pane, which main reads as Claude's.
+test('a pre-compact payload is recorded as a compact start of its session in the pane', () => {
+  const d = dirs()
+  const result = spawnSync(process.execPath, [SCRIPT, PRE_COMPACT_ARG], {
+    input: JSON.stringify({
+      hook_event_name: 'preCompact',
+      conversation_id: 'c1',
+      session_id: 'c1',
+      trigger: 'manual',
+      user_email: 'someone@example.invalid',
+    }),
+    env: { ...d.env, [PANE_ENV]: 'pane4' },
+    encoding: 'utf8',
+  })
+  expect([result.stdout, result.status]).toEqual(['', 0])
+  const text = readFileSync(join(d.cache, 'session-starts', 'c1.json'), 'utf8')
+  expect(paneStart(text)).toEqual({ pane: 'pane4', sessionId: 'c1', source: 'compact' })
+  expect(text).not.toContain('example.invalid')
+  const bad = spawnSync(process.execPath, [SCRIPT, PRE_COMPACT_ARG], {
+    input: 'not json',
+    env: d.env,
+    encoding: 'utf8',
+  })
+  expect([bad.stdout, bad.status]).toEqual(['', 0])
 })
 
 test('a session first seen with a cost and no hook record shows its total alone until it compacts', () => {

@@ -51,6 +51,10 @@ generates no title. Re-measured on each Codex upgrade.
 
 ## Cursor — no row yet, owner: its consultant
 
+Menkar's floor is 2026.11.13, the version `--new-session-id` was measured on by `cursor`
+(2026-11-23): below it a new session's id is Cursor's own and it starts without its team block
+(`docs/agents.md`, "Cursor: starting a session").
+
 ## OpenCode — validated at 2.3.0 (2026-11-23), owner: `opencode`
 
 | What | State | Where it is described |

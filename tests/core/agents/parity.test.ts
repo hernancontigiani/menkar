@@ -52,7 +52,7 @@ describe('descriptors and kits', () => {
         .map(([cap]) => cap)
         .sort()
     expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'tools', 'trash'])
-    expect(caps('cursor')).toEqual(['chat', 'trash'])
+    expect(caps('cursor')).toEqual(['chat', 'tools', 'trash'])
     expect(caps('codex')).toEqual(['context', 'tools'])
     expect(caps('opencode')).toEqual(['context', 'tools'])
   })
@@ -96,7 +96,7 @@ describe('descriptors and kits', () => {
       const passed = plan.words.join(' ').includes(promptFile) || mainKitOf(id).prepare !== null
       expect(passed, id).toBe(descriptorOf(id).firstPrompt)
     }
-    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, false, true, true])
+    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, true, true, true])
   })
 
   // The chat variants are data the renderer reads; the kit's ChatStrategy runs them.

@@ -108,6 +108,9 @@ export interface VersionFloor {
 export interface TeamDelivery extends TeamAgent {
   // `recorded` is what the session held when it last ran, kept by main for an agent that records.
   heldAtStart(start: Start, block: TeamText | null, recorded?: TeamText | null): TeamText | null
+  // What the start put where a compaction keeps it, when that is not the block it is started with:
+  // a compaction leaves the session holding it.
+  startedWith?(start: Start, block: TeamText): TeamText | null
   // A resume holds what the session recorded at its creation and was told since, not the block it
   // is started with: main keeps, per session, what it holds.
   readonly records: boolean
@@ -196,8 +199,12 @@ export interface TurnEndReading {
 
 // The ids of a new session's start.
 export interface SessionIds {
-  // The id a new session is started with; null when the agent picks its own.
-  newId(): string | null
+  // The id a new session is started with; null when the agent picks its own. `installed` is the
+  // CLI's version, for an agent that takes an id only from some version on.
+  newId(installed?: string | null): string | null
+  // What the CLI prints when it refuses the id it was given, for an agent that takes it through an
+  // option a later version may drop.
+  readonly refused?: RegExp
 }
 
 export type FollowKind = 'clear' | 'resume' | null

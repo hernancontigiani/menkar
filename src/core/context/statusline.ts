@@ -411,9 +411,21 @@ export const SESSION_START_ARG = 'session-start'
 export const TURN_END_ARG = 'turn-end'
 // And the orchestrator's prompt hook with this one.
 export const PROMPT_SUBMIT_ARG = 'prompt-submit'
+// And, for an agent whose hook says only that a compaction is about to run, a compaction's start.
+export const PRE_COMPACT_ARG = 'pre-compact'
+
+export function runPreCompact(stdin: string): void {
+  try {
+    const payload: unknown = JSON.parse(stdin)
+    if (isObject(payload)) recordSessionStart({ ...payload, source: 'compact' })
+  } catch {
+    // A hook that fails is skipped by the agent: a bad payload or a full disk notes nothing.
+  }
+}
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv[2] === SESSION_START_ARG) runSessionStart(readStdin())
+  else if (process.argv[2] === PRE_COMPACT_ARG) runPreCompact(readStdin())
   else if (process.argv[2] === TURN_END_ARG) runTurnEnd(readStdin())
   else if (process.argv[2] === PROMPT_SUBMIT_ARG) {
     const out = runPromptSubmit(readStdin())

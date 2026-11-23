@@ -202,17 +202,15 @@ test('the first-time card with two agents: the agent line defaults to the agent 
   }
 })
 
-test("the first-time card with Cursor installed: Cursor can't be chosen for a new orchestrator yet; a Cursor session chosen to orchestrate or checked to work is said to have limits, and nothing is forbidden (screenshots)", async () => {
+test('the first-time card with Cursor installed: Cursor, the agent last started, is chosen for a new orchestrator; a Cursor session chosen to orchestrate or checked to work is said to have limits, and nothing is forbidden (screenshots)', async () => {
   const app = await cardApp(['codex', 'cursor'], { lastAgent: 'cursor', cursorSession: true })
   try {
     await openCard(app.page)
-    // The agent last started can't orchestrate a new session: Claude Code is chosen instead.
-    await expect(agentButton(app.page, 'claude')).toHaveAttribute('aria-pressed', 'true')
-    await expect(agentButton(app.page, 'cursor')).toBeDisabled()
-    await expect(agentButton(app.page, 'cursor')).toHaveAttribute(
-      'title',
-      'Cursor sessions can’t use Menkar’s tools yet',
-    )
+    // Plan 39 P3.2 (1.212): Cursor's sessions use Menkar's tools, so the agent last started is
+    // the new orchestrator's.
+    await expect(agentButton(app.page, 'cursor')).toHaveAttribute('aria-pressed', 'true')
+    await expect(agentButton(app.page, 'cursor')).toBeEnabled()
+    await expect(agentButton(app.page, 'claude')).toHaveAttribute('aria-pressed', 'false')
     const cursorRow = card(app.page).locator(`.card-managed[data-session="${CURSOR}"]`)
     await expect(cursorRow.locator('.card-agent-name')).toHaveText('Cursor')
     const workerLimits = card(app.page).locator(`.card-limits[data-limits="${CURSOR}"]`)

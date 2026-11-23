@@ -98,7 +98,8 @@ function versionOf(cli: string, floor: VersionFloor): Promise<string | null> {
     execFile(
       cli,
       ['--version'],
-      { timeout: VERSION_WAIT_MS, env: { ...process.env, NO_COLOR: '1' } },
+      // A CLI that ignores SIGTERM (an interactive shell) would hold the start waiting on it.
+      { timeout: VERSION_WAIT_MS, killSignal: 'SIGKILL', env: { ...process.env, NO_COLOR: '1' } },
       (error, stdout) => {
         if (error) {
           log.warn('the agent CLI did not say its version', { cli, error })
@@ -185,7 +186,7 @@ export async function startTeam(start: TeamStart): Promise<string | undefined> {
     const text = teamText(input, agent, common, part)
     const dir = controlPaths().team
     await writeTextAtomic(dir, `${start.pane}.md`, text.block)
-    keep(text, false)
+    keep(agent.startedWith ? agent.startedWith(start.start, text) : text, false)
     return join(dir, `${start.pane}.md`)
   } catch (error) {
     log.warn('a pane starts without its team block: its file was not written', {
@@ -288,9 +289,11 @@ async function recompute(pane: string): Promise<void> {
   }
   const session = s.session(pane)
   const agent = session ? kitOf(session.agent).team : null
-  const teller = session ? mainKitOf(session.agent).team : null
-  if (!session || !agent || !teller) return
+  if (!session || !agent) return
+  // Recorded even for an agent Menkar cannot tell yet: a resume starts from what it holds.
   if (agent.records) await record(h, session.sessionId)
+  const teller = mainKitOf(session.agent).team
+  if (!teller) return
   const input = s.input(pane, h.found)
   let current: TeamText | null = null
   if (input) {

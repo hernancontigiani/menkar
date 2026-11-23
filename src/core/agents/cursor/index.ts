@@ -4,15 +4,17 @@ import { chat } from './chat'
 import { ids } from './ids'
 import { integrations } from './integrations'
 import { launch, namer } from './launch'
+import { mcp } from './mcp'
 import { state } from './state'
+import { team } from './team'
 import { writes } from './writes'
 
 export const kit: AgentKit = {
   launch,
-  mcp: null,
+  mcp,
   messaging: null,
   namer,
-  team: null,
+  team,
   env: null,
   envPatterns: null,
   catalog,

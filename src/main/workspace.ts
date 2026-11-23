@@ -7,6 +7,7 @@ import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from '
 import { agentNamedList, withAgentNamed } from '../core/agent-named'
 import { descriptorOf, paneAgentLabel } from '../core/agents/descriptors'
 import { AGENT_IDS, type AgentId, DEFAULT_AGENT, parseAgentId } from '../core/agents/ids'
+import { IdRefusal } from '../core/agents/refusal'
 import { isDefault, kitOf } from '../core/agents/registry'
 import type { FollowKind } from '../core/agents/types'
 import { backgroundToastShown, markBackgroundToast } from '../core/background-toast'
@@ -230,6 +231,7 @@ import type {
   WindowState,
 } from '../shared/workspace'
 import { recordPresence, recordPromptedStart } from './activity'
+import { installedVersion, markIdRefused } from './agent-versions'
 import { mainKitOf, paneOfCaller } from './agents/registry'
 import type { PaneNotice } from './agents/types'
 import {
@@ -1070,6 +1072,8 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   const tag = t('terminal.tag')
   const messages: string[] = spec.notice ? [appMessage(tag, spec.notice)] : []
   let command: string | undefined
+  // Set when the start gives the CLI an id a later version of it may refuse.
+  let refusal: IdRefusal | null = null
   // The tab's project files folder (decision 1.51), made first so the --settings file names one that
   // exists.
   const projectId = tabById(tabId)?.project
@@ -1157,6 +1161,20 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
             })
         command = commandLine(plan)
         env = plan.env
+        const refused = kitOf(spec.agent).ids.refused
+        const agent = spec.agent
+        if (refused && start.kind === 'new' && start.id)
+          refusal = new IdRefusal(refused, () => {
+            log.warn(
+              'the agent CLI refused the id it was started with; its next start picks its own',
+              {
+                pane: id,
+                cli,
+              },
+            )
+            void markIdRefused(agent)
+            pane?.terminal.say(appMessage(tag, t('terminal.idRefused', { cli: cliName })))
+          })
         const promptedId = spec.sessionId ?? start.id
         if (spec.promptFile && promptedId && !isProvisional(promptedId))
           recordPromptedStart(promptedId, projectId)
@@ -1176,6 +1194,7 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
     },
     {
       data: (data, end) => {
+        refusal?.read(data)
         pane?.handle?.write(data)
         const w = pane ? windowOfTab(pane.tabId) : undefined
         const window = w ? windows.get(w.id) : undefined
@@ -2376,7 +2395,7 @@ async function renew(paneId: string): Promise<void> {
   renewing.set(paneId, null)
   const from = request.sessionId
   const info = sessionInfo(from)
-  const realId = kitOf(agent).ids.newId()
+  const realId = kitOf(agent).ids.newId(await installedVersion(agent))
   const to = realId ?? provisionalId(randomUUID())
   const model = modelOf(await sessions.currentState(), from)
   if (!followClear(pane, from, to)) {
@@ -2539,7 +2558,7 @@ async function startForAgent(
   if (!tabById(caller.tabId)) return refuse(NOT_KNOWN)
   // An agent that picks its own id has none until its first message: a provisional one holds its
   // place meanwhile.
-  const realId = kitOf(agent).ids.newId()
+  const realId = kitOf(agent).ids.newId(await installedVersion(agent))
   const id = realId ?? provisionalId(randomUUID())
   startedNames.set(id, name)
   const namesakes = projectSessions(projectId)
@@ -3673,7 +3692,7 @@ async function startNewSession(
 ): Promise<ActionResult> {
   if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
   const name = action.name.trim()
-  const realId = kitOf(action.agent).ids.newId()
+  const realId = kitOf(action.agent).ids.newId(await installedVersion(action.agent))
   // A session that takes no name at start is named once its thread exists (decision 1.196), so a
   // named one is held under a provisional id, as an orchestrator to mark is and as start_session
   // places its sessions; the real id takes its place when it binds.

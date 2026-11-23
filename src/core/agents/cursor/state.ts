@@ -6,6 +6,9 @@ import type { StateRules } from '../types'
 
 const SPINNER = /^\s*[⠀-⣿]+\s+[\p{L}\p{N}_]+ing(?![\p{L}\p{N}_])/mu
 const ALLOW = /^\s*(?:\S\s*)?(?:allow|run) .*\(y\)/mu
+// The workspace trust prompt of a folder Cursor has not run in: its two choices on lines of their
+// own, inside its box. The human answers it; Menkar never does.
+const TRUST = /\[a\] trust this workspace[^\n]*\n[^\n]*\[q\] quit/u
 const BACKGROUND_TASKS = /(?<![\p{L}\p{N}_])[1-9][0-9]*\s+background\s+tasks?(?![\p{L}\p{N}_])/u
 
 // Cursor's title is not read.
@@ -20,7 +23,8 @@ function detect(_title: string, screen: string): RawState {
     recent.includes('skip (esc or n)') ||
     // After Skip the turn waits for the human's reason, while its footer still says ctrl+c to stop.
     recent.includes('tell the agent what to do instead (enter to send') ||
-    ALLOW.test(recent)
+    ALLOW.test(recent) ||
+    TRUST.test(recent)
   ) {
     return 'blocked'
   }

@@ -37,6 +37,8 @@ export const en = {
   'drawer.pickTitle': 'Open a shell in',
   'drawer.pickPlaceholder': 'Filter folders',
   'drawer.divider': 'Drag to resize the shell; Ctrl+` hides it',
+  'terminal.idRefused':
+    '`{cli}` refused the id Menkar gave this new session: start it again, and it picks its own.',
   'terminal.notFound': 'warning: `{cli}` not found in PATH — starting a plain shell',
   'terminal.serverFailed':
     "warning: Menkar could not start `{cli}`'s server for this session — starting a plain shell",
@@ -115,6 +117,8 @@ export const en = {
   'refusal.menkarSkill': "{name} is one of Menkar's own skills, which are not set here.",
   'team.oldClaude':
     'Claude Code {version} is older than {floor}: sessions start without their team instructions. Update Claude Code.',
+  'team.oldCursor':
+    'Cursor {version} is older than {floor}: its sessions start without their team instructions. Update Cursor.',
   'orch.withYouBadge': 'with you',
   'orch.earlier': '{n} earlier',
   'orch.parked': 'Parked · {n}',

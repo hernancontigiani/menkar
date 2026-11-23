@@ -40,14 +40,15 @@ describe('command lines', () => {
     ).toBe(`${CLI} --resume 7f3a --fork-session --session-id c41d --settings ${SETTINGS} && exit\n`)
   })
 
-  test('TRM-7 a new Cursor session: no id, no name, no --settings', () => {
+  // Plan 39 P3.2: Cursor takes the id Menkar chose, never a name or Claude's settings.
+  test('TRM-7 a new Cursor session: its id, no name, no --settings', () => {
     expect(
       buildCommand(
         'cursor',
         { kind: 'new', id: 'x', name: 'spike' },
         { cli: '/bin/cursor-agent', settings: SETTINGS },
       ),
-    ).toBe('/bin/cursor-agent && exit\n')
+    ).toBe('/bin/cursor-agent --new-session-id x && exit\n')
   })
 
   test('TRM-8 a Cursor resume', () => {
@@ -105,10 +106,11 @@ describe('command lines', () => {
       ).toBe(`${CLI} --session-id n1 "$(cat '/c/it'"'"'s.md')" --settings ${SETTINGS} && exit\n`)
     })
 
-    test('Cursor gets no prompt file', () => {
+    // Plan 39 P3.2: after `--`, so a prompt that starts with `-` is not an option.
+    test('Cursor gets its prompt file last, after --', () => {
       expect(
         buildCommand('cursor', { kind: 'new' }, { cli: '/bin/c', promptFile: '/c/p.md' }),
-      ).toBe('/bin/c && exit\n')
+      ).toBe(`/bin/c -- "$(cat /c/p.md)" && exit\n`)
     })
   })
 

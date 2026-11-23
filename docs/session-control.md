@@ -413,7 +413,9 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
   - **distill:** keeping a specialist's skill current when its task is closed, then renewing.
   - **specialize:** turning what a session knows into a role with a skill of its own.
 - **How a session gets it:** every Claude command Menkar builds carries `--plugin-dir <plugin>`
-  (`buildCommand`'s `pluginDir`), after `--mcp-config` and before `--settings`. Cursor gets none.
+  (`buildCommand`'s `pluginDir`), after `--mcp-config` and before `--settings`. Cursor gets its
+  own plugin folder per pane, without Menkar's skills (`docs/agents.md`, "Cursor: starting a
+  session").
   The folder is resolved when called (`pluginFolder` in `src/core/paths.ts`, from
   `skillsPluginDir` in `src/main/control.ts`): `resources/plugin` beside app.asar when packaged
   (`electron-builder.yml`'s `extraResources`, since `claude` cannot read inside the archive), the
@@ -468,8 +470,7 @@ agent writes.
     derived title is not one, so it never changes the facts. A session with none reads as "a new
     session"; another session with none is called by its id's first eight characters.
 - **Only with the mode on.** With it off no input is built, no file is written and the command line
-  is the one without the team, to the byte. An agent whose kit has no team delivery (Cursor) gets
-  nothing.
+  is the one without the team, to the byte. An agent whose kit has no team delivery gets nothing.
 - **The input at start** is built for every Claude or Codex pane whose tab belongs to a mode-on
   project: a member from the project; a session not yet a member (the human's new session, a fork)
   from the identity it starts with, with no role, parent or skills. That is what it will be once it
@@ -538,17 +539,18 @@ What differs per agent is a `TeamDelivery` in its kit (`kitOf(agent).team`, core
 `MainTeamDelivery` in its main kit (`mainKitOf(agent).team`); `null` in either means no block, no
 flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 
-| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) |
-|---|---|---|---|---|
-| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` | `` `name` ``, `` `menkar:name` ``, "with the menkar server's `load_skill` tool, by name"; `opencode.md` |
-| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds | the block, put on every start; records nothing |
-| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start | no words: its preparer puts the block as the session's instruction entry `menkar.team` before the TUI starts, or removes it when the start has none |
-| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` | `null`; without the entry route (`/openapi.json`) no block is delivered |
-| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) | none: OpenCode rebuilds its system prompt from the entry |
-| (3) How a change is told | `tell(session, text, counts, current)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post |
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) | Cursor (`src/core/agents/cursor/team.ts`) |
+|---|---|---|---|---|---|
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` | `` `name` ``, `` `menkar:name` ``, "with the menkar server's `load_skill` tool, by name"; `opencode.md` | as Codex's; `cursor.md` |
+| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds | the block, put on every start; records nothing | as Codex's |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start | no words: its preparer puts the block as the session's instruction entry `menkar.team` before the TUI starts, or removes it when the start has none | no words: the pane's plugin's `sessionStart` hook prints it as `additional_context`, on a new start only |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` | `null`; without the entry route (`/openapi.json`) no block is delivered | 2026.11.13, where `--new-session-id` was measured; below it one `team.oldCursor` toast |
+| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) | none: OpenCode rebuilds its system prompt from the entry | the plugin's `preCompact` hook, written as a `compact` record |
+| What a compaction leaves it holding | `startedWith(start, block)` (absent: the block) | the block | the block | the block | a new start's block; a resume's `null`: it was given none |
+| (3) How a change is told | `tell(session, text, counts, current)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post | none yet (`mainKitOf('cursor').team` is P3.4's): what it holds is recorded, nothing is posted |
 
-A compaction rebuilds what the pane `started` with for both. Codex's details are in
-`docs/agents.md`, "Codex: the team block". Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
+A compaction rebuilds what the pane `started` with. The details are in `docs/agents.md`, "Codex:
+the team block" and "Cursor: the team block". Main writes the block's file before asking the Launcher (a write
 that fails leaves the pane outside the team, as above), so the file is not part of the plan the
 Launcher returns.
 
