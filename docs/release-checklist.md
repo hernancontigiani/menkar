@@ -5,15 +5,22 @@ release"). What is left needs a person on a real desktop, with their own data. G
 later check assumes the earlier ones passed. A check that fails stops the release; say which step
 and what you saw.
 
-Version under check: **0.1.0**, `release/menkar_0.1.0_amd64.deb`, Ubuntu 24.04 amd64.
-The build's own version, `0.1.0-<commits>.g<hash>`, is what
-`dpkg-deb -f release/menkar_0.1.0_amd64.deb Version` prints; note it with the result.
+Version under check: **0.1.0**, the draft release's `menkar_0.1.0_amd64.deb`, Ubuntu 24.04 amd64.
+The build's own version, `0.1.0-<commits>.g<hash>`, is the package's Version (step 1 says how to
+read it); note it with the result.
 
 ## 1. Install
 
+From the draft release's own files, the bytes that will ship, not a local build: download
+`menkar_0.1.0_amd64.deb` and `SHA256SUMS` from the draft (GitHub → Releases, or `gh release
+download v0.1.0 --dir /tmp/menkar-draft`), then:
+
 ```sh
-sudo apt install ./release/menkar_0.1.0_amd64.deb
+cd /tmp/menkar-draft && sha256sum --check --ignore-missing SHA256SUMS
+sudo apt install /tmp/menkar-draft/menkar_0.1.0_amd64.deb
 ```
+
+Its build version is what `dpkg-deb -f /tmp/menkar-draft/menkar_0.1.0_amd64.deb Version` prints.
 
 **Passes when** apt finishes without an error; the **Menkar** launcher with its icon is in the
 applications grid; `menkar` runs from a terminal; `/etc/apparmor.d/menkar` exists.
@@ -235,3 +242,20 @@ Actions → `docs` → Run workflow (the first time, Settings › Pages → Sour
 **Passes when** `site:check -- --release` ends without a problem (no pending install block left),
 the contact sheets in `/tmp/menkar-captures/` show this version's screens, and the published site
 opens at `https://hernancontigiani.github.io/menkar/` in English and in Spanish.
+
+## 12. Install from the repository
+
+After **Publish release**, once the `publish` run has finished green. In a clean container, not on
+your desktop, with the commands of `docs/packaging.md`, "Installing from the repository", pasted as
+they are:
+
+```sh
+docker run --rm -it ubuntu:24.04 bash    # then: apt-get update && apt-get install -y curl gpg
+docker run --rm -it fedora:latest bash
+```
+
+**Passes when** on Ubuntu `apt update` reads the Menkar source with no signature warning,
+`gpg --show-keys` printed the fingerprint `docs/packaging.md` names, and `apt install menkar`
+installs this version; and on Fedora `dnf install menkar` verifies the repository's metadata with
+no error and installs this version (a key it offers to import has that same fingerprint). The `publish` run's log says "Uploading with
+OIDC" (a warning about the API key fallback means OIDC was refused: say so).

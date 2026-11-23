@@ -81,6 +81,7 @@ const parsed = (name: string) => load(readFileSync(join(DIR, name), 'utf8')) as 
 describe('the workflows', () => {
   test('there are workflows to check', () => {
     expect(files).toEqual(expect.arrayContaining(['checks.yml', 'pr.yml']))
+    expect(files).toContain('publish.yml')
   })
 
   test.each(files)('%s holds every rule', (name) => {
@@ -95,6 +96,20 @@ describe('the workflows', () => {
       "github.event_name != 'pull_request' || !github.event.pull_request.draft",
     )
     expect(pr.jobs?.checks?.uses).toBe('./.github/workflows/checks.yml')
+  })
+
+  test('publish.yml uploads only from the packages environment, with no write to the repository', () => {
+    const jobs = Object.entries(parsed('publish.yml').jobs ?? {})
+    expect(jobs.length).toBeGreaterThan(0)
+    for (const [id, job] of jobs) {
+      const environment =
+        typeof job.environment === 'string' ? job.environment : job.environment?.name
+      expect({ id, environment }).toEqual({ id, environment: 'packages' })
+      expect({ id, permissions: job.permissions }).toEqual({
+        id,
+        permissions: { contents: 'read', 'id-token': 'write' },
+      })
+    }
   })
 })
 

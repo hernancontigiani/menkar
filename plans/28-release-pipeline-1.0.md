@@ -652,28 +652,28 @@ comment (Dependabot's `github-actions` updates keep them current).
 
 ### Block 5 — `publish.yml` and installing from the repository (after §6 steps 2–6)
 
-- [ ] `.github/workflows/publish.yml` as §2.3: `workflow_dispatch` with a `tag` input only; job
+- [x] `.github/workflows/publish.yml` as §2.3: `workflow_dispatch` with a `tag` input only; job
   `environment: packages`, `permissions: { contents: read, id-token: write }`; download, verify
   `SHA256SUMS`, then `cloudsmith push deb <workspace>/menkar/any-distro/any-version <deb>` and
   `cloudsmith push rpm <workspace>/menkar/any-distro/any-version <rpm>` through the official
   action with OIDC (or the API key in the environment).
-- [ ] Workflow test extended: `publish.yml` names the `packages` environment and asks no
+- [x] Workflow test extended: `publish.yml` names the `packages` environment and asks no
   `contents: write`.
-- [ ] `docs/packaging.md`, "Installing from the repository": the manual APT setup (the key to
+- [x] `docs/packaging.md`, "Installing from the repository": the manual APT setup (the key to
   `/usr/share/keyrings/menkar-archive-keyring.gpg` with `gpg --dearmor`, one `deb [signed-by=…]`
   line in `/etc/apt/sources.list.d/menkar.list`, `apt update && apt install menkar`), the `dnf`
   equivalent (`rpm --import`, a `.repo` file, `dnf install menkar`), the fingerprint and expiry
   from §6 step 6, and the single-file fallback (`/tmp` or `dpkg -i` + `apt -f install`). **The
   manual commands, not `curl … | sudo bash`**: a reader sees what is added to their system.
   The 200 GB limit and its trigger; Cloudsmith's download logs.
-- [ ] The same commands between the markers in
+- [x] The same commands between the markers in
   `site/src/content/docs/start/install.md` and `site/src/content/docs/es/start/install.md` (§2.8),
   then `npm run site:check -- --release`.
-- [ ] `docs/release-checklist.md`, "1. Install": from the draft's `.deb` (download, `apt install
+- [x] `docs/release-checklist.md`, "1. Install": from the draft's `.deb` (download, `apt install
   /tmp/…`), and a new last step: after Publish, on a clean Ubuntu 24.04 container, the repository
   setup from `docs/packaging.md` then `apt install menkar` with no signature warning; the same on
   Fedora with `dnf`.
-- [ ] `docs/NOT_BUILT_YET.md`: "A self-hosted package repository" (trigger: the plan's limits are
+- [x] `docs/NOT_BUILT_YET.md`: "A self-hosted package repository" (trigger: the plan's limits are
   reached, the plan ends, or the download logs become a concern).
 - Verification: `npm run ci`; `actionlint`. The first real run is `v1.0.0` (block 7).
 
@@ -807,3 +807,32 @@ below.
   `docs/packaging.md` "The RPM", the AppImage sentence (old text to its history),
   `docs/NOT_BUILT_YET.md` "The AppImage". Container transcripts: `packager-t132-containers.txt` and
   `packager-t132-verify-dryrun.txt` in the project's files folder.
+
+### Block 5 — `menkar-t210` (task 210), 2026-11-23
+
+- **The repository is `menkar-packages`**, not `menkar` as the block's text says (the human's
+  recorded note under §6): every push, URL and doc names `menkar/menkar-packages`.
+- **`publish.yml`**: `workflow_dispatch` with `tag`; `TAG: ${{ inputs.tag ||
+  github.event.release.tag_name }}` and the job's `if:` skipping a prerelease are already there,
+  so block 7 adds only `release: types: [published]`. Job `upload`, `environment: packages`,
+  `permissions: { contents: read, id-token: write }`: `gh release download` of the version's
+  `.deb`, `.rpm` and `SHA256SUMS`, `sha256sum --check --strict`, then
+  `cloudsmith-io/cloudsmith-cli-action` v3.2.5 (pinned by SHA; it pins CLI 1.31.4) by OIDC
+  (`oidc-namespace: menkar`, `oidc-service-slug: sa-menkar`, `verify-auth: 'true'`,
+  `continue-on-error`); only when that step fails, the same action with `api-key:
+  secrets.CLOUDSMITH_API_KEY` (the action's own script: a given key takes precedence over the
+  OIDC settings the first step exported); a step that says which one uploads (a `::warning::` for
+  the fallback); `cloudsmith push deb|rpm menkar/menkar-packages/any-distro/any-version …
+  --republish`. No secret is echoed; the action masks the key.
+- **Not foreseen:** the `packages` environment allows only `v*` tags, so a run by hand must be
+  started *from the tag* ("Use workflow from"), not from `main`, or GitHub refuses the job. Said in
+  the workflow's header and `docs/packaging.md`.
+- **The key**: served without auth at `…/gpg.32B297F2B56D38CD.key` (the Debian docs' URL),
+  `…/cfg/gpg/gpg.32B297F2B56D38CD.key` (the RPM docs') and `…/gpg.key`, the same bytes. `gpg
+  --show-keys`: RSA 3072, created 2026-11-23, fingerprint as recorded, **no expiry, no subkeys**.
+- **Not proven until `v1.0.0`**: the OIDC exchange with these claims, `--republish` on the free
+  plan, apt and dnf reading `any-distro/any-version` (`…/deb/any-distro/dists/any-version/InRelease`
+  is 404 while the repository is empty), and the `.repo` without Cloudsmith's `noarch` and
+  `source` sections.
+- **`actionlint` not run**: no binary on this machine, and the `rhysd/actionlint:1.7.12` image's
+  `docker run` was refused by the session's permission classifier.
