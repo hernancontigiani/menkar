@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { AGENT_IDS, type AgentId } from '../agents/ids'
 import { usageLogFile } from '../context/statusline'
 import { appDirs } from '../paths'
 import { isObject, parseSeconds } from './transcript'
@@ -13,6 +14,19 @@ export function statuslineLogPath(): string {
 // rebuildable, and read before Menkar's own so those turns keep their exact cost.
 export function importedStatuslineLogPath(): string {
   return join(appDirs().data, 'agent-tablet-usage.jsonl')
+}
+
+// An agent whose cost is in its own data logs it here, beside the usage cache, in this log's format.
+export const costLogName = (agent: AgentId): string => `usage-${agent}.jsonl`
+
+// Every log a report reads exact costs from: the imported one, the statusline's, and each agent's
+// own beside the usage cache in `folder` (a log that does not exist reads as nothing).
+export function statuslineLogPaths(folder: string = appDirs().cache): string[] {
+  return [
+    importedStatuslineLogPath(),
+    statuslineLogPath(),
+    ...AGENT_IDS.map((agent) => join(folder, costLogName(agent))),
+  ]
 }
 
 function* lines(paths: readonly string[]): Generator<Record<string, unknown>> {

@@ -35,4 +35,6 @@ export const mcp: McpMount = {
       shellQuote(`${DIRECT_KEY}=[${tomlString('mcp__menkar')}]`),
     ]
   },
+  // Its team block names each skill's SKILL.md, which the session reads.
+  servesSkills: false,
 }

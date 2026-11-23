@@ -31,6 +31,7 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'agent.cursorWorks':
     '“{name}” es una sesión de Cursor: puede trabajar para el orquestador, con límites — despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.codex': 'Codex',
+  'agent.opencode': 'OpenCode',
   'terminal.tag': '[menkar]',
   'terminal.folderGone': 'aviso: la carpeta del proyecto {cwd} ya no existe, se empieza en HOME',
   'drawer.hide': 'Ocultar la terminal (Ctrl+`)',
@@ -39,6 +40,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'drawer.pickPlaceholder': 'Filtrar carpetas',
   'drawer.divider': 'Arrastrá para cambiar el alto de la shell; Ctrl+` la oculta',
   'terminal.notFound': 'aviso: no se encontró `{cli}` en el PATH — se abre una shell sola',
+  'terminal.serverFailed':
+    'aviso: Menkar no pudo iniciar el servidor de `{cli}` para esta sesión — se abre una shell sola',
+  'terminal.otherServer':
+    'aviso: esta sesión también tiene un turno en curso en otro `{cli}` — lo que se le envíe ahora puede intercalarse con ese turno',
   'terminal.restoreMissing':
     'No se encontró esta sesión: puede que su agente ({agent}) esté desinstalado o que sus archivos ya no estén.',
   'terminal.restoreUnsupported':
@@ -171,6 +176,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
     'Cargá `menkar:orchestrator` con la herramienta Skill, por ese nombre, aunque todavía no esté en tu lista de skills. Sos el orquestador del proyecto {name}. Su orquestación es nueva: leé primero la guía de Menkar en {guide} y después ayudame a configurarla.',
   'orch.firstPromptByFile':
     'Cargá `menkar:orchestrator` leyendo su SKILL.md en {skill}, completo. Sos el orquestador del proyecto {name}. Su orquestación es nueva: leé primero la guía de Menkar en {guide} y después ayudame a configurarla.',
+  'orch.firstPromptByTool':
+    'Cargá `menkar:orchestrator` con la herramienta `load_skill` del servidor menkar, por ese nombre. Sos el orquestador del proyecto {name}. Su orquestación es nueva: leé primero la guía de Menkar en {guide} y después ayudame a configurarla.',
   'header.usageTooltip': 'Uso: tiempo, tokens y costo',
   'menu.newWindow': 'Ventana nueva',
   'menu.newSession': 'Nueva sesión',

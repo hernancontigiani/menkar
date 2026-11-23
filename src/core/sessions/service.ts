@@ -195,6 +195,7 @@ export class SessionsService {
   stop(): void {
     this.#stopped = true
     this.#coalescer.stop()
+    this.#scanner.close()
     for (const watcher of this.#watchers.values()) watcher.close()
     this.#watchers.clear()
   }

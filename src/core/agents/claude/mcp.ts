@@ -6,4 +6,6 @@ export const mcp: McpMount = {
     ...(ctx.mcpConfig ? ['--mcp-config', shellQuote(ctx.mcpConfig)] : []),
     ...(ctx.pluginDir ? ['--plugin-dir', shellQuote(ctx.pluginDir)] : []),
   ],
+  // `--plugin-dir` gives the session Menkar's skills.
+  servesSkills: false,
 }

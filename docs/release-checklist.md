@@ -160,6 +160,48 @@ defaults to the agent last started; the new Codex orchestrator is marked at once
 orchestrator skill by its path and is named "orchestrator" once its thread exists; "Ask an agent"
 starts Codex with a Codex tab focused, and the agent last started with none.
 
+## 8f. OpenCode (P2)
+
+OpenCode as a session and as a worker of a Claude Code orchestrator (plan 39, phase P2), checked
+in Menkar Sandbox with your own `opencode` installed and signed in to a provider, and your own
+`claude`, in `sandbox-` projects. Menkar runs its own `opencode serve` for its OpenCode tabs; your
+own OpenCode keeps running as it is.
+
+1. New → OpenCode, in a folder of a `sandbox-` project with the orchestration mode off, with a
+   name. Send a first message that makes OpenCode run a shell command needing your approval.
+2. While the turn runs, then at the approval, then after it ends, look at the tab's and the row's
+   state dot. Then ask it for a job that uses a subagent, and watch the dot while the subagent
+   works.
+3. Ask it which tools it has.
+4. In the same tab, `/new` and a message; then OpenCode's own session picker (Ctrl+X L) back to
+   the first session.
+5. Close the tab; in a terminal, `ps -ef | grep 'opencode serve'`. Open the session again from its
+   row and send a message.
+6. Open Usage and run `menkar-sandbox usage`; compare the tab's ring with OpenCode's own footer.
+7. In another `sandbox-` project, switch the orchestration mode on with a Claude Code orchestrator.
+   Ask it to start an OpenCode worker for a small task (`start_session` with `agent: "opencode"`
+   and a task) and let the worker do it and report with `task_review`.
+8. Ask the orchestrator for the worker's last reply, then to send it a message; have the worker
+   answer with `send_message`. Give the worker a role ("Configure role…") while it runs.
+9. In a terminal, open your own `opencode` TUI on the first session (`opencode -s <id>`) and start a
+   long turn there; meanwhile close its tab in Menkar Sandbox, if open, and open it again from its
+   row.
+
+**Passes when** the tab shows OpenCode's own screen with the name you typed as the session's title,
+and the row appears once the first message is sent; the dot shows working, then blocked at the
+approval, then idle or done, and stays working while the subagent works; outside the orchestration
+mode none of its tools is Menkar's; after `/new` the tab runs the new session and the old one is
+under "Earlier conversations ▸", and the picker brings the tab back to the first; with no OpenCode
+tab open no `opencode serve` of Menkar Sandbox runs; reopening resumes the same session with its
+earlier messages; Usage lists its turns under the project with OpenCode's own cost (not marked as
+an estimate, for a model OpenCode prices) and `menkar-sandbox usage` agrees; the ring shows what OpenCode's footer shows; the
+worker runs in the background under the orchestrator, named `<project>-t<N>`, loads the worker
+skill with Menkar's `load_skill` tool and uses Menkar's tools with no approval card; its review
+wakes the orchestrator once, at its turn's end; `last_reply` returns its last answer; each message
+arrives as "[Menkar] from ‹name› (‹agent›)…" in the other's next turn; the role reaches the worker
+without a turn of its own and wakes nobody; the reopened session's pane shows one line of
+Menkar's saying it also has a turn running in another `opencode`.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in

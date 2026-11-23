@@ -268,3 +268,31 @@ Cursor's kit has none of them. Main writes the block's file before asking the La
     - `task_progress { number, step?, note, waiting_on? }`: the assignee only, after its steps;
       `step` from 1 to the number of steps, kept when omitted; with `waiting_on` the task is
       waiting, without it in progress.
+
+## The shape
+
+> Left on 2026-11-21: a call without MENKAR_PANE names its session in `_meta`; load_skill listed to OpenCode (plan 39 P2.5, task 185).
+  - **Who is calling:** the server reads `MENKAR_PANE` from that environment and refuses every
+    call without one, and `MENKAR_AGENT` for the caller's agent: a mount that names none is
+    Claude Code's, whose `--mcp-config` is unchanged. A request carries its `caller`, a pane, or
+    (from OpenCode's proxy, not built yet) a session named by a `_meta` key and its id.
+      `start_session` gains `agent` once two or more agents are installed, and `send_message` is
+      added for a caller that must reach an installed agent its own messaging cannot reach and
+      Menkar can wake (`docs/agents.md`). With no file, every caller gets the plain list.
+
+## The team block
+
+> Left on 2026-11-21: the per-agent table gains OpenCode, and `tell` its `current` (plan 39 P2.5, task 185).
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) |
+|---|---|---|---|
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` |
+| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` |
+| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) |
+| (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` |
+
+## Rejected
+
+> Left on 2026-11-21: Menkar opens loopback ports for OpenCode's server and its panes' proxies (plan 39, P2.7, task 196).
+- **A loopback HTTP server:** it is the only option that opens a port.

@@ -10,6 +10,7 @@ export const descriptor: AgentDescriptor = {
   namedAtStart: false,
   chat: [],
   teamLimits: null,
+  callerMeta: null,
   versionWord: 1,
   versions: { validated: null, floor: null },
 }

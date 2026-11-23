@@ -16,6 +16,20 @@ export function usePlatformDirs(dirs: AppDirs): void {
   platformDirs = dirs
 }
 
+let programs: string | undefined
+
+// The folder of main's entry, where the programs and worker threads Menkar builds sit beside it:
+// the main process hands it over at startup. A module bundled into a shared chunk cannot find it
+// from its own file, which lands in a folder of its own.
+export function useProgramsFolder(dir: string): void {
+  programs = dir
+}
+
+export function programsFolder(): string {
+  if (programs === undefined) throw new Error('the programs folder is set by main at startup')
+  return programs
+}
+
 function xdg(variable: string, fallback: string): string {
   const value = process.env[variable]
   // The XDG spec says a relative value is invalid and must be ignored.

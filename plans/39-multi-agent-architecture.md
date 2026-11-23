@@ -434,13 +434,41 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
     rollout streams to the turn's extent.
   - **OpenCode**: rows, read by `time_updated` greater than the last one seen.
 - **SQLite read-only, without writing beside the agent's database**: `agents/shared`'s
-  `openAgentDb(path)` opens `file:<path>?immutable=1` read-only when **neither** `<path>-wal` nor
-  `<path>-shm` exists (no writer); a plain read-only open when **both** exist (a writer is live);
-  **with a `-wal` and no `-shm`** (a writer that crashed, S6) it opens nothing and returns
-  `'unreadable for now'`, logged once — opening would create the `-shm` beside the agent's
-  database, and a stale `-wal` read with `immutable=1` misses its frames. Closed at once after the
-  query; never held open across passes. R9's test asserts the sidecars' listing in all three
-  states.
+  `openAgentDb(path, read)` opens `file:<path>?immutable=1` read-only when **neither** `<path>-wal`
+  nor `<path>-shm` exists (no writer). When **both** exist (a writer is live, or was killed and left
+  them) it **reads a copy** (set's route, 2026-11-21, on P2.4's measurements): the database and its
+  `-wal` copied into Menkar's cache (`<cache>/agent-db/<hash of the path>/`), never the `-shm`,
+  which SQLite rebuilds there from the copied `-wal`; the database file is copied again only when
+  its size, mtime or inode moved (a checkpoint), the `-wal` when it moved; a copy during which
+  either moved is taken again, up to three times, then `'unreadable for now'`. The copy's folder is
+  removed the next time the database is read with no sidecars. **With a `-wal` and no `-shm`** (a
+  writer that crashed, S6) it opens nothing and returns `'unreadable for now'`, logged once —
+  opening would create the `-shm` beside the agent's database, and a stale `-wal` read with
+  `immutable=1` misses its frames. Closed at once after the query; never held open across passes.
+  node:sqlite and the copy are synchronous, so it runs only off the UI path (OpenCode's catalog:
+  a worker thread, below).
+- **Why the copy** (P2.4, 2026-11-21): OpenCode's server keeps **both** sidecars from its start; a
+  clean stop removes both; **a SIGKILL leaves both** (`opencode`, v2.3.0; P2.1). With a dead
+  writer's sidecars `immutable=1` misses the last writes, and a plain read-only open rebuilds the
+  `-shm`'s index and moves its mtime — a write beside the agent's file. Rejected: declaring that
+  `-shm` touch in `DeclaredWrites` (a write into an agent's data, the human's to allow); asking the
+  live server's API (needs P2.2–P2.3, and a killed server's sidecars still need the copy). Codex
+  reads no SQLite (its catalog is JSONL), so the copy is every agent's route. **Cost, measured**
+  (warm page cache): 85 ms for 105 MB and 786 ms for 1.06 GB copied; on a 12 MB database through
+  the built worker, 15.8 ms the first read, ~1 ms after a write that moved only the `-wal`. The
+  human's `opencode.db` is 11.9 MB (stat only): disk ≈ that, while OpenCode runs.
+- **OpenCode's catalog reads on a worker thread** (set, 2026-11-21): the sessions scan runs in
+  Electron's main process, so the catalog's methods post their reads (`list`, `head`,
+  `conversation`, `lastReply`) to one long-lived thread (`opencode-db.js`, built beside main's
+  bundle, unref'd), started at the first read and ended by `SessionCatalog.close` — when the
+  scanner finds OpenCode not installed and when the sessions service stops at quit. A find asks
+  nothing while the database file and its `-wal` keep their inode, size and mtime; a session's
+  messages are read again only when its `time_updated` moved. Nothing is read, and no thread
+  started, while OpenCode is not installed or has no database (R10).
+
+  P2.1's fixture holds the three states OpenCode produces: no writer (the database alone), a live
+  writer (the test opens one), and a killed writer (database, `-wal` and `-shm` as a SIGKILL left
+  them).
 - **Large and growing**: no reader holds a whole JSONL; Codex's `.zst` is streamed.
 - **Cursor's prompt text in Menkar's hook log** (S6, 1.159) is a new copy of the user's prompts at
   rest: it is kept **only while the classifier is on** for Cursor's turns (§2.17); with it off, the
@@ -454,21 +482,64 @@ through `agents/shared`'s read-only open, the consent on IntegrationItems.
   when its stdin closes, so a Menkar crash leaves no orphan (`opencode`, 2026-11-15, m), and in
   stdio mode it removes the password from what its MCP servers inherit. Stopped by PID with the last
   OpenCode tab and on quit.
+- **Spawned through `withoutSessionEnv`, and without `MENKAR_PANE`** (`opencode`, measured on
+  v2.3.0, 2026-11-21): an MCP server it starts inherits **the server's whole environment** but the
+  password — `OPENCODE_CONFIG_CONTENT`, the variables of the session that started Menkar, any
+  `MENKAR_PANE` — so the server must carry none of a pane's or an agent session's variables. Its
+  stdout is one line, `{"url":"http://127.0.0.1:<port>"}`, about 6 s after the spawn; stdin
+  closed → exit 0 within 100 ms. Basic auth, user `opencode`.
+- **`POST /api/session/<id>/view` requires `{"idle": <ms>}`** (400 without it; measured). The TUI
+  sends it after `/new`, not at its start, and not for a session its own picker opens (`opencode`,
+  items 56–57): it says nothing about which session a pane shows.
 - **`OPENCODE_CONFIG_CONTENT` holds** (S12) only what Menkar's sessions need on its own server,
-  merged by OpenCode over the user's config: the server's `permission` defaults left as the user's,
-  the skills paths (the stored skills, 1.152), and nothing else at start. Menkar's MCP is **not** in
-  it: it is added per folder through the API when the first session there enters a mode-on project
-  (1.141), so a session of a mode-off project sends exactly the request it sends today (a test
-  against the stand-in: a mode-off session's `tools` array and system text equal those of a server
-  started with no `OPENCODE_CONFIG_CONTENT`).
+  over the user's own `OPENCODE_CONFIG_CONTENT` when they have one: `permission: {"menkar_*":
+  "allow"}` beside the user's rules, and nothing else. It changes no model request (`opencode`,
+  item 69: system text and tools byte-identical with and without it). **No `skills` path** (set,
+  2026-11-21, on item 69): a skills path lists its skills to every session of the server, those of
+  a mode-off project too. Menkar's MCP is **not** in it: it is added **per session folder** (the
+  match is exact, item 68: a session in a subfolder of a mounted folder gets nothing; set,
+  2026-11-21) through the API when a session there starts in a mode-on project, or is given a block
+  later (1.141), so a session of a mode-off project sends exactly the request it sends today (a
+  test against the stand-in: a mode-off session's `tools` array and system text equal those of a
+  server started with no `OPENCODE_CONFIG_CONTENT`).
+- **The stored skills (1.152) reach an OpenCode session through Menkar's MCP** (set, 2026-11-21):
+  its team entry names them, and a read-only tool, `load_skill {name}`, listed only to a caller
+  whose kit's `McpMount.servesSkills` is true (OpenCode's), answers a skill's text with its folder:
+  Menkar's own (`menkar:<name>`, from the plugin) or one found for the pane's session. A turn a
+  queued message opens lists every tool in its first request (item 67), so OpenCode's part has no
+  "load it first" line.
+- **A session is made before its TUI** (items 62–65): `POST /api/session {id, title, location,
+  model?}` (the model as `{providerID, id}`; the row is written at once, and a title Menkar sets is
+  never replaced), the entry PUT, the MCP for its folder, then a first prompt as `POST …/prompt
+  {text, delivery:"steer"}`, and only then `opencode --server <proxy> -s <id>`. The TUI draws the
+  turn already running; a `--prompt` would be submitted again after a `/new` (item 47).
+- **State from the server's events** (set, 2026-11-21, on item 70): an execution's end is the
+  pane's turn-end record. A subagent runs in a session of its own, whose parent's execution ends
+  while it works and starts again when it is done: a root counts as running while any session
+  under it does (by `session.created`'s `parentID`), its idle screen then reads working, and its
+  turn ends only when nothing under it runs.
 - **Version check by feature**: `GET /openapi.json` lists the experimental instruction route **and
   the experimental per-folder MCP route** (S12); without the first, the team block is not
   delivered; without the second, Menkar's MCP is not mounted (OpenCode sessions then cannot use the
   orchestration's tools, and the first-time card says so); a log line says why (`/api/info`'s
   version only for the log).
-- **The proxy**: one loopback port per OpenCode pane, forwarding to the server, adding no
-  credential; it reads `POST /api/session/<id>/view` and `…/prompt` to know the pane's session
-  (D14), and gives main the `{ id → pane }` map for the caller (§2.5.4).
+- **The proxy** (`opencode`, measured on v2.3.0, 2026-11-21, items 54–61): one loopback port per
+  OpenCode pane, forwarding to the server byte for byte, adding no credential (the TUI sends Basic
+  auth from its own `OPENCODE_PASSWORD` on every request). The TUI speaks plain HTTP/1.1 to it
+  only — no Upgrade, no HTTP/2, bodies with a content length, the event stream as SSE with a
+  heartbeat every 15 s, piped unbuffered; `/api/info`'s `urls` names the server's own port but the
+  TUI never uses it. **What says the pane's session (D14):** `POST /api/rpc/opencode.goal/get
+  {"input":{"sessionID":…}}`, sent only for the session the TUI shows — at its start on `-s`, after
+  a create, on every switch with its own picker (Ctrl+X L), back and forth — and bound on the
+  request alone (any id answers `{"output":null}`, and a server still loading answers 400
+  `rpc.unavailable`); a create's body `{id}` (the first sight of a `/new` session, which sends
+  nothing until its first prompt) and `…/prompt`'s path, each once answered 2xx. Every other route
+  names any session of the TUI's tab strip or a child it draws. A **subagent's** tool call names its
+  own session in `_meta["ai.opencode/sessionID"]`; main follows `GET /api/session/<id>`'s
+  `parentID` (its own call, with the password) to the session a pane shows. The proxy gives main
+  the `{ id → pane }` map for the caller (§2.5.4) and calls `onSession(pane, id, previous,
+  created)` when a pane moves: to a session its TUI created (`/new`) the pane follows it as after a
+  `/clear`; to one its picker opened, as after an in-session `/resume`.
 - **A restart of the server with TUIs attached** (it died): main restarts it on the same port;
   the TUIs reconnect or show their own error; a test asserts main restarts it once and logs, and
   does not loop (one retry per 30 s).
@@ -2288,3 +2359,422 @@ P0's blocks run in turn.
   merge base; run by hand after it: code rules, i18n, flaky and history pass, test integrity
   reports the branch's nine known lines (none from this change). **`npm run ui-check`**: 441
   passed, exit 0.
+
+### P2.1 (`menkar-t177`, task 177, 2026-11-21)
+
+- **Measured by `opencode` on the installed v2.3.0** (2026-11-21, a throwaway home and a
+  stand-in API; its research file, items 38–48), and what it overturned in this plan:
+  - **§2.6's third state does not happen for OpenCode.** Its server keeps `-wal` and `-shm` from
+    its start; a clean stop (stdin closed) checkpoints and removes both; a SIGKILL leaves **both**.
+    A plain read-only open then rebuilds the `-shm`'s index: its mtime and bytes move — reproduced
+    here on the fixture. `immutable=1` misses the frames in the `-wal`. §2.6 now names the two
+    routes P2.4 chooses between (a copy in Menkar's cache, or the running server's API), set's
+    instruction of 2026-11-21. The "`-wal` without `-shm`" state is dropped for OpenCode.
+  - **§2.7: the MCP child inherits the server's whole environment** but the password
+    (`OPENCODE_CONFIG_CONTENT`, the starting session's variables, any `MENKAR_PANE`), so the server
+    is spawned through `withoutSessionEnv` and without `MENKAR_PANE`; written into §2.7.
+  - **`POST …/view` requires `{"idle": <ms>}`** (400 without); the TUI sends it after an execution
+    of its session ends and when `/new` leaves a session that had a turn, **not at its start**;
+    with `-s` the pane's session is known from its own argument. After `/new` the TUI mints the
+    new session's id itself and sends it in `POST /api/session {id, agent, model, location}` (no
+    title) at its first prompt: P2.3's proxy can bind the pane from that body.
+  - **A TUI started with `--prompt` re-submits that prompt by itself after `/new`**: Menkar's first
+    prompt would run twice if the human types `/new` (for P2.5; the stand-in imitates it).
+  - The per-folder MCP route is `PUT|DELETE /api/experimental/mcp/{server}` with the folder as
+    `location[directory]` in the query, body `{config}`, 204; its status in
+    `GET /api/mcp?directory=`. `PATCH /api/session/<id>` answers 204 with no body. A permission is
+    answered with `POST /api/session/<id>/permission/<per>/reply {decision: once|always|reject}`.
+    The TUI without the password prints OpenCode's error and exits 1. `session_v2.agent` and
+    `.model` stay NULL; the assistant rows name them.
+- **Decided by set, 2026-11-21 — a file beyond §5's row:** `tests/core/agents/contract/nowrite.test.ts`
+  gains a direct case over OpenCode's fixture in its three states, with an `OPENCODE_WRITES`
+  constant (empty) in the test that P2.4 moves into the kit. Its killed-writer case is
+  **`test.fails`**: the shared reader writes the `-shm` there today, and the case starts failing
+  (to be turned into a plain `test`) the day P2.4's route reads without writing. The `-shm`'s
+  bytes are left out of the comparison and its presence and mtime kept, as `db.test.ts` decided
+  for Codex: with a live writer, readers write their read marks into it through a mapping that
+  leaves its mtime alone (measured here).
+- **The fixture** (`tests/data/agents/opencode/`): `schema.sql` holds the six tables' DDL as
+  `opencode` dumped it (the stand-in creates its database from the same file); `make.mjs` writes
+  `home/.local/share/opencode/opencode.db` (no writer: five invented sessions — two turns with tool
+  steps and a team entry, a steered and a queued message closed by one `idle`, a subagent, an
+  archived one, an interrupted turn with a message left in its inbox) and
+  `killed/.local/share/opencode/opencode.db` with `-wal` and `-shm` (a third turn and a rename only
+  in the `-wal`). The live writer is a process: the test opens one. **No `expected.json` yet**:
+  P2.4 writes it with the catalog.
+- **The stand-in** (`e2e/standins/opencode.ts`, `opencodeStandIn(bin)`): `serve --stdio` with the
+  measured stdout line, auth, routes, error bodies and event frames; its database in WAL with the
+  sidecars live; executions with steer and queue; the per-folder and config MCP servers started as
+  OpenCode starts them, `CALLMENKAR` calling a tool with `_meta["ai.opencode/sessionID"]`; each
+  step's would-be request (tools and system parts) in `opencode-requests.jsonl` for P2.5's
+  mode-off test; `RUNTOOL` raising a permission; `FAKE_OPENCODE_NO_ENTRIES` and
+  `FAKE_OPENCODE_NO_MCP_ROUTE` for the feature checks (P2.2). The TUI draws the measured strings
+  from the event stream. **Not measured, the stand-in's own:** `GET /api/session/<id>/message`'s
+  shape (only its TUI reads it), the 404 body of an unknown route, the `reason` of
+  `session.execution.interrupted` (read in the research, not measured). Run by hand in a scratch
+  home (server routes, events, MCP call, permission, the TUI's screens, `/new`, Ctrl+C, the
+  sidecars after a clean stop and after SIGKILL); no e2e uses it yet (P2.2 on).
+- **Seen red:** the no-writer case through a plain read-only open (sidecars created), the
+  killed-writer case as a plain `test`, and the immutable case expecting the `-wal`'s title; the
+  live-writer case failed on the `-shm`'s bytes before they were left out.
+
+### P2.2 (`menkar-t179`, task 179, 2026-11-21)
+
+- **`src/main/agents/opencode/server.ts`, `OpenCodeServer`**: `acquire(pane) → { url, password,
+  features }` starts `opencode serve --stdio --port <p>` with the first pane (the port a free one
+  the OS gives a probe on 127.0.0.1, the password 24 random bytes in base64url), `release(pane)`
+  stops it with the last, `stop()` is the quit. The environment is `withoutSessionEnv(process.env)`
+  without `MENKAR_PANE`, `MENKAR_FILES` and `MENKAR_PRIVATE`, plus `OPENCODE_PASSWORD` and, when the
+  caller gives one, `OPENCODE_CONFIG_CONTENT` (`config()`, read at each start; P2.5 fills it). Its
+  own process group (`detached`); its stdin held by main; stopped by closing stdin, then the group
+  SIGTERM at 2 s and SIGKILL at 5 s if it is still alive, by PID, each escalation logged.
+- **Feature checks** (`opencode`, measured on v2.3.0, 2026-11-21, its items 49–51): `GET
+  /openapi.json` with Basic auth (401 without); `paths` holds
+  `/api/experimental/session/{sessionID}/instructions/entries/{key}` and
+  `/api/experimental/mcp/{server}`, each with `put` → `features.entries`, `features.mcp`. A missing
+  one is a `notice` log line with `/api/info`'s version; an unreadable `/openapi.json` reads as
+  neither, logged. Nothing acts on them yet: P2.5's preparer and team delivery read them.
+- **Restart**: only a server that printed its address and dies while panes hold it; on the same
+  port and with the same password (the TUIs keep theirs), the first at once and each next one no
+  earlier than 30 s after the previous; a restart that fails (a port taken: OpenCode exits 1 in
+  ~210 ms with no address line, measured) schedules the next under the same rule. Counted
+  (`restarts()`) and logged. A first start that fails rejects `acquire` and is not retried in the
+  background: the next tab's acquire tries again.
+- **Measured by `opencode`, not built on**: a stdin-closed server stops its MCP children itself;
+  a SIGKILLed server's children were not measured (the group SIGKILL covers them).
+- **R10's spec**: the processes test runs twice, OpenCode absent and present but unused, against
+  the same `processes.txt` (no file under `tests/core/r10/` changed), and asserts no `opencode
+  serve` ran. Its body moved, unindented and byte for byte, into `processesAndListening(opencode)`,
+  so `check-test-integrity` loses no `expect(` line. `R10_DEFECT_OPENCODE=1` is its injected defect
+  (main spawns a server; seen red on `processes.txt`, one more `node opencode` process).
+- **"Main killed → the server gone" is a Vitest case, not e2e**: no OpenCode tab exists before
+  P2.5. The test bundles `server.ts` with Vite into a plain Node "main", SIGKILLs it, and waits for
+  the stand-in server's PID to end.
+- **Choices of mine**: the start's wait for the address, 30 s (the real one takes ~6 s); the
+  escalation's 2 s and 5 s; the pane variables stripped beyond `MENKAR_PANE` (`MENKAR_FILES`,
+  `MENKAR_PRIVATE`, inherited only when Menkar was started from a pane); a new port and password
+  for each server life after a deliberate stop.
+- **Left to P2.5**: wiring — the kit's acquire per OpenCode pane, the release on the pane's end,
+  `stop()` on `will-quit`; the TUI's `--server` URL is P2.3's proxy, which takes `url` and
+  `password` from here.
+- **Seen red** (each injected in `server.ts` or the test, then removed): the pane variables kept;
+  no stop at the last release; no restart; no 30 s wait; the MCP route always read as present; the
+  server's stdin inherited instead of held (the main-killed case timed out with the server alive).
+
+### P2.4 (`menkar-t180`, task 180, 2026-11-21)
+
+- **Two premises of the launch prompt did not hold, stopped and asked:**
+  - "the same route as Codex": nothing in `src/` called `openAgentDb`; Codex's catalog reads JSONL
+    only, and its `DeclaredWrites` lists its own server's sidecar writes (`codex queue`,
+    `thread/name/set`), not a read's `-shm` touch. OpenCode is the first SQLite reader.
+  - "the catalog already reads off the UI path": the sessions scan runs in Electron's main process
+    (`src/main/sessions.ts` → `SessionsService` → `SessionScanner`), async fs only; node:sqlite is
+    synchronous.
+- **Decided by set, 2026-11-21:** the copy, inside `openAgentDb`'s both-sidecars branch, so every
+  agent reads the same way (§2.6 rewritten on it); OpenCode's reads on one long-lived worker thread
+  owned by the catalog, ended when OpenCode is uninstalled and at quit, with a test; the worker in
+  `scripts/check-package.mjs`'s required programs.
+- **Files beyond §5's row, granted by set:** `src/core/agents/shared/db.ts` and its test (the
+  copy); `electron.vite.config.ts` (the `opencode-db` entry); `scripts/check-package.mjs` and its
+  test; `src/core/agents/types.ts` (`SessionCatalog.close`), `close: null` in Claude's, Cursor's
+  and Codex's catalogs, `src/core/sessions/scanner.ts` (closes an uninstalled agent's catalog,
+  `close()`) and `service.ts` (`stop()` closes the scanner). As consequences of registering, as
+  P1a.2 did: `agent.opencode` in `src/core/i18n/{en,es}.ts`, and the roster pins below.
+- **The kit's files:** `descriptor.ts`, `ids.ts`, `env.ts`, `catalog.ts`, `index.ts`, and the
+  reader's three: `store.ts` (the queries, plain functions over an open database), `reads.ts` (the
+  worker or, for tests, the calling thread; `useReads`), `db-worker.ts` (the thread's entry).
+  `src/main/agents/opencode/index.ts` is all `null` until P2.5.
+- **Interim until P2.5, said in `index.ts`:** the launcher runs the bare TUI (`[cli]`), so
+  `firstPrompt: false` and the Namer gives nothing (`namedAtStart: false`); the state rules
+  answer `idle`, and the contract state test leaves OpenCode out (`LANDS_IN: { opencode: 'P2.5' }`).
+  The New picker shows OpenCode (greyed when not installed): branch only.
+- **`DeclaredWrites`:** P2.1's `OPENCODE_WRITES` (empty) is the kit's `writes`; the session and
+  inbox rows Menkar's calls make the server write join with P2.5. **R9 in three states** now runs
+  OpenCode's catalog over each (no writer, a live writer the test opens, the killed fixture) and
+  compares every file exactly, the `-shm`'s bytes included: the catalog never opens OpenCode's
+  files. P2.1's `test.fails` is a plain test.
+- **From `opencode` (2026-11-21, its research items 52–53):** OpenCode's picker lists roots
+  (`parent_id IS NULL`) not archived, so the catalog does; `title` is NULL until generated, an older
+  `New session - <ISO>` is a fallback too, and a generated title cannot be told from the user's, so
+  every title is the session's name (`customTitle`, `aiTitle` null); `BUN_BE_BUN` is always dropped
+  (an `opencode` that inherits it runs as Bun); `OPENCODE_DB` is resolved from the data folder;
+  an id must start with `ses`, and a create with an existing id answers that session unchanged.
+- **My choices:** the locator is `<db path>#<session id>`; `folder` is the database's folder (the
+  rows' place; the cwd is `directory`); `size` is the bytes of the session's message and part
+  rows; a session with no user message is not listed (as Codex); `mcpUsed` is empty, since
+  `<server>_<tool>` cannot be split when a server's name has an underscore; the database's name is
+  `opencode.db` (another channel's `opencode-<channel>.db` is known only to its binary); new ids
+  in OpenCode's own form (`ses_` + 12 hex descending + 14 base-62), minted from `clock.ts`;
+  `versionWord: 1` (`opencode v2.3.0`; the `v` makes `compareVersions` answer null until P2.7
+  sets the validated version); the glyph `▣` **proposed, not decided**.
+- **Environment:** identity `OPENCODE_SESSION_ID`, `OPENCODE_PASSWORD`; markers `OPENCODE`,
+  `OPENCODE_TERMINAL`; `BUN_BE_BUN`; `AGENT` only with `OPENCODE` inherited. R10 is unchanged:
+  its files stay byte-equal.
+- **Roster pins changed** (a new agent registered): `ids.test.ts` (`AGENT_IDS`);
+  `parity.test.ts` (the glyphs' list, `namedAtStart`, `firstPrompt`, OpenCode's caps);
+  `check-code-rules.test.ts` (the roster's ids and commands); `e2e/remote.spec.ts` SES-72 (two:
+  the New picker); `contract/state.test.ts` (the names shown, `LANDS_IN`); `sessionenv.test.ts`
+  (OpenCode's variables); `check-package.test.ts` (the programs, a missing-reader case).
+- **Measured:** see §2.6 (copy 85 ms / 105 MB, 786 ms / 1.06 GB; 12 MB through the built worker:
+  15.8 ms first, ~1 ms after a `-wal`-only write). Deleting the copy's `-shm` before each open
+  changed nothing (the copy's first reader rebuilds it), so it is not done. The built
+  `opencode-db.js` read the killed fixture's `-wal` with no byte or mtime moving there.
+- **Found by `packager` after the first report, fixed:** the worker's path was resolved from
+  `reads.ts`'s own `import.meta.dirname`, and the bundler puts that module in a shared chunk
+  (`out/main/chunks/`), so the built app looked for `chunks/opencode-db.js`. Main's entry now hands
+  its folder over (`useProgramsFolder(import.meta.dirname)` in `src/main/index.ts`, a setter in
+  `src/core/paths.ts`) and the reader resolves the file from `programsFolder()`; the catalog's
+  `close` ends the thread only if one was made. `e2e/opencode-catalog.spec.ts` runs the built app
+  with the stand-in `opencode` on the PATH and the killed fixture as OpenCode's data: the three
+  sessions are listed and OpenCode's files keep their bytes and mtimes. Seen failing with the old
+  path (nothing listed in 15 s), passing with the fix.
+- **Seen red:** `db.test.ts`'s three new cases on the previous `db.ts`; the `-wal` not copied
+  again; R9's live and killed cases on the previous `db.ts`; the listing re-read with no file
+  moved; every session re-read on one row's change; no close on uninstall; no close at quit; the
+  id's time not inverted; `AGENT` not gated; archived sessions listed; the last reply taken past an
+  execution that gave none; a missing reader in the package.
+
+### P2.3 (`menkar-t184`, task 184, 2026-11-21)
+
+- **Measured by `opencode` on v2.3.0 before building** (its research items 54–61), and what it
+  overturned: **`/view` and `/prompt` do not say which session a pane shows.** `/new` sends nothing
+  until its first prompt; a session opened with the TUI's own picker (Ctrl+X L) gets neither
+  `/view` nor `/prompt`; `/view` names a session being left. The one signal sent only for the shown
+  session, at the start on `-s`, after a create and on every picker switch, is `POST
+  /api/rpc/opencode.goal/get {"input":{"sessionID":…}}` (its answer is `{"output":null}` for any id,
+  and 400 `rpc.unavailable` while the server is still loading, so the request alone binds). A
+  subagent's MCP call names the **child's** id; `GET /api/session/<child>` gives `parentID`. The TUI
+  is plain HTTP/1.1 (no Upgrade), sends its own Basic auth, and touches only the proxy's port.
+  §2.7's two bullets rewritten on it (a numbered plan has no history file: the replaced text was
+  "`/view` and `/prompt` follow it from there (P2.3)" and "it reads `POST /api/session/<id>/view`
+  and `…/prompt` to know the pane's session (D14)"; git keeps it).
+- **`src/main/agents/opencode/proxy.ts`, `OpenCodeProxies`**: `open(pane, { url, password },
+  session) → url` listens on 127.0.0.1 with a free port and relays every request with its headers
+  untouched; binds on goal/get's body (whatever the answer), on a create's body `{id}` and on
+  `…/prompt`'s path (each answered 2xx); `onSession(pane, id, previous)` when a pane moves;
+  `paneOf(id) → { pane, sessionId } | null` follows `parentID` up to 8 levels through the server
+  with the password; `sessionOf`, `retarget` (for a restarted server), `close`, `closeAll`.
+- **Decided by set, 2026-11-21 (files beyond §5's row):** the caller is resolved through a new
+  main-kit seam, `MainAgentKit.callers: { meta, paneOf } | null` (`src/main/agents/types.ts`;
+  `callers: null` in Claude's, Codex's and Cursor's main kits; OpenCode's in its `index.ts`, with
+  the kit's one `proxies`); `e2e/standins/opencode.ts` extended: the goal route, `parentID` in a
+  session's JSON, a create with `parentID` (the stand-in's own way to make a child), and the TUI
+  sending goal/get at its start on `-s`, after a create, and on a typed `/switch <id>` (the
+  stand-in's picker). P2.1's and P2.2's tests are unchanged and green.
+- **`src/main/workspace.ts`**: only the caller's line in `handleControl` — a `{ pane }` caller as
+  before, synchronously; an `{ agentSession: { meta, id } }` caller through `paneOfCaller` in
+  `src/main/agents/registry.ts` (my choice to put it there rather than in workspace, so it is
+  tested on plain Node): the kit whose `callers.meta` is the request's, then the pane only if it is
+  that agent's and runs that very session (the named one or its root), else `NOT_KNOWN`.
+- **What P2.5 inherits** (set, 2026-11-21): (1) **the MCP side**: building the `agentSession`
+  caller from `_meta["ai.opencode/sessionID"]` in the MCP server (no `MENKAR_PANE` reaches it) is
+  P2.5's, with the mount; the key is written once today, in `src/main/agents/opencode/index.ts`,
+  and must become one constant both sides read. (2) **the wiring**: `proxies.open` with the
+  server's `acquire` result for each OpenCode pane (the TUI's `--server` is the proxy's url),
+  `close` with `release`, `closeAll` on quit, `retarget` after a restart if its url changes (P2.2
+  restarts on the same port, so it does not today), and `onSession` given to the kit's
+  `OpenCodeProxies` and wired to the `/clear` follow path (`followNewId`), with `previous === null`
+  as the pane's first bind rather than a clear.
+- **Choices of mine**: the 64 KiB cap on a body read (larger ones are relayed unread); 8 parent
+  levels; 5 s for a parent lookup; a pane's previous id dropped from the map when it moves (a
+  tool call from the session it left is refused until it is shown again).
+- **Seen red** (each injected in `proxy.ts` or `registry.ts`, then removed): no bind on the
+  goal's request when the server refuses it; no goal binding at all (the picker test); no parent
+  walk (both subagent cases); `/view` binding (a polled session taken as shown); a create bound on a
+  refused answer; a credential added by the proxy; a closed pane's session kept; every pane's
+  session bound to one pane; the pane's session not compared in `paneOfCaller`.
+
+### P2.5 (`menkar-t185`, task 185, 2026-11-21)
+
+- **Measured by `opencode` on v2.3.0 before building** (its research items 62–72), and what it
+  overturned: the session row is written at the create, with `model` as `{providerID, id}` (a
+  string is 400), and a title Menkar sets is never replaced; a first prompt posted with `steer`
+  before the TUI attaches is drawn by it, which avoids the `--prompt` re-submitted after `/new`;
+  `<dir>` is ignored on `-s`; a prompt to an unknown session is 404 (the stand-in created it: fixed);
+  an entry PUT during a turn reaches the model at its next step, still one execution; a queued
+  turn lists every tool and skill in its first request (no peer-turn listing gap, so OpenCode's
+  part has no "load it first" line); the per-folder MCP's `environment` applies over the server's,
+  and **its folder match is exact**; `permission {"menkar_*":"allow"}` changes no request, **a
+  `skills` path lists to every session of the server**; a subagent's session emits its own
+  executions and **its parent's execution ends while it works** and starts again after; `opencode
+  serve` connected only to loopback (strace); files Menkar's calls make it write: the database's
+  `-wal` (and `-shm` while it runs) and its log.
+- **Decided by set, 2026-11-21:** files beyond §5's row (`src/main/agents/types.ts` with the
+  `Preparer`, `ServerRuns`, `TeamOutcome` and `tell`'s `current`; `src/core/agents/types.ts`'s
+  `LaunchContext.server` and `McpMount.servesSkills`; `src/main/workspace.ts`; `src/main/index.ts`;
+  `src/main/team.ts`; `src/core/control/{server,protocol,files,shapes}.ts`; the descriptors'
+  `callerMeta`; i18n; the roster and parity tests); on items 67–70: **no `skills` in
+  `OPENCODE_CONFIG_CONTENT`** and a read-only `load_skill {name}` tool listed only to a caller whose
+  kit serves skills (OpenCode's); **the MCP per session folder**; **a root counts its subagents'
+  executions** (§2.7 rewritten on all of it; a numbered plan has no history file — the replaced
+  §2.7 text was "`OPENCODE_CONFIG_CONTENT` holds … the server's `permission` defaults left as the
+  user's, the skills paths (the stored skills, 1.152), and nothing else at start" and "calls
+  `onSession(pane, id, previous)` when a pane moves, which a `/clear` follows"; git keeps it). D9's
+  warning: the detection is built and logged; **where it shows is the human's, not built** (set
+  takes it to them).
+- **Built:** core `launch.ts` (`opencode --server <proxy> -s <id>`, nothing else; it refuses to
+  plan without Menkar's server), `state.ts` (the permission card; the footer's last line, so a reply
+  quoting "esc interrupt" is not a turn; the inbox spinner not read), `mcp.ts` (no words;
+  `mcpEntry` with `codemode:false`, `ELECTRON_RUN_AS_NODE`, `MENKAR_AGENT`), `team.ts`, `writes.ts`
+  (the database and its sidecars), `catalog.ts`'s `runningNow` and `store.ts`'s `times`; main
+  `prepare.ts` (`OpenCodePreparer`: acquire, create, entry PUT or DELETE, MCP mount once per server
+  life and folder, proxy, the event stream awaited, the first prompt; `tell` = the entry PUT or
+  DELETE answering `'stored'`; `runs`; `otherServer`; `serverConfig` over the user's own
+  `OPENCODE_CONFIG_CONTENT`), `waker.ts` (`POST …/prompt {delivery:"queue"}`), `events.ts`
+  (`OpenCodeEvents`, reopened through restarts; `Executions`, a root's turn end only when nothing
+  under it runs, settled 1 s after a subagent's end), `index.ts` wiring; `server.ts` gains
+  `running()` and `call()`, `proxy.ts` `showing()` and `onSession`'s `created`. Shared: the MCP
+  server program builds the `agentSession` caller from `_meta[descriptor.callerMeta]` (one
+  constant, `SESSION_META`, both sides read); `load_skill` answered by main from the pane's found
+  skills or Menkar's own (`skillFile` in `src/main/team.ts`); `startPaneHeld` prepares before
+  planning (a failed prepare runs a plain shell with `terminal.serverFailed`), `onPaneExit`
+  releases, the proxies' moves go to `applyFollow` as `clear` (a session the TUI created) or
+  `resume` (one its picker opened), `quitAgentServers` on `will-quit`; `PaneWatcher` reads an idle
+  screen as working while the kit's `runs` says so; the team's `'stored'` outcome delivers without
+  marking a post. `plugin/team/opencode.md` (one line: `send_message`); `check-package.mjs`
+  requires it; `docs/session-control.md` (the caller, `load_skill`, OpenCode's column in "Per
+  agent") with its history.
+- **What D9's detection sees** (for the human's decision): Menkar's server reports only its own
+  executions; `session_v2.time_busy > time_idle` is written by whichever server ran the session
+  last. At a resume and before each wake, a session whose row says a turn runs that Menkar's stream
+  does not show running is logged (`notice`, "an OpenCode session Menkar runs has a turn running in
+  another OpenCode server", with the session and `start`/`wake`). Its blind spots: a server killed
+  mid-turn leaves the row busy (a false positive until the next turn ends), and a turn the other
+  server starts after the check is not seen until the next one.
+- **My choices:** the MCP is mounted when the start has a team file (`team: teamFile !== undefined`),
+  not read from the mode separately; a session resumed without a block has its entry removed; the
+  stream is awaited up to 5 s at every start, so no turn's end is missed; a model not written
+  `provider/model` is dropped with a log line; `<dir>` is not passed; a subagent's end settles 1 s
+  before it ends its root's turn; `load_skill` serves any skill found for the pane (Menkar's, the
+  project's, the user's), not only the stored ones, with "Base directory for this skill:" as
+  OpenCode's own skill tool answers; `serverConfig` keeps a user's `OPENCODE_CONFIG_CONTENT` that
+  does not parse as it is and adds nothing.
+- **Not done, left:** the first-time card saying OpenCode cannot use the tools without the MCP
+  route (§2.7): the route is known only once the server runs, and only logged; the form card
+  (`form.created`) is not read as blocked (no screen measured); `load_skill`'s main side
+  (`loadSkillFor`) has no Vitest (it is in `workspace.ts`): P2.7's e2e.
+- **Roster pins changed:** `parity.test.ts` (OpenCode's `tools` cap; `firstPrompt` mirrors the
+  launcher or the preparer); `block.test.ts` (`TEAM_AGENTS` has OpenCode); `state.test.ts`
+  (`LANDS_IN` empty); `nowrite.test.ts` (core: OpenCode's reading cases compare against nothing
+  declared, since the kit now declares its server's writes); `check-package.test.ts`;
+  `tests/data/package/sandbox/{files,menkar-files}.txt` re-recorded by `packager` from builds of
+  34eb34e + `opencode.md`.
+- **Seen red** (each injected, then removed): the state rules' footer read over 12 lines (the
+  quoted footer), the card read as idle; the caller's `_meta` ignored; `load_skill` not served;
+  the proxy's `created` always true; the kit's writes empty (main R9 wake); the first prompt not
+  posted; the MCP mounted outside the mode; another entry key; the 404 not mapped; `tell` answering
+  `posted`; the two-servers check never telling; a `skills` path in the config (S12's test);
+  subagents not followed to their root; the server's word not read by `PaneWatcher`.
+
+### P2.6 (`menkar-t193`, task 193, 2026-11-21)
+
+- **Measured by `opencode` on v2.3.0 before building** (its research items 73–83), and what it
+  changed here: `session_v2.cost` and `tokens_*` leave a session's subagents out, so the turns sum
+  the rows, never the session's totals; tokens and cost are on `assistant` **and `compaction`**
+  rows (a compaction's summary is a request); an interrupted step has none; `tokens.input` excludes
+  the cache (input + cache read = the prompt); a queued row's `time_created` is when it entered the
+  execution; the root writes `idle` while its subagent works and a `synthetic` row (the child's
+  report) starts it again; `GET /api/session/<id>/context` answers the window's **messages**, not a
+  figure (§2.3's ContextSource row said `GET …/context`: the reading is from the database instead);
+  the limit is in OpenCode's own `kv` table (`models-dev:v2:catalog`, a double-encoded JSON body),
+  absent on a fresh install until the first fetch; a user's `limit.context` override is only in
+  their config; the TUI runs in the alternate screen, keeps a line written to its display until
+  those cells repaint, and hides one written before it starts; **`opencode serve` fetches
+  https://models.opencode.ai at start and every 5 min** (item 73: the human's topic 97, not acted
+  on here).
+- **Built:** `src/core/agents/opencode/usage.ts` (`OpenCodeUsage`, its cache
+  `usage-cache-opencode.sqlite`, `deriveTree`), `context.ts` (`readingOf`, `context`), `store.ts`'s
+  `context` op on the catalog's worker, the kit's `usage` and `context`, the descriptor's
+  `context` cap; `src/core/usage/statusline.ts`'s `costLogName` and `statuslineLogPaths` (every
+  agent's `usage-<id>.jsonl` beside the cache, read by the window's worker, `menkar usage` and its
+  export); `openAgentDb`'s `copies` with `ownCopies`, `dropCopies`, `sweepCopies`; the D9 line
+  (decision 1.205): `Preparer.onNotice` and `PaneNotice` (`src/main/agents/types.ts`),
+  `OpenCodePreparer.otherServer`'s notice to the pane that shows the session, `Terminal.say` and
+  `sayWhenQuiet` (`src/main/terminal.ts`), `showNotice` in `workspace.ts`, `terminal.otherServer`
+  in en and es; docs in `docs/usage.md` (Per agent, OpenCode) and `docs/context.md` (OpenCode's
+  reading).
+- **Decided by set, 2026-11-21 — files beyond §5's row:** `e2e/standins/opencode.ts` (its TUI
+  handles its input in order through one promise chain; a child's `session.created` carries
+  `parentID` and `agent`, as measured); `src/core/agents/shared/db.ts` and its test (option (a):
+  a reader's own copy folder, removed at `close()`, the dead processes' swept at the next open);
+  `src/main/terminal.ts` (`say` only adds to the display and the replay, never the pty's input);
+  `store.ts`'s `context` op. Beyond those, as consequences: `src/main/agents/types.ts`
+  (`onNotice`), `src/core/usage/cli.ts` and `src/main/usage-query-worker.ts` (the logs' list),
+  `catalog.ts` (`parse` exported), `tests/core/agents/contract/usage.test.ts` (`XDG_DATA_HOME`
+  emptied, as `CODEX_HOME` is), the roster pin in `parity.test.ts` (OpenCode's caps gain
+  `context`), and `e2e/opencode-other-server.spec.ts` (the D9 line in the built app).
+- **The proxy test's timeout was a race, not slowness**: the stand-in TUI ran one async stdin
+  handler per chunk, so `again` typed while `/new` still awaited its `/view` went to the old
+  session, no create followed, and `waitFor`'s 10 s outlived the 5 s test. Reproduced (0–1 ms
+  between the writes: 5 of 6 runs timed out; 30 ms: passed); fixed in the stand-in (input in
+  order) and in the test (it waits for the cleared screen after `/new`); 6 of 6 pass with 0–1 ms.
+- **t190's finding** (a root pane idle while its subagent works): `opencode`'s item 79 sampled
+  only the TUI's footer and the raw execution frames, not Menkar's `Executions`; item 82 measured
+  the child's execution starting ~850 ms before the root's ends and the root restarting 3–5 ms
+  after the child's, with `parentID` flat in the child's `session.created`, which `parseFrame`
+  reads. So no gap in `Executions` with the real server; the stand-in's frame had no `parentID`,
+  which gave that gap in any stand-in run: fixed. `opencode` sent the same answer to t190.
+- **My choices:** a turn opens only on a root's `user` row (`synthetic`, `shell` and `skill`
+  open none); a step belongs to the turn in effect at its `time.created`, and its cost line is at
+  that time too, so cost and tokens land on one turn; time is cut so no second counts twice (a
+  stretch a step runs through is that step's turn's, the earliest such step's when several run),
+  which gives a steered message's previous turn a null latency rather than 0; the cost log is
+  written whole from the cache each pass (§2.5.5 said appended: a line repeated after a later
+  one, as a rebuilt cache or a failed commit would append, counts the later cost twice in
+  `readStatusline`), with a zero line at each root's first message; only steps with a non-zero
+  cost get a line, so a session OpenCode does not price shows the estimate; the pass reads rows
+  with `time_updated` at or after the newest seen and skips the unchanged ones; the copy folder
+  `<hash>-usage-<pid>-<thread>`, swept when its pid is gone (`EPERM` counts as gone); no reading
+  when the catalog row or the model's limit is missing, and a user's config override unread; the
+  start-case line waits for 1 s of quiet output, at most 30 s (set agreed); a notice found before
+  its pane exists waits for the pane; `PaneNotice` carries a `kind` (`other-server`) so the
+  workspace maps it to its `t()` key.
+- **Seen red** (each injected, then removed): `db.ts` with one copy folder (both new cases), no
+  sweep, every pid dead; the usage source with no root walk, no peer origin, the `synthetic`
+  ignored, no in-flight step ownership, the cost log appended, an unchanged row re-touched, no
+  zero line, `compaction` not counted; the context with unquoted keys, the compaction ignored,
+  reasoning left out; `Terminal.say` writing to the pty, the quiet not reset by output, no
+  latest; the preparer's notice not sent, sent to the shown pane instead of the starting one; the
+  e2e with the start-case check removed (the line not shown); the proxy race (above).
+- **What is left:** `docs/agents.md`'s OpenCode usage and context section (P2.7 owns that file;
+  the text is in `docs/usage.md` and `docs/context.md` now, to move or point at); the user's own
+  `limit.context` override and custom providers give no reading; `shell` and `skill` rows were
+  read in OpenCode's code, not measured; whether Menkar sets `OPENCODE_DISABLE_MODELS_FETCH` is
+  topic 97.
+
+### P2.7 (`menkar-t196`, task 196, 2026-11-21)
+
+- **`e2e/opencode.spec.ts`**, three tests with the stand-in `opencode` on the built app:
+  - **alone**: New → OpenCode starts one `opencode serve --stdio --port <p>` and the TUI as
+    `--server <proxy> -s <id>` on another port, with the server's password in the pane and no
+    `MENKAR_PANE` in the server; the row joins the project at the first message; the tab reads
+    working from the footer, blocked at the permission card, idle after; outside the mode the
+    model's request lists OpenCode's twelve tools only, with no instructions, skills or entries;
+  - **close and resume**: the last tab closed ends the server's process; the row reopened starts a
+    new server and `-s <id>` on the same session, which goes on;
+  - **as a worker** of a Claude orchestrator (`start_session {agent:"opencode", task, prompt}`):
+    member and child by its own id at once (no provisional id: Menkar mints it); its first request
+    lists `menkar_task_review`, `menkar_send_message` and `menkar_load_skill` and holds one entry,
+    its team block; the MCP child has `MENKAR_AGENT=opencode` and no `MENKAR_PANE`;
+    `load_skill {"name":"menkar:worker"}` answers the skill with "Base directory for this skill:"
+    and its folder (P2.5's `loadSkillFor` had no test), an unknown name is refused; a subagent
+    made with `parentID` calls `task_steps` and is resolved to its root's pane; `task_review` wakes
+    the orchestrator once; `last_reply` reads OpenCode's database; messages both ways framed as
+    for Codex.
+- **Seen red**: the per-folder MCP route absent (`FAKE_OPENCODE_NO_MCP_ROUTE`, no `menkar_*` tools);
+  the child created without `parentID` ("Menkar does not know this tab's session yet"); the
+  server's process expected alive after the last tab closed.
+- **Docs**: `docs/agents.md`'s OpenCode sections (its server and proxies, starting a session, its
+  sessions with `openAgentDb`'s copy, which session a pane shows, its state, usage and context as a
+  pointer to `docs/usage.md` and `docs/context.md`, waking, the orchestration mode); `docs/sessions.md`
+  (set, 2026-11-21: a file beyond the row); `docs/session-control.md`'s port rejection amended;
+  `docs/packaging.md` with decision 1.206 (set, 2026-11-21: the models fetch left on, a file
+  beyond the row); `docs/NOT_BUILT_YET.md` (the form card; saying an OpenCode is too old for
+  Menkar's tools); `docs/release-checklist.md` 8f. Each line that left is in its history.
+- **Found, not fixed (not my files):** `load_skill` with an unknown `menkar:` name answers "Menkar
+  could not read this skill." and logs a warning, since `skillFile` builds the plugin's path
+  without checking it exists; a plain unknown name gets "Menkar has no skill by that name for this
+  session.". The descriptor's `versionWord: 1` reads `v2.3.0` from `opencode --version`, which
+  `compareVersions` cannot compare, so setting `versions.validated` after `opencode`'s real check
+  needs the `v` read off first.
+- **Not done here:** `opencode`'s real check on OpenCode 2.3.0 (a separate task).

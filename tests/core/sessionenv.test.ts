@@ -37,6 +37,12 @@ test('the variables a running session gives its children are dropped', () => {
     CODEX_NETWORK_PROXY_ATTRIBUTION: 'attr',
     CODEX_NETWORK_PROXY_CREDENTIAL_BROKER_ACTIVE: '1',
     CODEX_NETWORK_ALLOW_LOCAL_BINDING: '1',
+    // As opencode v2.3.0 sets them for its shell tool, its terminals and an MCP server.
+    OPENCODE_SESSION_ID: 'ses_e017abf0effe8Vhlt6MfRFP0OJ',
+    OPENCODE_PASSWORD: 'a-password',
+    OPENCODE: '1',
+    OPENCODE_TERMINAL: '1',
+    BUN_BE_BUN: '1',
   }
   expect(Object.keys(fromASession).sort()).toEqual(Object.values(SESSION_ENV).flat().sort())
   expect(withoutSessionEnv({ ...fromASession, PATH: '/usr/bin' })).toEqual({ PATH: '/usr/bin' })
@@ -92,4 +98,14 @@ test("Codex's configuration and the display tuning its shell forces are kept", (
     PAGER: 'cat',
   }
   expect(withoutSessionEnv(configured)).toEqual(configured)
+})
+
+test("AGENT is dropped only when it came from OpenCode's shell tool", () => {
+  expect(withoutSessionEnv({ AGENT: 'mine', PATH: '/usr/bin' })).toEqual({
+    AGENT: 'mine',
+    PATH: '/usr/bin',
+  })
+  expect(withoutSessionEnv({ AGENT: '1', OPENCODE: '1', PATH: '/usr/bin' })).toEqual({
+    PATH: '/usr/bin',
+  })
 })

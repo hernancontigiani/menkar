@@ -65,6 +65,7 @@ describe("the agent's name in a notification", () => {
       'Claude Code',
       'Cursor',
       'Codex',
+      'OpenCode',
     ])
   })
 })

@@ -1,8 +1,10 @@
 import { createInterface } from 'node:readline'
 import { pathToFileURL } from 'node:url'
+import { descriptorOf } from '../agents/descriptors'
 import { type AgentId, DEFAULT_AGENT, parseAgentId } from '../agents/ids'
 import {
   AGENT_ENV,
+  type Caller,
   type ControlAnswer,
   callMenkar,
   menkarAlive,
@@ -16,7 +18,8 @@ import { answer, type ServerContext } from './protocol'
 // Menkar's MCP server. Claude Code starts it for each session Menkar starts, through
 // `--mcp-config`, as a program of its own run by Electron's binary as plain Node: no Electron, no
 // DOM. It inherits the pane's environment, so `MENKAR_PANE` says which tab is calling, and
-// `MENKAR_AGENT` which agent, when its mount names one.
+// `MENKAR_AGENT` which agent, when its mount names one. An agent whose one MCP server serves many
+// sessions names the calling session in each call's `_meta` instead, and main finds its pane.
 
 const NOT_LISTED = 'This session is not in a Menkar project yet; try again in a moment.'
 
@@ -30,11 +33,12 @@ async function listSessions(pane: string): Promise<ControlAnswer> {
 export function serverContext(pane: string | null, agent: AgentId = DEFAULT_AGENT): ServerContext {
   return {
     pane,
+    callerMeta: descriptorOf(agent).callerMeta,
     shape: () => readShape(agent),
-    call: (tool, args) =>
-      pane && tool === 'list_sessions'
-        ? listSessions(pane)
-        : callMenkar({ caller: { pane: pane ?? '' }, tool, args }),
+    call: (tool, args, caller: Caller = { pane: pane ?? '' }) =>
+      'pane' in caller && tool === 'list_sessions'
+        ? listSessions(caller.pane)
+        : callMenkar({ caller, tool, args }),
   }
 }
 

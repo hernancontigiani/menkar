@@ -1,0 +1,127 @@
+{
+  "root": ".local/share/opencode/opencode.db",
+  "watched": [".local/share/opencode"],
+  "sessions": [
+    {
+      "id": "ses_fx01aaaaaaaaaaCheckoutFix",
+      "agent": "opencode",
+      "folder": ".local/share/opencode",
+      "cwd": "/home/demo/shop",
+      "preview": "Why does checkout fail on an empty cart?",
+      "badge": null,
+      "customTitle": "checkout-fix",
+      "aiTitle": null,
+      "size": 2688,
+      "lastReply": "Added tests/checkout.test.ts; it passes.",
+      "details": {
+        "user": 2,
+        "assistant": 2,
+        "toolCalls": 2,
+        "models": ["sonnet-demo"],
+        "created": "2026-11-18T13:59:59.800Z",
+        "lastActivity": "2026-11-18T14:03:04.600Z",
+        "cwd": "/home/demo/shop",
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Why does checkout fail on an empty cart?"
+          },
+          {
+            "fromUser": false,
+            "text": "It reads the first item without checking that the cart has one."
+          },
+          {
+            "fromUser": true,
+            "text": "Add a test for it"
+          },
+          {
+            "fromUser": false,
+            "text": "Added tests/checkout.test.ts; it passes."
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `ses_fx01aaaaaaaaaaCheckoutFix`\n- **Project:** `/home/demo/shop`\n- **Created:** 2026-11-18T13:59:59.800Z\n- **Last activity:** 2026-11-18T14:03:04.600Z\n\n---\n\n### You\n\nWhy does checkout fail on an empty cart?\n\n### OpenCode\n\nIt reads the first item without checking that the cart has one.\n\n*Used `read`*\n\n### You\n\nAdd a test for it\n\n### OpenCode\n\nAdded tests/checkout.test.ts; it passes.\n\n*Used `shell`*\n",
+      "location": null,
+      "trash": null
+    },
+    {
+      "id": "ses_fx02bbbbbbbbbbQueueSteer0",
+      "agent": "opencode",
+      "folder": ".local/share/opencode",
+      "cwd": "/home/demo/shop",
+      "preview": "Rename the cart module",
+      "badge": null,
+      "customTitle": "Rename the cart module",
+      "aiTitle": null,
+      "size": 1952,
+      "lastReply": "Noted.",
+      "details": {
+        "user": 3,
+        "assistant": 2,
+        "toolCalls": 1,
+        "models": ["sonnet-demo"],
+        "created": "2026-11-18T14:09:59.800Z",
+        "lastActivity": "2026-11-18T14:10:10.900Z",
+        "cwd": "/home/demo/shop",
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Rename the cart module"
+          },
+          {
+            "fromUser": true,
+            "text": "Keep the old name as an alias"
+          },
+          {
+            "fromUser": false,
+            "text": "Renamed it to basket, with cart kept as an alias."
+          },
+          {
+            "fromUser": true,
+            "text": "[Menkar] a queued note from set"
+          },
+          {
+            "fromUser": false,
+            "text": "Noted."
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `ses_fx02bbbbbbbbbbQueueSteer0`\n- **Project:** `/home/demo/shop`\n- **Created:** 2026-11-18T14:09:59.800Z\n- **Last activity:** 2026-11-18T14:10:10.900Z\n\n---\n\n### You\n\nRename the cart module\n\n### OpenCode\n\n*Used `shell`*\n\n### You\n\nKeep the old name as an alias\n\n### OpenCode\n\nRenamed it to basket, with cart kept as an alias.\n\n### You\n\n[Menkar] a queued note from set\n\n### OpenCode\n\nNoted.\n",
+      "location": null,
+      "trash": null
+    },
+    {
+      "id": "ses_fx05eeeeeeeeeeInterrupted",
+      "agent": "opencode",
+      "folder": ".local/share/opencode",
+      "cwd": "/home/demo/shop",
+      "preview": "Refactor the whole payment flow",
+      "badge": "interrupted",
+      "customTitle": "payment refactor",
+      "aiTitle": null,
+      "size": 133,
+      "lastReply": null,
+      "details": {
+        "user": 1,
+        "assistant": 0,
+        "toolCalls": 0,
+        "models": [],
+        "created": "2026-11-18T14:19:59.800Z",
+        "lastActivity": "2026-11-18T14:20:08.000Z",
+        "cwd": "/home/demo/shop",
+        "mcpUsed": [],
+        "recent": [
+          {
+            "fromUser": true,
+            "text": "Refactor the whole payment flow"
+          }
+        ]
+      },
+      "export": "# A session\n\n- **Session:** `ses_fx05eeeeeeeeeeInterrupted`\n- **Project:** `/home/demo/shop`\n- **Created:** 2026-11-18T14:19:59.800Z\n- **Last activity:** 2026-11-18T14:20:08.000Z\n\n---\n\n### You\n\nRefactor the whole payment flow\n",
+      "location": null,
+      "trash": null
+    }
+  ]
+}

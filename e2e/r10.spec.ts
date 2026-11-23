@@ -16,6 +16,7 @@ import { expect, type Page, test } from '@playwright/test'
 import { kitOf } from '../src/core/agents/registry'
 import { type LaunchedApp, launchApp } from './app'
 import { cursorStandIn, prepare, SESSION } from './fixtures'
+import { opencodeStandIn } from './standins/opencode'
 
 const REPO = resolve('.')
 const EXPECTED = join(REPO, 'tests', 'core', 'r10', 'e2e')
@@ -67,7 +68,11 @@ const INHERITED: Readonly<Record<string, string>> = {
 
 async function open(
   mode: 'off' | 'on',
-  options: { readonly cursor: boolean; readonly env?: Readonly<Record<string, string>> },
+  options: {
+    readonly cursor: boolean
+    readonly opencode?: boolean
+    readonly env?: Readonly<Record<string, string>>
+  },
 ) {
   let home = ''
   const launched = await launchApp({
@@ -75,6 +80,7 @@ async function open(
       home = dirs.home
       const env = prepare(dirs)
       if (options.cursor) cursorStandIn(join(dirs.root, 'bin'))
+      if (options.opencode) opencodeStandIn(join(dirs.root, 'bin'))
       const work = join(dirs.home, 'work')
       const transcripts = join(
         dirs.home,
@@ -357,15 +363,25 @@ function listening(procs: readonly Proc[], harness: readonly number[]): string[]
   return found
 }
 
-test("R10: with the stand-in claude alone, the app's processes are the expected set and none listens", async () => {
+// OpenCode's server starts with the first OpenCode tab: with OpenCode installed and none open, the
+// app runs and listens on what it does without it.
+async function processesAndListening(opencode: 'absent' | 'present but unused'): Promise<void> {
   // R10_DEFECT_LISTEN=1 is the check's injected defect: the stand-in then listens on loopback.
   const { launched, home } = await open('off', {
     cursor: false,
+    opencode: opencode !== 'absent',
     env: process.env.R10_DEFECT_LISTEN === '1' ? { FAKE_CLAUDE_LISTEN: '1' } : {},
   })
   const page = launched.window
   try {
     await started(home(), 'claude', () => act(page, { type: 'openSession', session: SESSION }))
+    // R10_DEFECT_OPENCODE=1 is the OpenCode row's injected defect: main starts OpenCode's server
+    // with no OpenCode tab.
+    if (opencode !== 'absent' && process.env.R10_DEFECT_OPENCODE === '1')
+      await launched.app.evaluate(() => {
+        const { spawn } = process.getBuiltinModule('node:child_process')
+        spawn('opencode', ['serve', '--stdio'], { stdio: ['pipe', 'ignore', 'ignore'] })
+      })
     await expect(page.locator('.xterm-rows')).toContainText('stand-in claude ready')
     const pid = launched.app.process().pid
     if (pid === undefined) throw new Error('the app has no pid')
@@ -384,7 +400,14 @@ test("R10: with the stand-in claude alone, the app's processes are the expected 
     const harness = [Number(inspector), Number(devtools)]
     expect(harness.every((port) => port > 0)).toBe(true)
     expect(listening(procs, harness)).toEqual([])
+    expect(existsSync(join(home(), 'opencode-serve-pids.txt'))).toBe(false)
   } finally {
     await launched.close()
   }
-})
+}
+
+test("R10: with the stand-in claude alone, the app's processes are the expected set and none listens", () =>
+  processesAndListening('absent'))
+
+test("R10: with the stand-in claude and OpenCode present but unused, the app's processes are the expected set and none listens", () =>
+  processesAndListening('present but unused'))

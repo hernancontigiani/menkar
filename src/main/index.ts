@@ -8,7 +8,7 @@ import { flavorFacts } from '../core/flavor'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
 import { asksVersion, cliArguments, DETACHED, shouldDetach, versionOf } from '../core/launch'
 import { addSink, log, openFileSink } from '../core/log'
-import { electronUserData, logFile } from '../core/paths'
+import { electronUserData, logFile, useProgramsFolder } from '../core/paths'
 import { settingsOf } from '../core/settings'
 import { loadState } from '../core/state'
 import type { InvokeChannel, InvokeChannels, SendChannel, SendChannels } from '../shared/ipc'
@@ -38,6 +38,7 @@ import {
   paneInput,
   paneResize,
   paneTyped,
+  quitAgentServers,
   revealPane,
   roleSkills,
   runAction,
@@ -45,6 +46,9 @@ import {
   windowState,
 } from './workspace'
 import { setUiZoom } from './zoom'
+
+// This file is main's entry, never a shared chunk: its folder is where the built programs are.
+useProgramsFolder(import.meta.dirname)
 
 const LOG_FILE_MAX_BYTES = 1024 * 1024
 // A terminal row is at most a few hundred columns: more paths than this in one ask is not a row.
@@ -159,6 +163,7 @@ async function start(): Promise<void> {
   })
   startPhase('services started')
   await startWorkspace()
+  app.on('will-quit', () => void quitAgentServers())
   // Menkar's MCP server talks to this process through files once the window state exists.
   await startControl(controlHandlers).catch((error: unknown) =>
     log.error('Menkar’s MCP tools could not start', { error }),

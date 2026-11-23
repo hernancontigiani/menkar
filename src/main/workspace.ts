@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { stat, unlink, writeFile } from 'node:fs/promises'
+import { readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, shell, type WebContents } from 'electron'
@@ -230,7 +230,8 @@ import type {
   WindowState,
 } from '../shared/workspace'
 import { recordPresence, recordPromptedStart } from './activity'
-import { mainKitOf } from './agents/registry'
+import { mainKitOf, paneOfCaller } from './agents/registry'
+import type { PaneNotice } from './agents/types'
 import {
   agentStates,
   notifyTopic,
@@ -291,6 +292,7 @@ import {
   forgetSessionTeam,
   forgetTeam,
   setTeamSource,
+  skillFile,
   startTeam,
   teamChanged,
   teamFoundChanged,
@@ -1110,33 +1112,55 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
         start,
         input: (found) => startInput(projectId, spec.sessionId, start, found),
       })
-      const plan = kitOf(spec.agent).launch.plan(start, {
-        cli,
-        env,
-        ...(settings ? { settings } : {}),
-        ...(spec.remote ? { remoteControl: spec.remote } : {}),
-        mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
-        mcpServer: mcpServerScript(),
-        pluginDir: skillsPluginDir(),
-        ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
-        ...(teamFile ? { teamFile } : {}),
-        execPath: process.execPath,
-        programs: dirname(mcpServerScript()),
-        paneFiles: join(controlPaths().root, 'panes', id),
-        ...(filesFolder ? { filesFolder } : {}),
-      })
-      for (const file of plan.files ?? [])
-        await file
-          .text()
-          .then((text) => writeTextAtomic(dirname(file.path), basename(file.path), text))
-          .catch((error: unknown) => {
-            log.warn('a file the agent command names could not be written', { pane: id, error })
+      const preparer = mainKitOf(spec.agent).prepare
+      const prepared = preparer
+        ? await preparer.prepare({
+            pane: id,
+            cli,
+            cwd: spec.cwd,
+            start,
+            ...(teamFile ? { teamFile } : {}),
+            team: teamFile !== undefined,
+            execPath: process.execPath,
+            mcpServer: mcpServerScript(),
+            ...(spec.promptFile ? { promptFile: spec.promptFile } : {}),
           })
-      command = commandLine(plan)
-      env = plan.env
-      const promptedId = spec.sessionId ?? start.id
-      if (spec.promptFile && promptedId && !isProvisional(promptedId))
-        recordPromptedStart(promptedId, projectId)
+        : undefined
+      if (prepared === null)
+        messages.push(appMessage(tag, t('terminal.serverFailed', { cli: cliName })))
+      const plan =
+        prepared === null
+          ? null
+          : kitOf(spec.agent).launch.plan(start, {
+              cli,
+              env: prepared ? { ...env, ...prepared.env } : env,
+              ...(prepared ? { server: prepared.server } : {}),
+              ...(settings ? { settings } : {}),
+              ...(spec.remote ? { remoteControl: spec.remote } : {}),
+              mcpConfig: mcpConfig(process.execPath, mcpServerScript()),
+              mcpServer: mcpServerScript(),
+              pluginDir: skillsPluginDir(),
+              ...(spec.promptFile && !prepared?.prompted ? { promptFile: spec.promptFile } : {}),
+              ...(teamFile ? { teamFile } : {}),
+              execPath: process.execPath,
+              programs: dirname(mcpServerScript()),
+              paneFiles: join(controlPaths().root, 'panes', id),
+              ...(filesFolder ? { filesFolder } : {}),
+            })
+      if (plan) {
+        for (const file of plan.files ?? [])
+          await file
+            .text()
+            .then((text) => writeTextAtomic(dirname(file.path), basename(file.path), text))
+            .catch((error: unknown) => {
+              log.warn('a file the agent command names could not be written', { pane: id, error })
+            })
+        command = commandLine(plan)
+        env = plan.env
+        const promptedId = spec.sessionId ?? start.id
+        if (spec.promptFile && promptedId && !isProvisional(promptedId))
+          recordPromptedStart(promptedId, projectId)
+      }
     }
   }
   const size = { cols: 80, rows: 24 }
@@ -1203,6 +1227,57 @@ async function startPaneHeld(tabId: string, spec: PaneSpec): Promise<void> {
   tabPanes.set(tabId, [...(tabPanes.get(tabId) ?? []), id])
   if (self.pending) ensureJoinPolling()
   inboxes.sync()
+  for (const notice of heldNotices.get(id) ?? []) showNotice(self, notice)
+  heldNotices.delete(id)
+}
+
+// A notice found while its pane was still being made waits for its terminal.
+const heldNotices = new Map<string, PaneNotice[]>()
+// A line shown at a start waits for the agent's first screen, which would paint over it.
+const NOTICE_QUIET_MS = 1_000
+const NOTICE_LATEST_MS = 30_000
+
+// One line of Menkar's own in the pane's terminal, once per notice.
+function showNotice(pane: Pane, notice: PaneNotice): void {
+  if (pane.agent === 'shell') return
+  const cli = descriptorOf(pane.agent).command
+  const line = appMessage(t('terminal.tag'), t('terminal.otherServer', { cli }))
+  if (notice.when === 'start') pane.terminal.sayWhenQuiet(line, NOTICE_QUIET_MS, NOTICE_LATEST_MS)
+  else pane.terminal.say(line)
+}
+
+for (const agent of AGENT_IDS)
+  mainKitOf(agent).prepare?.onNotice((paneId, notice) => {
+    const pane = panes.get(paneId)
+    if (pane) showNotice(pane, notice)
+    else heldNotices.set(paneId, [...(heldNotices.get(paneId) ?? []), notice])
+  })
+
+// A pane's CLI that moved to another session in its agent's own server: the tab follows it, a
+// new one taking the old one's place as after a clear.
+for (const agent of AGENT_IDS)
+  mainKitOf(agent).prepare?.onSession((paneId, sessionId, previous, kind) => {
+    const pane = panes.get(paneId)
+    if (pane && pane.sessionId === previous) applyFollow(pane, previous, sessionId, null, kind)
+  })
+
+// A skill's text, for a session whose agent is given its skills through Menkar's MCP, with the
+// folder its other files are in, as the agent's own skills are given.
+async function loadSkillFor(paneId: string, name: unknown): Promise<ControlAnswer> {
+  const file = typeof name === 'string' ? await skillFile(paneId, name.trim()) : null
+  if (!file) return refuse('Menkar has no skill by that name for this session.')
+  try {
+    const text = await readFile(file, 'utf8')
+    return { ok: true, text: `Base directory for this skill: ${dirname(file)}\n\n${text}` }
+  } catch (error) {
+    log.warn('a skill could not be read', { pane: paneId, error })
+    return refuse('Menkar could not read this skill.')
+  }
+}
+
+// On quit: what the agents' servers hold for Menkar's panes ends with it.
+export async function quitAgentServers(): Promise<void> {
+  await Promise.all(AGENT_IDS.map((agent) => mainKitOf(agent).prepare?.quit()))
 }
 
 function onPaneExit(paneId: string): void {
@@ -1210,6 +1285,7 @@ function onPaneExit(paneId: string): void {
   if (!pane) return
   panes.delete(paneId)
   stopNameWatch(paneId)
+  if (pane.agent !== 'shell') mainKitOf(pane.agent).prepare?.release(paneId)
   if (pane.sessionId) {
     toName.delete(pane.sessionId)
     firstTurnNames.delete(pane.sessionId)
@@ -1634,8 +1710,15 @@ const prompted = async (id: string, prompt: unknown): Promise<string | ControlAn
   return 'refusal' in checked ? refuse(checked.refusal) : savePrompt(id, checked.text)
 }
 
+// A session an agent's server names in its call is traced, through that agent's kit, to its pane.
+const agentSessionPane = async ({ meta, id }: { meta: string; id: string }) =>
+  panes.get((await paneOfCaller(meta, id, (pane) => panes.get(pane))) ?? '')
+
 async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
-  const pane = 'pane' in request.caller ? panes.get(request.caller.pane) : undefined
+  const pane =
+    'pane' in request.caller
+      ? panes.get(request.caller.pane)
+      : await agentSessionPane(request.caller.agentSession)
   const agent = agentOf(pane)
   const sessionId = pane?.sessionId
   const project = sessionId ? projectOf(projects, sessionId) : undefined
@@ -1682,6 +1765,8 @@ async function handleControl(request: ControlRequest): Promise<ControlAnswer> {
       return askFor(project, sessionId, request.args.question)
     case 'send_message':
       return sendFor(project, sessionId, agent, request.args)
+    case 'load_skill':
+      return loadSkillFor(pane.id, request.args.name)
     case 'inbox': {
       const info = orchestrationInfo(project)
       return inboxes.read(project.id, (inbox) =>

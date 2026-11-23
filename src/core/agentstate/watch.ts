@@ -1,5 +1,5 @@
 import type { RawState } from './detect'
-import { detectState } from './detect'
+import { detectState, readingOf } from './detect'
 import type { ScreenMirror } from './mirror'
 
 // Output arrives in bursts: the first change schedules one check this long after it, and the
@@ -11,6 +11,9 @@ export interface WatchedPane {
   readonly mirror: Pick<ScreenMirror, 'title' | 'screen' | 'onChange'>
   // The agent still owns the terminal's foreground: back at the shell, the pane is idle.
   foreground(): boolean
+  // Whether the agent's server says a turn of the pane's session runs, where its screen may not
+  // show it; absent for an agent with no server.
+  serverRunning?(): boolean
 }
 
 // Reads a pane's raw state after each burst of changes and reports it when it differs from the
@@ -36,9 +39,14 @@ export class PaneWatcher {
   }
 
   check(): void {
-    const raw = this.pane.foreground()
-      ? detectState(this.pane.provider, this.pane.mirror.title(), this.pane.mirror.screen())
+    const screen = this.pane.foreground()
+      ? detectState(
+          this.pane.provider,
+          this.pane.mirror.title(),
+          this.pane.mirror.screen(readingOf(this.pane.provider)),
+        )
       : 'idle'
+    const raw = screen === 'idle' && this.pane.serverRunning?.() ? 'working' : screen
     if (raw === this.raw) return
     this.raw = raw
     this.report(raw)

@@ -3,6 +3,7 @@ import { descriptor as claude } from './claude/descriptor'
 import { descriptor as codex } from './codex/descriptor'
 import { descriptor as cursor } from './cursor/descriptor'
 import type { AgentId } from './ids'
+import { descriptor as opencode } from './opencode/descriptor'
 import type { AgentVersions } from './versions'
 
 // What the renderer and the MCP server program may know of an agent: data, no Node.
@@ -45,9 +46,18 @@ export interface AgentDescriptor {
   // What the orchestration mode's first-time card says when one of its sessions orchestrates or
   // works for the orchestrator, for an agent that does either with limits; null otherwise.
   readonly teamLimits: { readonly orchestrator: Key; readonly worker: Key } | null
+  // The `_meta` key under which the agent's server names the calling session in a tool call to
+  // Menkar's MCP server, for an agent whose MCP server serves many sessions and so cannot be told
+  // the caller by its environment; null when the pane's environment names it.
+  readonly callerMeta: string | null
 }
 
-export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = { claude, cursor, codex }
+export const DESCRIPTORS: Readonly<Record<AgentId, AgentDescriptor>> = {
+  claude,
+  cursor,
+  codex,
+  opencode,
+}
 
 export function descriptorOf(id: AgentId): AgentDescriptor {
   return DESCRIPTORS[id]

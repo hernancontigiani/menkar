@@ -41,6 +41,7 @@ describe('descriptors and kits', () => {
       ['claude', 'agent.claude', '✳'],
       ['cursor-agent', 'agent.cursor', '➤'],
       ['codex', 'agent.codex', '⬡'],
+      ['opencode', 'agent.opencode', '▣'],
     ])
   })
 
@@ -53,6 +54,7 @@ describe('descriptors and kits', () => {
     expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'tools', 'trash'])
     expect(caps('cursor')).toEqual(['chat', 'trash'])
     expect(caps('codex')).toEqual(['context', 'tools'])
+    expect(caps('opencode')).toEqual(['context', 'tools'])
   })
 
   test('every cap has its concern named, and a built concern matches its cap for every agent', () => {
@@ -73,18 +75,28 @@ describe('descriptors and kits', () => {
   test('namedAtStart mirrors the Namer for every agent', () => {
     for (const id of AGENT_IDS)
       expect(kitOf(id).namer.atStart('x') !== null, id).toBe(descriptorOf(id).namedAtStart)
-    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([true, false, false])
+    expect(AGENT_IDS.map((id) => descriptorOf(id).namedAtStart)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ])
   })
 
   // "Ask an agent" starts only an agent whose new session is given its first prompt: the
-  // descriptor says so exactly when the kit's launcher puts the prompt's file on the command line.
-  test('firstPrompt mirrors whether the launcher passes a first prompt', () => {
+  // descriptor says so exactly when the kit's launcher puts the prompt's file on the command line,
+  // or its preparer hands the prompt to the agent's server before the command runs.
+  test('firstPrompt mirrors whether the launcher or the preparer passes a first prompt', () => {
     const promptFile = '/tmp/menkar-first-prompt.txt'
     for (const id of AGENT_IDS) {
-      const plan = kitOf(id).launch.plan({ kind: 'new' }, { cli: id, env: {}, promptFile })
-      expect(plan.words.join(' ').includes(promptFile), id).toBe(descriptorOf(id).firstPrompt)
+      const plan = kitOf(id).launch.plan(
+        { kind: 'new', id: 'ses_0000000000a1AAAAAAAAAAAAAA' },
+        { cli: id, env: {}, promptFile, server: 'http://127.0.0.1:1' },
+      )
+      const passed = plan.words.join(' ').includes(promptFile) || mainKitOf(id).prepare !== null
+      expect(passed, id).toBe(descriptorOf(id).firstPrompt)
     }
-    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, false, true])
+    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, false, true, true])
   })
 
   // The chat variants are data the renderer reads; the kit's ChatStrategy runs them.

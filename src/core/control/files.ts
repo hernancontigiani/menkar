@@ -37,7 +37,7 @@ export const TOOL_NAMES = [
   'inbox',
 ] as const
 // Answered for any caller, but listed only to the callers whose shape offers it.
-export const CALLABLE_TOOL_NAMES = [...TOOL_NAMES, 'send_message'] as const
+export const CALLABLE_TOOL_NAMES = [...TOOL_NAMES, 'send_message', 'load_skill'] as const
 export type ToolName = (typeof CALLABLE_TOOL_NAMES)[number]
 
 // Who calls a tool: a pane Menkar started, or a session an agent's server names in its request.
@@ -282,6 +282,9 @@ export const AGENT_ENV = 'MENKAR_AGENT'
 // What one caller's tool list holds beyond the tools every caller has.
 export interface CallerShape {
   readonly sendMessage: boolean
+  // Offered load_skill: its agent is given the skills its team block names through this server.
+  // Left out when not, so a file listing only other agents keeps the bytes it had.
+  readonly loadSkill?: boolean
   // The agents start_session may start; offered as its `agent` only when there are two or more.
   readonly agents: readonly AgentId[]
 }
@@ -297,7 +300,12 @@ export interface ServerShape extends CallerShape {
 }
 
 // Without a published file, or for an agent it does not list, the list every caller had before.
-export const PLAIN_SHAPE: ServerShape = { listChanged: false, sendMessage: false, agents: [] }
+export const PLAIN_SHAPE: ServerShape = {
+  listChanged: false,
+  sendMessage: false,
+  loadSkill: false,
+  agents: [],
+}
 
 function shapeIn(value: unknown, agent: AgentId): ServerShape {
   if (typeof value !== 'object' || value === null) return PLAIN_SHAPE
@@ -305,10 +313,15 @@ function shapeIn(value: unknown, agent: AgentId): ServerShape {
   if (typeof file.callers !== 'object' || file.callers === null) return PLAIN_SHAPE
   const caller = (file.callers as Record<string, unknown>)[agent]
   if (typeof caller !== 'object' || caller === null) return PLAIN_SHAPE
-  const { sendMessage, agents } = caller as { sendMessage?: unknown; agents?: unknown }
+  const { sendMessage, loadSkill, agents } = caller as {
+    sendMessage?: unknown
+    loadSkill?: unknown
+    agents?: unknown
+  }
   return {
     listChanged: file.listChanged === true,
     sendMessage: sendMessage === true,
+    loadSkill: loadSkill === true,
     agents: Array.isArray(agents)
       ? agents.map(parseAgentId).filter((id): id is AgentId => id !== null)
       : [],

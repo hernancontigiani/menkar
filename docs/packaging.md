@@ -33,6 +33,12 @@ category is Development.
   (seen in a minimal Ubuntu 24.04 container). `package:check` fails a package without it.
 - **`publish: null`**: no update feed and no `app-update.yml` in the package. Nothing leaves the
   machine.
+- **What connects to the network is the agents Menkar runs**, as they would without it. That
+  includes the `opencode serve` Menkar runs for its OpenCode tabs (`docs/agents.md`), which fetches
+  OpenCode's model catalog from https://models.opencode.ai at its start and every five minutes
+  while it runs (measured by `opencode` on 2.3.0, 2026-11-21): OpenCode's own traffic, as with the
+  user's own OpenCode, and only while an OpenCode tab exists. Menkar does not set
+  `OPENCODE_DISABLE_MODELS_FETCH` (decision 1.206, the human, 2026-11-21).
 - `build/icons/512x512.png` is **provisional**, drawn for Menkar (a prompt and a star) until the
   human picks an icon.
 

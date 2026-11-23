@@ -396,6 +396,18 @@ had no wake either.
 **Trigger:** Cursor in the orchestration mode. First question: which of its channels can carry the
 inbox to the model off the human's screen.
 
+### Saying in the window that an OpenCode is too old for Menkar's tools
+
+Menkar's OpenCode server checks `/openapi.json` for the instruction-entry route and the per-folder
+MCP route. Without the first the team block is not delivered, without the second Menkar's MCP is not
+mounted, so an OpenCode session in the orchestration mode cannot use Menkar's tools. Only a log line
+says it: the routes are known once the server runs, after the first-time card was drawn, and every
+OpenCode measured (2.3.0) has both.
+
+**Trigger:** an OpenCode release without either route, or the human starting an OpenCode worker
+that cannot report. First question: where it is said (the card, the pane, a toast) and whether
+`start_session` refuses such an agent, as it refuses one with no MCP mount.
+
 ### A profile menu at the sidebar's foot
 
 The human, 2026-11-16 (1.170): the presence chip at the sidebar's foot is the person's own spot;

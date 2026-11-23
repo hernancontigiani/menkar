@@ -30,9 +30,24 @@ export interface AgentVersionView {
 }
 
 // The word at `word` (from 0) of what `--version` prints: "2.1.327" of "2.1.327 (Claude Code)" at
-// 0, "0.169.0" of "codex-cli 0.169.0" at 1.
+// 0, "0.169.0" of "codex-cli 0.169.0" at 1, "2.3.0" of "opencode v2.3.0" at 1: a leading "v" is
+// dropped, or the version would not compare. A CLI may color it when Menkar's environment holds
+// FORCE_COLOR, which wins over NO_COLOR in some CLIs: the escapes would stick to the version.
 export function readVersion(output: string, word = 0): string | null {
-  return output.trim().split(/\s+/)[word] || null
+  const found = withoutEscapes(output).trim().split(/\s+/)[word]
+  return found?.replace(/^v(?=\d)/, '') || null
+}
+
+// Terminal escape sequences: OSC (ended by BEL or ESC \), CSI (colors; ESC [ or its one byte),
+// then any other two-byte escape.
+const [ESC, BEL, CSI] = [0x1b, 0x07, 0x9b].map((code) => String.fromCodePoint(code))
+const ESCAPES = new RegExp(
+  `${ESC}\\][^${BEL}${ESC}]*(?:${BEL}|${ESC}\\\\)|(?:${ESC}\\[|${CSI})[0-?]*[ -/]*[@-~]|${ESC}[@-Z\\\\-_]`,
+  'g',
+)
+
+export function withoutEscapes(text: string): string {
+  return text.replace(ESCAPES, '')
 }
 
 function numbers(version: string): number[] | null {

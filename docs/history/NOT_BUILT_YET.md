@@ -271,3 +271,18 @@ the card links to it, and whether that link counts as the app opening a URL of i
 2026-11-23 (plan 47): `menkar usage export --rows panes` gives 15-minute windows, the shape cogload
 2026-11-23 (plan 47): only agent panes have a shown state; a chat tab waiting on its permission
 **Trigger:** a week after the build with plan 47 is installed, with the human's go. Then `set` runs
+
+## OpenCode's form card read as blocked
+
+> Left on 2026-11-23: built (task 201) from the screen `opencode` measured on OpenCode 2.3.0's real TUI; the screen, not the server's event, is the signal.
+### OpenCode's form card read as blocked
+
+OpenCode's question tool shows a form (`form.created` among its server's events) that waits for the
+human, like a permission card. Its screen was never captured on a real TUI, so OpenCode's state
+rules do not read it: an OpenCode session at a form shows idle, not blocked, and no notification
+says it waits. A rule written from the event alone, or a guessed screen, could read a reply that
+quotes a form as blocked.
+
+**Trigger:** `opencode` measures the form on a real TUI (its screen, and whether the event names
+the session), or the human sees a session wait at a form unnoticed. First question: whether the
+screen or the server's event is the signal, as the permission card is read from the screen.

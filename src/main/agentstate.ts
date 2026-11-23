@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { BrowserWindow, Notification, shell, type WebContents } from 'electron'
 import { descriptorOf } from '../core/agents/descriptors'
+import { AGENT_IDS } from '../core/agents/ids'
 import { notifySettings, plan } from '../core/agentstate/notify'
 import {
   type AgentStates,
@@ -12,7 +13,7 @@ import {
   type ShownState,
 } from '../core/agentstate/shown'
 import { NotificationTray } from '../core/agentstate/tray'
-import { PaneWatcher } from '../core/agentstate/watch'
+import { PaneWatcher, type WatchedPane } from '../core/agentstate/watch'
 import { t, translate } from '../core/i18n'
 import { log } from '../core/log'
 import { mutedList } from '../core/mute'
@@ -22,6 +23,7 @@ import type { Topics } from '../core/orchestration/topics'
 import { projectOf } from '../core/projects/model'
 import { loadState } from '../core/state'
 import type { EventChannel, EventChannels } from '../shared/ipc'
+import { mainKitOf } from './agents/registry'
 import { snapshotsChanged } from './control'
 import { type AgentPane, agentPanes, onAgentPane } from './panes'
 import { currentProjects } from './projects'
@@ -182,12 +184,18 @@ function setState(entry: Tracked, next: ShownState): void {
   refreshAgentStates()
 }
 
+// An agent whose sessions run in its own server says so beside its screen.
+function withServer(pane: AgentPane): WatchedPane {
+  const runs = mainKitOf(pane.provider).runs
+  return runs ? { ...pane, serverRunning: () => runs.running(pane.id) } : pane
+}
+
 function track(pane: AgentPane): void {
   if (tracked.has(pane.id)) return
   const entry: Tracked = {
     pane,
     state: 'idle',
-    watcher: new PaneWatcher(pane, (raw) => {
+    watcher: new PaneWatcher(withServer(pane), (raw) => {
       const seen = pane.seen()
       const previous = entry.state
       const next = nextShown(previous, raw, seen)
@@ -219,9 +227,14 @@ export function startAgentState(): () => void {
   for (const pane of agentPanes()) track(pane)
   const stopTracking = onAgentPane(track)
   const stopRemote = startRemoteLive(refreshAgentStates)
+  const stopRuns = AGENT_IDS.map(
+    (id) =>
+      mainKitOf(id).runs?.onChange((pane) => tracked.get(pane)?.watcher.schedule()) ?? (() => {}),
+  )
   return () => {
     stopTracking()
     stopRemote()
+    for (const stop of stopRuns) stop()
     tray.closeAll()
     notifiedAs.clear()
   }

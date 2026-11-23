@@ -12,4 +12,7 @@ export const mainKit: MainAgentKit = {
   inbox,
   bind: null,
   namer: null,
+  callers: null,
+  prepare: null,
+  runs: null,
 }

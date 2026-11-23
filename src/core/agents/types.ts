@@ -1,4 +1,4 @@
-import type { RawState } from '../agentstate/raw'
+import type { RawState, ScreenReading } from '../agentstate/raw'
 import type { Chat } from '../chat/session'
 import type { TurnText } from '../classifier/input'
 import type { Start } from '../command'
@@ -41,6 +41,8 @@ export interface LaunchContext {
   readonly paneFiles?: string
   // The project's files folder, granted to the session.
   readonly filesFolder?: string
+  // The address of the server the agent's CLI attaches to, for an agent whose sessions run there.
+  readonly server?: string
 }
 
 // A file the command names, written whole before the command runs; its text is read then.
@@ -63,6 +65,9 @@ export interface Launcher {
 // How Menkar's MCP server and skills reach a session the agent's CLI starts.
 export interface McpMount {
   words(ctx: LaunchContext): readonly string[]
+  // Whether the skills a session's team block names reach it as text through Menkar's MCP, for an
+  // agent that cannot be given Menkar's skills folder without every session of its server seeing it.
+  readonly servesSkills: boolean
 }
 
 // The agent's own way of messaging another session by name, where it has one.
@@ -177,6 +182,9 @@ export interface SessionCatalog {
   readonly transcript: TranscriptReading | null
   // What a worker's closed turn says to its parent; null when the agent's turns are not read.
   readonly turnEnd: TurnEndReading | null
+  // Ends what the catalog keeps running to read (a thread), when its agent is no longer installed
+  // and on quit; null when it keeps nothing running.
+  readonly close: (() => void) | null
 }
 
 // A session's last turn, read when it ends: whether it only took team updates, and whether it
@@ -215,6 +223,8 @@ export interface Fork {
 // What the agent is doing, read from the title it set and the text on its screen.
 export interface StateRules {
   detect(title: string, screen: string): RawState
+  // 'toCursor' when absent.
+  readonly reads?: ScreenReading
 }
 
 // A chat tab's process: what opening the tab starts, and how a message reaches the agent.

@@ -18,17 +18,22 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
     argument the script, and `env: {"ELECTRON_RUN_AS_NODE": "1"}`. The config is not run through
     a shell, which is why the variable goes in `env`. Claude Code adds it to the pane's environment.
     Another agent mounts it its own way (Codex: `docs/agents.md`, "Codex as a worker").
-  - **Who is calling:** the server reads `MENKAR_PANE` from that environment and refuses every
-    call without one, and `MENKAR_AGENT` for the caller's agent: a mount that names none is
-    Claude Code's, whose `--mcp-config` is unchanged. A request carries its `caller`, a pane, or
-    (from OpenCode's proxy, not built yet) a session named by a `_meta` key and its id.
+  - **Who is calling:** the server reads `MENKAR_PANE` from that environment, and `MENKAR_AGENT`
+    for the caller's agent: a mount that names none is Claude Code's, whose `--mcp-config` is
+    unchanged. Without `MENKAR_PANE`, a call names its session under the `_meta` key the agent's
+    descriptor gives (`callerMeta`; OpenCode's one server serves every session of a folder), and
+    main finds the pane through OpenCode's proxy; a call with neither is refused. A request carries
+    its `caller`, a pane or that session.
   - **The protocol** (`protocol.ts`) is newline-delimited JSON-RPC written by hand:
     - `initialize` echoes the client's protocol version and offers `tools`, declaring
       `listChanged` only when an agent other than Claude Code is installed; `ping` gets `{}`.
     - `tools/list` names the tools of `TOOL_NAMES`, shaped per caller from `tools.json` (below):
-      `start_session` gains `agent` once two or more agents are installed, and `send_message` is
+      `start_session` gains `agent` once two or more agents are installed, `send_message` is
       added for a caller that must reach an installed agent its own messaging cannot reach and
-      Menkar can wake (`docs/agents.md`). With no file, every caller gets the plain list.
+      Menkar can wake (`docs/agents.md`), and `load_skill { name }` for a caller whose agent's
+      `McpMount.servesSkills` says it reads its skills' text here (OpenCode: a skills folder in its
+      server's configuration would list them to every session there). With no file, every caller
+      gets the plain list.
       `tools/call` runs one.
     - Anything else with an id gets -32601, which is what Claude Code's first `server/discover`
       receives.
@@ -533,14 +538,14 @@ What differs per agent is a `TeamDelivery` in its kit (`kitOf(agent).team`, core
 `MainTeamDelivery` in its main kit (`mainKitOf(agent).team`); `null` in either means no block, no
 flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 
-| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) |
-|---|---|---|---|
-| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` |
-| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds |
-| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start |
-| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` |
-| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) |
-| (3) How a change is told | `tell(session, text, counts)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` |
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) |
+|---|---|---|---|---|
+| How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` | `` `name` ``, `` `menkar:name` ``, "with the menkar server's `load_skill` tool, by name"; `opencode.md` |
+| (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds | the block, put on every start; records nothing |
+| (2) How a start delivers | `atStart(start, file)`, words its Launcher puts last | `--append-system-prompt-file`, with `--system-prompt-snapshot off` before it on every resume | `-c developer_instructions`, the block then the user's own, on every start | no words: its preparer puts the block as the session's instruction entry `menkar.team` before the TUI starts, or removes it when the start has none |
+| The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` | `null`; without the entry route (`/openapi.json`) no block is delivered |
+| The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) | none: OpenCode rebuilds its system prompt from the entry |
+| (3) How a change is told | `tell(session, text, counts, current)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post |
 
 A compaction rebuilds what the pane `started` with for both. Codex's details are in
 `docs/agents.md`, "Codex: the team block". Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
@@ -585,7 +590,10 @@ Launcher returns.
 
 - **A Unix socket or named pipe owned by main:** needed only for synchronous answers, which no tool
   needs. The files reuse the pattern of the SessionStart records.
-- **A loopback HTTP server:** it is the only option that opens a port.
+- **A loopback HTTP server:** it would open a port for a channel the files serve without one.
+  The only ports Menkar opens are OpenCode's (`docs/agents.md`, "OpenCode: its server and the
+  panes' proxies"): its server and one proxy per pane, on 127.0.0.1, behind a password, because
+  OpenCode's TUI is only a client of a server.
 - **SQLite for the shared state:** it cannot tell another process that something changed, and a
   second SQLite file would amend the rule that the app's state is JSON.
 - **Typing into the parent's terminal to wake it:** against the rule that nothing is typed into a

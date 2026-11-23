@@ -42,6 +42,17 @@ built.
   rules on the UI path. The screen is read as VTE read it (one terminal height ending at the
   cursor row, wrapped rows joined without a newline), so herdr's line counts (14 for Claude Code,
   10 and 6 for Cursor) mean the same lines they mean on a VTE screen.
+- **OpenCode's screen is read whole** (since 2026-11-23): its rules declare
+  `reads: 'wholeScreen'`, and the mirror gives them every visible row. OpenCode 2.3.0's TUI is
+  full-screen (the alternate buffer) and leaves its hidden cursor wherever it last drew: on the
+  running tool's spinner row while its permission card is up, on the tab strip's row while a
+  question card is. Read to the cursor, its screen held neither the card nor the busy footer, so the
+  session showed working (idle, raised by its server's running turn) while it waited for the human.
+  An agent's rules read to the cursor unless they say otherwise; a test pins each agent's reading.
+- **OpenCode's question card is blocked** (OpenCode 2.3.0, captured 2026-11-23): its `question`
+  tool's card replaces the composer, with "↑↓ select  enter submit  esc dismiss" second from its
+  bottom. Only that row is read, in the last 3 non-empty lines: the question and its options above
+  it are the model's text and any number of lines.
 - **Rules in core, timers in main.** The rules and the debounce are tested with a fake pane and
   fake timers. Main only connects them to Electron.
 - **Auto mode's "Allow this read outside the working directories?" card is blocked** (Claude Code

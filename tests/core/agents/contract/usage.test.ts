@@ -30,6 +30,7 @@ describe.each(WITH_USAGE.map((id) => [id]))('%s', (id) => {
     cpSync(join(DATA, id, 'home'), join(dir, 'home'), { recursive: true })
     vi.stubEnv('HOME', join(dir, 'home'))
     vi.stubEnv('CODEX_HOME', '')
+    vi.stubEnv('XDG_DATA_HOME', '')
     const usage = kitOf(id).usage
     const source: TurnSource | null =
       usage?.open(kitOf(id).catalog.root(), join(dir, 'cache', 'usage.sqlite')) ?? null

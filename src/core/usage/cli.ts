@@ -1,5 +1,5 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { now } from '../clock'
 import { menkarAliveSync } from '../control/files'
 import { flavorFacts } from '../flavor'
@@ -48,7 +48,7 @@ import {
   totalTokens,
   UNCLASSIFIED,
 } from './report'
-import { importedStatuslineLogPath, statuslineLogPath } from './statusline'
+import { statuslineLogPaths } from './statusline'
 import { isObject } from './transcript'
 
 export interface Output {
@@ -429,7 +429,7 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
     } else {
       const rows = exportRows(history, bounds, {
         projectNames: memberships.projectNames,
-        statuslineLogs: deps.statuslineLogs ?? [importedStatuslineLogPath(), statuslineLogPath()],
+        statuslineLogs: deps.statuslineLogs ?? statuslineLogPaths(dirname(passPaths.cache)),
         ...(project === undefined ? {} : { project }),
       })
       text = args.format === 'csv' ? exportCsv(rows) : exportJsonl(rows)
@@ -522,7 +522,7 @@ export function runUsageCli(argv: readonly string[], output: Output, deps: CliDe
   }
   const configDir = deps.configDir ?? appDirs().config
   const passPaths = deps.passPaths ?? defaultPassPaths()
-  const logs = deps.statuslineLogs ?? [importedStatuslineLogPath(), statuslineLogPath()]
+  const logs = deps.statuslineLogs ?? statuslineLogPaths(dirname(passPaths.cache))
   const memberships = readMemberships(configDir)
   // The text report stays project → session; categories come only in JSON.
   const categories = options.json && readClassifying(configDir)

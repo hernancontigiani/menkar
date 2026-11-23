@@ -114,3 +114,20 @@ without `state.json` and `projects.json` is the first start that imports agent-t
 - Forks never carry it. Nothing is ever typed into a running session: turning it
   on while the session runs without the flag shows the 6 s toast; the session connects at its
   next start or when the user types `/rc`.
+
+## Sessions — how they are found, read and named
+
+> Left on 2026-11-21: OpenCode's sessions join the list (plan 39, P2.7, task 196).
+`src/core/sessions/` finds every Claude Code, Cursor and Codex session on the machine, reads what a row
+needs, and keeps the list current. `src/main/sessions.ts` gives the list to every window over IPC
+
+## Reading a transcript
+
+> Left on 2026-11-21: OpenCode's sessions join the list (plan 39, P2.7, task 196).
+  "Codex: its sessions". An agent contributes only when its CLI (`claude`, `cursor-agent`,
+  `codex`) is an executable on the `PATH` (`installed.ts`), checked on every scan. The list is
+
+## Keeping it current
+
+> Left on 2026-11-21: OpenCode's database folder is watched (plan 39, P2.7, task 196).
+  since a resume appends to the day folder the thread began in. They are set again after every

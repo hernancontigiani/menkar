@@ -339,11 +339,32 @@ describe('the block', () => {
   })
 })
 
+// OpenCode names Menkar's skills by name, loaded through Menkar's MCP: no paths in its block.
+// Measured at 1,450 bytes for the expert and 1,740 for the consultant with these.
+test('common and OpenCode parts are under 900 bytes, its expert block under 1,600 and its consultant block under 1,900', () => {
+  const opencode = teamAgent('opencode')
+  if (!opencode) throw new Error('OpenCode has no team record')
+  expect(opencode.part).toBe('opencode.md')
+  const opencodePart = readFileSync(join(TEAM, 'opencode.md'), 'utf8')
+  expect(Buffer.byteLength(opencodePart)).toBeGreaterThan(0)
+  expect(Buffer.byteLength(common()) + Buffer.byteLength(opencodePart)).toBeLessThan(900)
+  const expert = teamBlock(teamFacts(EXPERT, opencode), common(), opencodePart)
+  expect(expert).toContain('`load_skill`')
+  const consultant = teamBlock(
+    teamFacts(input({ parent: undefined, role: 'Packaging', skills: EXPERT.skills }), opencode),
+    common(),
+    opencodePart,
+  )
+  expect(consultant).toContain('The human decided')
+  expect(Buffer.byteLength(expert)).toBeLessThan(1600)
+  expect(Buffer.byteLength(consultant)).toBeLessThan(1900)
+})
+
 describe("the agent's record", () => {
   // 1.135: an agent without an entry gets no block, so its command does not change.
   test('Cursor has no team record', () => {
     expect(teamAgent('cursor')).toBeNull()
-    expect(Object.keys(TEAM_AGENTS)).toEqual(['claude', 'codex'])
+    expect(Object.keys(TEAM_AGENTS)).toEqual(['claude', 'codex', 'opencode'])
   })
 
   test("Claude's skills are referred to by name, Menkar's with the plugin's prefix", () => {

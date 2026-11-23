@@ -1,7 +1,8 @@
 # Sessions — how they are found, read and named
 
-`src/core/sessions/` finds every Claude Code, Cursor and Codex session on the machine, reads what a row
-needs, and keeps the list current. `src/main/sessions.ts` gives the list to every window over IPC
+`src/core/sessions/` finds every Claude Code, Cursor, Codex and OpenCode session on the machine, reads
+what a row needs, and keeps the list current. `src/main/sessions.ts` gives the list to every window
+over IPC
 (`sessions:list`, `sessions:changed`, `sessions:set-hidden`). The rules come from
 `docs/spec/sessions.md`; this file keeps how they are built and why.
 
@@ -13,8 +14,11 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
   `<id>.jsonl` or else its first `*.jsonl` by name. A Codex session is a thread's rollout,
   `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl` or `.jsonl.zst` (`CODEX_HOME` is
   `~/.codex` unless set); how it is read, and which threads are left out, is in `docs/agents.md`,
-  "Codex: its sessions". An agent contributes only when its CLI (`claude`, `cursor-agent`,
-  `codex`) is an executable on the `PATH` (`installed.ts`), checked on every scan. The list is
+  "Codex: its sessions". An OpenCode session is a root row of `session_v2` in its database,
+  `$XDG_DATA_HOME/opencode/opencode.db`, read from a copy through `openAgentDb` while OpenCode's
+  server holds it, on a worker thread (`docs/agents.md`, "OpenCode: its sessions"). An agent
+  contributes only when its CLI (`claude`, `cursor-agent`, `codex`, `opencode`) is an executable
+  on the `PATH` (`installed.ts`), checked on every scan. The list is
   newest modification first, ties by id.
 - **Three reads per file, each as small as the rule allows:**
   - **Names** (`names.ts`): `custom-title` and `ai-title`, the last of each wins, trimmed. Read
@@ -57,7 +61,8 @@ needs, and keeps the list current. `src/main/sessions.ts` gives the list to ever
 - **Watches** (`service.ts`): non-recursive `fs.watch` on `~/.claude/projects/` and each folder in
   it, and on `~/.cursor/projects/`, each folder in it and each `agent-transcripts/` in those; for
   Codex, its home (for `session_index.jsonl`, its names) and every `sessions/YYYY/MM/DD/` folder,
-  since a resume appends to the day folder the thread began in. They are set again after every
+  since a resume appends to the day folder the thread began in; for OpenCode, its database's
+  folder. They are set again after every
   scan, so a folder created later is watched too. Not recursive: a running session's `subagents/`
   and `tool-results/` change constantly and hold no session.
   A projects directory that does not exist when a scan runs is not watched until a later scan

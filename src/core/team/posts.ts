@@ -103,11 +103,11 @@ export class TeamSettle {
 }
 
 // A session just started or joined may not be reachable yet: it is tried again a few times.
-export async function postWithTries(
-  post: () => Promise<PostOutcome>,
+export async function postWithTries<T extends string = PostOutcome>(
+  post: () => Promise<T | 'no session'>,
   wait: (ms: number) => Promise<void>,
-): Promise<PostOutcome> {
-  let outcome: PostOutcome = 'no session'
+): Promise<T | 'no session'> {
+  let outcome: T | 'no session' = 'no session'
   for (let i = 0; i < TEAM_POST_TRIES; i++) {
     if (i > 0) await wait(TEAM_POST_GAP_MS)
     outcome = await post()
