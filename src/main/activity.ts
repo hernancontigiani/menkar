@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { appendFileSync } from 'node:fs'
 import { access, appendFile, mkdir, readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
+import { powerMonitor } from 'electron'
 import { markDue } from '../core/activity/marks'
 import { sessionIdByName } from '../core/activity/names'
+import { nextTick, type PaneRow, PaneStateRecorder } from '../core/activity/panes'
 import { type PromptAnswered, PromptTracker } from '../core/activity/prompts'
 import {
   type SessionIdByName,
@@ -25,8 +28,10 @@ import {
   JOURNAL_FILE,
   JOURNAL_VERSION,
   type JournalEvent,
+  quitLine,
+  type WatchSign,
 } from '../core/usage/activity'
-import { onShownChange } from './agentstate'
+import { onShownChange, paneShown } from './agentstate'
 import { type AgentPane, agentPanes, onAgentPane } from './panes'
 import { currentProjects } from './projects'
 import { sessions } from './sessions'
@@ -39,6 +44,13 @@ type Unstamped =
   | { readonly kind: 'present'; readonly projectId?: string }
   | { readonly kind: 'away' | 'back' }
   | { readonly kind: 'prompted_start'; readonly sessionId: string; readonly projectId?: string }
+  | {
+      readonly kind: 'pane_state'
+      readonly paneId: string
+      readonly seq: number
+      readonly state: PaneRow['state']
+    }
+  | { readonly kind: 'watch'; readonly sign: WatchSign }
 
 const journalPath = () => join(activityDir(), JOURNAL_FILE)
 // Written once the first start's baseline is on disk: a crash before it gives a baseline next time.
@@ -134,6 +146,14 @@ export function recordPresence(away: boolean): void {
 
 const prompts = new PromptTracker()
 
+const panes = new PaneStateRecorder(({ at, ...row }) => {
+  void enqueue(() => write([stamp({ kind: 'pane_state', ...row }, at)]))
+})
+
+function sign(kind: WatchSign, at: number = seconds()): void {
+  void enqueue(() => write([stamp({ kind: 'watch', sign: kind }, at)]))
+}
+
 function shownChanged(
   paneId: string,
   sessionId: string | null,
@@ -141,6 +161,7 @@ function shownChanged(
   next: ShownState,
 ): void {
   const at = seconds()
+  panes.changed(paneId, next, at)
   const answered = prompts.change(paneId, sessionId, previous, next, at)
   if (answered === undefined) return
   // A pane whose agent exited left its question with nobody to answer it.
@@ -228,13 +249,55 @@ export function startActivity(tasks: Tasks): () => void {
   const at = seconds()
   void enqueue(rotate)
   void enqueue(() => write([stamp({ kind: 'app_start' }, at)]))
+  sign('start', at)
   void enqueue(() => baseline(tasks, at))
-  const follow = (pane: AgentPane) => pane.onClose(() => prompts.closed(pane.id))
+  let stopped = false
+  const follow = (pane: AgentPane) => {
+    panes.opened(pane.id, paneShown(pane.id) ?? 'idle', seconds())
+    pane.onClose(() => {
+      prompts.closed(pane.id)
+      if (!stopped) panes.closed(pane.id, seconds())
+    })
+  }
   for (const pane of agentPanes()) follow(pane)
   const stopPanes = onAgentPane(follow)
   const stopShown = onShownChange(shownChanged)
+  // Scheduled from the clock each time, so a clock set back or a late timer never drifts it.
+  let timer: NodeJS.Timeout | undefined
+  const schedule = () => {
+    clearTimeout(timer)
+    const ms = now()
+    timer = setTimeout(() => {
+      sign('tick')
+      schedule()
+    }, nextTick(ms) - ms)
+  }
+  schedule()
+  // Timers stop while the machine sleeps: a timer alone would tick up to 15 minutes after a resume.
+  const suspended = () => sign('suspend')
+  const resumed = () => {
+    sign('tick')
+    schedule()
+  }
+  powerMonitor.on('suspend', suspended)
+  powerMonitor.on('resume', resumed)
   return () => {
+    stopped = true
+    clearTimeout(timer)
+    powerMonitor.off('suspend', suspended)
+    powerMonitor.off('resume', resumed)
     stopPanes()
     stopShown()
+  }
+}
+
+// Synchronous on purpose, the journal's only such write: at will-quit no window is left to stall,
+// the quit can no longer be cancelled, and the chain's appends would not be awaited. A failure
+// reads as a crash.
+export function writeQuit(): void {
+  try {
+    appendFileSync(journalPath(), quitLine(seconds()))
+  } catch (error) {
+    log.warn('the quit could not be journaled', { error })
   }
 }

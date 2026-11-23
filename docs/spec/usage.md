@@ -105,6 +105,17 @@ Index rows: **F38**, **F39**, **F40**, **F41**, **M4**. No keyboard shortcut bel
   burst in progress". Tests USG-69 (it writes nothing in the activity folder), USG-70 (the
   seeded reading, whole), USG-71 (away now), USG-72 (a burst across midnight), USG-73 (a newer
   history).
+- Built: the panes' states (decision 1.204 (b)): `sessions_blocked` and `sessions_working` in
+  `menkar usage now --json`, and `menkar usage export --rows panes`, one row per 15 minutes;
+  `docs/usage.md`, "Panes' states and Menkar's watch" and "Pane rows". Tests USG-75 (the journal's
+  versions 1 and 2, a `newer-*` batch read again), USG-76 (a window's peak and pane-seconds), USG-77
+  (a crash ends coverage 960 s after the last sign), USG-78 (a quit ends coverage; the next start
+  voids the panes), USG-79 (a start voids every earlier pane), USG-80 (`now`'s counts, `null` when
+  not running or not covered), USG-81 (windows keyed by epoch on local quarter hours, Madrid and
+  Kolkata), USG-82 (each shown change one row; the open and the close rows), USG-83 (every window
+  gets a row, none before recording began, old `app_start`s are not signs), USG-84 (pane rows are
+  global), USG-85 (the export reads the live journal), USG-86 (a suspend ends coverage, the resume
+  tick starts it again), USG-87 (the quit's line is whole).
 
 ## Data contracts
 

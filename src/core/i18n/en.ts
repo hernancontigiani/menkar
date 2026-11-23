@@ -494,7 +494,9 @@ export const en = {
     'The burst of activity in progress, whether you are away, your last action and today\'s active time, as one JSON object for a service of your own. Menkar itself never alerts. The fields are described in Menkar\'s documentation, under "The burst in progress".',
   'usage.cli.nowNeedsJson': '--json is required: the reading is for a program',
   'usage.cli.exportHelp':
-    'One row per turn, per activity event with --rows activity, or per task state with --rows tasks: JSON lines (the default) or CSV. A turn is in the range by the moment it opened, an event or a state by its moment, and a turn is exported whole, never clipped at the range\'s ends. The fields are described in Menkar\'s documentation, under "Exporting for analysis".',
+    'One row per turn, per activity event with --rows activity, per task state with --rows tasks, or per 15 minutes with --rows panes (how many sessions were blocked, working, idle and done, over every project): JSON lines (the default) or CSV. A turn is in the range by the moment it opened, an event or a state by its moment, and a turn is exported whole, never clipped at the range\'s ends. The fields are described in Menkar\'s documentation, under "Exporting for analysis".',
+  'usage.cli.panesGlobal':
+    'Pane rows are counted over every project; --project does not apply to them.',
   'usage.cli.exec': 'exec',
   'usage.cli.blocked': 'blocked',
   'usage.cli.tokens': 'tokens',

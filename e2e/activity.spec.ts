@@ -202,7 +202,7 @@ test('a prompt answered, a topic discussed and a task’s states are journaled w
     await expect
       .poll(() => journal(root).filter((r) => r.kind === 'prompt_answered'), { timeout: 15_000 })
       .toEqual([
-        expect.objectContaining({ v: 1, sessionId: SESSION, projectId: CLIENT_WORK, next: 'idle' }),
+        expect.objectContaining({ v: 2, sessionId: SESSION, projectId: CLIENT_WORK, next: 'idle' }),
       ])
     const answered = journal(root).find((r) => r.kind === 'prompt_answered')
     expect(Number(answered?.blockedSeconds)).toBeGreaterThan(0)
@@ -230,7 +230,7 @@ test('a prompt answered, a topic discussed and a task’s states are journaled w
     const workerId = await worker.getAttribute('data-session')
     await expect
       .poll(() => journal(root).filter((r) => r.kind === 'prompted_start'))
-      .toEqual([expect.objectContaining({ v: 1, sessionId: workerId, projectId: CLIENT_WORK })])
+      .toEqual([expect.objectContaining({ v: 2, sessionId: workerId, projectId: CLIENT_WORK })])
     await worker.click()
     await expect(page.locator('.xterm-rows:visible')).toContainText('stand-in claude ready')
     await page
@@ -295,7 +295,7 @@ test('a key, a click or a scroll in the focused window is a presence mark with i
     await expect.poll(() => existsSync(journalPath(root))).toBe(false)
     const marks = () => journal(root).filter((r) => r.kind === 'present')
     const mark = (at: unknown) => ({
-      v: 1,
+      v: 2,
       id: expect.any(String),
       at,
       kind: 'present',

@@ -40,6 +40,10 @@ Pasale la exportación a una sesión de Claude Code para que la analice, por eje
 `--rows activity` exporta en cambio tus propios momentos (mensajes, permisos respondidos, ausente y
 de vuelta), y `--rows tasks` cada cambio de estado de una tarea. Ninguna de las dos tiene texto.
 
+`--rows panes` exporta una fila cada 15 minutos: cuántas sesiones estuvieron bloqueadas, trabajando,
+inactivas y terminadas, cuántas a la vez como máximo y durante cuánto tiempo, en todos los
+proyectos. Una ventana en la que Menkar no estaba abierto tiene sus cuentas vacías, nunca en cero.
+
 ## Armá tu propio recordatorio de pausa
 
 Menkar nunca te dice que hagas una pausa. Para un programa tuyo que lo haga, corré:
@@ -50,3 +54,6 @@ menkar usage now --json
 
 Imprime un objeto JSON: si estás en una racha de actividad y desde cuándo, si estás ausente, tu
 última acción y el tiempo activo de hoy. Corrélo más o menos una vez por minuto.
+
+También imprime cuántas sesiones están bloqueadas y cuántas trabajando en este momento, `null`
+mientras Menkar no está abierto.

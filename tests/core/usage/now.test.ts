@@ -5,10 +5,17 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'n
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { addSink } from '../../../src/core/log'
-import { type ActivityEvent, JOURNAL_FILE, readJournal } from '../../../src/core/usage/activity'
+import {
+  type ActivityEvent,
+  JOURNAL_FILE,
+  type PaneStateEvent,
+  readJournal,
+  type WatchEvent,
+} from '../../../src/core/usage/activity'
 import { awayPeriods, humanActionsOf, readActivity } from '../../../src/core/usage/bursts'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { NOW_SCHEMA, readNow, withJournal } from '../../../src/core/usage/now'
+import { panesNow } from '../../../src/core/usage/panes'
 import { midnight } from '../../../src/core/usage/periods'
 import { historyRows, usageDirs } from '../../factories/usage'
 
@@ -20,7 +27,10 @@ const TODAY = {
   end: midnight({ year: 2026, month: 11, day: 20 }),
 }
 
-type Unstamped = Omit<ActivityEvent, 'v' | 'id'> & { id?: string }
+type Unstamped =
+  | (Omit<ActivityEvent, 'v' | 'id'> & { id?: string })
+  | (Omit<PaneStateEvent, 'v' | 'id' | 'seq'> & { id?: string; seq?: number })
+  | (Omit<WatchEvent, 'v' | 'id'> & { id?: string })
 
 function setup(name: string) {
   const dirs = usageDirs(name)
@@ -28,7 +38,13 @@ function setup(name: string) {
   mkdirSync(dir, { recursive: true })
   const history = new UsageHistory(dirs.history)
   let n = 0
-  const line = (e: Unstamped) => JSON.stringify({ v: 1, id: e.id ?? `f${n++}`, ...e })
+  const line = (e: Unstamped) =>
+    JSON.stringify({
+      v: 1,
+      id: e.id ?? `f${n++}`,
+      ...(e.kind === 'pane_state' ? { seq: n } : {}),
+      ...e,
+    })
   const write = (file: string, events: readonly (Unstamped | string)[]) =>
     writeFileSync(
       join(dir, file),
@@ -36,7 +52,8 @@ function setup(name: string) {
     )
   const source = () => withJournal(history, readJournal(dir).events)
   const read = (now: number) => readActivity(source(), TODAY, now)
-  const reading = (now: number) => readNow(source(), now, false)
+  const panes = (now: number) => panesNow(history, readJournal(dir), now)
+  const reading = (now: number, running = false) => readNow(source(), now, running, panes(now))
   return { dir, history, rows: historyRows(history), write, read, reading }
 }
 
@@ -55,7 +72,7 @@ describe('reading the journal beside the history', () => {
     const { dir, history, write, read } = setup('now-nowrite')
     write(JOURNAL_FILE, [{ at: hm(15, 0), kind: 'present' }])
     write('batch-20261119-150000-0a0b0c0d.jsonl', [{ at: hm(14, 50), kind: 'present' }])
-    writeFileSync(join(dir, 'newer-20261118-090000-01020304.jsonl'), '{"v":2,"id":"z","at":1}\n')
+    writeFileSync(join(dir, 'newer-20261118-090000-01020304.jsonl'), '{"v":3,"id":"z","at":1}\n')
     const before = snapshot(dir)
     expect(before).toHaveLength(3)
     const actions = humanActionsOf(read(hm(15, 1)))
@@ -162,7 +179,9 @@ describe('the reading', () => {
     "messages": 4,
     "prompts": 1
   },
-  "sessions_last_30_minutes": 0
+  "sessions_last_30_minutes": 0,
+  "sessions_blocked": null,
+  "sessions_working": null
 }`)
     history.close()
   })
@@ -299,6 +318,8 @@ describe('the reading', () => {
       'burst',
       'today',
       'sessions_last_30_minutes',
+      'sessions_blocked',
+      'sessions_working',
     ])
     expect(Object.keys(r.burst ?? {})).toEqual([
       'start',
@@ -314,6 +335,59 @@ describe('the reading', () => {
     expect(Object.keys(r.today ?? {})).toEqual(['active_seconds', 'messages', 'prompts'])
     write(JOURNAL_FILE, [{ at: hm(15, 41), kind: 'away' }])
     expect(Object.keys(reading(hm(15, 42)).away ?? {})).toEqual(['since', 'since_epoch'])
+    history.close()
+  })
+})
+
+// Decision 1.204 (b): how many sessions are blocked and working now, global; null when Menkar is
+// not watching, which must never read as a calm moment.
+describe('sessions blocked and working', () => {
+  const pane = (paneId: string, state: PaneStateEvent['state'], at: number, id?: string) => ({
+    kind: 'pane_state' as const,
+    paneId,
+    state,
+    at,
+    ...(id === undefined ? {} : { id }),
+  })
+  const watch = (sign: WatchEvent['sign'], at: number) => ({ kind: 'watch' as const, sign, at })
+  const seeded = [
+    pane('F', 'working', hm(9, 50)),
+    watch('start', hm(10, 0)),
+    pane('A', 'blocked', hm(10, 1)),
+    pane('B', 'working', hm(10, 2)),
+    pane('C', 'done', hm(10, 3)),
+    pane('D', 'idle', hm(10, 4)),
+    pane('E', 'working', hm(10, 5)),
+    pane('E', 'closed', hm(10, 6)),
+  ]
+
+  test('USG-80 now counts panes by state, null when not running or not covered', () => {
+    const { history, write, reading } = setup('now-usg80')
+    write(JOURNAL_FILE, [...seeded, watch('tick', hm(10, 15))])
+    expect(reading(hm(10, 20), true)).toMatchObject({ sessions_blocked: 1, sessions_working: 1 })
+    expect(reading(hm(10, 20), false)).toMatchObject({
+      sessions_blocked: null,
+      sessions_working: null,
+    })
+    write(JOURNAL_FILE, seeded)
+    expect(reading(hm(10, 20), true)).toMatchObject({
+      sessions_blocked: null,
+      sessions_working: null,
+    })
+    history.close()
+  })
+
+  test('a pane row only in the live journal counts, and one also in the history counts once', () => {
+    const { history, write, reading } = setup('now-pane-dup')
+    const raw = history.handle?.raw
+    raw?.prepare("INSERT INTO watch_signs VALUES ('st', ?, 'start')").run(hm(10, 0))
+    raw?.prepare("INSERT INTO pane_states VALUES ('same', ?, 1, 'A', 'blocked')").run(hm(10, 1))
+    write(JOURNAL_FILE, [
+      pane('A', 'blocked', hm(10, 1), 'same'),
+      pane('B', 'blocked', hm(10, 2)),
+      watch('tick', hm(10, 15)),
+    ])
+    expect(reading(hm(10, 20), true)).toMatchObject({ sessions_blocked: 2, sessions_working: 0 })
     history.close()
   })
 })
@@ -362,7 +436,9 @@ describe('focus', () => {
     "messages": 7,
     "prompts": 1
   },
-  "sessions_last_30_minutes": 3
+  "sessions_last_30_minutes": 3,
+  "sessions_blocked": null,
+  "sessions_working": null
 }`)
     history.close()
   })

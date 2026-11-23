@@ -12,12 +12,15 @@ import {
   exportActivityRows,
   exportCsv,
   exportJsonl,
+  exportPaneCsv,
+  exportPaneRows,
   exportRows,
   exportTaskCsv,
   exportTaskRows,
 } from './export'
 import { type Memberships, NO_MEMBERSHIPS, UsageHistory } from './history'
 import { nowUnavailable, readNow, withJournal } from './now'
+import { panesBetween, panesNow, paneWindows } from './panes'
 import { defaultPassPaths, type PassPaths, runPass } from './pass'
 import {
   allBounds,
@@ -158,9 +161,9 @@ function checkPeriodFlags(values: ReadonlyMap<string, string>): void {
 
 const exportUsage = () =>
   `${flavorFacts().command} usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD` +
-  ' --to YYYY-MM-DD] [--project NAME] [--rows turns|activity|tasks] [--format jsonl|csv] [--output FILE]'
+  ' --to YYYY-MM-DD] [--project NAME] [--rows turns|activity|tasks|panes] [--format jsonl|csv] [--output FILE]'
 const FORMATS = ['jsonl', 'csv'] as const
-const ROWS = ['turns', 'activity', 'tasks'] as const
+const ROWS = ['turns', 'activity', 'tasks', 'panes'] as const
 
 export interface ExportArgs {
   readonly which: Which
@@ -208,6 +211,7 @@ export function parseExportArgs(argv: readonly string[]): ExportArgs | 'help' {
       t('usage.cli.badChoice', { flag: '--rows', value: rows, choices: ROWS.join(', ') }),
     )
   }
+  if (rows === 'panes' && values.has('--project')) throw new UsageError(t('usage.cli.panesGlobal'))
   return {
     which: whichOf(values),
     project: values.get('--project') ?? null,
@@ -404,6 +408,12 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
         ...(project === undefined ? {} : { project }),
       })
       text = args.format === 'csv' ? exportActivityCsv(rows) : exportJsonl(rows)
+    } else if (args.rows === 'panes') {
+      // The live journal too: a sign already imported covers into time whose rows are not yet.
+      const files = readJournal(deps.activityDir ?? activityDir())
+      const read = panesBetween(history, files, bounds.start, bounds.end)
+      const rows = exportPaneRows(paneWindows(read.rows, read.signs, bounds, now() / 1000))
+      text = args.format === 'csv' ? exportPaneCsv(rows) : exportJsonl(rows)
     } else if (args.rows === 'tasks') {
       const rows = exportTaskRows(history, bounds, {
         projectNames: memberships.projectNames,
@@ -471,9 +481,10 @@ function runNow(argv: readonly string[], output: Output, deps: CliDeps): number 
       print(nowUnavailable('history_too_new', now() / 1000))
       return 1
     }
-    const events = readJournal(deps.activityDir ?? activityDir()).events
+    const files = readJournal(deps.activityDir ?? activityDir())
     const running = (deps.running ?? menkarAliveSync)()
-    print(readNow(withJournal(history, events), now() / 1000, running))
+    const at = now() / 1000
+    print(readNow(withJournal(history, files.events), at, running, panesNow(history, files, at)))
     return 0
   } finally {
     history.close()

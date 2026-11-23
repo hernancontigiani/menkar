@@ -10,8 +10,11 @@ import { appDirs } from '../../../src/core/paths'
 import {
   activityDir,
   batchPath,
+  JOURNAL_VERSION,
   type JournalEvent,
   parseJournalLine,
+  quitLine,
+  readJournal,
 } from '../../../src/core/usage/activity'
 import { HISTORY_VERSION, UsageHistory } from '../../../src/core/usage/history'
 import { usageDirs } from '../../factories/usage'
@@ -41,6 +44,17 @@ const waiting: JournalEvent = {
   waitRef: '4',
   assignee: 's2',
 }
+
+const paneIdle: JournalEvent = {
+  v: 2,
+  id: 'p1',
+  at: AT + 3,
+  kind: 'pane_state',
+  paneId: 'A',
+  seq: 1,
+  state: 'idle',
+}
+const tick: JournalEvent = { v: 2, id: 'w1', at: AT + 4, kind: 'watch', sign: 'tick' }
 
 const jsonl = (lines: readonly (JournalEvent | string | object)[]) =>
   `${lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n')}\n`
@@ -128,7 +142,7 @@ describe('importing the activity journal', () => {
     const remove = addSink((line) => records.push(line))
     try {
       const { dir, history, batch, rows } = setup('act-bad')
-      const newerLine = { ...discussed, id: 'n1', v: 2 }
+      const newerLine = { ...discussed, id: 'n1', v: 3 }
       const path = batch([answered, '{"v":1,"id":"x', newerLine, '', waiting])
       expect(history.importActivity(path)).toEqual({ imported: 2, skipped: 1, newer: 1 })
       expect(rows('activity')).toHaveLength(1)
@@ -136,8 +150,8 @@ describe('importing the activity journal', () => {
       expect(existsSync(path)).toBe(false)
       const kept = readdirSync(dir).filter((f) => f.startsWith('newer-'))
       expect(kept).toHaveLength(1)
-      expect(readFileSync(join(dir, kept[0] ?? ''), 'utf8')).toContain('"v":2')
-      expect(history.importActivityDir(dir)).toEqual({ imported: 0, skipped: 0, newer: 0 })
+      expect(readFileSync(join(dir, kept[0] ?? ''), 'utf8')).toContain('"v":3')
+      expect(history.importActivityDir(dir)).toEqual({ imported: 0, skipped: 1, newer: 1 })
       expect(readdirSync(dir).filter((f) => f.startsWith('newer-'))).toHaveLength(1)
       expect(records.join('\n')).toContain('skipped')
 
@@ -157,8 +171,89 @@ describe('importing the activity journal', () => {
     ['no version', { ...discussed, v: undefined }],
     ['a task row with no task', { ...waiting, task: undefined }],
     ['a task row with no project', { ...waiting, projectId: undefined }],
+    ['version 0', { ...discussed, v: 0 }],
+    ['a pane row with no pane', { ...paneIdle, paneId: undefined }],
+    ['a pane row with no sequence', { ...paneIdle, seq: undefined }],
+    ['a pane row with a fractional sequence', { ...paneIdle, seq: 1.5 }],
+    ['a pane row with an unknown state', { ...paneIdle, state: 'thinking' }],
+    ['a watch row with an unknown sign', { ...tick, sign: 'heartbeat' }],
   ])('a line with %s does not parse', (_, line) => {
     expect(parseJournalLine(JSON.stringify(line))).toBe('bad')
+  })
+
+  test.each([
+    ['an old kind at version 1', discussed],
+    ['an old kind at version 2', { ...discussed, v: 2 }],
+    ['a task row at version 2', { ...waiting, v: 2 }],
+    ['a pane row', paneIdle],
+    ['a pane row closing', { ...paneIdle, state: 'closed' }],
+    ['a watch row', tick],
+  ])('%s parses as itself', (_, line) => {
+    expect(parseJournalLine(JSON.stringify(line))).toEqual(line)
+  })
+
+  test('a line of a later journal version is newer, whatever its kind', () => {
+    expect(parseJournalLine(JSON.stringify({ ...discussed, v: JOURNAL_VERSION + 1 }))).toBe('newer')
+    expect(parseJournalLine(JSON.stringify({ ...paneIdle, v: JOURNAL_VERSION + 1 }))).toBe('newer')
+  })
+
+  test('pane rows and watch signs land in their own tables', () => {
+    const { history, batch } = setup('act-panes')
+    history.importActivity(batch([paneIdle, tick, answered]))
+    const raw = history.handle?.raw
+    expect(raw?.prepare('SELECT * FROM pane_states').all()).toEqual([
+      { id: 'p1', at: AT + 3, seq: 1, pane_id: 'A', state: 'idle' },
+    ])
+    expect(raw?.prepare('SELECT * FROM watch_signs').all()).toEqual([
+      { id: 'w1', at: AT + 4, sign: 'tick' },
+    ])
+    expect(raw?.prepare('SELECT count(*) AS n FROM activity').get()?.n).toBe(1)
+    history.close()
+  })
+
+  // USG-75: a batch an older Menkar kept as newer-* because it held this one's lines is imported
+  // by this one, and deleted once nothing in it is newer than the reader; a line newer still keeps
+  // it, under the same name.
+  test('USG-75 the journal reads versions 1 and 2, and a newer-* batch is read again', () => {
+    const { dir, history, rows } = setup('act-usg75')
+    const present = { v: 1, id: 'o1', at: AT, kind: 'present' }
+    const pane = { ...paneIdle, v: 2 }
+    const kept = join(dir, 'newer-20261118-100000-01020304.jsonl')
+    writeFileSync(kept, jsonl([present, pane]))
+    expect(history.importActivityDir(dir)).toEqual({ imported: 2, skipped: 0, newer: 0 })
+    expect(rows('activity')).toHaveLength(1)
+    expect(history.handle?.raw.prepare('SELECT count(*) AS n FROM pane_states').get()?.n).toBe(1)
+    expect(existsSync(kept)).toBe(false)
+    writeFileSync(kept, jsonl([present, pane]))
+    expect(history.importActivityDir(dir)).toEqual({ imported: 0, skipped: 0, newer: 0 })
+    expect(existsSync(kept)).toBe(false)
+    const future = { ...tick, id: 'w9', v: 3 }
+    writeFileSync(kept, jsonl([present, future]))
+    expect(history.importActivityDir(dir)).toEqual({ imported: 0, skipped: 0, newer: 1 })
+    expect(readdirSync(dir)).toEqual(['newer-20261118-100000-01020304.jsonl'])
+    history.close()
+  })
+
+  test('the live journal and every batch, newer-* too, are read in place by kind', () => {
+    const { dir, batch } = setup('act-read')
+    writeFileSync(join(dir, 'journal.jsonl'), jsonl([discussed, paneIdle]))
+    batch([tick, waiting])
+    writeFileSync(join(dir, 'newer-20261118-100000-01020304.jsonl'), jsonl([answered]))
+    const read = readJournal(dir)
+    expect([...read.events.keys()].sort()).toEqual(['a1', 'a2'])
+    expect([...read.panes.values()]).toEqual([paneIdle])
+    expect([...read.signs.values()]).toEqual([tick])
+  })
+
+  // USG-87: the quit's line is written synchronously at the last moment; it must be a whole line
+  // any reader takes as the quit sign at its time.
+  test('USG-87 the quit line is whole and reads as the quit sign at its time', () => {
+    const line = quitLine(AT + 7)
+    expect(line.endsWith('\n')).toBe(true)
+    expect(line.indexOf('\n')).toBe(line.length - 1)
+    const parsed = parseJournalLine(line)
+    expect(parsed).toMatchObject({ v: JOURNAL_VERSION, kind: 'watch', sign: 'quit', at: AT + 7 })
+    expect(parsed === 'bad' || parsed === 'newer' ? '' : parsed.id).not.toBe('')
   })
 
   // The history's own rule: a file from a newer Menkar is not written, and nothing is lost.

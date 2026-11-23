@@ -12,13 +12,14 @@ import type { ActivityRows, PresenceKind } from './bursts'
 import type { HourTokens } from './cache'
 import type { TaskStateRow } from './flow'
 import { addModels, addTokens, type ModelUsage, type Tokens, ZERO_TOKENS } from './nodes'
+import type { PaneReading, StoredPaneState, StoredSign } from './panes'
 import { cost, shownModel } from './prices'
 
 export { addTokens, type Tokens, totalTokens, ZERO_TOKENS } from './nodes'
 
 // The one file whose loss loses what no transcript can rebuild: one row per turn, never pruned. A
 // file from a newer Menkar is left untouched; an unreadable one is moved aside, never deleted.
-export const HISTORY_VERSION = 5
+export const HISTORY_VERSION = 6
 export const BUSY_TIMEOUT_MS = 30_000
 
 const ACTIVITY_SCHEMA = `
@@ -42,6 +43,19 @@ CREATE TABLE IF NOT EXISTS turn_agents (uuid TEXT PRIMARY KEY, agent TEXT NOT NU
 CREATE TABLE IF NOT EXISTS agent_backfill (uuid TEXT PRIMARY KEY);
 `
 
+// Each agent pane's shown state as it changed, and the signs that Menkar was watching them; a
+// table each, so `activity` holds only the human's events.
+const PANE_SCHEMA = `
+CREATE TABLE IF NOT EXISTS pane_states (
+  id TEXT PRIMARY KEY, at REAL NOT NULL, seq INTEGER NOT NULL, pane_id TEXT NOT NULL,
+  state TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS pane_states_time ON pane_states (at);
+CREATE INDEX IF NOT EXISTS pane_states_pane ON pane_states (pane_id, at);
+CREATE TABLE IF NOT EXISTS watch_signs (id TEXT PRIMARY KEY, at REAL NOT NULL, sign TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS watch_signs_time ON watch_signs (at);
+`
+
 export const HISTORY_SCHEMA = `
 CREATE TABLE turns (
   uuid TEXT PRIMARY KEY, session_id TEXT NOT NULL, origin TEXT NOT NULL, opened REAL NOT NULL,
@@ -61,7 +75,7 @@ CREATE TABLE tokens (
 CREATE INDEX tokens_hour ON tokens (hour);
 CREATE TABLE names (session_id TEXT PRIMARY KEY, name TEXT NOT NULL, claude INTEGER NOT NULL);
 CREATE TABLE rederive (uuid TEXT PRIMARY KEY);
-${ACTIVITY_SCHEMA}${AGENT_SCHEMA}`
+${ACTIVITY_SCHEMA}${AGENT_SCHEMA}${PANE_SCHEMA}`
 
 // Each step takes a file from the version it is keyed by to the next.
 const MIGRATIONS: Readonly<Record<number, string>> = {
@@ -78,6 +92,7 @@ INSERT INTO rederive SELECT uuid FROM turns;`,
   // transcript is gone is looked for once.
   4: `${AGENT_SCHEMA}
 INSERT OR IGNORE INTO agent_backfill SELECT uuid FROM turns;`,
+  5: PANE_SCHEMA,
 }
 
 export function historyPath(): string {
@@ -916,6 +931,56 @@ export class UsageHistory {
         assignee: nullableStr(r, 'assignee'),
         baseline: num(r, 'baseline') !== 0,
       }))
+  }
+
+  // The panes' rows and Menkar's signs in [low, high), and what the range needs from before it:
+  // each pane's last row since the latest start before `low`, the last sign and that start.
+  paneReading(low: number, high: number): PaneReading {
+    const db = this.db
+    if (db === null) return { rows: [], signs: [] }
+    const latestStart = "(SELECT max(at) FROM watch_signs WHERE sign = 'start' AND at < ?)"
+    const columns = 'id, at, seq, pane_id, state'
+    // Grouped, not ranked: a rank sorts every row since the start, about four times slower.
+    const rows = this.prepared(
+      db,
+      `SELECT ${columns} FROM pane_states WHERE at >= ? AND at < ?` +
+        ` UNION ALL SELECT ${columns} FROM pane_states s JOIN (SELECT pane_id AS g, max(at) AS m` +
+        ` FROM pane_states WHERE at < ? AND at >= ${latestStart} GROUP BY pane_id)` +
+        ' ON s.pane_id = g AND s.at = m',
+    )
+      .all(low, high, low, low)
+      .map(
+        (r): StoredPaneState => ({
+          id: String(r.id),
+          at: num(r, 'at'),
+          seq: num(r, 'seq'),
+          paneId: String(r.pane_id),
+          state: String(r.state) as StoredPaneState['state'],
+        }),
+      )
+    const signs = this.prepared(
+      db,
+      'SELECT id, at, sign FROM watch_signs WHERE at >= ? AND at < ?' +
+        ' UNION SELECT * FROM (SELECT id, at, sign FROM watch_signs WHERE at < ?' +
+        ' ORDER BY at DESC, id DESC LIMIT 1)' +
+        ` UNION SELECT id, at, sign FROM watch_signs WHERE sign = 'start' AND at = ${latestStart}`,
+    )
+      .all(low, high, low, low)
+      .map(
+        (r): StoredSign => ({
+          id: String(r.id),
+          at: num(r, 'at'),
+          sign: String(r.sign) as StoredSign['sign'],
+        }),
+      )
+    // Two rows of a pane in its last second before `low` both come back: the later one is its last.
+    const last = new Map<string, StoredPaneState>()
+    for (const row of rows) {
+      if (row.at >= low) continue
+      const had = last.get(row.paneId)
+      if (had === undefined || row.seq > had.seq) last.set(row.paneId, row)
+    }
+    return { rows: [...rows.filter((r) => r.at >= low), ...last.values()], signs }
   }
 }
 

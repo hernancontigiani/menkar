@@ -132,7 +132,12 @@ No prompt or answer text is in it.
 menkar usage export --month 2026-10                 # JSON lines, one per turn
 menkar usage export --period 30d --format csv       # CSV, for a spreadsheet
 menkar usage export --project "Client work" --output turns.jsonl
+menkar usage export --period today --rows panes     # sessions blocked and working, per 15 minutes
 ```
+
+`--rows panes` gives, for every 15 minutes, how many sessions were blocked, working, idle and done
+at most at once and for how long, over every project, and how much of those 15 minutes Menkar was
+running to see it.
 
 For example, ask a Claude session: *"Run `menkar usage export --month 2026-10` and tell me the cost
 per model for each project."*

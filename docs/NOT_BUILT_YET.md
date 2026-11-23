@@ -507,3 +507,47 @@ Dependabot ignores TypeScript majors until then (`.github/dependabot.yml`).
 
 **Trigger:** TypeScript 7.1 ships its stable API. Then: move the ten files onto it in one change, and
 lift the Dependabot ignore.
+
+### The panes' raw rows in the export
+
+2026-11-23 (plan 47): `menkar usage export --rows panes` gives 15-minute windows, the shape cogload
+asked for; each pane's row as stored has no consumer, and a pane id is an identifier no reader
+needs yet.
+
+**Trigger:** a consumer asks for each change of a pane's state. First question: whether its rows
+carry the pane id or only the state and the moment.
+
+### The sessions' counts per project
+
+2026-11-23 (decision 1.204 (b)): `sessions_blocked`, `sessions_working` and the pane rows are
+global, and the rows carry no session, so a per-project reading would start recording then.
+
+**Trigger:** cogload or the human asks for one project's counts. First question: a session id on
+each `pane_state` line, or the project's id.
+
+### A chat tab's state in the counts
+
+2026-11-23 (plan 47): only agent panes have a shown state; a chat tab waiting on its permission
+card is not in `sessions_blocked`.
+
+**Trigger:** a chat tab gets a shown state. Then its tab registers with the same recorder.
+
+### Folding old pane rows into windows
+
+2026-11-23 (decision 1.207, D8): the pane rows are kept for good, like every row of the history;
+folding rows older than some age into 15-minute windows would lose what a later reading may need,
+and the real volume is not known yet.
+
+**Trigger:** the history's size is noticed, or the measured rate (below) is above the worst case
+the reading's cost was measured at (`docs/usage.md`, "The sessions' counts' cost"). First question: the age, and whether the windows keep the peak and the
+pane-seconds of all four states.
+
+### Measuring the pane rows' rate on the human's data
+
+2026-11-23 (decision 1.207, D6): with no hold, a future agent version whose screen flickered would
+write a row per flip, at most one per pane per watcher re-read; only a count on the human's own
+`pane_states` would show it.
+
+**Trigger:** a week after the build with plan 47 is installed, with the human's go. Then `set` runs
+one read-only count (rows per hour, p50, p95 and max, no ids printed) against that worst case, and
+a hold before a change is journaled is decided if it is above.

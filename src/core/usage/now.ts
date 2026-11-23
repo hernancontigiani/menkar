@@ -10,6 +10,7 @@ import {
   type PresenceKind,
   readActivity,
 } from './bursts'
+import { covered, type PaneReading, stateAt } from './panes'
 import { localDay, periodBounds } from './periods'
 import { isoLocal } from './report'
 
@@ -112,6 +113,9 @@ export interface NowReading {
     readonly prompts: number
   }
   readonly sessions_last_30_minutes?: number
+  // null when Menkar is not running or not watching now: not measured, never a calm moment
+  readonly sessions_blocked?: number | null
+  readonly sessions_working?: number | null
 }
 
 export const FOCUS_WINDOW_SECONDS = 1800
@@ -127,7 +131,14 @@ export function nowUnavailable(status: Exclude<NowStatus, 'ok'>, nowSeconds: num
 
 // The burst in progress, by the one definition of a burst: the last one, while the gap that would
 // end it has not passed and no away has started since its last action.
-export function readNow(source: ActivitySource, nowSeconds: number, running: boolean): NowReading {
+export function readNow(
+  source: ActivitySource,
+  nowSeconds: number,
+  running: boolean,
+  panes: PaneReading,
+): NowReading {
+  const watching = running && covered(panes.signs, nowSeconds)
+  const states = watching ? stateAt(panes.rows, panes.signs, nowSeconds) : null
   const rows = readActivity(source, periodBounds('today', nowSeconds), nowSeconds)
   const away = awayPeriods(rows.presence, nowSeconds)
   // Read to an endless now, the one away still open is the only one with no end.
@@ -180,5 +191,7 @@ export function readNow(source: ActivitySource, nowSeconds: number, running: boo
         .filter((m) => nowSeconds - FOCUS_WINDOW_SECONDS <= m.at && m.at <= nowSeconds)
         .map((m) => m.session),
     ).size,
+    sessions_blocked: states === null ? null : states.blocked,
+    sessions_working: states === null ? null : states.working,
   }
 }

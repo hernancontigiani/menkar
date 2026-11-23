@@ -1,6 +1,7 @@
 import { awayPeriods } from './bursts'
 import type { ExportedTurn, UsageHistory } from './history'
 import { addTokens, type Tokens, ZERO_TOKENS } from './nodes'
+import type { PaneWindow } from './panes'
 import type { Bounds } from './periods'
 import { cost } from './prices'
 import { isoLocal, tokensJson } from './report'
@@ -150,7 +151,7 @@ export function responseSeconds(
 }
 
 export function exportJsonl(
-  rows: readonly (ExportRow | ActivityExportRow | TaskExportRow)[],
+  rows: readonly (ExportRow | ActivityExportRow | TaskExportRow | PaneExportRow)[],
 ): string {
   return rows.map((row) => `${JSON.stringify(row)}\n`).join('')
 }
@@ -332,5 +333,60 @@ export function exportTaskRows(
 export function exportTaskCsv(rows: readonly TaskExportRow[]): string {
   const lines = [TASK_EXPORT_KEYS.join(',')]
   for (const row of rows) lines.push(TASK_EXPORT_KEYS.map((k) => csvField(row[k])).join(','))
+  return `${lines.join('\n')}\n`
+}
+
+// `--rows panes`: one row per 15-minute window, with its own schema. Counts over every project;
+// never a project, a session, a pane or a name.
+export const PANE_EXPORT_SCHEMA = 1
+
+export const PANE_EXPORT_KEYS = [
+  'schema',
+  'window_start',
+  'window_start_epoch',
+  'covered_seconds',
+  'blocked_max',
+  'blocked_seconds',
+  'working_max',
+  'working_seconds',
+  'idle_max',
+  'idle_seconds',
+  'done_max',
+  'done_seconds',
+] as const
+
+export type PaneExportRow = {
+  readonly [K in (typeof PANE_EXPORT_KEYS)[number]]: string | number | null
+}
+
+// Sums of times read to the millisecond: the float noise of adding them goes no further.
+const milliseconds = (seconds: number) => Math.round(seconds * 1000) / 1000
+
+export function exportPaneRows(windows: readonly PaneWindow[]): PaneExportRow[] {
+  return windows.map((w) => {
+    const of = (state: keyof NonNullable<PaneWindow['counts']>) => w.counts?.[state] ?? null
+    return {
+      schema: PANE_EXPORT_SCHEMA,
+      window_start: isoLocal(w.start),
+      window_start_epoch: w.start,
+      covered_seconds: milliseconds(w.covered),
+      blocked_max: of('blocked')?.max ?? null,
+      blocked_seconds: nullable(of('blocked')?.seconds),
+      working_max: of('working')?.max ?? null,
+      working_seconds: nullable(of('working')?.seconds),
+      idle_max: of('idle')?.max ?? null,
+      idle_seconds: nullable(of('idle')?.seconds),
+      done_max: of('done')?.max ?? null,
+      done_seconds: nullable(of('done')?.seconds),
+    }
+  })
+}
+
+const nullable = (seconds: number | undefined) =>
+  seconds === undefined ? null : milliseconds(seconds)
+
+export function exportPaneCsv(rows: readonly PaneExportRow[]): string {
+  const lines = [PANE_EXPORT_KEYS.join(',')]
+  for (const row of rows) lines.push(PANE_EXPORT_KEYS.map((k) => csvField(row[k])).join(','))
   return `${lines.join('\n')}\n`
 }

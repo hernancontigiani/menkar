@@ -28,6 +28,8 @@ built.
   Shell splits are never registered, so they have no state. It sends every window `agentState:changed`
   (every pane's shown state and every project's blocked count) and `agentState:toast`. It shows
   desktop notifications through Electron, and their click calls the pane's `reveal()`.
+  Its shown changes also feed the activity journal through `onShownChange`: prompts answered and
+  each pane's state (`docs/usage.md`, "Panes' states and Menkar's watch").
 - **The seam with the window** is `AgentPane`. The window answers what only it knows: whether the
   pane is seen (its tab selected in the focused window), when that may have changed, the tab's
   title, whether its window is focused, and how to reveal it. The foreground check (is the agent

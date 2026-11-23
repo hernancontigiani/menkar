@@ -12,7 +12,7 @@ import { electronUserData, logFile } from '../core/paths'
 import { settingsOf } from '../core/settings'
 import { loadState } from '../core/state'
 import type { InvokeChannel, InvokeChannels, SendChannel, SendChannels } from '../shared/ipc'
-import { importActivity, recordPresent, startActivity } from './activity'
+import { importActivity, recordPresent, startActivity, writeQuit } from './activity'
 import { startAgentVersions } from './agent-versions'
 import { startAgentState } from './agentstate'
 import { closeAllChats, registerChatIpc } from './chat'
@@ -152,6 +152,7 @@ async function start(): Promise<void> {
   const stopPaneStarts = watchPaneStarts(followPaneStart)
   app.on('will-quit', () => {
     stopAgentState()
+    writeQuit()
     stopActivity()
     stopContext()
     stopPaneStarts()

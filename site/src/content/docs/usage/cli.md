@@ -39,6 +39,10 @@ Hand the export to a Claude Code session to analyse, for example: *"Run
 `--rows activity` exports your own moments instead (messages, prompts answered, away and back), and
 `--rows tasks` each change of a task's state. Neither holds any text.
 
+`--rows panes` exports one row per 15 minutes: how many sessions were blocked, working, idle and
+done, at most at once and for how long, over every project. A window Menkar was not running in has
+its counts empty, never zero.
+
 ## Build your own break reminder
 
 Menkar never tells you to take a break. For a program of your own that does, run:
@@ -49,3 +53,6 @@ menkar usage now --json
 
 It prints one JSON object: whether you are in a burst of activity and since when, whether you are
 away, your last action and today's active time. Run it about once a minute.
+
+It also prints how many sessions are blocked and how many are working right now, `null` while
+Menkar is not running.

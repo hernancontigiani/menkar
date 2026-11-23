@@ -546,4 +546,35 @@ Each block ends with `npm run ci` green, plus its own checks. No block changes t
 
 ## 8. Execution log
 
-*(Written by the session that executes it.)*
+Executed 2026-11-23 by `menkar-t202` (task 202), blocks 1–6 on `main`, D1–D9 as recommended (1.207).
+Every block ended with `npm run ci` green except `test integrity`, which flags 4 `expect(` lines
+rewritten on purpose (`set` accepted them, listed in the report); each new test was seen red against
+an injected defect.
+
+**Deviations from the blocks, and why:**
+
+- **Block 3's history readings are one method**, `UsageHistory.paneReading(low, high)`, not four
+  (`paneRows`, `watchSigns`, `firstWatchSign`, `paneStatesSince`). It returns the range's rows and
+  signs plus each pane's last row since the latest `start` before `low`, the last sign before `low`
+  **and that latest `start`**: with the files' rows laid over the history's, the reading must see
+  the start that voids an old journal's rows, which "the last sign before low" alone may not be.
+  `firstWatchSign` had no consumer: the first window is the earliest of the signs passed, which holds
+  a sign before the range whenever one exists. `now` reads `paneReading(now, MAX_VALUE)` instead of a
+  `paneStatesSince`.
+- **The lookup of each pane's last row is a `GROUP BY` on `max(at)`**, not a rank: the rank sorted
+  every row since the start, 43 ms at block 4's worst case against 10.6 ms. Two rows of one pane
+  in its last second both come back; the one with the higher `seq` is kept in code.
+- **USG-84 and USG-85 are in `tests/core/usage/export.test.ts`**, beside the other `--rows` tests and
+  their CLI helper, not in `cli.test.ts`.
+- **`e2e/activity.spec.ts`** (not named by the plan) expected `v: 1` on journal lines in three places;
+  every line is `v: 2` now, so the three values changed. Run: 3 passed.
+- **Block 2's hand check** ran a temporary spec with the e2e harness (deleted after): closing the tab
+  first gives `closed` before `quit`, as finding 14 said it must be arranged.
+
+**What the plan did not anticipate:**
+
+- A `newer-*` batch kept because it still holds a newer line is read again by every import, and its
+  broken lines are counted (and logged) again each time: harmless, rare.
+- `now` with the pane reading: medians 2.4–2.9 ms before, 16.0–16.5 ms after (block 4's case); a pane
+  row is about 170 bytes after `VACUUM` (the plan's scratch figure was 200).
+- The export rounds seconds to the millisecond (my choice; float sums otherwise leak noise).

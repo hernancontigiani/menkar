@@ -7,7 +7,14 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { batchPath } from '../../../src/core/usage/activity'
 import { runUsageCli } from '../../../src/core/usage/cli'
-import { ACTIVITY_EXPORT_KEYS, EXPORT_KEYS, TASK_EXPORT_KEYS } from '../../../src/core/usage/export'
+import {
+  ACTIVITY_EXPORT_KEYS,
+  EXPORT_KEYS,
+  exportPaneRows,
+  PANE_EXPORT_KEYS,
+  PANE_EXPORT_SCHEMA,
+  TASK_EXPORT_KEYS,
+} from '../../../src/core/usage/export'
 import { UsageHistory } from '../../../src/core/usage/history'
 import { midnight } from '../../../src/core/usage/periods'
 import { buildReport } from '../../../src/core/usage/report'
@@ -494,9 +501,164 @@ describe('menkar usage export', () => {
 
   test("the documentation's task table names exactly the task row's keys, in order", () => {
     const doc = readFileSync('docs/usage.md', 'utf8')
-    const section = doc.slice(doc.indexOf('### Task rows'))
+    const section = doc.slice(doc.indexOf('### Task rows'), doc.indexOf('### Pane rows'))
     const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
     expect(documented.length).toBeGreaterThan(0)
     expect(documented).toEqual([...TASK_EXPORT_KEYS])
+  })
+})
+
+// Decision 1.204 (b): how many sessions were blocked and working, per 15-minute window, global.
+describe('menkar usage export --rows panes', () => {
+  const nov8 = (h: number, m: number) => new Date(2026, 10, 8, h, m, 0).getTime() / 1000
+  const journal = (dirs: Dirs, lines: readonly object[]) => {
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(
+      join(dir, 'journal.jsonl'),
+      lines.map((l, i) => JSON.stringify({ v: 2, id: `j${i}`, ...l })).join('\n'),
+    )
+  }
+  const pane = (paneId: string, state: string, at: number, seq: number) => ({
+    kind: 'pane_state',
+    paneId,
+    state,
+    at,
+    seq,
+  })
+  const sign = (s: string, at: number) => ({ kind: 'watch', sign: s, at })
+
+  // USG-84: the counts are global (1.204), so a project scope is refused, not silently ignored.
+  test('USG-84 pane rows are global: --project is refused, and the keys are exactly the schema’s', () => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const dirs = usageDirs('export-panes-project')
+    projects(dirs, [{ id: 'p', name: 'Client work', members: [] }])
+    const refused = cli(dirs, ['--rows', 'panes', '--project', 'Client work'])
+    expect(refused.code).toBe(2)
+    expect(refused.out).toBe('')
+    expect(refused.err).toContain(
+      'Pane rows are counted over every project; --project does not apply to them.',
+    )
+    vi.setSystemTime(new Date(2026, 10, 8, 10, 20, 0))
+    journal(dirs, [sign('start', nov8(10, 0))])
+    const found = rows(cli(dirs, ['--period', 'today', '--rows', 'panes']).out)
+    expect(found).toHaveLength(2)
+    expect(PANE_EXPORT_SCHEMA).toBe(1)
+    for (const row of found) expect(Object.keys(row)).toEqual([...PANE_EXPORT_KEYS])
+  })
+
+  // USG-85: a sign already in the history covers into time whose pane rows are still in the live
+  // journal, so the export reads the journal too.
+  test('USG-85 the export reads the live journal', () => {
+    const dirs = usageDirs('export-panes-live')
+    const history = new UsageHistory(dirs.history)
+    const raw = history.handle?.raw
+    raw?.prepare("INSERT INTO watch_signs VALUES ('s1', ?, 'start')").run(nov8(10, 0))
+    raw?.prepare("INSERT INTO watch_signs VALUES ('s2', ?, 'tick')").run(nov8(10, 0))
+    history.close()
+    journal(dirs, [pane('A', 'idle', nov8(10, 0), 1), pane('A', 'blocked', nov8(10, 7), 2)])
+    vi.setSystemTime(new Date(2026, 10, 8, 10, 14, 0))
+    const found = rows(cli(dirs, ['--period', 'today', '--rows', 'panes']).out)
+    expect(found).toEqual([
+      expect.objectContaining({
+        window_start: '2026-11-08T10:00:00-03:00',
+        covered_seconds: 840,
+        blocked_max: 1,
+        blocked_seconds: 420,
+        idle_seconds: 420,
+      }),
+    ])
+  })
+
+  test('USG-76’s case as JSON lines and as CSV, whole', () => {
+    const dirs = usageDirs('export-panes-whole')
+    journal(dirs, [
+      sign('start', nov8(9, 0)),
+      ...[15, 30, 45, 60].map((m) => sign('tick', nov8(9, m))),
+      pane('A', 'idle', nov8(9, 0), 1),
+      pane('B', 'idle', nov8(9, 0), 2),
+      pane('B', 'working', nov8(9, 50), 3),
+      pane('A', 'working', nov8(10, 3), 4),
+      pane('A', 'blocked', nov8(10, 5), 5),
+      pane('B', 'done', nov8(10, 6), 6),
+      pane('A', 'working', nov8(10, 8), 7),
+      pane('A', 'done', nov8(10, 12), 8),
+    ])
+    vi.setSystemTime(new Date(2026, 10, 8, 10, 20, 0))
+    const window = (minute: number, rest: number[]) => [
+      1,
+      `2026-11-08T${minute < 60 ? '09' : '10'}:${String(minute % 60).padStart(2, '0')}:00-03:00`,
+      nov8(9, minute),
+      ...rest,
+    ]
+    const expected = [
+      window(0, [900, 0, 0, 0, 0, 2, 1800, 0, 0]),
+      window(15, [900, 0, 0, 0, 0, 2, 1800, 0, 0]),
+      window(30, [900, 0, 0, 0, 0, 2, 1800, 0, 0]),
+      window(45, [900, 0, 0, 1, 600, 2, 1200, 0, 0]),
+      window(60, [900, 1, 180, 2, 720, 1, 180, 2, 720]),
+      window(75, [60, 0, 0, 0, 0, 0, 0, 2, 120]),
+    ]
+    const jsonl = cli(dirs, ['--period', 'today', '--rows', 'panes'])
+    expect(jsonl.code).toBe(0)
+    expect(jsonl.out).toBe(
+      expected
+        .map((values) =>
+          JSON.stringify(Object.fromEntries(PANE_EXPORT_KEYS.map((k, i) => [k, values[i]]))),
+        )
+        .join('\n'),
+    )
+    const csv = cli(dirs, ['--period', 'today', '--rows', 'panes', '--format', 'csv'])
+    expect(csv.out).toBe(
+      [PANE_EXPORT_KEYS.join(','), ...expected.map((v) => v.join(','))].join('\n'),
+    )
+  })
+
+  test("the documentation's pane table names exactly the pane row's keys, in order", () => {
+    const doc = readFileSync('docs/usage.md', 'utf8')
+    const section = doc.slice(doc.indexOf('### Pane rows'))
+    const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
+    expect(documented.length).toBeGreaterThan(0)
+    expect(documented).toEqual([...PANE_EXPORT_KEYS])
+  })
+
+  // Times are sums of seconds with milliseconds: the float noise of the sums stops there.
+  test('seconds are rounded to the millisecond', () => {
+    const [row] = exportPaneRows([
+      {
+        start: 900,
+        covered: 0.1 + 0.2,
+        counts: {
+          blocked: { max: 1, seconds: 0.1 + 0.2 },
+          working: { max: 0, seconds: 0 },
+          idle: { max: 1, seconds: 1.0004 },
+          done: { max: 0, seconds: 0 },
+        },
+      },
+    ])
+    expect(row).toMatchObject({ covered_seconds: 0.3, blocked_seconds: 0.3, idle_seconds: 1 })
+  })
+
+  test('a window not covered has its counts null, an empty field in CSV', () => {
+    const dirs = usageDirs('export-panes-null')
+    journal(dirs, [sign('start', nov8(9, 0)), sign('quit', nov8(9, 10))])
+    vi.setSystemTime(new Date(2026, 10, 8, 9, 20, 0))
+    const found = rows(cli(dirs, ['--period', 'today', '--rows', 'panes']).out)
+    expect(found[1]).toEqual({
+      schema: 1,
+      window_start: '2026-11-08T09:15:00-03:00',
+      window_start_epoch: nov8(9, 15),
+      covered_seconds: 0,
+      blocked_max: null,
+      blocked_seconds: null,
+      working_max: null,
+      working_seconds: null,
+      idle_max: null,
+      idle_seconds: null,
+      done_max: null,
+      done_seconds: null,
+    })
+    const csv = cli(dirs, ['--period', 'today', '--rows', 'panes', '--format', 'csv']).out
+    expect(csv.split('\n')[2]).toBe(`1,2026-11-08T09:15:00-03:00,${nov8(9, 15)},0,,,,,,,,`)
   })
 })

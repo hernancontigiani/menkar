@@ -219,6 +219,8 @@ events are computed in `src/core/activity/`.
 | `present` | A key, a click or a scroll in a focused main window, with that window's project: at most one a minute across every window, never any content |
 | `away` / `back` | Each change of the human's presence, by the chip, `Ctrl+B a`, the banner, `human_away` or `human_back` (`recordPresence` from `askPresence`) |
 | `task_state` | A task appears, or its state, whom its wait names, or its review's waiter changes |
+| `pane_state` | An agent pane is registered (its shown state then, `idle` for a new one), its shown state changes, or it closes (`closed`): its pane id, a sequence number and the state; no session, no project, no content |
+| `watch` | Menkar's watch: `start` beside `app_start`, `tick` at every quarter hour of the clock and at once on a resume, `suspend` when the machine suspends, `quit` at `will-quit` |
 
 - **Whom a task waits on.** `topic` with the topic's number when the wait reads `topic N`; `session`
   with the session's **id** when it names a member of the task's project (a renewed session keeps
@@ -311,6 +313,76 @@ project and number; the types the page receives are in `nodes.ts`.
   it, the flow would lag the Board by up to an hour, against the human's own memory of what just
   happened.
 
+### Panes' states and Menkar's watch
+
+Decision 1.204 (b) (the human, 2026-11-21) and its details, 1.207 (2026-11-23): Menkar journals
+each change of every agent pane's shown state, so `menkar usage now --json` says how many sessions
+are blocked and working now, and `menkar usage export --rows panes` rebuilds it per 15 minutes.
+Counts are global; a pane is a session (a session is in at most one tab, and only agent panes are
+registered). The consumer is cogload, the human's own service. Phone versus desk (1.204 (c)) is not
+done.
+
+- **Rows.** `PaneStateRecorder` (`src/core/activity/panes.ts`) keeps each pane's last journaled
+  state and turns an open, a change and a close into rows; a change to that same state writes
+  nothing. `done` is journaled as itself, and there is no hold: the watcher's own re-read is the
+  only debounce, as for the dots and the notifications. `seq` is a counter of the process: two rows
+  of one pane in the same second keep their order once stored, ids being random.
+- **Covered.** A state counts only while Menkar watched. A `start` or a `tick` covers until the
+  next sign, at most 960 s (`COVER_SECONDS`, `src/core/usage/panes.ts`): the next tick is due 900 s
+  later, and the rest absorbs a busy main thread. A `suspend` or a `quit` covers nothing after it.
+  Ticks fall on epoch multiples of 900 s (`nextTick`), local quarter hours in every zone, rescheduled
+  from the clock each time; on `powerMonitor`'s `resume` a tick is written at once, since Node's
+  timers stop while the machine sleeps.
+- **A pane's state at t** is its last row at or before t (by time, then `seq`) and at or after the
+  latest `start` at or before t; `closed` ends it. A `start` voids every pane before it, so a
+  crash's last `working` does not survive into the next run; a row at the start's own second is
+  after it. Read by time, a sign a clock set back wrote early can only cut a coverage short.
+- **The quit's sign** is the one line the app writes synchronously (`writeQuit`,
+  `appendFileSync`), from the existing `will-quit` handler: every window has closed and the quit
+  can no longer be cancelled, so no window stalls, and the chain's appends would not be awaited. A
+  failure is logged and the quit reads as a crash.
+- **Where it is read**: `UsageHistory.paneReading` returns a range's rows and signs and what the
+  range needs from before it, each pane's last row since the latest `start` before it, the last
+  sign and that `start`; `panesBetween` lays the files' rows over it by id. `stateAt` and
+  `paneWindows` read them in one sweep.
+
+**Rejected, and why:**
+
+- **A snapshot of every pane at each window's start**: it misses a session blocked at :03 and
+  answered at :12, the common case, and `now` still needs the changes.
+- **The counts kept by the app and asked for by `now`**: rejected for `now` already (a control
+  request every minute), and the export needs the history anyway.
+- **Columns added to `activity`**: `--rows activity` would grow kinds its readers never saw.
+- **`app_start` as a sign**: stored since history version 4, long before any pane row; read as a
+  sign, every past start would be a covered window with nothing in it.
+- **A heartbeat every minute**: it bounds only what follows a crash; the quarter-hour tick matches
+  the windows.
+- **Expiring a state after a fixed time**: a pane working for an hour would vanish; the tick is a
+  sign of Menkar, not of the pane.
+- **The quit's sign at `before-quit`**: a quit the window's "sessions are running" dialog cancels
+  would end coverage while Menkar runs on. **Deferring `will-quit`** would run every other
+  `will-quit` handler twice.
+- **A journal version per line kind**: every line is written at the one version, so a line of an
+  old kind is never misread.
+- **The export from the history alone**: a sign already imported covers into time whose pane rows
+  are still in the journal.
+- **A session id on each row**: no reading needs one; a per-project reading would start recording
+  then.
+
+**Limits:**
+
+- A crash overstates coverage by at most 960 s after its last sign; so does a quit whose line could
+  not be written.
+- A future agent version whose screen flickered would write a row per flip, at most one per pane
+  per watcher re-read, until a hold is taken; the rate is measured on the human's data a week after
+  the build is installed, with their go (decision 1.207, D6).
+- A clock set back while panes change may order a pane's rows wrongly across the jump.
+- Chat tabs are not counted (they have no shown state): a chat waiting on its permission card is
+  not in `sessions_blocked`.
+- Cursor's flips inside a turn were not measured; Claude Code 2.1.330, Codex 0.169.0 and OpenCode
+  2.3.0 showed none (2026-11-21).
+- An older Menkar's `now` and export read none of this: it opens no version-6 history.
+
 ### Where each event is seen
 
 - **Tasks and topics**: every change goes through `setTasks` / `setTopics` (`src/main/tasks.ts`,
@@ -327,12 +399,18 @@ project and number; the types the page receives are in `nodes.ts`.
   a clock set back gives one at once), it sends `activity:present`, empty; main applies the same
   rule across windows and journals the window's shown project. The Usage and Settings windows send
   none. Marks are journaled while away too; the reading counts nothing inside an away period.
+- **Panes' states**: the same `onShownChange` listener feeds the `PaneStateRecorder`. Each agent
+  pane, open already or registered later (`onAgentPane`), writes an open row with its state then
+  (`paneShown`) and a `closed` row when its pty exits. `startActivity` writes `start` right after
+  `app_start`, keeps the quarter-hour timer and listens to `powerMonitor`; `writeQuit` runs in the
+  `will-quit` handler before the journal stops.
 - **A session named in a wait** is resolved after the event's time is taken, from the sessions'
   list, which is read asynchronously; the line is written once it is resolved.
 
 ### Where it is stored
 
-In the usage history, since version 4, tables `activity` and `task_states`. Main never opens SQLite:
+In the usage history, tables `activity` and `task_states` since version 4, `pane_states` and
+`watch_signs` since version 6. Main never opens SQLite:
 
 1. Main appends each event as a JSON line to `<data>/activity/journal.jsonl`, through one promise
    chain, so lines are written in the order they happened.
@@ -347,9 +425,12 @@ In the usage history, since version 4, tables `activity` and `task_states`. Main
    reads the live journal and the batches where they lie and moves or imports nothing: the running
    app owns them.
 
-A crash loses nothing appended; quitting needs no flush (the journal is imported after the next
-start's pass); an import twice is an import once. A history from a newer Menkar keeps every batch
-for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
+A crash loses nothing appended; a quit writes one line, its sign, and needs no flush (the journal
+is imported after the next start's pass); an import twice is an import once. A history from a newer
+Menkar keeps every batch for it; a line of a newer journal version keeps its batch, renamed
+`newer-*`, and every import reads it again: the Menkar that knows that version imports it and
+deletes it. The journal is at version 2: every line is written with `v: 2`, and lines at 1 and 2
+are read.
 
 ### Rejected, and why
 
@@ -370,6 +451,7 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 - **Up to an hour late in `menkar usage` and its export**: the rows reach the history after the
   next pass, and those commands import only the batches a pass set aside, not the live journal.
   Your time and Task times import it before each answer; `menkar usage now` reads it in place.
+  `--rows panes` reads it in place too.
 - **A pane blocked across a restart** gives no `prompt_answered`: its entry time is gone, and the
   answer may have been given while Menkar was down. A pane not yet joined to a session records no
   session and no project.
@@ -421,6 +503,8 @@ local ISO with its offset.
 | `burst` | `null`, or `{ "start", "start_epoch", "last_action", "last_action_epoch", "length_seconds", "messages", "prompts", "switches" }` |
 | `today` | `{ "active_seconds", "messages", "prompts" }`: today's bursts clipped at midnight, its messages and prompts answered, outside away |
 | `sessions_last_30_minutes` | How many distinct sessions the human messaged in `[now − 30 minutes, now]`, outside away; `0` when none |
+| `sessions_blocked` | How many agent panes are blocked now, over every project; `null` when Menkar is not running or not watching now |
+| `sessions_working` | The same for working |
 
 - **The burst in progress** is the last burst while the human is not away, no away started since
   its last action, and `now − last action ≤ 10 minutes`: a burst lasts until the gap that would end
@@ -440,6 +524,11 @@ local ISO with its offset.
 - **With the app closed** the same reading runs on what a quit or a crash left; no burst can be in
   progress ten minutes after the last action, and an away left open runs to now. `menkar_running`
   tells the service which case it reads.
+- **The sessions' counts** (decision 1.204 (b)) are each pane's state now by the rule of "Panes'
+  states and Menkar's watch", read from the files' pane rows and signs laid over the history's
+  (`panesNow`). They are `null`, not `0`, when `menkar_running` is false or no sign covers now:
+  not measured must never read as a calm moment. Coverage also bounds a stale `alive.json` whose
+  pid another process took. A chat tab is not counted.
 - **Never in it**: a project, a session, a name, a path, any text.
 
 **Exit codes**: 0 with `ok`; 1 with `history_too_new` (nothing read, the batches left) or
@@ -480,6 +569,13 @@ the app's own pass holds the file, normally under a second but tens of seconds i
 catch-up after a long time off. A service gives the command a timeout of a minute or more, or skips
 that poll.
 
+**The sessions' counts' cost** (2026-11-23, in process, the same 2,000 human turns and 120 journal
+lines): with 50,000 pane rows since the latest `start` in the history and 3,000 pane lines in the
+journal, an hour at ten panes each turning over once a minute with a permission card and an unseen
+end, the reading took a median of 16.0–16.5 ms, against 2.4–2.9 ms with none, three runs of 60
+each. Finding each pane's last row scans the rows since the latest `start`: 10.6 ms of it. A pane
+row takes about 170 bytes of history with its two indexes (100,000 rows, after `VACUUM`).
+
 ## Exporting for analysis
 
 `menkar usage export` writes the history's turns as rows for an LLM session or a spreadsheet to
@@ -490,7 +586,7 @@ answer such questions directly is deferred (`docs/NOT_BUILT_YET.md`).
 
 ```
 menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-MM-DD --to YYYY-MM-DD]
-                    [--project NAME] [--rows turns|activity|tasks] [--format jsonl|csv] [--output FILE]
+                    [--project NAME] [--rows turns|activity|tasks|panes] [--format jsonl|csv] [--output FILE]
 ```
 
 - **Which turns.** The period flags are the report's, parsed by the same code; 7 days by default.
@@ -603,3 +699,40 @@ a title, a session's name.
 | `wait_ref` | The topic's number or the session's id, or `null` |
 | `assignee` | The assignee's session id, or `null` |
 | `baseline` | Whether the row is the baseline of a task already open when recording began |
+
+### Pane rows
+
+`--rows panes` writes one row per 15-minute window instead, with its own `schema`, 1, under the
+same rule: how many sessions were blocked, working, idle and done, over the part of the window
+Menkar was watching ("Panes' states and Menkar's watch"). A window is `[w, w + 900)` with `w` a
+multiple of 900 s, so `:00 :15 :30 :45` local; one across a daylight-saving change is still 900
+real seconds, keyed by its epoch, and the two windows labelled 02:00 in a fall-back hour have
+different offsets. **Every window gets a row**, covered or not, from the one holding the range's
+start, or the one holding the first sign if later (before recording began nothing is known), to the
+last one starting before the range's end or now. The live journal and the batches are read in place
+and laid over the history: **the row of the window holding now is partial** and changes as the
+window goes on; every earlier row is final once Menkar has written past it. The counts are global:
+`--project` with `--rows panes` is an error, exit 2. Never in a row: a project, a session, a pane, a
+name, a path.
+
+| Field | What it holds |
+|---|---|
+| `schema` | The row format's version: 1 |
+| `window_start` | The window's start, local time with its offset |
+| `window_start_epoch` | The same moment in Unix seconds |
+| `covered_seconds` | How much of the window Menkar watched, 0 to 900 |
+| `blocked_max` | The most panes blocked at once in the covered part |
+| `blocked_seconds` | The pane-seconds spent blocked in the covered part |
+| `working_max` | The same as `blocked_max`, for working |
+| `working_seconds` | The same as `blocked_seconds`, for working |
+| `idle_max` | The same, for idle |
+| `idle_seconds` | The same, for idle |
+| `done_max` | The same, for done (finished while unseen, until seen) |
+| `done_seconds` | The same, for done |
+
+With `covered_seconds` 0 every count is `null`. `seconds / covered_seconds` is the mean number of
+panes in the state, and the four `_seconds` add up to the panes times the covered seconds. Seconds
+are rounded to the millisecond. The CSV has the same columns, `null` as an empty field. Why this
+shape: cogload's orchestrator chose the peak and the pane-seconds over a snapshot at the window's
+start, since its features are about how long a load was sustained, and asked for a row per window
+always, so that "Menkar was not running" never reads as "nothing was happening".

@@ -184,3 +184,16 @@ How long Claude worked and how many tokens it used, per session and project. All
 
 > Replaced 2026-11-21 (task 189, decision 1.204): history version 5 keeps each turn's agent beside the activity tables.
 In the usage history, version 4, tables `activity` and `task_states`. Main never opens SQLite:
+
+## The human's activity and the task flow
+
+> Replaced 2026-11-23 (task 202, plan 47, decisions 1.204 (b), 1.207): history version 6 adds the panes' states and Menkar's watch signs; a quit writes its sign; `newer-*` batches are read again.
+In the usage history, since version 4, tables `activity` and `task_states`. Main never opens SQLite:
+A crash loses nothing appended; quitting needs no flush (the journal is imported after the next
+start's pass); an import twice is an import once. A history from a newer Menkar keeps every batch
+for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
+
+## Exporting for analysis
+
+> Replaced 2026-11-23 (task 202, plan 47): `--rows panes`.
+                    [--project NAME] [--rows turns|activity|tasks] [--format jsonl|csv] [--output FILE]

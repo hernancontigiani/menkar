@@ -1,6 +1,7 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { readdirSync, readFileSync, renameSync, unlinkSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
+import { SHOWN_STATES } from '../agentstate/shown'
 import { fileStamp } from '../clock'
 import type { Db } from '../db'
 import { log } from '../log'
@@ -9,7 +10,7 @@ import { isObject } from './transcript'
 
 // The human's activity and each task's state changes, journaled by main as they happen with no
 // text, and imported into the usage history in batches off the UI path.
-export const JOURNAL_VERSION = 1
+export const JOURNAL_VERSION = 2
 
 export const ACTIVITY_KINDS = [
   'prompt_answered',
@@ -24,7 +25,8 @@ export const ACTIVITY_KINDS = [
 export type ActivityKind = (typeof ACTIVITY_KINDS)[number]
 
 interface Line {
-  readonly v: typeof JOURNAL_VERSION
+  // every version up to this one is read; a file the previous Menkar left holds version 1
+  readonly v: 1 | typeof JOURNAL_VERSION
   readonly id: string
   // Unix seconds
   readonly at: number
@@ -52,7 +54,28 @@ export interface TaskStateEvent extends Line {
   readonly baseline?: boolean
 }
 
-export type JournalEvent = ActivityEvent | TaskStateEvent
+// A pane's shown state from when it is registered until it closes; no session, no content.
+export const PANE_STATES = [...SHOWN_STATES, 'closed'] as const
+export type PaneStateName = (typeof PANE_STATES)[number]
+
+export interface PaneStateEvent extends Line {
+  readonly kind: 'pane_state'
+  readonly paneId: string
+  // per process: orders two rows of one pane stamped the same second, ids being random
+  readonly seq: number
+  readonly state: PaneStateName
+}
+
+// What says Menkar was watching the panes: a run's start, a quarter-hour tick, a suspend, a quit.
+export const WATCH_SIGNS = ['start', 'tick', 'suspend', 'quit'] as const
+export type WatchSign = (typeof WATCH_SIGNS)[number]
+
+export interface WatchEvent extends Line {
+  readonly kind: 'watch'
+  readonly sign: WatchSign
+}
+
+export type JournalEvent = ActivityEvent | TaskStateEvent | PaneStateEvent | WatchEvent
 
 export interface ActivityImport {
   imported: number
@@ -73,7 +96,8 @@ export function batchPath(dir: string, ms: number): string {
   return join(dir, `batch-${fileStamp(ms)}-${randomBytes(4).toString('hex')}.jsonl`)
 }
 
-// Rows carry their own time, so the order of import does not matter.
+// Rows carry their own time, so the order of import does not matter. A newer-* file is one an
+// older Menkar could not read whole: read again, by the Menkar that can.
 export function batchFiles(dir: string): string[] {
   let names: string[]
   try {
@@ -83,7 +107,7 @@ export function batchFiles(dir: string): string[] {
     throw error
   }
   return names
-    .filter((n) => n.startsWith('batch-') && n.endsWith('.jsonl'))
+    .filter((n) => (n.startsWith('batch-') || n.startsWith('newer-')) && n.endsWith('.jsonl'))
     .sort()
     .map((n) => join(dir, n))
 }
@@ -106,9 +130,20 @@ export function parseJournalLine(line: string): JournalEvent | 'newer' | 'bad' {
   }
   if (!isObject(data) || typeof data.v !== 'number' || !Number.isInteger(data.v)) return 'bad'
   if (data.v > JOURNAL_VERSION) return 'newer'
-  if (data.v !== JOURNAL_VERSION) return 'bad'
+  if (data.v < 1) return 'bad'
   if (typeof data.id !== 'string' || data.id === '') return 'bad'
   if (typeof data.at !== 'number' || !Number.isFinite(data.at)) return 'bad'
+  if (data.kind === 'pane_state') {
+    const ok =
+      typeof data.paneId === 'string' &&
+      data.paneId !== '' &&
+      Number.isSafeInteger(data.seq) &&
+      PANE_STATES.includes(data.state as PaneStateName)
+    return ok ? (data as unknown as PaneStateEvent) : 'bad'
+  }
+  if (data.kind === 'watch') {
+    return WATCH_SIGNS.includes(data.sign as WatchSign) ? (data as unknown as WatchEvent) : 'bad'
+  }
   if (data.kind === 'task_state') {
     const ok =
       typeof data.projectId === 'string' &&
@@ -134,8 +169,8 @@ export function parseJournalLine(line: string): JournalEvent | 'newer' | 'bad' {
 }
 
 // One batch file into the history, in one transaction; rows already there are kept as they are.
-// The file is then deleted, or, when it holds a newer line, kept as newer-* where no importer of
-// this version reads it again.
+// The file is then deleted, or, when it holds a newer line, kept as newer-* for a Menkar that
+// reads it whole.
 export function importBatch(db: Db, path: string): ActivityImport {
   const result: ActivityImport = { imported: 0, skipped: 0, newer: 0 }
   let text: string
@@ -160,37 +195,45 @@ export function importBatch(db: Db, path: string): ActivityImport {
     const taskState = db.raw.prepare(
       'INSERT OR IGNORE INTO task_states VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
+    const paneState = db.raw.prepare('INSERT OR IGNORE INTO pane_states VALUES (?, ?, ?, ?, ?)')
+    const watchSign = db.raw.prepare('INSERT OR IGNORE INTO watch_signs VALUES (?, ?, ?)')
     for (const e of events) {
       const run =
-        e.kind === 'task_state'
-          ? taskState.run(
-              e.id,
-              e.at,
-              e.projectId,
-              e.task,
-              e.state,
-              e.waitKind ?? null,
-              e.waitRef ?? null,
-              e.assignee ?? null,
-              e.baseline ? 1 : 0,
-            )
-          : activity.run(
-              e.id,
-              e.at,
-              e.kind,
-              e.projectId ?? null,
-              e.sessionId ?? null,
-              e.topic ?? null,
-              e.task ?? null,
-              e.next ?? null,
-              e.blockedSeconds ?? null,
-            )
+        e.kind === 'pane_state'
+          ? paneState.run(e.id, e.at, e.seq, e.paneId, e.state)
+          : e.kind === 'watch'
+            ? watchSign.run(e.id, e.at, e.sign)
+            : e.kind === 'task_state'
+              ? taskState.run(
+                  e.id,
+                  e.at,
+                  e.projectId,
+                  e.task,
+                  e.state,
+                  e.waitKind ?? null,
+                  e.waitRef ?? null,
+                  e.assignee ?? null,
+                  e.baseline ? 1 : 0,
+                )
+              : activity.run(
+                  e.id,
+                  e.at,
+                  e.kind,
+                  e.projectId ?? null,
+                  e.sessionId ?? null,
+                  e.topic ?? null,
+                  e.task ?? null,
+                  e.next ?? null,
+                  e.blockedSeconds ?? null,
+                )
       result.imported += Number(run.changes)
     }
   })
   try {
     if (result.newer > 0) {
-      renameSync(path, join(dirname(path), basename(path).replace(/^batch-/, 'newer-')))
+      if (basename(path).startsWith('batch-')) {
+        renameSync(path, join(dirname(path), basename(path).replace(/^batch-/, 'newer-')))
+      }
     } else {
       unlinkSync(path)
     }
@@ -210,6 +253,8 @@ export function importBatch(db: Db, path: string): ActivityImport {
 export interface JournalRead {
   // the activity events by id; a task's state changes are not the human's activity
   readonly events: Map<string, ActivityEvent>
+  readonly panes: Map<string, PaneStateEvent>
+  readonly signs: Map<string, WatchEvent>
   bad: number
   newer: number
 }
@@ -219,7 +264,13 @@ export interface JournalRead {
 // deleted only after its rows committed; so the journal is read first, then the batches listed and
 // read, and the history after them, and each event is seen at least once.
 export function readJournal(dir: string): JournalRead {
-  const read: JournalRead = { events: new Map(), bad: 0, newer: 0 }
+  const read: JournalRead = {
+    events: new Map(),
+    panes: new Map(),
+    signs: new Map(),
+    bad: 0,
+    newer: 0,
+  }
   const take = (path: string) => {
     let text: string
     try {
@@ -233,10 +284,18 @@ export function readJournal(dir: string): JournalRead {
       const parsed = parseJournalLine(line)
       if (parsed === 'bad') read.bad += 1
       else if (parsed === 'newer') read.newer += 1
+      else if (parsed.kind === 'pane_state') read.panes.set(parsed.id, parsed)
+      else if (parsed.kind === 'watch') read.signs.set(parsed.id, parsed)
       else if (parsed.kind !== 'task_state') read.events.set(parsed.id, parsed)
     }
   }
   take(join(dir, JOURNAL_FILE))
   for (const path of batchFiles(dir)) take(path)
   return read
+}
+
+// The quit's sign, as one whole line, for the one write main makes synchronously.
+export function quitLine(at: number): string {
+  const line: WatchEvent = { v: JOURNAL_VERSION, id: randomUUID(), at, kind: 'watch', sign: 'quit' }
+  return `${JSON.stringify(line)}\n`
 }

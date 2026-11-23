@@ -223,8 +223,7 @@ describe('the history file', () => {
     const agents = () => {
       const history = new UsageHistory(dirs.history)
       try {
-        expect(history.handle?.userVersion()).toBe(5)
-        expect(HISTORY_VERSION).toBe(5)
+        expect(history.handle?.userVersion()).toBe(HISTORY_VERSION)
         return {
           agents: history.turnsOpened(NOV_8.start, NOV_8.end).map((t) => [t.uuid, t.agent]),
           queued: history.handle?.raw.prepare('SELECT count(*) AS n FROM agent_backfill').get()?.n,
@@ -255,7 +254,36 @@ describe('the history file', () => {
 
   // A poller opens the history every minute beside the app: two openers may both read an old
   // version, and the second takes the lock only after the first migrated the file.
-  test.each([0, 1, 2, 3, 4])(
+  // Version 6 adds the panes' states and Menkar's watch signs, touching no row.
+  test('a version-5 history migrates to 6 keeping every row, its new tables empty, twice harmlessly', () => {
+    const dirs = usageDirs('v5to6')
+    new UsageHistory(dirs.history).close()
+    const db = openDb(dirs.history)
+    db.raw.exec('DROP TABLE pane_states; DROP TABLE watch_signs;')
+    db.raw.exec("INSERT INTO turns VALUES ('t1', 's1', 'human', 1, NULL, NULL, NULL, 0)")
+    db.raw.exec("INSERT INTO activity (id, at, kind) VALUES ('a1', 1, 'app_start')")
+    db.setUserVersion(5)
+    db.close()
+    for (const _ of [1, 2]) {
+      const history = new UsageHistory(dirs.history)
+      const count = (table: string) =>
+        history.handle?.raw.prepare(`SELECT count(*) AS n FROM ${table}`).get()?.n
+      expect(HISTORY_VERSION).toBe(6)
+      expect(history.handle?.userVersion()).toBe(6)
+      expect([
+        count('turns'),
+        count('activity'),
+        count('pane_states'),
+        count('watch_signs'),
+      ]).toEqual([1, 1, 0, 0])
+      history.close()
+      const again = openDb(dirs.history)
+      again.setUserVersion(5)
+      again.close()
+    }
+  })
+
+  test.each([0, 1, 2, 3, 4, 5])(
     'a step read at version %i but already done by another opener is skipped',
     (stale) => {
       const dirs = usageDirs(`stale${stale}`)
