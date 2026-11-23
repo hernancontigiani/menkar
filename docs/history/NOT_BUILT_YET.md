@@ -265,3 +265,9 @@ app. First question: whether it is generated from `README.md` or written apart.
 of its own.
 **Trigger:** the documentation site exists ("A documentation site" above). First question: whether
 the card links to it, and whether that link counts as the app opening a URL of its own.
+
+## 2026-11-23 — lines that cited plan 47 before it was deleted
+
+2026-11-23 (plan 47): `menkar usage export --rows panes` gives 15-minute windows, the shape cogload
+2026-11-23 (plan 47): only agent panes have a shown state; a chat tab waiting on its permission
+**Trigger:** a week after the build with plan 47 is installed, with the human's go. Then `set` runs

@@ -510,7 +510,7 @@ lift the Dependabot ignore.
 
 ### The panes' raw rows in the export
 
-2026-11-23 (plan 47): `menkar usage export --rows panes` gives 15-minute windows, the shape cogload
+2026-11-23 (1.207): `menkar usage export --rows panes` gives 15-minute windows, the shape cogload
 asked for; each pane's row as stored has no consumer, and a pane id is an identifier no reader
 needs yet.
 
@@ -527,7 +527,7 @@ each `pane_state` line, or the project's id.
 
 ### A chat tab's state in the counts
 
-2026-11-23 (plan 47): only agent panes have a shown state; a chat tab waiting on its permission
+2026-11-23 (1.207): only agent panes have a shown state; a chat tab waiting on its permission
 card is not in `sessions_blocked`.
 
 **Trigger:** a chat tab gets a shown state. Then its tab registers with the same recorder.
@@ -548,6 +548,6 @@ pane-seconds of all four states.
 write a row per flip, at most one per pane per watcher re-read; only a count on the human's own
 `pane_states` would show it.
 
-**Trigger:** a week after the build with plan 47 is installed, with the human's go. Then `set` runs
+**Trigger:** a week after the build with the pane state events (1.207) is installed, with the human's go. Then `set` runs
 one read-only count (rows per hour, p50, p95 and max, no ids printed) against that worst case, and
 a hold before a change is journaled is decided if it is above.
