@@ -63,6 +63,10 @@ describe('an installed version against the validated one and the floor', () => {
     expect(of('cursor', '2026.11.13-eacade1\n')).toBe('2026.11.13-eacade1')
     expect(of('codex', 'codex-cli 0.169.0\n')).toBe('0.169.0')
     expect(of('codex', 'codex-cli\n')).toBeNull()
+    expect(of('opencode', 'opencode v2.3.0\n')).toBe('2.3.0')
+    expect(
+      standingOf(of('opencode', 'opencode v2.3.0\n'), true, { validated: '2.3.0', floor: null }),
+    ).toBe('validated')
   })
 })
 

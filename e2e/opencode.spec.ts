@@ -354,6 +354,12 @@ test('a Claude orchestrator and an OpenCode worker: Menkar’s MCP for its folde
     expect((await answers(id)).at(-1)).toBe(
       'TOOL load_skill: Menkar has no skill by that name for this session.',
     )
+    // One named with Menkar's own prefix that its plugin does not have is refused the same way.
+    await typeIn(app.page, `CALLMENKAR load_skill ${JSON.stringify({ name: 'menkar:nope' })}`)
+    await expect.poll(async () => (await answers(id)).length, { timeout: 15_000 }).toBe(before + 2)
+    expect((await answers(id)).at(-1)).toBe(
+      'TOOL load_skill: Menkar has no skill by that name for this session.',
+    )
 
     // A subagent's call names its own session; Menkar follows it to the root the pane shows.
     const child = 'ses_0000000000a1SubagentChild1'

@@ -206,11 +206,20 @@ const OWN_PREFIX = 'menkar:'
 const OWN_NAME = /^[a-z0-9][a-z0-9-]*$/
 
 // A skill's file, for a session given its skills' text through Menkar's MCP: one of Menkar's own,
-// or one of those found for the pane's session; null for any other name.
-export function skillFile(pane: string, name: string): string | null {
+// or one of those found for the pane's session; null for any other name, an unknown one of Menkar's
+// own included.
+export async function skillFile(pane: string, name: string): Promise<string | null> {
   if (name.startsWith(OWN_PREFIX)) {
     const own = name.slice(OWN_PREFIX.length)
-    return OWN_NAME.test(own) ? join(skillsPluginDir(), 'skills', own, 'SKILL.md') : null
+    if (!OWN_NAME.test(own)) return null
+    const file = join(skillsPluginDir(), 'skills', own, 'SKILL.md')
+    try {
+      return (await stat(file)).isFile() ? file : null
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+        log.warn("one of Menkar's skills could not be looked at", { pane, name, error })
+      return null
+    }
   }
   return held.get(pane)?.found.get(name) ?? null
 }

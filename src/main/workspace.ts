@@ -1264,7 +1264,7 @@ for (const agent of AGENT_IDS)
 // A skill's text, for a session whose agent is given its skills through Menkar's MCP, with the
 // folder its other files are in, as the agent's own skills are given.
 async function loadSkillFor(paneId: string, name: unknown): Promise<ControlAnswer> {
-  const file = typeof name === 'string' ? skillFile(paneId, name.trim()) : null
+  const file = typeof name === 'string' ? await skillFile(paneId, name.trim()) : null
   if (!file) return refuse('Menkar has no skill by that name for this session.')
   try {
     const text = await readFile(file, 'utf8')

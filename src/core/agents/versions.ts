@@ -30,9 +30,11 @@ export interface AgentVersionView {
 }
 
 // The word at `word` (from 0) of what `--version` prints: "2.1.327" of "2.1.327 (Claude Code)" at
-// 0, "0.169.0" of "codex-cli 0.169.0" at 1.
+// 0, "0.169.0" of "codex-cli 0.169.0" at 1, "2.3.0" of "opencode v2.3.0" at 1: a leading "v" is
+// dropped, or the version would not compare.
 export function readVersion(output: string, word = 0): string | null {
-  return output.trim().split(/\s+/)[word] || null
+  const found = output.trim().split(/\s+/)[word]
+  return found?.replace(/^v(?=\d)/, '') || null
 }
 
 function numbers(version: string): number[] | null {
