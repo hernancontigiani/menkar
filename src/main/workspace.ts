@@ -2258,6 +2258,26 @@ function renewWhenIdle(paneId: string): void {
   else request.timer = setTimeout(() => renewWhenIdle(paneId), RENEW_CHECK_MS)
 }
 
+// Hung up as a renew hangs up, so its tab stays, then resumed there: the start carries what the
+// session's settings say now, Remote Control included.
+async function restartSession(pane: Pane, sessionId: string): Promise<void> {
+  if (renewing.has(pane.id) || renewRequests.has(pane.id) || stopRequests.has(pane.id)) return
+  const tabId = pane.tabId
+  holdStart(tabId)
+  try {
+    await new Promise<void>((resolve) => {
+      renewing.set(pane.id, resolve)
+      pane.terminal.hangUp()
+    })
+    if (!tabById(tabId)) return
+    await startPane(tabId, resumeSpec(sessionId))
+  } finally {
+    releaseStart(tabId)
+  }
+  log.info('a session was restarted', { session: sessionId })
+  changed()
+}
+
 // A `/clear` nobody types: the tab is re-keyed to a new id first, as a followed
 // clear does, then the old agent is hung up as closing a tab does, then the new session starts in
 // the same tab with the same name. Starting first would race its own SessionStart record.
@@ -4227,10 +4247,22 @@ export async function runAction(contents: WebContents, action: Action): Promise<
       await sessions.updateState((state) => setRemoteControl(state, action.session, action.on))
       if (action.on) remoteIds.add(action.session)
       else remoteIds.delete(action.session)
-      const pane = paneOfSession(action.session)
       changed()
-      // Nothing is typed: a running session connects at its next start, or when the user types /rc.
-      return action.on && pane?.terminal.running && !pane.remote ? { value: 'toast' } : {}
+      return {}
+    }
+    case 'remoteControlAsks': {
+      // Nothing is typed into it: a running session connects only when it starts again.
+      const pane = paneOfSession(action.session)
+      if (!pane?.terminal.running || pane.remote) return { value: null }
+      return { value: turnOver(pane.id) ? 'idle' : 'busy' }
+    }
+    case 'restartSession': {
+      const pane = paneOfSession(action.session)
+      if (!pane?.terminal.running) return {}
+      // A restart mid-turn would lose the turn, a permission card and any queued message.
+      if (!turnOver(pane.id)) return { refusal: 'rc.notIdle' }
+      await restartSession(pane, action.session)
+      return {}
     }
     case 'setMuted': {
       await sessions.updateState((state) => setMuted(state, action.session, action.on))

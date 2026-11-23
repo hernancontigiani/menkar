@@ -114,6 +114,7 @@ test('the row’s phone follows the bridge as Claude Code reports it: connected,
     // with the fallback tooltip.
     await row.click({ button: 'right' })
     await page.locator('.menu-item', { hasText: 'Remote control' }).click()
+    await page.locator('.dialog button', { hasText: 'Later' }).click()
     await expect(rowPhone).toHaveCount(0)
     rc('absent')
     await expect(rowPhone).toHaveAttribute('title', 'Remote Control on at start (state unknown)', {

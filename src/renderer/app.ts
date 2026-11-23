@@ -2098,18 +2098,47 @@ export async function saveFile(path: string): Promise<void> {
     })
 }
 
-const REMOTE_TOAST_MS = 6000
-
-// The "Remote control" check of a session row's menu and of a one-session tab's menu.
+// The "Remote control" check of a session row's menu and of a one-session tab's menu. Checked on a
+// session running without it, it asks first: it connects only when the session starts again.
 function remoteItem(sessionId: string): MenuItem {
   const on = state?.remoteControl.includes(sessionId) ?? false
   return {
     label: `${on ? '✓ ' : ''}${t('rc.item')}`,
     run: async () => {
-      const { value } = await act({ type: 'setRemoteControl', session: sessionId, on: !on })
-      if (value === 'toast') toast(t('rc.toast'), { ms: REMOTE_TOAST_MS })
+      const set = () => act({ type: 'setRemoteControl', session: sessionId, on: !on })
+      const { value: asks } = on
+        ? { value: null }
+        : await act({ type: 'remoteControlAsks', session: sessionId })
+      if (asks !== 'idle' && asks !== 'busy') {
+        await set()
+        return
+      }
+      const answer = await remoteQuestion(sessionId, asks === 'idle')
+      if (answer === 'cancel') return
+      await set()
+      if (answer !== 'restart') return
+      const { refusal } = await act({ type: 'restartSession', session: sessionId })
+      if (refusal) await showError(t('rc.notRestarted'), refusal)
     },
   }
+}
+
+function remoteQuestion(sessionId: string, idle: boolean): Promise<string> {
+  const name = [...(state?.sessions ?? []), ...(state?.starting ?? [])].find(
+    (s) => s.id === sessionId,
+  )?.name
+  return showDialog({
+    heading: t('rc.heading', { name: name ?? sessionId.slice(0, 8) }),
+    body: `${t('rc.what')}\n\n${idle ? t('rc.idleBody') : t('rc.busyBody')}`,
+    buttons: [
+      { label: t('dialog.cancel'), value: 'cancel' },
+      { label: t('rc.later'), value: 'later' },
+      ...(idle
+        ? [{ label: t('rc.restartNow'), value: 'restart', style: 'suggested' as const }]
+        : []),
+    ],
+    defaultValue: idle ? 'restart' : 'later',
+  }).then((r) => r.value)
 }
 
 function remoteTabItems(tab: TabView): MenuEntry[] {

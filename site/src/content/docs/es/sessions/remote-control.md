@@ -13,8 +13,12 @@ hasta que lo activás. Las sesiones de Cursor no lo tienen.
 
 - Para una sesión nueva, activá :ui[rc.switch] antes de hacer clic en :ui[newSession.start].
 - Para una sesión que ya tenés, elegí :ui[rc.item] en su menú de la barra lateral, o en el menú de
-  una pestaña que tenga solo esa sesión. Una tilde marca que está activo. Se conecta la próxima vez
-  que la sesión arranca; para conectarla ya, escribí `/rc` en la sesión.
+  una pestaña que tenga solo esa sesión. Una tilde marca que está activo.
+- Si la sesión está corriendo, Menkar pregunta antes. Elegí :ui[rc.restartNow] para conectarla ya:
+  la sesión vuelve a arrancar en su pestaña con su conversación, y un mensaje escrito y no enviado
+  se pierde. Elegí :ui[rc.later] para conectarla la próxima vez que arranque, o escribí
+  `/remote-control` en la sesión. Mientras la sesión trabaja o te espera, solo se ofrece
+  :ui[rc.later].
 
 Desde entonces Menkar arranca esa sesión con Control remoto, hasta que elegís :ui[rc.item] de nuevo
 para sacar la tilde.

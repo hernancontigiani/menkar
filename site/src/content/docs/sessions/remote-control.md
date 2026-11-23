@@ -13,8 +13,11 @@ do. Cursor sessions do not have it.
 
 - For a new session, turn on :ui[rc.switch] before you click :ui[newSession.start].
 - For a session you already have, choose :ui[rc.item] in its menu in the sidebar, or in the menu
-  of a tab that holds only that session. A tick marks it on. It connects the next time the session
-  starts; to connect it now, type `/rc` in the session.
+  of a tab that holds only that session. A tick marks it on.
+- If the session is running, Menkar asks first. Choose :ui[rc.restartNow] to connect it at once:
+  the session starts again in its tab with its conversation, and a message typed and not sent is
+  lost. Choose :ui[rc.later] to connect it the next time it starts, or type `/remote-control` in
+  the session. While the session is working or waiting for you, only :ui[rc.later] is offered.
 
 Menkar starts that session with Remote Control from then on, until you choose :ui[rc.item] again
 to take the tick off.

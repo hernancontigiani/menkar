@@ -68,6 +68,12 @@ from the Claude app on the phone or claude.ai.
 
 **Passes when** the phone drives the session and its answers show in Menkar's terminal.
 
+Then, on a session already running without it and idle, check Remote control in its menu and
+choose **Restart now** (decision 1.209). **Passes when** the session resumes in the same tab with
+its conversation, and the phone or claude.ai reaches it after the restart. This is the one check
+of the bridge reconnecting after a resume; no automated test can make it, since it needs a real
+claude.ai login.
+
 ## 8. The Markdown preview on a real screen
 
 Open a Markdown file with headings, a code block, a table and a local image; `Ctrl+Shift+V`.

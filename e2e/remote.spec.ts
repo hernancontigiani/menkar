@@ -77,7 +77,7 @@ test('RC-5 a session in the list resumes with its name as the flag', async () =>
   }
 })
 
-test('RC-6, RC-13, RC-15, RC-16 not in the list: no flag; checking it while running toasts, lists it, and the tab menu follows', async () => {
+test('RC-6, RC-13, RC-15, RC-16 not in the list: no flag; checking it while running asks, Later lists it, and the tab menu follows', async () => {
   const launched = await launchApp({ prepare: setup([]) })
   const page = launched.window
   try {
@@ -100,9 +100,7 @@ test('RC-6, RC-13, RC-15, RC-16 not in the list: no flag; checking it while runn
       'Remote control',
     ])
     await page.locator('.menu-item', { hasText: 'Remote control' }).click()
-    await expect(page.locator('.toast')).toContainText(
-      'Remote control connects when this session restarts, or type /rc in it',
-    )
+    await page.locator('.dialog button', { hasText: 'Later' }).click()
     await expect.poll(() => stateFile().remote_control).toEqual([SESSION])
     await expect(page.locator('.row .phone')).toHaveAttribute(
       'title',
@@ -112,6 +110,79 @@ test('RC-6, RC-13, RC-15, RC-16 not in the list: no flag; checking it while runn
     await expect(page.locator('.menu-item', { hasText: 'Remote control' })).toHaveText(
       '✓ Remote control',
     )
+  } finally {
+    await launched.close()
+  }
+})
+
+// Decision 1.209: checking it on a running session asks, as Rename does; Restart now only while
+// the session is idle, since a restart loses a turn, a permission card or a queued message.
+const dialogButtons = async (page: Page) =>
+  (await page.locator('.dialog .responses button').allTextContents()).map((x) => x.trim())
+
+async function checkFromRow(page: Page): Promise<void> {
+  await page.locator('.row', { hasText: 'fix the login bug' }).click({ button: 'right' })
+  await page.locator('.menu-item', { hasText: 'Remote control' }).click()
+}
+
+test('RC-28 (decision 1.209) idle: the dialog explains; Cancel leaves it off; Restart now resumes it in its tab with the flag', async () => {
+  const launched = await launchApp({ prepare: setup([]) })
+  const page = launched.window
+  try {
+    await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
+    await expect(page.locator('.row .dot.idle')).toHaveCount(1)
+    await checkFromRow(page)
+    await expect(page.locator('.dialog .heading')).toHaveText(
+      'Remote control for “fix the login bug”',
+    )
+    await expect(page.locator('.dialog .body')).toContainText('Restart now resumes it here')
+    expect(await dialogButtons(page)).toEqual(['Cancel', 'Later', 'Restart now'])
+    await page.locator('.dialog button', { hasText: 'Cancel' }).click()
+    await expect(page.locator('.dialog')).toHaveCount(0)
+    expect(stateFile().remote_control ?? []).toEqual([])
+    await checkFromRow(page)
+    await page.locator('.dialog button', { hasText: 'Restart now' }).click()
+    await expect
+      .poll(() => args().trim().split('\n'))
+      .toEqual([
+        expect.stringMatching(new RegExp(`^--resume ${SESSION} --mcp-config `)),
+        expect.stringMatching(
+          new RegExp(`^--resume ${SESSION} --remote-control=fix the login bug --mcp-config `),
+        ),
+      ])
+    expect(stateFile().remote_control).toEqual([SESSION])
+    await expect(page.locator('.tab')).toHaveCount(1)
+    await expect(page.locator('.toast')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('RC-29 (decision 1.209) working: the dialog offers no restart and names /remote-control; Later lists it and the agent keeps running', async () => {
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      const env = setup([])(dirs)
+      // An agent mid-turn: Claude Code's working footer, and it stays. Menkar asks it its version
+      // first.
+      writeFileSync(
+        join(dirs.root, 'bin', 'claude'),
+        `#!/bin/sh\n[ "$1" = --version ] && { echo '2.1.325 (Claude Code)'; exit 0; }\necho "$@" >> "$HOME/claude-args.txt"\nprintf 'esc to interrupt\\r\\n'\nexec sleep 600\n`,
+      )
+      chmodSync(join(dirs.root, 'bin', 'claude'), 0o755)
+      return env
+    },
+  })
+  const page = launched.window
+  try {
+    await page.locator('.row', { hasText: 'fix the login bug' }).dblclick()
+    await expect(page.locator('.tab .dot.working')).toHaveCount(1)
+    await checkFromRow(page)
+    await expect(page.locator('.dialog .body')).toContainText('/remote-control')
+    expect(await dialogButtons(page)).toEqual(['Cancel', 'Later'])
+    await page.locator('.dialog button', { hasText: 'Later' }).click()
+    await expect.poll(() => stateFile().remote_control).toEqual([SESSION])
+    expect(args().trim().split('\n')).toHaveLength(1)
+    await expect(page.locator('.tab .dot.working')).toHaveCount(1)
   } finally {
     await launched.close()
   }

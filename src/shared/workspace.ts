@@ -295,6 +295,11 @@ export type Action =
   | { readonly type: 'togglePreview'; readonly tab: string }
   | { readonly type: 'openFilesIn'; readonly window: string; readonly paths: readonly string[] }
   | { readonly type: 'setRemoteControl'; readonly session: string; readonly on: boolean }
+  // Whether checking Remote control asks first (decision 1.209): 'idle' or 'busy' for a session
+  // running without the flag, null otherwise.
+  | { readonly type: 'remoteControlAsks'; readonly session: string }
+  // Remote control's Restart now: an idle session hung up and resumed in its tab.
+  | { readonly type: 'restartSession'; readonly session: string }
   | { readonly type: 'setMuted'; readonly session: string; readonly on: boolean }
   // The human unfolded a topic of the shown project; a notice's Show, for any project.
   | { readonly type: 'seeTopic'; readonly number: number }

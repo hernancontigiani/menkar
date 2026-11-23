@@ -460,7 +460,18 @@ export const en = {
   'files.whichWindow': 'Open in which window?',
   'rc.item': 'Remote control',
   'rc.switch': 'Remote control — phone and claude.ai',
-  'rc.toast': 'Remote control connects when this session restarts, or type /rc in it',
+  'rc.heading': 'Remote control for “{name}”',
+  'rc.what':
+    'Remote control lets you follow and answer this session from the Claude app on your phone or on claude.ai.',
+  'rc.idleBody':
+    'The session is running, so it connects when it starts again. Restart now resumes it here with its conversation; a message typed and not sent is lost. Later: it connects at its next start, or when you type /remote-control in it.',
+  'rc.busyBody':
+    'The session is working or waiting for you, and restarting it now would lose that. It connects at its next start, or when you type /remote-control in it.',
+  'rc.later': 'Later',
+  'rc.restartNow': 'Restart now',
+  'rc.notRestarted': 'The session was not restarted',
+  'rc.notIdle':
+    'It started working. Remote control connects at its next start, or when you type /remote-control in it.',
   'rc.connected': 'Remote Control connected',
   'rc.fallback': 'Remote Control on at start (state unknown)',
   'row.ghostty': 'Open in Ghostty',

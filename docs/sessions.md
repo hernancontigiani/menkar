@@ -185,9 +185,19 @@ is shown as written; none is `—`).
   carries `--remote-control=<name>` before `--settings`. The name is the display name trimmed,
   else the folder's name, else the id's first 8 characters. New's switch (off every time the page
   opens) adds the new id **before** the start.
-- Forks never carry it. Nothing is ever typed into a running session: turning it
-  on while the session runs without the flag shows the 6 s toast; the session connects at its
-  next start or when the user types `/rc`.
+- Forks never carry it. Nothing is ever typed into a running session, and Claude Code has no way
+  to turn the bridge on in a running TUI except typing `/remote-control` (or its alias `/rc`).
+- **Checking it on a session running without the flag asks first** (decision 1.209, 2026-11-23),
+  in a dialog like Rename's: what Remote control is, and that the session connects when it starts
+  again. Cancel leaves it unchecked; Later checks it, and the session connects at its next start or
+  when the user types `/remote-control`. **Restart now** is offered only while the session is idle
+  (its shown state idle or done: no turn, no permission card, nothing queued), because a restart
+  loses a turn in progress, a pending card and a queued message, which live only in the process;
+  it checks it, hangs the pane up as a renew does and resumes the session in the same tab, so the
+  start carries the flag. Main checks idle again when Restart now arrives, and refuses if the
+  session started working meanwhile (the flag stays on). Working or blocked, the dialog offers only
+  Cancel and Later and names `/remote-control`. Unchecking it is silent: a connected bridge stays
+  until the next start.
 - **What the phone shows** (decision 1.18, 2026-11-09): whether a Remote Control bridge is
   connected **now** for the session's running process, however it was turned on (New's switch, the
   menu, or `/remote-control` typed in the session). The switch in the menus and on New keeps its

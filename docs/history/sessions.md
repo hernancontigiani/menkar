@@ -107,3 +107,10 @@ without `state.json` and `projects.json` is the first start that imports agent-t
 
 > Left on 2026-11-20: main's agent commands pass the no-write test too (plan 39 P1b.4, task 165).
   names (`docs/agents.md`).
+
+## Remote Control, and the details' tokens
+
+> Left on 2026-11-23: checking Remote control on a running session asks in a dialog (decision 1.209).
+- Forks never carry it. Nothing is ever typed into a running session: turning it
+  on while the session runs without the flag shows the 6 s toast; the session connects at its
+  next start or when the user types `/rc`.

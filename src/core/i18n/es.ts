@@ -466,7 +466,18 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'files.whichWindow': '¿En qué ventana abrir?',
   'rc.item': 'Control remoto',
   'rc.switch': 'Control remoto — teléfono y claude.ai',
-  'rc.toast': 'El control remoto se conecta cuando esta sesión se reinicie, o escribí /rc en ella',
+  'rc.heading': 'Control remoto de “{name}”',
+  'rc.what':
+    'El control remoto te deja seguir y responder esta sesión desde la app de Claude en el teléfono o desde claude.ai.',
+  'rc.idleBody':
+    'La sesión está corriendo, así que se conecta cuando vuelva a arrancar. Reiniciar ahora la reanuda acá con su conversación; un mensaje escrito y no enviado se pierde. Más tarde: se conecta en su próximo arranque, o cuando escribas /remote-control en ella.',
+  'rc.busyBody':
+    'La sesión está trabajando o esperándote, y reiniciarla ahora perdería eso. Se conecta en su próximo arranque, o cuando escribas /remote-control en ella.',
+  'rc.later': 'Más tarde',
+  'rc.restartNow': 'Reiniciar ahora',
+  'rc.notRestarted': 'La sesión no se reinició',
+  'rc.notIdle':
+    'Empezó a trabajar. El control remoto se conecta en su próximo arranque, o cuando escribas /remote-control en ella.',
   'rc.connected': 'Control remoto conectado',
   'rc.fallback': 'Control remoto activado al iniciar (estado desconocido)',
   'row.ghostty': 'Abrir en Ghostty',
