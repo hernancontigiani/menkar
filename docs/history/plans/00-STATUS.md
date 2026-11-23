@@ -2812,3 +2812,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-23 — 1.211's row before task 207 built it
 
 | 1.211 | **Menkar remembers a Remote Control bridge it sees connected** (the human, 2026-11-23, topic 101, option A2; ccai's case: `controlplane`'s typed `/remote-control` lost at its next start): when Menkar reads a session's bridge as connected (the row's phone mark, 1.18) and the session is not on its Remote Control list, it adds it, so every later start (renew, reopening, resume, Restart now) carries `--remote-control`. Unchecking it in the menu removes it; a bridge that drops on its own does not. Rejected: an orchestrator tool turning it on (A), a per-project setting (B), approvals relayed by the orchestrator (C) | 2026-11-23 | this row (until built, task 207) |
+
+## 2026-11-23 — plan 39's row before P3's state was written at the day's end
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a, P1b and P2 merged into `main`** (P2, OpenCode: 2026-11-23, on `opencode`'s real check, 1.210). Next: P3 (Cursor in the mode), then P4, on the branch `multi-agent` |
