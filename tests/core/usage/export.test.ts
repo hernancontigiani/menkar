@@ -2,9 +2,10 @@
 // decision 1.16).
 process.env.TZ = 'America/Argentina/Buenos_Aires'
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { openDb } from '../../../src/core/db'
 import { batchPath } from '../../../src/core/usage/activity'
 import { runUsageCli } from '../../../src/core/usage/cli'
 import {
@@ -505,6 +506,57 @@ describe('menkar usage export', () => {
     const documented = [...section.matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1])
     expect(documented.length).toBeGreaterThan(0)
     expect(documented).toEqual([...TASK_EXPORT_KEYS])
+  })
+})
+
+// Every query on a history from a newer Menkar reads nothing: an empty export would read as no
+// usage, so it is refused, with the journal's own pane rows not printed either.
+describe('menkar usage export on a history from a newer Menkar', () => {
+  test.each([
+    ['turns', 'jsonl'],
+    ['turns', 'csv'],
+    ['activity', 'jsonl'],
+    ['activity', 'csv'],
+    ['tasks', 'jsonl'],
+    ['tasks', 'csv'],
+    ['panes', 'jsonl'],
+    ['panes', 'csv'],
+  ])('--rows %s --format %s: its sentence on stderr, nothing on stdout, exit 1', (kind, format) => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const dirs = usageDirs(`export-too-new-${kind}-${format}`)
+    dirs.transcript('s1', [prompt('10:00:00'), response('10:00:10')])
+    const db = openDb(dirs.history)
+    db.setUserVersion(99)
+    db.close()
+    const dir = join(dirs.root, 'activity')
+    mkdirSync(dir, { recursive: true })
+    const at = new Date(2026, 10, 8, 10, 0, 0).getTime() / 1000
+    writeFileSync(
+      join(dir, 'journal.jsonl'),
+      [
+        { v: 2, id: 'j0', kind: 'watch', sign: 'start', at },
+        { v: 2, id: 'j1', kind: 'pane_state', paneId: 'A', state: 'blocked', at, seq: 1 },
+      ]
+        .map((l) => JSON.stringify(l))
+        .join('\n'),
+    )
+    const result = cli(dirs, ['--period', 'today', '--rows', kind, '--format', format])
+    expect(result).toEqual({
+      code: 1,
+      out: '',
+      err: 'The usage history is from a newer version of Menkar; nothing was exported. Update Menkar to export it.',
+    })
+  })
+
+  test('--output is not written', () => {
+    vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+    const dirs = usageDirs('export-too-new-output')
+    const db = openDb(dirs.history)
+    db.setUserVersion(99)
+    db.close()
+    const file = join(dirs.root, 'turns.jsonl')
+    expect(cli(dirs, ['--output', file]).code).toBe(1)
+    expect(existsSync(file)).toBe(false)
   })
 })
 

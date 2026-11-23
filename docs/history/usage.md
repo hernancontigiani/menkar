@@ -193,6 +193,12 @@ A crash loses nothing appended; quitting needs no flush (the journal is imported
 start's pass); an import twice is an import once. A history from a newer Menkar keeps every batch
 for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 
+> Replaced 2026-11-23 (task 205): a journal left by a quit or a crash is set aside only at the next start, so its rows can be days late.
+- **Up to an hour late in `menkar usage` and its export**: the rows reach the history after the
+  next pass, and those commands import only the batches a pass set aside, not the live journal.
+  Your time and Task times import it before each answer; `menkar usage now` reads it in place.
+  `--rows panes` reads it in place too.
+
 ## Exporting for analysis
 
 > Replaced 2026-11-23 (task 202, plan 47): `--rows panes`.

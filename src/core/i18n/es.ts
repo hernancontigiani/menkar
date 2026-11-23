@@ -505,6 +505,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'usage.cli.passFailed':
     'No se pudieron leer los últimos transcripts en el historial de uso; se muestra como estaba.',
   'usage.cli.cannotWrite': 'No se pudo escribir {path}.',
+  'usage.cli.exportTooNew':
+    'El historial de uso es de una versión más nueva de Menkar; no se exportó nada. Actualizá Menkar para exportarlo.',
   'usage.cli.unknownProject':
     "--project: ningún proyecto se llama '{name}'; los proyectos son: {known}",
   'usage.cli.nowHelp':

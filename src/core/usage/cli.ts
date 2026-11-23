@@ -378,6 +378,12 @@ function runExport(argv: readonly string[], output: Output, deps: CliDeps): numb
     output.err(t('usage.cli.cannotOpen'))
     return 1
   }
+  // Every query on it reads nothing, and an empty export would pass for no usage.
+  if (history.tooNew) {
+    history.close()
+    output.err(t('usage.cli.exportTooNew'))
+    return 1
+  }
   importLeftActivity(history, deps)
   try {
     let project: string | undefined

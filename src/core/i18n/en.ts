@@ -500,6 +500,8 @@ export const en = {
     'Could not read the latest transcripts into the usage history; showing it as it was.',
   'usage.cli.cannotOpen': 'Could not open the usage history.',
   'usage.cli.cannotWrite': 'Could not write {path}.',
+  'usage.cli.exportTooNew':
+    'The usage history is from a newer version of Menkar; nothing was exported. Update Menkar to export it.',
   'usage.cli.unknownProject': "--project: no project is named '{name}'; the projects are: {known}",
   'usage.cli.nowHelp':
     'The burst of activity in progress, whether you are away, your last action and today\'s active time, as one JSON object for a service of your own. Menkar itself never alerts. The fields are described in Menkar\'s documentation, under "The burst in progress".',

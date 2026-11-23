@@ -448,10 +448,12 @@ are read.
 
 ### Limits
 
-- **Up to an hour late in `menkar usage` and its export**: the rows reach the history after the
-  next pass, and those commands import only the batches a pass set aside, not the live journal.
-  Your time and Task times import it before each answer; `menkar usage now` reads it in place.
-  `--rows panes` reads it in place too.
+- **Late in `menkar usage` and its export**: those commands import only the batches Menkar set
+  aside, not the live journal. While Menkar runs, a pass sets it aside every hour, so its rows are
+  up to an hour late. A journal left by a quit or a crash is set aside only when Menkar next
+  starts, so its rows reach them then: days late if it is not started. Your time and Task times
+  import it before each answer; `menkar usage now` reads it in place. `--rows panes` reads it in
+  place too.
 - **A pane blocked across a restart** gives no `prompt_answered`: its entry time is gone, and the
   answer may have been given while Menkar was down. A pane not yet joined to a session records no
   session and no project.
@@ -595,6 +597,9 @@ menkar usage export [--period today|7d|30d|all | --month YYYY-MM | --from YYYY-M
   takes a project's exact name (an unknown one is an error that lists them). Like the report, a
   pass runs first, so the latest turns are in.
 - **Where.** Standard output, or `--output`, written whole through a temporary file.
+- **A history from a newer Menkar** is refused, whatever `--rows`: every query on it reads
+  nothing, and an empty export would pass for no usage. A sentence on standard error, nothing on
+  standard output or in `--output`, exit 1.
 - **JSONL** (the default): one object per turn, oldest first. `schema` is 1; it changes only when
   a field changes meaning or goes away, never when one is added.
 
