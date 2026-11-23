@@ -16,6 +16,7 @@ import {
   nearestExisting,
   parseLine,
   type ReadRange,
+  readRange,
   subdirs,
   TAIL_BYTES,
   textLines,
@@ -178,6 +179,39 @@ class RewrittenJsonlReader implements SessionReader {
   }
 }
 
+// The reply of the last turn that ended: the last assistant text before the last `turn_ended`. A
+// turn still running, or one interrupted before any text, leaves the earlier turn's.
+export function lastClosedReply(lines: readonly string[]): string | null {
+  let reply: string | null = null
+  let latest: string | null = null
+  for (const raw of lines) {
+    const line = parseLine(raw)
+    if (!line) continue
+    if (line.type === 'turn_ended') {
+      if (latest !== null) reply = latest
+      latest = null
+    } else if (line.role === 'user') latest = null
+    else if (line.role === 'assistant') {
+      const text = messageText(line)?.trim()
+      if (text) latest = text
+    }
+  }
+  return reply
+}
+
+const REPLY_WINDOWS = [TAIL_BYTES, 1024 * 1024, 8 * 1024 * 1024]
+
+async function lastReply(locator: string): Promise<string | null> {
+  const { size } = await stat(locator)
+  for (const window of REPLY_WINDOWS) {
+    const start = Math.max(0, size - window)
+    const text = (await readRange(locator, start, size)).toString('utf8')
+    const reply = lastClosedReply(chunkLines(text, start === 0))
+    if (reply !== null || start === 0) return reply
+  }
+  return null
+}
+
 // Each session is a directory under a project's agent-transcripts/, read from its `<id>.jsonl`,
 // else from its first .jsonl.
 async function find(projects: string): Promise<Found[]> {
@@ -217,7 +251,7 @@ export const catalog: SessionCatalog = {
   find,
   reader: (read) => new RewrittenJsonlReader(read),
   watchTargets,
-  lastReply: null,
+  lastReply,
   details: async (locator) => details(await readFile(locator, 'utf8')),
   exportMarkdown: async (name, id, locator) =>
     transcript.exportMarkdown(name, id, await readFile(locator, 'utf8')),

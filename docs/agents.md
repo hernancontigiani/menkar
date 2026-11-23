@@ -666,6 +666,34 @@ Plan 39 P3.2, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-2
   line, and lines a TUI never saw are dropped. The catalog's reader trusts no offset
   (`docs/sessions.md`).
 
+## Cursor: its hooks
+
+Plan 39 P3.3, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-23).
+`src/core/agents/cursor/hooks.ts`, built as `cursor-hook.js`.
+
+- **What runs it**: the three entries of the hooks item (`beforeSubmitPrompt`, `stop`,
+  `afterAgentResponse`), in every Cursor session, Menkar's or not. It acts only when the pty's
+  environment names a pane (`MENKAR_PANE`) of its own flavour (`MENKAR_FLAVOR`, absent for the
+  daily Menkar), so the daily and the sandbox's entries, both installed, each record only their own
+  panes; anywhere else it exits without reading stdin. The event is the payload's
+  `hook_event_name`.
+- **It never waits and never answers**: it prints nothing and exits 0 whatever fails (a silent
+  hook changes nothing for any of the three events, measured), so Cursor's 3-second timeout is
+  never reached. `stop`'s `followup_message` is the waker's (P3.4).
+- **`beforeSubmitPrompt`** appends `{event:"prompt", at, session_id, generation_id, origin}` to the
+  hook log (`docs/usage.md`, "Per agent", Cursor); `origin` is `peer` for a prompt starting with
+  `[Menkar]`, read from the text at once, so the text itself is not needed later. The text (raw,
+  without the transcript's wrappers) is written to `cursor-prompts/<generation>.txt` only while the
+  classifier is on (state.json's switch, which the sandbox never has).
+- **`stop`** appends the turn's end with its status, `loop_count`, model and four token counts,
+  and writes the pane's turn-end record (`docs/session-control.md`), which binds a waiting pane.
+  A `/new` chat's record names its new id, but the kit has no `follow`, so main does not move the
+  tab to it yet. An interrupted turn fires two `stop`s, so main sees its end twice, 20 ms apart.
+- **`afterAgentResponse`** is not used: its `text` is the turn's texts run together, so the
+  catalog's `last_reply` is the transcript's last assistant text before its last `turn_ended`.
+- **What it never keeps** (D21): `user_email`, `CURSOR_USER_EMAIL`, the transcript's path, the
+  workspace roots and `cursor_version`; each line is built from named fields only.
+
 ## Cursor: the team block
 
 Plan 39 P3.2. Assembled as Claude's (`docs/session-control.md`, "The team block"); its part is

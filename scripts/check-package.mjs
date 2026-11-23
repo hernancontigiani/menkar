@@ -65,11 +65,16 @@ export function checkPackage(pkg, flavour = 'menkar') {
 }
 
 // What Electron's binary runs from inside app.asar: the app, the programs the agents run as plain
-// Node (Claude Code's statusline and Menkar's MCP server, Codex's notify), and the thread that
-// reads OpenCode's database.
-const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify', 'opencode-db'].map(
-  (name) => `/out/main/${name}.js`,
-)
+// Node (Claude Code's statusline and Menkar's MCP server, Codex's notify, Cursor's hooks), and the
+// thread that reads OpenCode's database.
+const PROGRAMS = [
+  'index',
+  'statusline',
+  'mcp-server',
+  'codex-notify',
+  'cursor-hook',
+  'opencode-db',
+].map((name) => `/out/main/${name}.js`)
 
 // How many bytes of app.asar are read for its header.
 export const ASAR_HEADER_BYTES = 1024 * 1024

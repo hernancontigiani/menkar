@@ -24,9 +24,14 @@ import {
 const data = (name: string) => readFileSync(join(__dirname, '..', 'data', 'package', name), 'utf8')
 
 // What app.asar must hold: the app, and the programs agents run through Electron's binary.
-const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify', 'opencode-db'].map(
-  (name) => `/out/main/${name}.js`,
-)
+const PROGRAMS = [
+  'index',
+  'statusline',
+  'mcp-server',
+  'codex-notify',
+  'cursor-hook',
+  'opencode-db',
+].map((name) => `/out/main/${name}.js`)
 
 const good = (): Package => ({
   version: '0.1.0',
@@ -104,6 +109,10 @@ describe('package:check', () => {
     [
       "OpenCode's database reader",
       (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('opencode-db.js')) }),
+    ],
+    [
+      "Cursor's hook program",
+      (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('cursor-hook.js')) }),
     ],
     [
       'the command',

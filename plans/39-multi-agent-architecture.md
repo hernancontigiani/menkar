@@ -2890,3 +2890,56 @@ P0's blocks run in turn.
 - **Not done here:** Cursor's `last_reply` (its catalog's `lastReply` is still `null`: P3.3's hook
   record or the transcript), a `/new` chat followed in its pane (Cursor has no `follow`), the hook
   program, usage and the waker (P3.3, P3.4), `cursor`'s real check (P3.5).
+
+### P3.3 (`menkar-t220`, task 220, 2026-11-23)
+
+- **Built:** the hook program `src/core/agents/cursor/hooks.ts` (`cursor-hook.js`, an
+  `electron.vite.config.ts` entry, required in app.asar by `scripts/check-package.mjs`): it acts
+  only when `MENKAR_PANE` names a pane of its own flavour (`MENKAR_FLAVOR`, absent for the daily
+  Menkar) and otherwise exits without reading stdin; it never prints and never fails. On
+  `beforeSubmitPrompt` it appends `{event, at, session_id, generation_id, origin}` to the hook log
+  (`<cache>/cursor-turns.jsonl`) and, only while state.json's classifier switch is on, the prompt
+  to `<cache>/cursor-prompts/<generation>.txt`; on `stop` it appends the end with status,
+  `loop_count`, model and the four token counts, and writes the pane's turn-end record through
+  `writeTurnEnd`. Cursor's UsageSource `src/core/agents/cursor/usage.ts`
+  (`usage-cache-cursor.sqlite`, by offset in the log, `cursor:<generation>` turns); `last_reply`
+  from the transcript (`lastClosedReply` in `catalog.ts`).
+- **`cursor`'s answers (measured on 2026.11.13-eacade1, 2026-11-23), each now in the code:** a
+  hook that prints nothing changes nothing for the three events; `beforeSubmitPrompt` carries
+  `prompt` (raw, unwrapped) and `attachments`; one `generation_id` per turn, shared by its three
+  events, one `stop` per turn whatever its tool calls; a `followup_message` turn fires no
+  `beforeSubmitPrompt`, has a new `generation_id` and `loop_count: 1`; tokens are the turn's totals
+  and `input_tokens` includes `cache_read_tokens` (inferred from the numbers); Esc and Ctrl+C fire
+  two `stop`s with one id, `aborted` then `error`, no tokens; `model` is `default` under auto;
+  the hooks see `MENKAR_PANE` and `MENKAR_FLAVOR`. `afterAgentResponse`'s `text` is the turn's texts
+  run together with no separator, so it is not used.
+- **D21's test** (`tests/core/agents/cursor/hooks.test.ts`): every event with `user_email` in its
+  payload and `CURSOR_USER_EMAIL` in its environment, the classifier on; no file the hook wrote
+  holds the address.
+- **Usage, end to end** (`tests/core/agents/cursor/usage.test.ts`): a pass exports Cursor's turns
+  with `agent: "cursor"` and the human's response latency (30 s after an interrupted turn, 80 s
+  after a completed one, null after a turn Menkar's post or a followup came next).
+- **Deviations:** files beyond P3.3's list: `src/core/agents/cursor/{index,catalog}.ts` (the kit's
+  `usage`; `lastReply`), `tests/data/agents/cursor/{expected.json,cache/,usage.json}`,
+  `tests/core/agents/contract/usage.test.ts` (copies an agent's fixture `cache/` when it has one:
+  Cursor's turns are in Menkar's cache, not the agent's home), `tests/scripts/check-package.test.ts`,
+  `docs/{agents,usage}.md`, `docs/history/packaging.md`. `afterAgentResponse` is one of the
+  consented entries but the program ignores it.
+- **My choices:** the prompt's text in one file per turn, apart from the log, so removing it never
+  rewrites a file the hooks append to (§2.6 says "in the hook log"); the pass removes the whole
+  folder whenever the classifier is off, which also holds in the sandbox (never on); the
+  classifier's switch read by the hook from state.json at each prompt (one small file read, no
+  main change); a turn's working time is one stretch, prompt to end; a followup's turn is a peer's,
+  opened where the session's last turn ended; Menkar's input is `input − cache_read`; the token
+  hour is the turn's end; `pre-compact` stays in the statusline program (moving it to the hook
+  program would change R10's Cursor rows again, for no gain in behaviour).
+- **Seen red:** the email written into the stop line; the flavour check removed; the text kept with
+  the classifier off; the turn-end record not written; a `stop` that prints; the text never
+  removed; the cached input counted twice; a followup taken as the human's at its own end; a
+  second `stop` taken; a cut line read as whole (the pass loops: the run was stopped by its id);
+  the catalog's `lastReply` against the contract's old `null`.
+- **Removed `expect(` lines:** none in this block. `npm run ci` stops at "test integrity" on
+  P3.2's 13, already committed and listed in its log.
+- **Not done here:** a `/new` chat followed in its pane — the record names the new id, but Cursor's
+  kit has no `follow`, so `applyFollow` leaves the tab (a `PaneFollow` for Cursor, P3.4 or later);
+  main sees an interrupted turn's end twice, 20 ms apart; the followup answer at `stop` (P3.4).
