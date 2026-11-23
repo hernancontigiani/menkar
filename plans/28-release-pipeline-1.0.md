@@ -493,7 +493,9 @@ says so and waits.
 > Service account `sa-menkar` (Write on `menkar-packages`); OIDC provider `github-actions`
 > (`https://token.actions.githubusercontent.com`, claims `repository` = `hernancontigiani/menkar`,
 > `environment` = `packages`); an API key is also stored as `CLOUDSMITH_API_KEY` in the `packages`
-> environment, to be deleted once OIDC is seen to work. GPG key (Cloudsmith provided), fingerprint
+> environment, to be deleted once OIDC is seen to work. **OIDC seen to work** (2026-11-23, `set`, the human's
+> go): a temporary workflow on a tag `v0.0.0-oidc-check` (deleted after) logged in by OIDC alone with
+> `verify-auth` and ran `cloudsmith whoami`, both green (run 45271686260); nothing was uploaded. GPG key (Cloudsmith provided), fingerprint
 > `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`; its expiry is not shown in the web app, so
 > block 5 reads it from the public key (`gpg --show-keys`).
 
