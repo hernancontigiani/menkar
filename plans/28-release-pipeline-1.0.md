@@ -490,8 +490,12 @@ says so and waits.
 > **Recorded (the human, 2026-11-23):** workspace `menkar`; repository `menkar-packages` (the slug
 > `menkar` stayed reserved after a first, private repository was deleted), created as a Broadcast
 > with visibility Open source, licence GNU GPL v3.0 or later, project URL the GitHub repository.
-> Still to come: the service account's slug, the OIDC provider (or the API-key fallback), the GPG
-> fingerprint and expiries.
+> Service account `sa-menkar` (Write on `menkar-packages`); OIDC provider `github-actions`
+> (`https://token.actions.githubusercontent.com`, claims `repository` = `hernancontigiani/menkar`,
+> `environment` = `packages`); an API key is also stored as `CLOUDSMITH_API_KEY` in the `packages`
+> environment, to be deleted once OIDC is seen to work. GPG key (Cloudsmith provided), fingerprint
+> `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`; its expiry is not shown in the web app, so
+> block 5 reads it from the public key (`gpg --show-keys`).
 
 2. Create a Cloudsmith account with two-factor authentication, and a workspace for Menkar.
 3. Create a repository `menkar`, visibility **Open Source**, licence GPL-3.0-or-later, project
