@@ -370,6 +370,14 @@ const panel = (page: Page) => page.locator('#board-panel')
 const columnOf = (page: Page, key: string) => page.locator(`#board-panel [data-column="${key}"]`)
 const height = async (page: Page, selector: string) =>
   Math.round((await page.locator(selector).boundingBox())?.height ?? -1)
+// A column's cards past its height. Every state push replaces the Board's columns, so a locator's
+// evaluate can run on a column already detached, which measures 0 and 0; one evaluate that finds
+// the node itself reads the live one.
+const overflow = (page: Page, key: string) =>
+  page.evaluate((selector) => {
+    const n = document.querySelector(selector)
+    return n === null ? null : n.scrollHeight - n.clientHeight
+  }, `#board-panel [data-column="${key}"] .board-cards`)
 // The right-hand area under the header.
 const area = (page: Page) =>
   page.evaluate(
@@ -568,8 +576,7 @@ test('the Board panel resized by dragging, reopened at its last height, Show all
     await expect(panel(page)).toBeVisible()
     const initial = await height(page, '#board-panel')
     // A column with more cards than fit scrolls under its fixed heading.
-    const queued = columnOf(page, 'queued').locator('.board-cards')
-    expect(await queued.evaluate((n) => n.scrollHeight > n.clientHeight)).toBe(true)
+    expect(await overflow(page, 'queued')).toBeGreaterThan(0)
     await expect(columnOf(page, 'queued').locator('.board-heading')).toBeInViewport()
 
     const divider = await page.locator('#board-divider').boundingBox()
@@ -593,7 +600,7 @@ test('the Board panel resized by dragging, reopened at its last height, Show all
     const all = await height(page, '#board-panel')
     expect(all).toBeGreaterThan(dragged)
     expect(all).toBeLessThanOrEqual(Math.floor((await area(page)) * 0.7))
-    const fits = await queued.evaluate((n) => n.scrollHeight <= n.clientHeight + 1)
+    const fits = ((await overflow(page, 'queued')) ?? Number.POSITIVE_INFINITY) <= 1
     expect(fits || all === Math.floor((await area(page)) * 0.7)).toBe(true)
     await expect.poll(() => saved(root, 'projects.json').projects[0].board_height).toBe(all)
     await shot(page, 'board-all.png')
