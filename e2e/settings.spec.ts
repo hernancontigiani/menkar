@@ -38,6 +38,7 @@ const SECTIONS = [
   'Files',
   'Status line',
   'Transcript retention',
+  'Cursor',
   'MCP servers',
   'Language',
   'Keyboard shortcuts',
@@ -101,7 +102,7 @@ test('Settings (2026-11-10) lists its sections in five groups under its title, e
       .locator('.section-list > *')
       .evaluateAll((ns) => ns.map((n) => (n.tagName === 'HR' ? '|' : (n.textContent ?? ''))))
     expect(between.join(',')).toBe(
-      'Appearance,Terminal,|,Sessions,Notifications,Context,|,Usage & classifier,Files,|,Status line,Transcript retention,MCP servers,|,Language,Keyboard shortcuts,About',
+      'Appearance,Terminal,|,Sessions,Notifications,Context,|,Usage & classifier,Files,|,Status line,Transcript retention,Cursor,MCP servers,|,Language,Keyboard shortcuts,About',
     )
     const rows: Record<string, string> = {
       appearance: '[data-key="color_scheme"]',
@@ -113,6 +114,7 @@ test('Settings (2026-11-10) lists its sections in five groups under its title, e
       files: '[data-key="files_root"]',
       statusline: '[data-key="statusline"]',
       retention: '[data-key="retention"]',
+      agents: '[data-key="agent-item-cursor-hooks"]',
       mcp: '[data-key="none"]',
       language: '[data-expander="language"]',
       shortcuts: '[data-key="shortcut-filter"]',

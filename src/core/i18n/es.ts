@@ -641,6 +641,24 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'integrations.retentionByUser': 'Se conservan {days} días (tu configuración)',
   'integrations.retentionUnreadable':
     'No se pudo leer {path}, así que no se sabe cuánto tiempo conserva Claude Code las transcripciones.',
+  'integrations.cursorSettings': 'Configuración de Cursor',
+  'integrations.cursorSettingsDescription':
+    'Cada parte se agrega a uno de los archivos de Cursor solo cuando la activás, y se quita cuando la desactivás; el resto del archivo queda como lo tenías. Antes de cada cambio se guarda una copia del archivo.',
+  'integrations.agentNotFound':
+    'No se encontró {command} en el PATH: se pueden activar cuando esté instalado.',
+  'integrations.agentSandbox':
+    'Estas entradas ejecutan el programa propio de Menkar Sandbox: desactivalas acá antes de desinstalar Menkar Sandbox.',
+  'integrations.agentItemUnknown': 'Menkar no tiene ese ajuste.',
+  'integrations.cursorHooks': 'Los hooks de Menkar en cada sesión de Cursor',
+  'integrations.cursorHooksSubtitle':
+    'Tres entradas en ~/.cursor/hooks.json para el fin de cada turno, sus tokens y despertar una sesión. Corren en cada sesión de Cursor, también fuera de Menkar, donde terminan enseguida. Cursor les envía el email de tu cuenta en cada turno; Menkar nunca lo guarda. Sin ellas Menkar sabe de una sesión de Cursor solo lo que muestran su pantalla y su transcripción.',
+  'integrations.cursorAllow': 'Las herramientas de Menkar sin tarjeta de aprobación',
+  'integrations.cursorAllowSubtitle':
+    'Entradas de permiso para las herramientas de Menkar en el cli-config.json de Cursor. Sin ellas Cursor pregunta antes de cada llamada a una herramienta de Menkar.',
+  'integrations.cursorNoFile':
+    'No se encontró {path}: iniciá cursor-agent una vez y probá de nuevo.',
+  'integrations.cursorShape':
+    '"{key}" en {path} no es lo que Cursor espera ahí; el archivo se dejó como estaba.',
   'classifier.offInSandbox': 'Menkar Sandbox no clasifica turnos.',
   'classifier.group': 'Clasificar turnos',
   'classifier.switch': 'Clasificar cada turno nuevo por etapa de desarrollo',

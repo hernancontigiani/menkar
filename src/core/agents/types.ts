@@ -244,6 +244,32 @@ export interface DeclaredWrites {
   readonly changed: readonly RegExp[]
 }
 
+// Where the programs an integration item's entries run are.
+export interface IntegrationContext {
+  // Electron's binary, which runs a program as Node.
+  readonly execPath: string
+  // The folder of the programs Menkar ships.
+  readonly programs: string
+}
+
+// One piece Menkar may add to the agent's own configuration: off until the user turns it on,
+// removable on its own, leaving the rest of the file as the user had it. A refused change throws an
+// IntegrationError carrying our sentence.
+export interface IntegrationItem {
+  readonly key: string
+  readonly title: Key
+  readonly subtitle: Key
+  on(): Promise<boolean>
+  set(on: boolean, ctx: IntegrationContext): Promise<void>
+}
+
+// The agent's items, shown as one group under its title and description.
+export interface IntegrationItems {
+  readonly title: Key
+  readonly description: Key
+  readonly items: readonly IntegrationItem[]
+}
+
 // A turn as its agent's usage cache has it now: its spans, and its tokens per (model, UTC hour).
 export interface TurnUsage {
   readonly turn: CachedTurn
@@ -302,4 +328,5 @@ export interface AgentKit {
   readonly writes: DeclaredWrites
   readonly usage: UsageSource | null
   readonly context: ContextSource | null
+  readonly integrations: IntegrationItems | null
 }

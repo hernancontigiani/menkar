@@ -2,6 +2,7 @@ import { now } from '../core/clock'
 import type { RetentionStatus } from '../core/context/types'
 import { flavorFacts } from '../core/flavor'
 import { latestOnly } from '../core/latest'
+import type { AgentItemsGroup } from '../shared/ipc'
 import { el } from './dom'
 import { t } from './i18n'
 
@@ -185,6 +186,42 @@ export async function retentionSection(): Promise<HTMLElement> {
       switchRow(t('integrations.retention'), t('integrations.retentionSubtitle'), input),
     ),
   )
+}
+
+// The section's name: the agents whose own configuration it holds; empty when none offers items.
+export async function agentsTitle(): Promise<string> {
+  return (await prefs.agentItems()).map((group) => group.label).join(', ')
+}
+
+function agentGroup(offered: AgentItemsGroup): HTMLElement {
+  const rows = offered.items.map((item) => {
+    const input = el('input', {
+      type: 'checkbox',
+      role: 'switch',
+      'data-key': `agent-item-${item.key}`,
+    })
+    input.checked = item.on
+    input.disabled = !offered.found
+    input.addEventListener('change', async () => {
+      const result = await prefs.setAgentItem(offered.agent, item.key, input.checked)
+      input.checked = result.on
+      if (result.error) notice(result.error)
+    })
+    return switchRow(item.title, item.subtitle, input)
+  })
+  const section = group(offered.title, offered.description, ...rows)
+  section.dataset.agent = offered.agent
+  if (!offered.found) section.classList.add('unavailable')
+  const notes = offered.notes.map((line) =>
+    el('p', { class: 'group-description', 'data-key': 'agent-items-note' }, line),
+  )
+  section.querySelector('.card')?.before(...notes)
+  return section
+}
+
+// Each agent's own items, a group each, read again whenever the section is shown.
+export async function agentItemsSection(): Promise<HTMLElement> {
+  return el('div', {}, ...(await prefs.agentItems()).map(agentGroup))
 }
 
 export async function usageSection(): Promise<HTMLElement> {

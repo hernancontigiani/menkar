@@ -594,3 +594,37 @@ while Menkar's server is not running: Menkar wakes only a session with a pane.
   runs that Menkar's server does not run is logged, and its pane shows one line of Menkar's own
   once its TUI has drawn (`Terminal.say`, never the pty's input). A server killed mid-turn leaves
   the row busy, so the line can be shown in error until that session's next turn ends.
+
+## Cursor: its integrations items
+
+Two items in Settings' Cursor section, each turned on by the user and removable on its own
+(decision 1.140), offered by the kit's `integrations` (`src/core/agents/cursor/integrations.ts`)
+and listed by main for every agent whose kit has them (`src/main/agent-integrations.ts`), greyed
+with a line while the agent's CLI is not on the PATH:
+
+- **Menkar's hooks** (D13): one entry each for `beforeSubmitPrompt`, `stop` and
+  `afterAgentResponse` in `~/.cursor/hooks.json`, always there whatever `CURSOR_CONFIG_DIR` says.
+  A plugin's turn hooks run only when the user's own file has a hook for the same event; these
+  entries run Menkar's hook program (`cursor-hook.js`, shipped beside main's entry) through
+  `/usr/bin/env ELECTRON_RUN_AS_NODE=1 <electron>`, and Cursor runs `command` through a shell.
+  Each carries `timeout: 3`: Cursor waits for a hook before going on, so a hung program costs a
+  turn up to that per event. **None sets `failClosed`**: with it false (Cursor's default) a hook
+  whose program is missing or fails is skipped with no delay and nothing on screen (`cursor`,
+  measured on 2026.11.13-eacade1, 2026-11-23).
+- **Allow entries** (D7): one, `Mcp(plugin-<folder>-menkar:*)`, in `permissions.allow` of
+  `cli-config.json`, which Cursor reads from `$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`,
+  else `~/.cursor`. Cursor names a plugin's server after its folder's basename, so every pane's
+  plugin folder shares one name, and the wildcard covers every tool, those added later included.
+  **The folder's name is the flavour's directory name** (`menkar` or `menkar-sandbox`, `set`,
+  2026-11-23), so neither flavour's removal can take the other's entry.
+- **The rest of the file keeps its bytes**: the text is edited in place (`json-text.ts`), an
+  added element after the last with the separator its container already uses, so removing it
+  deletes exactly those bytes; keys created to hold an entry are removed when left empty. The
+  file keeps its mode, a symlink is followed to its target, and a dated copy goes to Menkar's
+  `settings-backup` first. What was added is recorded in Menkar's own data
+  (`cursor-integrations.json`), and removing finds it by value: **Cursor rewrites
+  `cli-config.json` at each start** in its own layout and drops keys it does not know, so no
+  marker of Menkar's can live in it. A missing `hooks.json` is created and, when it holds only what
+  Menkar created, deleted on removal; a missing `cli-config.json` is refused (Cursor creates it).
+- **The sandbox's entries name its own program**: its section says to turn them off before
+  uninstalling it, and uninstalling first leaves entries that Cursor skips, as above.

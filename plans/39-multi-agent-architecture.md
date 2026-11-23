@@ -2778,3 +2778,40 @@ P0's blocks run in turn.
   `compareVersions` cannot compare, so setting `versions.validated` after `opencode`'s real check
   needs the `v` read off first.
 - **Not done here:** `opencode`'s real check on OpenCode 2.3.0 (a separate task).
+
+### P3.1 (`menkar-t215`, task 215, 2026-11-23)
+
+- **Built:** `IntegrationItems` / `IntegrationItem` / `IntegrationContext` in `types.ts` and
+  `AgentKit.integrations` (`null` for Claude, Codex, OpenCode: Claude's two items stay in
+  `src/core/context/integrations.ts`, as §2.3 says, not moved); Cursor's two items in
+  `src/core/agents/cursor/integrations.ts`, a byte-preserving JSON text editor beside it
+  (`json-text.ts`), Cursor's `DeclaredWrites` (`writes.ts`: `hooks.json` created or changed,
+  `cli-config.json` changed); `src/main/agent-integrations.ts` lists every kit's items for
+  Settings (two IPC channels) and refuses a change while the CLI is not found; Settings' new
+  section after Transcript retention.
+- **`cursor`'s answers (measured on 2026.11.13-eacade1, 2026-11-23), each now in the code:**
+  a hook whose program is missing or fails is skipped with no delay and nothing on screen, since
+  `failClosed` is false by default — no entry sets it; a slow hook delays the turn, so every
+  entry carries `timeout: 3`; `command` runs through a shell; `Mcp(<server>:*)` covers every tool
+  of a server, so D7 is **one** entry, not one per tool; **Cursor rewrites `cli-config.json` at
+  each start** (its layout, its key order, unknown keys dropped), so byte-identity holds for
+  Menkar's own write and removal finds its entry by value, with the record in Menkar's own data;
+  `hooks.json` is not rewritten and is read from `~/.cursor` always, `cli-config.json` from
+  `$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else `~/.cursor`.
+- **Deviation:** D13 is three entries (`beforeSubmitPrompt`, `stop`, `afterAgentResponse`, as
+  1.140 says), not the four events §2.9 lists for the program: `sessionStart` from the plugin runs
+  with no user entry (research item 12). The entries name `cursor-hook.js`, which P3.3 builds;
+  until then an entry turned on in a dev build is skipped by Cursor, as measured.
+- **The section's place:** the human, 2026-11-23, option A of topic 108 (a "Cursor" section after
+  Transcript retention). It is generic: named after the agents whose kits offer items, one group
+  each, so the renderer names no agent; absent when none offers any. 1.212's classifier row is
+  untouched (it lives in Usage & classifier).
+- **My choices:** the per-flavour server name (`plugin-<flavour dir>-menkar`, confirmed by `set`);
+  `timeout: 3`; a missing `cli-config.json` refused (Cursor creates it at login), a missing
+  `hooks.json` created and deleted on removal while it holds only Menkar's; the file's mode kept,
+  a symlink written at its target, a dated copy in `settings-backup` before each change; greyed
+  items cannot be turned off either (1.140 says greyed), so entries left after uninstalling Cursor
+  stay until it is installed again (harmless: nothing runs them).
+- **Captures:** the Settings list gained "Cursor", so `settings-look` and `settings-integrations`
+  were recaptured in both languages and themes and signed off; `es/light/usage-spend` came out
+  mid-load (the star) in that run and was put back to its committed bytes, not signed.

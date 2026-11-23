@@ -120,6 +120,7 @@ export const SETTINGS_LIST = [
   null,
   'statusline',
   'retention',
+  'agents',
   'mcp',
   null,
   'language',

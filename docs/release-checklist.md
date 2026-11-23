@@ -202,6 +202,19 @@ arrives as "[Menkar] from ‹name› (‹agent›)…" in the other's next turn;
 without a turn of its own and wakes nobody; the reopened session's pane shows one line of
 Menkar's saying it also has a turn running in another `opencode`.
 
+## 8g. Cursor's integrations items (P3)
+
+In Menkar Sandbox, with your own `cursor-agent` installed. Before: copy `~/.cursor/hooks.json` and
+Cursor's `cli-config.json` aside.
+
+1. Settings → Cursor: the two switches, off. Turn each on, then off, comparing the files with
+   your copies after each step.
+2. **Before uninstalling Menkar Sandbox, turn both off here** (S11).
+
+**Passes when** each switch adds only its own entries and turning it off gives back your file as
+it was (`cli-config.json` as Cursor last rewrote it: Cursor rewrites it at each start); the other
+switch's file is untouched throughout.
+
 ## 9. (none)
 
 No step: the number stays so the later steps keep theirs. The squeezed reference screenshots in

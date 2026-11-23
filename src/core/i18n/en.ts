@@ -631,6 +631,23 @@ export const en = {
   'integrations.retentionByUser': 'Kept for {days} days (your setting)',
   'integrations.retentionUnreadable':
     '{path} could not be read, so how long Claude Code keeps transcripts is not known.',
+  'integrations.cursorSettings': 'Cursor settings',
+  'integrations.cursorSettingsDescription':
+    "Each piece is added to one of Cursor's files only when you turn it on, and taken out when you turn it off; the rest of the file stays as you had it. A copy of the file is kept before every change.",
+  'integrations.agentNotFound':
+    '{command} was not found on the PATH: these can be turned on once it is installed.',
+  'integrations.agentSandbox':
+    "These entries run Menkar Sandbox's own program: turn them off here before uninstalling Menkar Sandbox.",
+  'integrations.agentItemUnknown': 'Menkar has no such setting.',
+  'integrations.cursorHooks': "Menkar's hooks in every Cursor session",
+  'integrations.cursorHooksSubtitle':
+    "Three entries in ~/.cursor/hooks.json for each turn's end, its tokens and waking a session. They run in every Cursor session, outside Menkar too, where they end at once. Cursor sends them your account's email with each turn; Menkar never keeps it. Without them Menkar knows of a Cursor session only what its screen and transcript show.",
+  'integrations.cursorAllow': "Menkar's tools without an approval card",
+  'integrations.cursorAllowSubtitle':
+    "Allow entries for Menkar's tools in Cursor's cli-config.json. Without them Cursor asks before each call to one of Menkar's tools.",
+  'integrations.cursorNoFile': '{path} was not found: start cursor-agent once, then try again.',
+  'integrations.cursorShape':
+    '"{key}" in {path} is not what Cursor expects there; the file was left as it is.',
   'classifier.offInSandbox': 'Menkar Sandbox does not classify turns.',
   'classifier.group': 'Classify turns',
   'classifier.switch': 'Classify each new turn by development stage',

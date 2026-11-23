@@ -175,6 +175,7 @@ human's daily Menkar (1.155 Q3) and duplicates everything it needs to run on its
 | The agents' own data (`~/.claude/projects`, `~/.cursor/projects`) | It acts only on the sessions it started (`started_sessions` in its own `state.json`): its windows list no other, and every action naming another is refused before it does anything (1.159 B1) |
 | Claude Code's messaging registry | Sandbox projects take names no daily project has (a hand check); wakes go by session id |
 | `~/.claude/settings.json` | No flavour chains to a Menkar statusline of any flavour; the sandbox shows the statusline and retention items read only, "managed by Menkar", and its own sessions get its statusline through `--settings` |
+| Cursor's `~/.cursor/hooks.json` and `cli-config.json` (its integrations items) | Each flavour's entries name its own program and its own server; its Cursor section says to turn them off before uninstalling. Entries left by an uninstalled flavour are harmless: Cursor skips a hook whose program is missing, with no delay and nothing on screen, since no entry sets `failClosed` (`cursor`, measured 2026-11-23) |
 | The agents' logins | Never read or copied |
 | The classifier's account use | Off in the sandbox, its setting hidden (1.159 S11) |
 
