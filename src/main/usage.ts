@@ -1,10 +1,8 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { classifySince } from '../core/classifier/settings'
-import { chooseLanguage, setLanguage } from '../core/i18n'
 import { log } from '../core/log'
 import { orchestratorIds } from '../core/projects/earlier'
-import { runUsageCli } from '../core/usage/cli'
 import type { Memberships, Tokens } from '../core/usage/history'
 import type {
   ActivityView,
@@ -58,22 +56,6 @@ export function startUsagePasses(
   void runner.request()
   const timer = setInterval(() => void runner.request(), HOURLY_MS)
   return { runner, stop: () => clearInterval(timer) }
-}
-
-// `menkar usage …`: the report printed in the terminal, with no window. The exit code.
-export function runUsageCommand(args: readonly string[]): number {
-  setLanguage(
-    chooseLanguage(
-      undefined,
-      [process.env.LC_ALL, process.env.LC_MESSAGES, process.env.LANG].filter((v): v is string =>
-        Boolean(v),
-      ),
-    ),
-  )
-  return runUsageCli(args, {
-    out: (text) => process.stdout.write(`${text}\n`),
-    err: (text) => process.stderr.write(`${text}\n`),
-  })
 }
 
 function queryInWorker<T>(query: Query): Promise<T> {

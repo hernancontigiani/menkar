@@ -209,3 +209,23 @@ for it; a line of a newer journal version keeps its batch, renamed `newer-*`.
 > Replaced 2026-11-23 (task 206): `menkar usage` exits once standard output and error have drained, which can be after `ready`.
   Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
   it and exits before `ready`, so no window opens and no display is needed. Checked on 2026-11-08
+
+## How it is built
+
+> Replaced 2026-11-23 (task 218): with no display, Chromium's platform start cut the output; the print-and-end commands now run as a copy of the binary in Node's mode.
+- **`menkar usage`** is the app's own binary. When main sees `usage` as the first argument (after
+  Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
+  it and exits, so no window opens and no display is needed. Checked on 2026-11-08
+  under `env -i`, with no `DISPLAY`.
+- **It exits once standard output and error have drained**, not at once: into a pipe Node writes
+  asynchronously, and an exit right after the writes cut the output at the pipe's buffer (64 KiB)
+  with exit 0. A reader slower than the app gets every byte; a write that fails (the reader went
+  away, EPIPE) turns an exit 0 into 1, quietly. `menkar --version` and the usage error of `menkar
+  open` end the same way. Waiting can take the process past `ready` with no window and no display
+  (checked on 2026-11-23 with no `DISPLAY`, a reader 3 s behind).
+
+## How it is built
+
+> Replaced 2026-11-23 (task 218): main re-runs its own binary under `ELECTRON_RUN_AS_NODE` for `menkar usage`, with no wrapper.
+- **Electron's main process for `menkar usage` instead of `ELECTRON_RUN_AS_NODE`**: the same
+  binary, and no wrapper for the package to install.
