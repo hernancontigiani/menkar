@@ -2788,3 +2788,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-21 — plan 39's row before P2 was built
 
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a and P1b merged into `main`** (P1: 8e1c136, 2026-11-21): Codex as a session and in the orchestration mode, its real checks passed. **P2 (OpenCode) executing** (P2.1–P2.4 committed, P2.5 task 185) on the branch `multi-agent`, merged into `main` at the end of each phase; then P3 (Cursor in the mode), P4 |
+
+## 2026-11-23 — plan 47's row before its D-items were decided
+
+| 6 | 47 — pane state events: blocked/working counts in `now --json`, per-15-minute rows in the export (1.204 b) | **Written and reviewed** (task 190, reviewed by `menkar-t195` on Fable 5.2, findings folded): **D1–D9 for the human** (§6), then execution. **The next .deb waits for it built** |

@@ -1,8 +1,8 @@
 # 47 — Pane state events: how many sessions are blocked and working, now and per 15 minutes
 
 > **Status:** written, 2026-11-21, by `menkar-t190` (task 190); revised the same day on
-> `menkar-t195`'s review (its findings 1–16, folded in). Not executed. Nine decisions for the human
-> (D1–D9, §6) change details of blocks 1–5, not the shape; the blocks are written with the
+> `menkar-t195`'s review (its findings 1–16, folded in). Not executed. Nine decisions, **D1–D9 (§6), decided as recommended
+> (1.207, the human, 2026-11-23)** change details of blocks 1–5, not the shape; the blocks are written with the
 > recommended options, and each D-item names the lines a different answer changes.
 >
 > **Comes from:** decision 1.204 (b) (the human, 2026-11-21, topic 91): a new activity event for
