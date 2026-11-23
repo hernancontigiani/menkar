@@ -67,6 +67,14 @@ How the package is built and why: `docs/packaging.md`. What the human checks by 
   (`docs/packaging.md` "The sandbox package"). The clone takes about 1.5 GB: check `df -h /`.
 - **`release/`** is shared: one build overwrites the last one.
 
+## Running probes
+
+A multi-step probe (throwaway homes, `env -i`, pipes, `$(…)`, redirections) goes in a script in
+the scratchpad (`set -euo pipefail`, absolute paths, the throwaway home checked to be under the
+scratchpad first), run as one plain `bash <scratchpad>/probe-<task>.sh`. Each Bash call stays one
+simple command: a compound line stops at Claude Code's "can't be sure it read this command" card,
+which waits for the human (it did twice on 2026-11-23, task 208).
+
 ## Talking to the human
 
 Give the install as one ready-to-paste line, then the check after the restart:
