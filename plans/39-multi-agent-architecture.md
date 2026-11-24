@@ -3021,3 +3021,44 @@ Interrupted on the 23rd (the human shut the PC down) and resumed on the 24th.
 - **Removed `expect(` lines (2)**, each an assertion of Cursor's earlier roster:
   `tests/core/agents/claude/ids.test.ts` (`kitOf('cursor').follow` null) and
   `tests/main/agents/claude/waker.test.ts` (`mainKitOf('cursor').waker` null).
+
+### P3.5 (`menkar-t223`, task 223, 2026-11-24)
+
+- **`e2e/cursor.spec.ts`**, two new tests on the built app with a new stand-in,
+  `e2e/standins/cursor.ts` (`cursorTurnsStandIn`; the old `cursorStandIn` of `e2e/fixtures.ts`
+  stays for the specs that only need a process): it runs the pane's plugin's `sessionStart` and the
+  user's `beforeSubmitPrompt` and `stop` entries through `sh -c` with payloads carrying
+  `user_email`, answers a `followup_message` as the next turn, calls Menkar's tools through the
+  plugin's `.mcp.json` with Cursor's few variables, asks with a card unless `cli-config.json`
+  allows `Mcp(plugin-<folder>-menkar:*)`, and rewrites its transcript whole.
+  - **with both items on** (turned on through Settings → Cursor): `--new-session-id` and the
+    pane's `--plugin-dir`; the block from `sessionStart` naming the worker and `GetDynamicTools`;
+    member and child by its id, its name `client-work-t1` in `names`; the real `cursor-hook.js`
+    records each turn's prompt and stop; `task_steps` and `task_review` with no card, the MCP
+    child with `MENKAR_AGENT=cursor` and `MENKAR_PANE`; the review wakes the orchestrator once;
+    `last_reply` from the transcript; a `send_message` during a running turn is held and goes as
+    the `followup_message`, with one start in all; Cursor → Claude framed "(Cursor)"; no file of
+    Menkar's cache holds the payloads' email (D21, end to end).
+  - **with neither**: each tool asks, the row's dot is blocked, the human's `y` runs it; the review
+    still wakes the orchestrator (the turn end is read from the screen); a message for the idle
+    worker resumes it (`--resume <id>`, the message after `--`); a resume runs no `sessionStart`;
+    no hook log.
+- **Seen red** (each injected in my own files, then restored and compared byte for byte): the
+  allow item left off; the user's hooks never run; the email written into Menkar's cache; a card
+  the state rules do not read as blocked; `sessionStart` not run.
+- **Docs**: `docs/agents.md` (the pattern's stale "no team block, no waker" line; new "Cursor in
+  the orchestration mode"), `docs/sessions.md` (a Cursor session's name), `docs/session-control.md`
+  ("Per agent": Cursor's delivery needs neither item), `docs/orchestration.md` (the card's "Cursor
+  until it can", a file beyond the task's list), `docs/NOT_BUILT_YET.md` (a Cursor orchestrator's
+  inbox rewritten, its trigger having fired; typing as D1's plan B; Cursor's context ring and status
+  line), `docs/release-checklist.md` (8g became P3's whole hand check; 8e's Cursor line). Each
+  line that left is in its history. The site's agents page: new text for `set` in
+  `$MENKAR_FILES/menkar-t223-site-agents-page.md`, to commit with the merge.
+- **Checks:** `npm run ci` green up to test integrity, which lists the 15 known lines (P3.2's 13,
+  P3.4's 2; none new); `flaky quarantine` and `history` pass run alone. `npm run ui-check` whole:
+  458 passed; `cursor.spec.ts` with `r10.spec.ts` alone: 8 passed; `tests/core/r10.test.ts` 34.
+- **Found, not fixed (shared):** only Claude's catalog has a turn-end reading, so a Codex, OpenCode
+  or Cursor worker's turn without a review leaves no "ended its turn without a report" line, and a
+  parent that is not the orchestrator is not woken by such a child's state changes.
+- **Not here:** `cursor`'s real check (a separate task), topics 109 (`--trust`) and 110 (following
+  a `/rename`), left as they are; the versions row goes in after the real check.

@@ -21,8 +21,8 @@ shaped this way and what was rejected.
 - **A kit per agent** groups its strategies: `src/core/agents/<id>/index.ts` (`AgentKit`, plain
   Node) and `src/main/agents/<id>/index.ts` (`MainAgentKit`, what needs Electron's main process).
   **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
-  fork, no Remote Control, no team block, no waker, no inbox; Codex has no fork, Remote Control,
-  team block or inbox either, and no chat or trash.
+  fork, Remote Control, inbox or context reading; Codex has no fork, Remote Control or inbox
+  either, and no chat or trash.
 - **The registries choose**: `kitOf(id)` (`src/core/agents/registry.ts`) and `mainKitOf(id)`
   (`src/main/agents/registry.ts`) are `Record<AgentId, …>` literals, so `tsc` refuses an agent
   registered without a kit. They are the only code that imports an agent's folder. A pane keeps
@@ -761,3 +761,26 @@ Plan 39 P3.4. `src/core/agents/cursor/names.ts`, `src/core/agents/cursor/follow.
   `~/.cursor/chats/<hash>/<id>/meta.json` (that key only): made after the pane started, `/new` made
   it and it takes the old one's place (`clear`); older, it was reopened (`resume`); not found, the
   tab is left as it was.
+
+## Cursor in the orchestration mode
+
+Plan 39 P3, end to end in `e2e/cursor.spec.ts` with a stand-in that runs Cursor's hooks and MCP
+calls as 2026.11.13 does. What a Cursor worker of a Claude orchestrator gets:
+
+- **Always**: its id is Menkar's (`--new-session-id`), so it is member and child by that id once
+  its row exists, and its name `<project>-t<N>` is Menkar's own (D22). Its team block comes from
+  the pane's plugin's `sessionStart`, Menkar's tools from the pane's plugin's server (deferred:
+  `GetDynamicTools`), its skills by their `SKILL.md`. Its turn ends are read from its screen, as
+  every agent's: a `task_review` wakes the orchestrator once, at the turn's end. `last_reply` reads
+  its transcript. Its messages to a Claude session go through Claude Code's messaging socket, framed
+  as Codex's. Its catalog has no turn-end reading (`turnEnd`, as Codex's and OpenCode's), so a turn
+  that ends without a review tells the orchestrator nothing.
+- **With neither integrations item**: each of Menkar's tools asks first, a card the pane reads as
+  blocked and the human answers; a message (a wake, a team update) waits held until the worker is
+  idle with an empty box, then ends and resumes it; its turns are not in Usage.
+- **With the allow item**: Menkar's tools run with no card. **With the hooks item**: its turns are
+  recorded for Usage, a `/new` chat is followed, and a message that comes while a turn runs goes
+  as that turn's `followup_message`, with no restart.
+- **As the orchestrator** (the first-time card offers it, with its limits): it has no inbox, so
+  everything for it is posted through its waker (`docs/session-control.md`, "Waking a parent"),
+  held as for a worker.

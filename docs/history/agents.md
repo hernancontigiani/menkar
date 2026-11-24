@@ -144,3 +144,10 @@ kept in one place per agent, so a change to one agent cannot break another and s
 > Left on 2026-11-24: Cursor's teller holds a change (plan 39 P3.4, task 221).
   main keeps what each session holds (`controlPaths().teamHeld`), recorded even before Cursor can be
   told anything (its waker is P3.4's), and a resume starts from it.
+
+## The pattern: a kit of strategies per agent, chosen once
+
+> Left on 2026-11-24: Cursor and Codex have a team block and Cursor a waker (plan 39 P3.5, task 223).
+  **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
+  fork, no Remote Control, no team block, no waker, no inbox; Codex has no fork, Remote Control,
+  team block or inbox either, and no chat or trash.

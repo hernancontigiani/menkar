@@ -549,6 +549,10 @@ flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 | What a compaction leaves it holding | `startedWith(start, block)` (absent: the block) | the block | the block | the block | a new start's block; a resume's `null`: it was given none |
 | (3) How a change is told | `tell(session, text, counts, current, held)`, `withdraw` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post | `'held'`: kept with the pane's wakes until the next wake or completed turn hands it over (`held.delivered`), never a restart by itself; withdrawn when the facts go back |
 
+Cursor's delivery needs neither of its integrations items: a plugin's `sessionStart` and
+`preCompact` run with no entry of the user's; only a held change's handing over at a completed turn
+needs the hooks item, and without it the change waits for the next wake's resume.
+
 A compaction rebuilds what the pane `started` with. The details are in `docs/agents.md`, "Codex:
 the team block" and "Cursor: the team block". Main writes the block's file before asking the Launcher (a write
 that fails leaves the pane outside the team, as above), so the file is not part of the plan the

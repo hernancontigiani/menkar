@@ -467,3 +467,8 @@ and the assignee; a click selects the assignee, as a task row does. The heading'
 step segments, the note. The note line starts with what the task waits on, as in the sidebar's
 task rows: a waiting task's `waiting_on`, and a task in To review's `review_wait` unless it waits on
 the orchestrator ("waiting on PR approval #436 · PR open", decision 1.164). A click selects the
+
+## Switching it, and the marks
+
+> Left on 2026-11-24: Cursor's sessions can use Menkar's tools (plan 39 P3.2, written at P3.5, task 223).
+    and so is one whose sessions can't use Menkar's tools (`caps.tools`; Cursor until it can).

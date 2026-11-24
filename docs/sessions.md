@@ -50,6 +50,10 @@ over IPC
 - **A session's name** (`sessionName`): Claude's name, then the app's name (`state.json` `names`),
   then Claude's generated title, then the preview, then the id's first 8 characters. Cursor has no
   Claude names. `claudeNamed` tells the UI that Rename must refuse.
+- **A Cursor session's name** is the app's name or its preview: a worker `start_session` started
+  gets `<project>-t<N>` in `state.json` `names` (D22), and Cursor's own title (`meta.json`'s
+  `title`, its generated one and a `/rename` alike) is not read (`docs/agents.md`, "Cursor: names
+  and a pane's chat changing").
 - **Cursor's folder → cwd** (`cursor.ts`): rebuilt against the filesystem, taking at each level the
   longest run of dash-joined parts that names an existing directory; the rest joined by `/` when
   none exists.

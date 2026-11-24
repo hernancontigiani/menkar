@@ -286,3 +286,12 @@ quotes a form as blocked.
 **Trigger:** `opencode` measures the form on a real TUI (its screen, and whether the event names
 the session), or the human sees a session wait at a form unnoticed. First question: whether the
 screen or the server's event is the signal, as the permission card is read from the screen.
+
+## A Cursor orchestrator's inbox
+
+> Left on 2026-11-24: Cursor has Menkar's MCP and a waker (plan 39 P3); the entry now says how a Cursor orchestrator is woken (task 223).
+A Cursor session has no MCP mount and no prompt hook, so as an orchestrator it could read its inbox
+neither way; its project's inbox keeps its lines unread (decision 1.178). Nothing regresses: it
+had no wake either.
+**Trigger:** Cursor in the orchestration mode. First question: which of its channels can carry the
+inbox to the model off the human's screen.

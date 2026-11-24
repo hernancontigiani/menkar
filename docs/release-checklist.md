@@ -150,8 +150,8 @@ yet.
    orchestrator from it and send it nothing.
 6. On a Markdown file tab, "Ask an agent" with a Codex tab focused, then with no agent tab open.
 
-**Passes when** the card shows the Agent line only because two agents are installed, Cursor greyed
-saying its sessions can't use Menkar's tools yet; the worker runs in the background under the
+**Passes when** the card shows the Agent line only because two agents are installed, Cursor
+offered with a line saying its limits; the worker runs in the background under the
 orchestrator, named `<project>-t<N>`, with its team block (it loads the worker skill by reading its
 `SKILL.md`); its review wakes the orchestrator once, at its turn's end; `last_reply` returns the
 worker's last answer; each message arrives as "[Menkar] from ‹name› (‹agent›)…" in the other's
@@ -202,18 +202,46 @@ arrives as "[Menkar] from ‹name› (‹agent›)…" in the other's next turn;
 without a turn of its own and wakes nobody; the reopened session's pane shows one line of
 Menkar's saying it also has a turn running in another `opencode`.
 
-## 8g. Cursor's integrations items (P3)
+## 8g. Cursor (P3)
 
-In Menkar Sandbox, with your own `cursor-agent` installed. Before: copy `~/.cursor/hooks.json` and
-Cursor's `cli-config.json` aside.
+Cursor's integrations items, and Cursor as a worker of a Claude Code orchestrator (plan 39, phase
+P3), checked in Menkar Sandbox with your own `cursor-agent` and `claude` installed and logged in,
+in `sandbox-` projects. Before: copy `~/.cursor/hooks.json` and Cursor's `cli-config.json` aside.
 
 1. Settings → Cursor: the two switches, off. Turn each on, then off, comparing the files with
-   your copies after each step.
-2. **Before uninstalling Menkar Sandbox, turn both off here** (S11).
+   your copies after each step. Leave both off.
+2. In a `sandbox-` project whose folder Cursor has never run in, switch the orchestration mode on
+   with a new Claude Code orchestrator. Ask it to start a Cursor worker for a small task
+   (`start_session` with `agent: "cursor"` and a task). Look at the worker's tab and row before
+   answering Cursor's workspace trust prompt yourself.
+3. Let the worker do the task and report with `task_review`; watch its tab each time it calls
+   one of Menkar's tools, and approve each card.
+4. Ask the orchestrator for the worker's last reply, then to send it a message while the worker is
+   idle with something typed in its box; then delete what you typed.
+5. Turn both switches on. Ask the orchestrator for a second Cursor worker, and a message for it
+   while a long turn of it runs. Have that worker answer the orchestrator with `send_message`.
+6. Give the second worker a role ("Configure role…") while it is idle, then have the orchestrator
+   send it a message.
+7. In the second worker's tab, `/new` and a message. Then `/summarize`, and ask it what its name
+   and its orchestrator are.
+8. Open Usage and run `menkar-sandbox usage`.
+9. **Before uninstalling Menkar Sandbox, turn both switches off** (S11).
 
 **Passes when** each switch adds only its own entries and turning it off gives back your file as
-it was (`cli-config.json` as Cursor last rewrote it: Cursor rewrites it at each start); the other
-switch's file is untouched throughout.
+it was (`cli-config.json` as Cursor last rewrote it: Cursor rewrites it at each start), the other
+switch's file untouched throughout; the first-time card offers Cursor with a line saying its
+limits; the worker runs in the background under the orchestrator, named `<project>-t<N>`, and its
+row and dot show blocked at the trust prompt and at each card; with the switches off each of
+Menkar's tools asks first, with them on none does; its review wakes the orchestrator once, at its
+turn's end; `last_reply` returns its last answer; the message waits while your text is in the
+box, nothing is typed into it, and once the box is empty the worker restarts in the same tab with
+the message as its first, its earlier messages on screen; with the switches on the message
+arrives as a new turn right after the running one ends, with no restart, and the role reaches the
+worker with that next message, waking nobody by itself; each message arrives as "[Menkar] from
+‹name› (‹agent›)…"; after `/new` the tab runs the new chat and the old one is under "Earlier
+conversations ▸"; after `/summarize` it still knows its name and orchestrator; Usage lists the
+second worker's turns (none of the first's) under the project with tokens, and
+`menkar-sandbox usage` agrees.
 
 ## 9. (none)
 

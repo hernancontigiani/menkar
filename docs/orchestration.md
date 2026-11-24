@@ -133,7 +133,7 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
     2026-11-20): an "Agent" line under the new session's name and folder, Add session's picker,
     defaulting to the agent last started (`last_agent`, which starting the new orchestrator
     writes, so the next card defaults to it); an agent not installed is greyed with its tooltip,
-    and so is one whose sessions can't use Menkar's tools (`caps.tools`; Cursor until it can).
+    and so would be one whose sessions can't use Menkar's tools (`caps.tools`; all four can).
     Each listed session names its agent, dim, beside its name. With one agent the card has
     neither.
   - **An agent with limits** (the descriptor's `teamLimits`; Cursor's: waking it when idle

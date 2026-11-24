@@ -389,12 +389,33 @@ agents in the mode). First question: how the answer reaches that agent without t
 
 ### A Cursor orchestrator's inbox
 
-A Cursor session has no MCP mount and no prompt hook, so as an orchestrator it could read its inbox
-neither way; its project's inbox keeps its lines unread (decision 1.178). Nothing regresses: it
-had no wake either.
+A Cursor orchestrator has no inbox file (`MainAgentKit.inbox` is `null`): the quiet routing of
+decision 1.178 (events kept in the inbox, a wake only for a review, a question or a topic) is for
+an orchestrator whose kit has one, Claude's alone, so a Cursor orchestrator is woken as any parent
+is, through its waker. Each wake is held until a completed turn hands it over (with the hooks
+item) or the idle session is ended and resumed with it, so a busy team can restart it often.
 
-**Trigger:** Cursor in the orchestration mode. First question: which of its channels can carry the
-inbox to the model off the human's screen.
+**Trigger:** the human orchestrates with Cursor and finds it woken or restarted too often. First
+question: whether one of Cursor's hooks (`beforeSubmitPrompt`, `stop`'s followup) can carry the
+inbox to the model off the human's screen, measured by `cursor`.
+
+### Typing a wake into Cursor's box
+
+Cursor has no channel into a running chat, so a wake for an idle Cursor session ends and resumes
+it (plan 38's D1, decision 1.143). Typing the text into its box when it is empty, D1's plan B, is
+not built: it would amend the rule that nothing is typed into a running agent's terminal.
+
+**Trigger:** the restart proves too costly in use (a long resume, a lost screen), or Cursor
+changes how a resume treats its chat. First question: the conditions under which typing is safe
+(idle, an empty box, no card), and whether the human accepts the rule's amendment.
+
+### Cursor's context ring and status line
+
+Cursor sessions show no context ring (`caps.context` is false, the kit's `context` `null`) and
+Menkar installs no status line for Cursor (plan 38's D8): Cursor's own footer shows its context.
+
+**Trigger:** the human asks for the ring on Cursor tabs. First question: what Cursor exposes of a
+chat's context outside its screen (a hook's payload, its files), measured by `cursor`.
 
 ### Saying in the window that an OpenCode is too old for Menkar's tools
 
