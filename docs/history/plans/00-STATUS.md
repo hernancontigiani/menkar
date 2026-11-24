@@ -2816,3 +2816,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-23 — plan 39's row before P3's state was written at the day's end
 
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a, P1b and P2 merged into `main`** (P2, OpenCode: 2026-11-23, on `opencode`'s real check, 1.210). Next: P3 (Cursor in the mode), then P4, on the branch `multi-agent` |
+
+## 2026-11-24 — plan 39's row before P3 was built
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0–P2 merged into `main`** (P2 on 2026-11-23, 1.210). **P3 (Cursor in the mode, in 1.0 by 1.212) on `multi-agent`**: P3.1 d6cad6f, P3.2 fed189d, P3.3 f122848 committed; **P3.4 interrupted (task 221, uncommitted in the worktree, resumable from its report)**; topics 109 (`--trust` for workers) and 110 (following a Cursor `/rename`) open; then P3.5 (`cursor`'s real check, the merge). P4 after 1.0 |
