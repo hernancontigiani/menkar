@@ -25,6 +25,8 @@ export interface TeamInput {
   readonly context: { readonly warn: number; readonly full: number }
   /** The folder of Menkar's own skills, for an agent that loads a skill by its file. */
   readonly ownSkills?: string
+  /** The project's files folder, for an agent whose session is not always granted it. */
+  readonly filesFolder?: string
 }
 
 export interface TeamAgent {
@@ -36,6 +38,8 @@ export interface TeamAgent {
   readonly byName: string
   /** The agent's part of the protocol, a file in the plugin's `team/` folder. */
   readonly part: string
+  /** The line naming the project's files folder, for an agent that needs it told. */
+  readonly files?: (folder: string) => string
 }
 
 // The agents that have a team delivery, each with its record.
@@ -128,6 +132,7 @@ function decisions(input: TeamInput, role: string): string | null {
 export function teamFacts(input: TeamInput, agent: TeamAgent): string {
   const role = cleanRole(input.role ?? '')
   const lines = ['# Your team in Menkar', who(input, role)]
+  if (input.filesFolder && agent.files) lines.push(agent.files(input.filesFolder))
   const load = skills(input, agent)
   if (load) lines.push(load)
   if (input.orchestrator !== 'self')

@@ -99,7 +99,9 @@ the renderer draws the section and names files, never paths.
   through `permissions.additionalDirectories` in the `--settings` file Menkar passes it: a file per
   project, `<cache>/claude-settings/<project id>.json` (`projectSessionSettingsFile`), the shared
   settings plus that one key (`writeSessionSettings` in `src/core/context/settings.ts`). A session
-  with no project gets the shared file. Cursor has no such setting. Never a write to
+  with no project gets the shared file. Cursor has no such setting: a new Cursor chat gets
+  `--add-dir <folder>`, a resume none, and its team block names the folder (1.214,
+  `docs/agents.md`). Never a write to
   `~/.claude.json` or `~/.claude/settings.json`.
 - **Why not `--add-dir`** (2026-11-17, measured on Claude Code 2.1.326): each `--add-dir` stops the
   session at a dialog ("Adding a new directory … trust?") whose default answer is "No, exit", and

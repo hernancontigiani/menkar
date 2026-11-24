@@ -64,11 +64,38 @@ describe("Cursor's Launcher", () => {
     expect(plan.env).toBe(ENV)
   })
 
-  test("the project's files folder is granted to the session", () => {
+  test("a new session is granted the project's files folder", () => {
+    expect(
+      kit.launch.plan({ kind: 'new', id: 'n1' }, { ...BASE, filesFolder: '/h/Menkar/a b/files' })
+        .words,
+    ).toEqual([
+      CLI,
+      '--new-session-id',
+      'n1',
+      '--add-dir',
+      "'/h/Menkar/a b/files'",
+      '--plugin-dir',
+      FOLDER,
+    ])
+  })
+
+  // 1.214: Cursor's grant lasts one process, and `--add-dir` on a resume raises a trust box each
+  // time, which would stall every wake; the team block names the folder instead.
+  test('a resume is not given the files folder: it would stop at a trust box each time', () => {
     expect(
       kit.launch.plan({ kind: 'resume', id: 'r1' }, { ...BASE, filesFolder: '/h/Menkar/a b/files' })
         .words,
-    ).toEqual([CLI, '--resume', 'r1', '--add-dir', "'/h/Menkar/a b/files'", '--plugin-dir', FOLDER])
+    ).toEqual([CLI, '--resume', 'r1', '--plugin-dir', FOLDER])
+  })
+
+  test('no start is ever given --trust', () => {
+    for (const start of [
+      { kind: 'new', id: 'n1' },
+      { kind: 'resume', id: 'r1' },
+    ] as const)
+      expect(
+        kit.launch.plan(start, { ...BASE, filesFolder: '/f', teamFile: '/t.md' }).words,
+      ).not.toContain('--trust')
   })
 
   test('a new start with no id lets Cursor pick it', () => {

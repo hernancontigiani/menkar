@@ -160,3 +160,16 @@ kept in one place per agent, so a change to one agent cannot break another and s
   `~/.cursor/chats/<hash>/<id>/meta.json` (that key only): made after the pane started, `/new` made
   it and it takes the old one's place (`clear`); older, it was reopened (`resume`); not found, the
   tab is left as it was.
+
+## Cursor: starting a session
+
+> Left on 2026-11-24: a Cursor resume is given no `--add-dir` (1.214, task 228).
+  read as an unknown option). A resume is `--resume <id>` with the same folder and plugin, and no
+  `--model`: Cursor keeps a resume's `--model` as the chat's model for good, and without one it
+  restores the chat's own.
+
+## Cursor: names and a pane's chat changing
+
+> Left on 2026-11-24: following a `/rename` made in Cursor is deferred (1.215, task 228).
+  what they show today. Cursor's own title (`meta.json`'s `title`) is not read: nothing tells a
+  human `/rename` from Cursor's generated title.

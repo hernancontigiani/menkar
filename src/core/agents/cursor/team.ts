@@ -17,6 +17,9 @@ export const team: TeamDelivery = {
     folder ? `\`menkar:${name}\` (\`${join(folder, name, 'SKILL.md')}\`)` : `\`menkar:${name}\``,
   byName: 'by reading its SKILL.md at the path given',
   part: 'cursor.md',
+  // A resume is not granted the folder: the grant raises a trust box on each one.
+  files: (folder) =>
+    `The project's files folder is \`${folder}\` (\`$MENKAR_FILES\`): it is outside your workspace, reached by its full path.`,
   heldAtStart: (start, block, recorded) => {
     if (start.kind === 'new') return block
     if (start.kind === 'resume') return recorded ?? null

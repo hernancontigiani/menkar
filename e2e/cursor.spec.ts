@@ -306,11 +306,16 @@ async function startWorker(team: Team, firstReply = 'ack 1:'): Promise<string> {
   const id = /--new-session-id ([0-9a-f-]{36})/.exec(team.starts()[0] ?? '')?.[1] ?? ''
   expect(id).not.toBe('')
   expect(team.starts()[0]).toMatch(/--plugin-dir \S+\/panes\/[^/ ]+\/menkar /)
+  // A new chat is granted the project's files folder; its resumes are not (1.214).
+  expect(team.starts()[0]).toMatch(/--add-dir \S+\/Menkar\/Client work\/files /)
   // Its team block, as the pane's plugin's sessionStart answered it.
   await expect.poll(team.contexts).toHaveLength(1)
   expect(team.contexts()[0]?.session).toBe(id)
   expect(team.contexts()[0]?.context).toContain(WORKER)
   expect(team.contexts()[0]?.context).toContain('GetDynamicTools')
+  expect(team.contexts()[0]?.context).toMatch(
+    /The project's files folder is `\S+\/Menkar\/Client work\/files` \(`\$MENKAR_FILES`\)/,
+  )
   await expect.poll(() => team.saved().projects[0]?.members, { timeout: 20_000 }).toContain(id)
   expect(team.saved().projects[0]?.parents).toEqual({ [id]: SESSION })
   expect(team.names()).toEqual({ [id]: WORKER })
@@ -477,6 +482,7 @@ test('a Cursor worker of a Claude orchestrator without Cursor’s items: it asks
     ).toMatch(/^Sent to client-work-t1\./)
     await expect.poll(() => team.starts().length, { timeout: 20_000 }).toBe(2)
     expect(team.starts()[1]).toContain(`--resume ${id} `)
+    expect(team.starts()[1]).not.toContain('--add-dir')
     await expect(team.page.locator('.xterm-rows:visible')).toContainText(
       `PROMPT: [Menkar] from ${CLAUDE} (Claude Code); reply with send_message: look at a.txt`,
       { timeout: 20_000 },

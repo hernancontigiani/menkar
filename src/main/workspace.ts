@@ -273,6 +273,7 @@ import {
   ensureFolder,
   ensurePrivateFolder,
   filesOf,
+  folderOf,
   incomingFolder,
   newestIncoming,
   openFolder,
@@ -1009,8 +1010,14 @@ function startInput(
     ...(startName ? { startName } : {}),
     named: ownName,
     ...foundArgs(found),
+    ...filesArg(p.id),
     context: teamContext(),
   })
+}
+
+const filesArg = (projectId: string) => {
+  const filesFolder = folderOf(projectId)
+  return filesFolder ? { filesFolder } : {}
 }
 
 const foundArgs = (found: FoundFiles) => ({
@@ -1029,6 +1036,7 @@ setTeamSource({
       session: sessionId,
       named: ownName,
       ...foundArgs(found),
+      ...filesArg(p.id),
       context: teamContext(),
     })
   },

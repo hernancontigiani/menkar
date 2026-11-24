@@ -518,6 +518,17 @@ per URL.
 **Trigger:** the project leaves GitHub, or the human wants an address of its own. First question:
 which old URLs must keep working, and how (a page per URL, or a host that redirects).
 
+### Following a `/rename` made in Cursor
+
+Decided by the human (1.215, 2026-11-24): a Cursor worker keeps `<project>-t<N>` in Menkar's own
+names, and the human renames it with Menkar's Rename. Cursor writes a human `/rename` and its own
+automatic title to the same keys of the chat's `meta.json` with no mark (`cursor`, measured on
+2026.11.13), so reading that title would replace a worker's name with Cursor's guess.
+
+**Trigger:** a Cursor version tells a human title apart from its automatic one (a key, a flag, or a
+record of the `/rename`). First question: whether a human title then replaces the name Menkar kept,
+as Claude's `/rename` does.
+
 ### A team post that overtakes a resume's own prompt
 
 Measured by `claude-cli` on Claude Code 2.1.330 (2026-11-21, 3 runs of 3): when `claude --resume

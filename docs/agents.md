@@ -638,9 +638,17 @@ Plan 39 P3.2, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-2
   new chat under that id, its first prompt run as the first turn, the plugin's `sessionStart` run
   with that id. Then `--model` when one was asked, `--add-dir <the project's files folder>`, the
   pane's `--plugin-dir`, and the first prompt after `--` (a prompt starting with `-` is otherwise
-  read as an unknown option). A resume is `--resume <id>` with the same folder and plugin, and no
-  `--model`: Cursor keeps a resume's `--model` as the chat's model for good, and without one it
-  restores the chat's own.
+  read as an unknown option). A resume is `--resume <id>` with the same plugin, and no `--model`:
+  Cursor keeps a resume's `--model` as the chat's model for good, and without one it restores the
+  chat's own.
+- **A resume is given no `--add-dir`** (1.214, 2026-11-24): the grant lasts one process, and on a
+  resume `--add-dir` raises a trust box each time (`cursor`, measured on 2026.11.13), which would
+  stall every wake. A new chat's first start keeps it: its only trust box is the cwd's. In the
+  orchestration mode the team block names the folder, with `$MENKAR_FILES`, as outside the
+  workspace and reached by its full path (the kit's `team.files`). **Not measured yet** (no model
+  turns could be run): what a resumed chat with no grant may do there, writes above all. Trigger to
+  revisit: a resumed Cursor session is seen asking for, or refused, a read or a write in the files
+  folder; then measure it, and weigh a grant that does not raise a box on each resume.
 - **The floor**: the descriptor's `versions.floor`, 2026.11.13, the version the option was
   measured on (set, 2026-11-23). Below it, or when `--version` cannot be read, `ids.newId` gives
   none: Cursor picks the id and the pane waits as a `Pending` that binds when the session appears;
@@ -761,8 +769,10 @@ Plan 39 P3.4. `src/core/agents/cursor/names.ts`, `src/core/agents/cursor/follow.
 - **A worker keeps its name in Menkar's own names** (D22, 1.137): nothing outside Cursor can name a
   chat, so `start_session` writes `<project>-t<N>` to state.json's `names` (`namer.kept`), moved to
   the real id at a bind and given to the new session at a renew. Sessions the human starts keep
-  what they show today. Cursor's own title (`meta.json`'s `title`) is not read: nothing tells a
-  human `/rename` from Cursor's generated title.
+  what they show today. Cursor's own title (`meta.json`'s `title`) is not read: Cursor writes a
+  human `/rename` and its own automatic title to the same keys with no mark (`cursor`, measured),
+  so following a `/rename` made in Cursor is deferred (1.215, `docs/NOT_BUILT_YET.md`); the human
+  renames a worker with Menkar's Rename.
 - **`/new` and `/resume` inside the TUI** tell no hook: the next turn ends under the other chat's
   id. The kit's `follow` reads that chat's `createdAtMs` from `chats/<hash>/<id>/meta.json` under
   Cursor's config folder (that key only): made after the pane started, `/new` made it and it takes

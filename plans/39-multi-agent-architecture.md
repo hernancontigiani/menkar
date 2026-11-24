@@ -3092,3 +3092,27 @@ Interrupted on the 23rd (the human shut the PC down) and resumed on the 24th.
   `npm run ui-check` alone: 460 passed.
 - **Found, not fixed:** Menkar reads Cursor's transcripts under `~/.cursor/projects`, ignoring
   `$CURSOR_DATA_DIR`, which Cursor honours.
+
+### Task 228 (`menkar-t228`, 2026-11-24): a Cursor resume without `--add-dir`; `/rename` deferred
+
+- **1.214.** `src/core/agents/cursor/launch.ts`: `--add-dir <files folder>` only on a new start;
+  a resume carries `--resume <id>` and the plugin folder; never `--trust`. The team facts name the
+  files folder for Cursor: `TeamInput.filesFolder` (from `teamInput`'s new `filesFolder` arg,
+  passed by main's `startInput` and team source from `folderOf`), and the kit's optional
+  `TeamAgent.files(folder)`, set only by Cursor ("The project's files folder is `…`
+  (`$MENKAR_FILES`): it is outside your workspace, reached by its full path."). Claude, Codex and
+  OpenCode facts are unchanged.
+- **1.215.** `docs/NOT_BUILT_YET.md` "Following a `/rename` made in Cursor", with its trigger;
+  `docs/agents.md` points to it. Code unchanged (P3.4 already keeps `<project>-tN`).
+- **Docs:** `docs/agents.md` (resume without `--add-dir`, what is not measured, its trigger),
+  `docs/project-files.md`, `docs/session-control.md` (a row for `files`), the left lines in
+  `docs/history/`.
+- **Tests:** unit — a resume has no `--add-dir`, no start has `--trust`, Cursor's facts name the
+  folder and the other agents' do not, `teamInput` passes the folder on; the three red before
+  the code. e2e — `cursor.spec.ts`: the worker's first start has `--add-dir`, its block names
+  the folder, its resume has none; red with `--add-dir` put back on a resume (with both R10 rows).
+- **R10 rows changed, for `set` to sign:** `tests/core/r10/e2e/on-cursor-resume.txt` and
+  `off-cursor-resume.txt`, argv line only: `--add-dir <root>/home/Menkar/Client work/files`
+  removed. The unit rows `tests/core/r10/cursor-resume-*.txt` pass no files folder: unchanged.
+- **Checks:** `npm run ci` green up to test integrity, the 15 known lines, none new; flaky and
+  history green when run alone. `npm run ui-check` alone: 460 passed.

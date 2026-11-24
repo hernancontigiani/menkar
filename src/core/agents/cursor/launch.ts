@@ -10,6 +10,9 @@ export const launch: Launcher = {
       case 'new':
         if (start.id) words.push('--new-session-id', shellQuote(start.id))
         if (start.model) words.push('--model', shellQuote(start.model))
+        // Not on a resume: Cursor's grant lasts one process, and there it raises a trust box each
+        // time, stalling every wake. The team block names the folder instead.
+        if (ctx.filesFolder) words.push('--add-dir', shellQuote(ctx.filesFolder))
         break
       case 'resume':
         words.push('--resume', shellQuote(start.id))
@@ -17,7 +20,6 @@ export const launch: Launcher = {
       case 'fork':
         throw new Error('Cursor sessions are not forked')
     }
-    if (ctx.filesFolder) words.push('--add-dir', shellQuote(ctx.filesFolder))
     const files: LaunchFile[] = []
     const folder = pluginFolder(ctx)
     if (folder) {

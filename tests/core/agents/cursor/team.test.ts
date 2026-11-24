@@ -5,6 +5,7 @@
 import { describe, expect, test } from 'vitest'
 import { NEW_ID_FLOOR } from '../../../../src/core/agents/cursor/descriptor'
 import { kitOf } from '../../../../src/core/agents/registry'
+import { teamFacts } from '../../../../src/core/team/block'
 import type { TeamText } from '../../../../src/core/team/posts'
 
 const kit = kitOf('cursor')
@@ -25,6 +26,28 @@ describe('what a Cursor session holds of its team at start', () => {
 
   test('its start puts no words on the line: the plugin folder carries the block', () => {
     expect(team?.atStart({ kind: 'new', id: 'n1' }, '/t.md')).toEqual([])
+  })
+
+  // 1.214: its resumes are not granted the folder, so the block is where the model learns of it.
+  test("its facts name the project's files folder; the other agents' do not", () => {
+    const input = {
+      project: 'menkar',
+      name: 'menkar-t3',
+      orchestrator: { name: 'set' },
+      skills: [],
+      context: { warn: 60, full: 90 },
+      filesFolder: '/h/Menkar/menkar',
+    } as const
+    if (!team) throw new Error('no team')
+    expect(teamFacts(input, team)).toContain(
+      "The project's files folder is `/h/Menkar/menkar` (`$MENKAR_FILES`)",
+    )
+    const { filesFolder: _, ...without } = input
+    expect(teamFacts(without, team)).not.toContain('files folder')
+    for (const agent of ['claude', 'codex', 'opencode'] as const) {
+      const other = kitOf(agent).team
+      if (other) expect(teamFacts(input, other)).not.toContain('/h/Menkar/menkar')
+    }
   })
 
   test('skills are loaded by reading their SKILL.md, named by path', () => {
