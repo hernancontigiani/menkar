@@ -32,6 +32,19 @@ import type { MainTeamDelivery, TeamHeld, WakePane, Waker } from '../types'
 // A screen settles after a burst of output: its check waits this long after the first change.
 export const SETTLE_MS = 250
 
+// Restarts of one session for its wakes are spaced, so a session whose resumed turns keep failing
+// on a screen read as idle is never restarted in a loop: the first goes at once, the next waits
+// RESTART_GAP_MS after it, each one after that twice the gap before it, up to RESTART_GAP_MAX_MS. A
+// session not restarted for four gaps starts again from the first.
+export const RESTART_GAP_MS = 30_000
+export const RESTART_GAP_MAX_MS = 30 * 60_000
+
+interface Restarts {
+  readonly last: number
+  // How long after `last` the next restart may come.
+  readonly gap: number
+}
+
 interface Entry {
   readonly name: string
   readonly team: boolean
@@ -47,6 +60,9 @@ interface PaneWakes {
   // Ending and resuming the session: what comes meanwhile waits here for the new pane.
   resuming: boolean
   queued: string[]
+  // The session's restarts for its wakes, carried to each new pane; and the timer of one put off.
+  restarts: Restarts | null
+  retry: ReturnType<typeof setTimeout> | null
 }
 
 export class CursorWakes {
@@ -94,6 +110,7 @@ export class CursorWakes {
     this.#sweep(pane, wakes)
     if (wakes.resuming) return
     this.#stopLooking(wakes)
+    this.#stopRetry(wakes)
     this.#panes.delete(pane)
     if (wakes.entries.some((e) => !e.team))
       log.warn("a Cursor session's held wakes went with its pane", {
@@ -117,7 +134,7 @@ export class CursorWakes {
     }
     this.#write(pane.id, wakes, WAKE_PREFIX, message)
     this.#look(wakes, pane)
-    if (quiet(pane.screen())) await this.#resume(sessionId, pane, wakes)
+    if (quiet(pane.screen())) await this.#resumeWhenDue(sessionId, pane, wakes)
     else log.info('a wake for a Cursor session is held until it can take it', { pane: pane.id })
     return 'posted'
   }
@@ -132,7 +149,16 @@ export class CursorWakes {
   #of(pane: string): PaneWakes {
     let wakes = this.#panes.get(pane)
     if (!wakes) {
-      wakes = { entries: [], pane: null, unwatch: null, timer: null, resuming: false, queued: [] }
+      wakes = {
+        entries: [],
+        pane: null,
+        unwatch: null,
+        timer: null,
+        resuming: false,
+        queued: [],
+        restarts: null,
+        retry: null,
+      }
       this.#panes.set(pane, wakes)
     }
     return wakes
@@ -216,7 +242,7 @@ export class CursorWakes {
           this.#stopLooking(wakes)
           return
         }
-        if (!wakes.resuming && quiet(pane.screen())) void this.#resume(null, pane, wakes)
+        if (!wakes.resuming && quiet(pane.screen())) void this.#resumeWhenDue(null, pane, wakes)
       }, SETTLE_MS)
     })
   }
@@ -226,6 +252,44 @@ export class CursorWakes {
     wakes.unwatch = null
     if (wakes.timer) clearTimeout(wakes.timer)
     wakes.timer = null
+  }
+
+  #stopRetry(wakes: PaneWakes): void {
+    if (wakes.retry) clearTimeout(wakes.retry)
+    wakes.retry = null
+  }
+
+  // Resumes the idle session now, or once its last restart is far enough behind: until then what is
+  // held stays held, and still goes with the session's next turn end.
+  async #resumeWhenDue(sessionId: string | null, pane: WakePane, wakes: PaneWakes): Promise<void> {
+    const wait = wakes.restarts ? wakes.restarts.last + wakes.restarts.gap - now() : 0
+    if (wait <= 0) return this.#resume(sessionId, pane, wakes)
+    if (wakes.retry) return
+    log.info('a wake for a Cursor session waits: it was restarted for its wakes a moment ago', {
+      pane: pane.id,
+      waitMs: wait,
+    })
+    wakes.retry = setTimeout(() => {
+      wakes.retry = null
+      this.#sweep(pane.id, wakes)
+      if (!wakes.entries.some((e) => !e.team) || wakes.resuming) return
+      if (quiet(pane.screen())) void this.#resume(sessionId, pane, wakes)
+    }, wait)
+  }
+
+  #noteRestart(pane: string, wakes: PaneWakes): void {
+    const at = now()
+    const before = wakes.restarts
+    const again = before !== null && at - before.last < before.gap * 4
+    wakes.restarts = {
+      last: at,
+      gap: again ? Math.min(before.gap * 2, RESTART_GAP_MAX_MS) : RESTART_GAP_MS,
+    }
+    if (again)
+      log.warn('a Cursor session is restarted again for its wakes; the next restart waits longer', {
+        pane,
+        gapMs: wakes.restarts.gap,
+      })
   }
 
   // Ends the idle session and resumes it with everything held as its first message.
@@ -238,6 +302,8 @@ export class CursorWakes {
     wakes.entries = []
     wakes.resuming = true
     this.#stopLooking(wakes)
+    this.#stopRetry(wakes)
+    this.#noteRestart(pane.id, wakes)
     // Before the restart: the resumed session starts from what it was recorded to hold, this text
     // included.
     for (const entry of entries) entry.delivered?.()
@@ -274,6 +340,7 @@ export class CursorWakes {
     rmSync(join(root, pane.id), { recursive: true, force: true })
     // What came while it restarted waits for the new pane's first turn to end.
     const after = this.#of(next)
+    after.restarts = wakes.restarts
     for (const message of queued) this.#write(next, after, WAKE_PREFIX, message)
   }
 }

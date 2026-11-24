@@ -24,6 +24,13 @@ import { join } from 'node:path'
 //   cli-config.json ($CURSOR_CONFIG_DIR, else $XDG_CONFIG_HOME/cursor, else ~/.cursor) it first
 //   asks, as a card ("(y) (enter)", "skip (esc or n)"), and goes on once `y` is typed. Any other
 //   prompt is answered "ack <n>: <prompt>".
+// - A chat's metadata (`createdAtMs`) is written when the chat is made, under the config folder's
+//   chats/<md5 of the folder>/<id>/meta.json. `/new` typed while no turn runs starts another chat in
+//   the same process, as Cursor's does: its metadata at once, no hook, the transcript at its first
+//   message.
+// - With FAKE_CURSOR_LIMIT set, every turn ends as on Cursor's free-requests limit screen: the
+//   error's lines, a stop with status `error` and no tokens, and the refused prompt put back in the
+//   box as text.
 // - Typing EXIT0 ends it; a hangup ends it too.
 const FAKE_CURSOR = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto')
@@ -42,13 +49,24 @@ const first = dash < 0 ? null : args.slice(dash + 1).join(' ')
 const valueOf = (name) => (options.includes(name) ? options[options.indexOf(name) + 1] : null)
 const plugins = options.flatMap((o, i) => (options[i - 1] === '--plugin-dir' ? [o] : []))
 const resuming = valueOf('--resume') !== null
-const id = valueOf('--resume') || valueOf('--new-session-id') || crypto.randomUUID()
+let id = valueOf('--resume') || valueOf('--new-session-id') || crypto.randomUUID()
 const TURN_MS = Number(process.env.FAKE_CURSOR_TURN_MS || 800)
+const LIMIT = !!process.env.FAKE_CURSOR_LIMIT
 const EMAIL = 'someone@example.com'
 
 const slug = process.cwd().replace(/^\\//, '').replaceAll('/', '-')
-const transcript = path.join(HOME, '.cursor', 'projects', slug, 'agent-transcripts', id, id + '.jsonl')
-const lines = fs.existsSync(transcript) ? fs.readFileSync(transcript, 'utf8').split('\\n').filter(Boolean) : []
+const transcriptOf = (chat) => path.join(HOME, '.cursor', 'projects', slug, 'agent-transcripts', chat, chat + '.jsonl')
+let transcript = transcriptOf(id)
+let lines = fs.existsSync(transcript) ? fs.readFileSync(transcript, 'utf8').split('\\n').filter(Boolean) : []
+// A chat's metadata, made when the chat is: at start, or at /new before any message. It goes under
+// the config folder, the transcripts under the home's .cursor.
+function chatMeta(chat) {
+  const dir = path.join(configDir(), 'chats', crypto.createHash('md5').update(process.cwd()).digest('hex'), chat)
+  fs.mkdirSync(dir, { recursive: true })
+  const at = Date.now()
+  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ schemaVersion: 1, createdAtMs: at, hasConversation: false, updatedAtMs: at, cwd: process.cwd() }))
+}
+if (!resuming) chatMeta(id)
 const rewrite = () => {
   fs.mkdirSync(path.dirname(transcript), { recursive: true })
   fs.writeFileSync(transcript, lines.map((l) => l + '\\n').join(''))
@@ -145,6 +163,13 @@ function answer(reply, generation) {
   for (const out of outs)
     if (typeof out.followup_message === 'string') setTimeout(() => turn(out.followup_message), 300)
 }
+function refused(prompt, generation) {
+  process.stdout.write('\\r\\x1b[2K  Error: You\\'ve hit your usage limit\\r\\n  limitType: included_usage\\r\\n  chatMessage: *You\\'ve hit your free requests limit.*\\r\\n')
+  busy = false
+  draft = prompt
+  drawBox()
+  userHooks('stop', { session_id: id, generation_id: generation, status: 'error', loop_count: 0, model: 'default', input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 })
+}
 function turn(prompt) {
   busy = true
   turns += 1
@@ -156,6 +181,7 @@ function turn(prompt) {
   process.stdout.write('\\r\\x1b[2K  PROMPT: ' + prompt.replace(/\\s+/g, ' ') + '\\r\\n')
   process.stdout.write('\\r\\x1b[2K  ⠋ Generating   ctrl+c to stop')
   setTimeout(() => {
+    if (LIMIT) return refused(prompt, generation)
     if (!prompt.startsWith('CALLMENKAR ')) return answer('ack ' + n + ': ' + prompt.replace(/\\s+/g, ' '), generation)
     const call = prompt.slice('CALLMENKAR '.length)
     const space = call.indexOf(' ')
@@ -172,6 +198,16 @@ function turn(prompt) {
     }
     process.stdout.write('\\r\\x1b[2K  Call ' + name + ' on ' + server.name + '?\\r\\n  Run (once) (y) (enter)\\r\\n  Skip (esc or n)')
   }, prompt.startsWith('SLOW ') ? 4000 : TURN_MS)
+}
+
+// /new, as cursor-agent 2026.11.13 does it: another chat in the same process, its metadata made at
+// once, its transcript at its first message; no hook runs.
+function newChat() {
+  id = crypto.randomUUID()
+  transcript = transcriptOf(id)
+  lines = []
+  chatMeta(id)
+  process.stdout.write('\\r\\x1b[2K  → Plan, search, build anything')
 }
 
 if (first !== null) turn(first)
@@ -191,7 +227,8 @@ process.stdin.on('data', (d) => {
       const prompt = draft
       draft = ''
       process.stdout.write('\\r\\x1b[2K')
-      turn(prompt)
+      if (prompt === '/new') newChat()
+      else turn(prompt)
     } else if (c === '\\x7f') {
       draft = draft.slice(0, -1)
       if (!busy) drawBox()

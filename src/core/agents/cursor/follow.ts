@@ -1,11 +1,12 @@
 import { readdir, readFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { log } from '../../log'
-import { agentPaths } from '../../paths'
 import type { FollowKind, PaneFollow } from '../types'
+import { cursorConfigDir } from './config-dir'
 
-// Where Cursor keeps each chat's metadata, one folder per working folder's hash, then per chat.
-export const chatsRoot = (): string => join(dirname(agentPaths().cursorProjects), 'chats')
+// Where Cursor keeps each chat's metadata, one folder per working folder's hash, then per chat. It
+// is the config folder, not the transcripts' one: the two part when XDG's config home is set.
+export const chatsRoot = (): string => join(cursorConfigDir(), 'chats')
 
 const plainId = (id: string) => /^[A-Za-z0-9_-]{1,100}$/.test(id)
 

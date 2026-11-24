@@ -21,6 +21,7 @@ import { flavorFacts } from '../../flavor'
 import { t } from '../../i18n'
 import { appDirs } from '../../paths'
 import type { IntegrationContext, IntegrationItem, IntegrationItems } from '../types'
+import { cursorConfigDir } from './config-dir'
 import { addToArray, holds, parseSpans, removeFromArray, ShapeError } from './json-text'
 
 // What Menkar may add to Cursor's own configuration, two pieces each turned on by the user and
@@ -52,15 +53,7 @@ export const serverName = (): string => `plugin-${pluginFolderName()}-${SERVER_K
 // Cursor reads hooks.json from the home's .cursor whatever its config folder is.
 const hooksFile = (): string => join(homedir(), '.cursor', 'hooks.json')
 
-// Where Cursor reads cli-config.json: its config folder's variable, else XDG's config home, else
-// the home's .cursor.
-function configFile(): string {
-  const dir = process.env.CURSOR_CONFIG_DIR
-  if (dir) return join(dir, 'cli-config.json')
-  const xdg = process.env.XDG_CONFIG_HOME
-  if (xdg) return join(xdg, 'cursor', 'cli-config.json')
-  return join(homedir(), '.cursor', 'cli-config.json')
-}
+const configFile = (): string => join(cursorConfigDir(), 'cli-config.json')
 
 // Cursor waits for a hook before going on, and skips one that fails; a hung program then costs a
 // turn this many seconds per event. An entry never fails closed, which would stop the turn.

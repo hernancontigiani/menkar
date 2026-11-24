@@ -746,6 +746,13 @@ Plan 39 P3.4 (D1), measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026
   session not yet in Cursor's files (no message so far) is never restarted.
 - **What arrives while it restarts** waits for the new pane's first completed turn. A pane that
   ends drops what was held for it, with a log line.
+- **Restarts for wakes are spaced** (task 227, 2026-11-24), so a session whose resumed turns keep
+  ending idle with an empty box is never restarted in a loop: the first goes at once, the next
+  waits `RESTART_GAP_MS` after it, each one after that twice the gap before it up to
+  `RESTART_GAP_MAX_MS`, carried from pane to pane; a session not restarted for four gaps starts
+  again from the first. A restart put off waits on a timer, logged, and what is held still goes
+  with the session's next turn end. Cursor's free-requests limit screen restarts nothing on its
+  own: every turn ends in an error and the refused prompt goes back in the box, a draft.
 
 ## Cursor: names and a pane's chat changing
 
@@ -757,10 +764,13 @@ Plan 39 P3.4. `src/core/agents/cursor/names.ts`, `src/core/agents/cursor/follow.
   what they show today. Cursor's own title (`meta.json`'s `title`) is not read: nothing tells a
   human `/rename` from Cursor's generated title.
 - **`/new` and `/resume` inside the TUI** tell no hook: the next turn ends under the other chat's
-  id. The kit's `follow` reads that chat's `createdAtMs` from
-  `~/.cursor/chats/<hash>/<id>/meta.json` (that key only): made after the pane started, `/new` made
-  it and it takes the old one's place (`clear`); older, it was reopened (`resume`); not found, the
-  tab is left as it was.
+  id. The kit's `follow` reads that chat's `createdAtMs` from `chats/<hash>/<id>/meta.json` under
+  Cursor's config folder (that key only): made after the pane started, `/new` made it and it takes
+  the old one's place (`clear`); older, it was reopened (`resume`); not found, the tab is left as
+  it was. The config folder is `$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else
+  `~/.cursor` (`config-dir.ts`, read in cursor-agent 2026.11.13's code, 2026-11-24), the folder of
+  `cli-config.json` too; the transcripts stay under `~/.cursor/projects`, so the two part when
+  `XDG_CONFIG_HOME` is set.
 
 ## Cursor in the orchestration mode
 

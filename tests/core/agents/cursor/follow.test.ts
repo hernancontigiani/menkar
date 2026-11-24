@@ -5,7 +5,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
-import { createdAt, cursorFollow } from '../../../../src/core/agents/cursor/follow'
+import { chatsRoot, createdAt, cursorFollow } from '../../../../src/core/agents/cursor/follow'
 
 const STARTED = 1_795_470_900_000
 const NEW_CHAT = '7d3c1b2a-0000-4000-8000-00000000000a'
@@ -42,4 +42,23 @@ test('with no change named, or no chats folder yet, nothing is followed', async 
   expect(await follow.classify(null)).toBeNull()
   expect(await follow.classify(null, { to: NEW_CHAT, paneStartedAt: STARTED })).toBeNull()
   expect(await createdAt(chats(), '../escape')).toBeNull()
+})
+
+test.each([
+  ['its own variable first', { CURSOR_CONFIG_DIR: '/c', XDG_CONFIG_HOME: '/x' }, '/c/chats'],
+  ['else XDG’s config home', { CURSOR_CONFIG_DIR: ' ', XDG_CONFIG_HOME: '/x' }, '/x/cursor/chats'],
+  ['else the home’s .cursor', { HOME: '/h' }, '/h/.cursor/chats'],
+])('Cursor’s chats are found where it keeps them: %s', (_name, env, root) => {
+  const saved = { ...process.env }
+  try {
+    delete process.env.CURSOR_CONFIG_DIR
+    delete process.env.XDG_CONFIG_HOME
+    Object.assign(process.env, env)
+    expect(chatsRoot()).toBe(root)
+  } finally {
+    for (const key of ['CURSOR_CONFIG_DIR', 'XDG_CONFIG_HOME', 'HOME']) {
+      if (saved[key] === undefined) delete process.env[key]
+      else process.env[key] = saved[key]
+    }
+  }
 })

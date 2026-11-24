@@ -3062,3 +3062,33 @@ Interrupted on the 23rd (the human shut the PC down) and resumed on the 24th.
   parent that is not the orchestrator is not woken by such a child's state changes.
 - **Not here:** `cursor`'s real check (a separate task), topics 109 (`--trust`) and 110 (following
   a `/rename`), left as they are; the versions row goes in after the real check.
+
+### P3 fixes from the real check (`menkar-t227`, task 227, 2026-11-24)
+
+- **`/new` not followed: fixed.** cursor-agent keeps `chats/<md5>/<id>/meta.json` under its config
+  folder (`$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else `~/.cursor`, read in its
+  `cursor-config/dist/paths.js`), not beside its transcripts; the real check set
+  `XDG_CONFIG_HOME`, so `follow` found no metadata. New `src/core/agents/cursor/config-dir.ts`,
+  used by `follow.ts` and by `integrations.ts` (its `cli-config.json`, same rule). The stand-in
+  writes each chat's metadata there and does `/new` as the real one (metadata at once, no hook,
+  transcript at the first message); new e2e "a Cursor worker’s /new is followed by its tab", red
+  on the old `follow.ts`. Unit cases for the three folders, two red on the old code.
+- **The 2-minute idle wake is not the waker's.** cursor-agent's own logs: the hangup at
+  13:47:00.478, the resumed process at 13:47:00.739; it then sat 120 s before its UI. `cursor`'s
+  no-turn probe found no stall from the hangup or the old process tree (UI in 1.4–2.7 s), but a
+  resume with `--add-dir` shows a second "Workspace Trust Required" box for the added folder that
+  the first start did not, and it stays until answered: the likely cause. Not fixed: skipping it
+  is `--trust` (topic 109) or dropping `--add-dir` on a resume, a decision.
+- **No restart loop.** `cursor` corrected its count: 2 starts, not 10 (a multi-line prompt spans
+  lines of the wrapper's file). On the limit screen the refused prompt goes back in the box, so a
+  wake stays held. Still, `waker.ts` now spaces restarts for wakes (`RESTART_GAP_MS`, doubling up
+  to `RESTART_GAP_MAX_MS`, carried from pane to pane, reset after four quiet gaps, logged, a timer
+  for the one put off). Unit tests: the limit screen holds a wake (red when `quiet` ignores the
+  box); a session idle again after each resume is restarted at 0, 30, 60, 120 s, a burst of ten
+  wakes making one restart (red without the gate). Stand-in `FAKE_CURSOR_LIMIT` and an e2e on the
+  built app: two wakes held, one resume once the human empties the box, the next wake held.
+- **Docs:** `docs/agents.md` (the chats' folder, restarts spaced), the left line in its history.
+- **Checks:** `npm run ci` green up to test integrity, the 15 known lines, none new.
+  `npm run ui-check` alone: 460 passed.
+- **Found, not fixed:** Menkar reads Cursor's transcripts under `~/.cursor/projects`, ignoring
+  `$CURSOR_DATA_DIR`, which Cursor honours.

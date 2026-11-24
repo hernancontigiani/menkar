@@ -8,7 +8,12 @@ import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { runHook } from '../../../../src/core/agents/cursor/hooks'
-import { CursorWakes, SETTLE_MS } from '../../../../src/main/agents/cursor/waker'
+import {
+  CursorWakes,
+  RESTART_GAP_MAX_MS,
+  RESTART_GAP_MS,
+  SETTLE_MS,
+} from '../../../../src/main/agents/cursor/waker'
 import type { WakePane } from '../../../../src/main/agents/types'
 
 const SESSION = '0b7d4c2e-1f0a-4e55-9b1a-2a3c4d5e6f70'
@@ -16,6 +21,21 @@ const FOOTER = '\n\n  Auto · 4.1%\n  /home/demo/api · main\n'
 const EMPTY = `  Done.\n\n  → Add a follow-up${FOOTER}`
 const DRAFT = `  Done.\n\n  → also update the READ${FOOTER}`
 const WORKING = `  ⠠⠛ Working 1200 tokens\n\n  → Add a follow-up\n  ctrl+c to stop${FOOTER}`
+// Cursor's screen once its plan's requests ran out (measured by `cursor` on 2026.11.13-eacade1,
+// 2026-11-24): every turn ends in this error, and the refused prompt is put back in the box as text.
+const LIMIT = `  → [Menkar] from orch (Claude Code); reply with send_message: look at a.txt
+  Auto
+  ~/work
+  Error: You've hit your usage limit
+  Get Cursor Pro for more Agent usage, unlimited Tab, and more.
+  fallbackModel:
+  spendLimitHit: false
+  limitType: included_usage
+  chatMessage: *You've hit your free requests limit. [Upgrade to
+  Pro](https://example.com/upgrade) for more usage, frontier models, Cloud Agents,
+  and more. Your usage limits will reset when your monthly cycle ends on 12/14/2026.*
+  spendLimits: [50,100,200]
+`
 const CARD =
   '  Run this command?\n  → Run (once) (y)\n    Skip & tell the agent what to do instead (esc or n)\n'
 
@@ -219,4 +239,73 @@ test("a pane's end drops what was held for it; with no pane there is nowhere to 
   expect(wakes.held('p1')).toEqual([])
   expect(await wakes.waker.wake(SESSION, 'x', undefined)).toBe('no session')
   expect(await wakes.teller.tell(SESSION, 'x', undefined, null)).toBe('no session')
+})
+
+test('on Cursor’s free-requests limit screen, its refused prompt back in the box above the error, a wake is held and the session is not restarted', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const wakes = new CursorWakes(() => root)
+  const pane = paneOf('p1', LIMIT)
+  await wakes.waker.wake(SESSION, 'menkar-t2 ended its turn', undefined, pane)
+  await wakes.waker.wake(SESSION, 'menkar-t3 is waiting', undefined, pane)
+  for (let i = 0; i < 5; i++) {
+    pane.draw(`${LIMIT} `)
+    await vi.advanceTimersByTimeAsync(SETTLE_MS)
+  }
+  expect(pane.resumed).toEqual([])
+  expect(files('p1')).toHaveLength(2)
+})
+
+test('a session whose resumed turns keep ending idle with an empty box is never restarted in a loop: each restart waits twice as long as the one before', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const wakes = new CursorWakes(() => root)
+  // Each restart gives a new pane, idle again at once.
+  const resumes: string[] = []
+  let pane = paneOf('p0', EMPTY)
+  const follow = (p: FakePane) => {
+    const resume = p.resume
+    p.resume = async (prompt) => {
+      resumes.push(prompt)
+      const next = await resume(prompt)
+      pane = follow(paneOf(String(next), EMPTY))
+      return next
+    }
+    return p
+  }
+  pane = follow(pane)
+  await wakes.waker.wake(SESSION, 'w1', undefined, pane)
+  expect(resumes).toHaveLength(1)
+
+  // A wake right after: held, its restart put off by the gap, then made by the timer.
+  await wakes.waker.wake(SESSION, 'w2', undefined, pane)
+  await wakes.waker.wake(SESSION, 'w3', undefined, pane)
+  await vi.advanceTimersByTimeAsync(RESTART_GAP_MS - 1)
+  expect(resumes).toHaveLength(1)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(resumes).toHaveLength(2)
+  expect(resumes[1]).toMatch(/w2 .*\n\n\[Menkar\] w3 /s)
+
+  // The next waits twice as long, the one after four times.
+  for (const gap of [2, 4].map((n) => n * RESTART_GAP_MS)) {
+    const before = resumes.length
+    await wakes.waker.wake(SESSION, `after ${gap}`, undefined, pane)
+    await vi.advanceTimersByTimeAsync(gap - 1)
+    expect(resumes).toHaveLength(before)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(resumes).toHaveLength(before + 1)
+  }
+  // Many wakes in a burst make no more than one restart.
+  const before = resumes.length
+  for (let i = 0; i < 10; i++) await wakes.waker.wake(SESSION, `burst ${i}`, undefined, pane)
+  for (let i = 0; i < 10; i++) {
+    pane.draw(EMPTY)
+    await vi.advanceTimersByTimeAsync(SETTLE_MS)
+  }
+  expect(resumes).toHaveLength(before)
+  await vi.advanceTimersByTimeAsync(8 * RESTART_GAP_MS - 10 * SETTLE_MS)
+  expect(resumes).toHaveLength(before + 1)
+
+  // Left alone for four gaps, a session is restarted at once again.
+  await vi.advanceTimersByTimeAsync(4 * RESTART_GAP_MAX_MS)
+  await wakes.waker.wake(SESSION, 'much later', undefined, pane)
+  expect(resumes).toHaveLength(before + 2)
 })

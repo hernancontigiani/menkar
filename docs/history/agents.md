@@ -151,3 +151,12 @@ kept in one place per agent, so a change to one agent cannot break another and s
   **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
   fork, no Remote Control, no team block, no waker, no inbox; Codex has no fork, Remote Control,
   team block or inbox either, and no chat or trash.
+
+## Cursor: names and a pane's chat changing
+
+> Left on 2026-11-24: Cursor keeps its chats under its config folder, which `XDG_CONFIG_HOME` moves (task 227).
+- **`/new` and `/resume` inside the TUI** tell no hook: the next turn ends under the other chat's
+  id. The kit's `follow` reads that chat's `createdAtMs` from
+  `~/.cursor/chats/<hash>/<id>/meta.json` (that key only): made after the pane started, `/new` made
+  it and it takes the old one's place (`clear`); older, it was reopened (`resume`); not found, the
+  tab is left as it was.

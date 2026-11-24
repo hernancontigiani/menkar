@@ -196,7 +196,7 @@ test('a message for an idle Cursor worker waits out a draft in its box, then res
 const WORKER = 'client-work-t1'
 const TIME = String.raw`\(\d\d:\d\d:\d\d\)`
 
-async function launchTeam() {
+async function launchTeam(extra: Record<string, string> = {}) {
   let root = ''
   let home = ''
   const launched = await launchApp({
@@ -238,7 +238,7 @@ async function launchTeam() {
         ),
         { recursive: true },
       )
-      return { ...env, MENKAR_LOG: 'info', FAKE_CLAUDE_SOCKET: '1' }
+      return { ...env, MENKAR_LOG: 'info', FAKE_CLAUDE_SOCKET: '1', ...extra }
     },
   })
   const page = launched.window
@@ -289,7 +289,7 @@ async function launchTeam() {
 type Team = Awaited<ReturnType<typeof launchTeam>>
 
 // The orchestrator starts the worker for task 1; its id is the one Menkar gave it.
-async function startWorker(team: Team): Promise<string> {
+async function startWorker(team: Team, firstReply = 'ack 1:'): Promise<string> {
   await team.page.locator('.row').first().dblclick()
   await expect(team.page.locator('.xterm-rows')).toContainText('stand-in claude ready')
   expect(await callAsClaude(team.home, 'task_add', { title: 'build the thing' })).toContain(
@@ -320,7 +320,7 @@ async function startWorker(team: Team): Promise<string> {
     timeout: 15_000,
   })
   await team.page.locator(`.row[data-session="${id}"]`).click()
-  await expect(team.page.locator('.xterm-rows:visible')).toContainText('ack 1:', {
+  await expect(team.page.locator('.xterm-rows:visible')).toContainText(firstReply, {
     timeout: 15_000,
   })
   const take = team.page.locator('.pane-banner button:visible', { hasText: 'Take control' })
@@ -486,6 +486,112 @@ test('a Cursor worker of a Claude orchestrator without Cursor’s items: it asks
     expect(team.hookLog()).toEqual([])
     expect(team.names()).toEqual({ [id]: WORKER })
     await shot(team.page, 'cursor-worker-resumed')
+  } finally {
+    await team.launched.close()
+  }
+})
+
+// `/new` inside Cursor's TUI, as cursor-agent 2026.11.13 does it: no hook runs, the new chat's
+// metadata comes at once, under Cursor's config folder ($XDG_CONFIG_HOME/cursor here, not the home's
+// .cursor), and its transcript at its first message, whose hooks carry the new id. The tab follows
+// it as it follows a clear: the new id takes the worker's place.
+test('a Cursor worker’s /new is followed by its tab: the new chat takes the worker’s place', async () => {
+  const team = await launchTeam()
+  const screen = team.page.locator('.xterm-rows:visible')
+  try {
+    const prefs = await (async () => {
+      await team.page.locator('body').click({ position: { x: 5, y: 5 } })
+      const [child] = await Promise.all([
+        team.launched.app.waitForEvent('window'),
+        team.page.keyboard.press('Control+Comma'),
+      ])
+      await child.waitForLoadState('domcontentloaded')
+      return child
+    })()
+    await prefs.locator('.section-item[data-section="agents"]').click()
+    await prefs.locator('[data-key="agent-item-cursor-hooks"]').check()
+    await expect
+      .poll(() => readFileSync(join(team.home, '.cursor', 'hooks.json'), 'utf8'))
+      .toContain('cursor-hook.js')
+    await prefs.close()
+
+    const id = await startWorker(team)
+    await expect.poll(() => team.hookLog().length).toBe(2)
+    // The real run's sequence: the pane restarted by a wake first, then /new in it.
+    await expect
+      .poll(() => callAsClaude(team.home, 'last_reply', { name: WORKER }), { timeout: 15_000 })
+      .toContain('ack 1: build the thing')
+    expect(
+      await callAsClaude(team.home, 'send_message', { name: WORKER, text: 'look at a.txt' }),
+    ).toMatch(/^Sent to client-work-t1\./)
+    await expect.poll(() => team.starts().length, { timeout: 20_000 }).toBe(2)
+    expect(team.starts()[1]).toContain(`--resume ${id} `)
+    await expect(screen).toContainText('ack 1: [Menkar] from', { timeout: 15_000 })
+    await expect.poll(() => team.hookLog().length).toBe(4)
+    await typeIn(team.page, '/new')
+    await typeIn(team.page, 'Say OK new.')
+    await expect(screen).toContainText('ack 2: Say OK new.', { timeout: 15_000 })
+    const fresh = () =>
+      team
+        .hookLog()
+        .map((l) => l.session_id)
+        .find((s) => s !== id) ?? ''
+    await expect.poll(fresh).not.toBe('')
+    const newId = fresh()
+    const panes = async () =>
+      (
+        (await team.page.evaluate(() =>
+          (
+            globalThis as unknown as { menkar: { window: { state(): Promise<unknown> } } }
+          ).menkar.window.state(),
+        )) as { tabs: { panes: { sessionId: string | null }[] }[] }
+      ).tabs.flatMap((t) => t.panes.map((p) => p.sessionId))
+    await expect.poll(panes, { timeout: 15_000 }).toContain(newId)
+    expect(await panes()).not.toContain(id)
+    expect(team.saved().projects[0]?.members).toContain(newId)
+    expect(team.saved().projects[0]?.parents).toEqual({ [newId]: SESSION })
+  } finally {
+    await team.launched.close()
+  }
+})
+
+// Cursor's free-requests limit (measured by `cursor`, 2026-11-24): every turn ends in an error and
+// the refused prompt is put back in the box. A wake never restarts such a session on its own; once
+// the human empties the box it is resumed once, and the refused wake back in the box holds the next.
+test('a Cursor worker on its free-requests limit screen is not restarted by wakes in a loop', async () => {
+  const team = await launchTeam({ FAKE_CURSOR_LIMIT: '1' })
+  const screen = team.page.locator('.xterm-rows:visible')
+  // A start's line; a multi-line first prompt goes on over more lines of the file.
+  const starts = () => team.starts().filter((l) => /^--(new-session-id|resume) /.test(l))
+  try {
+    const id = await startWorker(team, 'free requests limit')
+    await expect(screen).toContainText('→ build the thing')
+    await expect
+      .poll(() => callAsClaude(team.home, 'last_reply', { name: WORKER }), { timeout: 15_000 })
+      .not.toMatch(/no session|not found/i)
+    for (const text of ['look at a.txt', 'and b.txt'])
+      expect(await callAsClaude(team.home, 'send_message', { name: WORKER, text })).toMatch(
+        /^Sent to client-work-t1\./,
+      )
+    await expect.poll(team.held).toHaveLength(2)
+    await team.page.waitForTimeout(3000)
+    expect(starts()).toHaveLength(1)
+
+    // The human empties the box: one resume carries both, and is refused in turn.
+    await team.page.locator('.xterm:visible').click()
+    for (let i = 0; i < 'build the thing'.length; i++) await team.page.keyboard.press('Backspace')
+    await expect.poll(() => starts().length, { timeout: 20_000 }).toBe(2)
+    expect(starts()[1]).toContain(`--resume ${id} `)
+    await expect(screen).toContainText('free requests limit', { timeout: 15_000 })
+    await expect(screen).toContainText('→ [Menkar] from')
+    expect(team.held()).toEqual([])
+
+    expect(
+      await callAsClaude(team.home, 'send_message', { name: WORKER, text: 'and c.txt' }),
+    ).toMatch(/^Sent to client-work-t1\./)
+    await expect.poll(team.held).toHaveLength(1)
+    await team.page.waitForTimeout(3000)
+    expect(starts()).toHaveLength(2)
   } finally {
     await team.launched.close()
   }
