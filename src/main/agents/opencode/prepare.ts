@@ -229,6 +229,7 @@ export class OpenCodePreparer implements Preparer {
       if (current && pane !== null) await this.mount(running, pane)
       return 'stored'
     },
+    withdraw: null,
   }
 
   private async putTeam(running: Running, id: string, teamFile: string | undefined): Promise<void> {

@@ -71,9 +71,3 @@ describe("Claude's waker", () => {
     expect(mainKitOf('claude').team?.tell).toBe(mainKitOf('claude').waker?.wake)
   })
 })
-
-describe("Cursor's waker", () => {
-  test('there is none', () => {
-    expect(mainKitOf('cursor').waker).toBeNull()
-  })
-})

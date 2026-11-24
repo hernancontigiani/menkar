@@ -122,3 +122,25 @@ kept in one place per agent, so a change to one agent cannot break another and s
 
 > Left on 2026-11-23: Cursor has an MCP mount (plan 39 P3.2, task 219).
   not installed, or one whose kit has no MCP mount (Cursor until P3) is refused.
+
+## Messaging, and the tools each caller is listed
+
+> Left on 2026-11-24: Cursor has a Waker (plan 39 P3.4, task 221).
+    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor lists none until
+    Cursor's Waker exists, a Codex-only user is listed it (nothing else messages by name), and a
+    Claude-only user is listed exactly the tools R10 recorded.
+
+## Cursor: its hooks
+
+> Left on 2026-11-24: the stop hook answers held wakes, an interrupted turn's second stop writes no record, and `/new` is followed (plan 39 P3.4, task 221).
+- **It never waits and never answers**: it prints nothing and exits 0 whatever fails (a silent
+  hook changes nothing for any of the three events, measured), so Cursor's 3-second timeout is
+  never reached. `stop`'s `followup_message` is the waker's (P3.4).
+  A `/new` chat's record names its new id, but the kit has no `follow`, so main does not move the
+  tab to it yet. An interrupted turn fires two `stop`s, so main sees its end twice, 20 ms apart.
+
+## Cursor: the team block
+
+> Left on 2026-11-24: Cursor's teller holds a change (plan 39 P3.4, task 221).
+  main keeps what each session holds (`controlPaths().teamHeld`), recorded even before Cursor can be
+  told anything (its waker is P3.4's), and a resume starts from it.

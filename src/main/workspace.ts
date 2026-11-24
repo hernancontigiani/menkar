@@ -10,6 +10,7 @@ import { AGENT_IDS, type AgentId, DEFAULT_AGENT, parseAgentId } from '../core/ag
 import { IdRefusal } from '../core/agents/refusal'
 import { isDefault, kitOf } from '../core/agents/registry'
 import type { FollowKind } from '../core/agents/types'
+import { readingOf } from '../core/agentstate/detect'
 import { backgroundToastShown, markBackgroundToast } from '../core/background-toast'
 import { now } from '../core/clock'
 import { commandLine, mcpConfig, type Start } from '../core/command'
@@ -233,7 +234,7 @@ import type {
 import { recordPresence, recordPromptedStart } from './activity'
 import { installedVersion, markIdRefused } from './agent-versions'
 import { mainKitOf, paneOfCaller } from './agents/registry'
-import type { PaneNotice } from './agents/types'
+import type { PaneNotice, WakePane } from './agents/types'
 import {
   agentStates,
   notifyTopic,
@@ -264,7 +265,7 @@ import {
   saveBuffer,
 } from './files'
 import { Inboxes, type OrchestratorPane } from './inbox'
-import { notifySeen, type PaneHandle, registerAgentPane } from './panes'
+import { agentPanes, notifySeen, type PaneHandle, registerAgentPane } from './panes'
 import {
   bringIn,
   chooseIncoming,
@@ -1304,7 +1305,10 @@ function onPaneExit(paneId: string): void {
   if (!pane) return
   panes.delete(paneId)
   stopNameWatch(paneId)
-  if (pane.agent !== 'shell') mainKitOf(pane.agent).prepare?.release(paneId)
+  if (pane.agent !== 'shell') {
+    mainKitOf(pane.agent).prepare?.release(paneId)
+    mainKitOf(pane.agent).waker?.release?.(paneId)
+  }
   if (pane.sessionId) {
     toName.delete(pane.sessionId)
     firstTurnNames.delete(pane.sessionId)
@@ -1574,6 +1578,7 @@ function bindPane(pane: Pane, from: string, to: string, pending: Pending): void 
     startedNames.delete(from)
     startedNames.set(to, name)
   }
+  void followKeptName(from, to)
   const naming = toName.get(from)
   if (naming) {
     toName.delete(from)
@@ -1593,6 +1598,30 @@ function bindPane(pane: Pane, from: string, to: string, pending: Pending): void 
 }
 
 // ---------------------------------------------------------------- naming a session after its start
+
+// A session the orchestration starts that nothing outside its agent can name keeps the name it was
+// started with in Menkar's own names, for good (D22): it is how the other sessions address it.
+async function keepName(id: string, agent: AgentId, name: string): Promise<void> {
+  const kept = kitOf(agent).namer.kept(name)
+  if (kept !== null) await sessions.updateState((state) => setAppName(state, id, kept))
+}
+
+async function keptName(id: string, agent: AgentId): Promise<string | undefined> {
+  const saved = (await sessions.currentState()).names[id]
+  return saved === undefined ? undefined : (kitOf(agent).namer.kept(saved) ?? undefined)
+}
+
+// A name Menkar keeps under a provisional id goes to the real one.
+async function followKeptName(from: string, to: string): Promise<void> {
+  try {
+    await sessions.updateState((state) => {
+      const name = state.names[from]
+      return name === undefined ? state : setAppName(setAppName(state, from, ''), to, name)
+    })
+  } catch (error) {
+    log.warn("a started session's name could not follow its id", { from, to, error })
+  }
+}
 
 // A session the orchestration started, of an agent that cannot be named at start (decision 1.195):
 // named as soon as its thread exists. Its pane's bind is looked for at each change where the
@@ -2362,10 +2391,43 @@ function renewWhenIdle(paneId: string): void {
   else request.timer = setTimeout(() => renewWhenIdle(paneId), RENEW_CHECK_MS)
 }
 
+// What a waker may look at and do in the pane that shows the session it wakes.
+function wakePane(pane: Pane): WakePane {
+  const shown = () => agentPanes().find((p) => p.id === pane.id)
+  return {
+    id: pane.id,
+    screen: () => {
+      const agentPane = shown()
+      return agentPane?.foreground() ? agentPane.mirror.screen(readingOf(agentPane.provider)) : ''
+    },
+    onScreen: (changed) => shown()?.mirror.onChange(changed) ?? (() => {}),
+    resume: (prompt) => resumeWithPrompt(pane, prompt),
+  }
+}
+
+// An idle session given a message by ending it and resuming it with that message as its first, for
+// an agent with no channel into a running session. Nothing is typed into it.
+async function resumeWithPrompt(pane: Pane, prompt: string): Promise<string | null> {
+  const sessionId = pane.sessionId
+  if (!sessionId || panes.get(pane.id) !== pane) return null
+  // A session with no files of its own yet (no message so far) cannot be resumed: it stays.
+  if (!sessionInfo(sessionId)) {
+    log.info('a session not found in its agent’s files is not restarted', { session: sessionId })
+    return null
+  }
+  const promptFile = await savePrompt(randomUUID(), prompt)
+  if (!(await restartSession(pane, sessionId, promptFile))) return null
+  return paneOfSession(sessionId)?.id ?? null
+}
+
 // Hung up as a renew hangs up, so its tab stays, then resumed there: the start carries what the
 // session's settings say now, Remote Control included.
-async function restartSession(pane: Pane, sessionId: string): Promise<void> {
-  if (renewing.has(pane.id) || renewRequests.has(pane.id) || stopRequests.has(pane.id)) return
+async function restartSession(
+  pane: Pane,
+  sessionId: string,
+  promptFile?: string,
+): Promise<boolean> {
+  if (renewing.has(pane.id) || renewRequests.has(pane.id) || stopRequests.has(pane.id)) return false
   const tabId = pane.tabId
   holdStart(tabId)
   try {
@@ -2373,13 +2435,14 @@ async function restartSession(pane: Pane, sessionId: string): Promise<void> {
       renewing.set(pane.id, resolve)
       pane.terminal.hangUp()
     })
-    if (!tabById(tabId)) return
-    await startPane(tabId, resumeSpec(sessionId))
+    if (!tabById(tabId)) return false
+    await startPane(tabId, { ...resumeSpec(sessionId), ...(promptFile ? { promptFile } : {}) })
   } finally {
     releaseStart(tabId)
   }
   log.info('a session was restarted', { session: sessionId })
   changed()
+  return true
 }
 
 // A `/clear` nobody types: the tab is re-keyed to a new id first, as a followed
@@ -2403,8 +2466,13 @@ async function renew(paneId: string): Promise<void> {
     log.warn('a session was not renewed: it is in no project', { session: from })
     return
   }
-  const name = info?.claudeNamed ? info.name : startedNames.get(from)
-  if (name) startedNames.set(to, name)
+  const name = info?.claudeNamed
+    ? info.name
+    : (startedNames.get(from) ?? (await keptName(from, agent)))
+  if (name) {
+    startedNames.set(to, name)
+    await keepName(to, agent, name)
+  }
   const tabId = pane.tabId
   holdStart(tabId)
   try {
@@ -2561,6 +2629,7 @@ async function startForAgent(
   const realId = kitOf(agent).ids.newId(await installedVersion(agent))
   const id = realId ?? provisionalId(randomUUID())
   startedNames.set(id, name)
+  await keepName(id, agent, name)
   const namesakes = projectSessions(projectId)
     .filter((s) => sessionName(s) === name && !inSomeTab(s))
     .sort((a, b) => (sessionInfo(b)?.mtimeMs ?? 0) - (sessionInfo(a)?.mtimeMs ?? 0))
@@ -3019,7 +3088,8 @@ function wakeSession(parent: string, text: string): Promise<WakeOutcome> {
 
 // A message another session sent carries no counts: they are the orchestrator's, for its wakes.
 async function wakeTarget(parent: string, text: string, withCounts: boolean): Promise<WakeOutcome> {
-  const agent = agentOf(paneOfSession(parent))
+  const pane = paneOfSession(parent)
+  const agent = agentOf(pane)
   const waker = agent ? mainKitOf(agent).waker : null
   if (!waker) {
     log.info('a parent with no tab that can be woken was not woken', { parent })
@@ -3035,7 +3105,7 @@ async function wakeTarget(parent: string, text: string, withCounts: boolean): Pr
           project ? tasksOf(currentTasks(), project.id) : [],
         )
       : undefined
-    const outcome = await waker.wake(parent, text, counts)
+    const outcome = await waker.wake(parent, text, counts, pane ? wakePane(pane) : undefined)
     if (outcome === 'posted') log.info('a parent session was woken', { parent })
     else log.warn('a parent session could not be woken', { parent, outcome })
     return outcome

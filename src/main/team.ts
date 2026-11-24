@@ -56,6 +56,8 @@ interface Held {
   recorded?: { readonly session: string; readonly text: string }
   // A post was delivered since its last turn end: that turn end reads its transcript.
   posted: boolean
+  // Told and held by the agent's teller until the session can be handed it: what it then holds.
+  holding?: { readonly current: TeamText | null } | undefined
   posting: boolean
   again: boolean
 }
@@ -301,12 +303,21 @@ async function recompute(pane: string): Promise<void> {
     current = teamText(input, agent, common, part)
   }
   const text = teamPost(h.team.held, current)
-  if (!text) return
+  if (!text) {
+    // The facts went back to what the session holds: what was held would tell it otherwise.
+    if (h.holding) {
+      h.holding = undefined
+      teller.withdraw?.(pane)
+    }
+    return
+  }
   h.posting = true
   let outcome: TeamOutcome | 'error' = 'error'
+  const holding = { current }
+  const whenHeld = { pane, delivered: () => void heldDelivered(pane, h, holding) }
   try {
     outcome = await postWithTries(
-      () => teller.tell(session.sessionId, text, s.counts(session.sessionId), current),
+      () => teller.tell(session.sessionId, text, s.counts(session.sessionId), current, whenHeld),
       sleep,
     )
   } catch (error) {
@@ -314,7 +325,10 @@ async function recompute(pane: string): Promise<void> {
   } finally {
     h.posting = false
   }
-  if (outcome === 'stored') {
+  if (outcome === 'held') {
+    h.holding = holding
+    log.info('a team update is held until the session can take it', { pane })
+  } else if (outcome === 'stored') {
     h.team = delivered(h.team, current)
     log.info('a team update was stored', { pane })
   } else if (outcome === 'posted') {
@@ -327,6 +341,22 @@ async function recompute(pane: string): Promise<void> {
     h.again = false
     settle.trigger(pane)
   }
+}
+
+// What a teller held was handed to the session: it holds those facts now, unless a later update
+// took that one's place.
+async function heldDelivered(
+  pane: string,
+  h: Held,
+  holding: { readonly current: TeamText | null },
+): Promise<void> {
+  if (held.get(pane) !== h || h.holding !== holding) return
+  h.holding = undefined
+  h.team = delivered(h.team, holding.current)
+  h.posted = true
+  log.info('a held team update was handed over', { pane })
+  const session = source?.session(pane)
+  if (session && kitOf(session.agent).team?.records) await record(h, session.sessionId)
 }
 
 // Whether the pane was delivered a team post since its last turn end; the turn end clears it.

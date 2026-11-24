@@ -22,6 +22,7 @@ import {
   runHook,
   STOP_KEYS,
 } from '../../../../src/core/agents/cursor/hooks'
+import { TEAM_PREFIX, WAKE_PREFIX } from '../../../../src/core/agents/cursor/wakes'
 import { parseTurnEnd } from '../../../../src/core/agents/shared/turn-end'
 
 const EMAIL = 'someone@example.invalid'
@@ -45,6 +46,7 @@ function where(classifier: boolean): HookPaths {
     cache: join(root, 'cache'),
     turnEnds: join(root, 'cache', 'control', 'turn-ends'),
     state,
+    held: join(root, 'cache', 'control', 'held-wakes'),
   }
 }
 
@@ -168,4 +170,68 @@ test('a payload it cannot read, or an event it does not take, writes nothing and
   expect(runHook(event('afterAgentResponse', { text: 'Done.' }), pane, paths)).toBe('')
   expect(runHook(event('stop', { session_id: '../x' }), pane, paths)).toBe('')
   expect(existsSync(paths.cache)).toBe(false)
+})
+
+// What main holds for the pane, as its waker writes it: one file per text.
+function hold(paths: HookPaths, texts: Record<string, string>): void {
+  mkdirSync(join(paths.held, 'pane-7'), { recursive: true })
+  for (const [name, text] of Object.entries(texts))
+    writeFileSync(join(paths.held, 'pane-7', `${name}.txt`), text)
+}
+
+const record = (paths: HookPaths) =>
+  parseTurnEnd(readFileSync(join(paths.turnEnds, 'pane-7.json'), 'utf8'))
+
+// D1: a wake for a working Cursor session goes as the completed turn's followup_message, the team
+// update first, then the wakes in the order they came, and the hook never waits for anything.
+test("a completed turn's stop answers what main holds for the pane as one followup, and takes it", () => {
+  const paths = where(false)
+  hold(paths, {
+    [`${WAKE_PREFIX}2`]: '[Menkar] menkar-t3 is waiting',
+    [`${WAKE_PREFIX}1`]: '[Menkar] menkar-t2 ended its turn',
+    [`${TEAM_PREFIX}1`]: '[Menkar] team update: your facts are now…',
+  })
+  const out = runHook(event('stop', { status: 'completed' }), pane, paths)
+  expect(JSON.parse(out)).toEqual({
+    followup_message:
+      '[Menkar] team update: your facts are now…\n\n[Menkar] menkar-t2 ended its turn\n\n[Menkar] menkar-t3 is waiting',
+  })
+  expect(readdirSync(paths.held)).toEqual([])
+  expect(record(paths)?.sessionId).toBe(SESSION)
+  // nothing held: nothing printed
+  expect(runHook(event('stop', { status: 'completed', generation_id: 'gen-2' }), pane, paths)).toBe(
+    '',
+  )
+})
+
+// Cursor ignores a followup answered at either stop of an interrupted turn (`cursor`, 2026-11-23).
+test("an interrupted turn's stops leave what main holds for the next completed one", () => {
+  const paths = where(false)
+  hold(paths, { [`${WAKE_PREFIX}1`]: '[Menkar] menkar-t2 ended its turn' })
+  expect(runHook(event('stop', { status: 'aborted' }), pane, paths)).toBe('')
+  expect(runHook(event('stop', { status: 'error' }), pane, paths)).toBe('')
+  expect(readdirSync(join(paths.held, 'pane-7'))).toHaveLength(1)
+  expect(
+    JSON.parse(
+      runHook(event('stop', { status: 'completed', generation_id: 'gen-2' }), pane, paths),
+    ),
+  ).toEqual({ followup_message: '[Menkar] menkar-t2 ended its turn' })
+})
+
+// Esc and Ctrl+C end a turn with two stops of one generation, 20 ms apart: main hears of its end
+// once, so a parent is not woken twice nor a pending stop or renew run twice.
+test("an interrupted turn's second stop leaves the turn-end record as the first wrote it", () => {
+  const paths = where(false)
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.UTC(2026, 10, 23, 12, 0, 0))
+  runHook(event('stop', { status: 'aborted' }), pane, paths)
+  const first = record(paths)
+  vi.setSystemTime(Date.UTC(2026, 10, 23, 12, 0, 0, 20))
+  runHook(event('stop', { status: 'error' }), pane, paths)
+  expect(record(paths)).toEqual(first)
+  // both are in the log, which the usage source reads
+  expect(logLines(paths).map((l) => l.status)).toEqual(['aborted', 'error'])
+  vi.setSystemTime(Date.UTC(2026, 10, 23, 12, 1, 0))
+  runHook(event('stop', { status: 'completed', generation_id: 'gen-2' }), pane, paths)
+  expect(record(paths)?.at).not.toBe(first?.at)
 })

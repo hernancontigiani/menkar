@@ -322,3 +322,9 @@ Cursor's kit has none of them. Main writes the block's file before asking the La
 
 A compaction rebuilds what the pane `started` with for both. Codex's details are in
 `docs/agents.md`, "Codex: the team block". Cursor's kit has none of them. Main writes the block's file before asking the Launcher (a write
+
+## The team block, per agent
+
+> Left on 2026-11-24: Cursor's teller holds a change, and the tellers moved into the waker files (plan 39 P3.4, task 221).
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) | Cursor (`src/core/agents/cursor/team.ts`) |
+| (3) How a change is told | `tell(session, text, counts, current)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post | none yet (`mainKitOf('cursor').team` is P3.4's): what it holds is recorded, nothing is posted |

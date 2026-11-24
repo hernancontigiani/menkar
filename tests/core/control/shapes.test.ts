@@ -64,8 +64,9 @@ describe("R10: a Claude user with no other agent sees today's tools", () => {
 
 describe("D3's snapshots, per installed set and caller", () => {
   test.each([
-    // Cursor has no Waker before P3.4: nothing out of Claude's reach can be woken.
-    ['claude-cursor', 'claude', ['claude', 'cursor'], wakeable('claude')],
+    // With Cursor's Waker (P3.4), a Claude caller needs send_message to reach Cursor.
+    ['claude-cursor', 'claude', ['claude', 'cursor'], wakeable('claude', 'cursor')],
+    ['claude-cursor', 'cursor', ['claude', 'cursor'], wakeable('claude', 'cursor')],
     // With Codex's Waker (P1b.3), a Claude caller needs send_message to reach Codex.
     ['claude-codex', 'claude', ['claude', 'codex'], wakeable('claude', 'codex')],
     ['claude-codex', 'codex', ['claude', 'codex'], wakeable('claude', 'codex')],
@@ -82,6 +83,8 @@ describe('S8: send_message is listed where an installed agent is out of native r
     // [installed, wakeable, caller, send_message, start_session's agent]
     [['claude'], ['claude'], 'claude', false, false],
     [['claude', 'cursor'], ['claude'], 'claude', false, true],
+    [['claude', 'cursor'], ['claude', 'cursor'], 'claude', true, true],
+    [['claude', 'cursor'], ['claude', 'cursor'], 'cursor', true, true],
     [['claude', 'codex'], ['claude'], 'claude', false, true],
     [['claude', 'codex'], ['claude', 'codex'], 'claude', true, true],
     [['claude', 'codex'], ['claude', 'codex'], 'codex', true, true],

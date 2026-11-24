@@ -1,9 +1,7 @@
 import { shellQuote } from '../../command'
-import type { Launcher, LaunchFile, Namer } from '../types'
+import type { Launcher, LaunchFile } from '../types'
 import { mcp, type PluginHooks, pluginFiles, pluginFolder } from './mcp'
 import { preCompact, sessionStart } from './team'
-
-export const namer: Namer = { atStart: () => null }
 
 export const launch: Launcher = {
   plan(start, ctx) {

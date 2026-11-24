@@ -2943,3 +2943,81 @@ P0's blocks run in turn.
 - **Not done here:** a `/new` chat followed in its pane — the record names the new id, but Cursor's
   kit has no `follow`, so `applyFollow` leaves the tab (a `PaneFollow` for Cursor, P3.4 or later);
   main sees an interrupted turn's end twice, 20 ms apart; the followup answer at `stop` (P3.4).
+
+### P3.4 (`menkar-t221`, task 221, 2026-11-23 and 24)
+
+Interrupted on the 23rd (the human shut the PC down) and resumed on the 24th.
+
+- **Built:**
+  - **The waker (D1)**, `src/main/agents/cursor/waker.ts`, `src/core/agents/cursor/wakes.ts`. A wake
+    is held for the pane, one file per text under `<control>/held-wakes/<pane>/`. The stop hook takes
+    the whole folder, but only on a `completed` turn, and answers it as one `followup_message` (the
+    team update first). An idle session whose box shows its placeholder is ended and resumed with
+    the held texts as its first message, at once or as soon as its box empties. A draft, a card or a
+    running turn keeps the wake held. A session not yet found in Cursor's files is never restarted.
+    Wakes that come during the restart wait for the new pane.
+  - **Team `tell` (1.159, S7)**: `'held'`, delivered with the next wake or completed turn, never a
+    restart by itself. `team.ts` advances `held` and records it once the update is handed over, and
+    withdraws it when the facts go back.
+  - **The interrupted turn's double `turnEnded`**: it was real (two records, 20 ms apart). Now the
+    second `stop` of a generation writes no record.
+  - **Names (D22)**: `namer.kept` (`src/core/agents/cursor/names.ts`). `start_session` writes the
+    worker's name to state.json `names`; it moves to the real id at a bind and goes to the new
+    session at a renew.
+  - **`/new` and `/resume` followed**: `src/core/agents/cursor/follow.ts` reads only `createdAtMs`
+    from `~/.cursor/chats/<hash>/<id>/meta.json`. After the pane's start → `clear`; before →
+    `resume`; not found → not followed.
+  - **The D3 snapshots**: `{claude, cursor}` now lists `send_message`. Caller `cursor` was added,
+    and S8 gained its two rows.
+- **Interface changes** (`src/main/agents/types.ts`, `src/core/agents/types.ts`):
+  - `Waker.wake` takes an optional `WakePane` (screen, onScreen, resume); `Waker.release`.
+  - `TeamOutcome` gains `'held'`.
+  - `MainTeamDelivery.tell` takes an optional `TeamHeld`; `MainTeamDelivery.withdraw`.
+  - `Namer.kept`.
+  - Claude's, Codex's and OpenCode's wakers and tellers are unchanged in behaviour: each teller is a
+    named object beside its waker, with `release: null` and `withdraw: null`.
+- **`cursor`'s answers** (2026.11.13-eacade1, 2026-11-23):
+  - SIGHUP ends the TUI cleanly with the transcript intact, and fires no `sessionEnd`.
+  - `--resume <id> -- "<text>"` runs the text as the first turn.
+  - A followup is ignored on both stops of an interrupted turn, and taken once on `completed`.
+  - The placeholder is `→ Add a follow-up` (`→ Plan, search, build anything` in a new chat). It is
+    dim, goes at one typed character, shows while a turn runs, and a card replaces it.
+  - Ctrl+C puts the prompt back in the box.
+  - A draft survives a followup turn.
+  - A 2.8 KB multi-line followup is taken whole.
+  - `/rename` writes `meta.json`'s `title`, and nothing tells it from the auto-namer's.
+  - `/new` fires no hook until its first prompt, whose events carry the new id. `/resume` in the
+    TUI reopens an older chat with no hook.
+  - `meta.json` has `createdAtMs`.
+- **Deviations: files beyond P3.4's list.**
+  - `src/core/agents/cursor/{hooks,wakes,follow,index,launch}.ts`
+  - `src/core/agents/{types,claude/launch,codex/launch,opencode/launch}.ts`
+  - `src/main/agents/{types,claude/*,codex/*,opencode/{index,waker,prepare},cursor/index}.ts`
+  - `src/main/{team,workspace}.ts`
+  - `e2e/{cursor.spec,fixtures}.ts`: the stand-in's input box, behind `FAKE_CURSOR_BOX`.
+  - `tests/core/control/{shapes.test.ts,d3/claude-cursor-*}`
+  - `docs/{agents,session-control}.md` and their histories.
+- **My choices:**
+  - The held texts live in files the hook takes by renaming their folder. Main tells what was handed
+    over from which files are gone, through a watch on the folder.
+  - "Empty box" is read from the text, not the placeholder's dim attribute, which the mirror does
+    not keep. A draft that reads exactly as the placeholder would count as empty.
+  - A team update counted as handed over stays counted if the resume it rode on fails; it is held
+    again and goes later.
+  - A held wake whose pane ends is dropped, with a log line.
+  - The worker's name goes in state.json `names`, Menkar's own rename slot (`set`'s go-ahead,
+    2026-11-23).
+  - `restartSession` takes a prompt file.
+- **Not built, waiting on the human:**
+  - Following a human `/rename` (topic 110; `set` recommends deferring it). `meta.json`'s title is
+    not read.
+  - `--trust` (topic 109) is untouched.
+- **Known, not mine:** a team-update-only followup turn of a Cursor worker is routed as a turn
+  without a report, because Cursor's catalog has no `turnEnd` reading (`onlyTeamUpdates`). It was
+  already so for every Cursor turn.
+- **Seen red:** the hook (followup only on `completed`, the second stop's record), `quiet`, `takeHeld`,
+  each branch of `CursorWakes` (6 injections), `follow`, `namer.kept`, and the e2e (quiet ignoring
+  the draft; the name not kept).
+- **Removed `expect(` lines (2)**, each an assertion of Cursor's earlier roster:
+  `tests/core/agents/claude/ids.test.ts` (`kitOf('cursor').follow` null) and
+  `tests/main/agents/claude/waker.test.ts` (`mainKitOf('cursor').waker` null).

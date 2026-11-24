@@ -539,7 +539,7 @@ What differs per agent is a `TeamDelivery` in its kit (`kitOf(agent).team`, core
 `MainTeamDelivery` in its main kit (`mainKitOf(agent).team`); `null` in either means no block, no
 flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 
-| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/index.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/index.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) | Cursor (`src/core/agents/cursor/team.ts`) |
+| Piece | Member | Claude (`src/core/agents/claude/team.ts`, `src/main/agents/claude/waker.ts`) | Codex (`src/core/agents/codex/team.ts`, `src/main/agents/codex/waker.ts`) | OpenCode (`src/core/agents/opencode/team.ts`, `src/main/agents/opencode/prepare.ts`) | Cursor (`src/core/agents/cursor/team.ts`, `src/main/agents/cursor/waker.ts`) |
 |---|---|---|---|---|---|
 | How it names and loads skills, its protocol part | `skill`, `own`, `byName`, `part` | `` `name` ``, `` `menkar:name` ``, "with the Skill tool, by its name…", `claude.md` | the name with its `SKILL.md`'s path, Menkar's from the plugin's `skills/`; "by reading its SKILL.md at the path given"; `codex.md` | `` `name` ``, `` `menkar:name` ``, "with the menkar server's `load_skill` tool, by name"; `opencode.md` | as Codex's; `cursor.md` |
 | (1) What a start holds | `heldAtStart(start, block, recorded)`, `records` | new and resume → the block; fork → `null`; records nothing | new → the block; resume → what it recorded; records what it holds | the block, put on every start; records nothing | as Codex's |
@@ -547,7 +547,7 @@ flag and no post. `teamAgent(agent)` and `TEAM_AGENTS` are read from the kits.
 | The version floor | `floor` (`null`: no check) | 2.1.267, read from `--version`; below it no flag and one `team.oldClaude` toast | `null` | `null`; without the entry route (`/openapi.json`) no block is delivered | 2026.11.13, where `--new-session-id` was measured; below it one `team.oldCursor` toast |
 | The compaction signal | | the SessionStart `compact` record | a `compacted` line the rollout grew by (`compactions`) | none: OpenCode rebuilds its system prompt from the entry | the plugin's `preCompact` hook, written as a `compact` record |
 | What a compaction leaves it holding | `startedWith(start, block)` (absent: the block) | the block | the block | the block | a new start's block; a resume's `null`: it was given none |
-| (3) How a change is told | `tell(session, text, counts, current)` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post | none yet (`mainKitOf('cursor').team` is P3.4's): what it holds is recorded, nothing is posted |
+| (3) How a change is told | `tell(session, text, counts, current, held)`, `withdraw` (main) | `postToSession` on Claude's messaging socket | its waker, `codex queue` | the entry replaced by `current`, or removed; `'stored'`, no turn and no post | `'held'`: kept with the pane's wakes until the next wake or completed turn hands it over (`held.delivered`), never a restart by itself; withdrawn when the facts go back |
 
 A compaction rebuilds what the pane `started` with. The details are in `docs/agents.md`, "Codex:
 the team block" and "Cursor: the team block". Main writes the block's file before asking the Launcher (a write

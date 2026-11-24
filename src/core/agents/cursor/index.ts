@@ -1,10 +1,12 @@
 import type { AgentKit } from '../types'
 import { catalog } from './catalog'
 import { chat } from './chat'
+import { follow } from './follow'
 import { ids } from './ids'
 import { integrations } from './integrations'
-import { launch, namer } from './launch'
+import { launch } from './launch'
 import { mcp } from './mcp'
+import { namer } from './names'
 import { state } from './state'
 import { team } from './team'
 import { usage } from './usage'
@@ -21,7 +23,7 @@ export const kit: AgentKit = {
   catalog,
   state,
   ids,
-  follow: null,
+  follow,
   fork: null,
   chat,
   writes,

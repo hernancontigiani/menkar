@@ -23,5 +23,6 @@ export function inboxWaker(server: () => Promise<Running> | null): Waker {
       log.warn("OpenCode's inbox refused a message", { session: sessionId, status: answer.status })
       throw new Error(`OpenCode's inbox answered ${answer.status}`)
     },
+    release: null,
   }
 }

@@ -36,6 +36,7 @@ const waker: Waker = {
     void preparer.otherServer(sessionId, 'wake')
     return inbox.wake(sessionId, text, counts)
   },
+  release: null,
 }
 
 export const mainKit: MainAgentKit = {

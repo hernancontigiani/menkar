@@ -80,6 +80,9 @@ export interface Messaging {
 export interface Namer {
   // The words that give a new session its name; null when the CLI takes none at start.
   atStart(name: string): readonly string[] | null
+  // The name Menkar keeps for good in its own data for a session the orchestration starts, when
+  // nothing outside the agent can name it; null when the agent's own data will name it.
+  kept(name: string): string | null
 }
 
 // The variables that describe a running session of the agent, grouped by what they say: an agent

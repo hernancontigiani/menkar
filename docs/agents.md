@@ -255,9 +255,9 @@ elicitation, which are left to the title.
   (`toolsFile`, `src/core/control/shapes.ts`) and published to `control/tools.json` before any pane
   starts; the MCP server program reads it and never imports a kit:
   - `send_message` is listed to a caller when some installed agent is out of its own messaging's
-    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor lists none until
-    Cursor's Waker exists, a Codex-only user is listed it (nothing else messages by name), and a
-    Claude-only user is listed exactly the tools R10 recorded.
+    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor or Codex is listed it,
+    a Codex-only user is listed it (nothing else messages by name), and a Claude-only user is
+    listed exactly the tools R10 recorded.
   - `start_session` gains `agent`, an enum of the installed agents, once two or more are installed.
   - `listChanged: true` is declared only when an agent other than the default is installed.
 - **The caller's agent** is `MENKAR_AGENT` in the server's environment, set by the agent's mount;
@@ -677,9 +677,9 @@ Plan 39 P3.3, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-2
   daily Menkar), so the daily and the sandbox's entries, both installed, each record only their own
   panes; anywhere else it exits without reading stdin. The event is the payload's
   `hook_event_name`.
-- **It never waits and never answers**: it prints nothing and exits 0 whatever fails (a silent
-  hook changes nothing for any of the three events, measured), so Cursor's 3-second timeout is
-  never reached. `stop`'s `followup_message` is the waker's (P3.4).
+- **It never waits**: it exits 0 whatever fails (a silent hook changes nothing for any of the
+  three events, measured), so Cursor's 3-second timeout is never reached. The one thing it prints
+  is a completed turn's `followup_message`, read from files main wrote ("Cursor: waking").
 - **`beforeSubmitPrompt`** appends `{event:"prompt", at, session_id, generation_id, origin}` to the
   hook log (`docs/usage.md`, "Per agent", Cursor); `origin` is `peer` for a prompt starting with
   `[Menkar]`, read from the text at once, so the text itself is not needed later. The text (raw,
@@ -687,8 +687,9 @@ Plan 39 P3.3, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-2
   classifier is on (state.json's switch, which the sandbox never has).
 - **`stop`** appends the turn's end with its status, `loop_count`, model and four token counts,
   and writes the pane's turn-end record (`docs/session-control.md`), which binds a waiting pane.
-  A `/new` chat's record names its new id, but the kit has no `follow`, so main does not move the
-  tab to it yet. An interrupted turn fires two `stop`s, so main sees its end twice, 20 ms apart.
+  An interrupted turn (Esc, Ctrl+C) fires two `stop`s of one generation, `aborted` then `error`,
+  20 ms apart: the second finds the first in the log's tail and writes no record, so main hears
+  of the turn's end once.
 - **`afterAgentResponse`** is not used: its `text` is the turn's texts run together, so the
   catalog's `last_reply` is the transcript's last assistant text before its last `turn_ended`.
 - **What it never keeps** (D21): `user_email`, `CURSOR_USER_EMAIL`, the transcript's path, the
@@ -706,8 +707,11 @@ Plan 39 P3.2. Assembled as Claude's (`docs/session-control.md`, "The team block"
   compactions. It runs once per process, for a new chat only: `/new` in the TUI makes a chat that
   keeps the same block, with no hook and no id told.
 - **A resume holds what main recorded** (`records: true`): Cursor never sees a later block, so
-  main keeps what each session holds (`controlPaths().teamHeld`), recorded even before Cursor can be
-  told anything (its waker is P3.4's), and a resume starts from it.
+  main keeps what each session holds (`controlPaths().teamHeld`), and a resume starts from it.
+- **A change is held, never posted** (1.159, S7): `tell` answers `'held'`, the update waits with
+  the session's wakes ("Cursor: waking") and goes with the next wake or completed turn; it never
+  restarts a session by itself. Once handed over, `held` advances and is recorded; facts that go
+  back to what the session holds withdraw it (`MainTeamDelivery.withdraw`).
 - **The compaction signal** is the plugin's `preCompact` hook, which also runs with no entry of
   the user's: in the mode its entry runs the statusline program with `pre-compact`, which writes
   the session's `compact` start record, read by main as Claude's. Cursor keeps the creation's block
@@ -718,3 +722,42 @@ Plan 39 P3.2. Assembled as Claude's (`docs/session-control.md`, "The team block"
   on the server `plugin-<flavour dir>-menkar` and calls it with `CallDynamicTool`; the part says
   so. Skills by their `SKILL.md`, as Codex's: Cursor has no Skill tool, and reads a file outside
   its workspace with no approval card.
+
+## Cursor: waking
+
+Plan 39 P3.4 (D1), measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-23).
+`src/main/agents/cursor/waker.ts`, `src/core/agents/cursor/wakes.ts`.
+
+- **Cursor has no channel into a running chat**, so a wake (a child's report, `send_message`) is
+  **held** for the pane: one file per text under `<control>/held-wakes/<pane>/`, written beside and
+  renamed in. Nothing is ever typed into the terminal.
+- **A completed turn hands it over**: the `stop` hook takes the pane's whole folder by renaming
+  it, and answers its texts, the team update first and then the wakes in order, as one
+  `followup_message`; Cursor runs it as a new turn about 2.4 s later, a multi-line text whole, and
+  a draft in the box stays. An interrupted turn's `stop`s leave the folder: Cursor ignores a
+  followup on both. Main learns what was handed over from which of its files are gone (a watch on
+  the folder). This needs the hooks item (D13); without it, only the next case delivers.
+- **An idle session whose box is empty is ended and resumed** with everything held as its first
+  message (`WakePane.resume`: its pty hung up as a renew's, Cursor ends cleanly on the hangup, then
+  `--resume <id> -- "<text>"` in the same tab), at once or as soon as its box empties. Empty means
+  the agent's state is idle and the box line (the last line starting `→` near the bottom) is one
+  of its placeholders, `→ Add a follow-up` or a new chat's `→ Plan, search, build anything`: a
+  draft, a prompt an interrupt put back, a card or a running turn each keep the wake held. A
+  session not yet in Cursor's files (no message so far) is never restarted.
+- **What arrives while it restarts** waits for the new pane's first completed turn. A pane that
+  ends drops what was held for it, with a log line.
+
+## Cursor: names and a pane's chat changing
+
+Plan 39 P3.4. `src/core/agents/cursor/names.ts`, `src/core/agents/cursor/follow.ts`.
+
+- **A worker keeps its name in Menkar's own names** (D22, 1.137): nothing outside Cursor can name a
+  chat, so `start_session` writes `<project>-t<N>` to state.json's `names` (`namer.kept`), moved to
+  the real id at a bind and given to the new session at a renew. Sessions the human starts keep
+  what they show today. Cursor's own title (`meta.json`'s `title`) is not read: nothing tells a
+  human `/rename` from Cursor's generated title.
+- **`/new` and `/resume` inside the TUI** tell no hook: the next turn ends under the other chat's
+  id. The kit's `follow` reads that chat's `createdAtMs` from
+  `~/.cursor/chats/<hash>/<id>/meta.json` (that key only): made after the pane started, `/new` made
+  it and it takes the old one's place (`clear`); older, it was reopened (`resume`); not found, the
+  tab is left as it was.
