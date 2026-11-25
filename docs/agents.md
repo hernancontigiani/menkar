@@ -38,9 +38,11 @@ shaped this way and what was rejected.
   (and a non-empty `chat` list), `context` ⇔ `kit.context`, `tools` (its sessions can use Menkar's
   tools, so the orchestration mode can start them) ⇔ `kit.mcp`, `namedAtStart` ⇔
   `kit.namer.atStart(…) !== null`, `firstPrompt` ⇔ the launcher puts a prompt file on the command
-  line (what "Ask an agent" needs). The descriptor's `teamLimits` is what the first-time card says
-  of an agent that orchestrates or works for the orchestrator with limits (Cursor's, an idle wake
-  being a restart and each tool asking unless allowed), `null` for the others.
+  line (what "Ask an agent" needs). `orchestrates` (one of its sessions may be a project's
+  orchestrator) mirrors no kit: it is true once that role was checked on the real agent (1.216).
+  The descriptor's `teamLimits` is what the first-time card says
+  of an agent that orchestrates or works for the orchestrator with limits (Cursor's as a worker, an
+  idle wake being a restart and each tool asking unless allowed), `null` for the others.
   `tests/core/agents/parity.test.ts` asserts each pair for every registered agent. Shared main code
   reads the kit, never the cap.
 - **Shared mechanisms stay shared and are fed by the strategies**: one way a pending pane binds its
@@ -801,6 +803,12 @@ calls as 2026.11.13 does. What a Cursor worker of a Claude orchestrator gets:
 - **With the allow item**: Menkar's tools run with no card. **With the hooks item**: its turns are
   recorded for Usage, a `/new` chat is followed, and a message that comes while a turn runs goes
   as that turn's `followup_message`, with no restart.
-- **As the orchestrator** (the first-time card offers it, with its limits): it has no inbox, so
-  everything for it is posted through its waker (`docs/session-control.md`, "Waking a parent"),
-  held as for a worker.
+- **As the orchestrator: not in 1.0** (decision 1.216, the human, 2026-11-24). Cursor's
+  descriptor says `orchestrates: false`: the first-time card greys Cursor and its sessions as the
+  orchestrator, the row menu's Orchestrator is greyed, and main refuses marking one
+  (`docs/orchestration.md`, "The first-time card"). `cursor`'s real check (task 226) passed Cursor
+  as a worker, but the human's Cursor plan ran out of requests before this role was checked.
+  **Trigger:** that check passes on the real `cursor-agent` (after the plan resets on 2026-12-14,
+  task 226): then `orchestrates` becomes true. The code for the role stays built and covered by
+  the stand-in: it has no inbox, so everything for it is posted through its waker
+  (`docs/session-control.md`, "Waking a parent"), held as for a worker.

@@ -51,3 +51,11 @@ for that version. A row's version here is the descriptor's `versions.validated`
 ## 2026-11-23 — OpenCode's heading before its first validated row
 
 ## OpenCode — no row yet, owner: its consultant
+
+## 2026-11-24 — Cursor's heading before its first validated row (task 229)
+
+## Cursor — no row yet, owner: its consultant
+
+Menkar's floor is 2026.11.13, the version `--new-session-id` was measured on by `cursor`
+(2026-11-23): below it a new session's id is Cursor's own and it starts without its team block
+(`docs/agents.md`, "Cursor: starting a session").

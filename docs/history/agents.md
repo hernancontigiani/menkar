@@ -173,3 +173,17 @@ kept in one place per agent, so a change to one agent cannot break another and s
 > Left on 2026-11-24: following a `/rename` made in Cursor is deferred (1.215, task 228).
   what they show today. Cursor's own title (`meta.json`'s `title`) is not read: nothing tells a
   human `/rename` from Cursor's generated title.
+
+## The pattern: a kit of strategies per agent, chosen once
+
+> Left on 2026-11-24: the `orchestrates` capability (1.216, task 229).
+  line (what "Ask an agent" needs). The descriptor's `teamLimits` is what the first-time card says
+  of an agent that orchestrates or works for the orchestrator with limits (Cursor's, an idle wake
+  being a restart and each tool asking unless allowed), `null` for the others.
+
+## Cursor in the orchestration mode
+
+> Left on 2026-11-24: Cursor is a worker only in 1.0, not the orchestrator (1.216, task 229).
+- **As the orchestrator** (the first-time card offers it, with its limits): it has no inbox, so
+  everything for it is posted through its waker (`docs/session-control.md`, "Waking a parent"),
+  held as for a worker.

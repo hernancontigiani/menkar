@@ -8,7 +8,9 @@ import type { AgentVersions } from './versions'
 
 // What the renderer and the MCP server program may know of an agent: data, no Node.
 // `tools`: its sessions can use Menkar's tools, so the orchestration mode can start them.
-export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context' | 'tools'
+// `orchestrates`: one of its sessions may be a project's orchestrator; true only once that role
+// was checked on the real agent.
+export type AgentCap = 'remote' | 'fork' | 'trash' | 'chat' | 'context' | 'tools' | 'orchestrates'
 
 export type VariantKey = 'default' | 'ask' | 'trusted'
 
@@ -45,7 +47,7 @@ export interface AgentDescriptor {
   readonly versionWord: number
   // What the orchestration mode's first-time card says when one of its sessions orchestrates or
   // works for the orchestrator, for an agent that does either with limits; null otherwise.
-  readonly teamLimits: { readonly orchestrator: Key; readonly worker: Key } | null
+  readonly teamLimits: { readonly orchestrator: Key | null; readonly worker: Key } | null
   // The `_meta` key under which the agent's server names the calling session in a tool call to
   // Menkar's MCP server, for an agent whose MCP server serves many sessions and so cannot be told
   // the caller by its environment; null when the pane's environment names it.

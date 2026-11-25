@@ -202,15 +202,20 @@ test('the first-time card with two agents: the agent line defaults to the agent 
   }
 })
 
-test('the first-time card with Cursor installed: Cursor, the agent last started, is chosen for a new orchestrator; a Cursor session chosen to orchestrate or checked to work is said to have limits, and nothing is forbidden (screenshots)', async () => {
+test("the first-time card with Cursor installed: Cursor, the agent last started, cannot orchestrate (1.216), so the new orchestrator is Claude Code's and the Cursor session cannot be chosen to orchestrate; checked to work it is said to have limits; its row menu offers no Orchestrator (screenshots)", async () => {
   const app = await cardApp(['codex', 'cursor'], { lastAgent: 'cursor', cursorSession: true })
   try {
     await openCard(app.page)
-    // Plan 39 P3.2 (1.212): Cursor's sessions use Menkar's tools, so the agent last started is
-    // the new orchestrator's.
-    await expect(agentButton(app.page, 'cursor')).toHaveAttribute('aria-pressed', 'true')
-    await expect(agentButton(app.page, 'cursor')).toBeEnabled()
-    await expect(agentButton(app.page, 'claude')).toHaveAttribute('aria-pressed', 'false')
+    const refused = 'Cursor can’t orchestrate yet; its sessions can work for the orchestrator'
+    await expect(agentButton(app.page, 'cursor')).toBeDisabled()
+    await expect(agentButton(app.page, 'cursor')).toHaveAttribute('aria-pressed', 'false')
+    await expect(agentButton(app.page, 'cursor')).toHaveAttribute('title', refused)
+    await expect(agentButton(app.page, 'claude')).toHaveAttribute('aria-pressed', 'true')
+    await expect(agentButton(app.page, 'codex')).toBeEnabled()
+    const cursorChoice = card(app.page).locator(`.card-choice:has(input[value="${CURSOR}"])`)
+    await expect(cursorChoice.locator('input')).toBeDisabled()
+    await expect(cursorChoice.locator('input')).not.toBeChecked()
+    await expect(cursorChoice).toHaveAttribute('title', refused)
     const cursorRow = card(app.page).locator(`.card-managed[data-session="${CURSOR}"]`)
     await expect(cursorRow.locator('.card-agent-name')).toHaveText('Cursor')
     const workerLimits = card(app.page).locator(`.card-limits[data-limits="${CURSOR}"]`)
@@ -228,19 +233,29 @@ test('the first-time card with Cursor installed: Cursor, the agent last started,
     await cursorRow.locator('input').check()
     await expect(workerLimits).toBeVisible()
 
-    // Chosen to orchestrate: said under the choice, and no longer listed to work.
-    await card(app.page).locator(`input[name="orchestrator"][value="${CURSOR}"]`).check()
-    await expect(orchestratorLimits).toBeVisible()
-    await expect(orchestratorLimits).toHaveText(
-      'Cursor can orchestrate, with limits: waking it when idle restarts it, and it asks before each tool you have not allowed.',
-    )
-    await expect(workerLimits).toHaveCount(0)
-    await shot(app.page, 'card-cursor-orchestrator.png')
-
-    // Start is not refused: the Cursor session is marked.
-    await card(app.page).locator('.responses button', { hasText: 'Start' }).click()
+    // Marking it some other way is refused: the project keeps no Cursor orchestrator.
+    await card(app.page).locator('.responses button', { hasText: 'Not now' }).click()
     await expect(card(app.page)).toHaveCount(0)
-    await expect.poll(async () => (await shown(app.page)).orchestration.orchestrator).toBe(CURSOR)
+    await act(app.page, { type: 'setOrchestrationMode', project: 'cccccccccccc', on: true })
+    const answer = await act(app.page, { type: 'setOrchestrator', session: CURSOR, on: true })
+    expect(answer).toEqual({ refusal: 'orch.cannotOrchestrate' })
+    expect((await shown(app.page)).orchestration.orchestrator).toBeNull()
+    const started = await act(app.page, {
+      type: 'startNew',
+      agent: 'cursor',
+      folder: app.home,
+      name: 'orchestrator',
+      orchestrator: true,
+    })
+    expect(started).toEqual({ refusal: 'orch.cannotOrchestrate' })
+    expect((await shown(app.page)).orchestration.orchestrator).toBeNull()
+
+    // Its row menu offers Orchestrator disabled, saying why.
+    await app.page.locator(`.row[data-session="${CURSOR}"]`).click({ button: 'right' })
+    const item = app.page.getByRole('menuitem', { name: 'Orchestrator', exact: true })
+    await expect(item).toBeDisabled()
+    await expect(item).toHaveAttribute('title', refused)
+    await shot(app.page, 'card-cursor-row-menu.png')
   } finally {
     await app.launched.close()
   }

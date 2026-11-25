@@ -26,8 +26,6 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'layout.sharesTab': 'Comparte una pestaña con otra sesión allá',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
-  'agent.cursorOrchestrates':
-    'Cursor puede orquestar, con límites: despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.cursorWorks':
     '“{name}” es una sesión de Cursor: puede trabajar para el orquestador, con límites — despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.codex': 'Codex',
@@ -168,6 +166,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.cardAgent': 'Agente',
   'orch.cardAgentNoTools':
     'Las sesiones de {agent} todavía no pueden usar las herramientas de Menkar',
+  'orch.cardAgentNoOrchestrator':
+    '{agent} todavía no puede orquestar; sus sesiones pueden trabajar para el orquestador',
+  'orch.cannotOrchestrate':
+    'Este agente todavía no puede orquestar; sus sesiones pueden trabajar para el orquestador.',
   'orch.cardNew': 'Una sesión nueva',
   'orch.cardGuide': 'Abrir la guía',
   'orch.cardCopy': 'Copiar un prompt para otra sesión',

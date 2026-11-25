@@ -24,8 +24,6 @@ export const en = {
   'layout.sharesTab': 'It shares a tab with another session there',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
-  'agent.cursorOrchestrates':
-    'Cursor can orchestrate, with limits: waking it when idle restarts it, and it asks before each tool you have not allowed.',
   'agent.cursorWorks':
     '“{name}” is a Cursor session: it can work for the orchestrator, with limits — waking it when idle restarts it, and it asks before each tool you have not allowed.',
   'agent.codex': 'Codex',
@@ -162,6 +160,10 @@ export const en = {
   'orch.cardWho': 'Who orchestrates?',
   'orch.cardAgent': 'Agent',
   'orch.cardAgentNoTools': '{agent} sessions can’t use Menkar’s tools yet',
+  'orch.cardAgentNoOrchestrator':
+    '{agent} can’t orchestrate yet; its sessions can work for the orchestrator',
+  'orch.cannotOrchestrate':
+    'This agent can’t orchestrate yet; its sessions can work for the orchestrator.',
   'orch.cardNew': 'A new session',
   'orch.cardGuide': 'Open the guide',
   'orch.cardCopy': 'Copy a prompt for another session',

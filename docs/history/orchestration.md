@@ -472,3 +472,11 @@ the orchestrator ("waiting on PR approval #436 · PR open", decision 1.164). A c
 
 > Left on 2026-11-24: Cursor's sessions can use Menkar's tools (plan 39 P3.2, written at P3.5, task 223).
     and so is one whose sessions can't use Menkar's tools (`caps.tools`; Cursor until it can).
+
+## The first-time card
+
+> Left on 2026-11-24: Cursor not offered as the orchestrator (1.216, task 229).
+  - **An agent with limits** (the descriptor's `teamLimits`; Cursor's: waking it when idle
+    restarts it, and it asks before each tool not allowed) is said so under what chose it, never
+    forbidden: under the choices when it is picked to orchestrate, under "Sessions the
+    orchestrator manages" for each checked session of it.

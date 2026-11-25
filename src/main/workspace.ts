@@ -3769,6 +3769,8 @@ async function startNewSession(
   after?: string,
 ): Promise<ActionResult> {
   if (!statSafeDir(action.folder)) return { refusal: 'newSession.folderGone' }
+  if (action.orchestrator && !descriptorOf(action.agent).caps.orchestrates)
+    return { refusal: 'orch.cannotOrchestrate' }
   const name = action.name.trim()
   const realId = kitOf(action.agent).ids.newId(await installedVersion(action.agent))
   // A session that takes no name at start is named once its thread exists (decision 1.196), so a
@@ -4074,6 +4076,10 @@ export async function runAction(contents: WebContents, action: Action): Promise<
     case 'setWithYou': {
       const project = projectOf(projects, action.session)
       if (!project) return {}
+      const agent =
+        action.type === 'setOrchestrator' && action.on ? agentOfSession(action.session) : null
+      if (agent && !descriptorOf(agent).caps.orchestrates)
+        return { refusal: 'orch.cannotOrchestrate' }
       const before = orchestrationInfo(project).orchestrator
       projects = marked(projects, project.id, action)
       orchestratorMarkMoved(project.id, before)
