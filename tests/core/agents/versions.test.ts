@@ -10,12 +10,15 @@ import {
   compareVersions,
   hiddenVersions,
   readVersion,
+  STANDING_LABELS,
   type Standing,
   standingOf,
+  versionLineOf,
   withHiddenVersion,
   withoutEscapes,
 } from '../../../src/core/agents/versions'
 import { catalog } from '../../../src/core/i18n'
+import { interpolate } from '../../../src/core/i18n/interpolate'
 import { parseState } from '../../../src/core/state'
 
 const CLAUDE = { validated: '2.1.327', floor: '2.1.267' }
@@ -121,6 +124,56 @@ describe('the banner', () => {
     const next = withHiddenVersion(withHiddenVersion(state, 'claude', '2.2.0'), 'cursor', 'a')
     expect(hiddenVersions(next)).toEqual({ claude: '2.2.0', cursor: 'a' })
     expect(next.rest.other).toBe(1)
+  })
+})
+
+// The e2e shows these rows on the real app; the one for an agent with no validated version is
+// proved here while every agent Menkar runs has one.
+describe("About's row for an agent", () => {
+  const english = catalog('en')
+  const row = (v: AgentVersionView) => {
+    const line = versionLineOf(v)
+    const label = STANDING_LABELS[v.standing]
+    return [interpolate(english[line.key], line.params), label && english[label]]
+  }
+
+  test('with no validated version: its installed version alone, and not validated yet', () => {
+    const codex = standingOf('0.169.0', true, { validated: null, floor: null })
+    expect(codex).toBe('notValidated')
+    expect(
+      row({
+        agent: 'codex',
+        installed: '0.169.0',
+        validated: null,
+        floor: null,
+        standing: codex,
+        hidden: false,
+      }),
+    ).toEqual(['Installed 0.169.0', 'Not validated yet'])
+  })
+
+  test('with a validated version: both versions, and how the installed one stands', () => {
+    expect(
+      row({
+        agent: 'claude',
+        installed: '2.1.332',
+        validated: '2.1.332',
+        floor: null,
+        standing: 'validated',
+        hidden: false,
+      }),
+    ).toEqual(['Installed 2.1.332 · validated 2.1.332', 'Validated'])
+  })
+
+  test('not installed or unreadable: the line says it, with no standing', () => {
+    expect(row({ ...view('claude', 'notInstalled'), installed: null })).toEqual([
+      'Not installed',
+      null,
+    ])
+    expect(row({ ...view('claude', 'unknown'), installed: null })).toEqual([
+      english['about.agentUnknown'],
+      null,
+    ])
   })
 })
 

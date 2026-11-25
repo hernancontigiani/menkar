@@ -158,18 +158,24 @@ test('1.179 Hide hides the banner for that version and is kept in state.json; De
   }
 })
 
-test('1.179 the validated version and an agent with no validated one: no banner; About says so', async () => {
-  if (descriptorOf('codex').versions.validated !== null)
-    throw new Error('Codex has a validated version')
-  const launched = await launch(VALIDATED, 'dark', '0.169.0')
+// Every agent Menkar runs has a validated version, so About's row for one with none ("Installed X",
+// "Not validated yet") is proved by Vitest on the row's text; its e2e returns when an agent ships
+// unvalidated.
+const CODEX_VALIDATED = descriptorOf('codex').versions.validated
+if (!CODEX_VALIDATED) throw new Error('Codex has no validated version')
+
+test('1.179 the validated versions of two agents: no banner; About says both are validated', async () => {
+  const launched = await launch(VALIDATED, 'dark', CODEX_VALIDATED)
   const page = launched.window
   try {
     const about = await openAbout(launched)
     const claude = about.locator('.agent-version[data-agent="claude"]')
     await expect(claude.locator('.agent-standing')).toHaveText('Validated')
     const codex = about.locator('.agent-version[data-agent="codex"]')
-    await expect(codex.locator('.row-subtitle')).toHaveText('Installed 0.169.0')
-    await expect(codex.locator('.agent-standing')).toHaveText('Not validated yet')
+    await expect(codex.locator('.row-subtitle')).toHaveText(
+      `Installed ${CODEX_VALIDATED} · validated ${CODEX_VALIDATED}`,
+    )
+    await expect(codex.locator('.agent-standing')).toHaveText('Validated')
     await expect(page.locator('#versions-banner')).toBeHidden()
     await expect(page.locator('#versions-side')).toBeHidden()
   } finally {

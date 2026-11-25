@@ -1,3 +1,5 @@
+import type { Key } from '../i18n'
+import type { Params } from '../i18n/interpolate'
 import type { AgentId } from './ids'
 
 // Where the user's installed version of an agent stands against the one Menkar was validated with
@@ -86,6 +88,33 @@ export function standingOf(installed: string | null, found: boolean, v: AgentVer
   if (d === 0) return 'validated'
   if (d < 0) return 'older'
   return largeJump(v.validated, installed) ? 'muchNewer' : 'newer'
+}
+
+// What Settings › About's row says of an agent: its version line, and what its standing is called
+// (nothing for one not installed or unreadable, whose line already says it).
+export const STANDING_LABELS: Readonly<Record<Standing, Key | null>> = {
+  notInstalled: null,
+  unknown: null,
+  old: 'about.agentOld',
+  notValidated: 'about.agentNotValidated',
+  older: 'about.agentOlder',
+  validated: 'about.agentValidated',
+  newer: 'about.agentNewer',
+  muchNewer: 'about.agentMuchNewer',
+}
+
+export function versionLineOf(v: AgentVersionView): {
+  readonly key: Key
+  readonly params?: Params
+} {
+  if (v.standing === 'notInstalled') return { key: 'about.agentNotInstalled' }
+  if (v.installed === null) return { key: 'about.agentUnknown' }
+  if (v.validated === null)
+    return { key: 'about.agentInstalled', params: { installed: v.installed } }
+  return {
+    key: 'about.agentVersions',
+    params: { installed: v.installed, validated: v.validated },
+  }
 }
 
 // A patch newer than validated is said only in About: a banner for every patch release is noise.
