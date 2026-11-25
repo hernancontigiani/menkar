@@ -30,6 +30,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/main/index.ts'),
+          // The commands that print and end, run by the app's binary as plain Node.
+          cli: resolve('src/main/cli.ts'),
           // Usage passes run on a worker thread, which loads its own file.
           'usage-worker': resolve('src/main/usage-worker.ts'),
           'classifier-worker': resolve('src/main/classifier-worker.ts'),

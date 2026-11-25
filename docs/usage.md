@@ -26,16 +26,23 @@ user sees in the Usage window is `docs/spec/usage.md`.
   waits for it, since both would read the same appended bytes. Main starts a pass on launch and
   every hour. For now it passes no memberships, because projects do not exist yet: such turns are
   written with no project and take their session's project once it has one.
-- **`menkar usage`** is the app's own binary. When main sees `usage` as the first argument (after
-  Chromium's switches and, unpackaged, the app's folder), it runs the report synchronously, prints
-  it and exits, so no window opens and no display is needed. Checked on 2026-11-08
-  under `env -i`, with no `DISPLAY`.
-- **It exits once standard output and error have drained**, not at once: into a pipe Node writes
-  asynchronously, and an exit right after the writes cut the output at the pipe's buffer (64 KiB)
-  with exit 0. A reader slower than the app gets every byte; a write that fails (the reader went
-  away, EPIPE) turns an exit 0 into 1, quietly. `menkar --version` and the usage error of `menkar
-  open` end the same way. Waiting can take the process past `ready` with no window and no display
-  (checked on 2026-11-23 with no `DISPLAY`, a reader 3 s behind).
+- **`menkar usage` is the app's own binary, run as plain Node** (task 218, 2026-11-23). When main
+  sees `usage` as the first argument (after Chromium's switches and, unpackaged, the app's
+  folder), `--version`/`-v`, or `open` with no file, it runs `out/main/cli.js` with its own binary
+  under `ELECTRON_RUN_AS_NODE`, synchronously (`spawnSync`, the caller's streams inherited), and
+  exits with that copy's code; a copy that could not run or was killed is exit 1. Chromium never
+  initialises its platform for these commands, so no display, desktop session or bus is needed:
+  with none (ssh, cron, a service), its X11 start ended the process while the output was still
+  draining, cut short, with exit 1 or 0. Two measured alternatives fell short:
+  `app.commandLine.appendSwitch('ozone-platform', 'headless')` in main runs after the platform is
+  chosen and changes nothing; `--ozone-platform=headless` on the command line keeps the output
+  whole but still starts the GPU process, dbus and ANGLE, and would need a wrapper the package does
+  not install. `cli.js` imports nothing from Electron.
+- **It ends once standard output and error have drained**: the copy sets its exit code and lets
+  Node end on its own, which Node does only after every pending write to a pipe; an exit right
+  after the writes cut the output at the pipe's buffer (64 KiB) with exit 0. A write that fails
+  (the reader went away, EPIPE) turns an exit 0 into 1, quietly. `e2e/usage-pipe.spec.ts` checks
+  the byte count and the exit with a slow reader, with and without a desktop session.
 - **Two openers at once.** The app's workers and a poller of `menkar usage now` may open the cache
   and the history together. `BEGIN IMMEDIATE` and the busy timeout serialize their writes, and each
   history migration step, the history's creation and the cache's rebuild read the version again
@@ -141,8 +148,9 @@ For Menkar (2026-11-08):
 
 - **A worker per pass rather than a long-lived one**: one pass an hour, and a worker that exits
   holds no SQLite handle between passes.
-- **Electron's main process for `menkar usage` instead of `ELECTRON_RUN_AS_NODE`**: the same
-  binary, and no wrapper for the package to install.
+- **A wrapper that sets `ELECTRON_RUN_AS_NODE` for `menkar usage`** (2026-11-23): main re-runs its
+  own binary in Node's mode instead, so the package still installs no wrapper and `/usr/bin/menkar`
+  stays a link to the binary.
 
 ## Limits
 

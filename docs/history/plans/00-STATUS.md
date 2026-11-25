@@ -2808,3 +2808,15 @@ Deviations and what the plan did not anticipate:
 
 | 1.208 | **Menkar leaves OpenCode's own update check as the user set it** (the human, 2026-11-23, topic 99, option a; `opencode`'s real check, task 198): the TUI's "Update available" modal shows in Menkar's panes as outside it; Menkar never sets `autoupdate` in what it passes, since a silent update could leave a version Menkar was not validated with. Menkar's first prompt goes by the API, not typed, so the modal does not take it | 2026-11-23 | `docs/agents.md` (with plan 39 P2's merge) |
 | 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a and P1b merged into `main`** (P1: 8e1c136). **P2 (OpenCode) built on `multi-agent`**: P2.1–P2.7 committed (P2.7: 057f9cb; main merged in at 4cf8805). Before merging P2 into `main`: task 197 (t196's findings 1–2: `skillFile` on a missing `menkar:` skill; the descriptor's `v2.3.0` version word) and task 198 (`opencode`'s real check, t196's 11-point list in its report), then the human's hand check 8f in the sandbox. Then P3 (Cursor in the mode), P4 |
+
+## 2026-11-23 — 1.211's row before task 207 built it
+
+| 1.211 | **Menkar remembers a Remote Control bridge it sees connected** (the human, 2026-11-23, topic 101, option A2; ccai's case: `controlplane`'s typed `/remote-control` lost at its next start): when Menkar reads a session's bridge as connected (the row's phone mark, 1.18) and the session is not on its Remote Control list, it adds it, so every later start (renew, reopening, resume, Restart now) carries `--remote-control`. Unchecking it in the menu removes it; a bridge that drops on its own does not. Rejected: an orchestrator tool turning it on (A), a per-project setting (B), approvals relayed by the orchestrator (C) | 2026-11-23 | this row (until built, task 207) |
+
+## 2026-11-23 — plan 39's row before P3's state was written at the day's end
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0, P1a, P1b and P2 merged into `main`** (P2, OpenCode: 2026-11-23, on `opencode`'s real check, 1.210). Next: P3 (Cursor in the mode), then P4, on the branch `multi-agent` |
+
+## 2026-11-24 — plan 39's row before P3 was built
+
+| 2 | 39 — the software architecture of multi-agent support (1.135 step 2): plan 38's design as per-agent strategies, phase by phase (P0, P1a, P1b, P2, P3, P4) | **P0–P2 merged into `main`** (P2 on 2026-11-23, 1.210). **P3 (Cursor in the mode, in 1.0 by 1.212) on `multi-agent`**: P3.1 d6cad6f, P3.2 fed189d, P3.3 f122848 committed; **P3.4 interrupted (task 221, uncommitted in the worktree, resumable from its report)**; topics 109 (`--trust` for workers) and 110 (following a Cursor `/rename`) open; then P3.5 (`cursor`'s real check, the merge). P4 after 1.0 |

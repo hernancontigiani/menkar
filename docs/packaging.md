@@ -227,6 +227,100 @@ never released and stays a `.deb` alone: `package.mjs` refuses `rpm` with its fl
   `/usr/bin/menkar` → `/opt/Menkar/menkar`, `chrome-sandbox` `0755`, the app's window shown under
   `xvfb-run`, and `dnf remove menkar` taking `/opt/Menkar` and the link away.
 
+## The package repository
+
+Users who install from the repository get every later version with `apt upgrade` or `dnf upgrade`.
+It is hosted by **Cloudsmith** on its free open-source plan (the human, 2026-11-19): workspace
+`menkar`, repository **`menkar-packages`** (the slug `menkar` stayed reserved after a first,
+private repository was deleted), visibility Open source, licence GPL-3.0-or-later. One repository
+holds both formats, uploaded as `any-distro/any-version`, so one package serves every Debian,
+Ubuntu, Fedora and RPM release.
+
+- **What reaches it**: only a published GitHub Release's own `.deb` and `.rpm`, the files the human
+  checked on the draft. `.github/workflows/publish.yml` downloads them with `gh release download`,
+  checks them against the release's `SHA256SUMS`, and pushes them with `cloudsmith push deb|rpm
+  menkar/menkar-packages/any-distro/any-version … --republish` through
+  `cloudsmith-io/cloudsmith-cli-action` (pinned by commit). `--republish` lets a run by hand finish
+  an upload that failed halfway: the file already there is replaced by the same bytes. A
+  prerelease is never uploaded.
+- **Its credential** is reachable only from the GitHub environment `packages`, whose only allowed
+  refs are `v*` tags, so no PR workflow reaches it, and a run by hand must be started from the tag
+  ("Use workflow from"), not from `main`. The upload goes by **OIDC** first: Cloudsmith's service
+  account `sa-menkar` (Write on `menkar-packages` only) and its OIDC provider `github-actions` accept
+  a GitHub token only with the claims `repository` = `hernancontigiani/menkar` and `environment` =
+  `packages`, so no long-lived secret is used. The action verifies the exchange (`verify-auth`)
+  before any push; only if it is refused does the job fall back to the API key
+  `CLOUDSMITH_API_KEY` stored in that environment, and says so with a warning on the run. The key
+  is deleted once a real run shows OIDC working; then the fallback step fails, as it should.
+- **The signing key** is Cloudsmith's, generated for the repository; it signs APT's `InRelease` and
+  RPM's metadata. Fingerprint **`4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`**, RSA 3072,
+  created 2026-11-23, **no expiry**, no subkeys (read 2026-11-23 with `gpg --show-keys` from the
+  key served at `https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key`;
+  Cloudsmith's web app does not show it). The same key is served at `…/gpg.key` and
+  `…/cfg/gpg/gpg.32B297F2B56D38CD.key`. A key that is rotated or given an expiry changes this line
+  and every user's keyring; `docs/release-checklist.md` checks `apt update` with no signature
+  warning at every release.
+- **Its limits**: the free plan gives at least 50 GB stored and **200 GB delivered a month**, across
+  the owner's open-source repositories, about 1,900 downloads of a 102 MB package, upgrades
+  included. What happens past it is not documented. Reaching it is the trigger to ask Cloudsmith for
+  sponsorship or to self-host (`docs/NOT_BUILT_YET.md`, "A self-hosted package repository").
+- **What Cloudsmith sees**: every download is logged for the maintainer with its time, user agent,
+  IP address and its location. Installing from the repository means apt or dnf contacts
+  Cloudsmith; Menkar itself still connects to nothing. The single file from GitHub Releases is the
+  way to avoid it.
+- **Its URLs name `dl.cloudsmith.io`**: a custom domain is not on the free plan, so leaving
+  Cloudsmith means every user changes their source line and key once. The GitHub Releases keep
+  every file.
+- **The attribution** the free plan requires: README and the site say "Package repository hosting
+  is graciously provided by Cloudsmith", linking to cloudsmith.com.
+
+## Installing from the repository
+
+The source of truth for these commands: `README.md` and the site's Install page copy them. They are
+the manual steps, not Cloudsmith's `curl … | sudo bash` script: the reader sees each thing added to
+their system. The lines are those Cloudsmith serves for this repository
+(`…/config.deb.txt?distro=any-distro&codename=any-version`,
+`…/cfg/setup/config.rpm.txt?distro=any-distro&codename=any-version`, read 2026-11-23), with the
+keyring and the files named after Menkar instead of `menkar-menkar-packages`, and the `.repo` file
+keeping only the architecture's section (Menkar ships no `noarch` package and no source package).
+
+**Debian, Ubuntu and their derivatives:**
+
+```sh
+curl -fsSL -o /tmp/menkar.key https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+gpg --show-keys /tmp/menkar.key
+sudo gpg --dearmor --yes -o /usr/share/keyrings/menkar-archive-keyring.gpg /tmp/menkar.key
+echo "deb [signed-by=/usr/share/keyrings/menkar-archive-keyring.gpg] https://dl.cloudsmith.io/public/menkar/menkar-packages/deb/any-distro any-version main" | sudo tee /etc/apt/sources.list.d/menkar.list
+sudo apt update
+sudo apt install menkar
+```
+
+`gpg --show-keys` must print the fingerprint `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`.
+
+**Fedora and other dnf systems:**
+
+```sh
+sudo rpm --import https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+sudo tee /etc/yum.repos.d/menkar.repo > /dev/null <<'EOF'
+[menkar]
+name=Menkar
+baseurl=https://dl.cloudsmith.io/public/menkar/menkar-packages/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+EOF
+sudo dnf install menkar
+```
+
+**The single file**, for a machine that should not contact Cloudsmith: the `.deb` or `.rpm` and
+`SHA256SUMS` from `https://github.com/hernancontigiani/menkar/releases/latest`, checked with
+`sha256sum --check --ignore-missing SHA256SUMS`, then `sudo apt install ./menkar_*_amd64.deb` or
+`sudo dnf install ./menkar-*.x86_64.rpm`. apt installs a file under the home folder as root and
+says so with a notice, because its `_apt` user cannot read it there; a copy in `/tmp`, or `sudo
+dpkg -i` followed by `sudo apt -f install`, avoids the notice. A single file gets no updates: each
+new version is installed the same way.
+
 ## Cutting a release
 
 A release is cut by a session and checked by the human; nothing is published anywhere.

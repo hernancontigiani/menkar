@@ -1,12 +1,10 @@
-import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join, resolve as resolvePath } from 'node:path'
 import { app, type IpcMainEvent, type IpcMainInvokeEvent, ipcMain, Menu } from 'electron'
 import { terminalPathExists } from '../core/files/exists'
-import { flavorFacts } from '../core/flavor'
 import { catalog, chooseLanguage, setLanguage } from '../core/i18n'
-import { asksVersion, cliArguments, DETACHED, shouldDetach, versionOf } from '../core/launch'
+import { asksVersion, cliArguments, DETACHED, shouldDetach } from '../core/launch'
 import { addSink, log, openFileSink } from '../core/log'
 import { electronUserData, logFile, useProgramsFolder } from '../core/paths'
 import { settingsOf } from '../core/settings'
@@ -27,7 +25,7 @@ import { broadcastSessions, sessions, sessionsForWindows } from './sessions'
 import { startPhase } from './startup'
 import { currentTasks, startTasks } from './tasks'
 import { startTopics } from './topics'
-import { currentMemberships, runUsageCommand, startUsagePasses } from './usage'
+import { currentMemberships, startUsagePasses } from './usage'
 import {
   controlHandlers,
   deliverFiles,
@@ -201,52 +199,26 @@ const command = cliArguments(process.argv, app.isPackaged)
 // they travel to the running app.
 const openFiles =
   command[0] === 'open' ? command.slice(1).map((file) => resolvePath(process.cwd(), file)) : []
-// The app's package.json, inside the asar when packaged: the build adds the package's version to it.
-function printVersion(): number {
-  let packageJson: unknown = null
-  try {
-    packageJson = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'))
-  } catch (error) {
-    log.warn("the app's package.json could not be read; printing Electron's app version", {
-      error,
-    })
-  }
-  process.stdout.write(`${versionOf(packageJson) ?? app.getVersion()}\n`)
-  return 0
-}
 
-// A command that prints and ends. Into a pipe the streams write asynchronously, so the process
-// ends only once standard output and error have drained: exiting at once would cut the output at
-// the pipe's buffer. A write that failed (the reader went away) makes a 0 a 1, so a cut output
-// never passes for a whole one. Nothing is logged then: the log goes to standard error, which may
-// be the stream that failed.
-function exitAfterOutput(run: () => number): void {
-  let failed = false
-  const streams = [process.stdout, process.stderr]
-  for (const stream of streams)
-    stream.on('error', () => {
-      failed = true
-    })
-  const code = run()
-  const drained = (stream: NodeJS.WriteStream) =>
-    new Promise<void>((resolve) => {
-      stream.write('', (error) => {
-        if (error) failed = true
-        resolve()
-      })
-    })
-  void Promise.all(streams.map(drained)).then(() => app.exit(failed && code === 0 ? 1 : code))
-}
-
-if (asksVersion(process.argv, app.isPackaged)) exitAfterOutput(printVersion)
-else if (startedDetached()) app.exit(0)
-else if (command[0] === 'usage') exitAfterOutput(() => runUsageCommand(command.slice(1)))
-else if (command[0] === 'open' && openFiles.length === 0) {
-  exitAfterOutput(() => {
-    process.stderr.write(`Usage: ${flavorFacts().command} open <file> [<file>…]\n`)
-    return 2
+// A command that prints and ends runs as a copy of this binary in Node's mode, writing straight
+// to the caller's streams: Chromium's platform start needs a display and, without one (ssh, cron,
+// a service), ends the process while its output is still draining. The call is synchronous, so
+// this process never gets as far as that start, and it ends with the copy's code; a copy that did
+// not run or was killed is a failure, never a 0.
+function runAsNode(args: readonly string[]): never {
+  const ran = spawnSync(process.execPath, [join(import.meta.dirname, 'cli.js'), ...args], {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    stdio: 'inherit',
   })
-} else if (!app.requestSingleInstanceLock({ files: openFiles })) {
+  if (ran.error) log.error('the command could not run', { error: ran.error })
+  process.exit(ran.status ?? 1)
+}
+
+if (asksVersion(process.argv, app.isPackaged)) runAsNode(['--version'])
+else if (startedDetached()) app.exit(0)
+else if (command[0] === 'usage') runAsNode(command)
+else if (command[0] === 'open' && openFiles.length === 0) runAsNode(['open'])
+else if (!app.requestSingleInstanceLock({ files: openFiles })) {
   // Another Menkar runs: it got the files (or comes forward); this one ends.
   app.exit(0)
 } else {

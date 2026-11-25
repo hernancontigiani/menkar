@@ -21,8 +21,27 @@ Menkar corre el agente de código que ya usás; no trae uno. Instalá al menos u
 
 ## Instalá en Debian o Ubuntu
 
-<!-- plan 28: apt commands -->
-<!-- /plan 28 -->
+1. Descargá la clave de firma del repositorio y mostrala:
+
+   ```sh
+   curl -fsSL -o /tmp/menkar.key https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+   gpg --show-keys /tmp/menkar.key
+   ```
+
+   Seguí solo si muestra la huella `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`.
+
+2. Agregá la clave y el repositorio, e instalá:
+
+   ```sh
+   sudo gpg --dearmor --yes -o /usr/share/keyrings/menkar-archive-keyring.gpg /tmp/menkar.key
+   echo "deb [signed-by=/usr/share/keyrings/menkar-archive-keyring.gpg] https://dl.cloudsmith.io/public/menkar/menkar-packages/deb/any-distro any-version main" | sudo tee /etc/apt/sources.list.d/menkar.list
+   sudo apt update
+   sudo apt install menkar
+   ```
+
+Después, `sudo apt upgrade` trae cada versión nueva. El alojamiento del repositorio de paquetes lo
+brinda generosamente [Cloudsmith](https://cloudsmith.com), que registra la dirección de cada
+descarga. Para que tu máquina no lo contacte, instalá en cambio el paquete de la última versión:
 
 1. Descargá `menkar_<versión>_amd64.deb` y `SHA256SUMS` de la
    [última versión](https://github.com/hernancontigiani/menkar/releases/latest) en una misma carpeta.
@@ -38,8 +57,25 @@ correr con el sandbox de Chromium en Ubuntu 24.04 y posteriores.
 
 ## Instalá en Fedora
 
-<!-- plan 28: rpm commands -->
-<!-- /plan 28 -->
+Agregá el repositorio e instalá, así `sudo dnf upgrade` trae cada versión nueva:
+
+```sh
+sudo rpm --import https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+sudo tee /etc/yum.repos.d/menkar.repo > /dev/null <<'EOF'
+[menkar]
+name=Menkar
+baseurl=https://dl.cloudsmith.io/public/menkar/menkar-packages/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+EOF
+sudo dnf install menkar
+```
+
+Si dnf pide importar una clave, aceptala solo si su huella es `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`. dnf descarga de Cloudsmith,
+que registra la dirección de cada descarga. Para que tu máquina no lo contacte, instalá en cambio el
+paquete de la última versión:
 
 1. Descargá `menkar-<versión>.x86_64.rpm` y `SHA256SUMS` de la
    [última versión](https://github.com/hernancontigiani/menkar/releases/latest) en una misma carpeta.

@@ -1,0 +1,82 @@
+# A published release's .deb and .rpm go to the APT and RPM repository on Cloudsmith, the very files
+# the human checked on the draft, verified against the release's SHA256SUMS. Run by hand only until
+# the first release; then publishing a release starts it. Run by hand, it must be run from the tag
+# itself ("Use workflow from"): the packages environment accepts only v* tags, and that environment
+# is the one place the upload credential is reachable.
+name: publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to upload, vX.Y.Z
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.event.release.tag_name }}
+
+jobs:
+  upload:
+    if: github.event_name != 'release' || !github.event.release.prerelease
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: packages
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: The release's packages, checked against its SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${TAG#v}"
+          mkdir -p "$RUNNER_TEMP/assets"
+          cd "$RUNNER_TEMP/assets"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "menkar_${version}_amd64.deb" --pattern "menkar-${version}.x86_64.rpm" \
+            --pattern SHA256SUMS
+          sha256sum --check --strict SHA256SUMS
+          {
+            echo "DEB=$RUNNER_TEMP/assets/menkar_${version}_amd64.deb"
+            echo "RPM=$RUNNER_TEMP/assets/menkar-${version}.x86_64.rpm"
+          } >> "$GITHUB_ENV"
+
+      # OIDC needs no stored secret. verify-auth makes a refused exchange fail here, where the API
+      # key can still take over, instead of at the first push.
+      - name: Cloudsmith, by OIDC
+        id: oidc
+        continue-on-error: true
+        uses: cloudsmith-io/cloudsmith-cli-action@03bc141fd8e44c7ca2615b88e86cbbbb267df06d # v3.2.5
+        with:
+          oidc-namespace: menkar
+          oidc-service-slug: sa-menkar
+          verify-auth: 'true'
+
+      # A key given to the action takes precedence over the OIDC settings the step above exported.
+      - name: Cloudsmith, by API key (OIDC was refused)
+        if: steps.oidc.outcome == 'failure'
+        uses: cloudsmith-io/cloudsmith-cli-action@03bc141fd8e44c7ca2615b88e86cbbbb267df06d # v3.2.5
+        with:
+          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
+          verify-auth: 'true'
+
+      - name: Say which credential uploads
+        env:
+          OIDC: ${{ steps.oidc.outcome }}
+        run: |
+          if [ "$OIDC" = success ]; then
+            echo "Uploading with OIDC"
+          else
+            echo "::warning::OIDC was refused; uploading with the CLOUDSMITH_API_KEY fallback"
+          fi
+
+      # --republish lets a run by hand finish an upload that failed halfway: the same file again
+      # replaces the copy already there instead of being refused as a duplicate.
+      - name: Upload the .deb
+        run: cloudsmith push deb menkar/menkar-packages/any-distro/any-version "$DEB" --republish
+      - name: Upload the .rpm
+        run: cloudsmith push rpm menkar/menkar-packages/any-distro/any-version "$RPM" --republish

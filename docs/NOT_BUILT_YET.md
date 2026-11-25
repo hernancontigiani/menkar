@@ -492,6 +492,18 @@ sandboxed app the README promises would not be the one users get. Menkar ships a
 **Trigger:** a user on a distribution with neither APT nor RPM asks for Menkar. First question:
 whether that distribution restricts user namespaces, and so whether `--no-sandbox` is the price.
 
+### A self-hosted package repository
+
+An APT and RPM repository of Menkar's own, on its own domain. Cloudsmith hosts it for free
+(`docs/packaging.md`, "The package repository"); self-hosting now would add a bill, a domain and a
+signing key to guard, for no user yet. Its costs are known: users' sources name
+`dl.cloudsmith.io`, so moving later changes every user's source line and key once, and Cloudsmith
+logs each download's address. Deferred at 1.0 (the human, 2026-11-19).
+
+**Trigger:** the free plan's delivery limit is reached, Cloudsmith ends or changes the open-source
+plan, or the download logs become a concern for users. First question: whether sponsorship from
+Cloudsmith answers it, before building and signing a repository of our own.
+
 ### The public site's `llms.txt` in Spanish
 
 `llms.txt`, `llms-full.txt` and `llms-small.txt` are English only: `starlight-llms-txt` reads the

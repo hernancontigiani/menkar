@@ -21,8 +21,27 @@ least one of them, so its command is on your `PATH`:
 
 ## Install on Debian or Ubuntu
 
-<!-- plan 28: apt commands -->
-<!-- /plan 28 -->
+1. Download the repository's signing key and show it:
+
+   ```sh
+   curl -fsSL -o /tmp/menkar.key https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+   gpg --show-keys /tmp/menkar.key
+   ```
+
+   Go on only if it prints the fingerprint `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`.
+
+2. Add the key and the repository, then install:
+
+   ```sh
+   sudo gpg --dearmor --yes -o /usr/share/keyrings/menkar-archive-keyring.gpg /tmp/menkar.key
+   echo "deb [signed-by=/usr/share/keyrings/menkar-archive-keyring.gpg] https://dl.cloudsmith.io/public/menkar/menkar-packages/deb/any-distro any-version main" | sudo tee /etc/apt/sources.list.d/menkar.list
+   sudo apt update
+   sudo apt install menkar
+   ```
+
+`sudo apt upgrade` then brings each new version. Package repository hosting is graciously provided
+by [Cloudsmith](https://cloudsmith.com), which logs the address of each download. To keep your
+machine from contacting it, install the package from the latest release instead:
 
 1. Download `menkar_<version>_amd64.deb` and `SHA256SUMS` from the
    [latest release](https://github.com/hernancontigiani/menkar/releases/latest) into one folder.
@@ -38,8 +57,25 @@ with Chromium's sandbox on Ubuntu 24.04 and later.
 
 ## Install on Fedora
 
-<!-- plan 28: rpm commands -->
-<!-- /plan 28 -->
+Add the repository and install, so `sudo dnf upgrade` brings each new version:
+
+```sh
+sudo rpm --import https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+sudo tee /etc/yum.repos.d/menkar.repo > /dev/null <<'EOF'
+[menkar]
+name=Menkar
+baseurl=https://dl.cloudsmith.io/public/menkar/menkar-packages/rpm/any-distro/any-version/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dl.cloudsmith.io/public/menkar/menkar-packages/gpg.32B297F2B56D38CD.key
+EOF
+sudo dnf install menkar
+```
+
+If dnf asks to import a key, accept it only if its fingerprint is `4D80 2D23 F528 B669 95C6  529D 32B2 97F2 B56D 38CD`. dnf downloads from
+Cloudsmith, which logs the address of each download. To keep your machine from contacting it,
+install the package from the latest release instead:
 
 1. Download `menkar-<version>.x86_64.rpm` and `SHA256SUMS` from the
    [latest release](https://github.com/hernancontigiani/menkar/releases/latest) into one folder.

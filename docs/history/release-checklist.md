@@ -4,6 +4,18 @@
 > watching").
 background agents" off, no notification; with "Play a sound" off, no sound.
 
+## (the header)
+
+> Left on 2026-11-23: the version under check is the draft release's own file, not a local build (plan 28, block 5).
+Version under check: **0.1.0**, `release/menkar_0.1.0_amd64.deb`, Ubuntu 24.04 amd64.
+The build's own version, `0.1.0-<commits>.g<hash>`, is what
+`dpkg-deb -f release/menkar_0.1.0_amd64.deb Version` prints; note it with the result.
+
+## 1. Install
+
+> Left on 2026-11-23: installed from the draft release's own files, not a local build (plan 28, block 5).
+sudo apt install ./release/menkar_0.1.0_amd64.deb
+
 ## 2. First start, with the agent-tablet import
 
 > Left on 2026-11-10: the header reorganized and the main menu removed (plan 24).

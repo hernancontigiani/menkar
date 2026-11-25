@@ -55,6 +55,31 @@ function prepareHome(root: string): Record<string, string> {
   return env
 }
 
+// What ssh, cron or a systemd user service leaves: no display and no desktop session at all.
+function withoutDesktop(env: Record<string, string>): Record<string, string> {
+  const bare = { ...env }
+  for (const name of [
+    'DISPLAY',
+    'WAYLAND_DISPLAY',
+    'XAUTHORITY',
+    'XDG_SESSION_TYPE',
+    'XDG_RUNTIME_DIR',
+    'DBUS_SESSION_BUS_ADDRESS',
+  ])
+    delete bare[name]
+  return bare
+}
+
+// The reader pauses after each chunk, so the app fills the pipe's buffer long before the reader
+// catches up.
+function slowly(stdout: Readable, chunks: Buffer[]): void {
+  stdout.on('data', (chunk: Buffer) => {
+    chunks.push(chunk)
+    stdout.pause()
+    setTimeout(() => stdout.resume(), 5)
+  })
+}
+
 // `reader` decides how standard output is read; the run ends when the process exits.
 function run(
   root: string,
@@ -94,15 +119,7 @@ test('`menkar usage export` into a slow pipe delivers every byte and exits 0', a
     const expected = readFileSync(file)
     expect(expected.length).toBeGreaterThan(4 * 65_536)
 
-    // The reader pauses after each chunk, so the app fills the pipe's buffer long before the
-    // reader catches up.
-    const piped = await run(root, env, ['export', '--period', 'all'], (stdout, chunks) => {
-      stdout.on('data', (chunk: Buffer) => {
-        chunks.push(chunk)
-        stdout.pause()
-        setTimeout(() => stdout.resume(), 5)
-      })
-    })
+    const piped = await run(root, env, ['export', '--period', 'all'], slowly)
     expect(piped.signal).toBeNull()
     expect(piped.code).toBe(0)
     expect(piped.stdout.length).toBe(expected.length)
@@ -126,6 +143,34 @@ test('`menkar usage export` whose reader goes away exits non-zero', async () => 
     expect(closed.signal).toBeNull()
     expect(closed.code).not.toBe(0)
     expect(closed.code).not.toBeNull()
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('with no display or desktop session, `menkar usage` into a slow pipe is whole and exits 0', async () => {
+  test.setTimeout(120_000)
+  const root = mkdtempSync(join(tmpdir(), 'menkar-e2e-usage-bare-'))
+  try {
+    const env = withoutDesktop(prepareHome(root))
+    const file = join(root, 'export.jsonl')
+    const toFile = await run(root, env, ['export', '--period', 'all', '--output', file], (stdout) =>
+      stdout.resume(),
+    )
+    expect(toFile.code).toBe(0)
+    const expected = readFileSync(file)
+    expect(expected.length).toBeGreaterThan(4 * 65_536)
+
+    const piped = await run(root, env, ['export', '--period', 'all'], slowly)
+    expect(piped.signal).toBeNull()
+    expect(piped.code).toBe(0)
+    expect(piped.stdout.length).toBe(expected.length)
+    expect(piped.stdout.equals(expected)).toBe(true)
+
+    const now = await run(root, env, ['now', '--json'], slowly)
+    expect(now.signal).toBeNull()
+    expect(now.code).toBe(0)
+    expect(() => JSON.parse(now.stdout.toString('utf8'))).not.toThrow()
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
