@@ -19,3 +19,9 @@ each is a sandbox of its own, with `claude` and `~/.claude` outside it.
 - **Stays attached:** `menkar usage …`, `menkar open` with no file (it prints how to use it),
   `--help`, `--version`, `--foreground` / `-f`, and any start whose stdout is not a terminal (the
   launcher, a pipe, Playwright).
+
+## The programs agents run
+
+> Replaced 2026-11-23: Cursor's hook program, `cursor-hook.js`, ships as a fourth (plan 39 P3.3, task 220). It was:
+Three programs ship inside app.asar beside the app, each its own `electron.vite.config.ts` entry
+Node, `statusline.js` and `mcp-server.js` (Claude Code) and `codex-notify.js` (Codex's `notify`).

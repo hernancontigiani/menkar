@@ -18,11 +18,22 @@ que ya tienen los dos agentes aparecen juntas.
 | Correr, retomar y cerrar una sesión en una pestaña | Sí | Sí |
 | El estado de la sesión (:ui[state.working], :ui[state.blocked], :ui[state.idle]) y las notificaciones | Sí | Sí |
 | Anillo de contexto en cada sesión | Sí | No |
-| Tiempo, tokens y costo en :ui[header.usage] | Sí | No |
-| [El modo de orquestación](/menkar/es/orchestration/) | Sí | No |
+| Tiempo, tokens y costo en :ui[header.usage] | Sí | Tiempo y tokens, con :ui[integrations.cursorHooks] activado |
+| [El modo de orquestación](/menkar/es/orchestration/) | Sí | Sí, como worker, ver [Usá Cursor en el modo de orquestación](#usá-cursor-en-el-modo-de-orquestación) |
 | [Control remoto](/menkar/es/sessions/remote-control/) | Sí | No |
 | Bifurcar una sesión | Sí | No |
 | [Continuar en un chat](/menkar/es/sessions/chat/) | Pide permiso antes de cada edición y comando | Solo lectura, o edita y corre comandos sin preguntar |
+
+## Usá Cursor en el modo de orquestación
+
+Cursor no puede ser el orquestador: marcá una sesión de Claude Code como orquestador y dale sus
+tareas a las sesiones de Cursor como workers.
+
+Abrí :ui[header.settings], elegí Cursor y activá :ui[integrations.cursorHooks] y
+:ui[integrations.cursorAllow]. Sin el segundo, Cursor te pregunta antes de que corra cada
+herramienta de Menkar. Sin el primero, un mensaje para una sesión de Cursor espera a que esté
+inactiva y sin nada escrito en su caja, y entonces Menkar la reinicia con el mensaje; con él, el
+mensaje llega apenas termina el turno en curso. Desactivá los dos antes de desinstalar Menkar.
 
 ## Mantené el agente al día
 

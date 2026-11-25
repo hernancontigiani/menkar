@@ -17,6 +17,8 @@ const PAIRS: Readonly<
   chat: { block: 'P0.7', concern: (id) => kitOf(id).chat },
   context: { block: 'P1a.6', concern: (id) => kitOf(id).context },
   tools: { block: 'P1b.2', concern: (id) => kitOf(id).mcp },
+  // Not a concern of the kit: whether the role was checked on the real agent.
+  orchestrates: { block: '1.216', concern: null },
 }
 
 describe('descriptors and kits', () => {
@@ -51,10 +53,18 @@ describe('descriptors and kits', () => {
         .filter(([, has]) => has)
         .map(([cap]) => cap)
         .sort()
-    expect(caps('claude')).toEqual(['chat', 'context', 'fork', 'remote', 'tools', 'trash'])
-    expect(caps('cursor')).toEqual(['chat', 'trash'])
-    expect(caps('codex')).toEqual(['context', 'tools'])
-    expect(caps('opencode')).toEqual(['context', 'tools'])
+    expect(caps('claude')).toEqual([
+      'chat',
+      'context',
+      'fork',
+      'orchestrates',
+      'remote',
+      'tools',
+      'trash',
+    ])
+    expect(caps('cursor')).toEqual(['chat', 'tools', 'trash'])
+    expect(caps('codex')).toEqual(['context', 'orchestrates', 'tools'])
+    expect(caps('opencode')).toEqual(['context', 'orchestrates', 'tools'])
   })
 
   test('every cap has its concern named, and a built concern matches its cap for every agent', () => {
@@ -96,7 +106,7 @@ describe('descriptors and kits', () => {
       const passed = plan.words.join(' ').includes(promptFile) || mainKitOf(id).prepare !== null
       expect(passed, id).toBe(descriptorOf(id).firstPrompt)
     }
-    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, false, true, true])
+    expect(AGENT_IDS.map((id) => descriptorOf(id).firstPrompt)).toEqual([true, true, true, true])
   })
 
   // The chat variants are data the renderer reads; the kit's ChatStrategy runs them.

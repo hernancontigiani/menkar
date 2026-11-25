@@ -59,4 +59,24 @@ describe('R10 unchanged', () => {
     })
     expect(r10Problems(root, 'HEAD')).toEqual({ ref: 'HEAD', count: 2, problems: [] })
   })
+
+  // Plan 39 §2.10: R10's Cursor rows guard P0–P2 only; P3.2 rewrites them on the branch with set's
+  // sign-off, so they may differ from main's, but none may go missing.
+  test("a Cursor row may differ from main's on the branch, never go missing", () => {
+    const { root, git } = repo()
+    write(root, 'tests/core/r10/cursor-new-team.txt', 'recorded\n')
+    write(root, 'tests/core/r10/e2e/on-cursor-new.txt', 'recorded\n')
+    write(root, 'tests/core/r10/e2e/on-cursor-resume.txt', 'recorded\n')
+    git('add', '.')
+    git('commit', '-q', '-m', 'Cursor rows recorded on main')
+    git('checkout', '-q', '-b', 'multi-agent')
+    write(root, 'tests/core/r10/cursor-new-team.txt', 'rewritten by P3.2\n')
+    write(root, 'tests/core/r10/e2e/on-cursor-new.txt', 'rewritten by P3.2\n')
+    git('rm', '-q', 'tests/core/r10/e2e/on-cursor-resume.txt')
+    expect(r10Problems(root, undefined)).toEqual({
+      ref: 'main',
+      count: 4,
+      problems: ['missing: tests/core/r10/e2e/on-cursor-resume.txt'],
+    })
+  })
 })

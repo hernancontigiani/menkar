@@ -261,17 +261,37 @@ process.stdin.on('data', (d) => {
 const FAKE_CURSOR = `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path')
 if (process.argv[2] === '--version') {
-  process.stdout.write('2026.01.01-stand-in\\n')
+  process.stdout.write('2026.11.13-stand-in\\n')
   process.exit(0)
 }
 fs.appendFileSync(path.join(process.env.HOME, 'cursor-args.txt'), process.argv.slice(2).join(' ') + '\\n')
+// A build of Cursor without the hidden option fails as commander does, before anything is drawn.
+if (process.env.FAKE_CURSOR_NO_NEW_ID === '1' && process.argv.includes('--new-session-id')) {
+  process.stderr.write("error: unknown option '--new-session-id'\\n")
+  process.exit(1)
+}
 fs.writeFileSync(path.join(process.env.HOME, 'cursor-env.json'), JSON.stringify(process.env))
 process.stdout.write('stand-in cursor-agent ready\\r\\n')
+// With FAKE_CURSOR_BOX, Cursor's input box: its placeholder while empty, else what is typed in it.
+const box = process.env.FAKE_CURSOR_BOX === '1'
+let draft = ''
+const drawBox = () => process.stdout.write('\\r\\x1b[2K  → ' + (draft || 'Add a follow-up'))
+if (box) {
+  const prompt = process.argv.slice(process.argv.indexOf('--') + 1).join(' ')
+  if (process.argv.includes('--')) process.stdout.write('PROMPT: ' + prompt + '\\r\\n')
+  drawBox()
+}
 if (process.stdin.isTTY) process.stdin.setRawMode(true)
 let typed = ''
 process.stdin.on('data', (d) => {
   typed += d.toString()
   if (typed.includes('EXIT0')) process.exit(0)
+  if (!box) return
+  for (const c of d.toString()) {
+    if (c === '\\x7f') draft = draft.slice(0, -1)
+    else if (c >= ' ') draft += c
+  }
+  drawBox()
 })
 `
 

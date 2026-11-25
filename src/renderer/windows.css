@@ -431,3 +431,8 @@ kbd {
   border-radius: var(--control-radius);
   background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
+
+/* An agent whose CLI is not found: its items are shown, greyed, and cannot be changed. */
+.group.unavailable .card {
+  opacity: 0.55;
+}

@@ -3,7 +3,7 @@ import type { Launcher, Namer } from '../types'
 import { mcp } from './mcp'
 import { team } from './team'
 
-export const namer: Namer = { atStart: (name) => ['-n', name] }
+export const namer: Namer = { atStart: (name) => ['-n', name], kept: () => null }
 
 export const launch: Launcher = {
   plan(start, ctx) {

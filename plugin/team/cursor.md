@@ -1,0 +1,3 @@
+- Menkar's tools are on the MCP server whose name starts with `plugin-menkar` and ends in `-menkar`: a tool you don't see yet, find it by its name there with GetDynamicTools, then call it with CallDynamicTool.
+- Message a session with that server's `send_message` tool, `name` set to its name.
+- To load a skill, read its whole SKILL.md at the path given and follow it.

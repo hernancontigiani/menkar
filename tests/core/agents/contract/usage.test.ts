@@ -2,6 +2,7 @@
 // its own fixture home, and the turns it gives (origin, opening, working time, tokens per model and
 // hour) are its `usage.json`. Codex's fixture has records (0.169.0), counts only (an older Codex,
 // a repeated count among them), a compaction's own task and a subagent counted for its parent.
+// Cursor's turns come from its hook log, in its fixture's Menkar cache.
 import { cpSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -28,6 +29,9 @@ describe.each(WITH_USAGE.map((id) => [id]))('%s', (id) => {
     n += 1
     const dir = join(process.env.MENKAR_TEST_ROOT ?? '', `usage-contract-${id}-${n}`)
     cpSync(join(DATA, id, 'home'), join(dir, 'home'), { recursive: true })
+    // An agent whose turns come from what its hooks leave in Menkar's cache has that cache too.
+    if (existsSync(join(DATA, id, 'cache')))
+      cpSync(join(DATA, id, 'cache'), join(dir, 'cache'), { recursive: true })
     vi.stubEnv('HOME', join(dir, 'home'))
     vi.stubEnv('CODEX_HOME', '')
     vi.stubEnv('XDG_DATA_HOME', '')

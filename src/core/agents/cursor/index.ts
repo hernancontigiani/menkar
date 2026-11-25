@@ -1,25 +1,33 @@
 import type { AgentKit } from '../types'
 import { catalog } from './catalog'
 import { chat } from './chat'
+import { follow } from './follow'
 import { ids } from './ids'
-import { launch, namer } from './launch'
+import { integrations } from './integrations'
+import { launch } from './launch'
+import { mcp } from './mcp'
+import { namer } from './names'
 import { state } from './state'
+import { team } from './team'
+import { usage } from './usage'
+import { writes } from './writes'
 
 export const kit: AgentKit = {
   launch,
-  mcp: null,
+  mcp,
   messaging: null,
   namer,
-  team: null,
+  team,
   env: null,
   envPatterns: null,
   catalog,
   state,
   ids,
-  follow: null,
+  follow,
   fork: null,
   chat,
-  writes: { created: [], changed: [] },
-  usage: null,
+  writes,
+  usage,
   context: null,
+  integrations,
 }

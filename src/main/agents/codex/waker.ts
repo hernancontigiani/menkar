@@ -2,10 +2,11 @@ import { join } from 'node:path'
 import { findRollout } from '../../../core/agents/codex/binding'
 import { codexHome } from '../../../core/agents/codex/config'
 import { descriptor } from '../../../core/agents/codex/descriptor'
-import { wakeText } from '../../../core/control/post'
+import { type PostOutcome, wakeText } from '../../../core/control/post'
 import { log } from '../../../core/log'
+import type { WorkCounts } from '../../../core/orchestration/counts'
 import { runWakeCommand } from '../shared/wake'
-import type { Waker } from '../types'
+import type { MainTeamDelivery, Waker } from '../types'
 
 // `codex queue` returns once the message is in the queue, in well under a second; the session
 // takes it as its own turn once the current one is over, never while an approval waits, so nothing
@@ -21,19 +22,26 @@ export const QUEUE_WAIT_MS = 10_000
 export const DAEMON_REFUSAL =
   'cannot queue through an embedded app server while a local app-server daemon is running'
 
-export const waker: Waker = {
-  wake: async (sessionId, text, counts) => {
-    if ((await findRollout(join(codexHome(), 'sessions'), sessionId)) === null) return 'no session'
-    const message = ['--thread', sessionId, '--message', wakeText(text, counts)]
-    let end = await runWakeCommand(
-      descriptor.command,
-      ['queue', '--disable', 'plugins', ...message],
-      QUEUE_WAIT_MS,
-    )
-    if (end.code !== 0 && end.stderr.includes(DAEMON_REFUSAL))
-      end = await runWakeCommand(descriptor.command, ['queue', ...message], QUEUE_WAIT_MS)
-    if (end.code === 0) return 'posted'
-    log.warn('codex queue failed', { session: sessionId, code: end.code, stderr: end.stderr })
-    throw new Error(`codex queue ended with ${end.code ?? 'a signal'}`)
-  },
+async function queue(
+  sessionId: string,
+  text: string,
+  counts: WorkCounts | undefined,
+): Promise<PostOutcome> {
+  if ((await findRollout(join(codexHome(), 'sessions'), sessionId)) === null) return 'no session'
+  const message = ['--thread', sessionId, '--message', wakeText(text, counts)]
+  let end = await runWakeCommand(
+    descriptor.command,
+    ['queue', '--disable', 'plugins', ...message],
+    QUEUE_WAIT_MS,
+  )
+  if (end.code !== 0 && end.stderr.includes(DAEMON_REFUSAL))
+    end = await runWakeCommand(descriptor.command, ['queue', ...message], QUEUE_WAIT_MS)
+  if (end.code === 0) return 'posted'
+  log.warn('codex queue failed', { session: sessionId, code: end.code, stderr: end.stderr })
+  throw new Error(`codex queue ended with ${end.code ?? 'a signal'}`)
 }
+
+export const waker: Waker = { wake: queue, release: null }
+
+// A change is told as any wake is.
+export const teller: MainTeamDelivery = { tell: queue, withdraw: null }

@@ -26,8 +26,6 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'layout.sharesTab': 'Comparte una pestaña con otra sesión allá',
   'agent.claude': 'Claude Code',
   'agent.cursor': 'Cursor',
-  'agent.cursorOrchestrates':
-    'Cursor puede orquestar, con límites: despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.cursorWorks':
     '“{name}” es una sesión de Cursor: puede trabajar para el orquestador, con límites — despertarlo cuando está inactivo lo reinicia, y pide permiso antes de cada herramienta que no hayas permitido.',
   'agent.codex': 'Codex',
@@ -39,6 +37,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'drawer.pickTitle': 'Abrir una shell en',
   'drawer.pickPlaceholder': 'Filtrar carpetas',
   'drawer.divider': 'Arrastrá para cambiar el alto de la shell; Ctrl+` la oculta',
+  'terminal.idRefused':
+    '`{cli}` rechazó el id que Menkar le dio a esta sesión nueva: volvé a empezarla y elige el suyo.',
   'terminal.notFound': 'aviso: no se encontró `{cli}` en el PATH — se abre una shell sola',
   'terminal.serverFailed':
     'aviso: Menkar no pudo iniciar el servidor de `{cli}` para esta sesión — se abre una shell sola',
@@ -119,6 +119,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
     '{name} es una de las skills propias de Menkar, que no se configuran aquí.',
   'team.oldClaude':
     'Claude Code {version} es anterior a {floor}: las sesiones empiezan sin sus instrucciones de equipo. Actualizá Claude Code.',
+  'team.oldCursor':
+    'Cursor {version} es anterior a {floor}: sus sesiones empiezan sin sus instrucciones de equipo. Actualizá Cursor.',
   'orch.withYouBadge': 'con vos',
   'orch.earlier': '{n} anteriores',
   'orch.parked': 'Aparcados · {n}',
@@ -164,6 +166,10 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'orch.cardAgent': 'Agente',
   'orch.cardAgentNoTools':
     'Las sesiones de {agent} todavía no pueden usar las herramientas de Menkar',
+  'orch.cardAgentNoOrchestrator':
+    '{agent} todavía no puede orquestar; sus sesiones pueden trabajar para el orquestador',
+  'orch.cannotOrchestrate':
+    'Este agente todavía no puede orquestar; sus sesiones pueden trabajar para el orquestador.',
   'orch.cardNew': 'Una sesión nueva',
   'orch.cardGuide': 'Abrir la guía',
   'orch.cardCopy': 'Copiar un prompt para otra sesión',
@@ -641,6 +647,24 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   'integrations.retentionByUser': 'Se conservan {days} días (tu configuración)',
   'integrations.retentionUnreadable':
     'No se pudo leer {path}, así que no se sabe cuánto tiempo conserva Claude Code las transcripciones.',
+  'integrations.cursorSettings': 'Configuración de Cursor',
+  'integrations.cursorSettingsDescription':
+    'Cada parte se agrega a uno de los archivos de Cursor solo cuando la activás, y se quita cuando la desactivás; el resto del archivo queda como lo tenías. Antes de cada cambio se guarda una copia del archivo.',
+  'integrations.agentNotFound':
+    'No se encontró {command} en el PATH: se pueden activar cuando esté instalado.',
+  'integrations.agentSandbox':
+    'Estas entradas ejecutan el programa propio de Menkar Sandbox: desactivalas acá antes de desinstalar Menkar Sandbox.',
+  'integrations.agentItemUnknown': 'Menkar no tiene ese ajuste.',
+  'integrations.cursorHooks': 'Los hooks de Menkar en cada sesión de Cursor',
+  'integrations.cursorHooksSubtitle':
+    'Tres entradas en ~/.cursor/hooks.json para el fin de cada turno, sus tokens y despertar una sesión. Corren en cada sesión de Cursor, también fuera de Menkar, donde terminan enseguida. Cursor les envía el email de tu cuenta en cada turno; Menkar nunca lo guarda. Sin ellas Menkar sabe de una sesión de Cursor solo lo que muestran su pantalla y su transcripción.',
+  'integrations.cursorAllow': 'Las herramientas de Menkar sin tarjeta de aprobación',
+  'integrations.cursorAllowSubtitle':
+    'Entradas de permiso para las herramientas de Menkar en el cli-config.json de Cursor. Sin ellas Cursor pregunta antes de cada llamada a una herramienta de Menkar.',
+  'integrations.cursorNoFile':
+    'No se encontró {path}: iniciá cursor-agent una vez y probá de nuevo.',
+  'integrations.cursorShape':
+    '"{key}" en {path} no es lo que Cursor espera ahí; el archivo se dejó como estaba.',
   'classifier.offInSandbox': 'Menkar Sandbox no clasifica turnos.',
   'classifier.group': 'Clasificar turnos',
   'classifier.switch': 'Clasificar cada turno nuevo por etapa de desarrollo',

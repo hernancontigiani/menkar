@@ -2,7 +2,7 @@
 // runs that step alone.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -20,9 +20,14 @@ function filesUnder(dir) {
   )
 }
 
+// Cursor's rows guarded its start until the multi-agent branch completed Cursor there: from then
+// the branch writes them, with the orchestrator's sign-off, and a merge of main keeps the branch's.
+const CURSOR_ROW = /(^|-)cursor-/
+const branchOwns = (path) => CURSOR_ROW.test(basename(path))
+
 /**
- * R10's files are written on `main` only: anywhere else each must hold `main`'s bytes, none may be
- * missing and none added. A checkout with no local `main` (the hosted CI) names the ref to compare
+ * R10's files are written on `main` only: anywhere else each must hold `main`'s bytes (Cursor's
+ * rows aside), none may be missing and none added. A checkout with no local `main` (the hosted CI) names the ref to compare
  * with in `base`, MENKAR_R10_BASE; then nothing is skipped, since the checkout may be `main` itself
  * checked against another ref.
  * @param {string} root
@@ -41,7 +46,10 @@ export function r10Problems(root, base) {
   const problems = []
   for (const path of onMain) {
     if (!existsSync(join(root, path))) problems.push(`missing: ${path}`)
-    else if (!readFileSync(join(root, path)).equals(git(root, 'show', `${ref}:${path}`)))
+    else if (
+      !branchOwns(path) &&
+      !readFileSync(join(root, path)).equals(git(root, 'show', `${ref}:${path}`))
+    )
       problems.push(`differs from ${ref}: ${path}`)
   }
   const listed = new Set(onMain)
@@ -65,7 +73,7 @@ function r10Unchanged() {
     console.error('  R10 is written on main only; a change to it lands there first.')
     return 1
   }
-  console.log(`R10 unchanged: ${count} file(s) equal ${ref}'s`)
+  console.log(`R10 unchanged: ${count} file(s) equal ${ref}'s, Cursor's rows aside`)
   return 0
 }
 

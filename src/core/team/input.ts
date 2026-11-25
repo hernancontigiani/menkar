@@ -19,6 +19,8 @@ export interface TeamInputArgs {
   readonly file?: (skill: string) => string | undefined
   // The folder of Menkar's own skills.
   readonly ownSkills?: string
+  // The project's files folder, once made.
+  readonly filesFolder?: string
   readonly context: TeamInput['context']
 }
 
@@ -28,7 +30,10 @@ const callName = (named: TeamInputArgs['named'], id: string) => named(id) ?? id.
 // Null with the mode off: such a project's sessions get no block at all.
 export function teamInput(args: TeamInputArgs): TeamInput | null {
   const { project, session, named, context } = args
-  const own = args.ownSkills ? { ownSkills: args.ownSkills } : {}
+  const own = {
+    ...(args.ownSkills ? { ownSkills: args.ownSkills } : {}),
+    ...(args.filesFolder ? { filesFolder: args.filesFolder } : {}),
+  }
   const o = keptOrchestration(project.orchestration, project.members)
   if (!o?.on) return null
   const orchestrator: TeamInput['orchestrator'] =

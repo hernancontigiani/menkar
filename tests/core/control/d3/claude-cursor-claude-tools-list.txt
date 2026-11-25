@@ -491,6 +491,27 @@
           "type": "object",
           "properties": {}
         }
+      },
+      {
+        "name": "send_message",
+        "description": "Sends a message to another session of your Menkar project, by its name, waking it if it is idle: for a session your agent's own messaging cannot reach, such as one run by another coding agent. Menkar refuses it where your own messaging reaches the session; use that instead. The message reaches it as Menkar's, naming you, and its reply comes back the same way.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The session's name."
+            },
+            "text": {
+              "type": "string",
+              "description": "The message."
+            }
+          },
+          "required": [
+            "name",
+            "text"
+          ]
+        }
       }
     ]
   }

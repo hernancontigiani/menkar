@@ -133,13 +133,20 @@ in the plugin folder, `plugin/guide/orchestration-mode.md`.
     2026-11-20): an "Agent" line under the new session's name and folder, Add session's picker,
     defaulting to the agent last started (`last_agent`, which starting the new orchestrator
     writes, so the next card defaults to it); an agent not installed is greyed with its tooltip,
-    and so is one whose sessions can't use Menkar's tools (`caps.tools`; Cursor until it can).
+    and so would be one whose sessions can't use Menkar's tools (`caps.tools`; all four can).
     Each listed session names its agent, dim, beside its name. With one agent the card has
     neither.
-  - **An agent with limits** (the descriptor's `teamLimits`; Cursor's: waking it when idle
-    restarts it, and it asks before each tool not allowed) is said so under what chose it, never
-    forbidden: under the choices when it is picked to orchestrate, under "Sessions the
-    orchestrator manages" for each checked session of it.
+  - **An agent that may not orchestrate** (`caps.orchestrates` false; Cursor's until its real
+    check of that role passes, decision 1.216, 2026-11-24) is greyed on the Agent line with its
+    tooltip ("… can't orchestrate yet; its sessions can work for the orchestrator"), and a listed
+    session of it has its radio greyed with the same tooltip; the first session that may
+    orchestrate is chosen, or "A new session". It stays offered as a worker. The row menu's
+    Orchestrator is greyed for it, and main refuses marking it (`setOrchestrator`, `startNew` with
+    `orchestrator: true`). A session of it marked before keeps its mark, and can be unmarked.
+  - **An agent with limits** (the descriptor's `teamLimits`; Cursor's as a worker: waking it when
+    idle restarts it, and it asks before each tool not allowed) is said so under what chose it:
+    under the choices when it is picked to orchestrate (`teamLimits.orchestrator`, none today),
+    under "Sessions the orchestrator manages" for each checked session of it.
   - **Start** switches the mode on first, so a new orchestrator starts with its team block and a
     running session chosen hears of the whole change in one post (`startTeam`); then it marks the
     chosen session, or starts the new one, of the agent chosen, through `startNew` with its

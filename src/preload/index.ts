@@ -77,6 +77,9 @@ const api: MenkarApi = {
     setStatusline: (on) => ipcRenderer.invoke('integrations:set-statusline', { on }),
     retention: () => ipcRenderer.invoke('integrations:retention'),
     setRetention: (on) => ipcRenderer.invoke('integrations:set-retention', { on }),
+    agentItems: () => ipcRenderer.invoke('integrations:agent-items'),
+    setAgentItem: (agent, key, on) =>
+      ipcRenderer.invoke('integrations:set-agent-item', { agent, key, on }),
     onSection: (listener) => subscribe('settings:section', listener),
   },
   agents: {

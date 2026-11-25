@@ -84,7 +84,60 @@ How to repeat:
 - Stop every process by PID after checking that its `/proc/<pid>/environ` names that home.
 - Never use the human's `~/.codex`, login or daemon.
 
-## Cursor — no row yet, owner: its consultant
+## Cursor — validated at 2026.11.13-eacade1 (2026-11-24), owner: `cursor`
+
+Menkar's floor is 2026.11.13, the version `--new-session-id` was measured on by `cursor`
+(2026-11-23): below it a new session's id is Cursor's own and it starts without its team block
+(`docs/agents.md`, "Cursor: starting a session").
+
+| What | State | Where it is described |
+|---|---|---|
+| Start and resume: `cursor-agent` (new), `cursor-agent --resume <id>` (history kept); `--resume <id> "<prompt>"` runs the prompt as the first turn; the hidden `--new-session-id <uuid>` makes a new chat with that id, and a later `--resume <uuid>` finds it; `create-chat` prints an id and writes nothing | measured 2026.11.13-eacade1 (task 75; cursor.md M2–M3, §5b) | `docs/agents.md` |
+| A resume carries no `--add-dir` and Menkar never passes `--trust` (1.214, 2026-11-24): the `--add-dir` grant is per process, and `--add-dir` on a resume raises a trust box each time, stalling every wake; the team block names the project's files folder instead | measured 2026.11.13-eacade1 (`cursor`, topic 109; built in task 228) | `docs/agents.md` |
+| The first run in a folder asks "Workspace Trust Required"; accepting writes `~/.cursor/projects/<slug>/.workspace-trusted` (Cursor's own write, the human's answer) | measured 2026.11.13-eacade1 | `docs/agents.md` |
+| Transcripts: `$CURSOR_DATA_DIR` or `~/.cursor`, `projects/<slug>/agent-transcripts/<id>/<id>.jsonl`, `{role, message.content}` lines and `{"type":"turn_ended","status"}`; user text wrapped in `<timestamp>…</timestamp>` and `<user_query>`; no tokens, model or per-line time; the TUI rewrites the file, a tool_use line is flushed only after its card is answered, a Skip leaves no result line and the reason typed is not recorded | measured 2026.11.13-eacade1 (tasks 75, 77) | `docs/sessions.md` |
+| The state screens: working (Braille spinner, "Thinking N tokens"), the shell and MCP cards ("Run this command?", "Run this MCP tool?") as blocked, the "Tell the agent what to do instead" box as blocked (its footer says "ctrl+c to stop"; Esc goes back to the card), idle "→ Add a follow-up" with "<model> · <n>%" | measured 2026.11.13-eacade1 (tasks 75, 77; fixtures in `tests/data/agents/cursor/`) | `docs/agent-state.md` |
+| Chat tabs: `-p --output-format stream-json --stream-partial-output --trust` with `--mode ask` (refuses to run tools) or `--force` (runs them), `--resume <id>` per message | measured 2026.11.13-eacade1 (task 75) | `docs/chat.md` |
+| `--plugin-dir <folder>` loads `.mcp.json`, `hooks/hooks.json` and `skills/` for that run, nothing written to `~/.cursor`, no trust prompt; a plugin's `rules/` do not reach the context | measured 2026.11.13-eacade1 (cursor.md M4–M5, §5b) | `docs/session-control.md` |
+| Menkar's MCP server by the plugin: named `plugin-<folder basename>-<key>`; its env is only `HOME LOGNAME PATH SHELL TERM USER` plus `.mcp.json`'s `env` (`MENKAR_PANE` must go there); tools deferred (+125 input tokens for 18 tools); a card at every call; `--approve-mcps` changes nothing; "Allowlist MCP Tool" writes `Mcp(<server>:<tool>)` into `~/.cursor/cli-config.json` `permissions.allow` (D7) | measured 2026.11.13-eacade1 (cursor.md M4, M15–M18) | `docs/session-control.md` |
+| A plugin's turn hooks (`beforeSubmitPrompt`, `stop`, `afterAgentResponse`) run only with a same-event entry in `~/.cursor/hooks.json` or the project's `.cursor/hooks.json` (D13); `sessionStart`, `sessionEnd` and `beforeMCPExecution` run without; hooks see the pty's env; `stop` carries status and tokens, `afterAgentResponse` the reply | measured 2026.11.13-eacade1 (cursor.md M12) | `docs/session-control.md`, `docs/usage.md` |
+| Waking a working session: `stop`'s `followup_message` starts the next turn about 2.4 s later, as an ordinary user message; a hook that waits leaves the session idle and its late answer was delivered twice. An idle session: end and `--resume <id> "<event>"` | measured 2026.11.13-eacade1 (cursor.md M13–M14, M3) | `docs/session-control.md` |
+| The team block as the plugin's `sessionStart` `additional_context`: before the first answer, kept through `/summarize` and `--resume`, frozen at the chat's creation (a changed text is not seen on resume); runs only for a new chat | measured 2026.11.13-eacade1 (cursor.md §5b) | `docs/session-control.md` |
+| The user's `~/.cursor/hooks.json` (always that path, also under `CURSOR_CONFIG_DIR`): `command` run through a shell; a missing program (exit 127) or a failing one (exit 1) is skipped with no screen, no delay and no write (`failClosed` false by default); a slow one delays the turn unless the entry's `timeout` (seconds) cuts it; Cursor never rewrites the file | measured 2026.11.13-eacade1 (task 215) | `docs/packaging.md` |
+| `cli-config.json` (`$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else `~/.cursor`) is rewritten by Cursor at every start: reformatted, keys reordered, unknown keys dropped, `permissions.allow` kept; `Mcp(<server>:*)` allows every tool of a server | measured 2026.11.13-eacade1 (task 215) | `docs/session-control.md` |
+| The version word: `cursor-agent --version` prints `2026.11.13-eacade1`, no colour even under `FORCE_COLOR` (word 0) | measured 2026.11.13-eacade1 | `docs/agent-versions.md` |
+| Every TUI start runs a background update check 2 s in, unless the hidden `--disable-auto-update` or the `static` channel; an update installs a new `~/.local/share/cursor-agent/versions/<v>/` | read 2026.11.13-eacade1 (bundle); no update seen on this machine 2026-11-14 to 11-23; left native, no hidden flag passed (1.213) | — |
+
+**The version is a date** (1.213, 2026-11-23): `2026.11.13-eacade1` is compared as it is, as the
+numbers 2026, 11, 13 (the hash is dropped). A build from a later month is a minor jump, so the
+amber banner shows about once a month; a later build in the same month is a patch; two builds of
+one day compare equal.
+
+**Not checked on any version:** a stand-in API: every measured item ran on the human's login
+(Free, `--model auto`), not a stand-in, in a throwaway home; a model other than `auto`; macOS.
+
+**Not checked on 2026.11.13-eacade1** (task 226, `cursor`'s real check of 2026-11-24, stopped when
+the human's Cursor Free plan ran out of requests; re-checked after the plan resets on 2026-12-14,
+task 226):
+- **Cursor as the orchestrator**, woken through its waker, and how often it restarts: until it
+  passes, the descriptor says `orchestrates: false` and the mode's card does not offer Cursor as
+  the orchestrator (1.216);
+- a held message going once the box is emptied (the limit screen left the refused prompt in the
+  box, a draft);
+- `/summarize` on a resumed pane retelling the whole team block (not conclusive);
+- `/resume` followed by the tab (not conclusive, as `/new` was not followed then);
+- the "Run this MCP tool?" card's screen, for `tests/data/agents/cursor/screens.json` (read as
+  blocked, its text not kept);
+- `/new` followed by the tab, and the idle wake's restart, after task 227's fixes (the chats found
+  under Cursor's config folder; restarts spaced) and task 228's (a resume with no `--add-dir`):
+  covered by the stand-in only.
+
+How to repeat: a throwaway `HOME` holding a copy of the human's `~/.config/cursor/auth.json`
+(deleted after), the real `cursor-agent` in a private tmux server, a scratch git repository with a
+no-op `stop` in its `.cursor/hooks.json` to read tokens, a per-run `--plugin-dir` with a stdio MCP
+stub and a logging hook; every process checked by its `HOME` in `/proc/<pid>/environ` and stopped by
+PID; `/tmp/.cursor/<slug>/` and `/tmp/cursor-askpass-*.sock` the run made removed. To move into
+`scripts/agent-probes/cursor/`.
 
 ## OpenCode — validated at 2.3.0 (2026-11-23), owner: `opencode`
 

@@ -2,7 +2,7 @@ import { shellQuote } from '../../command'
 import type { Launcher, Namer } from '../types'
 
 // The title is given when Menkar creates the session on its server, before the TUI starts.
-export const namer: Namer = { atStart: () => null }
+export const namer: Namer = { atStart: () => null, kept: () => null }
 
 // The TUI attaches to the session Menkar made or resumes on its own server, through the pane's
 // proxy (`ctx.server`); the server's password is in the environment main gives the pane. Without

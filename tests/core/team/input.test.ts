@@ -116,6 +116,19 @@ test('the text: the facts alone, and the whole block with the parts after them',
   expect(text.block).toBe(`${text.facts}\n\n## How the team works\n- one\n\n- two\n`)
 })
 
+test("the project's files folder is passed on, for a member and a session not yet one", () => {
+  const filesFolder = '/h/Menkar/menkar'
+  expect(
+    teamInput({ project: team(), session: 'e1', named, found, filesFolder, context })?.filesFolder,
+  ).toBe(filesFolder)
+  expect(
+    teamInput({ project: team(), session: null, named, found, filesFolder, context })?.filesFolder,
+  ).toBe(filesFolder)
+  expect(teamInput({ project: team(), session: 'e1', named, found, context })).not.toHaveProperty(
+    'filesFolder',
+  )
+})
+
 test('another session with no name of its own is called by the first eight characters of its id', () => {
   let state = projects([project('p', 'menkar', ['0123456789ab', 'e1'])])
   state = setOrchestrator(setMode(state, 'p', true), 'p', '0123456789ab')

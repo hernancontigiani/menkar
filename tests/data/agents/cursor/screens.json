@@ -112,5 +112,23 @@
     "title": "",
     "screen": "→ Tell the agent what to do next   ctrl+c to stop",
     "state": "working"
+  },
+  {
+    "name": "the workspace trust prompt of 2026.11.13, in its box",
+    "title": "",
+    "screen": "\n\n  Cursor Agent\n  v2026.11.13-eacade1\n\n ╭──────────────────────────────────────────────────────────────────────╮\n │ ⚠ Workspace Trust Required                                           │\n │                                                                      │\n │ Cursor Agent can execute code and access files in this directory.    │\n │                                                                      │\n │ Do you trust the contents of this directory?                         │\n │                                                                      │\n │   /home/demo/api                                                     │\n │                                                                      │\n │ ▶ [a] Trust this workspace                                           │\n │   [q] Quit                                                           │\n │                                                                      │\n │ Use arrow keys to navigate, Enter to select, or press the key shown  │\n ╰──────────────────────────────────────────────────────────────────────╯\n\n",
+    "state": "blocked"
+  },
+  {
+    "name": "the trust prompt with Quit highlighted",
+    "title": "",
+    "screen": " ╭──────────────────────────────────────────────────────────────────────╮\n │ ⚠ Workspace Trust Required                                           │\n │                                                                      │\n │ Cursor Agent can execute code and access files in this directory.    │\n │                                                                      │\n │ Do you trust the contents of this directory?                         │\n │                                                                      │\n │   /home/demo/api                                                     │\n │                                                                      │\n │   [a] Trust this workspace                                           │\n │ ▶ [q] Quit                                                           │\n │                                                                      │\n │ Use arrow keys to navigate, Enter to select, or press the key shown  │\n ╰──────────────────────────────────────────────────────────────────────╯",
+    "state": "blocked"
+  },
+  {
+    "name": "a reply that quotes the trust prompt's choices is not the prompt",
+    "title": "",
+    "screen": "\n  The prompt offers [a] Trust this workspace or [q] Quit.\n\n  → Add a follow-up\n\n  Auto · 4.1%\n  /home/demo/api · main\n",
+    "state": "idle"
   }
 ]

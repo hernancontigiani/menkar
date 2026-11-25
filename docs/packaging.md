@@ -98,7 +98,7 @@ as any start does, single-instance hand-off included. The decision is `shouldDet
 
 ## The programs agents run
 
-Three programs ship inside app.asar beside the app, each its own `electron.vite.config.ts` entry
+Four programs ship inside app.asar beside the app, each its own `electron.vite.config.ts` entry
 under `out/main/`, and each run by an agent as `ELECTRON_RUN_AS_NODE=1 <electron> <app.asar>/out/main/<program>.js`:
 Electron serves the script from the archive, so none is unpacked (`asarUnpack` is only for native
 modules and for files another program opens itself).
@@ -107,6 +107,9 @@ modules and for files another program opens itself).
 - `mcp-server.js`: Menkar's MCP server, through `--mcp-config`.
 - `codex-notify.js`: Codex's `notify`, through `-c notify=[…]`, its argv starting
   `/usr/bin/env ELECTRON_RUN_AS_NODE=1` so the variable never enters Codex's own environment.
+- `cursor-hook.js`: Cursor's turn hooks, through the entries the user accepted in
+  `~/.cursor/hooks.json` (Settings, Cursor), the same `/usr/bin/env` way. Those run in every Cursor
+  session, so a package that loses the file leaves entries Cursor skips, silently.
 
 ## Checks
 
@@ -120,7 +123,8 @@ modules and for files another program opens itself).
   **It reads app.asar's header** (the first megabyte of the archive, out of the package, parsed by
   hand: a pickle holding the header's size, then the JSON tree) and fails when one of the programs
   Electron's binary runs is missing from it: `out/main/index.js`, and the three agents run as plain
-  Node, `statusline.js` and `mcp-server.js` (Claude Code) and `codex-notify.js` (Codex's `notify`).
+  Node, `statusline.js` and `mcp-server.js` (Claude Code), `codex-notify.js` (Codex's `notify`) and
+  `cursor-hook.js` (Cursor's hooks).
 - **`npm run package:smoke`** runs the e2e suite against `release/linux-unpacked/menkar`, under
   `xvfb-run` with Playwright's `--no-sandbox`. It proves the packaged app starts, loads node-pty
   from the asar and keeps Chromium's data out of the config directory. It cannot prove the sandbox.
@@ -175,6 +179,7 @@ human's daily Menkar (1.155 Q3) and duplicates everything it needs to run on its
 | The agents' own data (`~/.claude/projects`, `~/.cursor/projects`) | It acts only on the sessions it started (`started_sessions` in its own `state.json`): its windows list no other, and every action naming another is refused before it does anything (1.159 B1) |
 | Claude Code's messaging registry | Sandbox projects take names no daily project has (a hand check); wakes go by session id |
 | `~/.claude/settings.json` | No flavour chains to a Menkar statusline of any flavour; the sandbox shows the statusline and retention items read only, "managed by Menkar", and its own sessions get its statusline through `--settings` |
+| Cursor's `~/.cursor/hooks.json` and `cli-config.json` (its integrations items) | Each flavour's entries name its own program and its own server; its Cursor section says to turn them off before uninstalling. Entries left by an uninstalled flavour are harmless: Cursor skips a hook whose program is missing, with no delay and nothing on screen, since no entry sets `failClosed` (`cursor`, measured 2026-11-23) |
 | The agents' logins | Never read or copied |
 | The classifier's account use | Off in the sandbox, its setting hidden (1.159 S11) |
 

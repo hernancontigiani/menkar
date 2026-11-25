@@ -21,8 +21,8 @@ shaped this way and what was rejected.
 - **A kit per agent** groups its strategies: `src/core/agents/<id>/index.ts` (`AgentKit`, plain
   Node) and `src/main/agents/<id>/index.ts` (`MainAgentKit`, what needs Electron's main process).
   **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
-  fork, no Remote Control, no team block, no waker, no inbox; Codex has no fork, Remote Control,
-  team block or inbox either, and no chat or trash.
+  fork, Remote Control, inbox or context reading; Codex has no fork, Remote Control or inbox
+  either, and no chat or trash.
 - **The registries choose**: `kitOf(id)` (`src/core/agents/registry.ts`) and `mainKitOf(id)`
   (`src/main/agents/registry.ts`) are `Record<AgentId, …>` literals, so `tsc` refuses an agent
   registered without a kit. They are the only code that imports an agent's folder. A pane keeps
@@ -38,9 +38,11 @@ shaped this way and what was rejected.
   (and a non-empty `chat` list), `context` ⇔ `kit.context`, `tools` (its sessions can use Menkar's
   tools, so the orchestration mode can start them) ⇔ `kit.mcp`, `namedAtStart` ⇔
   `kit.namer.atStart(…) !== null`, `firstPrompt` ⇔ the launcher puts a prompt file on the command
-  line (what "Ask an agent" needs). The descriptor's `teamLimits` is what the first-time card says
-  of an agent that orchestrates or works for the orchestrator with limits (Cursor's, an idle wake
-  being a restart and each tool asking unless allowed), `null` for the others.
+  line (what "Ask an agent" needs). `orchestrates` (one of its sessions may be a project's
+  orchestrator) mirrors no kit: it is true once that role was checked on the real agent (1.216).
+  The descriptor's `teamLimits` is what the first-time card says
+  of an agent that orchestrates or works for the orchestrator with limits (Cursor's as a worker, an
+  idle wake being a restart and each tool asking unless allowed), `null` for the others.
   `tests/core/agents/parity.test.ts` asserts each pair for every registered agent. Shared main code
   reads the kit, never the cap.
 - **Shared mechanisms stay shared and are fed by the strategies**: one way a pending pane binds its
@@ -255,9 +257,9 @@ elicitation, which are left to the title.
   (`toolsFile`, `src/core/control/shapes.ts`) and published to `control/tools.json` before any pane
   starts; the MCP server program reads it and never imports a kit:
   - `send_message` is listed to a caller when some installed agent is out of its own messaging's
-    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor lists none until
-    Cursor's Waker exists, a Codex-only user is listed it (nothing else messages by name), and a
-    Claude-only user is listed exactly the tools R10 recorded.
+    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor or Codex is listed it,
+    a Codex-only user is listed it (nothing else messages by name), and a Claude-only user is
+    listed exactly the tools R10 recorded.
   - `start_session` gains `agent`, an enum of the installed agents, once two or more are installed.
   - `listChanged: true` is declared only when an agent other than the default is installed.
 - **The caller's agent** is `MENKAR_AGENT` in the server's environment, set by the agent's mount;
@@ -360,7 +362,7 @@ Plan 39 P1b.2, measured by `codex` on codex-cli 0.169.0 (2026-11-20).
   state directories through the forwarded XDG names. Names, never values, are passed for them.
   The pane's environment reaches Codex's MCP client because any `-c` runs the TUI embedded.
 - **`start_session`'s `agent`** is the caller's agent when absent; a name no agent has, an agent
-  not installed, or one whose kit has no MCP mount (Cursor until P3) is refused.
+  not installed, or one whose kit has no MCP mount is refused.
   `remote_control` is refused for an agent with no Remote Control.
 - **A provisional id.** Codex has no id until its first message, so `start_session` and `renew`
   place the new session under `pending:<random uuid>` (`src/core/projects/provisional.ts`) as
@@ -594,3 +596,219 @@ while Menkar's server is not running: Menkar wakes only a session with a pane.
   runs that Menkar's server does not run is logged, and its pane shows one line of Menkar's own
   once its TUI has drawn (`Terminal.say`, never the pty's input). A server killed mid-turn leaves
   the row busy, so the line can be shown in error until that session's next turn ends.
+
+## Cursor: its integrations items
+
+Two items in Settings' Cursor section, each turned on by the user and removable on its own
+(decision 1.140), offered by the kit's `integrations` (`src/core/agents/cursor/integrations.ts`)
+and listed by main for every agent whose kit has them (`src/main/agent-integrations.ts`), greyed
+with a line while the agent's CLI is not on the PATH:
+
+- **Menkar's hooks** (D13): one entry each for `beforeSubmitPrompt`, `stop` and
+  `afterAgentResponse` in `~/.cursor/hooks.json`, always there whatever `CURSOR_CONFIG_DIR` says.
+  A plugin's turn hooks run only when the user's own file has a hook for the same event; these
+  entries run Menkar's hook program (`cursor-hook.js`, shipped beside main's entry) through
+  `/usr/bin/env ELECTRON_RUN_AS_NODE=1 <electron>`, and Cursor runs `command` through a shell.
+  Each carries `timeout: 3`: Cursor waits for a hook before going on, so a hung program costs a
+  turn up to that per event. **None sets `failClosed`**: with it false (Cursor's default) a hook
+  whose program is missing or fails is skipped with no delay and nothing on screen (`cursor`,
+  measured on 2026.11.13-eacade1, 2026-11-23).
+- **Allow entries** (D7): one, `Mcp(plugin-<folder>-menkar:*)`, in `permissions.allow` of
+  `cli-config.json`, which Cursor reads from `$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`,
+  else `~/.cursor`. Cursor names a plugin's server after its folder's basename, so every pane's
+  plugin folder shares one name, and the wildcard covers every tool, those added later included.
+  **The folder's name is the flavour's directory name** (`menkar` or `menkar-sandbox`, `set`,
+  2026-11-23), so neither flavour's removal can take the other's entry.
+- **The rest of the file keeps its bytes**: the text is edited in place (`json-text.ts`), an
+  added element after the last with the separator its container already uses, so removing it
+  deletes exactly those bytes; keys created to hold an entry are removed when left empty. The
+  file keeps its mode, a symlink is followed to its target, and a dated copy goes to Menkar's
+  `settings-backup` first. What was added is recorded in Menkar's own data
+  (`cursor-integrations.json`), and removing finds it by value: **Cursor rewrites
+  `cli-config.json` at each start** in its own layout and drops keys it does not know, so no
+  marker of Menkar's can live in it. A missing `hooks.json` is created and, when it holds only what
+  Menkar created, deleted on removal; a missing `cli-config.json` is refused (Cursor creates it).
+- **The sandbox's entries name its own program**: its section says to turn them off before
+  uninstalling it, and uninstalling first leaves entries that Cursor skips, as above.
+
+## Cursor: starting a session
+
+Plan 39 P3.2, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-23).
+`src/core/agents/cursor/{launch,ids,mcp}.ts`.
+
+- **A new session gets the id Menkar chose** through Cursor's hidden `--new-session-id <uuid>`: a
+  new chat under that id, its first prompt run as the first turn, the plugin's `sessionStart` run
+  with that id. Then `--model` when one was asked, `--add-dir <the project's files folder>`, the
+  pane's `--plugin-dir`, and the first prompt after `--` (a prompt starting with `-` is otherwise
+  read as an unknown option). A resume is `--resume <id>` with the same plugin, and no `--model`:
+  Cursor keeps a resume's `--model` as the chat's model for good, and without one it restores the
+  chat's own.
+- **A resume is given no `--add-dir`** (1.214, 2026-11-24): the grant lasts one process, and on a
+  resume `--add-dir` raises a trust box each time (`cursor`, measured on 2026.11.13), which would
+  stall every wake. A new chat's first start keeps it: its only trust box is the cwd's. In the
+  orchestration mode the team block names the folder, with `$MENKAR_FILES`, as outside the
+  workspace and reached by its full path (the kit's `team.files`). **Not measured yet** (no model
+  turns could be run): what a resumed chat with no grant may do there, writes above all. Trigger to
+  revisit: a resumed Cursor session is seen asking for, or refused, a read or a write in the files
+  folder; then measure it, and weigh a grant that does not raise a box on each resume.
+- **The floor**: the descriptor's `versions.floor`, 2026.11.13, the version the option was
+  measured on (set, 2026-11-23). Below it, or when `--version` cannot be read, `ids.newId` gives
+  none: Cursor picks the id and the pane waits as a `Pending` that binds when the session appears;
+  the team block's floor is the same, so such a session starts without it (`team.oldCursor`, once).
+- **A build that drops the option** stops at once with commander's `error: unknown option
+  '--new-session-id'`, exit 1, before any chat is written. Main reads the first 30 s or 64 KiB of
+  a pane started with a chosen id for the kit's `ids.refused` line (`src/core/agents/refusal.ts`);
+  on it, it logs, remembers that executable (path and mtime) as taking no id, and the pane shows
+  one line of Menkar's own (`terminal.idRefused`); the next start lets Cursor pick its id. The
+  refused pane is not restarted (set, 2026-11-23, option b).
+- **Each pane gets a plugin folder of its own**, `<control>/panes/<pane>/<flavour dir>/`, written
+  whole at each start: `.mcp.json` with Menkar's server, its `env` naming the pane
+  (`MENKAR_PANE`), the agent (`MENKAR_AGENT`) and the XDG directories main has (Cursor gives a
+  plugin's server only `HOME`, `LOGNAME`, `PATH`, `SHELL`, `TERM`, `USER` and that `env`), and
+  `hooks/hooks.json`. No manifest is needed. Cursor names the server `plugin-<folder>-menkar`, which
+  is what the integrations item's allow entry covers. Menkar's skills folder is not passed: a
+  session reads a skill's `SKILL.md` by its path.
+- **The workspace trust prompt** of a folder Cursor has not run in ("⚠ Workspace Trust Required"
+  with "[a] Trust this workspace" and "[q] Quit" on lines of their own) reads as blocked: the
+  human answers it. Menkar passes no `--trust`, which would write Cursor's `.workspace-trusted` for
+  them.
+- **Its transcript is rewritten in place** (same inode): each turn replaces the one `turn_ended`
+  line, and lines a TUI never saw are dropped. The catalog's reader trusts no offset
+  (`docs/sessions.md`).
+
+## Cursor: its hooks
+
+Plan 39 P3.3, measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-23).
+`src/core/agents/cursor/hooks.ts`, built as `cursor-hook.js`.
+
+- **What runs it**: the three entries of the hooks item (`beforeSubmitPrompt`, `stop`,
+  `afterAgentResponse`), in every Cursor session, Menkar's or not. It acts only when the pty's
+  environment names a pane (`MENKAR_PANE`) of its own flavour (`MENKAR_FLAVOR`, absent for the
+  daily Menkar), so the daily and the sandbox's entries, both installed, each record only their own
+  panes; anywhere else it exits without reading stdin. The event is the payload's
+  `hook_event_name`.
+- **It never waits**: it exits 0 whatever fails (a silent hook changes nothing for any of the
+  three events, measured), so Cursor's 3-second timeout is never reached. The one thing it prints
+  is a completed turn's `followup_message`, read from files main wrote ("Cursor: waking").
+- **`beforeSubmitPrompt`** appends `{event:"prompt", at, session_id, generation_id, origin}` to the
+  hook log (`docs/usage.md`, "Per agent", Cursor); `origin` is `peer` for a prompt starting with
+  `[Menkar]`, read from the text at once, so the text itself is not needed later. The text (raw,
+  without the transcript's wrappers) is written to `cursor-prompts/<generation>.txt` only while the
+  classifier is on (state.json's switch, which the sandbox never has).
+- **`stop`** appends the turn's end with its status, `loop_count`, model and four token counts,
+  and writes the pane's turn-end record (`docs/session-control.md`), which binds a waiting pane.
+  An interrupted turn (Esc, Ctrl+C) fires two `stop`s of one generation, `aborted` then `error`,
+  20 ms apart: the second finds the first in the log's tail and writes no record, so main hears
+  of the turn's end once.
+- **`afterAgentResponse`** is not used: its `text` is the turn's texts run together, so the
+  catalog's `last_reply` is the transcript's last assistant text before its last `turn_ended`.
+- **What it never keeps** (D21): `user_email`, `CURSOR_USER_EMAIL`, the transcript's path, the
+  workspace roots and `cursor_version`; each line is built from named fields only.
+
+## Cursor: the team block
+
+Plan 39 P3.2. Assembled as Claude's (`docs/session-control.md`, "The team block"); its part is
+`plugin/team/cursor.md`, and its delivery `src/core/agents/cursor/team.ts`.
+
+- **Delivered by the pane's plugin's `sessionStart` hook**, on a new start in the mode: its entry
+  `cat '<folder>/session-start.json'`, the file holding `{"additional_context": <the block>}`.
+  Cursor runs a plugin's `sessionStart` with no entry of the user's, waits for it before the chat's
+  first request, and keeps the text with the chat, outside the transcript, through resumes and
+  compactions. It runs once per process, for a new chat only: `/new` in the TUI makes a chat that
+  keeps the same block, with no hook and no id told.
+- **A resume holds what main recorded** (`records: true`): Cursor never sees a later block, so
+  main keeps what each session holds (`controlPaths().teamHeld`), and a resume starts from it.
+- **A change is held, never posted** (1.159, S7): `tell` answers `'held'`, the update waits with
+  the session's wakes ("Cursor: waking") and goes with the next wake or completed turn; it never
+  restarts a session by itself. Once handed over, `held` advances and is recorded; facts that go
+  back to what the session holds withdraw it (`MainTeamDelivery.withdraw`).
+- **The compaction signal** is the plugin's `preCompact` hook, which also runs with no entry of
+  the user's: in the mode its entry runs the statusline program with `pre-compact`, which writes
+  the session's `compact` start record, read by main as Claude's. Cursor keeps the creation's block
+  and the last messages through a compaction, and summarizes the rest: a new chat's pane goes back
+  to holding the block it started with; a resumed pane, given no block at its start
+  (`startedWith` → `null`), is told the whole block again.
+- **Menkar's tools are deferred** in Cursor: the model finds one by name with `GetDynamicTools`
+  on the server `plugin-<flavour dir>-menkar` and calls it with `CallDynamicTool`; the part says
+  so. Skills by their `SKILL.md`, as Codex's: Cursor has no Skill tool, and reads a file outside
+  its workspace with no approval card.
+
+## Cursor: waking
+
+Plan 39 P3.4 (D1), measured by `cursor` on cursor-agent 2026.11.13-eacade1 (2026-11-23).
+`src/main/agents/cursor/waker.ts`, `src/core/agents/cursor/wakes.ts`.
+
+- **Cursor has no channel into a running chat**, so a wake (a child's report, `send_message`) is
+  **held** for the pane: one file per text under `<control>/held-wakes/<pane>/`, written beside and
+  renamed in. Nothing is ever typed into the terminal.
+- **A completed turn hands it over**: the `stop` hook takes the pane's whole folder by renaming
+  it, and answers its texts, the team update first and then the wakes in order, as one
+  `followup_message`; Cursor runs it as a new turn about 2.4 s later, a multi-line text whole, and
+  a draft in the box stays. An interrupted turn's `stop`s leave the folder: Cursor ignores a
+  followup on both. Main learns what was handed over from which of its files are gone (a watch on
+  the folder). This needs the hooks item (D13); without it, only the next case delivers.
+- **An idle session whose box is empty is ended and resumed** with everything held as its first
+  message (`WakePane.resume`: its pty hung up as a renew's, Cursor ends cleanly on the hangup, then
+  `--resume <id> -- "<text>"` in the same tab), at once or as soon as its box empties. Empty means
+  the agent's state is idle and the box line (the last line starting `→` near the bottom) is one
+  of its placeholders, `→ Add a follow-up` or a new chat's `→ Plan, search, build anything`: a
+  draft, a prompt an interrupt put back, a card or a running turn each keep the wake held. A
+  session not yet in Cursor's files (no message so far) is never restarted.
+- **What arrives while it restarts** waits for the new pane's first completed turn. A pane that
+  ends drops what was held for it, with a log line.
+- **Restarts for wakes are spaced** (task 227, 2026-11-24), so a session whose resumed turns keep
+  ending idle with an empty box is never restarted in a loop: the first goes at once, the next
+  waits `RESTART_GAP_MS` after it, each one after that twice the gap before it up to
+  `RESTART_GAP_MAX_MS`, carried from pane to pane; a session not restarted for four gaps starts
+  again from the first. A restart put off waits on a timer, logged, and what is held still goes
+  with the session's next turn end. Cursor's free-requests limit screen restarts nothing on its
+  own: every turn ends in an error and the refused prompt goes back in the box, a draft.
+
+## Cursor: names and a pane's chat changing
+
+Plan 39 P3.4. `src/core/agents/cursor/names.ts`, `src/core/agents/cursor/follow.ts`.
+
+- **A worker keeps its name in Menkar's own names** (D22, 1.137): nothing outside Cursor can name a
+  chat, so `start_session` writes `<project>-t<N>` to state.json's `names` (`namer.kept`), moved to
+  the real id at a bind and given to the new session at a renew. Sessions the human starts keep
+  what they show today. Cursor's own title (`meta.json`'s `title`) is not read: Cursor writes a
+  human `/rename` and its own automatic title to the same keys with no mark (`cursor`, measured),
+  so following a `/rename` made in Cursor is deferred (1.215, `docs/NOT_BUILT_YET.md`); the human
+  renames a worker with Menkar's Rename.
+- **`/new` and `/resume` inside the TUI** tell no hook: the next turn ends under the other chat's
+  id. The kit's `follow` reads that chat's `createdAtMs` from `chats/<hash>/<id>/meta.json` under
+  Cursor's config folder (that key only): made after the pane started, `/new` made it and it takes
+  the old one's place (`clear`); older, it was reopened (`resume`); not found, the tab is left as
+  it was. The config folder is `$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else
+  `~/.cursor` (`config-dir.ts`, read in cursor-agent 2026.11.13's code, 2026-11-24), the folder of
+  `cli-config.json` too; the transcripts stay under `~/.cursor/projects`, so the two part when
+  `XDG_CONFIG_HOME` is set.
+
+## Cursor in the orchestration mode
+
+Plan 39 P3, end to end in `e2e/cursor.spec.ts` with a stand-in that runs Cursor's hooks and MCP
+calls as 2026.11.13 does. What a Cursor worker of a Claude orchestrator gets:
+
+- **Always**: its id is Menkar's (`--new-session-id`), so it is member and child by that id once
+  its row exists, and its name `<project>-t<N>` is Menkar's own (D22). Its team block comes from
+  the pane's plugin's `sessionStart`, Menkar's tools from the pane's plugin's server (deferred:
+  `GetDynamicTools`), its skills by their `SKILL.md`. Its turn ends are read from its screen, as
+  every agent's: a `task_review` wakes the orchestrator once, at the turn's end. `last_reply` reads
+  its transcript. Its messages to a Claude session go through Claude Code's messaging socket, framed
+  as Codex's. Its catalog has no turn-end reading (`turnEnd`, as Codex's and OpenCode's), so a turn
+  that ends without a review tells the orchestrator nothing.
+- **With neither integrations item**: each of Menkar's tools asks first, a card the pane reads as
+  blocked and the human answers; a message (a wake, a team update) waits held until the worker is
+  idle with an empty box, then ends and resumes it; its turns are not in Usage.
+- **With the allow item**: Menkar's tools run with no card. **With the hooks item**: its turns are
+  recorded for Usage, a `/new` chat is followed, and a message that comes while a turn runs goes
+  as that turn's `followup_message`, with no restart.
+- **As the orchestrator: not in 1.0** (decision 1.216, the human, 2026-11-24). Cursor's
+  descriptor says `orchestrates: false`: the first-time card greys Cursor and its sessions as the
+  orchestrator, the row menu's Orchestrator is greyed, and main refuses marking one
+  (`docs/orchestration.md`, "The first-time card"). `cursor`'s real check (task 226) passed Cursor
+  as a worker, but the human's Cursor plan ran out of requests before this role was checked.
+  **Trigger:** that check passes on the real `cursor-agent` (after the plan resets on 2026-12-14,
+  task 226): then `orchestrates` becomes true. The code for the role stays built and covered by
+  the stand-in: it has no inbox, so everything for it is posted through its waker
+  (`docs/session-control.md`, "Waking a parent"), held as for a worker.

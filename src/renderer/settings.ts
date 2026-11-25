@@ -15,7 +15,13 @@ import type { PreferencesInfo } from '../shared/ipc'
 import { aboutSection } from './about'
 import { el } from './dom'
 import { loadCatalog, t } from './i18n'
-import { retentionSection, statuslineSection, usageSection } from './integrations'
+import {
+  agentItemsSection,
+  agentsTitle,
+  retentionSection,
+  statuslineSection,
+  usageSection,
+} from './integrations'
 import { applyLook } from './look'
 import { mcpSection } from './mcp'
 import { shortcutsSection } from './shortcuts'
@@ -421,6 +427,7 @@ const SECTIONS: Record<SettingsSection, () => HTMLElement | Promise<HTMLElement>
   files: filesSection,
   statusline: statuslineSection,
   retention: retentionSection,
+  agents: agentItemsSection,
   mcp: mcpSection,
   language: languageSection,
   shortcuts: shortcutsSection,
@@ -445,6 +452,7 @@ const ICONS: Record<SettingsSection, string> = {
     '<path d="M1.5 4a1 1 0 0 1 1-1h3.5l1.5 1.8h6a1 1 0 0 1 1 1V12.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/><line x1="8" y1="7" x2="8" y2="11"/><polyline points="6.2,9.4 8,11.2 9.8,9.4"/>',
   statusline:
     '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><line x1="1.5" y1="10.5" x2="14.5" y2="10.5"/><line x1="3.5" y1="12" x2="6.5" y2="12"/><line x1="9" y1="12" x2="12.5" y2="12"/>',
+  agents: '<path d="M3 4.5h3.2a1.6 1.6 0 1 1 3.2 0H12.5v3.2a1.6 1.6 0 1 1 0 3.2v3.1H3z"/>',
   retention:
     '<rect x="1.8" y="2.5" width="12.4" height="3" rx="0.8"/><path d="M2.8 5.5v7a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-7"/><line x1="6.3" y1="8.3" x2="9.7" y2="8.3"/>',
   mcp: '<path d="M5.5 2v3M10.5 2v3"/><path d="M3.5 5h9v2.5a4.5 4.5 0 0 1-9 0z"/><line x1="8" y1="12" x2="8" y2="14.5"/>',
@@ -496,6 +504,7 @@ async function main(): Promise<void> {
     files: t('settings.section.files'),
     statusline: t('settings.section.statusline'),
     retention: t('settings.section.retention'),
+    agents: await agentsTitle(),
     mcp: t('settings.section.mcp'),
     language: t('settings.section.language'),
     shortcuts: t('settings.section.shortcuts'),
@@ -527,7 +536,7 @@ async function main(): Promise<void> {
     let node = built.get(name)
     if (!node) {
       node = await SECTIONS[name]()
-      if (name !== 'mcp' && name !== 'retention') built.set(name, node)
+      if (name !== 'mcp' && name !== 'retention' && name !== 'agents') built.set(name, node)
     }
     if (mine !== asking) return
     content.replaceChildren(node)
@@ -543,6 +552,8 @@ async function main(): Promise<void> {
       list.append(el('hr', { class: 'section-separator' }))
       continue
     }
+    // No agent offers items of its own: nothing to show.
+    if (entry === 'agents' && titles.agents === '') continue
     const name = entry
     const item = el(
       'button',

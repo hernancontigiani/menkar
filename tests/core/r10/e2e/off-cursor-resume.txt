@@ -1,4 +1,4 @@
-argv: --resume c0ffee02
+argv: --resume c0ffee02 --plugin-dir <root>/cache/menkar/control/panes/<pane>/menkar
 set:
 COLORTERM=truecolor
 FORCE_HYPERLINK=1

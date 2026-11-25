@@ -7,7 +7,7 @@ import { mcp } from './mcp'
 import { instructionsFile, team } from './team'
 
 // Codex takes no name at start.
-export const namer: Namer = { atStart: () => null }
+export const namer: Namer = { atStart: () => null, kept: () => null }
 
 // The program Codex runs at each turn's end, among those Menkar ships.
 export const NOTIFY_PROGRAM = 'codex-notify.js'

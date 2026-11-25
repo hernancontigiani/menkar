@@ -24,7 +24,7 @@ const VALIDATED = descriptorOf('claude').versions.validated
 if (!VALIDATED?.match(/^\d+\.\d+\.\d+$/)) throw new Error('Claude Code has no validated version')
 const NEWER_PATCH = VALIDATED.replace(/\d+$/, (patch) => String(Number(patch) + 1))
 
-function launch(version: string, scheme: Scheme, cursor?: string) {
+function launch(version: string, scheme: Scheme, codex?: string) {
   return launchApp({
     prepare: (dirs) => {
       const env = prepare(dirs)
@@ -38,9 +38,9 @@ function launch(version: string, scheme: Scheme, cursor?: string) {
           },
         }),
       )
-      if (cursor) {
-        const file = join(dirs.root, 'bin', 'cursor-agent')
-        writeFileSync(file, `#!/bin/sh\necho ${cursor}\n`)
+      if (codex) {
+        const file = join(dirs.root, 'bin', 'codex')
+        writeFileSync(file, `#!/bin/sh\necho codex-cli ${codex}\n`)
         chmodSync(file, 0o755)
       }
       return { ...env, FAKE_CLAUDE_VERSION: version }
@@ -158,16 +158,24 @@ test('1.179 Hide hides the banner for that version and is kept in state.json; De
   }
 })
 
-test('1.179 the validated version and an agent with no validated one: no banner; About says so', async () => {
-  const launched = await launch(VALIDATED, 'dark', '2026.11.13-eacade1')
+// Every agent Menkar runs has a validated version, so About's row for one with none ("Installed X",
+// "Not validated yet") is proved by Vitest on the row's text; its e2e returns when an agent ships
+// unvalidated.
+const CODEX_VALIDATED = descriptorOf('codex').versions.validated
+if (!CODEX_VALIDATED) throw new Error('Codex has no validated version')
+
+test('1.179 the validated versions of two agents: no banner; About says both are validated', async () => {
+  const launched = await launch(VALIDATED, 'dark', CODEX_VALIDATED)
   const page = launched.window
   try {
     const about = await openAbout(launched)
     const claude = about.locator('.agent-version[data-agent="claude"]')
     await expect(claude.locator('.agent-standing')).toHaveText('Validated')
-    const cursor = about.locator('.agent-version[data-agent="cursor"]')
-    await expect(cursor.locator('.row-subtitle')).toHaveText('Installed 2026.11.13-eacade1')
-    await expect(cursor.locator('.agent-standing')).toHaveText('Not validated yet')
+    const codex = about.locator('.agent-version[data-agent="codex"]')
+    await expect(codex.locator('.row-subtitle')).toHaveText(
+      `Installed ${CODEX_VALIDATED} · validated ${CODEX_VALIDATED}`,
+    )
+    await expect(codex.locator('.agent-standing')).toHaveText('Validated')
     await expect(page.locator('#versions-banner')).toBeHidden()
     await expect(page.locator('#versions-side')).toBeHidden()
   } finally {

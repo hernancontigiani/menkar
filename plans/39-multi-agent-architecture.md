@@ -2778,3 +2778,341 @@ P0's blocks run in turn.
   `compareVersions` cannot compare, so setting `versions.validated` after `opencode`'s real check
   needs the `v` read off first.
 - **Not done here:** `opencode`'s real check on OpenCode 2.3.0 (a separate task).
+
+### P3.1 (`menkar-t215`, task 215, 2026-11-23)
+
+- **Built:** `IntegrationItems` / `IntegrationItem` / `IntegrationContext` in `types.ts` and
+  `AgentKit.integrations` (`null` for Claude, Codex, OpenCode: Claude's two items stay in
+  `src/core/context/integrations.ts`, as §2.3 says, not moved); Cursor's two items in
+  `src/core/agents/cursor/integrations.ts`, a byte-preserving JSON text editor beside it
+  (`json-text.ts`), Cursor's `DeclaredWrites` (`writes.ts`: `hooks.json` created or changed,
+  `cli-config.json` changed); `src/main/agent-integrations.ts` lists every kit's items for
+  Settings (two IPC channels) and refuses a change while the CLI is not found; Settings' new
+  section after Transcript retention.
+- **`cursor`'s answers (measured on 2026.11.13-eacade1, 2026-11-23), each now in the code:**
+  a hook whose program is missing or fails is skipped with no delay and nothing on screen, since
+  `failClosed` is false by default — no entry sets it; a slow hook delays the turn, so every
+  entry carries `timeout: 3`; `command` runs through a shell; `Mcp(<server>:*)` covers every tool
+  of a server, so D7 is **one** entry, not one per tool; **Cursor rewrites `cli-config.json` at
+  each start** (its layout, its key order, unknown keys dropped), so byte-identity holds for
+  Menkar's own write and removal finds its entry by value, with the record in Menkar's own data;
+  `hooks.json` is not rewritten and is read from `~/.cursor` always, `cli-config.json` from
+  `$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else `~/.cursor`.
+- **Deviation:** D13 is three entries (`beforeSubmitPrompt`, `stop`, `afterAgentResponse`, as
+  1.140 says), not the four events §2.9 lists for the program: `sessionStart` from the plugin runs
+  with no user entry (research item 12). The entries name `cursor-hook.js`, which P3.3 builds;
+  until then an entry turned on in a dev build is skipped by Cursor, as measured.
+- **The section's place:** the human, 2026-11-23, option A of topic 108 (a "Cursor" section after
+  Transcript retention). It is generic: named after the agents whose kits offer items, one group
+  each, so the renderer names no agent; absent when none offers any. 1.212's classifier row is
+  untouched (it lives in Usage & classifier).
+- **My choices:** the per-flavour server name (`plugin-<flavour dir>-menkar`, confirmed by `set`);
+  `timeout: 3`; a missing `cli-config.json` refused (Cursor creates it at login), a missing
+  `hooks.json` created and deleted on removal while it holds only Menkar's; the file's mode kept,
+  a symlink written at its target, a dated copy in `settings-backup` before each change; greyed
+  items cannot be turned off either (1.140 says greyed), so entries left after uninstalling Cursor
+  stay until it is installed again (harmless: nothing runs them).
+- **Captures:** the Settings list gained "Cursor", so `settings-look` and `settings-integrations`
+  were recaptured in both languages and themes and signed off; `es/light/usage-spend` came out
+  mid-load (the star) in that run and was put back to its committed bytes, not signed.
+
+### P3.2 (`menkar-t219`, task 219, 2026-11-23)
+
+- **Built:** Cursor's Launcher (`--new-session-id <uuid>`, `--model` on a new start only,
+  `--add-dir <files folder>`, the pane's `--plugin-dir`, the first prompt after `--`); its
+  `ids.newId(installed)` (a UUID from the descriptor's `versions.floor` on, 2026.11.13); its
+  McpMount, a plugin folder per pane (`<control>/panes/<pane>/<flavour dir>/`: `.mcp.json` naming
+  the pane, the agent and main's XDG directories, `hooks/hooks.json`), so `handleControl`,
+  `start_session {agent:"cursor"}` and the first-time card's agent choice now take Cursor
+  (`caps.tools`, `firstPrompt`); its TeamDelivery (`cursor.md`; the block as the plugin's
+  `sessionStart` `additional_context` through `cat '<file>'`, on a new start; `heldAtStart` →
+  `recorded` on a resume; `preCompact` → a `compact` start record through the statusline
+  program's new `pre-compact` mode); the rewritten-transcript reader (`RewrittenJsonlReader`:
+  head and tail windows re-read on any size, mtime or inode change; its fixture
+  `tests/data/agents/cursor/rewritten/`); the trust prompt read as blocked; CI's R10 step lets
+  Cursor's rows differ on the branch, never go missing.
+- **`cursor`'s answers (measured on 2026.11.13-eacade1, 2026-11-23), each now in the code or the
+  docs:** `--new-session-id` starts a new chat under that id and fires `sessionStart` with it;
+  an unknown option, or a positional prompt starting with `-`, stops at once with commander's
+  `error: unknown option '…'`, exit 1 (so `--` before the prompt); `additional_context` from `cat`
+  of a 4.5 KB file is obeyed; `/new` keeps the block with no `sessionStart` and no id told; a
+  plugin needs no manifest; Menkar's skills folder as a second `--plugin-dir` lists the skills by
+  plain name and the model reads `SKILL.md` by path (no Skill tool), and reads outside the
+  workspace with no card; deferred tools are found with `GetDynamicTools` on
+  `plugin-<folder>-menkar`; a plugin's `preCompact` runs with no user entry (`trigger`,
+  `session_id`, …); `/summarize` keeps the creation's block and the last two messages verbatim;
+  the transcript is rewritten in place (same inode), one `turn_ended`, the last turn's; `--trust`
+  skips the trust prompt and writes `.workspace-trusted`; `--model` on a resume changes the chat's
+  model for good.
+- **Set's decisions (2026-11-23):** the fallback is the descriptor's `versions.floor` (a test
+  holds it equal to the team block's floor, so below it Cursor also starts without the block, one
+  `team.oldCursor` toast); and, on the unknown-option line, option b: main reads a new pane's first
+  30 s or 64 KiB for the kit's `ids.refused`, logs, remembers the executable (path and mtime) as
+  taking no id, and the pane shows `terminal.idRefused` in en and es; no restart, no re-keying.
+- **Deviations:** files beyond P3.2's list: `src/core/agents/types.ts` (`newId(installed)`,
+  `ids.refused`, `TeamDelivery.startedWith`), `src/core/agents/refusal.ts` (new),
+  `src/core/agents/cursor/{descriptor,index}.ts`, `src/core/context/statusline.ts`
+  (`pre-compact`), `src/main/{workspace,team,agent-versions}.ts`, `scripts/ci.mjs`, i18n,
+  `e2e/{fixtures,r10.spec}.ts`, `e2e/cursor.spec.ts` (new, P3.5 extends it),
+  `tests/data/package/sandbox/files.txt` (the `cursor.md` line written by hand, its size the
+  part's; `packager` re-records it with the next sandbox build). `main/team.ts` records what a
+  session holds before asking for a teller, so a Cursor resume starts from it before P3.4 gives
+  Cursor one. **`startedWith`** is a member §2.5.6 did not have: a Cursor resume is given no block
+  (no `sessionStart`), so a compaction there must not leave the pane believing the block it was
+  started with; it is told the whole block again.
+- **My choices:** the compaction record through the statusline program (P3.3's hook program does
+  not exist yet; the same writer and reader as Claude's `compact`); `--add-dir` for the files
+  folder (Cursor started with it in `cursor`'s run; what it grants is not measured); no
+  `--model` on a resume (the chat keeps its own); no `--trust` (it would make Cursor write
+  `.workspace-trusted` for the human); `preCompact` only in the mode; the plugin's hooks file
+  written whole at each start, so a resume never keeps an earlier `sessionStart`; the part's
+  server named by its ends (`plugin-menkar…-menkar`), since one static part serves both flavours.
+- **Seen red:** the reader (both tests against `JsonlReader`); the R10 step's exception; Cursor's
+  team part in the package; a resume given a hook; `heldAtStart` on a resume; the floor's
+  accepts; `ids.refused` missing; the `pre-compact` mode undispatched; the e2e with main's refusal
+  read removed (no line, 20 s timeout).
+- **Removed `expect(` lines (13), each an assertion of Cursor's earlier roster:** `launch.test.ts`
+  (the CLI alone, `--resume` alone, `kit.mcp`/`kit.team`/`kit.env` null — `kit.env` null is
+  asserted again), `parity.test.ts` (Cursor's caps, `firstPrompt`), `block.test.ts` (no team
+  record, `TEAM_AGENTS` without Cursor), `e2e/orchestration-codex.spec.ts` (Claude chosen instead
+  of Cursor, Cursor disabled, its "can't use Menkar's tools yet" title), `e2e/files.spec.ts`
+  (`claude-pid.txt`: the session asked is now Cursor's).
+- **R10's Cursor rows, rewritten on the branch for `set`'s sign-off:** `tests/core/r10/cursor-{new,resume}-{off,team}.txt`
+  and `tests/core/r10/e2e/{off,on}-cursor-{new,resume}.txt`.
+- **What `ui-check` found, each the change intended:** the first-time card now offers Cursor for a
+  new orchestrator (it has `caps.tools`), so `e2e/orchestration-codex.spec.ts`'s Cursor card test
+  asserts Cursor chosen as the agent last started instead of disabled; "Ask an agent" starts the
+  focused pane's agent, and `e2e/files.spec.ts`'s focused pane is a saved Cursor tab, which now
+  takes a first prompt, so that test gives it the recording stand-in and asserts Cursor's argv.
+  And one trap: a new start now waits on the agent's version, and `e2e/remote.spec.ts`'s
+  `cursor-agent` (an interactive bash) ignores the timeout's SIGTERM, so `--version` is now read
+  with `killSignal: 'SIGKILL'` (`src/main/{agent-versions,team}.ts`).
+- **Not done here:** Cursor's `last_reply` (its catalog's `lastReply` is still `null`: P3.3's hook
+  record or the transcript), a `/new` chat followed in its pane (Cursor has no `follow`), the hook
+  program, usage and the waker (P3.3, P3.4), `cursor`'s real check (P3.5).
+
+### P3.3 (`menkar-t220`, task 220, 2026-11-23)
+
+- **Built:** the hook program `src/core/agents/cursor/hooks.ts` (`cursor-hook.js`, an
+  `electron.vite.config.ts` entry, required in app.asar by `scripts/check-package.mjs`): it acts
+  only when `MENKAR_PANE` names a pane of its own flavour (`MENKAR_FLAVOR`, absent for the daily
+  Menkar) and otherwise exits without reading stdin; it never prints and never fails. On
+  `beforeSubmitPrompt` it appends `{event, at, session_id, generation_id, origin}` to the hook log
+  (`<cache>/cursor-turns.jsonl`) and, only while state.json's classifier switch is on, the prompt
+  to `<cache>/cursor-prompts/<generation>.txt`; on `stop` it appends the end with status,
+  `loop_count`, model and the four token counts, and writes the pane's turn-end record through
+  `writeTurnEnd`. Cursor's UsageSource `src/core/agents/cursor/usage.ts`
+  (`usage-cache-cursor.sqlite`, by offset in the log, `cursor:<generation>` turns); `last_reply`
+  from the transcript (`lastClosedReply` in `catalog.ts`).
+- **`cursor`'s answers (measured on 2026.11.13-eacade1, 2026-11-23), each now in the code:** a
+  hook that prints nothing changes nothing for the three events; `beforeSubmitPrompt` carries
+  `prompt` (raw, unwrapped) and `attachments`; one `generation_id` per turn, shared by its three
+  events, one `stop` per turn whatever its tool calls; a `followup_message` turn fires no
+  `beforeSubmitPrompt`, has a new `generation_id` and `loop_count: 1`; tokens are the turn's totals
+  and `input_tokens` includes `cache_read_tokens` (inferred from the numbers); Esc and Ctrl+C fire
+  two `stop`s with one id, `aborted` then `error`, no tokens; `model` is `default` under auto;
+  the hooks see `MENKAR_PANE` and `MENKAR_FLAVOR`. `afterAgentResponse`'s `text` is the turn's texts
+  run together with no separator, so it is not used.
+- **D21's test** (`tests/core/agents/cursor/hooks.test.ts`): every event with `user_email` in its
+  payload and `CURSOR_USER_EMAIL` in its environment, the classifier on; no file the hook wrote
+  holds the address.
+- **Usage, end to end** (`tests/core/agents/cursor/usage.test.ts`): a pass exports Cursor's turns
+  with `agent: "cursor"` and the human's response latency (30 s after an interrupted turn, 80 s
+  after a completed one, null after a turn Menkar's post or a followup came next).
+- **Deviations:** files beyond P3.3's list: `src/core/agents/cursor/{index,catalog}.ts` (the kit's
+  `usage`; `lastReply`), `tests/data/agents/cursor/{expected.json,cache/,usage.json}`,
+  `tests/core/agents/contract/usage.test.ts` (copies an agent's fixture `cache/` when it has one:
+  Cursor's turns are in Menkar's cache, not the agent's home), `tests/scripts/check-package.test.ts`,
+  `docs/{agents,usage}.md`, `docs/history/packaging.md`. `afterAgentResponse` is one of the
+  consented entries but the program ignores it.
+- **My choices:** the prompt's text in one file per turn, apart from the log, so removing it never
+  rewrites a file the hooks append to (§2.6 says "in the hook log"); the pass removes the whole
+  folder whenever the classifier is off, which also holds in the sandbox (never on); the
+  classifier's switch read by the hook from state.json at each prompt (one small file read, no
+  main change); a turn's working time is one stretch, prompt to end; a followup's turn is a peer's,
+  opened where the session's last turn ended; Menkar's input is `input − cache_read`; the token
+  hour is the turn's end; `pre-compact` stays in the statusline program (moving it to the hook
+  program would change R10's Cursor rows again, for no gain in behaviour).
+- **Seen red:** the email written into the stop line; the flavour check removed; the text kept with
+  the classifier off; the turn-end record not written; a `stop` that prints; the text never
+  removed; the cached input counted twice; a followup taken as the human's at its own end; a
+  second `stop` taken; a cut line read as whole (the pass loops: the run was stopped by its id);
+  the catalog's `lastReply` against the contract's old `null`.
+- **Removed `expect(` lines:** none in this block. `npm run ci` stops at "test integrity" on
+  P3.2's 13, already committed and listed in its log.
+- **Not done here:** a `/new` chat followed in its pane — the record names the new id, but Cursor's
+  kit has no `follow`, so `applyFollow` leaves the tab (a `PaneFollow` for Cursor, P3.4 or later);
+  main sees an interrupted turn's end twice, 20 ms apart; the followup answer at `stop` (P3.4).
+
+### P3.4 (`menkar-t221`, task 221, 2026-11-23 and 24)
+
+Interrupted on the 23rd (the human shut the PC down) and resumed on the 24th.
+
+- **Built:**
+  - **The waker (D1)**, `src/main/agents/cursor/waker.ts`, `src/core/agents/cursor/wakes.ts`. A wake
+    is held for the pane, one file per text under `<control>/held-wakes/<pane>/`. The stop hook takes
+    the whole folder, but only on a `completed` turn, and answers it as one `followup_message` (the
+    team update first). An idle session whose box shows its placeholder is ended and resumed with
+    the held texts as its first message, at once or as soon as its box empties. A draft, a card or a
+    running turn keeps the wake held. A session not yet found in Cursor's files is never restarted.
+    Wakes that come during the restart wait for the new pane.
+  - **Team `tell` (1.159, S7)**: `'held'`, delivered with the next wake or completed turn, never a
+    restart by itself. `team.ts` advances `held` and records it once the update is handed over, and
+    withdraws it when the facts go back.
+  - **The interrupted turn's double `turnEnded`**: it was real (two records, 20 ms apart). Now the
+    second `stop` of a generation writes no record.
+  - **Names (D22)**: `namer.kept` (`src/core/agents/cursor/names.ts`). `start_session` writes the
+    worker's name to state.json `names`; it moves to the real id at a bind and goes to the new
+    session at a renew.
+  - **`/new` and `/resume` followed**: `src/core/agents/cursor/follow.ts` reads only `createdAtMs`
+    from `~/.cursor/chats/<hash>/<id>/meta.json`. After the pane's start → `clear`; before →
+    `resume`; not found → not followed.
+  - **The D3 snapshots**: `{claude, cursor}` now lists `send_message`. Caller `cursor` was added,
+    and S8 gained its two rows.
+- **Interface changes** (`src/main/agents/types.ts`, `src/core/agents/types.ts`):
+  - `Waker.wake` takes an optional `WakePane` (screen, onScreen, resume); `Waker.release`.
+  - `TeamOutcome` gains `'held'`.
+  - `MainTeamDelivery.tell` takes an optional `TeamHeld`; `MainTeamDelivery.withdraw`.
+  - `Namer.kept`.
+  - Claude's, Codex's and OpenCode's wakers and tellers are unchanged in behaviour: each teller is a
+    named object beside its waker, with `release: null` and `withdraw: null`.
+- **`cursor`'s answers** (2026.11.13-eacade1, 2026-11-23):
+  - SIGHUP ends the TUI cleanly with the transcript intact, and fires no `sessionEnd`.
+  - `--resume <id> -- "<text>"` runs the text as the first turn.
+  - A followup is ignored on both stops of an interrupted turn, and taken once on `completed`.
+  - The placeholder is `→ Add a follow-up` (`→ Plan, search, build anything` in a new chat). It is
+    dim, goes at one typed character, shows while a turn runs, and a card replaces it.
+  - Ctrl+C puts the prompt back in the box.
+  - A draft survives a followup turn.
+  - A 2.8 KB multi-line followup is taken whole.
+  - `/rename` writes `meta.json`'s `title`, and nothing tells it from the auto-namer's.
+  - `/new` fires no hook until its first prompt, whose events carry the new id. `/resume` in the
+    TUI reopens an older chat with no hook.
+  - `meta.json` has `createdAtMs`.
+- **Deviations: files beyond P3.4's list.**
+  - `src/core/agents/cursor/{hooks,wakes,follow,index,launch}.ts`
+  - `src/core/agents/{types,claude/launch,codex/launch,opencode/launch}.ts`
+  - `src/main/agents/{types,claude/*,codex/*,opencode/{index,waker,prepare},cursor/index}.ts`
+  - `src/main/{team,workspace}.ts`
+  - `e2e/{cursor.spec,fixtures}.ts`: the stand-in's input box, behind `FAKE_CURSOR_BOX`.
+  - `tests/core/control/{shapes.test.ts,d3/claude-cursor-*}`
+  - `docs/{agents,session-control}.md` and their histories.
+- **My choices:**
+  - The held texts live in files the hook takes by renaming their folder. Main tells what was handed
+    over from which files are gone, through a watch on the folder.
+  - "Empty box" is read from the text, not the placeholder's dim attribute, which the mirror does
+    not keep. A draft that reads exactly as the placeholder would count as empty.
+  - A team update counted as handed over stays counted if the resume it rode on fails; it is held
+    again and goes later.
+  - A held wake whose pane ends is dropped, with a log line.
+  - The worker's name goes in state.json `names`, Menkar's own rename slot (`set`'s go-ahead,
+    2026-11-23).
+  - `restartSession` takes a prompt file.
+- **Not built, waiting on the human:**
+  - Following a human `/rename` (topic 110; `set` recommends deferring it). `meta.json`'s title is
+    not read.
+  - `--trust` (topic 109) is untouched.
+- **Known, not mine:** a team-update-only followup turn of a Cursor worker is routed as a turn
+  without a report, because Cursor's catalog has no `turnEnd` reading (`onlyTeamUpdates`). It was
+  already so for every Cursor turn.
+- **Seen red:** the hook (followup only on `completed`, the second stop's record), `quiet`, `takeHeld`,
+  each branch of `CursorWakes` (6 injections), `follow`, `namer.kept`, and the e2e (quiet ignoring
+  the draft; the name not kept).
+- **Removed `expect(` lines (2)**, each an assertion of Cursor's earlier roster:
+  `tests/core/agents/claude/ids.test.ts` (`kitOf('cursor').follow` null) and
+  `tests/main/agents/claude/waker.test.ts` (`mainKitOf('cursor').waker` null).
+
+### P3.5 (`menkar-t223`, task 223, 2026-11-24)
+
+- **`e2e/cursor.spec.ts`**, two new tests on the built app with a new stand-in,
+  `e2e/standins/cursor.ts` (`cursorTurnsStandIn`; the old `cursorStandIn` of `e2e/fixtures.ts`
+  stays for the specs that only need a process): it runs the pane's plugin's `sessionStart` and the
+  user's `beforeSubmitPrompt` and `stop` entries through `sh -c` with payloads carrying
+  `user_email`, answers a `followup_message` as the next turn, calls Menkar's tools through the
+  plugin's `.mcp.json` with Cursor's few variables, asks with a card unless `cli-config.json`
+  allows `Mcp(plugin-<folder>-menkar:*)`, and rewrites its transcript whole.
+  - **with both items on** (turned on through Settings → Cursor): `--new-session-id` and the
+    pane's `--plugin-dir`; the block from `sessionStart` naming the worker and `GetDynamicTools`;
+    member and child by its id, its name `client-work-t1` in `names`; the real `cursor-hook.js`
+    records each turn's prompt and stop; `task_steps` and `task_review` with no card, the MCP
+    child with `MENKAR_AGENT=cursor` and `MENKAR_PANE`; the review wakes the orchestrator once;
+    `last_reply` from the transcript; a `send_message` during a running turn is held and goes as
+    the `followup_message`, with one start in all; Cursor → Claude framed "(Cursor)"; no file of
+    Menkar's cache holds the payloads' email (D21, end to end).
+  - **with neither**: each tool asks, the row's dot is blocked, the human's `y` runs it; the review
+    still wakes the orchestrator (the turn end is read from the screen); a message for the idle
+    worker resumes it (`--resume <id>`, the message after `--`); a resume runs no `sessionStart`;
+    no hook log.
+- **Seen red** (each injected in my own files, then restored and compared byte for byte): the
+  allow item left off; the user's hooks never run; the email written into Menkar's cache; a card
+  the state rules do not read as blocked; `sessionStart` not run.
+- **Docs**: `docs/agents.md` (the pattern's stale "no team block, no waker" line; new "Cursor in
+  the orchestration mode"), `docs/sessions.md` (a Cursor session's name), `docs/session-control.md`
+  ("Per agent": Cursor's delivery needs neither item), `docs/orchestration.md` (the card's "Cursor
+  until it can", a file beyond the task's list), `docs/NOT_BUILT_YET.md` (a Cursor orchestrator's
+  inbox rewritten, its trigger having fired; typing as D1's plan B; Cursor's context ring and status
+  line), `docs/release-checklist.md` (8g became P3's whole hand check; 8e's Cursor line). Each
+  line that left is in its history. The site's agents page: new text for `set` in
+  `$MENKAR_FILES/menkar-t223-site-agents-page.md`, to commit with the merge.
+- **Checks:** `npm run ci` green up to test integrity, which lists the 15 known lines (P3.2's 13,
+  P3.4's 2; none new); `flaky quarantine` and `history` pass run alone. `npm run ui-check` whole:
+  458 passed; `cursor.spec.ts` with `r10.spec.ts` alone: 8 passed; `tests/core/r10.test.ts` 34.
+- **Found, not fixed (shared):** only Claude's catalog has a turn-end reading, so a Codex, OpenCode
+  or Cursor worker's turn without a review leaves no "ended its turn without a report" line, and a
+  parent that is not the orchestrator is not woken by such a child's state changes.
+- **Not here:** `cursor`'s real check (a separate task), topics 109 (`--trust`) and 110 (following
+  a `/rename`), left as they are; the versions row goes in after the real check.
+
+### P3 fixes from the real check (`menkar-t227`, task 227, 2026-11-24)
+
+- **`/new` not followed: fixed.** cursor-agent keeps `chats/<md5>/<id>/meta.json` under its config
+  folder (`$CURSOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/cursor`, else `~/.cursor`, read in its
+  `cursor-config/dist/paths.js`), not beside its transcripts; the real check set
+  `XDG_CONFIG_HOME`, so `follow` found no metadata. New `src/core/agents/cursor/config-dir.ts`,
+  used by `follow.ts` and by `integrations.ts` (its `cli-config.json`, same rule). The stand-in
+  writes each chat's metadata there and does `/new` as the real one (metadata at once, no hook,
+  transcript at the first message); new e2e "a Cursor worker’s /new is followed by its tab", red
+  on the old `follow.ts`. Unit cases for the three folders, two red on the old code.
+- **The 2-minute idle wake is not the waker's.** cursor-agent's own logs: the hangup at
+  13:47:00.478, the resumed process at 13:47:00.739; it then sat 120 s before its UI. `cursor`'s
+  no-turn probe found no stall from the hangup or the old process tree (UI in 1.4–2.7 s), but a
+  resume with `--add-dir` shows a second "Workspace Trust Required" box for the added folder that
+  the first start did not, and it stays until answered: the likely cause. Not fixed: skipping it
+  is `--trust` (topic 109) or dropping `--add-dir` on a resume, a decision.
+- **No restart loop.** `cursor` corrected its count: 2 starts, not 10 (a multi-line prompt spans
+  lines of the wrapper's file). On the limit screen the refused prompt goes back in the box, so a
+  wake stays held. Still, `waker.ts` now spaces restarts for wakes (`RESTART_GAP_MS`, doubling up
+  to `RESTART_GAP_MAX_MS`, carried from pane to pane, reset after four quiet gaps, logged, a timer
+  for the one put off). Unit tests: the limit screen holds a wake (red when `quiet` ignores the
+  box); a session idle again after each resume is restarted at 0, 30, 60, 120 s, a burst of ten
+  wakes making one restart (red without the gate). Stand-in `FAKE_CURSOR_LIMIT` and an e2e on the
+  built app: two wakes held, one resume once the human empties the box, the next wake held.
+- **Docs:** `docs/agents.md` (the chats' folder, restarts spaced), the left line in its history.
+- **Checks:** `npm run ci` green up to test integrity, the 15 known lines, none new.
+  `npm run ui-check` alone: 460 passed.
+- **Found, not fixed:** Menkar reads Cursor's transcripts under `~/.cursor/projects`, ignoring
+  `$CURSOR_DATA_DIR`, which Cursor honours.
+
+### Task 228 (`menkar-t228`, 2026-11-24): a Cursor resume without `--add-dir`; `/rename` deferred
+
+- **1.214.** `src/core/agents/cursor/launch.ts`: `--add-dir <files folder>` only on a new start;
+  a resume carries `--resume <id>` and the plugin folder; never `--trust`. The team facts name the
+  files folder for Cursor: `TeamInput.filesFolder` (from `teamInput`'s new `filesFolder` arg,
+  passed by main's `startInput` and team source from `folderOf`), and the kit's optional
+  `TeamAgent.files(folder)`, set only by Cursor ("The project's files folder is `…`
+  (`$MENKAR_FILES`): it is outside your workspace, reached by its full path."). Claude, Codex and
+  OpenCode facts are unchanged.
+- **1.215.** `docs/NOT_BUILT_YET.md` "Following a `/rename` made in Cursor", with its trigger;
+  `docs/agents.md` points to it. Code unchanged (P3.4 already keeps `<project>-tN`).
+- **Docs:** `docs/agents.md` (resume without `--add-dir`, what is not measured, its trigger),
+  `docs/project-files.md`, `docs/session-control.md` (a row for `files`), the left lines in
+  `docs/history/`.
+- **Tests:** unit — a resume has no `--add-dir`, no start has `--trust`, Cursor's facts name the
+  folder and the other agents' do not, `teamInput` passes the folder on; the three red before
+  the code. e2e — `cursor.spec.ts`: the worker's first start has `--add-dir`, its block names
+  the folder, its resume has none; red with `--add-dir` put back on a resume (with both R10 rows).
+- **R10 rows changed, for `set` to sign:** `tests/core/r10/e2e/on-cursor-resume.txt` and
+  `off-cursor-resume.txt`, argv line only: `--add-dir <root>/home/Menkar/Client work/files`
+  removed. The unit rows `tests/core/r10/cursor-resume-*.txt` pass no files folder: unchanged.
+- **Checks:** `npm run ci` green up to test integrity, the 15 known lines, none new; flaky and
+  history green when run alone. `npm run ui-check` alone: 460 passed.

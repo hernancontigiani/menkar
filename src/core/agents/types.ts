@@ -80,6 +80,9 @@ export interface Messaging {
 export interface Namer {
   // The words that give a new session its name; null when the CLI takes none at start.
   atStart(name: string): readonly string[] | null
+  // The name Menkar keeps for good in its own data for a session the orchestration starts, when
+  // nothing outside the agent can name it; null when the agent's own data will name it.
+  kept(name: string): string | null
 }
 
 // The variables that describe a running session of the agent, grouped by what they say: an agent
@@ -108,6 +111,9 @@ export interface VersionFloor {
 export interface TeamDelivery extends TeamAgent {
   // `recorded` is what the session held when it last ran, kept by main for an agent that records.
   heldAtStart(start: Start, block: TeamText | null, recorded?: TeamText | null): TeamText | null
+  // What the start put where a compaction keeps it, when that is not the block it is started with:
+  // a compaction leaves the session holding it.
+  startedWith?(start: Start, block: TeamText): TeamText | null
   // A resume holds what the session recorded at its creation and was told since, not the block it
   // is started with: main keeps, per session, what it holds.
   readonly records: boolean
@@ -196,8 +202,12 @@ export interface TurnEndReading {
 
 // The ids of a new session's start.
 export interface SessionIds {
-  // The id a new session is started with; null when the agent picks its own.
-  newId(): string | null
+  // The id a new session is started with; null when the agent picks its own. `installed` is the
+  // CLI's version, for an agent that takes an id only from some version on.
+  newId(installed?: string | null): string | null
+  // What the CLI prints when it refuses the id it was given, for an agent that takes it through an
+  // option a later version may drop.
+  readonly refused?: RegExp
 }
 
 export type FollowKind = 'clear' | 'resume' | null
@@ -242,6 +252,32 @@ export interface DeclaredWrites {
   readonly created: readonly RegExp[]
   // Files that may change, or appear.
   readonly changed: readonly RegExp[]
+}
+
+// Where the programs an integration item's entries run are.
+export interface IntegrationContext {
+  // Electron's binary, which runs a program as Node.
+  readonly execPath: string
+  // The folder of the programs Menkar ships.
+  readonly programs: string
+}
+
+// One piece Menkar may add to the agent's own configuration: off until the user turns it on,
+// removable on its own, leaving the rest of the file as the user had it. A refused change throws an
+// IntegrationError carrying our sentence.
+export interface IntegrationItem {
+  readonly key: string
+  readonly title: Key
+  readonly subtitle: Key
+  on(): Promise<boolean>
+  set(on: boolean, ctx: IntegrationContext): Promise<void>
+}
+
+// The agent's items, shown as one group under its title and description.
+export interface IntegrationItems {
+  readonly title: Key
+  readonly description: Key
+  readonly items: readonly IntegrationItem[]
 }
 
 // A turn as its agent's usage cache has it now: its spans, and its tokens per (model, UTC hour).
@@ -302,4 +338,5 @@ export interface AgentKit {
   readonly writes: DeclaredWrites
   readonly usage: UsageSource | null
   readonly context: ContextSource | null
+  readonly integrations: IntegrationItems | null
 }

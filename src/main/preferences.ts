@@ -22,6 +22,7 @@ import {
 } from '../core/preferences'
 import { type Settings, settingsOf, withSetting } from '../core/settings'
 import type { InvokeChannel, InvokeChannels, RestartAnswer, RestartUnsaved } from '../shared/ipc'
+import { agentItems, setAgentItem } from './agent-integrations'
 import { statuslineCommand } from './context'
 import { saveBuffer } from './files'
 import { sessions } from './sessions'
@@ -199,4 +200,6 @@ export function registerPreferencesIpc(): void {
       return { on: await retentionInstalled(), error: error.message }
     }
   })
+  handle('integrations:agent-items', agentItems)
+  handle('integrations:set-agent-item', ({ agent, key, on }) => setAgentItem(agent, key, on))
 }

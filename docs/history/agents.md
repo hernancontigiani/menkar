@@ -117,3 +117,73 @@ kept in one place per agent, so a change to one agent cannot break another and s
   a reply that quotes it is not a turn. The tab strip's spinner also turns while a message only
   waits in the inbox, so it is not read. A form card (`form.created`, OpenCode's question tool) is
   not read as blocked (`docs/NOT_BUILT_YET.md`).
+
+## Codex as a worker
+
+> Left on 2026-11-23: Cursor has an MCP mount (plan 39 P3.2, task 219).
+  not installed, or one whose kit has no MCP mount (Cursor until P3) is refused.
+
+## Messaging, and the tools each caller is listed
+
+> Left on 2026-11-24: Cursor has a Waker (plan 39 P3.4, task 221).
+    reach **and** has a Waker (`MainAgentKit.waker`). So Claude with Cursor lists none until
+    Cursor's Waker exists, a Codex-only user is listed it (nothing else messages by name), and a
+    Claude-only user is listed exactly the tools R10 recorded.
+
+## Cursor: its hooks
+
+> Left on 2026-11-24: the stop hook answers held wakes, an interrupted turn's second stop writes no record, and `/new` is followed (plan 39 P3.4, task 221).
+- **It never waits and never answers**: it prints nothing and exits 0 whatever fails (a silent
+  hook changes nothing for any of the three events, measured), so Cursor's 3-second timeout is
+  never reached. `stop`'s `followup_message` is the waker's (P3.4).
+  A `/new` chat's record names its new id, but the kit has no `follow`, so main does not move the
+  tab to it yet. An interrupted turn fires two `stop`s, so main sees its end twice, 20 ms apart.
+
+## Cursor: the team block
+
+> Left on 2026-11-24: Cursor's teller holds a change (plan 39 P3.4, task 221).
+  main keeps what each session holds (`controlPaths().teamHeld`), recorded even before Cursor can be
+  told anything (its waker is P3.4's), and a resume starts from it.
+
+## The pattern: a kit of strategies per agent, chosen once
+
+> Left on 2026-11-24: Cursor and Codex have a team block and Cursor a waker (plan 39 P3.5, task 223).
+  **A concern the agent lacks is `null` in its kit**, never a stub that pretends: Cursor has no
+  fork, no Remote Control, no team block, no waker, no inbox; Codex has no fork, Remote Control,
+  team block or inbox either, and no chat or trash.
+
+## Cursor: names and a pane's chat changing
+
+> Left on 2026-11-24: Cursor keeps its chats under its config folder, which `XDG_CONFIG_HOME` moves (task 227).
+- **`/new` and `/resume` inside the TUI** tell no hook: the next turn ends under the other chat's
+  id. The kit's `follow` reads that chat's `createdAtMs` from
+  `~/.cursor/chats/<hash>/<id>/meta.json` (that key only): made after the pane started, `/new` made
+  it and it takes the old one's place (`clear`); older, it was reopened (`resume`); not found, the
+  tab is left as it was.
+
+## Cursor: starting a session
+
+> Left on 2026-11-24: a Cursor resume is given no `--add-dir` (1.214, task 228).
+  read as an unknown option). A resume is `--resume <id>` with the same folder and plugin, and no
+  `--model`: Cursor keeps a resume's `--model` as the chat's model for good, and without one it
+  restores the chat's own.
+
+## Cursor: names and a pane's chat changing
+
+> Left on 2026-11-24: following a `/rename` made in Cursor is deferred (1.215, task 228).
+  what they show today. Cursor's own title (`meta.json`'s `title`) is not read: nothing tells a
+  human `/rename` from Cursor's generated title.
+
+## The pattern: a kit of strategies per agent, chosen once
+
+> Left on 2026-11-24: the `orchestrates` capability (1.216, task 229).
+  line (what "Ask an agent" needs). The descriptor's `teamLimits` is what the first-time card says
+  of an agent that orchestrates or works for the orchestrator with limits (Cursor's, an idle wake
+  being a restart and each tool asking unless allowed), `null` for the others.
+
+## Cursor in the orchestration mode
+
+> Left on 2026-11-24: Cursor is a worker only in 1.0, not the orchestrator (1.216, task 229).
+- **As the orchestrator** (the first-time card offers it, with its limits): it has no inbox, so
+  everything for it is posted through its waker (`docs/session-control.md`, "Waking a parent"),
+  held as for a worker.

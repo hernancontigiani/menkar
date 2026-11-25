@@ -6,8 +6,16 @@ import type { BridgeState } from '../../core/remote/live'
 import type { TeamText } from '../../core/team/posts'
 
 // How a change is told: 'posted' as a message the session takes as a turn, 'stored' where the
-// session's agent keeps it for its next request without a turn.
-export type TeamOutcome = PostOutcome | 'stored'
+// session's agent keeps it for its next request without a turn, 'held' kept by Menkar until the
+// session can be handed it, which `held.delivered` then says.
+export type TeamOutcome = PostOutcome | 'stored' | 'held'
+
+// Where a told change goes, for a teller that holds it: the pane that shows the session, and what
+// to call once the session was handed what was held.
+export interface TeamHeld {
+  readonly pane: string
+  delivered(): void
+}
 
 // The team block's delivery on main's side: how a change is told to a running session. `text` is
 // the post, `current` the whole block it now holds (null when it holds none).
@@ -17,7 +25,12 @@ export interface MainTeamDelivery {
     text: string,
     counts: WorkCounts | undefined,
     current: TeamText | null,
+    // Absent where no pane shows the session: a teller that holds then has nowhere to hold.
+    held?: TeamHeld,
   ): Promise<TeamOutcome>
+  // A held change no longer to be told, since the session holds the facts it would tell; null for
+  // a teller that holds nothing.
+  readonly withdraw: ((pane: string) => void) | null
 }
 
 export type SessionMove = 'clear' | 'resume'
@@ -89,9 +102,29 @@ export interface Remote {
   live(pane: RemotePane): Promise<BridgeState>
 }
 
+// The pane that shows the session a wake is for, for a waker that must look at it or restart it.
+export interface WakePane {
+  readonly id: string
+  // Its screen as its agent's state is read; '' while the agent does not own the terminal.
+  screen(): string
+  // Calls `changed` on each change of its screen, until the returned function is called.
+  onScreen(changed: () => void): () => void
+  // Ends the agent and resumes its session in the same tab with `prompt` as its first message: the
+  // new pane's id, or null when it was not restarted (a renew or a stop is pending, the tab went).
+  resume(prompt: string): Promise<string | null>
+}
+
 // How a session is woken with a line of Menkar's while it runs.
 export interface Waker {
-  wake(sessionId: string, text: string, counts: WorkCounts | undefined): Promise<PostOutcome>
+  wake(
+    sessionId: string,
+    text: string,
+    counts: WorkCounts | undefined,
+    // Absent where no pane shows the session: a waker that must look at it then only holds.
+    pane?: WakePane,
+  ): Promise<PostOutcome>
+  // The pane ended: what was held for it goes. Null for a waker that holds nothing.
+  readonly release: ((pane: string) => void) | null
 }
 
 // The orchestrator's inbox as its agent is given it: a file its prompt hook reads, and the

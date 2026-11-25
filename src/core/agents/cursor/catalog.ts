@@ -1,24 +1,28 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { agentPaths } from '../../paths'
 import type { Badge, Details, Head, RecentMessage } from '../../sessions/details'
+import type { DiscoveredSession } from '../../sessions/scanner'
 import {
   chunkLines,
   dashedPath,
   entries,
+  HEAD_BYTES,
   HEAD_LINES,
   isDir,
-  JsonlReader,
   type Line,
   markdownExport,
   messageText,
   nearestExisting,
   parseLine,
+  type ReadRange,
+  readRange,
   subdirs,
+  TAIL_BYTES,
   textLines,
   toolUses,
 } from '../shared/jsonl'
-import type { Found, SessionCatalog, TranscriptReading } from '../types'
+import type { Found, SessionCatalog, SessionReader, TranscriptReading } from '../types'
 
 const PREVIEW_CHARS = 120
 const RECENT = 12
@@ -119,6 +123,95 @@ const transcript: TranscriptReading = {
     markdownExport(name, id, text, details(text), 'Cursor', typed, (l) => l.role === 'assistant'),
 }
 
+interface Seen {
+  readonly ino: number
+  readonly size: number
+  readonly mtimeMs: number
+  readonly session: DiscoveredSession
+}
+
+// Cursor's TUI writes its transcript whole from its own state, dropping lines it never saw, so no
+// offset is trusted: any change of the file reads its head and its tail windows again.
+class RewrittenJsonlReader implements SessionReader {
+  readonly #read: ReadRange
+  readonly #seen = new Map<string, Seen>()
+
+  constructor(read: ReadRange) {
+    this.#read = read
+  }
+
+  retain(locators: ReadonlySet<string>): void {
+    for (const file of this.#seen.keys()) if (!locators.has(file)) this.#seen.delete(file)
+  }
+
+  async read(item: Found): Promise<DiscoveredSession | null> {
+    const file = item.locator
+    let info: Awaited<ReturnType<typeof stat>>
+    try {
+      info = await stat(file)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    }
+    if (info.size === 0) return null
+    const seen = this.#seen.get(file)
+    if (seen && seen.ino === info.ino && seen.size === info.size && seen.mtimeMs === info.mtimeMs)
+      return seen.session
+    const headText = (await this.#read(file, 0, Math.min(info.size, HEAD_BYTES))).toString('utf8')
+    const start = Math.max(0, info.size - TAIL_BYTES)
+    const tail = (await this.#read(file, start, info.size)).toString('utf8')
+    const read = head(headText)
+    const session: DiscoveredSession = {
+      agent: item.agent,
+      id: item.id,
+      file,
+      folder: item.folder,
+      cwd: item.cwd ?? read.cwd,
+      preview: read.preview,
+      badge: badge(tail, start === 0),
+      customTitle: null,
+      aiTitle: null,
+      mtimeMs: info.mtimeMs,
+      size: info.size,
+    }
+    this.#seen.set(file, { ino: info.ino, size: info.size, mtimeMs: info.mtimeMs, session })
+    return session
+  }
+}
+
+// The reply of the last turn that ended: the last assistant text before the last `turn_ended`. A
+// turn still running, or one interrupted before any text, leaves the earlier turn's.
+export function lastClosedReply(lines: readonly string[]): string | null {
+  let reply: string | null = null
+  let latest: string | null = null
+  for (const raw of lines) {
+    const line = parseLine(raw)
+    if (!line) continue
+    if (line.type === 'turn_ended') {
+      if (latest !== null) reply = latest
+      latest = null
+    } else if (line.role === 'user') latest = null
+    else if (line.role === 'assistant') {
+      const text = messageText(line)?.trim()
+      if (text) latest = text
+    }
+  }
+  return reply
+}
+
+const REPLY_WINDOWS = [TAIL_BYTES, 1024 * 1024, 8 * 1024 * 1024]
+
+async function lastReply(locator: string): Promise<string | null> {
+  const { size } = await stat(locator)
+  for (const window of REPLY_WINDOWS) {
+    const start = Math.max(0, size - window)
+    const text = (await readRange(locator, start, size)).toString('utf8')
+    const reply = lastClosedReply(chunkLines(text, start === 0))
+    if (reply !== null || start === 0) return reply
+  }
+  return null
+}
+
 // Each session is a directory under a project's agent-transcripts/, read from its `<id>.jsonl`,
 // else from its first .jsonl.
 async function find(projects: string): Promise<Found[]> {
@@ -156,9 +249,9 @@ export const catalog: SessionCatalog = {
   root: () => agentPaths().cursorProjects,
   names: false,
   find,
-  reader: (read) => new JsonlReader(transcript, read),
+  reader: (read) => new RewrittenJsonlReader(read),
   watchTargets,
-  lastReply: null,
+  lastReply,
   details: async (locator) => details(await readFile(locator, 'utf8')),
   exportMarkdown: async (name, id, locator) =>
     transcript.exportMarkdown(name, id, await readFile(locator, 'utf8')),

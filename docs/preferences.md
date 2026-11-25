@@ -74,6 +74,13 @@ are shaped this way.
   transcript retention switch calls `installRetention` / `removeRetention` (`docs/context.md`). A refused change comes back with our sentence, shown for 8 s, and the switch
   shows what the files say. The classification switch and its earlier-turns dialog use the
   classifier's IPC (`docs/classifier.md`).
+- **Cursor** (the human, 2026-11-23, option A of topic 108): a section after Transcript retention
+  holding Cursor's own items, its hooks and its allow entries (`docs/agents.md`, "Cursor: its
+  integrations items"). The section is generic: main lists every agent whose kit offers items
+  (`integrations:agent-items`), one group each, and the section is named after those agents and
+  absent when none offers any. While the agent's CLI is not on the PATH, looked up each time the
+  section is shown, its group is greyed with a line saying so and a change is refused; in the
+  sandbox a line says to turn the items off before uninstalling it.
 - **About** opens its two links (website, issues) only on a click, through `app:open-link`, which
   knows those two addresses and no other.
   Its "Coding agents" card lists every agent Menkar can run, with its installed and validated
@@ -124,6 +131,8 @@ are shaped this way.
 ## Checks
 
 - Vitest: `tests/core/settings.test.ts`, `tests/core/usage/{chart,stepper}.test.ts`.
+- Vitest for Cursor's items: `tests/core/agents/cursor/integrations.test.ts` (byte for byte) and
+  `tests/main/agent-integrations.test.ts` (greyed, the sandbox's line).
 - e2e under `npm run ui-check`: `e2e/settings.spec.ts` (one window with no parent, the sections and
   their groups, the keys, the retention switch, screenshots in `/tmp/menkar-shots/settings-*.png`),
   `e2e/preferences.spec.ts` (the rows at their defaults, themes reaching every window, languages,
@@ -139,3 +148,5 @@ are shaped this way.
   journal) and `e2e/usage-tasks.spec.ts` (the flow's figures, the folds, the baseline, the empty
   card); each saves its screenshots, dark and light, under `test-results/usage-{sections,time,tasks}/`.
 - Vitest for the sections and the readings: `tests/core/usage/{sections,timeline,bursts,flow}.test.ts`.
+- `e2e/integrations.spec.ts` also covers the Cursor section with and without the stand-in
+  `cursor-agent`, its screenshots in `test-results/integrations/cursor-*.png`.

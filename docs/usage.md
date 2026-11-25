@@ -96,6 +96,27 @@ user sees in the Usage window is `docs/spec/usage.md`.
     under `<cache>/agent-db/`): the catalog's thread reads its own copy at the same time, and a
     copy rewritten under a reader would be torn. The pass removes its folder when it closes, and
     sweeps the folders of a process that no longer runs (one that died never removed its own).
+- **Cursor** (`src/core/agents/cursor/usage.ts`, measured by `cursor` on 2026.11.13-eacade1,
+  2026-11-23) has no time, tokens or model in its transcript: its turns come from **the hook log**,
+  `cursor-turns.jsonl` in Menkar's cache, which Menkar's hook program appends (`docs/agents.md`,
+  "Cursor: its hooks"). It exists only once the user turned on the hooks item, and only for turns
+  run in a pane of Menkar's; a session outside Menkar is never counted. Its derived cache is
+  `usage-cache-cursor.sqlite`.
+  - **Turns**: one per prompt (`cursor:<generation id>`), opened when the prompt was submitted,
+    ended by the first `stop` of the same generation (an interrupted turn ends twice, `aborted`
+    then `error`, with no tokens; the second is ignored). A prompt starting with `[Menkar]` is a
+    peer's. A turn a `stop` hook's `followup_message` opens fires no prompt hook: its `stop` names a
+    generation never seen, and it is a peer's turn opened where the session's last turn ended.
+  - **Tokens**: the turn's totals over all its requests, as `stop` gives them; Cursor's input
+    counts the cached part, so Menkar's input is `input_tokens − cache_read_tokens`. The model is
+    the requested one (`default` under auto), so most turns have no price and no cost; Cursor
+    gives none.
+  - **Working time** is one stretch, prompt to end: no gap inside a turn is known.
+  - **Incremental**: by offset in the log, Menkar's own and append-only; a line still being written
+    waits for the next pass; a log replaced or cut is read again from its start.
+  - **The prompt's text** is kept apart (`cursor-prompts/<generation>.txt`), by the hook, only while
+    the classifier is on; the pass removes the folder whenever it finds the classifier off. It is
+    what the classifier reads of a Cursor turn (no tools: the log does not know them).
 - **Prices**: Anthropic's and OpenAI's rows live in `prices.ts`, each table with its source and the
   date it was copied. A model with a long-prompt row takes it per request: Haiku's over 100,000
   prompt tokens, OpenAI's over 272,000.

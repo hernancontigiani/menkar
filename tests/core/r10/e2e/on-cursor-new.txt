@@ -1,4 +1,4 @@
-argv: 
+argv: --new-session-id <new-id> --add-dir <root>/home/Menkar/Client work/files --plugin-dir <root>/cache/menkar/control/panes/<pane>/menkar
 set:
 COLORTERM=truecolor
 FORCE_HYPERLINK=1

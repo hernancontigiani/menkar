@@ -51,6 +51,24 @@ export interface PreferencesInfo {
   readonly filesDefaults: { readonly root: string; readonly incoming: string }
 }
 
+// One agent's integrations items as Settings shows them: greyed, with a line saying why, while its
+// CLI is not found.
+export interface AgentItemsGroup {
+  readonly agent: AgentId
+  readonly label: string
+  readonly title: string
+  readonly description: string
+  // Each line under the description: why the items are greyed, what to do before uninstalling.
+  readonly notes: readonly string[]
+  readonly found: boolean
+  readonly items: readonly {
+    readonly key: string
+    readonly title: string
+    readonly subtitle: string
+    readonly on: boolean
+  }[]
+}
+
 // The classification's state for the Integrations page: the switch, the line under it, and the
 // earlier-turns run's progress ("30 of 75") while one runs.
 export interface ClassifierStatus {
@@ -131,6 +149,12 @@ export interface InvokeChannels {
   }
   'integrations:set-retention': {
     request: { on: boolean }
+    response: { on: boolean; error: string | null }
+  }
+  // Every agent's own items (its configuration files, not Claude Code's settings), one group each.
+  'integrations:agent-items': { request: undefined; response: readonly AgentItemsGroup[] }
+  'integrations:set-agent-item': {
+    request: { agent: AgentId; key: string; on: boolean }
     response: { on: boolean; error: string | null }
   }
   // Classification (plan 10): the switch, its status, the earlier-turns estimate, run and stop.
@@ -272,6 +296,12 @@ export interface MenkarApi {
     setStatusline(on: boolean): Promise<{ on: boolean; error: string | null }>
     retention(): Promise<{ on: boolean; status: RetentionStatus }>
     setRetention(on: boolean): Promise<{ on: boolean; error: string | null }>
+    agentItems(): Promise<readonly AgentItemsGroup[]>
+    setAgentItem(
+      agent: AgentId,
+      key: string,
+      on: boolean,
+    ): Promise<{ on: boolean; error: string | null }>
     onSection(listener: (section: SettingsSection) => void): () => void
   }
   readonly chat: {

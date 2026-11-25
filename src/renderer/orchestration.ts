@@ -265,11 +265,20 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
       return info && !earlier.has(id) && !p.hidden.includes(id) ? [info] : []
     })
     .sort((a, b) => Number(open.has(b.id)) - Number(open.has(a.id)) || a.name.localeCompare(b.name))
-  const radio = (value: string, label: string, checked: boolean) => {
+  const radio = (value: string, label: string, checked: boolean, refused: string | null = null) => {
     const input = el('input', { type: 'radio', name: 'orchestrator', value })
-    input.checked = checked
-    return el('label', { class: 'card-choice' }, input, el('span', {}, label))
+    input.checked = checked && refused === null
+    input.disabled = refused !== null
+    const row = el('label', { class: 'card-choice' }, input, el('span', {}, label))
+    if (refused !== null) row.title = refused
+    return row
   }
+  const refusedOf = (info: SessionInfo) =>
+    descriptorOf(info.agent).caps.orchestrates
+      ? null
+      : t('orch.cardAgentNoOrchestrator', { agent: translate(descriptorOf(info.agent).label) })
+  // The first session that may orchestrate is chosen, or a new one when none may.
+  const first = candidates.find((info) => refusedOf(info) === null)
   const name = el('input', { type: 'text', class: 'card-name', placeholder: t('dialog.name') })
   name.value = kept?.name ?? 'orchestrator'
   const folders = cardFolders(s, p)
@@ -281,10 +290,11 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
   if (kept && folders.includes(kept.folder)) folder.value = kept.folder
   // Decision 1.155 Q2, and the human's of 2026-11-20 (mock-up A): with two or more agents
   // installed, the new session's agent is chosen on a line of its own, defaulting to the agent last
-  // started; only an agent whose sessions can use Menkar's tools can be chosen. Each listed session
-  // names its agent.
+  // started; only an agent whose sessions can use Menkar's tools and that may orchestrate can be
+  // chosen (decision 1.216). Each listed session names its agent.
   const several = s.agents.length >= 2
-  const team = s.agents.filter((a) => descriptorOf(a).caps.tools)
+  const orchestrates = (a: AgentId) => descriptorOf(a).caps.orchestrates
+  const team = s.agents.filter((a) => descriptorOf(a).caps.tools && orchestrates(a))
   let agent: AgentId =
     kept?.agent ??
     team.find((a) => a === s.settings.last_agent) ??
@@ -301,9 +311,12 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
     if (!s.agents.includes(a)) {
       button.disabled = true
       button.title = t('add.agentMissing', { command: descriptorOf(a).command })
-    } else if (!team.includes(a)) {
+    } else if (!descriptorOf(a).caps.tools) {
       button.disabled = true
       button.title = t('orch.cardAgentNoTools', { agent: label })
+    } else if (!orchestrates(a)) {
+      button.disabled = true
+      button.title = t('orch.cardAgentNoOrchestrator', { agent: label })
     }
     button.addEventListener('click', () => {
       agent = a
@@ -318,13 +331,18 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
   const choices = el(
     'div',
     { class: 'card-choices' },
-    ...candidates.map((info, i) => {
-      const row = radio(info.id, info.name, kept ? kept.pick === info.id : i === 0)
+    ...candidates.map((info) => {
+      const row = radio(
+        info.id,
+        info.name,
+        kept ? kept.pick === info.id : info === first,
+        refusedOf(info),
+      )
       const tag = agentName(info)
       if (tag) row.append(tag)
       return row
     }),
-    radio(NEW, t('orch.cardNew'), kept ? kept.pick === NEW : candidates.length === 0),
+    radio(NEW, t('orch.cardNew'), kept ? kept.pick === NEW : first === undefined),
     el('div', { class: 'card-new' }, name, folder),
     agentRow,
   )
@@ -352,8 +370,9 @@ function firstTimeCard(p: ProjectInfo): Promise<void> {
     const pick = chosen()
     const orchestrating = pick === NEW ? agent : byId.get(pick)?.agent
     const said = orchestrating ? descriptorOf(orchestrating).teamLimits : null
-    orchestratorLimits.hidden = said === null
-    orchestratorLimits.textContent = said ? translate(said.orchestrator) : ''
+    const orchestratorSaid = said?.orchestrator ?? null
+    orchestratorLimits.hidden = orchestratorSaid === null
+    orchestratorLimits.textContent = orchestratorSaid ? translate(orchestratorSaid) : ''
     workerLimits.replaceChildren(
       ...candidates.flatMap((info) => {
         const row = boxes.find((b) => b.dataset.session === info.id)
@@ -522,10 +541,19 @@ export function orchestrationItems(info: SessionInfo, project: ProjectInfo): Men
       : []
   return [
     'separator',
-    {
-      label: checked(isOrchestrator, t('orch.orchestrator')),
-      run: () => void act({ type: 'setOrchestrator', session: info.id, on: !isOrchestrator }),
-    },
+    // An orchestrator marked before its agent lost the role can still be unmarked (decision 1.216).
+    isOrchestrator || descriptorOf(info.agent).caps.orchestrates
+      ? {
+          label: checked(isOrchestrator, t('orch.orchestrator')),
+          run: () => void act({ type: 'setOrchestrator', session: info.id, on: !isOrchestrator }),
+        }
+      : {
+          label: t('orch.orchestrator'),
+          disabled: true,
+          title: t('orch.cardAgentNoOrchestrator', {
+            agent: translate(descriptorOf(info.agent).label),
+          }),
+        },
     { label: t('orch.configureRole'), run: () => void roleWindow(info) },
     {
       label: checked(withYou, t('orch.withYou')),

@@ -29,4 +29,5 @@ export const kit: AgentKit = {
   writes,
   usage,
   context,
+  integrations: null,
 }

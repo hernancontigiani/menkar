@@ -14,3 +14,9 @@ commits them.
 > Replaced 2026-11-20: Biome also lints the public site's scripts and TypeScript. It was:
 - **Biome** lints and formats, with `noExplicitAny` as an error. It looks only at code
   (`src/`, `tests/`, `e2e/`, `scripts/`, root configs), never at the Markdown documents.
+
+> Replaced 2026-11-23: plan 39 P3.2 built the exception for Cursor's R10 rows. It was:
+| `scripts/ci.mjs`, its "R10 unchanged" step | Off `main`, every file under `tests/core/r10/` holds `main`'s bytes, none missing and none added ("A long-lived branch", below) |
+them with the change, and reaches the branch with the next merge. The one planned exception, the
+`cursor-*` files rewritten on the branch when Cursor's own phase changes its command, is not built:
+that phase adds it to the step.

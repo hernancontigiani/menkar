@@ -39,3 +39,8 @@
   its environment, beside the pane's own id, and the folder is made before it starts. **A Claude
   Code session** also gets `--add-dir <project folder>`, after its identity and before
   `--settings`; Cursor has no such flag. It is a command-line flag, never a settings write.
+
+## The sessions Menkar starts
+
+> Left on 2026-11-24: a Cursor resume is given no `--add-dir` (1.214, task 228).
+  with no project gets the shared file. Cursor has no such setting. Never a write to

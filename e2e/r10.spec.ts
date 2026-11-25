@@ -255,10 +255,30 @@ for (const mode of ['off', 'on'] as const) {
       const cursorNew = await started(home(), 'cursor', () =>
         act(page, { type: 'startNew', agent: 'cursor', folder: work, name: '' }),
       )
+      const cursorId = /--new-session-id (\S+)/.exec(cursorNew.args)?.[1] ?? '<none>'
       matchesR10(
         `${mode}-cursor-new.txt`,
-        recorded(launched, base, cursorNew.args, cursorNew.env, {}),
+        recorded(launched, base, cursorNew.args, cursorNew.env, { [cursorId]: '<new-id>' }),
       )
+      // Plan 39 P3.2: each pane's plugin folder names its server's caller, and in the mode its
+      // hooks record a compaction; a resume runs no sessionStart.
+      for (const [start, hooks] of [
+        [cursorResume, mode === 'on' ? ['preCompact'] : []],
+        [cursorNew, mode === 'on' ? ['sessionStart', 'preCompact'] : []],
+      ] as const) {
+        const folder = /--plugin-dir (\S+)/.exec(start.args)?.[1] ?? '<none>'
+        const server = JSON.parse(readFileSync(join(folder, '.mcp.json'), 'utf8')).mcpServers.menkar
+        expect(server.env).toMatchObject({
+          MENKAR_PANE: start.env.MENKAR_PANE,
+          MENKAR_AGENT: 'cursor',
+        })
+        const written = JSON.parse(readFileSync(join(folder, 'hooks', 'hooks.json'), 'utf8'))
+        expect(Object.keys(written.hooks)).toEqual(hooks)
+        if (hooks.includes('sessionStart'))
+          expect(
+            JSON.parse(readFileSync(join(folder, 'session-start.json'), 'utf8')).additional_context,
+          ).toContain('Your team in Menkar')
+      }
     } finally {
       await launched.close()
     }

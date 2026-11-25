@@ -1,7 +1,11 @@
 import { descriptorOf } from '../core/agents/descriptors'
-import type { AgentVersionView, Standing } from '../core/agents/versions'
+import {
+  type AgentVersionView,
+  STANDING_LABELS,
+  type Standing,
+  versionLineOf,
+} from '../core/agents/versions'
 import { flavorFacts } from '../core/flavor'
-import type { Key } from '../core/i18n'
 import type { PreferencesInfo } from '../shared/ipc'
 import { el, icon } from './dom'
 import { t, translate } from './i18n'
@@ -35,28 +39,12 @@ function section(name: string, title: string, ...content: (HTMLElement | string)
   )
 }
 
-const STATES: Readonly<Record<Standing, Key | null>> = {
-  notInstalled: null,
-  unknown: null,
-  old: 'about.agentOld',
-  notValidated: 'about.agentNotValidated',
-  older: 'about.agentOlder',
-  validated: 'about.agentValidated',
-  newer: 'about.agentNewer',
-  muchNewer: 'about.agentMuchNewer',
-}
 // The ones the banner also tells: shown with its icon and colour.
 const WARNS: ReadonlySet<Standing> = new Set(['old', 'newer', 'muchNewer'])
 
-function versionLine(v: AgentVersionView): string {
-  if (v.standing === 'notInstalled') return t('about.agentNotInstalled')
-  if (v.installed === null) return t('about.agentUnknown')
-  if (v.validated === null) return t('about.agentInstalled', { installed: v.installed })
-  return t('about.agentVersions', { installed: v.installed, validated: v.validated })
-}
-
 function agentRow(v: AgentVersionView): HTMLElement {
-  const key = STATES[v.standing]
+  const key = STANDING_LABELS[v.standing]
+  const line = versionLineOf(v)
   const warns = WARNS.has(v.standing)
   return el(
     'div',
@@ -65,7 +53,7 @@ function agentRow(v: AgentVersionView): HTMLElement {
       'div',
       { class: 'row-text' },
       el('div', { class: 'row-title' }, translate(descriptorOf(v.agent).label)),
-      el('div', { class: 'row-subtitle' }, versionLine(v)),
+      el('div', { class: 'row-subtitle' }, translate(line.key, line.params)),
     ),
     key &&
       el(

@@ -52,6 +52,14 @@ for that version. A row's version here is the descriptor's `versions.validated`
 
 ## OpenCode — no row yet, owner: its consultant
 
+## 2026-11-24 — Cursor's heading before its first validated row (task 229)
+
+## Cursor — no row yet, owner: its consultant
+
+Menkar's floor is 2026.11.13, the version `--new-session-id` was measured on by `cursor`
+(2026-11-23): below it a new session's id is Cursor's own and it starts without its team block
+(`docs/agents.md`, "Cursor: starting a session").
+
 > Replaced 2026-11-24: Claude Code validated at 2.1.331 (task 222). It was:
 ## Claude Code — validated at 2.1.330 (2026-11-21), owner: `claude-cli`
 | `--add-dir` stops every start at a trust dialog whose default is "No, exit"; the files folder goes as `permissions.additionalDirectories` in `--settings` instead | measured 2.1.330 (probes: `add-dir.mjs`) | `docs/project-files.md` |

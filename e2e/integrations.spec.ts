@@ -11,6 +11,7 @@ import {
 import { join, resolve } from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launchApp, savedState } from './app'
+import { cursorStandIn } from './fixtures'
 import { e2ePath } from './path'
 
 // Settings' Integrations, Usage & classifier and About sections on the real app (docs/spec/preferences.md PRF-31 to PRF-36,
@@ -32,7 +33,7 @@ async function openWindow(
 async function integrations(
   app: ElectronApplication,
   page: Page,
-  section: 'statusline' | 'retention' | 'usage' = 'usage',
+  section: 'statusline' | 'retention' | 'agents' | 'usage' = 'usage',
 ): Promise<Page> {
   const prefs = await openWindow(app, page, () => page.keyboard.press('Control+Comma'))
   await prefs.locator(`.section-item[data-section="${section}"]`).click()
@@ -384,6 +385,89 @@ test('CLS-32 day A then day B before A is counted: only the estimate for B is ev
     await prefs.waitForTimeout(2000)
     await expect(confirm).toHaveText('Classify 2 turns')
     expect(seen).not.toContain('Classify 3 turns')
+  } finally {
+    await launched.close()
+  }
+})
+
+// Cursor's own items (decision 1.140; the section's place, the human, 2026-11-23): each switch adds
+// to and takes out of its own file, and the rest of that file keeps every byte.
+const USER_HOOKS = '{\n    "version": 1,\n    "hooks": { "stop": [ { "command": "mine" } ] }\n}\n'
+const USER_CONFIG = '{\n  "permissions": {\n    "allow": [\n      "Shell(ls)"\n    ]\n  }\n}\n'
+const SHOTS = 'test-results/integrations'
+
+test('Cursor settings: each switch writes its own file and gives every byte back when turned off', async () => {
+  let home = ''
+  let root = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      root = dirs.root
+      const bin = join(dirs.root, 'bin')
+      cursorStandIn(bin)
+      mkdirSync(join(home, '.cursor'), { recursive: true })
+      writeFileSync(join(home, '.cursor', 'hooks.json'), USER_HOOKS)
+      mkdirSync(join(root, 'config', 'cursor'), { recursive: true })
+      writeFileSync(join(root, 'config', 'cursor', 'cli-config.json'), USER_CONFIG)
+      return { PATH: e2ePath(dirs.root, bin) }
+    },
+  })
+  try {
+    const hooks = join(home, '.cursor', 'hooks.json')
+    const config = join(root, 'config', 'cursor', 'cli-config.json')
+    const prefs = await integrations(launched.app, launched.window, 'agents')
+    await expect(prefs.locator('.section-item[data-section="agents"]')).toHaveText('Cursor')
+    await expect(prefs.locator('.section-title')).toHaveText('Cursor')
+    await expect(prefs.locator('.group-title')).toHaveText(['Cursor settings'])
+    await expect(prefs.locator('[data-key="agent-items-note"]')).toHaveCount(0)
+    const hooksSwitch = prefs.locator('[data-key="agent-item-cursor-hooks"]')
+    const allowSwitch = prefs.locator('[data-key="agent-item-cursor-allow"]')
+    await expect(hooksSwitch).toBeEnabled()
+    await expect(hooksSwitch).not.toBeChecked()
+    await expect(allowSwitch).not.toBeChecked()
+    await prefs.screenshot({ path: join(SHOTS, 'cursor-found.png') })
+
+    await hooksSwitch.check()
+    await expect
+      .poll(
+        () => JSON.parse(readFileSync(hooks, 'utf8')).hooks.afterAgentResponse?.[0]?.command ?? '',
+      )
+      .toContain('cursor-hook.js')
+    expect(JSON.parse(readFileSync(hooks, 'utf8')).hooks.stop[0]).toEqual({ command: 'mine' })
+    expect(readFileSync(config, 'utf8')).toBe(USER_CONFIG)
+    await allowSwitch.check()
+    await expect
+      .poll(() => JSON.parse(readFileSync(config, 'utf8')).permissions.allow)
+      .toEqual(['Shell(ls)', 'Mcp(plugin-menkar-menkar:*)'])
+    await prefs.screenshot({ path: join(SHOTS, 'cursor-on.png') })
+
+    await hooksSwitch.uncheck()
+    await expect.poll(() => readFileSync(hooks, 'utf8')).toBe(USER_HOOKS)
+    await expect(allowSwitch).toBeChecked()
+    await allowSwitch.uncheck()
+    await expect.poll(() => readFileSync(config, 'utf8')).toBe(USER_CONFIG)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('Cursor settings are greyed with a line while cursor-agent is not found, and change nothing', async () => {
+  let home = ''
+  const launched = await launchApp({
+    prepare: (dirs) => {
+      home = dirs.home
+      return undefined
+    },
+  })
+  try {
+    const prefs = await integrations(launched.app, launched.window, 'agents')
+    await expect(prefs.locator('[data-key="agent-items-note"]').first()).toHaveText(
+      'cursor-agent was not found on the PATH: these can be turned on once it is installed.',
+    )
+    await expect(prefs.locator('[data-key="agent-item-cursor-hooks"]')).toBeDisabled()
+    await expect(prefs.locator('[data-key="agent-item-cursor-allow"]')).toBeDisabled()
+    await prefs.screenshot({ path: join(SHOTS, 'cursor-not-found.png') })
+    expect(existsSync(join(home, '.cursor'))).toBe(false)
   } finally {
     await launched.close()
   }

@@ -87,7 +87,7 @@ what neither says: why each piece, and what was rejected.
 | `scripts/check-code-rules.mjs`, its `ALLOWED` map | The agent rules' known sites, counted per file and rule, each with its reason (the block that moves it, or why it stays): a file with more hits than its entry fails, so a count only goes down. The older rules have no allowance |
 | `scripts/check-i18n.mjs` | Every `t()` key under `src/` is in the English catalog, and no translation has a key English lacks (`docs/foundations.md`) |
 | `scripts/check-test-integrity.mjs` | Against the merge base of `main` and `HEAD` (or `MENKAR_TEST_BASELINE`): the number of test declarations in `tests/` and `e2e/` never goes down, and no `expect(` line is removed or rewritten. No override |
-| `scripts/ci.mjs`, its "R10 unchanged" step | Off `main`, every file under `tests/core/r10/` holds `main`'s bytes, none missing and none added ("A long-lived branch", below) |
+| `scripts/ci.mjs`, its "R10 unchanged" step | Off `main`, every file under `tests/core/r10/` holds `main`'s bytes (Cursor's rows aside), none missing and none added ("A long-lived branch", below) |
 | `scripts/check-flaky.mjs` | A row of `e2e/FLAKY.md` whose date has passed fails the run |
 | `scripts/nothing-lost.mjs` | Every line that left a decision document since `HEAD` is in its history under `docs/history/`, and no history lost a line |
 
@@ -217,9 +217,11 @@ Its "R10 unchanged" step compares every file under `tests/core/r10/` with `main`
 difference, a missing file or an added one; on `main` it compares nothing. So a change that alters
 what a session gets is made on `main`, where `set` refreshes the files (`npx vitest run -u
 tests/core/r10.test.ts`; `MENKAR_R10_WRITE=1` after deleting the e2e file that changed) and commits
-them with the change, and reaches the branch with the next merge. The one planned exception, the
-`cursor-*` files rewritten on the branch when Cursor's own phase changes its command, is not built:
-that phase adds it to the step.
+them with the change, and reaches the branch with the next merge. **The one exception is Cursor's
+rows** (a file whose name starts with `cursor-` or holds `-cursor-`): they guarded Cursor's start
+until the branch completed Cursor (plan 39 P3.2, 2026-11-23), so on the branch they may differ from
+`main`'s, rewritten there with `set`'s sign-off, but none may go missing; a merge of `main` keeps the
+branch's.
 
 ## Rejected
 

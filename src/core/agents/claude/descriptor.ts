@@ -5,7 +5,15 @@ export const descriptor: AgentDescriptor = {
   command: 'claude',
   label: 'agent.claude',
   glyph: '✳',
-  caps: { remote: true, fork: true, trash: true, chat: true, context: true, tools: true },
+  caps: {
+    remote: true,
+    fork: true,
+    trash: true,
+    chat: true,
+    context: true,
+    tools: true,
+    orchestrates: true,
+  },
   firstPrompt: true,
   namedAtStart: true,
   chat: [

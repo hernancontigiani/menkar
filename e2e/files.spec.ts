@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { launchApp, savedCursorTab } from './app'
-import { prepare } from './fixtures'
+import { cursorStandIn, prepare } from './fixtures'
 
 let home = ''
 let root = ''
@@ -182,18 +182,21 @@ test('PRF-5 the chosen font reaches the file tabs: one opened next uses it, an o
 // Decision 1.95: a Markdown tab's "Ask an agent" starts a new Claude session beside it, told to read
 // the file by its absolute path; its folder is the focused agent's, and nothing is sent to a session
 // already running.
+// Plan 39 P3.2: the focused pane is the saved Cursor tab's, and Cursor now takes a first prompt, so
+// "Ask an agent" starts Cursor; its stand-in records what it was started with.
 test('"Ask an agent" on a Markdown tab starts a session beside it, named after the file, told to read it (screenshot)', async () => {
   const launched = await launchApp({
     prepare: (dirs) => {
       const claude = prepare(dirs)
       const env = withFiles(dirs)
+      cursorStandIn(join(dirs.root, 'bin'))
       mkdirSync(join(dirs.home, 'docs'), { recursive: true })
       writeFileSync(join(dirs.home, 'docs', 'design.md'), '# Design\n')
       return { ...claude, ...env }
     },
   })
   const page = launched.window
-  const argsFile = () => join(home, 'claude-args.txt')
+  const argsFile = () => join(home, 'cursor-args.txt')
   const args = () => (existsSync(argsFile()) ? readFileSync(argsFile(), 'utf8') : '')
   try {
     await openTyped(page, join(home, 'docs', 'design.md'))
@@ -211,19 +214,17 @@ test('"Ask an agent" on a Markdown tab starts a session beside it, named after t
     await expect(tabs.nth(at + 1)).toHaveText(/about design\.md/)
     await expect
       .poll(args)
-      .toContain(
-        `-n about design.md Read ${join(home, 'docs', 'design.md')} and answer my questions about it.`,
-      )
-    expect(readFileSync(join(home, 'claude-pid.txt'), 'utf8')).not.toBe('')
+      .toContain(`-- Read ${join(home, 'docs', 'design.md')} and answer my questions about it.`)
     // Started in the focused agent's folder (the Cursor tab's, the home folder), not the file's.
-    const env = JSON.parse(readFileSync(join(home, 'claude-env.json'), 'utf8'))
+    const env = JSON.parse(readFileSync(join(home, 'cursor-env.json'), 'utf8'))
     expect(env.PWD ?? '').toBe(home)
 
     // Again: another session, the name made unique.
     await page.locator('.tab', { hasText: 'design.md' }).first().click()
     await page.locator('.file-tab:visible .ask-agent').click()
     await expect(page.locator('.tab')).toHaveCount(4)
-    await expect.poll(args).toContain('-n about design.md 2 Read')
+    await expect(page.locator('.tab', { hasText: 'about design.md 2' })).toHaveCount(1)
+    await expect.poll(() => args().trim().split('\n').length).toBe(3)
   } finally {
     await launched.close()
   }

@@ -24,9 +24,14 @@ import {
 const data = (name: string) => readFileSync(join(__dirname, '..', 'data', 'package', name), 'utf8')
 
 // What app.asar must hold: the app, and the programs agents run through Electron's binary.
-const PROGRAMS = ['index', 'statusline', 'mcp-server', 'codex-notify', 'opencode-db'].map(
-  (name) => `/out/main/${name}.js`,
-)
+const PROGRAMS = [
+  'index',
+  'statusline',
+  'mcp-server',
+  'codex-notify',
+  'cursor-hook',
+  'opencode-db',
+].map((name) => `/out/main/${name}.js`)
 
 const good = (): Package => ({
   version: '0.1.0',
@@ -44,6 +49,7 @@ const good = (): Package => ({
     '/opt/Menkar/resources/plugin/team/claude.md',
     '/opt/Menkar/resources/plugin/team/codex.md',
     '/opt/Menkar/resources/plugin/team/opencode.md',
+    '/opt/Menkar/resources/plugin/team/cursor.md',
     '/opt/Menkar/resources/plugin/skills/orchestrator/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/worker/SKILL.md',
     '/opt/Menkar/resources/plugin/skills/distill/SKILL.md',
@@ -85,6 +91,10 @@ describe('package:check', () => {
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/opencode.md')) }),
     ],
     [
+      "Cursor's team part",
+      (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('team/cursor.md')) }),
+    ],
+    [
       'the native pty',
       (p: Package) => ({ ...p, files: p.files.filter((f) => !f.endsWith('pty.node')) }),
     ],
@@ -99,6 +109,10 @@ describe('package:check', () => {
     [
       "OpenCode's database reader",
       (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('opencode-db.js')) }),
+    ],
+    [
+      "Cursor's hook program",
+      (p: Package) => ({ ...p, asar: p.asar.filter((f) => !f.endsWith('cursor-hook.js')) }),
     ],
     [
       'the command',

@@ -43,6 +43,8 @@ export default defineConfig({
           'mcp-server': resolve('src/core/control/server.ts'),
           // Codex's notify program for the sessions Menkar starts, the same way.
           'codex-notify': resolve('src/core/agents/codex/notify.ts'),
+          // Cursor's turn hooks, which the user's ~/.cursor/hooks.json runs, the same way.
+          'cursor-hook': resolve('src/core/agents/cursor/hooks.ts'),
           // OpenCode's database read on a worker thread: its SQLite is synchronous.
           'opencode-db': resolve('src/core/agents/opencode/db-worker.ts'),
         },

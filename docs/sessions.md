@@ -43,9 +43,17 @@ over IPC
   it; both are stripped before the preview, the recent messages, the badge and the export read it.
   Its tool calls are the assistant lines' `tool_use` blocks. A reason typed after Skip is not
   written to the transcript.
+- **Cursor rewrites its transcript**: the TUI writes the file whole from its own state, dropping
+  lines it never saw (a headless turn's), the head included, and keeping the inode. So its reader
+  trusts no offset: any change of the file's size, mtime or inode reads its head (256 KiB) and its
+  tail (64 KiB) windows again (`docs/agents.md`, "Cursor: starting a session").
 - **A session's name** (`sessionName`): Claude's name, then the app's name (`state.json` `names`),
   then Claude's generated title, then the preview, then the id's first 8 characters. Cursor has no
   Claude names. `claudeNamed` tells the UI that Rename must refuse.
+- **A Cursor session's name** is the app's name or its preview: a worker `start_session` started
+  gets `<project>-t<N>` in `state.json` `names` (D22), and Cursor's own title (`meta.json`'s
+  `title`, its generated one and a `/rename` alike) is not read (`docs/agents.md`, "Cursor: names
+  and a pane's chat changing").
 - **Cursor's folder → cwd** (`cursor.ts`): rebuilt against the filesystem, taking at each level the
   longest run of dash-joined parts that names an existing directory; the rest joined by `/` when
   none exists.
