@@ -529,6 +529,30 @@ are saved in the scratchpad at `probe/log/screen-*.txt`.
       - Menkar's own server (the worktree build under Electron-as-Node) answered `initialize`
         in 47–65 ms, so at start this is a span of about 0.1 s, under Menkar's 250 ms re-read.
     - 20 s idle gave no change.
+29. **For the versions row** (2026-11-25, task 213; `gpt-6.1-sol` against the in-tree stand-in,
+    which reported 100,000 tokens per reply; the TUI started with a bare environment).
+    - **Context reading:** `token_count.info` had `last_token_usage.total_tokens` 100,000 and
+      `model_context_window` 258,400. `/status` showed "64% left (100K used / 258K)". Menkar's
+      reading, 100 − (100,000 − 12,000)/(258,400 − 12,000), is 36% used, so it agrees.
+    - **Usage:** one `token_usage_record` per response, `{thread_id, turn_id, session_id,
+      root_turn_id, response_id, usage:{input_tokens, cached_input_tokens, …}}`.
+    - **`--add-dir <dir>`** under the default for a trusted folder (`workspace-write`,
+      `on-request`): a command writing a file in that folder ran with no approval card.
+    - **The environment a shell command gets** (measured, adding to §1.7, which was read):
+      `CODEX_CI=1`, `CODEX_HOME`, `CODEX_PERMISSION_PROFILE=:workspace`,
+      `CODEX_SANDBOX_NETWORK_DISABLED=1`, `CODEX_THREAD_ID`, `CODEX_TOOL_CALL_ID`,
+      **`CODEX_SESSION_ID`** (the thread's id), **`CODEX_VERSION=0.169.0`**,
+      **`CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS=1`**, `NO_COLOR=1`, `PAGER=cat`.
+      - The three in bold are not in §1.7, nor in Menkar's `src/core/agents/codex/env.ts`.
+      - `TERM` was the pty's (`xterm-256color`), not `dumb` as §1.7 read.
+      - Source (r): `CODEX_SESSION_ID` and `CODEX_VERSION` come from `inject_session_env`
+        (`core/src/exec_env.rs:41-50`), always Codex's own. `CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS`
+        is a compatibility marker for old standalone `apply_patch` binaries
+        (`apply-patch/src/lib.rs:54-57`). `CODEX_PLUGIN_METRICS_OUTPUT` is in the same runtime list
+        (`process_manager.rs:141-157`).
+      - `UNIFIED_EXEC_ENV` (`process_manager.rs:90-101`) forces `TERM=dumb` and
+        `LANG`/`LC_CTYPE`/`LC_ALL=C.UTF-8`. `TERM` was not dumb with the default tty, and `LANG`
+        was not measured.
 ## 1. The five facts
 
 ### 1.1 Starting and resuming
