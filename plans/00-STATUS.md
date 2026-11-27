@@ -242,7 +242,7 @@
 | — | Task times gets a Today period (the human, 2026-11-19; carried with Spend's Today and Your time's today) | Task 117, no plan |
 | 3 | 44 — `menkar usage now --json`, the burst in progress for the human's own break reminder (1.185) | Written (task 118), D1–D3 decided (topic 66). **Executing** (task 120), blocks 1–5 |
 | 4 | 45 — a forgotten away asked about (1.188): the orchestrator's prompt carries away, the amber strip asks on activity | To design (task 124) after the strip's mock-up |
-| 5 | 28 — going public at 1.0: GitHub CI, releases, the APT repository | Decided (topic 72) and rewritten to it; **blocks 1–4 built** (31d71fb, a7c7414): base-ref, DCO, version and notes checks, checks.yml, pr.yml and release.yml by hand only, the `.rpm`. Next: blocks 5–7 (Cloudsmith, contributing, the first release) when the human goes for 1.0 |
+| 5 | 28 — going public at 1.0: GitHub CI, releases, the APT repository | Blocks 1–6 built (block 5's OIDC seen to work; block 6 with the four agents, 3e884e2). **Block 7 in flight**: the site job and the temporary `e2e_workers` input in `pr.yml` (6a87ca4); the measured run on GitHub's runner made reliable by task 236 (runs 1–3: 10 → 3 → 2 failures, all timing in the tests; run 4 dispatched 2026-11-27); then 3 and 4 workers, the triggers on, model A in AGENTS.md, §6 steps 11–13 (the human: "CI green", "Review", Pages), the 1.0 commit and CHANGELOG, the human's checklist and tag |
 | — | The next .deb | **Ready to cut** (plan 47 built, 2026-11-23). 0.1.0-473.g3ba688e9 is installed. It carries 1.203, 1.204 (a) and (b) (history v6, journal v2), 1.207 and electron 45.3.4. Before cutting it, `set` lists for the human what goes in and what is in flight |
 
 ## 4. Next plan number

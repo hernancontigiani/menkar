@@ -2839,3 +2839,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-27 — 1.217's row before task 237 built it
 
 | 1.217 | **Work without a card or without steps is shown and reminded, never enforced** (the human, 2026-11-27, topic 112, options A and B; **A dropped the same day, topic 113: the card says nothing**; ccai's two cases of 2026-11-27, relayed by `gd-orch`): (B) a line in each turn's context — to an assignee whose task has no steps ("your task N has no steps"), and to the orchestrator for a session it sent work to that has no open task ("you sent work to X, which has no open task"). Short coordination and consultants' answers stay free: nothing is refused | 2026-11-27 | this row (until built, task 237) |
+
+## 2026-11-27 — plan 28's row before block 7 started
+
+| 5 | 28 — going public at 1.0: GitHub CI, releases, the APT repository | Decided (topic 72) and rewritten to it; **blocks 1–4 built** (31d71fb, a7c7414): base-ref, DCO, version and notes checks, checks.yml, pr.yml and release.yml by hand only, the `.rpm`. Next: blocks 5–7 (Cloudsmith, contributing, the first release) when the human goes for 1.0 |
