@@ -516,6 +516,11 @@ says so and waits.
 
 **At the first release (block 7):**
 
+> **Done by the human, 2026-11-27:** steps 7 (the `release tags` ruleset on `v*`: creation, update,
+> deletion and force pushes restricted, Repository admin in the bypass list), 8 (squash only,
+> head branches deleted) and 9 (the private email; this repository's commits use
+> `61872731+hernancontigiani@users.noreply.github.com`, set in its local git config by `set`).
+
 7. GitHub → Settings → Rules → a **tag ruleset** on `v*`: restrict creation, update and deletion,
    with the repository admin role in the bypass list (D3 deletes a failed candidate's tag).
 8. GitHub → Settings → General → Pull Requests: allow **squash merging** only, default message
