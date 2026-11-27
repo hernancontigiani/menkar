@@ -149,7 +149,7 @@ other trigger; the first release turns the triggers on and changes that assertio
 | Workflow | What it runs |
 |---|---|
 | `.github/workflows/checks.yml` | Called by the others (`ref`, `base`): `ci` runs `npm run ci` with the three base variables above set from `base`; `e2e` runs `npm run ui-check` under Xvfb (4 workers, the default, until measured on the runner), keeping `test-results/` for 7 days on failure; `dco` runs `scripts/check-dco.mjs` over `base..HEAD` |
-| `.github/workflows/pr.yml` | A branch against `origin/<base>` (by hand: the branch it is run on, `base` default `main`); drafts skipped and an older run of the same PR or ref cancelled, ready for when `pull_request` is added |
+| `.github/workflows/pr.yml` | A branch against `origin/<base>` (by hand: the branch it is run on, `base` default `main`); drafts skipped and an older run of the same PR or ref cancelled, ready for when `pull_request` is added. Its `site` job runs `npm --prefix site ci` and the site's check on Node 22.23.x when the branch changed `site/` against its base, and passes doing nothing otherwise; it is not a required check. A temporary input, `e2e_workers` (2, 3 or 4), reaches the e2e job as `MENKAR_E2E_WORKERS` for the measured run, which also writes the suite's wall time and peak memory (`free -m` every 10 s, kept as the `e2e-memory` artifact) |
 
 The release workflow checks its tag with `scripts/release-version.mjs` (the tag is `v` +
 `package.json`'s version, no pre-release) and writes its notes with `scripts/release-notes.mjs`
@@ -159,7 +159,7 @@ refused).
 Every job runs on `ubuntu-24.04`, not `ubuntu-latest`: the label would move to a new Ubuntu with
 no change in the tree, and pinned, the move is a reviewed change. Every action is pinned to a full
 commit SHA with its version in a comment; Dependabot's weekly `github-actions` updates move them.
-**No path filter on the PR jobs**: a required check that a filter skips stays "Expected — waiting"
+**No path filter on the PR jobs** but the site's, which filters in a step, not on the trigger: a required check that a filter skips stays "Expected — waiting"
 and the PR cannot merge, and at one maintainer's PR volume the full run costs less than a filter
 to maintain. The sign-off check is a script of ours rather than a DCO GitHub App, so nothing is
 installed on the account. Workflows are linted locally with `actionlint` in a container

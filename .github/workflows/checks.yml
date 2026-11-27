@@ -14,6 +14,12 @@ on:
         description: The commit, tag or remote ref the base-diff checks compare against
         type: string
         required: true
+      # Temporary, with pr.yml's input of the same name: the measured count replaces it here.
+      e2e_workers:
+        description: Playwright workers for the e2e suite
+        type: string
+        required: false
+        default: '4'
 
 permissions:
   contents: read
@@ -61,7 +67,31 @@ jobs:
           sudo apt-get install -y xvfb xauth libnss3 libgbm1 libasound2t64 libgtk-3-0t64 \
             libxss1 libnotify4 libsecret-1-0
       - run: npm ci
+      # free -m every 10 s while the suite runs, for its peak memory; ui-check's own wall time is
+      # this step's start to the summary's end.
+      - name: Record memory
+        run: |
+          echo "E2E_START=$(date +%s)" >> "$GITHUB_ENV"
+          nohup bash -c 'while true; do date +%T; free -m; sleep 10; done' > e2e-memory.log 2>&1 &
       - run: npm run ui-check
+        env:
+          MENKAR_E2E_WORKERS: ${{ inputs.e2e_workers }}
+      - name: Wall time and peak memory
+        if: always() && env.E2E_START != ''
+        env:
+          WORKERS: ${{ inputs.e2e_workers }}
+        run: |
+          seconds=$(( $(date +%s) - E2E_START ))
+          peak=$(awk '$1 == "Mem:" && $3 > max { max = $3 } END { print max + 0 }' e2e-memory.log)
+          line="e2e with $WORKERS workers: ${seconds} s, peak used memory ${peak} MB"
+          echo "$line"
+          echo "$line" >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-memory
+          path: e2e-memory.log
+          retention-days: 7
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

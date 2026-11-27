@@ -5,11 +5,20 @@ import { describe, expect, test } from 'vitest'
 
 const DIR = join(__dirname, '../../.github/workflows')
 
-type Step = { uses?: string; run?: string; with?: Record<string, unknown>; env?: Env }
+type Step = {
+  id?: string
+  if?: string
+  uses?: string
+  run?: string
+  with?: Record<string, unknown>
+  env?: Env
+}
 type Env = Record<string, unknown>
 type Job = {
   uses?: string
   if?: string
+  'runs-on'?: string
+  with?: Record<string, unknown>
   env?: Env
   environment?: string | { name?: string }
   permissions?: Record<string, string> | string
@@ -96,6 +105,57 @@ describe('the workflows', () => {
       "github.event_name != 'pull_request' || !github.event.pull_request.draft",
     )
     expect(pr.jobs?.checks?.uses).toBe('./.github/workflows/checks.yml')
+  })
+
+  test('pr.yml checks the site on the Node 22 Astro needs, only when site/ changed, outside the checks job', () => {
+    const pr = parsed('pr.yml')
+    const site = pr.jobs?.site
+    expect(site?.['runs-on']).toBe('ubuntu-24.04')
+    expect(site?.if).toBe(pr.jobs?.checks?.if)
+    const steps = site?.steps ?? []
+    const node = steps.find((step) => step.uses?.startsWith('actions/setup-node@'))
+    expect(node?.with?.['node-version']).toBe('22.23.x')
+    expect(node?.with?.['cache-dependency-path']).toBe('site/package-lock.json')
+    const checkout = steps.find((step) => step.uses?.startsWith('actions/checkout@'))
+    expect(checkout?.with?.['fetch-depth']).toBe(0)
+    const filter = steps.find((step) => /git diff --quiet .*-- site\/$/m.test(step.run ?? ''))
+    expect(filter?.id).toBeDefined()
+    for (const command of ['npm --prefix site ci', 'npm --prefix site run check']) {
+      const step = steps.find((each) => each.run === command)
+      expect({ command, if: step?.if }).toEqual({
+        command,
+        if: `steps.${filter?.id}.outputs.changed == 'true'`,
+      })
+    }
+  })
+
+  // The measured run's input is temporary: the chosen count moves into checks.yml and it leaves.
+  const fromInput = '$' + '{{ inputs.e2e_workers }}'
+
+  test("pr.yml's e2e_workers input reaches the e2e job, whose memory and wall time are recorded", () => {
+    const pr = parsed('pr.yml')
+    const dispatch = (pr.on as Record<string, { inputs?: Record<string, unknown> }>)
+      .workflow_dispatch
+    expect(dispatch?.inputs?.e2e_workers).toMatchObject({
+      type: 'choice',
+      options: ['2', '3', '4'],
+      default: '4',
+    })
+    expect(pr.jobs?.checks?.with?.e2e_workers).toBe(fromInput)
+    const checks = parsed('checks.yml')
+    const call = (checks.on as Record<string, { inputs?: Record<string, { default?: unknown }> }>)
+      .workflow_call
+    expect(call?.inputs?.e2e_workers?.default).toBe('4')
+    const steps = checks.jobs?.e2e?.steps ?? []
+    const uiCheck = steps.find((step) => step.run === 'npm run ui-check')
+    expect(uiCheck?.env?.MENKAR_E2E_WORKERS).toBe(fromInput)
+    const sampler = steps.findIndex((step) => /free -m[\s\S]*sleep 10/.test(step.run ?? ''))
+    expect(sampler).toBeGreaterThanOrEqual(0)
+    expect(sampler).toBeLessThan(steps.indexOf(uiCheck as Step))
+    const kept = steps.find(
+      (step) => step.uses?.startsWith('actions/upload-artifact@') && step.if === 'always()',
+    )
+    expect(kept?.with?.path).toBe('e2e-memory.log')
   })
 
   test('publish.yml uploads only from the packages environment, with no write to the repository', () => {

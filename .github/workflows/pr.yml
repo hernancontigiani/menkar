@@ -9,6 +9,13 @@ on:
         type: string
         required: false
         default: main
+      # Temporary, for the measured run of the e2e suite's worker count on the hosted runner: once a
+      # count is chosen it is set in checks.yml and this input leaves.
+      e2e_workers:
+        description: Playwright workers for the e2e suite
+        type: choice
+        options: ['2', '3', '4']
+        default: '4'
 
 permissions:
   contents: read
@@ -23,3 +30,38 @@ jobs:
     uses: ./.github/workflows/checks.yml
     with:
       base: origin/${{ github.base_ref || inputs.base }}
+      e2e_workers: ${{ inputs.e2e_workers }}
+
+  # Not a required check: it does nothing on a branch that leaves site/ alone.
+  site:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ASTRO_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # A filter in a step rather than on the trigger: `paths` would gate the whole workflow, and
+      # a skipped job would leave its check waiting.
+      - id: site
+        name: Did site/ change against the base
+        env:
+          BASE: origin/${{ github.base_ref || inputs.base }}
+        run: |
+          if git diff --quiet "$(git merge-base "$BASE" HEAD)" HEAD -- site/
+          then echo changed=false >> "$GITHUB_OUTPUT"
+          else echo changed=true >> "$GITHUB_OUTPUT"
+          fi
+      # Astro needs 22.23.4 or later.
+      - if: steps.site.outputs.changed == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22.23.x
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - if: steps.site.outputs.changed == 'true'
+        run: npm --prefix site ci
+      - if: steps.site.outputs.changed == 'true'
+        run: npm --prefix site run check
