@@ -79,6 +79,24 @@ function alive(pid: number): boolean {
   }
 }
 
+// Why no detached copy was found, for a run on a machine nobody can watch: whether Chromium's
+// sandbox may take a user namespace there, what the first process printed, and how far the copy
+// got (the folders it made under the run's root).
+function diagnosis(root: string, printed: string): string {
+  let userns = 'no AppArmor user-namespace restriction'
+  try {
+    userns = `kernel.apparmor_restrict_unprivileged_userns=${readFileSync('/proc/sys/kernel/apparmor_restrict_unprivileged_userns', 'utf8').trim()}`
+  } catch {
+    // the kernel has no such switch
+  }
+  const made = readdirSync(root, { recursive: true }).map(String).slice(0, 40)
+  return [
+    userns,
+    `printed: ${JSON.stringify(printed.slice(-2000))}`,
+    `under root: ${made.join(', ')}`,
+  ].join('\n')
+}
+
 // Field 6 of /proc/<pid>/stat, after the parenthesised command name.
 const sessionOf = (pid: number) =>
   Number(readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1]?.split(' ')[3])
@@ -123,6 +141,10 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
   try {
     const startedAt = Date.now()
     const terminal = pty.spawn(executable, args, { cwd: process.cwd(), env, cols: 80, rows: 24 })
+    let printed = ''
+    terminal.onData((data) => {
+      printed += data
+    })
     // An app still attached never gives the terminal back: -1 after 5 s says so at once.
     const exitCode = await Promise.race([
       new Promise<number>((resolve) => terminal.onExit(({ exitCode: code }) => resolve(code))),
@@ -142,6 +164,9 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
         { timeout: 10_000 },
       )
       .toBeGreaterThan(0)
+      .catch((error: unknown) => {
+        throw new Error(`${String(error)}\n${diagnosis(root, printed)}`)
+      })
     expect(cmdline(app).startsWith(`${executable} ${DETACHED} `)).toBe(true)
     // setsid: the app leads a session of its own, so the terminal closing sends it no SIGHUP.
     expect(sessionOf(app)).toBe(app)

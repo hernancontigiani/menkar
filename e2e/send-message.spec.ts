@@ -34,11 +34,15 @@ async function launch() {
 
 // A tool of Menkar's called as the Claude session calls it: through the server its --mcp-config
 // names, in the stand-in claude's own environment.
+// The first session's environment is kept at the first call: every stand-in that starts writes its
+// own over the file, and a session the call starts would otherwise become the next call's caller.
+const firstEnv = new Map<string, Record<string, string>>()
 function callAsClaude(home: string, tool: string, args: Record<string, unknown>): Promise<string> {
   const line = readFileSync(join(home, 'claude-args.txt'), 'utf8').trim().split('\n')[0] ?? ''
   const config = /--mcp-config (\{.*?\}\}\}\})/.exec(line)?.[1] ?? '{}'
   const server = JSON.parse(config).mcpServers.menkar
-  const env = JSON.parse(readFileSync(join(home, 'claude-env.json'), 'utf8'))
+  const env = firstEnv.get(home) ?? JSON.parse(readFileSync(join(home, 'claude-env.json'), 'utf8'))
+  firstEnv.set(home, env)
   const child = spawn(server.command, server.args, {
     env: { ...env, ...server.env },
     stdio: ['pipe', 'pipe', 'inherit'],
@@ -165,6 +169,8 @@ test('a Claude session sending to another Claude session is refused and told to 
     await expect(app.page.locator('.xterm-rows')).toContainText('stand-in claude ready')
     expect(await callAsClaude(app.home, 'start_session', { name: 'cl' })).toContain('Started "cl"')
     await expect(app.page.locator('.tab', { hasText: 'cl' })).toBeVisible()
+    // cl's stand-in is up, its environment written over the first session's.
+    await expect.poll(() => app.read('claude-args.txt').trim().split('\n').length).toBe(2)
     expect(await callAsClaude(app.home, 'send_message', { name: 'cl', text: 'hi' })).toBe(
       "Your own messaging reaches cl: use SendMessage. Menkar's send_message is for the sessions it cannot reach.",
     )
