@@ -2835,3 +2835,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-27 — 1.217 before its part A was dropped (topic 113)
 
 | 1.217 | **Work without a card or without steps is shown and reminded, never enforced** (the human, 2026-11-27, topic 112, options A and B; ccai's two cases of 2026-11-27, relayed by `gd-orch`): (A) a task's card shows "activity, no steps" while its assignee works (shown working) on it with no steps; (B) a line in each turn's context — to an assignee whose task has no steps ("your task N has no steps"), and to the orchestrator for a session it sent work to that has no open task ("you sent work to X, which has no open task"). Short coordination and consultants' answers stay free: nothing is refused | 2026-11-27 | this row (until built, task 237) |
+
+## 2026-11-27 — 1.217's row before task 237 built it
+
+| 1.217 | **Work without a card or without steps is shown and reminded, never enforced** (the human, 2026-11-27, topic 112, options A and B; **A dropped the same day, topic 113: the card says nothing**; ccai's two cases of 2026-11-27, relayed by `gd-orch`): (B) a line in each turn's context — to an assignee whose task has no steps ("your task N has no steps"), and to the orchestrator for a session it sent work to that has no open task ("you sent work to X, which has no open task"). Short coordination and consultants' answers stay free: nothing is refused | 2026-11-27 | this row (until built, task 237) |

@@ -8,8 +8,8 @@ import type { PromptInbox } from '../types'
 const fileOf = (pane: string): string => join(controlPaths().inbox, `${pane}.json`)
 
 export const inbox: PromptInbox = {
-  publish: async (pane, sessionId, dropped, entries, awaySince) => {
-    if (entries.length === 0 && awaySince === null) {
+  publish: async (pane, sessionId, dropped, entries, awaySince, standing) => {
+    if (entries.length === 0 && awaySince === null && standing.length === 0) {
       await rm(fileOf(pane), { force: true })
       return
     }
@@ -18,6 +18,7 @@ export const inbox: PromptInbox = {
       dropped,
       entries: entries.map(({ seq, at, text }) => ({ seq, at, text })),
       ...(awaySince === null ? {} : { away_since: awaySince }),
+      ...(standing.length === 0 ? {} : { standing }),
     })
   },
   delivered: deliveredThrough,

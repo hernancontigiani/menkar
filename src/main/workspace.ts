@@ -67,6 +67,7 @@ import {
   currentTask,
   doneToday,
   followTasks,
+  isOpen,
   onStarredTask,
   openTasks,
   parkingTask,
@@ -291,7 +292,7 @@ import { currentNotices, currentProjects, dismissNotice, setProjects } from './p
 import { rememberConnected } from './remote-live'
 import { noteStarted, sessions, shownSessions, startedIds } from './sessions'
 import { firstScanDone, startPhase, startShown } from './startup'
-import { currentTasks, setTasks } from './tasks'
+import { currentTasks, onTasksChanged, setTasks } from './tasks'
 import {
   type FoundFiles,
   forgetSessionTeam,
@@ -863,7 +864,30 @@ function orchestratorPanes(): ReadonlyMap<string, OrchestratorPane | null> {
   return where
 }
 
-const inboxes = new Inboxes(orchestratorPanes)
+// Work goes to a worker or an expert: a consultant answers freely (decision 1.217).
+function sendsTo(projectId: string, sessionId: string): boolean {
+  const p = projects.projects.find((x) => x.id === projectId)
+  if (!p) return false
+  const team = workerTeam(p)
+  if (sessionId === team.orchestrator || !p.members.includes(sessionId)) return false
+  const consultant = (team.roles?.[sessionId] ?? '').trim() !== '' && !team.parents[sessionId]
+  return !consultant
+}
+
+const inboxes = new Inboxes(orchestratorPanes, {
+  resolve: (projectId, name) => {
+    const found = sessionOfProject(name, sessionsForNames(projectId))
+    return 'refusal' in found || !sendsTo(projectId, found.id) ? null : found.id
+  },
+  deps: (projectId) => {
+    const list = tasksOf(currentTasks(), projectId)
+    return {
+      hasOpenTask: (id) => list.some((t) => t.assignee === id && isOpen(t)),
+      running: (id) => paneOfSession(id) !== undefined,
+      name: sessionName,
+    }
+  },
+})
 
 function changed(options: { projects?: boolean } = {}): void {
   inboxes.sync()
@@ -1012,8 +1036,33 @@ function startInput(
     named: ownName,
     ...foundArgs(found),
     ...filesArg(p.id),
+    ...(member ? noStepsArg(p.id, member) : {}),
     context: teamContext(),
   })
+}
+
+// Only a change of which sessions' current tasks have no steps restarts the panes' settle: every
+// report changes the tasks.
+let noStepsKey = ''
+function noStepsMayChange(): void {
+  const key = JSON.stringify(
+    projects.projects.flatMap((p) =>
+      p.members.map((id) => `${id}:${noStepsArg(p.id, id).noSteps ?? 0}`),
+    ),
+  )
+  if (key === noStepsKey) return
+  noStepsKey = key
+  teamChanged()
+}
+onTasksChanged(() => {
+  noStepsMayChange()
+  inboxes.standingMayChange()
+})
+
+// Its current task while that task has no steps (decision 1.217): the facts say so until it has.
+const noStepsArg = (projectId: string, sessionId: string): { noSteps?: number } => {
+  const task = currentTask(tasksOf(currentTasks(), projectId), sessionId)
+  return task && task.steps.length === 0 ? { noSteps: task.number } : {}
 }
 
 const filesArg = (projectId: string) => {
@@ -1038,6 +1087,7 @@ setTeamSource({
       named: ownName,
       ...foundArgs(found),
       ...filesArg(p.id),
+      ...noStepsArg(p.id, sessionId),
       context: teamContext(),
     })
   },
@@ -1864,7 +1914,19 @@ function sendFor(
         agent: catalog('en')[descriptorOf(agent).label],
       },
     },
-    { target, post: (id, text) => wakeTarget(id, text, false) },
+    {
+      target,
+      post: async (id, text) => {
+        const outcome = await wakeTarget(id, text, false)
+        if (
+          outcome === 'posted' &&
+          sessionId === workerTeam(project).orchestrator &&
+          sendsTo(project.id, id)
+        )
+          inboxes.sentTo(project.id, id)
+        return outcome
+      },
+    },
   )
 }
 

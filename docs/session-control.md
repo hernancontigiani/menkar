@@ -370,6 +370,32 @@ ends a turn. The skills that teach agents to use these tools ship with Menkar as
       no delivery confirms or drops it; the budget counts it and cuts only the events. It leaves
       the file when the human is back; the mark moving keeps it. An orchestrator without an inbox
       is woken once with the away post, as before.
+  - **The sends line** (decision 1.217, the human, 2026-11-27, topic 112): a standing line on
+    every prompt, for each session the orchestrator sent work to that has no open task: "You sent
+    work to X, which has no open task: give it one with task_add." It holds until X has an open
+    task assigned or stops running; then it is forgotten, and only a new send brings it back.
+    - **What counts as a send:** Menkar's `send_message` from the orchestrator that was posted
+      (`sendFor`); and Claude's own `SendMessage`. Main is not told of the latter, and the activity
+      journal records no sends. The orchestrator's transcript has it, as an assistant `tool_use`
+      named `SendMessage` with `to` as the model typed it. The same incremental read that confirms
+      the inbox's deliveries (`PromptInbox.delivered`, `deliveredThrough` in
+      `src/core/agents/claude/inbox.ts`) returns those names, with a trailing " [ref]" dropped. The
+      call's success is not checked: a name that resolves to no session is dropped anyway.
+    - **To whom** (`sendsTo`, `src/main/workspace.ts`): a session of the project, by its current
+      name (`sessionOfProject`), that is neither the orchestrator nor a consultant (a role with no
+      parent). Short coordination and consultants' answers stay free.
+    - **Kept** in the project's inbox, in memory (`Inboxes`, its `sent` set), cleared when the mark
+      moves. `sentWithoutTask` (`src/core/orchestration/reminders.ts`) gives the lines and what to
+      keep. They are recomputed when the orchestrator's pane turns, when the tasks change
+      (`standingMayChange`), and in `sync` when a session stops.
+    - **In the file:** `standing`, a list of lines, written only when it has any. A file with only
+      standing lines is written, as one with only `away_since` is. The hook puts them after the
+      away line and before the events, alone when there is no entry. The budget counts them and
+      never cuts them, and no delivery drops them (`inboxText`).
+    - **Per agent:** only an orchestrator whose kit has an inbox (Claude's) gets the line.
+      Codex's and OpenCode's orchestrators have no per-prompt channel, and putting the line in
+      their facts would post to the orchestrator, which 1.178 keeps to three kinds
+      (`docs/NOT_BUILT_YET.md`).
   - **A child at a permission prompt** wakes nobody: an inbox line "‹name› is waiting at a
     permission prompt" (key `permission:‹child›`), and Menkar's blocking topic (`PermissionTopics`,
     `src/core/orchestration/permission.ts`):
@@ -464,6 +490,19 @@ agent writes.
     consultant of a project with no orchestrator marked get no line. It is in the facts, which
     both agents share, so a Codex consultant gets the same line; it is in Menkar's block only,
     never in a project's own skills.
+  - **The no-steps line** (decision 1.217, the human, 2026-11-27, topic 112): while a session's
+    current task (`currentTask`) has no steps, its facts end their worker part with "Your task N
+    has no steps yet: split it with task_steps and report each advance." The orchestrator never
+    gets it. The input carries the task's number (`TeamInput.noSteps`, from `noStepsArg` in
+    `src/main/workspace.ts`), so the line is in the facts every agent shares and reaches a running
+    session the way any facts change does, through its agent's teller: a post for Claude,
+    `codex queue` for Codex, the stored entry for OpenCode, held for Cursor. A tasks change
+    (`onTasksChanged`, `src/main/tasks.ts`) restarts the panes' settle only when which sessions'
+    current tasks have no steps changed (`noStepsMayChange`), since every report changes the
+    tasks. The line's coming is told. Its leaving alone is not (`teamPost` compares
+    `withoutNoSteps` of what the session holds): the session left it by setting the steps, and a
+    post would open a turn for nothing, a held one for Cursor, a queued one for Codex. The next
+    change of its facts carries it away. Nothing is refused.
   - **The common part,** `plugin/team/common.md`, and **the agent's,** `plugin/team/claude.md`
     or `plugin/team/codex.md`. `package:check` requires each in the .deb.
   - **A name** in the facts is a custom title or the name Menkar started the session with; Claude's

@@ -130,21 +130,27 @@ export interface Waker {
 // The orchestrator's inbox as its agent is given it: a file its prompt hook reads, and the
 // transcript's own record of what the model was given.
 export interface PromptInbox {
-  // Writes the pane's inbox file whole, or removes it when nothing is pending and the human is not
-  // away.
+  // Writes the pane's inbox file whole, or removes it when nothing is pending, the human is not
+  // away and no standing line holds.
   publish(
     pane: string,
     sessionId: string,
     dropped: number,
     entries: readonly InboxLine[],
     awaySince: number | null,
+    standing: readonly string[],
   ): Promise<void>
-  // The highest entry the transcript's records after `from` show the model got, 0 if none, and
-  // the offset read to.
+  // The highest entry the transcript's records after `from` show the model got, 0 if none, the
+  // names it sent a message to there with its own messaging, and the offset read to.
   delivered(
     transcript: string,
     from: number,
-  ): Promise<{ readonly through: number; readonly offset: number }>
+  ): Promise<{
+    readonly through: number
+    readonly offset: number
+    // Absent when it sent none.
+    readonly sentTo?: readonly string[]
+  }>
   forget(pane: string): Promise<void>
 }
 

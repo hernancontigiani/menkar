@@ -47,6 +47,8 @@ Integrations page are still `docs/spec/context.md` until they are built.
     `hook_additional_context`; up to 10,000 characters arrive whole; a hook of the user's own
     settings runs beside it; another hook exiting 2 blocks the prompt and leaves no record; a
     queued message withdrawn with Up leaves none either.
+    The file's `standing` lines (decision 1.217) are given the same way: after the away line, even
+    with no entry (`docs/session-control.md`, the sends line).
   - **`permissions.allow: ["mcp__menkar"]`**: Menkar's own tools run without a prompt in every mode
     (measured, 2.1.322). They act only on Menkar's tabs.
   - **`crossSessionInbound: "accept"`**: Menkar's wake messages are delivered. Without it, a session

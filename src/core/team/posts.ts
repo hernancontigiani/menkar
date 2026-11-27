@@ -1,5 +1,6 @@
 import type { Timers } from '../control/events'
 import type { PostOutcome } from '../control/post'
+import { withoutNoSteps } from '../orchestration/reminders'
 
 // Keeping a running session's team facts current. A session believes the block its system prompt
 // was started with, plus the posts it had since; a compaction or a clear drops the posts.
@@ -63,6 +64,7 @@ export function teamPost(held: TeamText | null, current: TeamText | null): strin
     return `${TEAM_UPDATE} the "Your team in Menkar" instructions no longer apply to you. ${NO_REPLY}`
   if (!held && current)
     return `${TEAM_UPDATE} your team instructions, replacing any earlier ones:\n${current.block.trimEnd()}\n${NO_REPLY}`
+  if (held && current && withoutNoSteps(held.facts) === current.facts) return null
   if (held && current && held.facts !== current.facts)
     return `${TEAM_UPDATE} your facts are now:\n${withoutHeading(current.facts)}\n${NO_REPLY}`
   return null

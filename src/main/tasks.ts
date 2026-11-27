@@ -4,6 +4,11 @@ import { recordTasks } from './activity'
 import { addNotice } from './projects'
 
 let tasks: Tasks = emptyTasks()
+const listeners: Array<() => void> = []
+
+export function onTasksChanged(listener: () => void): void {
+  listeners.push(listener)
+}
 
 export async function startTasks(): Promise<void> {
   const loaded = await loadTasks()
@@ -20,5 +25,6 @@ export function currentTasks(): Tasks {
 export function setTasks(next: Tasks): void {
   recordTasks(tasks, next)
   tasks = next
+  for (const listener of listeners) listener()
   saveTasks(next).catch((error: unknown) => log.error('tasks could not be saved', { error }))
 }

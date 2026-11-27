@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { deliveredThrough } from '../../../../src/core/agents/claude/inbox'
-import { assistant, hookContext, jsonl, user } from '../../../factories/transcript'
+import { assistant, hookContext, jsonl, sendMessage, user } from '../../../factories/transcript'
 
 const dir = mkdtempSync(join(tmpdir(), 'menkar-inbox-'))
 const inbox = (a: number, b: number) =>
@@ -65,4 +65,19 @@ test('a record holding only the away line confirms nothing', async () => {
     ]),
   )
   expect((await deliveredThrough(file, 0)).through).toBe(0)
+})
+
+// Decision 1.217: whom the orchestrator sent work to, by the name it typed, from the same read.
+test('SendMessage calls after the offset give their names, a ref dropped; other tools none', async () => {
+  const file = join(dir, 'sends.jsonl')
+  writeFileSync(file, jsonl([assistant([sendMessage('old', 'u0')])]))
+  const start = statSync(file).size
+  appendFileSync(
+    file,
+    jsonl([
+      assistant([sendMessage('w1 [3fa9c1]', 'u1'), sendMessage('packager', 'u2')]),
+      assistant([{ type: 'tool_use', id: 'u3', name: 'Read', input: { to: 'x' } }]),
+    ]),
+  )
+  expect((await deliveredThrough(file, start)).sentTo).toEqual(['w1', 'packager'])
 })

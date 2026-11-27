@@ -48,14 +48,17 @@ function awayLine(since: number): string {
 }
 
 // Oldest first. With a budget, the oldest lines that fit, and a last line saying how many did not.
-// While the human is away the away line goes first, alone when there is no entry, and is never cut.
+// While the human is away the away line goes first, then the standing lines (states that hold until
+// fixed, decision 1.217), alone when there is no entry, and neither is ever cut.
 export function inboxText(
   entries: readonly InboxLine[],
   dropped: number,
   maxBytes = Number.POSITIVE_INFINITY,
   awaySince: number | null = null,
+  standing: readonly string[] = [],
 ): string {
-  const head = awaySince === null ? null : awayLine(awaySince)
+  const heads = [...(awaySince === null ? [] : [awayLine(awaySince)]), ...standing]
+  const head = heads.length === 0 ? null : heads.join('\n')
   if (head !== null && entries.length === 0 && dropped === 0) return head
   const budget = head === null ? maxBytes : maxBytes - bytes(head) - 1
   const join = (text: string) => (head === null ? text : `${head}\n${text}`)

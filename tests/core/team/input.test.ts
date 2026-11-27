@@ -138,3 +138,11 @@ test('another session with no name of its own is called by the first eight chara
     name: '01234567',
   })
 })
+
+// 1.217: a session's current task with no steps reaches its facts; the orchestrator's never does.
+test('noSteps is passed on for a worker, never for the orchestrator', () => {
+  const at = (session: string) =>
+    teamInput({ project: team(), session, named, found, context, noSteps: 4 })?.noSteps
+  expect(at('w1')).toBe(4)
+  expect(at('o1')).toBeUndefined()
+})

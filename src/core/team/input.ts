@@ -21,6 +21,8 @@ export interface TeamInputArgs {
   readonly ownSkills?: string
   // The project's files folder, once made.
   readonly filesFolder?: string
+  // Its current task's number while that task has no steps.
+  readonly noSteps?: number
   readonly context: TeamInput['context']
 }
 
@@ -81,6 +83,7 @@ export function teamInput(args: TeamInputArgs): TeamInput | null {
     }),
     context,
     ...own,
+    ...(args.noSteps !== undefined && o.orchestrator !== session ? { noSteps: args.noSteps } : {}),
   }
 }
 

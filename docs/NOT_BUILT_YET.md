@@ -399,6 +399,18 @@ item) or the idle session is ended and resumed with it, so a busy team can resta
 question: whether one of Cursor's hooks (`beforeSubmitPrompt`, `stop`'s followup) can carry the
 inbox to the model off the human's screen, measured by `cursor`.
 
+### The sends line for an orchestrator without an inbox
+
+Decision 1.217's line to the orchestrator ("You sent work to X, which has no open task: give it
+one with task_add") rides the prompt hook's file, which only an orchestrator whose kit has an
+inbox has (Claude's). A Codex or OpenCode orchestrator gets no such line. Its facts could carry
+it, but each change there is a post into the orchestrator's chat, and decision 1.178 keeps those
+to three kinds. Its sends by Menkar's `send_message` are already noted, in the project's inbox.
+
+**Trigger:** the human orchestrates with Codex or OpenCode and hands work over by messages with no
+task. First question: whether that agent has a per-prompt channel off the human's screen
+(measured by its consultant), or whether the human accepts the line as a post.
+
 ### Typing a wake into Cursor's box
 
 Cursor has no channel into a running chat, so a wake for an idle Cursor session ends and resumes

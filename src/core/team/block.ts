@@ -1,5 +1,6 @@
 import { AGENT_IDS } from '../agents/ids'
 import { kitOf } from '../agents/registry'
+import { noStepsLine } from '../orchestration/reminders'
 import type { Agent } from '../sessions/lines'
 
 export interface TeamSkill {
@@ -27,6 +28,8 @@ export interface TeamInput {
   readonly ownSkills?: string
   /** The project's files folder, for an agent whose session is not always granted it. */
   readonly filesFolder?: string
+  /** Its current task's number while that task has no steps. */
+  readonly noSteps?: number
 }
 
 export interface TeamAgent {
@@ -139,6 +142,7 @@ export function teamFacts(input: TeamInput, agent: TeamAgent): string {
     lines.push(
       `When a session hands you a task, load ${agent.own('worker', input.ownSkills)} first, ${agent.byName}.`,
     )
+  if (input.noSteps !== undefined) lines.push(noStepsLine(input.noSteps))
   const renew = renewal(input, agent, role)
   if (renew) lines.push(renew)
   const told = decisions(input, role)

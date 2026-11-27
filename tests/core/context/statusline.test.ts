@@ -484,6 +484,21 @@ describe('the prompt hook', () => {
     expect(plain).not.toContain('The human is marked away')
   })
 
+  // Decision 1.217: a standing line holds until what it says is fixed; no delivery drops it.
+  test('standing lines alone, or after the away line and before the inbox; empty ones ignored', () => {
+    const line = 'You sent work to w1, which has no open task: give it one with task_add.'
+    const alone = { session_id: 's1', dropped: 0, entries: [], standing: [line, ''] }
+    expect(context(submit(setup(alone).d))).toBe(line)
+    const since = Date.UTC(2026, 10, 18, 4, 5, 0)
+    const lines = context(
+      submit(setup({ ...alone, entries: entries(1), away_since: since, standing: [line, 7] }).d),
+    ).split('\n')
+    expect(lines[0]).toMatch(/^The human is marked away since 13:05\. /)
+    expect(lines[1]).toBe(line)
+    expect(lines[2]).toContain("Menkar's inbox (events 1–1)")
+    expect(submit(setup({ ...alone, standing: [''] }).d)).toBe('')
+  })
+
   test('30 entries of 120 characters → under 1,500 bytes, the oldest given, the rest counted', () => {
     const { d } = setup({
       session_id: 's1',

@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { describe, expect, test, vi } from 'vitest'
 import { controlPaths, writeTextAtomic } from '../../../src/core/control/files'
 import { PROMPT_KEEP_MS, sweepTeamFiles } from '../../../src/core/control/prompt'
+import { noStepsLine } from '../../../src/core/orchestration/reminders'
 import {
   afterStartRecord,
   delivered,
@@ -53,6 +54,17 @@ describe('the rule', () => {
     if (post === null) expect(got).toBeNull()
     else if (typeof post === 'string') expect(got).toBe(post)
     else expect(got).toMatch(post)
+  })
+
+  // 1.217: the no-steps line coming is told; its leaving alone is not, the session set the steps.
+  test('the no-steps line added → the facts; only removed → nothing; removed with more → the facts', () => {
+    const withLine = (t: TeamText): TeamText => ({
+      facts: `${t.facts}\n${noStepsLine(4)}`,
+      block: t.block,
+    })
+    expect(teamPost(A, withLine(A))).toMatch(/has no steps yet/)
+    expect(teamPost(withLine(A), A)).toBeNull()
+    expect(FACTS.exec(teamPost(withLine(A), B) ?? '')?.[1]).toBe('Release')
   })
 
   test('the facts post holds the facts without their heading', () => {

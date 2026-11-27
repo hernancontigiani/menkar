@@ -190,6 +190,15 @@ describe('the facts', () => {
     expect(lines({ name: 'set', orchestrator: 'self', parent: undefined })).not.toContain(WORKER)
   })
 
+  // 1.217: an assignee whose current task has no steps is told so until it has, after line 4.
+  test('a current task with no steps → its line after line 4; none without one', () => {
+    const NO_STEPS =
+      'Your task 7 has no steps yet: split it with task_steps and report each advance.'
+    const told = lines({ noSteps: 7 })
+    expect(told[told.indexOf(WORKER) + 1]).toBe(NO_STEPS)
+    expect(lines().join('\n')).not.toContain('has no steps')
+  })
+
   // Line 5: 1.109's context policy, one line per profile, at the human's ring thresholds (1.154 Q1).
   const MAINTAINED = [{ name: 'packager', maintainer: true, found: true }]
   const READ_ONLY = [{ name: 'review-branch', maintainer: false, found: true }]

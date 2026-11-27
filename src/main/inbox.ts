@@ -2,6 +2,7 @@ import { stat } from 'node:fs/promises'
 import { now } from '../core/clock'
 import { log } from '../core/log'
 import { Inbox, sequence } from '../core/orchestration/inbox'
+import { type SentDeps, sentWithoutTask } from '../core/orchestration/reminders'
 import type { PromptInbox } from './agents/types'
 
 // Each orchestration-mode project's inbox, kept in memory, and the file its orchestrator's prompt
@@ -34,8 +35,11 @@ interface Reading {
 
 interface ProjectInbox {
   readonly inbox: Inbox
+  // The sessions the orchestrator sent work to that had no open task when last looked at
+  // (decision 1.217); the standing lines say so until each gets one or stops running.
+  sent: Set<string>
   // The pane whose file was last written, and what it held.
-  shown: (Target & { readonly held: string }) | null
+  shown: (Target & { readonly held: string; readonly standing: string }) | null
   reading: Reading | null
   queue: Promise<void>
   pending: boolean
@@ -44,6 +48,19 @@ interface ProjectInbox {
 // Every project in the orchestration mode, with its orchestrator's pane, or null when it has none
 // running. A project left out is not in the mode: its inbox goes.
 export type Locate = () => ReadonlyMap<string, OrchestratorPane | null>
+
+// What the standing lines about sends are read from, per project.
+export interface Sends {
+  // The session a name the orchestrator messaged stands for, when it is one work is sent to: a
+  // session of the project other than a consultant and the orchestrator itself.
+  resolve(projectId: string, name: string): string | null
+  deps(projectId: string): SentDeps
+}
+
+const NO_SENDS: Sends = {
+  resolve: () => null,
+  deps: () => ({ hasOpenTask: () => true, running: () => false, name: (id) => id }),
+}
 
 const sameTarget = (a: Target | null, b: Target | null): boolean =>
   a?.pane === b?.pane && a?.sessionId === b?.sessionId
@@ -56,11 +73,13 @@ export class Inboxes {
   private readonly nextSeq = sequence()
   private readonly byProject = new Map<string, ProjectInbox>()
   private readonly locate: Locate
+  private readonly sends: Sends
   // The human's away, the app's and not a project's: every file carries it until they are back.
   private awaySince: number | null = null
 
-  constructor(locate: Locate) {
+  constructor(locate: Locate, sends: Sends = NO_SENDS) {
     this.locate = locate
+    this.sends = sends
   }
 
   // Cheap: compares where each orchestrator runs with the file last written, and only then reads
@@ -70,6 +89,8 @@ export class Inboxes {
     for (const [id, orchestrator] of where) {
       const entry = this.entryOf(id)
       if (!sameTarget(entry.shown, targetOf(orchestrator))) this.kick(id)
+      else if (entry.sent.size > 0 && this.standingOf(id, entry).held !== entry.shown?.standing)
+        this.kick(id)
     }
     for (const id of this.byProject.keys()) if (!where.has(id)) this.kick(id)
   }
@@ -88,6 +109,18 @@ export class Inboxes {
     this.kick(projectId)
   }
 
+  // The orchestrator sent a message to this session through Menkar.
+  sentTo(projectId: string, sessionId: string): void {
+    if (!this.locate().has(projectId)) return
+    this.entryOf(projectId).sent.add(sessionId)
+    this.kick(projectId)
+  }
+
+  // Tasks changed: a session the orchestrator sent work to may have one now.
+  standingMayChange(): void {
+    for (const [id, entry] of this.byProject) if (entry.sent.size > 0) this.kick(id)
+  }
+
   setAway(since: number | null): void {
     if (since === this.awaySince) return
     this.awaySince = since
@@ -102,6 +135,7 @@ export class Inboxes {
     const entry = this.byProject.get(projectId)
     if (!entry) return
     entry.inbox.clear({ keep: ['presence'] })
+    entry.sent.clear()
     this.kick(projectId)
   }
 
@@ -143,6 +177,7 @@ export class Inboxes {
     if (!entry) {
       entry = {
         inbox: new Inbox(this.nextSeq, now),
+        sent: new Set(),
         shown: null,
         reading: null,
         queue: Promise.resolve(),
@@ -151,6 +186,11 @@ export class Inboxes {
       this.byProject.set(id, entry)
     }
     return entry
+  }
+
+  private standingOf(id: string, entry: ProjectInbox) {
+    const { keep, lines } = sentWithoutTask(entry.sent, this.sends.deps(id))
+    return { keep, lines, held: JSON.stringify(lines) }
   }
 
   private kick(id: string): void {
@@ -195,8 +235,14 @@ export class Inboxes {
     }
     if (entry.reading?.sessionId !== target.sessionId)
       entry.reading = await startReading(target.sessionId, orchestrator.transcript)
-    await confirm(entry.inbox, entry.reading, orchestrator.transcript, target.kit)
+    const sentTo = await confirm(entry.inbox, entry.reading, orchestrator.transcript, target.kit)
+    for (const name of sentTo) {
+      const session = this.sends.resolve(id, name)
+      if (session) entry.sent.add(session)
+    }
     between?.()
+    const standing = this.standingOf(id, entry)
+    entry.sent = new Set(standing.keep)
     const list = entry.inbox.entries
     const away = this.awaySince
     const held = JSON.stringify([
@@ -204,10 +250,18 @@ export class Inboxes {
       entry.inbox.dropped,
       list.map((x) => x.seq),
       away,
+      standing.lines,
     ])
     if (entry.shown?.pane === target.pane && entry.shown.held === held) return
-    await target.kit.publish(target.pane, target.sessionId, entry.inbox.dropped, list, away)
-    entry.shown = { ...target, held }
+    await target.kit.publish(
+      target.pane,
+      target.sessionId,
+      entry.inbox.dropped,
+      list,
+      away,
+      standing.lines,
+    )
+    entry.shown = { ...target, held, standing: standing.held }
   }
 }
 
@@ -229,14 +283,15 @@ async function startReading(sessionId: string, file: string | null): Promise<Rea
   }
 }
 
+// Returns the names the orchestrator messaged in what was read.
 async function confirm(
   inbox: Inbox,
   reading: Reading,
   transcript: string | null,
   kit: PromptInbox,
-): Promise<void> {
+): Promise<readonly string[]> {
   if (!reading.file) {
-    if (!transcript) return
+    if (!transcript) return []
     reading.file = transcript
     reading.offset = 0
   }
@@ -244,12 +299,13 @@ async function confirm(
     if (errno(error) === 'ENOENT') return null
     throw error
   })
-  if (!found) return
+  if (!found) return []
   const { size, ino } = found
   // Another file under the name, or one cut short: read it again from its start.
   if ((reading.inode !== null && ino !== reading.inode) || size < reading.offset) reading.offset = 0
   reading.inode = ino
-  const { through, offset } = await kit.delivered(reading.file, reading.offset)
+  const { through, offset, sentTo } = await kit.delivered(reading.file, reading.offset)
   reading.offset = offset
   if (through > 0) inbox.deliveredThrough(through)
+  return sentTo ?? []
 }
