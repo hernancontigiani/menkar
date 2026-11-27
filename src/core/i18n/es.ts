@@ -667,6 +667,8 @@ export const es: Partial<Record<keyof typeof en, string>> = {
     '"{key}" en {path} no es lo que Cursor espera ahí; el archivo se dejó como estaba.',
   'classifier.offInSandbox': 'Menkar Sandbox no clasifica turnos.',
   'classifier.group': 'Clasificar turnos',
+  'classifier.missing':
+    'Clasificar turnos necesita {agent}, que no se encontró en el PATH. Los otros agentes todavía no pueden clasificar.',
   'classifier.switch': 'Clasificar cada turno nuevo por etapa de desarrollo',
   'classifier.switchSubtitle':
     'Cada prompt que escribas desde ahora se envía a Claude Haiku con tu sesión, junto con tu prompt anterior y los archivos y comandos que usó el agente, y cuenta para tu plan. La ventana de Uso divide entonces cada proyecto por categoría.',

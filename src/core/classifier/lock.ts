@@ -15,8 +15,8 @@ export class ClassifierLock {
     return this.earlierRunning
   }
 
-  // Null when a run already holds the lock: the pass is skipped and records nothing.
-  async hourly(run: () => Promise<RunResult>): Promise<RunResult | null> {
+  // Null when a run already holds the lock, or the pass found nothing to run with: it records nothing.
+  async hourly(run: () => Promise<RunResult | null>): Promise<RunResult | null> {
     if (this.running !== null) return null
     return this.hold(run())
   }

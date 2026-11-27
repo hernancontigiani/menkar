@@ -243,14 +243,28 @@ export async function usageSection(): Promise<HTMLElement> {
     earlierButton,
   )
   let running = false
+  const missing = el('p', { class: 'group-description', 'data-key': 'classify-missing' })
+  const section = group(
+    t('classifier.group'),
+    null,
+    switchRow(t('classifier.switch'), status, classify),
+    earlierRow,
+  )
+  section.querySelector('.card')?.before(missing)
   const refresh = async () => {
     const now = await classifier.status()
     classify.checked = now.on
+    // Left on while the agent is missing, it can still be turned off, never on.
+    classify.disabled = now.missing !== null && !now.on
+    section.classList.toggle('unavailable', now.missing !== null)
+    missing.hidden = now.missing === null
+    missing.textContent = now.missing
     status.textContent = [t('classifier.switchSubtitle'), now.status].filter(Boolean).join('\n')
-    earlierRow.hidden = !now.on
+    earlierRow.hidden = !now.on && now.missing === null
     running = now.progress !== null
     earlierSubtitle.textContent = now.progress ?? t('classifier.earlierSubtitle')
     earlierButton.textContent = running ? t('classifier.stop') : t('classifier.earlierButton')
+    earlierButton.disabled = now.missing !== null && !running
   }
   classify.addEventListener('change', async () => {
     await classifier.set(classify.checked)
@@ -263,14 +277,5 @@ export async function usageSection(): Promise<HTMLElement> {
   await refresh()
   // While Settings is open the run's progress is read again once a second.
   setInterval(() => void refresh(), 1000)
-  return el(
-    'div',
-    {},
-    group(
-      t('classifier.group'),
-      null,
-      switchRow(t('classifier.switch'), status, classify),
-      earlierRow,
-    ),
-  )
+  return el('div', {}, section)
 }

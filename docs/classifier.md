@@ -49,6 +49,13 @@ they are built.
 - **A try per unanswered turn, none per failed call.** A turn Haiku cannot place stops being sent
   after three tries. A `claude` that fails or times out is no fault of the turn, so the run stops
   and records the failure.
+- **With the classifier's agent not on the PATH** (the human, 2026-11-27, decision 1.212: Claude
+  classifies until another agent can), the Settings group stays, greyed like an agent's
+  integrations group, with a line saying that agent is needed and that other agents can't classify
+  yet; `classifier:status` carries that line as `missing`, looked up on the PATH at each read. The
+  switch can still be turned off if it was left on, never on; "Classify earlier turns" is shown
+  and disabled. The hourly pass is skipped then, recording nothing, instead of a failed run each
+  hour: the page already says why.
 - **Ready means its tools are known**: a later turn in the session, or an hour of quiet.
 - **Earlier turns are counted by file size, not read.** Reading thousands of turns makes the
   dialog wait.

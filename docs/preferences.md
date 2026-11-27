@@ -81,6 +81,9 @@ are shaped this way.
   absent when none offers any. While the agent's CLI is not on the PATH, looked up each time the
   section is shown, its group is greyed with a line saying so and a change is refused; in the
   sandbox a line says to turn the items off before uninstalling it.
+- **The classifier with its agent missing** (the human, 2026-11-27, option (a) of topic 111): the
+  "Classify turns" group is greyed the same way, with the line from `classifier:status`'s `missing`
+  above its card; a switch left on can be turned off, not on (`docs/classifier.md`).
 - **About** opens its two links (website, issues) only on a click, through `app:open-link`, which
   knows those two addresses and no other.
   Its "Coding agents" card lists every agent Menkar can run, with its installed and validated
@@ -148,5 +151,7 @@ are shaped this way.
   journal) and `e2e/usage-tasks.spec.ts` (the flow's figures, the folds, the baseline, the empty
   card); each saves its screenshots, dark and light, under `test-results/usage-{sections,time,tasks}/`.
 - Vitest for the sections and the readings: `tests/core/usage/{sections,timeline,bursts,flow}.test.ts`.
+- `e2e/integrations.spec.ts` also covers the classifier with no `claude` on the PATH (greyed, its
+  line, a switch left on turned off; `test-results/integrations/classifier-missing.png`).
 - `e2e/integrations.spec.ts` also covers the Cursor section with and without the stand-in
   `cursor-agent`, its screenshots in `test-results/integrations/cursor-*.png`.

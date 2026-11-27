@@ -472,3 +472,51 @@ test('Cursor settings are greyed with a line while cursor-agent is not found, an
     await launched.close()
   }
 })
+
+const NO_CLASSIFIER =
+  "Classifying turns needs Claude Code, which was not found on the PATH. Other agents can't classify yet."
+
+test('with no claude on the PATH the classifier group is greyed with its line and nothing can be turned on', async () => {
+  const launched = await launchApp()
+  try {
+    const prefs = await integrations(launched.app, launched.window)
+    await expect(prefs.locator('[data-key="classify-missing"]')).toHaveText(NO_CLASSIFIER)
+    await expect(prefs.locator('section.group.unavailable [data-key="classify"]')).toBeDisabled()
+    await expect(prefs.locator('[data-key="classify"]')).not.toBeChecked()
+    await expect(prefs.locator('[data-key="earlier-row"]')).toBeVisible()
+    await expect(prefs.locator('[data-key="earlier-button"]')).toBeDisabled()
+    await prefs.screenshot({ path: join(SHOTS, 'classifier-missing.png') })
+  } finally {
+    await launched.close()
+  }
+})
+
+test('with no claude on the PATH a switch left on can still be turned off, and then not on again', async () => {
+  let root = ''
+  const launched = await launchApp({
+    prepare: ({ root: base }) => {
+      root = base
+      mkdirSync(join(base, 'config', 'menkar'), { recursive: true })
+      writeFileSync(
+        join(base, 'config', 'menkar', 'state.json'),
+        JSON.stringify({ settings: { classify_since: 1 } }),
+      )
+      return undefined
+    },
+  })
+  try {
+    const prefs = await integrations(launched.app, launched.window)
+    const classify = prefs.locator('[data-key="classify"]')
+    await expect(prefs.locator('[data-key="classify-missing"]')).toHaveText(NO_CLASSIFIER)
+    await expect(classify).toBeChecked()
+    await expect(classify).toBeEnabled()
+    await expect(prefs.locator('[data-key="earlier-button"]')).toBeDisabled()
+    await classify.uncheck()
+    await expect(classify).toBeDisabled()
+    await expect(classify).not.toBeChecked()
+    await expect.poll(() => savedState(root).settings?.classify_since).toBeNull()
+    expect(savedState(root).settings?.classify_last).toBeUndefined()
+  } finally {
+    await launched.close()
+  }
+})

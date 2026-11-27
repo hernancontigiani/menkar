@@ -656,6 +656,8 @@ export const en = {
     '"{key}" in {path} is not what Cursor expects there; the file was left as it is.',
   'classifier.offInSandbox': 'Menkar Sandbox does not classify turns.',
   'classifier.group': 'Classify turns',
+  'classifier.missing':
+    "Classifying turns needs {agent}, which was not found on the PATH. Other agents can't classify yet.",
   'classifier.switch': 'Classify each new turn by development stage',
   'classifier.switchSubtitle':
     'Each prompt you type from now on is sent to Claude Haiku with your login, with your previous prompt and the files and commands the agent used, and counts against your plan. The Usage window then splits each project by category.',

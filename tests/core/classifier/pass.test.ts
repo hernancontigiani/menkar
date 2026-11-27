@@ -25,6 +25,7 @@ import { SYSTEM_PROMPT } from '../../../src/core/classifier/prompt'
 import {
   type Call,
   classifierFolder,
+  classifierInstalled,
   classifyPass,
   claudeCall,
   findClaude,
@@ -378,16 +379,14 @@ describe('the invocation', () => {
     vi.doUnmock('../../../src/core/classifier/prompt')
   })
 
-  test('CLS-19 with no claude on the PATH the pass fails at once, even with nothing ready', () => {
+  test('with no claude on the PATH the hourly pass is skipped: no run, nothing recorded', async () => {
     expect(findClaude('/nonexistent:/also-not')).toBeNull()
     expect(findClaude(resolve('tests/data/classifier'))).toBe(FAKE)
+    expect(await classifierInstalled('/nonexistent:/also-not')).toBe(false)
+    expect(await classifierInstalled(resolve('tests/data/classifier'))).toBe(true)
     const dirs = usageDirs('cls19')
     const db = open(dirs)
-    expect(classifyPass(db.history, db.cache, 0, NOW, null)).toEqual({
-      at: NOW,
-      classified: 0,
-      failed: true,
-    })
+    expect(classifyPass(db.history, db.cache, 0, NOW, null)).toBeNull()
     db.close()
   })
 
@@ -444,7 +443,7 @@ describe('reading the answer', () => {
       result:
         '[{"id":0,"category":"design"},{"id":1,"category":"refactor"},{"id":7,"category":"build"}]',
     })
-    expect(classifyPass(db.history, db.cache, 0, NOW, () => reply).classified).toBe(1)
+    expect(classifyPass(db.history, db.cache, 0, NOW, () => reply)?.classified).toBe(1)
     expect(db.rows()).toEqual({
       'u-10:00:00': ['design', 0],
       'u-11:00:00': [null, 1],

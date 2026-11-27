@@ -1,12 +1,14 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { ipcMain } from 'electron'
+import { descriptorOf } from '../core/agents/descriptors'
+import { CLASSIFIER_AGENT } from '../core/agents/ids'
 import { ClassifierLock } from '../core/classifier/lock'
-import type { Estimate, RunResult } from '../core/classifier/run'
+import { classifierInstalled, type Estimate, type RunResult } from '../core/classifier/run'
 import { classifyLast, classifySince, withLastRun, withSwitch } from '../core/classifier/settings'
 import { estimateLines, progressText, statusText } from '../core/classifier/text'
 import { now } from '../core/clock'
-import { t } from '../core/i18n'
+import { t, translate } from '../core/i18n'
 import { log } from '../core/log'
 import { midnight } from '../core/usage/periods'
 import type { ClassifierStatus, InvokeChannel, InvokeChannels } from '../shared/ipc'
@@ -50,7 +52,7 @@ export async function classifyAfterUsagePass(): Promise<void> {
   const since = classifySince((await sessions.currentState()).rest)
   if (since === null) return
   const result = await lock.hourly(() =>
-    inWorker<RunResult>('hourly', since, freshFlags()).catch((error: unknown) => {
+    inWorker<RunResult | null>('hourly', since, freshFlags()).catch((error: unknown) => {
       log.warn('classification pass failed', { error })
       return failed()
     }),
@@ -65,8 +67,12 @@ async function status(): Promise<ClassifierStatus> {
     flags !== null && lock.classifyingEarlier
       ? progressText(Atomics.load(flags, 1), Atomics.load(flags, 2))
       : null
+  const installed = await classifierInstalled()
   return {
     on: classifySince(rest) !== null,
+    missing: installed
+      ? null
+      : t('classifier.missing', { agent: translate(descriptorOf(CLASSIFIER_AGENT).label) }),
     status: statusText(classifyLast(rest), nowSeconds),
     progress,
   }

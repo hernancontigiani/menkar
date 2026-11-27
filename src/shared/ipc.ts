@@ -73,6 +73,8 @@ export interface AgentItemsGroup {
 // earlier-turns run's progress ("30 of 75") while one runs.
 export interface ClassifierStatus {
   readonly on: boolean
+  // Why nothing can be classified, while the classifier's agent is not on the PATH.
+  readonly missing: string | null
   readonly status: string
   readonly progress: string | null
 }

@@ -6,6 +6,7 @@ import { CLASSIFIER_AGENT } from '../agents/ids'
 import type { TurnTexts } from '../agents/types'
 import { log } from '../log'
 import { appDirs } from '../paths'
+import { onPath } from '../sessions/installed'
 import type { UsageHistory } from '../usage/history'
 import { batchInput, command, environment, parseReply, type TurnText } from './input'
 import {
@@ -46,6 +47,10 @@ export function findClaude(path = process.env.PATH ?? ''): string | null {
     }
   }
   return null
+}
+
+export function classifierInstalled(path = process.env.PATH ?? ''): Promise<boolean> {
+  return onPath(descriptorOf(CLASSIFIER_AGENT).command, path)
 }
 
 // One call to Haiku: its stdout, or null when `claude` could not run, failed or took too long. A
@@ -98,15 +103,16 @@ function send(
 }
 
 // The hourly pass: up to ten batches of the oldest ready turns the human typed since the switch
-// was turned on. A turn whose text cannot be read counts a try and is left out.
+// was turned on. A turn whose text cannot be read counts a try and is left out. With no `claude` to
+// call there is no run, so nothing is recorded: the page already says why.
 export function classifyPass(
   history: UsageHistory,
   source: TurnTexts,
   since: number,
   nowSeconds: number,
   call: Call | null,
-): RunResult {
-  if (call === null) return { at: nowSeconds, classified: 0, failed: true }
+): RunResult | null {
+  if (call === null) return null
   let classified = 0
   const waiting = readyTurns(history, since, nowSeconds, HOURLY_ORIGINS)
   for (let n = 0; n < CALLS_PER_PASS; n += 1) {
