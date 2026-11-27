@@ -1,6 +1,14 @@
 import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
 import { type LaunchedApp, launchApp } from './app'
@@ -154,6 +162,14 @@ const activeLine = (page: Page) =>
     .locator('.tab-body:not(.hidden) .cm-line')
     .evaluateAll((ns) => ns.findIndex((n) => n.classList.contains('cm-activeLine')))
 
+// Another program's rewrite, whole at once: a plain write truncates the file first, and the app
+// may read it empty in between, a rewrite of its own that moves the cursor.
+function rewrite(file: string, text: string): void {
+  const temporary = join(dirname(dirname(file)), 'rewrite.tmp')
+  writeFileSync(temporary, text)
+  renameSync(temporary, file)
+}
+
 test('FIL-16 with no edits, another program’s rewrite shows at once, the cursor on the same line (or the last), and no bar', async () => {
   const { launched, page, home } = await launch((dirs) => clientWork(dirs))
   try {
@@ -162,11 +178,11 @@ test('FIL-16 with no edits, another program’s rewrite shows at once, the curso
     await act(page, { type: 'openFilePath', path: file })
     await page.locator('.cm-line', { hasText: 'three' }).click()
     expect(await activeLine(page)).toBe(2)
-    writeFileSync(file, 'uno\ndos\ntres\ncuatro\ncinco\n')
+    rewrite(file, 'uno\ndos\ntres\ncuatro\ncinco\n')
     await expect(visibleEditor(page)).toContainText('cinco')
     expect(await activeLine(page)).toBe(2)
     await expect(page.locator('.file-bar')).toHaveCount(0)
-    writeFileSync(file, 'solo\n')
+    rewrite(file, 'solo\n')
     await expect(visibleEditor(page)).toHaveText('solo')
     expect(await activeLine(page)).toBe(
       (await page.locator('.tab-body:not(.hidden) .cm-line').count()) - 1,

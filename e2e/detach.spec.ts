@@ -132,11 +132,12 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
   const packaged = process.env.MENKAR_E2E_EXECUTABLE
   // Absolute, as the app starts its detached copy with its own resolved path.
   const executable = resolve(packaged ?? (createRequire(import.meta.url)('electron') as string))
-  // A switch naming this run's folder, which the detached copy carries on its command line: once
-  // Chromium has written over its environment, and before it holds a file under the folder (late on
-  // a slow machine), it is the one trace of this run the copy shows.
-  const mark = `--menkar-e2e-run=${root}/`
-  const args = packaged ? ['--ozone-platform=x11', mark] : ['--ozone-platform=x11', mark, '.']
+  // As every other e2e launch: a copy started from node_modules has no setuid helper and, on Ubuntu
+  // 24.04, no user namespace for Chromium's sandbox, so it aborts at its start. The copy is started
+  // with this process's own switches.
+  const args = packaged
+    ? ['--no-sandbox', '--ozone-platform=x11']
+    : ['--no-sandbox', '--ozone-platform=x11', '.']
   let started: number[] = []
   try {
     const startedAt = Date.now()
@@ -171,7 +172,7 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
     // setsid: the app leads a session of its own, so the terminal closing sends it no SIGHUP.
     expect(sessionOf(app)).toBe(app)
     expect(terminal.pid).not.toBe(app)
-    // Past Chromium's start (its sandbox included): the copy has a renderer for its window.
+    // Past Chromium's start: the copy has a renderer for its window.
     await expect
       .poll(() => processesOf(root).some((pid) => cmdline(pid).includes(' --type=renderer ')), {
         timeout: 10_000,
