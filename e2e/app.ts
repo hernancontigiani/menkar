@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron, type ElectronApplication, type Page } from '@playwright/test'
+import type { MenkarApi } from '../src/shared/ipc'
 import { ensureDisplay } from './display'
 import { catppuccin } from './fixtures'
 import { e2ePath, foreignEntries } from './path'
@@ -78,10 +79,22 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
   // MENKAR_E2E_EXECUTABLE runs the suite against a packaged build instead of `out/`.
   const executable = process.env.MENKAR_E2E_EXECUTABLE
   const args = ['--ozone-platform=x11', ...(options.args ?? [])]
-  const app = await _electron.launch(
-    executable ? { executablePath: executable, args, env } : { args: [...args, '.'], env },
-  )
+  const launch = () =>
+    _electron.launch(
+      executable ? { executablePath: executable, args, env } : { args: [...args, '.'], env },
+    )
+  // ETXTBSY: the kernel refused to run Electron's binary while some process held it open for
+  // writing. No test writes it, yet a hosted runner refused it once at the suite's start, so it is
+  // tried once more after a pause. Any other failure is the test's.
+  const app = await launch().catch(async (error: unknown) => {
+    if (!String(error).includes('ETXTBSY')) throw error
+    await new Promise((done) => setTimeout(done, 500))
+    return launch()
+  })
   const window = await app.firstWindow()
+  // The first window exists before its script runs: a key or a click sent earlier finds no
+  // handler and is lost. The header's Settings button is built just before the key handlers.
+  await window.waitForSelector('#settings-button', { state: 'attached' })
   return {
     root,
     env,
@@ -123,6 +136,26 @@ export async function endSessions(app: ElectronApplication): Promise<void> {
 export async function terminalText(window: Page): Promise<string> {
   const rows = await window.locator('.xterm-rows > div').allTextContents()
   return rows.join('\n')
+}
+
+// What a pane's agent has written so far, as the main process holds it. The rows of a tab not
+// shown are no proof of an agent's output: xterm does not draw a terminal whose element is hidden,
+// so a tab hidden before its first frame keeps blank rows long after its agent printed.
+export function paneOutput(window: Page, pane: string): Promise<string> {
+  return window.evaluate(
+    async (id) =>
+      (await (globalThis as unknown as { menkar: MenkarApi }).menkar.panes.attach(id)).buffer,
+    pane,
+  )
+}
+
+// Every agent pane's output, in the order of the window's tabs and their panes.
+export async function panesOutput(window: Page): Promise<string[]> {
+  const panes = await window.evaluate(async () => {
+    const s = await (globalThis as unknown as { menkar: MenkarApi }).menkar.window.state()
+    return s?.tabs.flatMap((tab) => tab.panes.map((p) => p.id)) ?? []
+  })
+  return Promise.all(panes.map((pane) => paneOutput(window, pane)))
 }
 
 // A start that reopens one saved tab: a Cursor session whose stand-in `cursor-agent` replaces

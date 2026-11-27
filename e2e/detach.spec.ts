@@ -114,7 +114,11 @@ test('decision 1.27: menkar in a terminal returns within 2 s while the app runs 
   const packaged = process.env.MENKAR_E2E_EXECUTABLE
   // Absolute, as the app starts its detached copy with its own resolved path.
   const executable = resolve(packaged ?? (createRequire(import.meta.url)('electron') as string))
-  const args = packaged ? ['--ozone-platform=x11'] : ['--ozone-platform=x11', '.']
+  // A switch naming this run's folder, which the detached copy carries on its command line: once
+  // Chromium has written over its environment, and before it holds a file under the folder (late on
+  // a slow machine), it is the one trace of this run the copy shows.
+  const mark = `--menkar-e2e-run=${root}/`
+  const args = packaged ? ['--ozone-platform=x11', mark] : ['--ozone-platform=x11', mark, '.']
   let started: number[] = []
   try {
     const startedAt = Date.now()

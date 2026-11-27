@@ -6,7 +6,7 @@ import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import type { MenkarApi } from '../src/shared/ipc'
-import { launchApp } from './app'
+import { launchApp, paneOutput, panesOutput } from './app'
 import { CLEARED_SESSION, CLIENT, catppuccin, clientWork, prepare } from './fixtures'
 
 type PageGlobals = { menkar: MenkarApi }
@@ -715,7 +715,7 @@ test("Ctrl+` in the orchestrator's tab asks which of the team's folders; the las
   try {
     await expect(page.locator('.tab')).toHaveCount(2)
     await expect
-      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .poll(() => panesOutput(page), { timeout: 15_000 })
       .toEqual([
         expect.stringContaining('stand-in claude ready'),
         expect.stringContaining('stand-in claude ready'),
@@ -777,9 +777,7 @@ test("Ctrl+` in the orchestrator's tab asks which of the team's folders; the las
 const agentReady = async (page: Page, session: string) => {
   const pane = await paneOf(page, session)
   await expect
-    .poll(() => page.locator(`.pane[data-pane="${pane}"] .xterm-rows`).textContent(), {
-      timeout: 15_000,
-    })
+    .poll(() => paneOutput(page, pane), { timeout: 15_000 })
     .toContain('stand-in claude ready')
   return pane
 }
@@ -1129,7 +1127,7 @@ test('a read-only tab: keys and pastes never reach its agent while its terminal 
   const banner = page.locator('.tab-body:not(.hidden) .pane-banner')
   try {
     await expect
-      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .poll(() => panesOutput(page), { timeout: 15_000 })
       .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
     await page.locator('.tab', { hasText: 'login worker' }).click()
     await expect(banner).toHaveClass(/warning/)
@@ -1224,7 +1222,7 @@ test('a worker taken control of, then cleared: Back to reporting and Take contro
   const banner = page.locator('.tab-body:not(.hidden) .pane-banner')
   try {
     await expect
-      .poll(() => page.locator('.xterm-rows').allTextContents(), { timeout: 15_000 })
+      .poll(() => panesOutput(page), { timeout: 15_000 })
       .toEqual(Array(2).fill(expect.stringContaining('stand-in claude ready')))
     await page.locator('.tab', { hasText: 'login worker' }).click()
     await banner.locator('button', { hasText: 'Take control' }).click()
