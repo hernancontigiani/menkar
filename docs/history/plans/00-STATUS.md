@@ -2831,3 +2831,7 @@ Deviations and what the plan did not anticipate:
 ## 2026-11-27 — 1.212's row before task 217 built the classifier's row
 
 | 1.212 | **1.0 carries plan 39 P3 (Cursor in the orchestration mode) and not P4 (the classifier per agent)** (the human, 2026-11-23, topic 104, option a): 1.127's "every integrated agent takes part in the orchestration mode" holds for the four agents at 1.0; the classifier stays Claude's (Haiku) until P4, after 1.0. **The integrations page says so**: when no installed agent can classify (today, `claude` not installed), the classifier's switch is unavailable and its row says why in our own sentence, instead of a switch that does nothing | 2026-11-23 | this row (until built: P3, task 215; the row, task 217) |
+
+## 2026-11-27 — 1.217 before its part A was dropped (topic 113)
+
+| 1.217 | **Work without a card or without steps is shown and reminded, never enforced** (the human, 2026-11-27, topic 112, options A and B; ccai's two cases of 2026-11-27, relayed by `gd-orch`): (A) a task's card shows "activity, no steps" while its assignee works (shown working) on it with no steps; (B) a line in each turn's context — to an assignee whose task has no steps ("your task N has no steps"), and to the orchestrator for a session it sent work to that has no open task ("you sent work to X, which has no open task"). Short coordination and consultants' answers stay free: nothing is refused | 2026-11-27 | this row (until built, task 237) |
