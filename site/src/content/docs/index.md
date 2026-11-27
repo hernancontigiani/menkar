@@ -29,8 +29,8 @@ The sidebar keeps at the top the items only you can answer, the current one firs
 
 ## Keep every session in one window
 
-Without the orchestration mode, Menkar is a window for all your Claude Code and Cursor sessions:
-[tabs and panes](/menkar/sessions/tabs-and-panes/), projects, several windows, file tabs, and the
+Without the orchestration mode, Menkar is a window for all your Claude Code, Codex, Cursor and
+OpenCode sessions: [tabs and panes](/menkar/sessions/tabs-and-panes/), projects, several windows, file tabs, and the
 [time, tokens and cost](/menkar/usage/window/) of each session.
 
 ## Keep your work on your machine

@@ -7,7 +7,7 @@ sidebar:
 
 Remote Control is Claude Code's own: it connects a running session to the Claude app on your phone
 and to claude.ai, under the session's name. Menkar turns it on per session, and it is off until you
-do. Cursor sessions do not have it.
+do. Other agents' sessions do not have it.
 
 ## Turn on Remote Control
 

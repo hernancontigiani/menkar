@@ -17,7 +17,8 @@ in :ui[header.settings] › :ui[settings.section.about].
 ## What the agents send
 
 Menkar runs each agent's own command, and that agent connects to its own service as it does in any
-terminal, with your login: Claude Code to Anthropic, Cursor's agent to Cursor. What a session sends
+terminal, with your login: Claude Code to Anthropic, Codex to OpenAI, Cursor's agent to Cursor,
+OpenCode to the providers you set it up with. What a session sends
 is the agent's business and follows its settings.
 
 Two things Menkar starts go through Claude Code, each only when you turn it on:

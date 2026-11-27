@@ -1,27 +1,28 @@
 ---
-title: Use Claude Code or Cursor
-description: What Menkar does with a Claude Code session and with a Cursor session.
+title: Use Claude Code, Codex, Cursor or OpenCode
+description: What Menkar does with a session of each agent it runs.
 sidebar:
   order: 3
 ---
 
-Menkar runs the agent's own command in a terminal, `claude` for Claude Code and `cursor-agent` for
-Cursor, so a session behaves in Menkar as it does in any terminal, with your login, settings and
-tools. Pick the agent when you [start a new session](/menkar/start/first-sessions/#start-a-new-session);
-the sessions both agents already have are listed side by side.
+Menkar runs the agent's own command in a terminal (`claude` for Claude Code, `codex` for Codex,
+`cursor-agent` for Cursor, `opencode` for OpenCode), so a session behaves in Menkar as it does in
+any terminal, with your login, settings and tools. Pick the agent when you
+[start a new session](/menkar/start/first-sessions/#start-a-new-session); the sessions every agent
+already has are listed side by side.
 
 ## Choose an agent for a session
 
-| In Menkar | Claude Code | Cursor |
-|---|---|---|
-| Run, resume and close a session in a tab | Yes | Yes |
-| The session's state (:ui[state.working], :ui[state.blocked], :ui[state.idle]) and notifications | Yes | Yes |
-| Context ring by each session | Yes | No |
-| Time, tokens and cost in :ui[header.usage] | Yes | Time and tokens, with :ui[integrations.cursorHooks] on |
-| [The orchestration mode](/menkar/orchestration/) | Yes | Yes, as a worker, see [Use Cursor in the orchestration mode](#use-cursor-in-the-orchestration-mode) |
-| [Remote Control](/menkar/sessions/remote-control/) | Yes | No |
-| Fork a session | Yes | No |
-| [Continue as a chat](/menkar/sessions/chat/) | Asks before every edit and command | Read only, or runs edits and commands without asking |
+| In Menkar | Claude Code | Codex | Cursor | OpenCode |
+|---|---|---|---|---|
+| Run, resume and close a session in a tab | Yes | Yes | Yes | Yes |
+| The session's state (:ui[state.working], :ui[state.blocked], :ui[state.idle]) and notifications | Yes | Yes | Yes | Yes |
+| Context ring by each session | Yes | Yes | No | Yes, for a model in OpenCode's catalog |
+| Time, tokens and cost in :ui[header.usage] | Yes | Yes | Time and tokens, with :ui[integrations.cursorHooks] on | Yes |
+| [The orchestration mode](/menkar/orchestration/) | Yes | Yes | Yes, as a worker, see [Use Cursor in the orchestration mode](#use-cursor-in-the-orchestration-mode) | Yes |
+| [Remote Control](/menkar/sessions/remote-control/) | Yes | No | No | No |
+| Fork a session | Yes | No | No | No |
+| [Continue as a chat](/menkar/sessions/chat/) | Asks before every edit and command | No | Read only, or runs edits and commands without asking | No |
 
 ## Use Cursor in the orchestration mode
 

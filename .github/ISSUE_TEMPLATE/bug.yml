@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in Menkar does not work as it should.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Menkar version
+      description: As shown in Settings › About.
+    validations:
+      required: true
+  - type: input
+    id: distribution
+    attributes:
+      label: Distribution
+      description: For example Ubuntu 24.04 or Fedora 45, and the desktop (GNOME, KDE…).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: seen
+    attributes:
+      label: What you saw
+      description: A screenshot helps when it is something on screen.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        The lines of `~/.cache/menkar/menkar.log` around the problem. Remove anything private
+        (paths, project or session names) before pasting.
+      render: text

@@ -7,7 +7,7 @@ sidebar:
 
 El Control remoto es de Claude Code: conecta una sesión que corre con la app de Claude de tu
 teléfono y con claude.ai, con el nombre de la sesión. Menkar lo activa por sesión, y está apagado
-hasta que lo activás. Las sesiones de Cursor no lo tienen.
+hasta que lo activás. Las sesiones de los otros agentes no lo tienen.
 
 ## Activá el Control remoto
 

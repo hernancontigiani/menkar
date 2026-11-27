@@ -17,8 +17,8 @@ o los dos enlaces de :ui[header.settings] › :ui[settings.section.about].
 ## Qué mandan los agentes
 
 Menkar corre el comando propio de cada agente, y ese agente se conecta a su servicio como en
-cualquier terminal, con tu cuenta: Claude Code a Anthropic, el agente de Cursor a Cursor. Lo que
-manda una sesión es asunto del agente y sigue su configuración.
+cualquier terminal, con tu cuenta: Claude Code a Anthropic, Codex a OpenAI, el agente de Cursor a
+Cursor, OpenCode a los proveedores que le configuraste. Lo que manda una sesión es asunto del agente y sigue su configuración.
 
 Dos cosas que inicia Menkar pasan por Claude Code, cada una solo cuando la activás:
 

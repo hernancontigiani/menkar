@@ -30,8 +30,8 @@ pasos y su última nota.
 
 ## Tené todas tus sesiones en una ventana
 
-Sin el modo de orquestación, Menkar es una ventana para todas tus sesiones de Claude Code y Cursor:
-[pestañas y paneles](/menkar/es/sessions/tabs-and-panes/), proyectos, varias ventanas, pestañas de
+Sin el modo de orquestación, Menkar es una ventana para todas tus sesiones de Claude Code, Codex,
+Cursor y OpenCode: [pestañas y paneles](/menkar/es/sessions/tabs-and-panes/), proyectos, varias ventanas, pestañas de
 archivos, y el [tiempo, los tokens y el costo](/menkar/es/usage/window/) de cada sesión.
 
 ## Mantené tu trabajo en tu máquina

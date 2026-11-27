@@ -11,8 +11,8 @@ empty: fill it from the sessions your agents already have, or start new ones.
 ## Add a session you already have
 
 1. Click :ui[sidebar.addSession] at the foot of the sidebar, or press `Ctrl+Shift+F`.
-2. On :ui[add.existing], find the session: every Claude Code and Cursor session on this computer
-   is listed by folder. Type in the search box to filter.
+2. On :ui[add.existing], find the session: every session your agents have on this computer is
+   listed by folder. Type in the search box to filter.
 3. Click :ui[add.add]. A session another project holds offers to move it from that project
    instead: a session belongs to one project at most.
 

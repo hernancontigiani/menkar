@@ -1,13 +1,14 @@
 ---
 title: Mirá tiempo, tokens y costo
-description: Leé cuánto trabajaron tus sesiones de Claude Code, qué usaron y cuánto costaron, y cómo usaste tu propio tiempo.
+description: Leé cuánto trabajaron tus sesiones, qué usaron y cuánto costaron, y cómo usaste tu propio tiempo.
 sidebar:
   order: 1
 ---
 
 Hacé clic en :ui[header.usage] en el encabezado. La ventana de uso se abre en el proyecto que
 muestra la ventana; hacé clic en :ui[usage.allProjects] al pie de su barra izquierda para ver todos
-los proyectos. Sus cifras cubren las sesiones de Claude Code.
+los proyectos. Sus cifras cubren las sesiones de todos los agentes;
+[Usá Claude Code, Codex, Cursor u OpenCode](/menkar/es/start/agents/) dice qué informa cada uno.
 
 ## Mirá qué usó cada sesión
 

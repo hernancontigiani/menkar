@@ -1,28 +1,28 @@
 ---
-title: Usá Claude Code o Cursor
-description: Qué hace Menkar con una sesión de Claude Code y con una de Cursor.
+title: Usá Claude Code, Codex, Cursor u OpenCode
+description: Qué hace Menkar con una sesión de cada agente que corre.
 sidebar:
   order: 3
 ---
 
-Menkar corre el comando propio de cada agente en una terminal, `claude` para Claude Code y
-`cursor-agent` para Cursor, así que una sesión se comporta en Menkar como en cualquier terminal,
-con tu cuenta, tu configuración y tus herramientas. Elegí el agente cuando
-[empezás una sesión nueva](/menkar/es/start/first-sessions/#empezá-una-sesión-nueva); las sesiones
-que ya tienen los dos agentes aparecen juntas.
+Menkar corre el comando propio de cada agente en una terminal (`claude` para Claude Code, `codex`
+para Codex, `cursor-agent` para Cursor, `opencode` para OpenCode), así que una sesión se comporta
+en Menkar como en cualquier terminal, con tu cuenta, tu configuración y tus herramientas. Elegí el
+agente cuando [empezás una sesión nueva](/menkar/es/start/first-sessions/#empezá-una-sesión-nueva);
+las sesiones que ya tiene cada agente aparecen juntas.
 
 ## Elegí un agente para cada sesión
 
-| En Menkar | Claude Code | Cursor |
-|---|---|---|
-| Correr, retomar y cerrar una sesión en una pestaña | Sí | Sí |
-| El estado de la sesión (:ui[state.working], :ui[state.blocked], :ui[state.idle]) y las notificaciones | Sí | Sí |
-| Anillo de contexto en cada sesión | Sí | No |
-| Tiempo, tokens y costo en :ui[header.usage] | Sí | Tiempo y tokens, con :ui[integrations.cursorHooks] activado |
-| [El modo de orquestación](/menkar/es/orchestration/) | Sí | Sí, como worker, ver [Usá Cursor en el modo de orquestación](#usá-cursor-en-el-modo-de-orquestación) |
-| [Control remoto](/menkar/es/sessions/remote-control/) | Sí | No |
-| Bifurcar una sesión | Sí | No |
-| [Continuar en un chat](/menkar/es/sessions/chat/) | Pide permiso antes de cada edición y comando | Solo lectura, o edita y corre comandos sin preguntar |
+| En Menkar | Claude Code | Codex | Cursor | OpenCode |
+|---|---|---|---|---|
+| Correr, retomar y cerrar una sesión en una pestaña | Sí | Sí | Sí | Sí |
+| El estado de la sesión (:ui[state.working], :ui[state.blocked], :ui[state.idle]) y las notificaciones | Sí | Sí | Sí | Sí |
+| Anillo de contexto en cada sesión | Sí | Sí | No | Sí, con un modelo del catálogo de OpenCode |
+| Tiempo, tokens y costo en :ui[header.usage] | Sí | Sí | Tiempo y tokens, con :ui[integrations.cursorHooks] activado | Sí |
+| [El modo de orquestación](/menkar/es/orchestration/) | Sí | Sí | Sí, como worker, ver [Usá Cursor en el modo de orquestación](#usá-cursor-en-el-modo-de-orquestación) | Sí |
+| [Control remoto](/menkar/es/sessions/remote-control/) | Sí | No | No | No |
+| Bifurcar una sesión | Sí | No | No | No |
+| [Continuar en un chat](/menkar/es/sessions/chat/) | Pide permiso antes de cada edición y comando | No | Solo lectura, o edita y corre comandos sin preguntar | No |
 
 ## Usá Cursor en el modo de orquestación
 

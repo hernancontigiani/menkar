@@ -15,9 +15,11 @@ Menkar corre el agente de código que ya usás; no trae uno. Instalá al menos u
 él, para que su comando esté en tu `PATH`:
 
 - Claude Code, el comando `claude`, 2.1.267 o posterior;
-- el agente de Cursor, el comando `cursor-agent`.
+- Codex, el comando `codex`;
+- el agente de Cursor, el comando `cursor-agent`;
+- OpenCode, el comando `opencode`.
 
-[Usá Claude Code o Cursor](/menkar/es/start/agents/) dice qué puede hacer cada uno en Menkar.
+[Usá Claude Code, Codex, Cursor u OpenCode](/menkar/es/start/agents/) dice qué puede hacer cada uno en Menkar.
 
 ## Instalá en Debian o Ubuntu
 

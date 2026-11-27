@@ -11,7 +11,7 @@ proyecto está vacío: llenalo con las sesiones que ya tienen tus agentes, o emp
 ## Agregá una sesión que ya tenés
 
 1. Hacé clic en :ui[sidebar.addSession] al pie de la barra lateral, o apretá `Ctrl+Shift+F`.
-2. En :ui[add.existing], buscá la sesión: cada sesión de Claude Code y de Cursor de esta
+2. En :ui[add.existing], buscá la sesión: cada sesión que tienen tus agentes en esta
    computadora aparece agrupada por carpeta. Escribí en el buscador para filtrar.
 3. Hacé clic en :ui[add.add]. Una sesión que tiene otro proyecto ofrece moverla desde ese proyecto:
    una sesión pertenece a un proyecto como máximo.

@@ -39,7 +39,8 @@ that session.
 
 ## Set when the context ring warns
 
-Each Claude Code session shows a ring with how full its context is: green, yellow from 60 %, red from 90 %.
+Each Claude Code, Codex and OpenCode session shows a ring with how full its context is: green,
+yellow from 60 %, red from 90 %.
 Change both thresholds under :ui[settings.section.context]. Hover a ring for the exact figure.
 
 ## Start without the last tabs

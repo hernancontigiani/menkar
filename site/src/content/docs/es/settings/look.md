@@ -40,7 +40,7 @@ ir a esa sesión.
 
 ## Definí cuándo avisa el anillo de contexto
 
-Cada sesión de Claude Code muestra un anillo con cuánto de su contexto está lleno: verde, amarillo
+Cada sesión de Claude Code, Codex y OpenCode muestra un anillo con cuánto de su contexto está lleno: verde, amarillo
 desde 60 %, rojo desde 90 %. Cambiá los dos umbrales en :ui[settings.section.context]. Pasá el
 puntero sobre un anillo para ver la cifra exacta.
 

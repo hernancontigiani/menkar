@@ -681,15 +681,15 @@ comment (Dependabot's `github-actions` updates keep them current).
 
 ### Block 6 — contributing, templates, README (at the first release)
 
-- [ ] `CONTRIBUTING.md`: fork, a branch from `main`, `npm ci`, `npm run ci` (and `npm run
+- [x] `CONTRIBUTING.md`: fork, a branch from `main`, `npm ci`, `npm run ci` (and `npm run
   ui-check` for anything seen), commits with `git commit -s` and what the sign-off certifies
   (the DCO 1.1 text, linked to developercertificate.org), a draft PR, "Ready for review" when it
   should be checked, English everywhere; no CLA.
-- [ ] `.github/CODEOWNERS`: `* @hernancontigiani`.
-- [ ] `.github/ISSUE_TEMPLATE/bug.yml` (version from About, distribution, steps, expected, seen,
+- [x] `.github/CODEOWNERS`: `* @hernancontigiani`.
+- [x] `.github/ISSUE_TEMPLATE/bug.yml` (version from About, distribution, steps, expected, seen,
   the log path `~/.cache/menkar/menkar.log`), `feature.yml`, `config.yml` (blank issues off);
   `.github/pull_request_template.md` (what and why, how it was checked, the sign-off reminder).
-- [ ] `README.md` "Install": from the repository (the commands from `docs/packaging.md`), the
+- [x] `README.md` "Install": from the repository (the commands from `docs/packaging.md`), the
   single file from `releases/latest` as fallback, the privacy line (§2.7), the Cloudsmith
   attribution; the site's link replaces the "small site" wording; building from source moves
   under "Development".
@@ -838,3 +838,25 @@ below.
   `source` sections.
 - **`actionlint` not run**: no binary on this machine, and the `rhysd/actionlint:1.7.12` image's
   `docker run` was refused by the session's permission classifier.
+
+### Block 6 — `menkar-t234` (task 234), 2026-11-27
+
+- **Written:** `CONTRIBUTING.md` (fork, branch, `npm ci`, `npm run ci` and `ui-check`, `git commit
+  -s` with the DCO 1.1 text, draft PR, Ready for review, English; no CLA); `.github/CODEOWNERS`;
+  `.github/ISSUE_TEMPLATE/bug.yml`, `feature.yml`, `config.yml` (blank issues off);
+  `.github/pull_request_template.md`.
+- **`README.md`:** "Install" now gives the repository's commands, copied byte for byte from
+  `docs/packaging.md` (checked by a script comparing the two code blocks), the fingerprint line,
+  the single file from `releases/latest` as fallback, the privacy line and the Cloudsmith
+  attribution; the site's link replaces the "not published until the first release" wording;
+  building the `.deb` from source moved under "Development" with the release checklist's line.
+- **Not foreseen, from the launch prompt:** the four agents of plan 39 (Claude Code, Codex,
+  Cursor, OpenCode) are on `main`, and the README and the site still described two. The README
+  gained "The agents" (a table from the descriptors' caps, Cursor as a worker only per 1.216,
+  pointing to the site's agents page), and its lines naming only `claude`/`cursor-agent` or
+  "Claude" in usage were generalised. The site: the roadmap's "Use Codex and OpenCode sessions"
+  removed (en, es); `start/agents.md` has Codex and OpenCode columns and a four-agent title; the
+  install, first-sessions, home, privacy, look, remote-control and usage-window pages no longer
+  say Menkar runs only Claude Code and Cursor (each in both languages).
+- **Not foreseen:** CONTRIBUTING says the checks run on a ready PR, not a draft: true once block 7
+  turns the `pull_request` trigger on, which ships in the same release.

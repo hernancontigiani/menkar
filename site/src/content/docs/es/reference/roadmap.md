@@ -7,12 +7,6 @@ sidebar:
 
 Nada de esto está todavía en la versión actual.
 
-## Usar sesiones de Codex y OpenCode
-
-Codex y OpenCode se suman a Claude Code y Cursor, también en el modo de orquestación: el
-orquestador podrá iniciarlas como workers, y le reportarán como lo hacen las sesiones de Claude
-Code.
-
 ## Usar Menkar en macOS
 
 Después de la 1.0, Menkar llega a macOS como una versión experimental: probada automáticamente en
