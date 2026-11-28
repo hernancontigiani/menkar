@@ -843,13 +843,17 @@ test('a title of three lines or more is clamped to two on the Board, whole in it
       expect(lines?.whole).toBeGreaterThanOrEqual(3)
       expect(lines?.shown).toBeLessThanOrEqual(2.05)
     }).toPass()
-    const visible = await columnOf(page, 'in-progress')
-      .locator('.board-cards')
-      .evaluate((n) => n.getBoundingClientRect().bottom)
-    for (const part of ['.step-segments', '.card-note']) {
-      const bottom = await long.locator(part).evaluate((n) => n.getBoundingClientRect().bottom)
-      expect(bottom).toBeLessThanOrEqual(visible + 0.5)
-    }
+    // Measured again until one Board holds: a redraw in between leaves a detached node at 0.
+    await expect(async () => {
+      const visible = await columnOf(page, 'in-progress')
+        .locator('.board-cards')
+        .evaluate((n) => n.getBoundingClientRect().bottom)
+      expect(visible).toBeGreaterThan(0)
+      for (const part of ['.step-segments', '.card-note']) {
+        const bottom = await long.locator(part).evaluate((n) => n.getBoundingClientRect().bottom)
+        expect(bottom).toBeLessThanOrEqual(visible + 0.5)
+      }
+    }).toPass()
     await shot(page, 'board-long-title.png')
   } finally {
     await launched.close()

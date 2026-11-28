@@ -340,6 +340,12 @@ async function typeIn(page: Page, text: string) {
   await page.keyboard.press('Enter')
 }
 
+// Cursor's hooks file, empty until the app writes it: a poll whose read throws is not retried.
+const hooksFile = (home: string) => {
+  const file = join(home, '.cursor', 'hooks.json')
+  return existsSync(file) ? readFileSync(file, 'utf8') : ''
+}
+
 const shot = async (page: Page, name: string) => {
   const files = process.env.MENKAR_FILES
   if (files) await page.screenshot({ path: join(files, `menkar-t223-${name}.png`) })
@@ -362,9 +368,7 @@ test('a Cursor worker of a Claude orchestrator with both Cursor items on: its tu
     await prefs.locator('[data-key="agent-item-cursor-hooks"]').check()
     await prefs.locator('[data-key="agent-item-cursor-allow"]').check()
     await expect(prefs.locator('[data-key="agent-item-cursor-allow"]')).toBeChecked()
-    await expect
-      .poll(() => readFileSync(join(team.home, '.cursor', 'hooks.json'), 'utf8'))
-      .toContain('cursor-hook.js')
+    await expect.poll(() => hooksFile(team.home)).toContain('cursor-hook.js')
     await prefs.close()
 
     const id = await startWorker(team)
@@ -516,9 +520,7 @@ test('a Cursor worker’s /new is followed by its tab: the new chat takes the wo
     })()
     await prefs.locator('.section-item[data-section="agents"]').click()
     await prefs.locator('[data-key="agent-item-cursor-hooks"]').check()
-    await expect
-      .poll(() => readFileSync(join(team.home, '.cursor', 'hooks.json'), 'utf8'))
-      .toContain('cursor-hook.js')
+    await expect.poll(() => hooksFile(team.home)).toContain('cursor-hook.js')
     await prefs.close()
 
     const id = await startWorker(team)
